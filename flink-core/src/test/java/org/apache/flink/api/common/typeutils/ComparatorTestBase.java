@@ -34,7 +34,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.fail;
 
 /**
@@ -121,7 +121,7 @@ public abstract class ComparatorTestBase<T> {
                 writeSortedData(d, out1);
                 in1 = out1.getInputView();
 
-                assertThat(comparator.compareSerialized(in1, in2)).isEqualTo(0);
+                assertThat(comparator.compareSerialized(in1, in2)).isZero();
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());
@@ -146,7 +146,7 @@ public abstract class ComparatorTestBase<T> {
                 // And then test equalTo and compareToReference method of comparator
                 assertThat(comparator.equalToReference(d)).isTrue();
                 comparator2.setReference(copy);
-                assertThat(comparator.compareToReference(comparator2)).isEqualTo(0);
+                assertThat(comparator.compareToReference(comparator2)).isZero();
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());
@@ -318,7 +318,7 @@ public abstract class ComparatorTestBase<T> {
 
             for (int i = 0; i < data.length; i++) {
                 assertThat(memSeg1.compare(memSeg2, i * normKeyLen, i * normKeyLen, normKeyLen))
-                        .isEqualTo(0);
+                        .isZero();
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());
@@ -419,7 +419,7 @@ public abstract class ComparatorTestBase<T> {
                 in = out.getInputView();
                 comp1.readWithKeyDenormalization(reuse, in);
 
-                assertThat(comp1.compareToReference(comp2)).isEqualTo(0);
+                assertThat(comp1.compareToReference(comp2)).isZero();
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());
@@ -450,7 +450,7 @@ public abstract class ComparatorTestBase<T> {
                 }
                 // compare the extracted key with itself as a basic check
                 // if the extracted key corresponds to the comparator
-                assertThat(comparators[i].compare(extractedKeys[i], extractedKeys[i])).isEqualTo(0);
+                assertThat(comparators[i].compare(extractedKeys[i], extractedKeys[i])).isZero();
             }
         }
     }

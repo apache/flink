@@ -37,7 +37,7 @@ import java.util.List;
 import java.util.concurrent.Future;
 
 import static java.util.Arrays.asList;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.fail;
 
 /** Checks the GenericDataSourceBase operator for both Rich and non-Rich input formats. */

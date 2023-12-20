@@ -40,7 +40,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.fail;
 
 /** The test for flat map operator. */
@@ -94,7 +94,7 @@ public class FlatMapOperatorCollectionTest implements Serializable {
                                         UnregisteredMetricsGroup.createOperatorMetricGroup()),
                                 executionConfig);
 
-        assertThat(result.size()).isEqualTo(input.size());
+        assertThat(result).hasSize(input.size());
         assertThat(result).isEqualTo(input);
     }
 
@@ -111,7 +111,7 @@ public class FlatMapOperatorCollectionTest implements Serializable {
             RuntimeContext ctx = getRuntimeContext();
             assertThat(ctx.getTaskInfo().getTaskName()).isEqualTo("Test UDF");
             assertThat(ctx.getTaskInfo().getNumberOfParallelSubtasks()).isEqualTo(4);
-            assertThat(ctx.getTaskInfo().getIndexOfThisSubtask()).isEqualTo(0);
+            assertThat(ctx.getTaskInfo().getIndexOfThisSubtask()).isZero();
         }
 
         @Override

@@ -31,8 +31,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class SelectorFunctionKeysTest {
 
@@ -118,9 +117,7 @@ class SelectorFunctionKeysTest {
                 new Keys.SelectorFunctionKeys<>(
                         new KeySelector2(), t2, BasicTypeInfo.STRING_TYPE_INFO);
 
-        assertArrayEquals(
-                new TypeInformation<?>[] {BasicTypeInfo.STRING_TYPE_INFO},
-                k.getOriginalKeyFieldTypes());
+        assertThat(k.getOriginalKeyFieldTypes()).containsExactly(BasicTypeInfo.STRING_TYPE_INFO);
     }
 
     @Test

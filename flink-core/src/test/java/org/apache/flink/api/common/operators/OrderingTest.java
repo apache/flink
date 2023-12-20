@@ -18,10 +18,9 @@
 
 package org.apache.flink.api.common.operators;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class OrderingTest {
 
@@ -42,9 +41,8 @@ public class OrderingTest {
         assertThat(ordering.getNumberOfFields()).isEqualTo(2);
 
         // verify field positions, types, and orderings
-        Assertions.assertArrayEquals(new int[] {3, 1}, ordering.getFieldPositions());
-        Assertions.assertArrayEquals(new Class[] {Integer.class, Long.class}, ordering.getTypes());
-        Assertions.assertArrayEquals(
-                new boolean[] {true, false}, ordering.getFieldSortDirections());
+        assertThat(ordering.getFieldPositions()).containsExactly(3, 1);
+        assertThat(ordering.getTypes()).containsExactly(Integer.class, Long.class);
+        assertThat(ordering.getFieldSortDirections()).containsExactly(true, false);
     }
 }

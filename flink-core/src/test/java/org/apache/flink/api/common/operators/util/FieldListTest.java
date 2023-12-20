@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Iterator;
 
-import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class FieldListTest {
 

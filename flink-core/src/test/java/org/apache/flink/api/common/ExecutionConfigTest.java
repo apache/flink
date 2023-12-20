@@ -43,10 +43,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Random;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
-class ExecutionConfigTest {
+public class ExecutionConfigTest {
 
     @Test
     void testDoubleTypeRegistration() {
@@ -263,7 +263,7 @@ class ExecutionConfigTest {
         configFromConfiguration.configure(
                 configuration, Thread.currentThread().getContextClassLoader());
 
-        assertThat(configFromConfiguration.getSchedulerType().get()).isEqualTo(schedulerType);
+        assertThat(configFromConfiguration.getSchedulerType()).contains(schedulerType);
     }
 
     @Test

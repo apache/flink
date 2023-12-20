@@ -20,10 +20,9 @@ package org.apache.flink.api.common.accumulators;
 
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.within;
-import static org.assertj.core.api.Fail.fail;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AverageAccumulatorTest {
 
@@ -102,18 +101,9 @@ class AverageAccumulatorTest {
         AverageAccumulator average = new AverageAccumulator();
         Accumulator<Double, Double> averageNew = null;
         average.add(1);
-        try {
-            average.merge(averageNew);
-            fail("should fail with an exception");
-        } catch (IllegalArgumentException e) {
-            assertThat(e.getMessage()).isNotNull();
-            assertTrue(
-                    e.getMessage().contains("The merged accumulator must be AverageAccumulator."));
-        } catch (Throwable t) {
-            fail(
-                    "wrong exception; expected IllegalArgumentException but found "
-                            + t.getClass().getName());
-        }
+        assertThatThrownBy(() -> average.merge(averageNew))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("The merged accumulator must be AverageAccumulator.");
     }
 
     @Test

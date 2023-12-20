@@ -20,16 +20,12 @@ package org.apache.flink.api.common.resources;
 
 import org.apache.flink.util.TestLogger;
 
-import org.hamcrest.MatcherAssert;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.lessThan;
 
 /** Tests for {@link Resource}. */
 @SuppressWarnings("rawtypes")
@@ -182,10 +178,10 @@ class ResourceTest extends TestLogger {
         final Resource resource2 = new TestResource(0.0);
         final Resource resource3 = new TestResource(1.0);
 
-        MatcherAssert.assertThat(resource1.compareTo(resource1), is(0));
-        MatcherAssert.assertThat(resource1.compareTo(resource2), is(0));
-        MatcherAssert.assertThat(resource1.compareTo(resource3), lessThan(0));
-        MatcherAssert.assertThat(resource3.compareTo(resource1), greaterThan(0));
+        assertThat(resource1.compareTo(resource1)).isZero();
+        assertThat(resource1.compareTo(resource2)).isZero();
+        assertThat(resource1.compareTo(resource3)).isLessThan(0);
+        assertThat(resource3.compareTo(resource1)).isGreaterThan(0);
     }
 
     @Test
@@ -226,7 +222,7 @@ class ResourceTest extends TestLogger {
     @Test
     void testStripTrailingZeros() {
         final Resource v = new TestResource(0.25).multiply(2);
-        MatcherAssert.assertThat(v.getValue().toString(), is("0.5"));
+        assertThat(v.getValue().toString()).isEqualTo("0.5");
     }
 
     private static void assertTestResourceValueEquals(final double value, final Resource resource) {

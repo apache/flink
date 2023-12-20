@@ -31,7 +31,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.Fail.fail;
 
 /** Test for the {@link RuntimeUDFContext}. */
@@ -53,20 +54,16 @@ class RuntimeUDFContextTest {
 
             assertThat(ctx.hasBroadcastVariable("some name")).isFalse();
 
-            try {
-                ctx.getBroadcastVariable("some name");
-                fail("should throw an exception");
-            } catch (IllegalArgumentException e) {
-                // expected
-            }
+            assertThatThrownBy(() -> ctx.getBroadcastVariable("some name"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("some name");
 
-            try {
-                ctx.getBroadcastVariableWithInitializer("some name", data -> null);
-
-                fail("should throw an exception");
-            } catch (IllegalArgumentException e) {
-                // expected
-            }
+            assertThatThrownBy(
+                            () ->
+                                    ctx.getBroadcastVariableWithInitializer(
+                                            "some name", data -> null))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("some name");
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

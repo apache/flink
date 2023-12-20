@@ -27,9 +27,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.fail;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for the {@link TypeInformation} class. */
 class TypeInformationTest {
@@ -58,7 +57,8 @@ class TypeInformationTest {
     @Test
     void testOfTypeHint() {
         assertThat(TypeInformation.of(String.class)).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
-        assertEquals(BasicTypeInfo.STRING_TYPE_INFO, TypeInformation.of(new TypeHint<String>() {}));
+        assertThat(TypeInformation.of(new TypeHint<String>() {}))
+                .isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
 
         TypeInformation<Tuple3<String, Double, Boolean>> tupleInfo =
                 new TupleTypeInfo<>(
@@ -66,7 +66,7 @@ class TypeInformationTest {
                         BasicTypeInfo.DOUBLE_TYPE_INFO,
                         BasicTypeInfo.BOOLEAN_TYPE_INFO);
 
-        assertEquals(
-                tupleInfo, TypeInformation.of(new TypeHint<Tuple3<String, Double, Boolean>>() {}));
+        assertThat(TypeInformation.of(new TypeHint<Tuple3<String, Double, Boolean>>() {}))
+                .isEqualTo(tupleInfo);
     }
 }

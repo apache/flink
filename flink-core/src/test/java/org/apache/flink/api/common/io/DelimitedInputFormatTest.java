@@ -44,8 +44,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class DelimitedInputFormatTest {
 
@@ -74,11 +73,11 @@ class DelimitedInputFormatTest {
         cfg.setString("delimited-format.delimiter", "\n");
 
         format.configure(cfg);
-        assertEquals("\n", new String(format.getDelimiter(), format.getCharset()));
+        assertThat(new String(format.getDelimiter(), format.getCharset())).isEqualTo("\n");
 
         cfg.setString("delimited-format.delimiter", "&-&");
         format.configure(cfg);
-        assertEquals("&-&", new String(format.getDelimiter(), format.getCharset()));
+        assertThat(new String(format.getDelimiter(), format.getCharset())).isEqualTo("&-&");
     }
 
     @Test
@@ -118,7 +117,7 @@ class DelimitedInputFormatTest {
         int bufferSize = 5;
         format.setBufferSize(bufferSize);
         format.open(split);
-        assertThat(format.splitStart).isEqualTo(0);
+        assertThat(format.splitStart).isZero();
         assertThat(format.splitLength).isEqualTo(myString.length() - bufferSize);
         assertThat(format.getBufferSize()).isEqualTo(bufferSize);
     }
@@ -339,7 +338,7 @@ class DelimitedInputFormatTest {
         // read split 1
         format.open(split1);
         while ((next = format.nextRecord(null)) != null) {
-            assertThat(next.length()).isEqualTo(7);
+            assertThat(next).hasSize(7);
             count++;
         }
         assertThat(format.nextRecord(null)).isNull();
@@ -354,7 +353,7 @@ class DelimitedInputFormatTest {
         // read split 2
         format.open(split2);
         while ((next = format.nextRecord(null)) != null) {
-            assertThat(next.length()).isEqualTo(7);
+            assertThat(next).hasSize(7);
             count++;
         }
         format.close();
@@ -376,7 +375,7 @@ class DelimitedInputFormatTest {
         String next;
         int count = 0;
         while ((next = format.nextRecord(null)) != null) {
-            assertThat(next.length()).isEqualTo(7);
+            assertThat(next).hasSize(7);
             count++;
         }
         assertThat(format.nextRecord(null)).isNull();
@@ -431,7 +430,7 @@ class DelimitedInputFormatTest {
         assertThat(format.reachedEnd()).isTrue();
         format.close();
 
-        assertEquals(4, result.size());
+        assertThat(result).hasSize(4);
         assertThat(result).isEqualTo(Arrays.asList(myString.split("\n")));
     }
 
@@ -499,10 +498,9 @@ class DelimitedInputFormatTest {
 
         FileInputFormat.FileBaseStatistics stats = format.getStatistics(null);
         assertThat(stats).isNotNull();
-        assertEquals(
-                totalSize,
-                stats.getTotalInputSize(),
-                "The file size from the statistics is wrong.");
+        assertThat(stats.getTotalInputSize())
+                .as("The file size from the statistics is wrong.")
+                .isEqualTo(totalSize);
     }
 
     @Test
@@ -528,8 +526,9 @@ class DelimitedInputFormatTest {
 
         FileBaseStatistics stats = format.getStatistics(null);
         assertThat(stats).isNotNull();
-        assertEquals(
-                size, stats.getTotalInputSize(), "The file size from the statistics is wrong.");
+        assertThat(stats.getTotalInputSize())
+                .as("The file size from the statistics is wrong.")
+                .isEqualTo(size);
 
         format = new MyTextInputFormat();
         format.setFilePath(tempFile);
@@ -550,10 +549,9 @@ class DelimitedInputFormatTest {
                         fakeSize,
                         BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
         BaseStatistics latest = format.getStatistics(fakeStats);
-        assertEquals(
-                fakeSize,
-                latest.getTotalInputSize(),
-                "The file size from the statistics is wrong.");
+        assertThat(latest.getTotalInputSize())
+                .as("The file size from the statistics is wrong.")
+                .isEqualTo(fakeSize);
 
         // insert fake stats with the expired modification time. the call should return new accurate
         // stats
@@ -567,10 +565,9 @@ class DelimitedInputFormatTest {
                         fakeSize,
                         BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
         BaseStatistics reGathered = format.getStatistics(outDatedFakeStats);
-        assertEquals(
-                size,
-                reGathered.getTotalInputSize(),
-                "The file size from the statistics is wrong.");
+        assertThat(reGathered.getTotalInputSize())
+                .as("The file size from the statistics is wrong.")
+                .isEqualTo(size);
     }
 
     static FileInputSplit createTempFile(String contents) throws IOException {

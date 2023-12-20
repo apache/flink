@@ -43,9 +43,8 @@ import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPOutputStream;
 
 import static org.apache.flink.api.common.io.DelimitedInputFormatTest.createTempFile;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.fail;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class GenericCsvInputFormatTest {
 
@@ -681,14 +680,14 @@ class GenericCsvInputFormatTest {
             values = format.nextRecord(values);
             assertThat(values).isNotNull();
             assertThat(((StringValue) values[0]).getValue()).isEqualTo("abc");
-            assertEquals("", ((StringValue) values[1]).getValue());
+            assertThat(((StringValue) values[1]).getValue()).isEqualTo("");
             assertThat(((StringValue) values[2]).getValue()).isEqualTo("hhg");
 
             values = format.nextRecord(values);
             assertThat(values).isNotNull();
-            assertEquals("", ((StringValue) values[0]).getValue());
-            assertEquals("", ((StringValue) values[1]).getValue());
-            assertEquals("", ((StringValue) values[2]).getValue());
+            assertThat(((StringValue) values[0]).getValue()).isEqualTo("");
+            assertThat(((StringValue) values[1]).getValue()).isEqualTo("");
+            assertThat(((StringValue) values[2]).getValue()).isEqualTo("");
 
         } catch (Exception ex) {
             fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());

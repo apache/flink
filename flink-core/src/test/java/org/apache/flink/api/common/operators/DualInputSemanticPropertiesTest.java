@@ -22,10 +22,8 @@ import org.apache.flink.api.common.operators.util.FieldSet;
 
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
-import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DualInputSemanticPropertiesTest {
 
@@ -152,12 +150,12 @@ class DualInputSemanticPropertiesTest {
         sp.addForwardedField(0, 2, 3);
         sp.addForwardedField(0, 3, 2);
 
-        assertEquals(0, sp.getForwardingSourceField(0, 1));
-        assertEquals(1, sp.getForwardingSourceField(0, 4));
-        assertEquals(2, sp.getForwardingSourceField(0, 3));
-        assertEquals(3, sp.getForwardingSourceField(0, 2));
-        assertTrue(sp.getForwardingSourceField(0, 0) < 0);
-        assertTrue(sp.getForwardingSourceField(0, 5) < 0);
+        assertThat(sp.getForwardingSourceField(0, 1)).isZero();
+        assertThat(sp.getForwardingSourceField(0, 4)).isEqualTo(1);
+        assertThat(sp.getForwardingSourceField(0, 3)).isEqualTo(2);
+        assertThat(sp.getForwardingSourceField(0, 2)).isEqualTo(3);
+        assertThat(sp.getForwardingSourceField(0, 0) < 0).isTrue();
+        assertThat(sp.getForwardingSourceField(0, 5) < 0).isTrue();
 
         sp = new DualInputSemanticProperties();
         sp.addForwardedField(0, 0, 0);
@@ -166,12 +164,12 @@ class DualInputSemanticPropertiesTest {
         sp.addForwardedField(0, 1, 2);
         sp.addForwardedField(0, 1, 3);
 
-        assertEquals(0, sp.getForwardingSourceField(0, 0));
-        assertEquals(0, sp.getForwardingSourceField(0, 4));
-        assertEquals(1, sp.getForwardingSourceField(0, 1));
-        assertEquals(1, sp.getForwardingSourceField(0, 2));
-        assertEquals(1, sp.getForwardingSourceField(0, 3));
-        assertTrue(sp.getForwardingSourceField(0, 5) < 0);
+        assertThat(sp.getForwardingSourceField(0, 0)).isZero();
+        assertThat(sp.getForwardingSourceField(0, 4)).isZero();
+        assertThat(sp.getForwardingSourceField(0, 1)).isEqualTo(1);
+        assertThat(sp.getForwardingSourceField(0, 2)).isEqualTo(1);
+        assertThat(sp.getForwardingSourceField(0, 3)).isEqualTo(1);
+        assertThat(sp.getForwardingSourceField(0, 5) < 0).isTrue();
 
         // second input
         sp = new DualInputSemanticProperties();
@@ -180,12 +178,12 @@ class DualInputSemanticPropertiesTest {
         sp.addForwardedField(1, 2, 3);
         sp.addForwardedField(1, 3, 2);
 
-        assertEquals(0, sp.getForwardingSourceField(1, 1));
-        assertEquals(1, sp.getForwardingSourceField(1, 4));
-        assertEquals(2, sp.getForwardingSourceField(1, 3));
-        assertEquals(3, sp.getForwardingSourceField(1, 2));
-        assertTrue(sp.getForwardingSourceField(1, 0) < 0);
-        assertTrue(sp.getForwardingSourceField(1, 5) < 0);
+        assertThat(sp.getForwardingSourceField(1, 1)).isZero();
+        assertThat(sp.getForwardingSourceField(1, 4)).isEqualTo(1);
+        assertThat(sp.getForwardingSourceField(1, 3)).isEqualTo(2);
+        assertThat(sp.getForwardingSourceField(1, 2)).isEqualTo(3);
+        assertThat(sp.getForwardingSourceField(1, 0) < 0).isTrue();
+        assertThat(sp.getForwardingSourceField(1, 5) < 0).isTrue();
 
         sp = new DualInputSemanticProperties();
         sp.addForwardedField(1, 0, 0);
@@ -194,12 +192,12 @@ class DualInputSemanticPropertiesTest {
         sp.addForwardedField(1, 1, 2);
         sp.addForwardedField(1, 1, 3);
 
-        assertEquals(0, sp.getForwardingSourceField(1, 0));
-        assertEquals(0, sp.getForwardingSourceField(1, 4));
-        assertEquals(1, sp.getForwardingSourceField(1, 1));
-        assertEquals(1, sp.getForwardingSourceField(1, 2));
-        assertEquals(1, sp.getForwardingSourceField(1, 3));
-        assertTrue(sp.getForwardingSourceField(1, 5) < 0);
+        assertThat(sp.getForwardingSourceField(1, 0)).isZero();
+        assertThat(sp.getForwardingSourceField(1, 4)).isZero();
+        assertThat(sp.getForwardingSourceField(1, 1)).isEqualTo(1);
+        assertThat(sp.getForwardingSourceField(1, 2)).isEqualTo(1);
+        assertThat(sp.getForwardingSourceField(1, 3)).isEqualTo(1);
+        assertThat(sp.getForwardingSourceField(1, 5) < 0).isTrue();
     }
 
     @Test

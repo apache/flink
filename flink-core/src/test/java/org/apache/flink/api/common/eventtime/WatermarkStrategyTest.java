@@ -27,19 +27,16 @@ import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MetricGroup;
 
-import org.hamcrest.MatcherAssert;
 import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.Map;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for the {@link WatermarkStrategy} class. */
-class WatermarkStrategyTest {
+public class WatermarkStrategyTest {
 
     @Test
     void testDefaultTimeStampAssigner() {
@@ -48,9 +45,8 @@ class WatermarkStrategyTest {
         // ensure that the closure can be cleaned through the Watermark Strategies
         ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
-        MatcherAssert.assertThat(
-                wmStrategy.createTimestampAssigner(assignerContext()),
-                instanceOf(RecordTimestampAssigner.class));
+        assertThat(wmStrategy.createTimestampAssigner(assignerContext()))
+                .isInstanceOf(RecordTimestampAssigner.class);
     }
 
     @Test
@@ -65,7 +61,7 @@ class WatermarkStrategyTest {
         TimestampAssigner<Object> timestampAssigner =
                 wmStrategy.createTimestampAssigner(assignerContext());
 
-        MatcherAssert.assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
+        assertThat(timestampAssigner.extractTimestamp(null, 13L)).isEqualTo(42L);
     }
 
     @Test
@@ -80,7 +76,7 @@ class WatermarkStrategyTest {
         TimestampAssigner<Object> timestampAssigner =
                 wmStrategy.createTimestampAssigner(assignerContext());
 
-        MatcherAssert.assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
+        assertThat(timestampAssigner.extractTimestamp(null, 13L)).isEqualTo(42L);
     }
 
     @Test
@@ -96,7 +92,7 @@ class WatermarkStrategyTest {
         TimestampAssigner<Object> timestampAssigner =
                 wmStrategy.createTimestampAssigner(assignerContext());
 
-        MatcherAssert.assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
+        assertThat(timestampAssigner.extractTimestamp(null, 13L)).isEqualTo(42L);
     }
 
     @Test
@@ -110,7 +106,7 @@ class WatermarkStrategyTest {
         TimestampAssigner<Object> timestampAssigner =
                 wmStrategy.createTimestampAssigner(assignerContext());
 
-        MatcherAssert.assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
+        assertThat(timestampAssigner.extractTimestamp(null, 13L)).isEqualTo(42L);
     }
 
     @Test
@@ -124,7 +120,7 @@ class WatermarkStrategyTest {
         TimestampAssigner<Object> timestampAssigner =
                 wmStrategy.createTimestampAssigner(assignerContext());
 
-        MatcherAssert.assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
+        assertThat(timestampAssigner.extractTimestamp(null, 13L)).isEqualTo(42L);
     }
 
     @Test
@@ -136,12 +132,10 @@ class WatermarkStrategyTest {
         // ensure that the closure can be cleaned
         ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
-        MatcherAssert.assertThat(
-                wmStrategy.createTimestampAssigner(assignerContext()),
-                instanceOf(RecordTimestampAssigner.class));
-        MatcherAssert.assertThat(
-                wmStrategy.createWatermarkGenerator(generatorContext()),
-                instanceOf(WatermarksWithIdleness.class));
+        assertThat(wmStrategy.createTimestampAssigner(assignerContext()))
+                .isInstanceOf(RecordTimestampAssigner.class);
+        assertThat(wmStrategy.createWatermarkGenerator(generatorContext()))
+                .isInstanceOf(WatermarksWithIdleness.class);
     }
 
     @Test
@@ -159,19 +153,15 @@ class WatermarkStrategyTest {
         ClosureCleaner.clean(strategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
         final WatermarkAlignmentParams alignmentParameters = strategy.getAlignmentParameters();
-        MatcherAssert.assertThat(alignmentParameters.getWatermarkGroup(), equalTo(watermarkGroup));
-        MatcherAssert.assertThat(
-                alignmentParameters.getMaxAllowedWatermarkDrift(),
-                equalTo(maxAllowedWatermarkDrift.toMillis()));
-        MatcherAssert.assertThat(
-                alignmentParameters.getUpdateInterval(),
-                equalTo(WatermarksWithWatermarkAlignment.DEFAULT_UPDATE_INTERVAL.toMillis()));
-        MatcherAssert.assertThat(
-                strategy.createTimestampAssigner(assignerContext()),
-                instanceOf(RecordTimestampAssigner.class));
-        MatcherAssert.assertThat(
-                strategy.createWatermarkGenerator(generatorContext()),
-                instanceOf(WatermarksWithIdleness.class));
+        assertThat(alignmentParameters.getWatermarkGroup()).isEqualTo(watermarkGroup);
+        assertThat(alignmentParameters.getMaxAllowedWatermarkDrift())
+                .isEqualTo(maxAllowedWatermarkDrift.toMillis());
+        assertThat(alignmentParameters.getUpdateInterval())
+                .isEqualTo(WatermarksWithWatermarkAlignment.DEFAULT_UPDATE_INTERVAL.toMillis());
+        assertThat(strategy.createTimestampAssigner(assignerContext()))
+                .isInstanceOf(RecordTimestampAssigner.class);
+        assertThat(strategy.createWatermarkGenerator(generatorContext()))
+                .isInstanceOf(WatermarksWithIdleness.class);
     }
 
     static class TestTimestampAssigner implements TimestampAssigner<Object>, Serializable {

@@ -42,9 +42,8 @@ import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.fail;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** The test for inner join operator. */
 public class InnerJoinOperatorBaseTest implements Serializable {
@@ -103,8 +102,7 @@ public class InnerJoinOperatorBaseTest implements Serializable {
                     public void open(OpenContext openContext) {
                         opened.compareAndSet(false, true);
                         assertThat(getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()).isZero();
-                        assertEquals(
-                                1, getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
+                        assertThat(getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks()).isEqualTo(1);
                     }
 
                     @Override

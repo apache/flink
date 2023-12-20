@@ -46,11 +46,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CyclicBarrier;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.fail;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Abstract test base for serializers.
@@ -106,10 +103,10 @@ public abstract class SerializerTestBase<T> {
             if (instance == null && allowNullInstances(serializer)) {
                 return;
             }
-            assertNotNull(instance, "The created instance must not be null.");
+            assertThat(instance).as("The created instance must not be null.").isNotNull();
 
             Class<T> type = getTypeClass();
-            assertNotNull(type, "The test is corrupt: type class is null.");
+            assertThat(type).as("The test is corrupt: type class is null.").isNotNull();
 
             if (!type.isAssignableFrom(instance.getClass())) {
                 fail(
@@ -163,7 +160,7 @@ public abstract class SerializerTestBase<T> {
         } else {
             throw new AssertionError("Unable to restore serializer with " + strategy);
         }
-        assertSame(serializer.getClass(), restoreSerializer.getClass());
+        assertThat(restoreSerializer.getClass()).isSameAs(serializer.getClass());
     }
 
     @Test
@@ -176,7 +173,7 @@ public abstract class SerializerTestBase<T> {
 
         try {
             TypeSerializer<T> serializer = getSerializer();
-            assertEquals(len, serializer.getLength());
+            assertThat(serializer.getLength()).isEqualTo(len);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -255,14 +252,18 @@ public abstract class SerializerTestBase<T> {
                 serializer.serialize(value, out);
                 TestInputView in = out.getInputView();
 
-                assertTrue(in.available() > 0, "No data available during deserialization.");
+                assertThat(in.available() > 0)
+                        .as("No data available during deserialization.")
+                        .isTrue();
 
                 T deserialized = serializer.deserialize(serializer.createInstance(), in);
                 checkToString(deserialized);
 
                 deepEquals("Deserialized value if wrong.", value, deserialized);
 
-                assertEquals(0, in.available(), "Trailing data available after deserialization.");
+                assertThat(in.available())
+                        .as("Trailing data available after deserialization.")
+                        .isZero();
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());
@@ -284,14 +285,18 @@ public abstract class SerializerTestBase<T> {
                 serializer.serialize(value, out);
                 TestInputView in = out.getInputView();
 
-                assertTrue(in.available() > 0, "No data available during deserialization.");
+                assertThat(in.available() > 0)
+                        .as("No data available during deserialization.")
+                        .isTrue();
 
                 T deserialized = serializer.deserialize(reuseValue, in);
                 checkToString(deserialized);
 
                 deepEquals("Deserialized value if wrong.", value, deserialized);
 
-                assertEquals(0, in.available(), "Trailing data available after deserialization.");
+                assertThat(in.available())
+                        .as("Trailing data available after deserialization.")
+                        .isZero();
 
                 reuseValue = deserialized;
             }
@@ -324,7 +329,7 @@ public abstract class SerializerTestBase<T> {
                 num++;
             }
 
-            assertEquals(testData.length, num, "Wrong number of elements deserialized.");
+            assertThat(num).as("Wrong number of elements deserialized.").isEqualTo(testData.length);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -356,7 +361,7 @@ public abstract class SerializerTestBase<T> {
                 num++;
             }
 
-            assertEquals(testData.length, num, "Wrong number of elements deserialized.");
+            assertThat(num).as("Wrong number of elements deserialized.").isEqualTo(testData.length);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -380,15 +385,16 @@ public abstract class SerializerTestBase<T> {
 
                 TestInputView toVerify = target.getInputView();
 
-                assertTrue(toVerify.available() > 0, "No data available copying.");
+                assertThat(toVerify.available() > 0).as("No data available copying.").isTrue();
 
                 T deserialized = serializer.deserialize(serializer.createInstance(), toVerify);
                 checkToString(deserialized);
 
                 deepEquals("Deserialized value if wrong.", value, deserialized);
 
-                assertEquals(
-                        0, toVerify.available(), "Trailing data available after deserialization.");
+                assertThat(toVerify.available())
+                        .as("Trailing data available after deserialization.")
+                        .isZero();
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());
@@ -425,7 +431,7 @@ public abstract class SerializerTestBase<T> {
                 num++;
             }
 
-            assertEquals(testData.length, num, "Wrong number of elements copied.");
+            assertThat(num).as("Wrong number of elements copied.").isEqualTo(testData.length);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -445,8 +451,9 @@ public abstract class SerializerTestBase<T> {
                 return;
             }
 
-            assertEquals(
-                    ser1, ser2, "The copy of the serializer is not equal to the original one.");
+            assertThat(ser2)
+                    .as("The copy of the serializer is not equal to the original one.")
+                    .isEqualTo(ser1);
 
             // Make sure the serializer can be used after cloning
             testCopy(ser2);
@@ -475,7 +482,7 @@ public abstract class SerializerTestBase<T> {
         final TypeSerializer<T> serializer = getSerializer();
         final CyclicBarrier startLatch = new CyclicBarrier(numThreads);
         final List<SerializerRunner<T>> concurrentRunners = new ArrayList<>(numThreads);
-        assertEquals(serializer, serializer.duplicate());
+        assertThat(serializer.duplicate()).isEqualTo(serializer);
 
         T[] testData = getData();
 

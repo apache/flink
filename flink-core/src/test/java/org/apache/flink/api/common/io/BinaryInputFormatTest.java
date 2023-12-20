@@ -22,22 +22,23 @@ import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.types.Record;
 
-import org.junit.Rule;
 import org.junit.jupiter.api.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Path;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.fail;
 
 class BinaryInputFormatTest {
 
-    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+    @TempDir private static Path tempDir;
 
     private static final class MyBinaryInputFormat extends BinaryInputFormat<Record> {
 
@@ -92,7 +93,7 @@ class BinaryInputFormatTest {
     }
 
     @Test
-    void testCreateInputSplitsWithMulitpleFiles() throws IOException {
+    void testCreateInputSplitsWithMultipleFiles() throws IOException {
         final int blockInfoSize = new BlockInfo().getInfoSize();
         final int blockSize = blockInfoSize + 8;
         final int numBlocks1 = 3;
@@ -155,9 +156,9 @@ class BinaryInputFormatTest {
         final int numBlocks2 = 5;
 
         final File tempFile =
-                createBinaryInputFile("binary_input_format_test", blockSize, numBlocks1);
+                createBinaryInputFile("binary_input_format_test11", blockSize, numBlocks1);
         final File tempFile2 =
-                createBinaryInputFile("binary_input_format_test_2", blockSize, numBlocks2);
+                createBinaryInputFile("binary_input_format_test22", blockSize, numBlocks2);
 
         final BinaryInputFormat<Record> inputFormat = new MyBinaryInputFormat();
         inputFormat.setFilePaths(tempFile.toURI().toString(), tempFile2.toURI().toString());
@@ -215,7 +216,7 @@ class BinaryInputFormatTest {
     /** Creates a temp file with a certain number of blocks of a certain size. */
     private File createBinaryInputFile(String fileName, int blockSize, int numBlocks)
             throws IOException {
-        final File tempFile = tempFolder.newFile(fileName);
+        final File tempFile = TempDirUtils.newFile(tempDir, fileName);
         try (FileOutputStream fileOutputStream = new FileOutputStream(tempFile)) {
             for (int i = 0; i < blockSize * numBlocks; i++) {
                 fileOutputStream.write(new byte[] {1});

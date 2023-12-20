@@ -30,8 +30,7 @@ import java.io.IOException;
 import java.util.Arrays;
 
 import static org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot.OuterSchemaCompatibility;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test suite for the {@link CompositeTypeSerializerSnapshot}. */
 class CompositeTypeSerializerSnapshotTest {
@@ -238,15 +237,12 @@ class CompositeTypeSerializerSnapshotTest {
         // now, restore the composite type serializer;
         // the restored nested serializer should be a RestoredNestedSerializer
         testSerializer = (TestCompositeTypeSerializer) testSerializerSnapshot.restoreSerializer();
-        assertSame(
-                testSerializer.getNestedSerializers()[0].getClass(),
-                RestoredNestedSerializer.class);
-        assertSame(
-                testSerializer.getNestedSerializers()[1].getClass(),
-                RestoredNestedSerializer.class);
-        assertSame(
-                testSerializer.getNestedSerializers()[2].getClass(),
-                RestoredNestedSerializer.class);
+        assertThat(RestoredNestedSerializer.class)
+                .isSameAs(testSerializer.getNestedSerializers()[0].getClass());
+        assertThat(RestoredNestedSerializer.class)
+                .isSameAs(testSerializer.getNestedSerializers()[1].getClass());
+        assertThat(RestoredNestedSerializer.class)
+                .isSameAs(testSerializer.getNestedSerializers()[2].getClass());
     }
 
     // ------------------------------------------------------------------------------------------------

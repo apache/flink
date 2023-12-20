@@ -29,8 +29,8 @@ import org.junit.jupiter.api.Test;
 import java.io.File;
 import java.io.IOException;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 class FileOutputFormatTest {
 
@@ -53,7 +53,7 @@ class FileOutputFormatTest {
         try {
             dfof.open(0, 1);
             dfof.close();
-            fail();
+            fail("");
         } catch (Exception e) {
             // exception expected
         }
@@ -72,7 +72,7 @@ class FileOutputFormatTest {
         try {
             dfof.open(0, 1);
             dfof.close();
-            fail();
+            fail("");
         } catch (Exception e) {
             // exception expected
         }
@@ -90,7 +90,7 @@ class FileOutputFormatTest {
             dfof.open(0, 1);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isFile()).isTrue();
         tmpOutPath.delete();
@@ -107,7 +107,7 @@ class FileOutputFormatTest {
             dfof.open(0, 1);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isFile()).isTrue();
         tmpOutPath.delete();
@@ -127,7 +127,7 @@ class FileOutputFormatTest {
         try {
             dfof.open(0, 1);
             dfof.close();
-            fail();
+            fail("");
         } catch (Exception e) {
             // exception expected
         }
@@ -147,7 +147,7 @@ class FileOutputFormatTest {
             dfof.open(0, 1);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
         assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
@@ -166,7 +166,7 @@ class FileOutputFormatTest {
             dfof.open(0, 1);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         File customOutFile = new File(tmpOutPath.getAbsolutePath() + "/fancy-1-0.avro");
         assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
@@ -188,7 +188,7 @@ class FileOutputFormatTest {
         try {
             dfof.open(0, 1);
             dfof.close();
-            fail();
+            fail("");
         } catch (Exception e) {
             // exception expected
         }
@@ -207,7 +207,7 @@ class FileOutputFormatTest {
             dfof.open(0, 1);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
         assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
@@ -226,7 +226,7 @@ class FileOutputFormatTest {
             dfof.open(0, 1);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
         assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
@@ -256,7 +256,7 @@ class FileOutputFormatTest {
         try {
             dfof.open(0, 2);
             dfof.close();
-            fail();
+            fail("");
         } catch (Exception e) {
             // exception expected
         }
@@ -276,7 +276,7 @@ class FileOutputFormatTest {
             dfof.open(0, 2);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
         assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
@@ -297,7 +297,7 @@ class FileOutputFormatTest {
         try {
             dfof.open(0, 2);
             dfof.close();
-            fail();
+            fail("");
         } catch (Exception e) {
             // exception expected
         }
@@ -316,7 +316,7 @@ class FileOutputFormatTest {
             dfof.open(0, 2);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
         assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
@@ -335,7 +335,7 @@ class FileOutputFormatTest {
             dfof.open(0, 2);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
         assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
@@ -366,7 +366,7 @@ class FileOutputFormatTest {
             dfof.open(0, 1);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isFile()).isTrue();
 
@@ -385,7 +385,7 @@ class FileOutputFormatTest {
             dfof.open(0, 1);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isFile()).isTrue();
         tmpOutPath.delete();
@@ -402,7 +402,7 @@ class FileOutputFormatTest {
             dfof.open(0, 1);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isFile()).isTrue();
         tmpOutPath.delete();
@@ -419,7 +419,7 @@ class FileOutputFormatTest {
             dfof.open(0, 1);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isFile()).isTrue();
         tmpOutPath.delete();
@@ -440,7 +440,7 @@ class FileOutputFormatTest {
             dfof.open(0, 1);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
         assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
@@ -462,7 +462,7 @@ class FileOutputFormatTest {
             dfof.open(0, 1);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
         assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
@@ -484,7 +484,7 @@ class FileOutputFormatTest {
             dfof.open(0, 1);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
         assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
@@ -503,7 +503,7 @@ class FileOutputFormatTest {
             dfof.open(0, 1);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
         assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
@@ -522,7 +522,7 @@ class FileOutputFormatTest {
             dfof.open(0, 1);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
         assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
@@ -553,7 +553,7 @@ class FileOutputFormatTest {
             dfof.open(0, 2);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
         assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
@@ -574,7 +574,7 @@ class FileOutputFormatTest {
             dfof.open(0, 2);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
         assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
@@ -596,7 +596,7 @@ class FileOutputFormatTest {
             dfof.open(0, 2);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
         assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
@@ -615,7 +615,7 @@ class FileOutputFormatTest {
             dfof.open(0, 2);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
         assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
@@ -634,7 +634,7 @@ class FileOutputFormatTest {
             dfof.open(0, 2);
             dfof.close();
         } catch (Exception e) {
-            fail();
+            fail("");
         }
         assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
         assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();

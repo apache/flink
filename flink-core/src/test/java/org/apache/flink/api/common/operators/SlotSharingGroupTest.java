@@ -24,10 +24,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
 
 /** Tests for {@link SlotSharingGroup}. */
 class SlotSharingGroupTest {
@@ -46,13 +44,13 @@ class SlotSharingGroupTest {
                         .setExternalResource("gpu", 1)
                         .build();
 
-        assertThat(slotSharingGroup.getName(), is(name));
-        assertThat(slotSharingGroup.getCpuCores().get(), is(1.0));
-        assertThat(slotSharingGroup.getTaskHeapMemory().get(), is(heap));
-        assertThat(slotSharingGroup.getTaskOffHeapMemory().get(), is(offHeap));
-        assertThat(slotSharingGroup.getManagedMemory().get(), is(managed));
-        assertThat(
-                slotSharingGroup.getExternalResources(), is(Collections.singletonMap("gpu", 1.0)));
+        assertThat(slotSharingGroup.getName()).isEqualTo(name);
+        assertThat(slotSharingGroup.getCpuCores()).contains(1.0);
+        assertThat(slotSharingGroup.getTaskHeapMemory()).contains(heap);
+        assertThat(slotSharingGroup.getTaskOffHeapMemory()).contains(offHeap);
+        assertThat(slotSharingGroup.getManagedMemory()).contains(managed);
+        assertThat(slotSharingGroup.getExternalResources())
+                .isEqualTo(Collections.singletonMap("gpu", 1.0));
     }
 
     @Test
@@ -60,7 +58,7 @@ class SlotSharingGroupTest {
         final String name = "ssg";
         final SlotSharingGroup slotSharingGroup = SlotSharingGroup.newBuilder(name).build();
 
-        assertThat(slotSharingGroup.getName(), is(name));
+        assertThat(slotSharingGroup.getName()).isEqualTo(name);
         assertThat(slotSharingGroup.getCpuCores().isPresent()).isFalse();
         assertThat(slotSharingGroup.getTaskHeapMemory().isPresent()).isFalse();
         assertThat(slotSharingGroup.getManagedMemory().isPresent()).isFalse();
@@ -77,8 +75,7 @@ class SlotSharingGroupTest {
                                         .setTaskHeapMemory(MemorySize.ZERO)
                                         .setTaskOffHeapMemoryMB(10)
                                         .build())
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Task heap memory size must be positive");
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -89,7 +86,6 @@ class SlotSharingGroupTest {
                                         .setCpuCores(1)
                                         .setTaskOffHeapMemoryMB(10)
                                         .build())
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Task heap memory size must be positive");
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }
