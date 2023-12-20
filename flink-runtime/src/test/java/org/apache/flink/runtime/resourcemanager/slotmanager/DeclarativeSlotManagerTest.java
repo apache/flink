@@ -82,6 +82,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadBalanceMode;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DeclarativeSlotManager}. */
@@ -375,7 +376,8 @@ class DeclarativeSlotManagerTest {
                         ResourceProfile.ANY);
             }
 
-            assertThat(requestFuture.get())
+            assertThatFuture(requestFuture)
+                    .eventuallySucceeds()
                     .isEqualTo(
                             Tuple6.of(
                                     slotId,
@@ -469,7 +471,7 @@ class DeclarativeSlotManagerTest {
 
         // check that we have only called the resource allocation only for the first slot request,
         // since the second request is a duplicate
-        assertThat(allocateResourceCalls.get()).isEqualTo(0);
+        assertThat(allocateResourceCalls).hasValue(0);
     }
 
     /**
@@ -1453,7 +1455,7 @@ class DeclarativeSlotManagerTest {
 
             // clear requirements, which should trigger slots being reclaimed
             slotManager.clearResourceRequirements(jobId);
-            assertThat(freeInactiveSlotsJobIdFuture.get()).isEqualTo(jobId);
+            assertThatFuture(freeInactiveSlotsJobIdFuture).eventuallySucceeds().isEqualTo(jobId);
         }
     }
 
@@ -1480,7 +1482,7 @@ class DeclarativeSlotManagerTest {
             final JobID jobId = new JobID();
 
             slotManager.processResourceRequirements(createResourceRequirements(jobId, 1));
-            assertThat(allocatedResourceCounter.get()).isEqualTo(0);
+            assertThat(allocatedResourceCounter).hasValue(0);
             assertThat(scheduledExecutor.getActiveNonPeriodicScheduledTask()).hasSize(1);
             final ScheduledFuture<?> future =
                     scheduledExecutor.getActiveNonPeriodicScheduledTask().iterator().next();
@@ -1493,12 +1495,12 @@ class DeclarativeSlotManagerTest {
             // trigger checkResourceRequirements
             scheduledExecutor.triggerNonPeriodicScheduledTask();
             assertThat(scheduledExecutor.getActiveNonPeriodicScheduledTask()).hasSize(1);
-            assertThat(allocatedResourceCounter.get()).isEqualTo(0);
+            assertThat(allocatedResourceCounter).hasValue(0);
 
             // trigger declareResourceNeeded
             scheduledExecutor.triggerNonPeriodicScheduledTask();
             assertThat(scheduledExecutor.getActiveNonPeriodicScheduledTask()).hasSize(0);
-            assertThat(allocatedResourceCounter.get()).isEqualTo(1);
+            assertThat(allocatedResourceCounter).hasValue(1);
         }
     }
 
@@ -1565,9 +1567,9 @@ class DeclarativeSlotManagerTest {
                         .buildAndStartWithDirectExec();
 
         // sanity check to ensure metrics were actually registered
-        assertThat(registeredMetrics.get()).isGreaterThan(0);
+        assertThat(registeredMetrics).hasValueGreaterThan(0);
         closeFn.accept(slotManager);
-        assertThat(registeredMetrics.get()).isEqualTo(0);
+        assertThat(registeredMetrics).hasValue(0);
     }
 
     private static SlotReport createSlotReport(ResourceID taskExecutorResourceId, int numberSlots) {

@@ -90,6 +90,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -132,7 +133,7 @@ class ResourceManagerTest {
     }
 
     @BeforeEach
-    void setup() throws Exception {
+    void setup() {
         highAvailabilityServices = new TestingHighAvailabilityServices();
         highAvailabilityServices.setResourceManagerLeaderElection(
                 new StandaloneLeaderElection(UUID.randomUUID()));
@@ -253,16 +254,15 @@ class ResourceManagerTest {
                 resourceManagerGateway.requestTaskExecutorThreadInfoGateway(
                         taskManagerId, TestingUtils.TIMEOUT);
 
-        TaskExecutorThreadInfoGateway taskExecutorGatewayResult = taskExecutorGatewayFuture.get();
-
-        assertThat(taskExecutorGatewayResult).isEqualTo(taskExecutorGateway);
+        assertThatFuture(taskExecutorGatewayFuture)
+                .eventuallySucceeds()
+                .isEqualTo(taskExecutorGateway);
     }
 
     private void registerTaskExecutor(
             ResourceManagerGateway resourceManagerGateway,
             ResourceID taskExecutorId,
-            String taskExecutorAddress)
-            throws Exception {
+            String taskExecutorAddress) {
         TaskExecutorRegistration taskExecutorRegistration =
                 new TaskExecutorRegistration(
                         taskExecutorAddress,
@@ -279,7 +279,9 @@ class ResourceManagerTest {
                 resourceManagerGateway.registerTaskExecutor(
                         taskExecutorRegistration, TestingUtils.TIMEOUT);
 
-        assertThat(registrationFuture.get()).isInstanceOf(RegistrationResponse.Success.class);
+        assertThatFuture(registrationFuture)
+                .eventuallySucceeds()
+                .isInstanceOf(RegistrationResponse.Success.class);
     }
 
     @Test
@@ -440,7 +442,8 @@ class ResourceManagerTest {
                                     jobId,
                                     TIMEOUT);
 
-                    assertThat(registrationFuture.get())
+                    assertThatFuture(registrationFuture)
+                            .eventuallySucceeds()
                             .isInstanceOf(RegistrationResponse.Success.class);
                 },
                 resourceManagerResourceId -> {
@@ -455,7 +458,9 @@ class ResourceManagerTest {
                                             assertThat(resourceID)
                                                     .isEqualTo(resourceManagerResourceId),
                                     resourceID -> assertThat(resourceID).isNull());
-                    assertThat(disconnectFuture.get()).isEqualTo(resourceManagerId);
+                    assertThatFuture(disconnectFuture)
+                            .eventuallySucceeds()
+                            .isEqualTo(resourceManagerId);
                 },
                 slotManagerType);
     }
@@ -502,11 +507,14 @@ class ResourceManagerTest {
                                     jobId,
                                     TIMEOUT);
 
-                    assertThat(registrationFuture.get())
+                    assertThatFuture(registrationFuture)
+                            .eventuallySucceeds()
                             .isInstanceOf(RegistrationResponse.Success.class);
                 },
                 resourceManagerResourceId ->
-                        assertThat(disconnectFuture.get()).isEqualTo(resourceManagerId),
+                        assertThatFuture(disconnectFuture)
+                                .eventuallySucceeds()
+                                .isEqualTo(resourceManagerId),
                 slotManagerType);
     }
 
@@ -546,8 +554,12 @@ class ResourceManagerTest {
                                             assertThat(resourceID)
                                                     .isEqualTo(resourceManagerResourceId),
                                     resourceID -> assertThat(resourceID).isNull());
-                    assertThat(disconnectFuture.get()).isInstanceOf(TimeoutException.class);
-                    assertThat(stopWorkerFuture.get()).isEqualTo(taskExecutorId);
+                    assertThatFuture(disconnectFuture)
+                            .eventuallySucceeds()
+                            .isInstanceOf(TimeoutException.class);
+                    assertThatFuture(stopWorkerFuture)
+                            .eventuallySucceeds()
+                            .isEqualTo(taskExecutorId);
                 },
                 slotManagerType);
     }
@@ -581,8 +593,12 @@ class ResourceManagerTest {
                                 taskExecutorId,
                                 taskExecutorGateway.getAddress()),
                 resourceManagerResourceId -> {
-                    assertThat(disconnectFuture.get()).isInstanceOf(ResourceManagerException.class);
-                    assertThat(stopWorkerFuture.get()).isEqualTo(taskExecutorId);
+                    assertThatFuture(disconnectFuture)
+                            .eventuallySucceeds()
+                            .isInstanceOf(ResourceManagerException.class);
+                    assertThatFuture(stopWorkerFuture)
+                            .eventuallySucceeds()
+                            .isEqualTo(taskExecutorId);
                 },
                 slotManagerType);
     }
@@ -623,8 +639,8 @@ class ResourceManagerTest {
         registerTaskExecutor(resourceManager, taskExecutorId, taskExecutorGateway.getAddress());
         resourceManager.disconnectTaskManager(taskExecutorId, new FlinkException("Test exception"));
 
-        assertThat(disconnectFuture.get()).isInstanceOf(FlinkException.class);
-        assertThat(stopWorkerFuture.get()).isEqualTo(taskExecutorId);
+        assertThatFuture(disconnectFuture).eventuallySucceeds().isInstanceOf(FlinkException.class);
+        assertThatFuture(stopWorkerFuture).eventuallySucceeds().isEqualTo(taskExecutorId);
     }
 
     @Test

@@ -52,6 +52,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -422,7 +423,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                 DEFAULT_TOTAL_RESOURCE_PROFILE, DEFAULT_NUM_SLOTS_PER_WORKER);
                 resourceAllocatorBuilder.setDeclareResourceNeededConsumer(
                         (resourceDeclarations) -> {
-                            assertThat(requestCount.get()).isLessThan(2);
+                            assertThat(requestCount).hasValueLessThan(2);
                             if (!resourceDeclarations.isEmpty()) {
                                 allocateResourceFutures
                                         .get(requestCount.getAndIncrement())
@@ -447,7 +448,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                                             createResourceRequirements(jobId, 1)));
                             assertFutureCompleteAndReturn(allocateResourceFutures.get(0));
                             assertFutureNotComplete(allocateResourceFutures.get(1));
-                            assertThat(requestCount.get()).isEqualTo(1);
+                            assertThat(requestCount).hasValue(1);
                         });
             }
         };
@@ -795,7 +796,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                 resourceAllocatorBuilder.setDeclareResourceNeededConsumer(
                         (resourceDeclarations) -> {
                             if (!resourceDeclarations.isEmpty()) {
-                                assertThat(requestCount.get()).isLessThan(2);
+                                assertThat(requestCount).hasValueLessThan(2);
                                 allocateResourceFutures
                                         .get(requestCount.getAndIncrement())
                                         .complete(null);
@@ -913,13 +914,15 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         context.runTest(
                 () -> {
                     // sanity check to ensure metrics were actually registered
-                    assertThat(registeredMetrics.get()).isGreaterThan(0);
+                    assertThat(registeredMetrics).hasValueGreaterThan(0);
                     context.runInMainThreadAndWait(
-                            () -> {
-                                assertThatNoException()
-                                        .isThrownBy(() -> closeFn.accept(context.getSlotManager()));
-                            });
-                    assertThat(registeredMetrics.get()).isEqualTo(0);
+                            () ->
+                                    assertThatNoException()
+                                            .isThrownBy(
+                                                    () ->
+                                                            closeFn.accept(
+                                                                    context.getSlotManager())));
+                    assertThat(registeredMetrics).hasValue(0);
                 });
     }
 
@@ -980,7 +983,9 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                             // clear requirements, which should trigger slots being reclaimed
                             runInMainThreadAndWait(
                                     () -> getSlotManager().clearResourceRequirements(jobId));
-                            assertThat(freeInactiveSlotsJobIdFuture.get()).isEqualTo(jobId);
+                            assertThatFuture(freeInactiveSlotsJobIdFuture)
+                                    .eventuallySucceeds()
+                                    .isEqualTo(jobId);
                         });
             }
         };
