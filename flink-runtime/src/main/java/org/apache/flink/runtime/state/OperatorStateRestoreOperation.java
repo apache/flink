@@ -32,9 +32,12 @@ import org.apache.commons.io.IOUtils;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /** Implementation of operator state restore operation. */
 public class OperatorStateRestoreOperation implements RestoreOperation<Void> {
@@ -168,9 +171,32 @@ public class OperatorStateRestoreOperation implements RestoreOperation<Void> {
                     }
                 }
 
+                List<Map.Entry<String, OperatorStateHandle.StateMetaInfo>> entries =
+                        new ArrayList<>(stateHandle.getStateNameToPartitionOffsets().entrySet());
+
+                if (backendSerializationProxy.isUsingStateCompression()) {
+                    // sort state handles by offsets to avoid building SnappyFramedInputStream with
+                    // EOF stream.
+                    entries =
+                            entries.stream()
+                                    .sorted(
+                                            Comparator.comparingLong(
+                                                    entry -> {
+                                                        OperatorStateHandle.StateMetaInfo
+                                                                stateMetaInfo = entry.getValue();
+                                                        long[] offsets = stateMetaInfo.getOffsets();
+                                                        if (offsets == null
+                                                                || offsets.length == 0) {
+                                                            return Long.MIN_VALUE;
+                                                        } else {
+                                                            return offsets[0];
+                                                        }
+                                                    }))
+                                    .collect(Collectors.toList());
+                }
+
                 // Restore all the states
-                for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> nameToOffsets :
-                        stateHandle.getStateNameToPartitionOffsets().entrySet()) {
+                for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> nameToOffsets : entries) {
 
                     final String stateName = nameToOffsets.getKey();
 
