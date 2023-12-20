@@ -245,7 +245,8 @@ public class PythonCorrelateSplitRule extends RelOptRule {
                         // separate node
                         return node instanceof RexFieldAccess;
                     }
-                });
+                },
+                new PythonRemoteCalcCallFinder());
     }
 
     @Override

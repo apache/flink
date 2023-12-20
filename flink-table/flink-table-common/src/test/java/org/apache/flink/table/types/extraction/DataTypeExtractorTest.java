@@ -59,6 +59,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -378,6 +379,12 @@ class DataTypeExtractorTest {
 
                 // method with generic return type
                 TestSpec.forMethodOutput(IntegerVarArg.class).expectDataType(DataTypes.INT()),
+                // method with parameter with a generic itself
+                TestSpec.forGenericMethodParameter(CompletableFutureVarArg.class, 0, 0)
+                        .expectDataType(DataTypes.BIGINT()),
+                // method with the future return type as a generic
+                TestSpec.forGenericMethodParameter(CompletableFutureGeneric.class, 0, 0)
+                        .expectDataType(DataTypes.BIGINT()),
                 TestSpec.forType(
                                 "Structured type with invalid constructor",
                                 SimplePojoWithInvalidConstructor.class)
@@ -552,6 +559,20 @@ class DataTypeExtractorTest {
 
         static TestSpec forMethodParameter(Class<?> clazz, int paramPos) {
             return forMethodParameter(null, clazz, paramPos);
+        }
+
+        static TestSpec forGenericMethodParameter(
+                String description, Class<?> clazz, int paramPos, int genericPos) {
+            final Method method = clazz.getMethods()[0];
+            return new TestSpec(
+                    description,
+                    (lookup) ->
+                            DataTypeExtractor.extractFromGenericMethodParameter(
+                                    lookup, clazz, method, paramPos, genericPos));
+        }
+
+        static TestSpec forGenericMethodParameter(Class<?> clazz, int paramPos, int genericPos) {
+            return forGenericMethodParameter(null, clazz, paramPos, genericPos);
         }
 
         static TestSpec forMethodOutput(String description, Class<?> clazz) {
@@ -966,6 +987,16 @@ class DataTypeExtractorTest {
     public static class IntegerVarArg extends VarArgMethod<Integer> {
         // nothing to do
     }
+
+    public static class CompletableFutureVarArg extends VarArgMethod<CompletableFuture<Long>> {
+        // nothing to do
+    }
+
+    public static class CompletableFutureBase<T> {
+        public void eval(CompletableFuture<T> i, int arg) {}
+    }
+
+    public static class CompletableFutureGeneric extends CompletableFutureBase<Long> {}
 
     // --------------------------------------------------------------------------------------------
 
