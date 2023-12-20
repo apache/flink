@@ -84,7 +84,7 @@ class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
                                                                     new JobID(),
                                                                     1,
                                                                     OTHER_SLOT_RESOURCE_PROFILE)));
-                            assertThat(declareResourceCount.get()).isEqualTo(0);
+                            assertThat(declareResourceCount).hasValue(0);
                         });
             }
         };
