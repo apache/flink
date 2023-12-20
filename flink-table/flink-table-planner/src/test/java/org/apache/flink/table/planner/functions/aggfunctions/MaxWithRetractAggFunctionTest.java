@@ -29,7 +29,6 @@ import org.apache.flink.table.runtime.functions.aggregate.MaxWithRetractAggFunct
 import org.apache.flink.table.runtime.functions.aggregate.MaxWithRetractAggFunction.MaxWithRetractAccumulator;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
-import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
@@ -315,31 +314,6 @@ final class MaxWithRetractAggFunctionTest {
         protected AggregateFunction<StringData, MaxWithRetractAccumulator<StringData>>
                 getAggregator() {
             return new MaxWithRetractAggFunction<>(DataTypes.STRING().getLogicalType());
-        }
-    }
-
-    /** Test for {@link CharType}. */
-    public static final class CharMaxWithRetractAggFunctionTest
-            extends MaxWithRetractAggFunctionTestBase<Character> {
-
-        @Override
-        protected List<List<Character>> getInputValueSets() {
-            return Arrays.asList(
-                    Arrays.asList('b', 'c', null, 'd', 'e', null),
-                    Arrays.asList(null, null),
-                    Arrays.asList(null, 'w'),
-                    Arrays.asList('d', 'a'));
-        }
-
-        @Override
-        protected List<Character> getExpectedResults() {
-            return Arrays.asList('e', null, 'w', 'd');
-        }
-
-        @Override
-        protected AggregateFunction<Character, MaxWithRetractAccumulator<Character>>
-                getAggregator() {
-            return new MaxWithRetractAggFunction<>(DataTypes.CHAR(1).getLogicalType());
         }
     }
 

@@ -29,7 +29,6 @@ import org.apache.flink.table.runtime.functions.aggregate.MinWithRetractAggFunct
 import org.apache.flink.table.runtime.functions.aggregate.MinWithRetractAggFunction.MinWithRetractAccumulator;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
-import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
@@ -315,31 +314,6 @@ final class MinWithRetractAggFunctionTest {
         protected AggregateFunction<StringData, MinWithRetractAccumulator<StringData>>
                 getAggregator() {
             return new MinWithRetractAggFunction<>(DataTypes.STRING().getLogicalType());
-        }
-    }
-
-    /** Test for {@link CharType}. */
-    public static final class CharMinWithRetractAggFunctionTest
-            extends MinWithRetractAggFunctionTestBase<Character> {
-
-        @Override
-        protected List<List<Character>> getInputValueSets() {
-            return Arrays.asList(
-                    Arrays.asList('b', 'c', null, 'd', 'e', null),
-                    Arrays.asList(null, null),
-                    Arrays.asList(null, 'w'),
-                    Arrays.asList('d', 'a'));
-        }
-
-        @Override
-        protected List<Character> getExpectedResults() {
-            return Arrays.asList('b', null, 'w', 'a');
-        }
-
-        @Override
-        protected AggregateFunction<Character, MinWithRetractAccumulator<Character>>
-                getAggregator() {
-            return new MinWithRetractAggFunction<>(DataTypes.CHAR(1).getLogicalType());
         }
     }
 
