@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
-
 import java.util.Collection;
 
 class SinkV2CommitterOperatorTest extends CommitterOperatorTestBase {
@@ -27,24 +25,22 @@ class SinkV2CommitterOperatorTest extends CommitterOperatorTestBase {
     SinkAndCounters sinkWithPostCommit() {
         ForwardingCommitter committer = new ForwardingCommitter();
         return new SinkAndCounters(
-                (TwoPhaseCommittingSink<?, String>)
-                        TestSinkV2.newBuilder()
-                                .setCommitter(committer)
-                                .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
-                                .setWithPostCommitTopology(true)
-                                .build(),
+                TestSinkV2.newBuilder()
+                        .setCommitter(committer)
+                        .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
+                        .setWithPostCommitTopology(true)
+                        .build(),
                 () -> committer.successfulCommits);
     }
 
     @Override
     SinkAndCounters sinkWithPostCommitWithRetry() {
         return new SinkAndCounters(
-                (TwoPhaseCommittingSink<?, String>)
-                        TestSinkV2.newBuilder()
-                                .setCommitter(new TestSinkV2.RetryOnceCommitter())
-                                .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
-                                .setWithPostCommitTopology(true)
-                                .build(),
+                TestSinkV2.newBuilder()
+                        .setCommitter(new TestSinkV2.RetryOnceCommitter())
+                        .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
+                        .setWithPostCommitTopology(true)
+                        .build(),
                 () -> 0);
     }
 
@@ -52,12 +48,11 @@ class SinkV2CommitterOperatorTest extends CommitterOperatorTestBase {
     SinkAndCounters sinkWithoutPostCommit() {
         ForwardingCommitter committer = new ForwardingCommitter();
         return new SinkAndCounters(
-                (TwoPhaseCommittingSink<?, String>)
-                        TestSinkV2.newBuilder()
-                                .setCommitter(committer)
-                                .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
-                                .setWithPostCommitTopology(false)
-                                .build(),
+                TestSinkV2.newBuilder()
+                        .setCommitter(committer)
+                        .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
+                        .setWithPostCommitTopology(false)
+                        .build(),
                 () -> committer.successfulCommits);
     }
 

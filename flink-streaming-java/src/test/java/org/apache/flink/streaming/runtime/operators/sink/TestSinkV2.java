@@ -32,7 +32,11 @@ import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
+import org.apache.flink.streaming.api.connector.sink2.CommittableMessageTypeInfo;
+import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
+import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 import org.apache.flink.streaming.api.connector.sink2.SupportsPostCommitTopology;
+import org.apache.flink.streaming.api.connector.sink2.SupportsPreCommitTopology;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.util.Preconditions;
@@ -92,6 +96,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         private DefaultCommitter committer;
         private SimpleVersionedSerializer<String> committableSerializer;
         private boolean withPostCommitTopology = false;
+        private boolean withPreCommitTopology = false;
         private boolean withWriterState = false;
         private String compatibleStateNames;
 
@@ -129,6 +134,11 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
             return this;
         }
 
+        public Builder<InputT> setWithPreCommitTopology(boolean withPreCommitTopology) {
+            this.withPreCommitTopology = withPreCommitTopology;
+            return this;
+        }
+
         public Builder<InputT> setWriterState(boolean withWriterState) {
             this.withWriterState = withWriterState;
             return this;
@@ -151,9 +161,21 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
                     writer = new DefaultCommittingSinkWriter<>();
                 }
                 if (!withPostCommitTopology) {
-                    // TwoPhaseCommittingSink with a stateless writer and a committer
-                    return new TestSinkV2TwoPhaseCommittingSink<>(
-                            writer, committableSerializer, committer);
+                    if (!withPreCommitTopology) {
+                        // TwoPhaseCommittingSink with a stateless writer and a committer
+                        return new TestSinkV2TwoPhaseCommittingSink<>(
+                                writer, committableSerializer, committer);
+                    } else {
+                        // TwoPhaseCommittingSink with a stateless writer, pre commit topology,
+                        // committer
+                        Preconditions.checkArgument(
+                                writer instanceof DefaultCommittingSinkWriter,
+                                "Please provide a DefaultCommittingSinkWriter instance");
+                        return new TestSinkV2WithPreCommitTopology<>(
+                                (DefaultCommittingSinkWriter) writer,
+                                committableSerializer,
+                                committer);
+                    }
                 } else {
                     if (withWriterState) {
                         // TwoPhaseCommittingSink with a stateful writer and a committer and post
@@ -228,6 +250,41 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         @Override
         public void addPostCommitTopology(DataStream<CommittableMessage<String>> committables) {
             // We do not need to do anything for tests
+        }
+    }
+
+    private static class TestSinkV2WithPreCommitTopology<InputT>
+            extends TestSinkV2TwoPhaseCommittingSink<InputT>
+            implements SupportsPreCommitTopology<String, String> {
+        public TestSinkV2WithPreCommitTopology(
+                DefaultSinkWriter<InputT> writer,
+                SimpleVersionedSerializer<String> committableSerializer,
+                DefaultCommitter committer) {
+            super(writer, committableSerializer, committer);
+        }
+
+        @Override
+        public DataStream<CommittableMessage<String>> addPreCommitTopology(
+                DataStream<CommittableMessage<String>> committables) {
+            return committables
+                    .map(
+                            m -> {
+                                if (m instanceof CommittableSummary) {
+                                    return m;
+                                } else {
+                                    CommittableWithLineage<String> withLineage =
+                                            (CommittableWithLineage<String>) m;
+                                    return new CommittableWithLineage<>(
+                                            withLineage.getCommittable() + "Transformed",
+                                            withLineage);
+                                }
+                            })
+                    .returns(CommittableMessageTypeInfo.of(StringSerializer::new));
+        }
+
+        @Override
+        public SimpleVersionedSerializer<String> getWriteResultSerializer() {
+            return new StringSerializer();
         }
     }
 

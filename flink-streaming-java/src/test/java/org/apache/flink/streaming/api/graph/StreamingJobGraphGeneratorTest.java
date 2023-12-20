@@ -36,7 +36,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.CommitterInitContext;
+import org.apache.flink.api.connector.sink2.CommittingSinkWriter;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.SupportsCommitter;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.mocks.MockSource;
@@ -70,6 +75,11 @@ import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessageTypeInfo;
+import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
+import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
+import org.apache.flink.streaming.api.connector.sink2.SupportsPostCommitTopology;
+import org.apache.flink.streaming.api.connector.sink2.SupportsPreCommitTopology;
+import org.apache.flink.streaming.api.connector.sink2.SupportsPreWriteTopology;
 import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.WithPreCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.WithPreWriteTopology;
@@ -105,6 +115,7 @@ import org.apache.flink.streaming.api.transformations.MultipleInputTransformatio
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
+import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
@@ -128,6 +139,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -2121,6 +2133,30 @@ class StreamingJobGraphGeneratorTest {
     }
 
     @Test
+    void testSinkWithAllInterfaces() {
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+        final DataStream<Integer> source = env.fromData(1, 2, 3).name("source");
+        source.rebalance().sinkTo(new TestSinkWithAllInterfaces()).name("sink");
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+        final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+        assertThat(jobGraph.getNumberOfVertices()).isEqualTo(6);
+        for (JobVertex jobVertex : jobGraph.getVertices()) {
+            assertThat(jobVertex.getName())
+                    .containsAnyOf(
+                            "source",
+                            "pre-writer",
+                            "Writer",
+                            "pre-committer",
+                            "post-committer",
+                            "Committer");
+        }
+    }
+
+    @Test
     void testSupportConcurrentExecutionAttempts() {
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
@@ -2402,6 +2438,114 @@ class StreamingJobGraphGeneratorTest {
         @Override
         public DataStream<Integer> addPreWriteTopology(DataStream<Integer> inputDataStream) {
             return inputDataStream.map(v -> v).name("pre-writer").rebalance();
+        }
+    }
+
+    private static class TestSinkWithAllInterfaces
+            implements Sink<Integer>,
+                    SupportsPreWriteTopology<Integer>,
+                    SupportsCommitter<Long>,
+                    SupportsPreCommitTopology<String, Long>,
+                    SupportsPostCommitTopology<Long> {
+
+        @Override
+        @Deprecated
+        public SinkWriter<Integer> createWriter(InitContext context) throws IOException {
+            throw new UnsupportedOperationException("Not supported");
+        }
+
+        @Override
+        public CommittingSinkWriter<Integer, String> createWriter(WriterInitContext context)
+                throws IOException {
+            return new CommittingSinkWriter<Integer, String>() {
+                @Override
+                public Collection<String> prepareCommit() throws IOException, InterruptedException {
+                    return null;
+                }
+
+                @Override
+                public void write(Integer element, Context context)
+                        throws IOException, InterruptedException {}
+
+                @Override
+                public void flush(boolean endOfInput) throws IOException, InterruptedException {}
+
+                @Override
+                public void close() throws Exception {}
+            };
+        }
+
+        @Override
+        public Committer<Long> createCommitter(CommitterInitContext context) throws IOException {
+            return new Committer<Long>() {
+                @Override
+                public void commit(Collection<CommitRequest<Long>> committables)
+                        throws IOException, InterruptedException {}
+
+                @Override
+                public void close() throws Exception {}
+            };
+        }
+
+        @Override
+        public SimpleVersionedSerializer<Long> getCommittableSerializer() {
+            return new LongSerializer();
+        }
+
+        @Override
+        public void addPostCommitTopology(DataStream<CommittableMessage<Long>> committables) {
+            committables
+                    .map(v -> (CommittableMessage<Void>) null)
+                    .name("post-committer")
+                    .returns(CommittableMessageTypeInfo.noOutput())
+                    .rebalance();
+        }
+
+        @Override
+        public DataStream<CommittableMessage<Long>> addPreCommitTopology(
+                DataStream<CommittableMessage<String>> committables) {
+            return committables
+                    .map(
+                            v -> {
+                                if (v instanceof CommittableSummary) {
+                                    return new CommittableSummary<Long>((CommittableSummary) v);
+                                } else {
+                                    CommittableWithLineage withLineage = (CommittableWithLineage) v;
+                                    return new CommittableWithLineage<>(
+                                            Long.valueOf(withLineage.getCommittable().toString()),
+                                            withLineage);
+                                }
+                            })
+                    .name("pre-committer")
+                    .returns(CommittableMessageTypeInfo.of(LongSerializer::new))
+                    .rebalance();
+        }
+
+        @Override
+        public SimpleVersionedSerializer<String> getWriteResultSerializer() {
+            return new TestSinkV2.StringSerializer();
+        }
+
+        @Override
+        public DataStream<Integer> addPreWriteTopology(DataStream<Integer> inputDataStream) {
+            return inputDataStream.map(v -> v).name("pre-writer").rebalance();
+        }
+    }
+
+    public static class LongSerializer implements SimpleVersionedSerializer<Long>, Serializable {
+        @Override
+        public int getVersion() {
+            return 0;
+        }
+
+        @Override
+        public byte[] serialize(Long obj) throws IOException {
+            return new byte[0];
+        }
+
+        @Override
+        public Long deserialize(int version, byte[] serialized) throws IOException {
+            return null;
         }
     }
 

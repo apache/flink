@@ -61,6 +61,15 @@ public class CommittableSummary<CommT> implements CommittableMessage<CommT> {
         this.numberOfFailedCommittables = numberOfFailedCommittables;
     }
 
+    public CommittableSummary(CommittableSummary<?> origin) {
+        this.subtaskId = origin.subtaskId;
+        this.numberOfSubtasks = origin.numberOfSubtasks;
+        this.checkpointId = origin.checkpointId;
+        this.numberOfCommittables = origin.numberOfCommittables;
+        this.numberOfPendingCommittables = origin.numberOfPendingCommittables;
+        this.numberOfFailedCommittables = origin.numberOfFailedCommittables;
+    }
+
     public int getSubtaskId() {
         return subtaskId;
     }

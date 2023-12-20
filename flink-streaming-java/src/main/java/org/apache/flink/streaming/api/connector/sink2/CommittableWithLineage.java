@@ -44,6 +44,12 @@ public class CommittableWithLineage<CommT> implements CommittableMessage<CommT> 
         this.subtaskId = subtaskId;
     }
 
+    public CommittableWithLineage(CommT committable, CommittableWithLineage origin) {
+        this.committable = checkNotNull(committable);
+        this.checkpointId = origin.checkpointId;
+        this.subtaskId = origin.subtaskId;
+    }
+
     public CommT getCommittable() {
         return committable;
     }

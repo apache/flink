@@ -18,7 +18,8 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SupportsCommitter;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
@@ -56,7 +57,10 @@ abstract class CommitterOperatorTestBase {
                         CommittableMessage<String>, CommittableMessage<String>>
                 testHarness =
                         new OneInputStreamOperatorTestHarness<>(
-                                new CommitterOperatorFactory<>(sinkAndCounters.sink, false, true));
+                                new CommitterOperatorFactory<>(
+                                        (SupportsCommitter<String>) sinkAndCounters.sink,
+                                        false,
+                                        true));
         testHarness.open();
 
         final CommittableSummary<String> committableSummary =
@@ -89,7 +93,9 @@ abstract class CommitterOperatorTestBase {
         SinkAndCounters sinkAndCounters = sinkWithPostCommit();
         final OneInputStreamOperatorTestHarness<
                         CommittableMessage<String>, CommittableMessage<String>>
-                testHarness = createTestHarness(sinkAndCounters.sink, false, true);
+                testHarness =
+                        createTestHarness(
+                                (SupportsCommitter<String>) sinkAndCounters.sink, false, true);
         testHarness.open();
         testHarness.setProcessingTime(0);
 
@@ -131,7 +137,9 @@ abstract class CommitterOperatorTestBase {
 
         final OneInputStreamOperatorTestHarness<
                         CommittableMessage<String>, CommittableMessage<String>>
-                testHarness = createTestHarness(sinkAndCounters.sink, false, true);
+                testHarness =
+                        createTestHarness(
+                                (SupportsCommitter<String>) sinkAndCounters.sink, false, true);
         testHarness.open();
 
         final CommittableSummary<String> committableSummary =
@@ -167,7 +175,11 @@ abstract class CommitterOperatorTestBase {
         SinkAndCounters sinkAndCounters = sinkWithPostCommit();
         final OneInputStreamOperatorTestHarness<
                         CommittableMessage<String>, CommittableMessage<String>>
-                testHarness = createTestHarness(sinkAndCounters.sink, isBatchMode, !isBatchMode);
+                testHarness =
+                        createTestHarness(
+                                (SupportsCommitter<String>) sinkAndCounters.sink,
+                                isBatchMode,
+                                !isBatchMode);
         testHarness.open();
 
         final CommittableSummary<String> committableSummary =
@@ -212,7 +224,7 @@ abstract class CommitterOperatorTestBase {
                         CommittableMessage<String>, CommittableMessage<String>>
                 testHarness =
                         createTestHarness(
-                                sinkWithPostCommitWithRetry().sink,
+                                (SupportsCommitter<String>) sinkWithPostCommitWithRetry().sink,
                                 false,
                                 true,
                                 1,
@@ -255,7 +267,12 @@ abstract class CommitterOperatorTestBase {
                         CommittableMessage<String>, CommittableMessage<String>>
                 restored =
                         createTestHarness(
-                                sinkAndCounters.sink, false, true, 10, 10, subtaskIdAfterRecovery);
+                                (SupportsCommitter<String>) sinkAndCounters.sink,
+                                false,
+                                true,
+                                10,
+                                10,
+                                subtaskIdAfterRecovery);
 
         restored.initializeState(snapshot);
         restored.open();
@@ -292,7 +309,9 @@ abstract class CommitterOperatorTestBase {
                 testHarness =
                         new OneInputStreamOperatorTestHarness<>(
                                 new CommitterOperatorFactory<>(
-                                        sinkAndCounters.sink, false, isCheckpointingEnabled));
+                                        (SupportsCommitter<String>) sinkAndCounters.sink,
+                                        false,
+                                        isCheckpointingEnabled));
         testHarness.open();
 
         final CommittableSummary<String> committableSummary =
@@ -340,7 +359,7 @@ abstract class CommitterOperatorTestBase {
     private OneInputStreamOperatorTestHarness<
                     CommittableMessage<String>, CommittableMessage<String>>
             createTestHarness(
-                    TwoPhaseCommittingSink<?, String> sink,
+                    SupportsCommitter<String> sink,
                     boolean isBatchMode,
                     boolean isCheckpointingEnabled)
                     throws Exception {
@@ -351,7 +370,7 @@ abstract class CommitterOperatorTestBase {
     private OneInputStreamOperatorTestHarness<
                     CommittableMessage<String>, CommittableMessage<String>>
             createTestHarness(
-                    TwoPhaseCommittingSink<?, String> sink,
+                    SupportsCommitter<String> sink,
                     boolean isBatchMode,
                     boolean isCheckpointingEnabled,
                     int maxParallelism,
@@ -372,10 +391,10 @@ abstract class CommitterOperatorTestBase {
     abstract SinkAndCounters sinkWithoutPostCommit();
 
     static class SinkAndCounters {
-        TwoPhaseCommittingSink<?, String> sink;
+        Sink<?> sink;
         IntSupplier commitCounter;
 
-        public SinkAndCounters(TwoPhaseCommittingSink<?, String> sink, IntSupplier commitCounter) {
+        public SinkAndCounters(Sink<?> sink, IntSupplier commitCounter) {
             this.sink = sink;
             this.commitCounter = commitCounter;
         }
