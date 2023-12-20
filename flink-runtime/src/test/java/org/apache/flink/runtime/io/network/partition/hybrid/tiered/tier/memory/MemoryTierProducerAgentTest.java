@@ -104,6 +104,7 @@ class MemoryTierProducerAgentTest {
         TestingTieredStorageMemoryManager memoryManager =
                 new TestingTieredStorageMemoryManager.Builder()
                         .setGetMaxNonReclaimableBuffersFunction(ignore -> 1)
+                        .setEnsureCapacityFunction(num -> false)
                         .build();
         TestingTieredStorageNettyService nettyService =
                 new TestingTieredStorageNettyService.Builder().build();

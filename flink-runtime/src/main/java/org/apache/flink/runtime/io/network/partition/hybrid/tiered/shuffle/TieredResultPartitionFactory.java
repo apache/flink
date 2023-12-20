@@ -176,13 +176,16 @@ public class TieredResultPartitionFactory {
         List<TieredStorageMemorySpec> tieredStorageMemorySpecs = new ArrayList<>();
 
         tieredStorageMemorySpecs.add(
+                // Accumulators are also treated as {@code guaranteedReclaimable}, since these
+                // buffers can always be transferred to the other tiers.
                 new TieredStorageMemorySpec(
                         bufferAccumulator,
                         2
                                 * Math.min(
                                         numberOfSubpartitions + 1,
                                         tieredStorageConfiguration
-                                                .getAccumulatorExclusiveBuffers())));
+                                                .getAccumulatorExclusiveBuffers()),
+                        true));
         List<Integer> tierExclusiveBuffers =
                 tieredStorageConfiguration.getEachTierExclusiveBufferNum();
 
@@ -208,8 +211,16 @@ public class TieredResultPartitionFactory {
                                     numberOfSubpartitions),
                             tieredStorageConfiguration.getDiskIOSchedulerBufferRequestTimeout());
             tierProducerAgents.add(producerAgent);
-            tieredStorageMemorySpecs.add(
-                    new TieredStorageMemorySpec(producerAgent, tierExclusiveBuffers.get(index)));
+
+            if (tierFactory.getClass() == MemoryTierFactory.class) {
+                tieredStorageMemorySpecs.add(
+                        new TieredStorageMemorySpec(
+                                producerAgent, tierExclusiveBuffers.get(index), false));
+            } else {
+                tieredStorageMemorySpecs.add(
+                        new TieredStorageMemorySpec(
+                                producerAgent, tierExclusiveBuffers.get(index), true));
+            }
         }
         return Tuple2.of(tierProducerAgents, tieredStorageMemorySpecs);
     }
