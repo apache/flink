@@ -27,14 +27,15 @@ import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.UserCodeClassLoader;
 
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -324,7 +325,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
     }
 
     @Test
-    @Ignore("FLINK-27082: Fails in Docker with root user")
+    @Category(FailsInGHAContainerWithRootUser.class)
     public void testRegisterAndDownload() throws IOException {
         assumeTrue(!OperatingSystem.isWindows()); // setWritable doesn't work on Windows.
 

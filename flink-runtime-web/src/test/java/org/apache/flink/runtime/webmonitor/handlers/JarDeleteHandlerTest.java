@@ -32,7 +32,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -104,7 +104,7 @@ class JarDeleteHandlerTest {
                         });
     }
 
-    @Disabled("FLINK-27082: Fails in Docker with root user")
+    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testFailedDelete() throws Exception {
         makeJarDirReadOnly();

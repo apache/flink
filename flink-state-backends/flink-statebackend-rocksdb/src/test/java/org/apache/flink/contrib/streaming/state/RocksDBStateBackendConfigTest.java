@@ -42,13 +42,14 @@ import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser;
 import org.apache.flink.util.IOUtils;
 
 import org.junit.Assert;
 import org.junit.Assume;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.BlockBasedTableConfig;
 import org.rocksdb.BloomFilter;
@@ -408,7 +409,7 @@ public class RocksDBStateBackendConfigTest {
     // ------------------------------------------------------------------------
 
     @Test
-    @Ignore("FLINK-27082: Fails in Docker with root user")
+    @Category(FailsInGHAContainerWithRootUser.class)
     public void testFailWhenNoLocalStorageDir() throws Exception {
         final File targetDir = tempFolder.newFolder();
         Assume.assumeTrue(
