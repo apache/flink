@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.operators.collect;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.streaming.api.operators.collect.utils.CollectSinkFunctionTestWrapper;
 import org.apache.flink.streaming.api.operators.collect.utils.CollectTestUtils;
 import org.apache.flink.util.TestLogger;
@@ -136,9 +135,8 @@ public class CollectSinkFunctionTest extends TestLogger {
                     .getConfiguration()
                     .setInteger(TaskManagerOptions.COLLECT_PORT, socket.getLocalPort());
             assertThatThrownBy(() -> functionWrapper.openFunction())
-                    .satisfies(
-                            FlinkAssertions.anyCauseMatches(
-                                    BindException.class, "Address already in use (Bind failed)"));
+                    .isInstanceOf(BindException.class)
+                    .hasMessageContaining("Address already in use");
         }
     }
 
