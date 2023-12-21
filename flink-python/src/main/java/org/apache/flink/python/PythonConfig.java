@@ -82,6 +82,15 @@ public class PythonConfig implements ReadableConfig {
         return configuration.getOptional(option);
     }
 
+    @Internal
+    @Override
+    public Map<String, String> toMap() {
+        Map<String, String> pythonDependencyConfigMap = pythonDependencyConfiguration.toMap();
+        Map<String, String> configMap = configuration.toMap();
+        configMap.putAll(pythonDependencyConfigMap);
+        return configMap;
+    }
+
     public Configuration toConfiguration() {
         final Configuration config = new Configuration();
         PYTHON_CONFIG_OPTIONS.forEach(
