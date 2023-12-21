@@ -41,6 +41,9 @@ import org.apache.flink.streaming.runtime.tasks.WatermarkGaugeExposingOutput;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.OutputTag;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
@@ -51,6 +54,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class RecordWriterOutput<OUT>
         implements WatermarkGaugeExposingOutput<StreamRecord<OUT>>,
                 OutputWithChainingCheck<StreamRecord<OUT>> {
+    private static final Logger LOG = LoggerFactory.getLogger(RecordWriterOutput.class);
 
     private RecordWriter<SerializationDelegate<StreamElement>> recordWriter;
 
@@ -229,6 +233,14 @@ public class RecordWriterOutput<OUT>
 
     @Override
     public void emitRecordAttributes(RecordAttributes recordAttributes) {
+        if (!recordWriter.isSubpartitionDerivable()) {
+            LOG.warn(
+                    recordAttributes
+                            + " will be ignored, because its correctness cannot not be "
+                            + "guaranteed when the subpartition information is not derivable.");
+            return;
+        }
+
         try {
             serializationDelegate.setInstance(recordAttributes);
             recordWriter.broadcastEmit(serializationDelegate);
