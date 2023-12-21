@@ -48,8 +48,8 @@ class StreamTableEnvironmentImplTest {
     val table = tEnv.fromDataStream(elements)
     tEnv.toDataStream(table)
 
-    assertThat(tEnv.getConfig.getMinIdleStateRetentionTime).isEqualTo(retention.toMillis)
-    assertThat(tEnv.getConfig.getMaxIdleStateRetentionTime).isEqualTo(retention.toMillis * 3 / 2)
+    assertThat(tEnv.getConfig.getIdleStateRetention.toMillis).isEqualTo(retention.toMillis)
+    assertThat(tEnv.getConfig.getIdleStateRetention.toMillis * 3 / 2).isEqualTo(retention.toMillis * 3 / 2)
   }
 
   @Test
@@ -63,8 +63,8 @@ class StreamTableEnvironmentImplTest {
     val table = tEnv.fromDataStream(elements)
     tEnv.toRetractStream[Row](table)
 
-    assertThat(tEnv.getConfig.getMinIdleStateRetentionTime).isEqualTo(retention.toMillis)
-    assertThat(tEnv.getConfig.getMaxIdleStateRetentionTime).isEqualTo(retention.toMillis * 3 / 2)
+    assertThat(tEnv.getConfig.getIdleStateRetention.toMillis).isEqualTo(retention.toMillis)
+    assertThat(tEnv.getConfig.getIdleStateRetention.toMillis * 3 / 2).isEqualTo(retention.toMillis * 3 / 2)
   }
 
   private def getStreamTableEnvironment(
