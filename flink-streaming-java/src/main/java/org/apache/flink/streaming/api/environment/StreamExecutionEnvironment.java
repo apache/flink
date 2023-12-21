@@ -2524,12 +2524,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
                 .setStateBackend(defaultStateBackend)
                 .setChangelogStateBackendEnabled(isChangelogStateBackendEnabled())
                 .setSavepointDir(getDefaultSavepointDirectory())
-                .setChaining(isChainingEnabled())
-                .setChainingOfOperatorsWithDifferentMaxParallelism(
-                        isChainingOfOperatorsWithDifferentMaxParallelismEnabled())
-                .setUserArtifacts(getCachedFiles())
                 .setTimeCharacteristic(getStreamTimeCharacteristic())
-                .setDefaultBufferTimeout(getBufferTimeout())
                 .setSlotSharingGroupResource(slotSharingGroupResources);
     }
 

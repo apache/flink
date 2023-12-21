@@ -32,6 +32,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.JobStatusHook;
 import org.apache.flink.core.fs.Path;
@@ -73,7 +74,6 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -98,15 +98,10 @@ public class StreamGraph implements Pipeline {
 
     private String jobName;
 
+    private final Configuration jobConfiguration;
     private final ExecutionConfig executionConfig;
     private final CheckpointConfig checkpointConfig;
     private SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.none();
-
-    private boolean chaining;
-    private boolean chainingOfOperatorsWithDifferentMaxParallelism;
-
-    private Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts =
-            Collections.emptyList();
 
     private TimeCharacteristic timeCharacteristic;
 
@@ -145,9 +140,11 @@ public class StreamGraph implements Pipeline {
     private boolean autoParallelismEnabled;
 
     public StreamGraph(
+            Configuration jobConfiguration,
             ExecutionConfig executionConfig,
             CheckpointConfig checkpointConfig,
             SavepointRestoreSettings savepointRestoreSettings) {
+        this.jobConfiguration = new Configuration(checkNotNull(jobConfiguration));
         this.executionConfig = checkNotNull(executionConfig);
         this.checkpointConfig = checkNotNull(checkpointConfig);
         this.savepointRestoreSettings = checkNotNull(savepointRestoreSettings);
@@ -173,6 +170,10 @@ public class StreamGraph implements Pipeline {
         return executionConfig;
     }
 
+    public Configuration getJobConfiguration() {
+        return jobConfiguration;
+    }
+
     public CheckpointConfig getCheckpointConfig() {
         return checkpointConfig;
     }
@@ -191,16 +192,6 @@ public class StreamGraph implements Pipeline {
 
     public void setJobName(String jobName) {
         this.jobName = jobName;
-    }
-
-    public void setChaining(boolean chaining) {
-        this.chaining = chaining;
-    }
-
-    public void setChainingOfOperatorsWithDifferentMaxParallelism(
-            boolean chainingOfOperatorsWithDifferentMaxParallelism) {
-        this.chainingOfOperatorsWithDifferentMaxParallelism =
-                chainingOfOperatorsWithDifferentMaxParallelism;
     }
 
     public void setStateBackend(StateBackend backend) {
@@ -244,12 +235,9 @@ public class StreamGraph implements Pipeline {
     }
 
     public Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> getUserArtifacts() {
-        return userArtifacts;
-    }
-
-    public void setUserArtifacts(
-            Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts) {
-        this.userArtifacts = checkNotNull(userArtifacts);
+        return Optional.ofNullable(jobConfiguration.get(PipelineOptions.CACHED_FILES))
+                .map(DistributedCache::parseCachedFilesFromString)
+                .orElse(new ArrayList<>());
     }
 
     public TimeCharacteristic getTimeCharacteristic() {
@@ -314,11 +302,12 @@ public class StreamGraph implements Pipeline {
     // Checkpointing
 
     public boolean isChainingEnabled() {
-        return chaining;
+        return jobConfiguration.get(PipelineOptions.OPERATOR_CHAINING);
     }
 
     public boolean isChainingOfOperatorsWithDifferentMaxParallelismEnabled() {
-        return chainingOfOperatorsWithDifferentMaxParallelism;
+        return jobConfiguration.get(
+                PipelineOptions.OPERATOR_CHAINING_CHAIN_OPERATORS_WITH_DIFFERENT_MAX_PARALLELISM);
     }
 
     public boolean isIterative() {

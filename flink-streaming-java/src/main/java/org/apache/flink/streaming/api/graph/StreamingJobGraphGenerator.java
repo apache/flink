@@ -303,6 +303,7 @@ public class StreamingJobGraphGenerator {
                     "Could not serialize the ExecutionConfig."
                             + "This indicates that non-serializable types (like custom serializers) were registered");
         }
+        jobGraph.setJobConfiguration(streamGraph.getJobConfiguration());
 
         jobGraph.setChangelogStateBackendEnabled(streamGraph.isChangelogStateBackendEnabled());
 
