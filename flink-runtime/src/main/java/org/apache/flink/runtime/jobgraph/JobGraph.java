@@ -79,7 +79,7 @@ public class JobGraph implements Serializable {
             new LinkedHashMap<JobVertexID, JobVertex>();
 
     /** The job configuration attached to this job. */
-    private final Configuration jobConfiguration = new Configuration();
+    private Configuration jobConfiguration = new Configuration();
 
     /** ID of this job. May be set if specific job id is desired (e.g. session management) */
     private JobID jobID;
@@ -198,6 +198,10 @@ public class JobGraph implements Serializable {
      */
     public String getName() {
         return this.jobName;
+    }
+
+    public void setJobConfiguration(Configuration jobConfiguration) {
+        this.jobConfiguration = jobConfiguration;
     }
 
     /**

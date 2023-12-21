@@ -155,7 +155,7 @@ public class StreamGraphGenerator {
 
     private final CheckpointConfig checkpointConfig;
 
-    private final ReadableConfig configuration;
+    private final Configuration configuration;
 
     // Records the slot sharing groups and their corresponding fine-grained ResourceProfile
     private final Map<String, ResourceProfile> slotSharingGroupResources = new HashMap<>();
@@ -241,7 +241,7 @@ public class StreamGraphGenerator {
             List<Transformation<?>> transformations,
             ExecutionConfig executionConfig,
             CheckpointConfig checkpointConfig,
-            ReadableConfig configuration) {
+            Configuration configuration) {
         this.transformations = checkNotNull(transformations);
         this.executionConfig = checkNotNull(executionConfig);
         this.checkpointConfig = new CheckpointConfig(checkpointConfig);
@@ -318,7 +318,9 @@ public class StreamGraphGenerator {
     }
 
     public StreamGraph generate() {
-        streamGraph = new StreamGraph(executionConfig, checkpointConfig, savepointRestoreSettings);
+        streamGraph =
+                new StreamGraph(
+                        configuration, executionConfig, checkpointConfig, savepointRestoreSettings);
         shouldExecuteInBatchMode = shouldExecuteInBatchMode();
         configureStreamGraph(streamGraph);
 
