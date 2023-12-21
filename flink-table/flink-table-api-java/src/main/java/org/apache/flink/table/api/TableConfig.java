@@ -198,6 +198,15 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
         return rootConfiguration.getOptional(option);
     }
 
+    @Internal
+    @Override
+    public Map<String, String> toMap() {
+        Map<String, String> rootConfigMap = rootConfiguration.toMap();
+        Map<String, String> configMap = configuration.toMap();
+        rootConfigMap.putAll(configMap);
+        return rootConfigMap;
+    }
+
     /**
      * Gives direct access to the underlying application-specific key-value map for advanced
      * configuration.
