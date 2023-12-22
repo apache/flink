@@ -20,6 +20,7 @@ package org.apache.flink.api.common.functions.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 
@@ -38,7 +39,7 @@ import static org.junit.Assert.fail;
 /** Test for the {@link RuntimeUDFContext}. */
 public class RuntimeUDFContextTest {
 
-    private final TaskInfo taskInfo = new TaskInfo("test name", 3, 1, 3, 0);
+    private final TaskInfo taskInfo = new TaskInfoImpl("test name", 3, 1, 3, 0);
 
     @Test
     public void testBroadcastVariableNotFound() {

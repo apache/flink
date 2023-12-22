@@ -20,6 +20,7 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
@@ -123,7 +124,7 @@ public class MapOperatorTest implements java.io.Serializable {
             final HashMap<String, Accumulator<?, ?>> accumulatorMap =
                     new HashMap<String, Accumulator<?, ?>>();
             final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
-            final TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
+            final TaskInfo taskInfo = new TaskInfoImpl(taskName, 1, 0, 1, 0);
             ExecutionConfig executionConfig = new ExecutionConfig();
             executionConfig.disableObjectReuse();
 

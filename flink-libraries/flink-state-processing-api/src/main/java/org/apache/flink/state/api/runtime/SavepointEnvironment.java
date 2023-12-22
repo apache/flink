@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
@@ -190,7 +191,7 @@ public class SavepointEnvironment implements Environment {
 
     @Override
     public TaskInfo getTaskInfo() {
-        return new TaskInfo(
+        return new TaskInfoImpl(
                 ctx.getTaskName(),
                 maxParallelism,
                 indexOfSubtask,

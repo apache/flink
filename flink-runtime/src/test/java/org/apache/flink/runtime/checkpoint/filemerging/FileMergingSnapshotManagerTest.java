@@ -17,7 +17,7 @@
 
 package org.apache.flink.runtime.checkpoint.filemerging;
 
-import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
@@ -50,8 +50,8 @@ public class FileMergingSnapshotManagerTest {
     public void setup(@TempDir java.nio.file.Path tempFolder) {
         // use simplified job ids for the tests
         long jobId = 1;
-        subtaskKey1 = new SubtaskKey(operatorID, new TaskInfo("TestingTask", 128, 0, 128, 3));
-        subtaskKey2 = new SubtaskKey(operatorID, new TaskInfo("TestingTask", 128, 1, 128, 3));
+        subtaskKey1 = new SubtaskKey(operatorID, new TaskInfoImpl("TestingTask", 128, 0, 128, 3));
+        subtaskKey2 = new SubtaskKey(operatorID, new TaskInfoImpl("TestingTask", 128, 1, 128, 3));
         checkpointBaseDir = new Path(tempFolder.toString(), String.valueOf(jobId));
     }
 
