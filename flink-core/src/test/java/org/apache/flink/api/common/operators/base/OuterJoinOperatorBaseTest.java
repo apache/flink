@@ -46,6 +46,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/** The test for outer join operator. */
 @SuppressWarnings("serial")
 public class OuterJoinOperatorBaseTest implements Serializable {
 

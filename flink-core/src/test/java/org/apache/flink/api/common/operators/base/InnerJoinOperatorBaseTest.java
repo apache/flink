@@ -45,6 +45,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/** The test for inner join operator. */
 @SuppressWarnings("serial")
 public class InnerJoinOperatorBaseTest implements Serializable {
 
