@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
@@ -174,7 +175,7 @@ public class StreamMockEnvironment implements Environment {
 
         int subtaskIndex = executionAttemptID.getExecutionVertexId().getSubtaskIndex();
         this.taskInfo =
-                new TaskInfo(
+                new TaskInfoImpl(
                         "", /* task name */
                         1, /* num key groups / max parallelism */
                         subtaskIndex, /* index of this subtask */

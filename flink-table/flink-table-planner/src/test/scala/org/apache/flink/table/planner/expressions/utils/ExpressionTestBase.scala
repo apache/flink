@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.expressions.utils
 
-import org.apache.flink.api.common.TaskInfo
+import org.apache.flink.api.common.{TaskInfo, TaskInfoImpl}
 import org.apache.flink.api.common.functions.{MapFunction, RichFunction, RichMapFunction}
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -228,7 +228,7 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
     if (isRichFunction) {
       val richMapper = mapper.asInstanceOf[RichMapFunction[_, _]]
       val t = new RuntimeUDFContext(
-        new TaskInfo("ExpressionTest", 1, 0, 1, 1),
+        new TaskInfoImpl("ExpressionTest", 1, 0, 1, 1),
         classOf[ExpressionTestBase].getClassLoader,
         env.getConfig,
         Collections.emptyMap(),
