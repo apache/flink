@@ -20,6 +20,7 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.OpenContext;
@@ -81,7 +82,7 @@ class CoGroupOperatorCollectionTest implements Serializable {
             ExecutionConfig executionConfig = new ExecutionConfig();
             final HashMap<String, Accumulator<?, ?>> accumulators = new HashMap<>();
             final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
-            final TaskInfo taskInfo = new TaskInfo("Test UDF", 4, 0, 4, 0);
+            final TaskInfo taskInfo = new TaskInfoImpl("Test UDF", 4, 0, 4, 0);
             final RuntimeContext ctx =
                     new RuntimeUDFContext(
                             taskInfo,
