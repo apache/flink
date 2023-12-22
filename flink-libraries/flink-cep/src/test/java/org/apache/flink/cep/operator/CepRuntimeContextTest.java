@@ -110,10 +110,10 @@ public class CepRuntimeContextTest extends TestLogger {
         final String taskName = "foobarTask";
         final OperatorMetricGroup metricGroup =
                 UnregisteredMetricsGroup.createOperatorMetricGroup();
-        final int numberOfParallelSubtasks = 42;
-        final int indexOfSubtask = 43;
+        final int numberOfParallelSubtasks = 43;
+        final int indexOfSubtask = 42;
         final int attemptNumber = 1337;
-        final String taskNameWithSubtask = "barfoo";
+        final String taskNameWithSubtask = "foobarTask (43/43)#1337";
         final Map<String, String> globalJobParameters = new HashMap<>();
         globalJobParameters.put("k1", "v1");
         final ClassLoader userCodeClassLoader = mock(ClassLoader.class);
