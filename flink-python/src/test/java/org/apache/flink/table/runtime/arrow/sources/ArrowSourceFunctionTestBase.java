@@ -298,7 +298,7 @@ abstract class ArrowSourceFunctionTestBase {
                 createArrowSourceFunction(
                         ArrowUtils.readArrowBatches(
                                 Channels.newChannel(new ByteArrayInputStream(baos.toByteArray()))));
-        arrowSourceFunction.setRuntimeContext(new MockStreamingRuntimeContext(false, 0, 0));
+        arrowSourceFunction.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
         return arrowSourceFunction;
     }
 

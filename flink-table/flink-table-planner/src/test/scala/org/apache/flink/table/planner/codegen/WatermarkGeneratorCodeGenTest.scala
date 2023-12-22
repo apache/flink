@@ -119,7 +119,7 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
     val generator = generateWatermarkGenerator("myFunc(ts, `offset`)", useDefinedConstructor)
     if (!useDefinedConstructor) {
       // mock open and close invoking
-      generator.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 1))
+      generator.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0))
     }
     generator.open(DefaultOpenContext.INSTANCE)
     val results = data.map(d => generator.currentWatermark(d))
