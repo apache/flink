@@ -19,9 +19,12 @@ package org.apache.flink.table.planner.plan.stream.sql.join
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableFunc1, TableTestBase}
 
 import org.junit.jupiter.api.Test
+
+import java.time.Duration
 
 class JoinTest extends TableTestBase {
 
@@ -644,8 +647,11 @@ class JoinTest extends TableTestBase {
                                |""".stripMargin)
 
     util.tableEnv.getConfig.getConfiguration
-      .setBoolean("table.exec.mini-batch.enabled", java.lang.Boolean.valueOf(true))
-    util.tableEnv.getConfig.getConfiguration.setString("table.exec.mini-batch.allow-latency", "10s")
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
+    util.tableEnv.getConfig.getConfiguration
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(10))
+    util.tableEnv.getConfig.getConfiguration
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, Long.box(5000L))
 
     util.verifyExplainInsert(
       """
