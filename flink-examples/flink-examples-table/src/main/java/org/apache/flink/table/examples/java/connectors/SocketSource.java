@@ -116,7 +116,7 @@ public final class SocketSource
     public SourceReader<RowData, DummySplit> createReader(SourceReaderContext readerContext)
             throws Exception {
         Preconditions.checkState(
-                readerContext.currentParallelism() == 1,
+                readerContext.getTaskInfo().getNumberOfParallelSubtasks() == 1,
                 "SocketSource can only work with a parallelism of 1.");
         deserializer.open(
                 new DeserializationSchema.InitializationContext() {

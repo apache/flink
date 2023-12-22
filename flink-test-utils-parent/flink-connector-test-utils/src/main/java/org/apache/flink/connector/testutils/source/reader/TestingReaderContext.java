@@ -18,9 +18,11 @@
 
 package org.apache.flink.connector.testutils.source.reader;
 
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.testutils.source.TestingTaskInfo;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.SimpleUserCodeClassLoader;
@@ -67,11 +69,6 @@ public class TestingReaderContext implements SourceReaderContext {
     }
 
     @Override
-    public int getIndexOfSubtask() {
-        return 0;
-    }
-
-    @Override
     public void sendSplitRequest() {
         numSplitRequests++;
     }
@@ -86,11 +83,6 @@ public class TestingReaderContext implements SourceReaderContext {
         return SimpleUserCodeClassLoader.create(getClass().getClassLoader());
     }
 
-    @Override
-    public int currentParallelism() {
-        return 1;
-    }
-
     // ------------------------------------------------------------------------
 
     public int getNumSplitRequests() {
@@ -103,5 +95,16 @@ public class TestingReaderContext implements SourceReaderContext {
 
     public void clearSentEvents() {
         sentEvents.clear();
+    }
+
+    @Override
+    public TaskInfo getTaskInfo() {
+        return new TestingTaskInfo.Builder()
+                .setTaskName("TestTask")
+                .setMaxNumberOfParallelSubtasks(1)
+                .setIndexOfThisSubtask(0)
+                .setAttemptNumber(0)
+                .setNumberOfParallelSubtasks(1)
+                .build();
     }
 }
