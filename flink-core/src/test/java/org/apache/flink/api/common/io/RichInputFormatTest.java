@@ -33,7 +33,7 @@ import java.util.concurrent.Future;
 
 import static org.junit.Assert.assertEquals;
 
-/** Tests runtime context access from inside an RichInputFormat class */
+/** Tests runtime context access from inside an RichInputFormat class. */
 public class RichInputFormatTest {
 
     @Test

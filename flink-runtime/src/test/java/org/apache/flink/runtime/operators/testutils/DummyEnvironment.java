@@ -62,6 +62,7 @@ import java.util.concurrent.Future;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 
+/** The {@link DummyEnvironment} is used for test purpose. */
 public class DummyEnvironment implements Environment {
 
     private final JobID jobId = new JobID();

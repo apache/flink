@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Future;
 
+/** The test for flat map operator. */
 @SuppressWarnings("serial")
 public class FlatMapOperatorCollectionTest implements Serializable {
 
@@ -97,6 +98,7 @@ public class FlatMapOperatorCollectionTest implements Serializable {
         Assert.assertEquals(input, result);
     }
 
+    /** The test flat map function. */
     public class IdRichFlatMap<IN> extends RichFlatMapFunction<IN, IN> {
 
         private boolean isOpened = false;
