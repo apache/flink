@@ -19,7 +19,10 @@
 package org.apache.flink.api.connector.sink2;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.TaskInfo;
 
 import java.util.OptionalLong;
 
@@ -35,18 +38,48 @@ public interface InitContext {
      */
     long INITIAL_CHECKPOINT_ID = 1;
 
-    /** @return The id of task where the committer is running. */
-    int getSubtaskId();
+    /**
+     * Get the id of task where the committer is running.
+     *
+     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
+     *     provided uniformly by {@link #getTaskInfo()}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
+     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
+     */
+    @Deprecated
+    default int getSubtaskId() {
+        return getTaskInfo().getIndexOfThisSubtask();
+    }
 
-    /** @return The number of parallel committer tasks. */
-    int getNumberOfParallelSubtasks();
+    /**
+     * Get the number of parallel committer tasks.
+     *
+     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
+     *     provided uniformly by {@link #getTaskInfo()}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
+     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
+     */
+    @Deprecated
+    default int getNumberOfParallelSubtasks() {
+        return getTaskInfo().getNumberOfParallelSubtasks();
+    }
 
     /**
      * Gets the attempt number of this parallel subtask. First attempt is numbered 0.
      *
      * @return Attempt number of the subtask.
+     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
+     *     provided uniformly by {@link #getTaskInfo()}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
+     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
      */
-    int getAttemptNumber();
+    @Deprecated
+    default int getAttemptNumber() {
+        return getTaskInfo().getAttemptNumber();
+    }
 
     /**
      * Returns id of the restored checkpoint, if state was restored from the snapshot of a previous
@@ -57,6 +90,31 @@ public interface InitContext {
     /**
      * The ID of the current job. Note that Job ID can change in particular upon manual restart. The
      * returned ID should NOT be used for any job management tasks.
+     *
+     * @deprecated This method is deprecated since Flink 1.19. All metadata about the job should be
+     *     provided uniformly by {@link #getJobInfo()}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
+     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
      */
-    JobID getJobId();
+    @Deprecated
+    default JobID getJobId() {
+        return getJobInfo().getJobId();
+    }
+
+    /**
+     * Get the meta information of current job.
+     *
+     * @return the job meta information.
+     */
+    @PublicEvolving
+    JobInfo getJobInfo();
+
+    /**
+     * Get the meta information of current task.
+     *
+     * @return the task meta information.
+     */
+    @PublicEvolving
+    TaskInfo getTaskInfo();
 }
