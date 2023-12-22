@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.ListState;
@@ -254,8 +255,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             return;
         }
 
-        final int subtaskIndex = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
-
         final SourceReaderContext context =
                 new SourceReaderContext() {
                     @Override
@@ -271,11 +270,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                     @Override
                     public String getLocalHostName() {
                         return localHostname;
-                    }
-
-                    @Override
-                    public int getIndexOfSubtask() {
-                        return subtaskIndex;
                     }
 
                     @Override
@@ -308,8 +302,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                     }
 
                     @Override
-                    public int currentParallelism() {
-                        return getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+                    public TaskInfo getTaskInfo() {
+                        return getRuntimeContext().getTaskInfo();
                     }
                 };
 

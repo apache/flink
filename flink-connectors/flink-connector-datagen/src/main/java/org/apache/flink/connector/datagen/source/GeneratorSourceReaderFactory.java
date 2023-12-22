@@ -58,7 +58,7 @@ class GeneratorSourceReaderFactory<OUT>
     @Override
     public SourceReader<OUT, NumberSequenceSource.NumberSequenceSplit> createReader(
             SourceReaderContext readerContext) {
-        int parallelism = readerContext.currentParallelism();
+        int parallelism = readerContext.getTaskInfo().getNumberOfParallelSubtasks();
         RateLimiter rateLimiter = rateLimiterStrategy.createRateLimiter(parallelism);
         return new RateLimitedSourceReader<>(
                 new GeneratingIteratorSourceReader<>(readerContext, generatorFunction),
