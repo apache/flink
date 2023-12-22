@@ -53,7 +53,7 @@ class JsonValueCallGen extends CallGenerator {
             errorBehavior._2
           )
 
-          val rawResultTerm = CodeGenUtils.newName("rawResult")
+          val rawResultTerm = CodeGenUtils.newName(ctx, "rawResult")
           val call = s"""
                         |Object $rawResultTerm =
                         |    ${qualifyMethod(BuiltInMethods.JSON_VALUE)}(${terms.mkString(", ")});

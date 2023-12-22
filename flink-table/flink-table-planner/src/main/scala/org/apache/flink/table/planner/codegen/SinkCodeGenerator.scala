@@ -96,7 +96,7 @@ object SinkCodeGenerator {
         }
         val conversion =
           resultGenerator.generateConverterResultExpression(outputRowType, classOf[GenericRowData])
-        afterIndexModify = CodeGenUtils.newName("afterIndexModify")
+        afterIndexModify = CodeGenUtils.newName(ctx, "afterIndexModify")
         s"""
            |${conversion.code}
            |${conversion.resultTerm}.setRowKind($inputTerm.getRowKind());
@@ -112,7 +112,7 @@ object SinkCodeGenerator {
     val retractProcessCode = if (withChangeFlag) {
       val flagResultTerm =
         s"${classOf[RowDataUtil].getCanonicalName}.isAccumulateMsg($afterIndexModify)"
-      val resultTerm = CodeGenUtils.newName("result")
+      val resultTerm = CodeGenUtils.newName(ctx, "result")
       if (consumedDataType.getConversionClass == classOf[JTuple2[_, _]]) {
         // Java Tuple2
         val tupleClass = consumedDataType.getConversionClass.getCanonicalName
@@ -120,7 +120,7 @@ object SinkCodeGenerator {
            |$tupleClass $resultTerm = new $tupleClass();
            |$resultTerm.setField($flagResultTerm, 0);
            |$resultTerm.setField($outTerm, 1);
-           |${generateCollectCode(afterIndexModify, resultTerm, modifiedRowtimeIndex)}
+           |${generateCollectCode(ctx, afterIndexModify, resultTerm, modifiedRowtimeIndex)}
          """.stripMargin
       } else {
         // Scala Case Class
@@ -132,18 +132,18 @@ object SinkCodeGenerator {
           scalaTupleSerializer,
           "serializer",
           classOf[TupleSerializerBase[_]].getCanonicalName)
-        val fieldsTerm = CodeGenUtils.newName("fields")
+        val fieldsTerm = CodeGenUtils.newName(ctx, "fields")
 
         s"""
            |Object[] $fieldsTerm = new Object[2];
            |$fieldsTerm[0] = $flagResultTerm;
            |$fieldsTerm[1] = $outTerm;
            |$tupleClass $resultTerm = ($tupleClass) $serializerTerm.createInstance($fieldsTerm);
-           |${generateCollectCode(afterIndexModify, resultTerm, modifiedRowtimeIndex)}
+           |${generateCollectCode(ctx, afterIndexModify, resultTerm, modifiedRowtimeIndex)}
          """.stripMargin
       }
     } else {
-      generateCollectCode(afterIndexModify, outTerm, modifiedRowtimeIndex)
+      generateCollectCode(ctx, afterIndexModify, outTerm, modifiedRowtimeIndex)
     }
 
     val generated = OperatorCodeGenerator.generateOneInputStreamOperator[RowData, OUT](
@@ -158,11 +158,12 @@ object SinkCodeGenerator {
   }
 
   private def generateCollectCode(
+      ctx: CodeGeneratorContext,
       afterIndexModify: String,
       resultTerm: String,
       modifiedRowtimeIndex: Int): String = {
     if (modifiedRowtimeIndex >= 0) {
-      val rowtimeTerm = CodeGenUtils.newName("rowtime")
+      val rowtimeTerm = CodeGenUtils.newName(ctx, "rowtime")
       s"""
          | Long $rowtimeTerm =
          | $afterIndexModify.getTimestamp($modifiedRowtimeIndex, 3).getMillisecond();

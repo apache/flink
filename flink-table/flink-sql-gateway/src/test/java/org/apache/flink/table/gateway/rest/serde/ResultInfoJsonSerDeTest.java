@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.gateway.rest.serde;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.GenericRowData;
@@ -25,6 +26,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.gateway.rest.util.RowFormat;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.DateTimeUtils;
@@ -303,7 +305,10 @@ class ResultInfoJsonSerDeTest {
                         getTestResolvedSchema(getFields()).toPhysicalRowDataType(),
                         DateTimeUtils.UTC_ZONE.toZoneId(),
                         ResultInfoJsonSerDeTest.class.getClassLoader(),
-                        false);
+                        false,
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                ResultInfoJsonSerDeTest.class.getClassLoader()));
 
         StringData[] plainText =
                 Arrays.stream(converter.convert(rowData))

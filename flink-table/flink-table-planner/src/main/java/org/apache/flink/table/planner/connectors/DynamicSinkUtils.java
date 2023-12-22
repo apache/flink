@@ -148,7 +148,8 @@ public final class DynamicSinkUtils {
                         zoneId,
                         configuration
                                 .get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR)
-                                .isEnabled());
+                                .isEnabled(),
+                        configuration);
         collectModifyOperation.setSelectResultProvider(tableSink.getSelectResultProvider());
         collectModifyOperation.setConsumedDataType(consumedDataType);
         return convertSinkToRel(

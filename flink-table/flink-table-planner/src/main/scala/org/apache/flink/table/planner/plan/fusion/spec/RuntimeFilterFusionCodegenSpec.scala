@@ -72,11 +72,11 @@ class RuntimeFilterFusionCodegenSpec(opCodegenCtx: CodeGeneratorContext, probeIn
       inputVars: util.List[GeneratedExpression],
       row: GeneratedExpression): String = {
     if (inputId == buildInputId) {
-      buildComplete = newName("buildComplete")
+      buildComplete = newName(opCodegenCtx, "buildComplete")
       opCodegenCtx.addReusableMember(s"private transient boolean $buildComplete;")
       opCodegenCtx.addReusableOpenStatement(s"$buildComplete = false;")
 
-      filterTerm = newName("filter")
+      filterTerm = newName(opCodegenCtx, "filter")
       val filterClass = className[BloomFilter]
       opCodegenCtx.addReusableMember(s"private transient $filterClass $filterTerm;")
 
@@ -87,7 +87,8 @@ class RuntimeFilterFusionCodegenSpec(opCodegenCtx: CodeGeneratorContext, probeIn
          |}
          |""".stripMargin
     } else {
-      val Seq(probeKeyTerm, probeKeyWriterTerm) = newNames("probeKeyTerm", "probeKeyWriterTerm")
+      val Seq(probeKeyTerm, probeKeyWriterTerm) =
+        newNames(opCodegenCtx, "probeKeyTerm", "probeKeyWriterTerm")
       // project probe key row from input
       val probeKeyExprs = probeIndices.map(idx => inputVars.get(idx))
       val keyProjectionCode = getExprCodeGenerator
@@ -99,7 +100,7 @@ class RuntimeFilterFusionCodegenSpec(opCodegenCtx: CodeGeneratorContext, probeIn
           outRowWriter = Option(probeKeyWriterTerm))
         .code
 
-      val found = newName("found")
+      val found = newName(opCodegenCtx, "found")
       s"""
          |${className[Preconditions]}.checkState($buildComplete, "Should build completed.");
          |

@@ -137,7 +137,7 @@ class ImperativeAggCodeGen(
     } else {
       genToInternalConverter(ctx, externalAccType, s"$functionTerm.createAccumulator()")
     }
-    val accInternal = newName("acc_internal")
+    val accInternal = newName(ctx, "acc_internal")
     val code = s"$accTypeInternalTerm $accInternal = ($accTypeInternalTerm) $accField;"
     Seq(GeneratedExpression(accInternal, "false", code, internalAccType))
   }
@@ -248,7 +248,7 @@ class ImperativeAggCodeGen(
          |$functionTerm.merge($accInternalTerm, $accIterTerm);
        """.stripMargin
     } else {
-      val otherAccExternal = newName("other_acc_external")
+      val otherAccExternal = newName(ctx, "other_acc_external")
       s"""
          |$accTypeExternalTerm $otherAccExternal = ${genToExternalConverter(ctx, mergedAccExternalType, expr.resultTerm)};
          |$accIterTerm.set($otherAccExternal);
@@ -258,11 +258,11 @@ class ImperativeAggCodeGen(
   }
 
   def getValue(generator: ExprCodeGenerator): GeneratedExpression = {
-    val valueExternalTerm = newName("value_external")
+    val valueExternalTerm = newName(ctx, "value_external")
     val valueExternalTypeTerm = typeTerm(externalResultType.getConversionClass)
-    val valueInternalTerm = newName("value_internal")
+    val valueInternalTerm = newName(ctx, "value_internal")
     val valueInternalTypeTerm = boxedTypeTermForType(internalResultType)
-    val nullTerm = newName("valueIsNull")
+    val nullTerm = newName(ctx, "valueIsNull")
     val accTerm = if (isAccTypeInternal) accInternalTerm else accExternalTerm
     val code =
       s"""
@@ -349,7 +349,7 @@ class ImperativeAggCodeGen(
             val converted = exprGenerator.generateConverterResultExpression(
               fieldType,
               classOf[GenericRowData],
-              outRecordTerm = newName("acc"),
+              outRecordTerm = newName(ctx, "acc"),
               reusedOutRow = false,
               fieldCopy = inputFieldCopy)
             val code =
@@ -378,7 +378,7 @@ class ImperativeAggCodeGen(
               GeneratedExpression(newExpr.resultTerm, newExpr.nullTerm, code, newExpr.resultType)
             } else {
               val fieldType = ct.getTypeAt(index)
-              val fieldTerm = newName("field")
+              val fieldTerm = newName(ctx, "field")
               ctx.addReusableMember(s"$UPDATABLE_ROW $fieldTerm;")
               val code =
                 s"""

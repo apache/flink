@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.plan.fusion.OpFusionCodegenSpecGenerator;
 
 /** A {@link ExecNode} which support operator fusion codegen. */
@@ -33,6 +34,8 @@ public interface FusionCodegenExecNode {
      * <p>NOTE: This method should return same spec generator result if called multiple times.
      *
      * @param planner The {@link Planner} of the translated graph.
+     * @param parentCtx Parent CodeGeneratorContext.
      */
-    OpFusionCodegenSpecGenerator translateToFusionCodegenSpec(Planner planner);
+    OpFusionCodegenSpecGenerator translateToFusionCodegenSpec(
+            Planner planner, CodeGeneratorContext parentCtx);
 }

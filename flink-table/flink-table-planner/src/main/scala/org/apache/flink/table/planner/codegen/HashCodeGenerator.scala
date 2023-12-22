@@ -50,7 +50,7 @@ object HashCodeGenerator {
       input: LogicalType,
       name: String,
       hashFields: Array[Int]): GeneratedHashFunction = {
-    val className = newName(name)
+    val className = newName(ctx, name)
     val baseClass = classOf[HashFunction]
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
 
@@ -87,16 +87,16 @@ object HashCodeGenerator {
       ctx: CodeGeneratorContext,
       elementType: LogicalType,
       name: String): GeneratedHashFunction = {
-    val className = newName(name)
+    val className = newName(ctx, name)
     val baseClass = classOf[HashFunction]
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
 
     val typeTerm = primitiveTypeTermForType(elementType)
-    val isNull = newName("isNull")
-    val fieldTerm = newName("fieldTerm")
-    val elementHashTerm = newName("elementHashCode")
-    val hashIntTerm = newName("hashCode")
-    val i = newName("i")
+    val isNull = newName(ctx, "isNull")
+    val fieldTerm = newName(ctx, "fieldTerm")
+    val elementHashTerm = newName(ctx, "elementHashCode")
+    val hashIntTerm = newName(ctx, "hashCode")
+    val i = newName(ctx, "i")
 
     // Generate element hash code firstly
     val elementHashBody = hashCodeForType(ctx, elementType, fieldTerm)
@@ -140,22 +140,22 @@ object HashCodeGenerator {
       keyType: LogicalType,
       valueType: LogicalType,
       name: String): GeneratedHashFunction = {
-    val className = newName(name)
+    val className = newName(ctx, name)
     val baseClass = classOf[HashFunction]
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
 
     val keyTypeTerm = primitiveTypeTermForType(keyType)
     val valueTypeTerm = primitiveTypeTermForType(valueType)
-    val keys = newName("keys")
-    val values = newName("values")
-    val keyIsNull = newName("keyIsNull")
-    val keyFieldTerm = newName("keyFieldTerm")
-    val valueIsNull = newName("valueIsNull")
-    val valueFieldTerm = newName("valueFieldTerm")
-    val keyHashTerm = newName("keyHashCode")
-    val valueHashTerm = newName("valueHashCode")
-    val hashIntTerm = newName("hashCode")
-    val i = newName("i")
+    val keys = newName(ctx, "keys")
+    val values = newName(ctx, "values")
+    val keyIsNull = newName(ctx, "keyIsNull")
+    val keyFieldTerm = newName(ctx, "keyFieldTerm")
+    val valueIsNull = newName(ctx, "valueIsNull")
+    val valueFieldTerm = newName(ctx, "valueFieldTerm")
+    val keyHashTerm = newName(ctx, "keyHashCode")
+    val valueHashTerm = newName(ctx, "valueHashCode")
+    val hashIntTerm = newName(ctx, "hashCode")
+    val i = newName(ctx, "i")
 
     // Generate key and value hash code body firstly
     val keyElementHashBody = hashCodeForType(ctx, keyType, keyFieldTerm)
@@ -212,7 +212,7 @@ object HashCodeGenerator {
   private def generateCodeBody(
       ctx: CodeGeneratorContext,
       accessExprs: Seq[GeneratedExpression]): (String, String) = {
-    val hashIntTerm = newName("hashCode")
+    val hashIntTerm = newName(ctx, "hashCode")
     var i = -1
     val hashBodyCode = accessExprs
       .map(
