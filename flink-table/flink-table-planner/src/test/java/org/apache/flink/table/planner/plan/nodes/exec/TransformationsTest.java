@@ -50,7 +50,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_UID_FORMAT;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_UID_GENERATION;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.UidGeneration.ALWAYS;
@@ -127,13 +126,6 @@ class TransformationsTest {
         checkUids(c -> c.set(TABLE_EXEC_UID_GENERATION, PLAN_ONLY), true, false);
         checkUids(c -> c.set(TABLE_EXEC_UID_GENERATION, ALWAYS), true, true);
         checkUids(c -> c.set(TABLE_EXEC_UID_GENERATION, DISABLED), false, false);
-        checkUids(
-                c -> {
-                    c.set(TABLE_EXEC_UID_GENERATION, PLAN_ONLY);
-                    c.set(TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS, true);
-                },
-                false,
-                false);
     }
 
     private static void checkUids(
