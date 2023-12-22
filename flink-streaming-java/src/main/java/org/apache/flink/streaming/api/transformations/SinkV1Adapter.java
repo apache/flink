@@ -206,12 +206,12 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
 
         @Override
         public int getSubtaskId() {
-            return context.getSubtaskId();
+            return context.getTaskInfo().getIndexOfThisSubtask();
         }
 
         @Override
         public int getNumberOfParallelSubtasks() {
-            return context.getNumberOfParallelSubtasks();
+            return context.getTaskInfo().getNumberOfParallelSubtasks();
         }
 
         @Override
