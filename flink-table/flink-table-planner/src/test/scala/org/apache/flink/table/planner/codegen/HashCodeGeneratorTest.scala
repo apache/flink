@@ -18,24 +18,25 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.data.{GenericArrayData, GenericMapData, GenericRowData, StringData}
 import org.apache.flink.table.types.logical.{ArrayType, BigIntType, IntType, MapType, MultisetType, RowType, VarBinaryType, VarCharType}
 
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotEquals}
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestTemplate
 
 import scala.collection.JavaConversions.mapAsJavaMap
 
 /** Test for [[HashCodeGenerator]]. */
-class HashCodeGeneratorTest {
+class HashCodeGeneratorTest(config: Configuration) extends CodeGeneratorTestBase {
 
   private val classLoader = Thread.currentThread().getContextClassLoader
 
-  @Test
+  @TestTemplate
   def testRowHash(): Unit = {
     val hashFunc1 = HashCodeGenerator
       .generateRowHash(
-        new CodeGeneratorContext(new Configuration, classLoader),
+        new CodeGeneratorContext(config, classLoader),
         RowType.of(new IntType(), new BigIntType(), new VarBinaryType(VarBinaryType.MAX_LENGTH)),
         "name",
         Array(1, 0)
@@ -44,7 +45,7 @@ class HashCodeGeneratorTest {
 
     val hashFunc2 = HashCodeGenerator
       .generateRowHash(
-        new CodeGeneratorContext(new Configuration, classLoader),
+        new CodeGeneratorContext(config, classLoader),
         RowType.of(new IntType(), new BigIntType(), new VarBinaryType(VarBinaryType.MAX_LENGTH)),
         "name",
         Array(1, 2, 0)
@@ -58,7 +59,7 @@ class HashCodeGeneratorTest {
     // test row with nested array and map type
     val hashFunc3 = HashCodeGenerator
       .generateRowHash(
-        new CodeGeneratorContext(new Configuration, classLoader),
+        new CodeGeneratorContext(config, classLoader),
         RowType.of(
           new IntType(),
           new ArrayType(new IntType()),
@@ -79,14 +80,11 @@ class HashCodeGeneratorTest {
     assertEquals(1356875190, hashFunc3.hashCode(row3))
   }
 
-  @Test
+  @TestTemplate
   def testArrayHash(): Unit = {
     // test primitive type
     val hashFunc1 = HashCodeGenerator
-      .generateArrayHash(
-        new CodeGeneratorContext(new Configuration(), classLoader),
-        new IntType(),
-        "name")
+      .generateArrayHash(new CodeGeneratorContext(config, classLoader), new IntType(), "name")
       .newInstance(classLoader)
 
     val array1 = new GenericArrayData(Array(1, 5, 7))
@@ -98,7 +96,7 @@ class HashCodeGeneratorTest {
     // test complex map type of element
     val hashFunc2 = HashCodeGenerator
       .generateArrayHash(
-        new CodeGeneratorContext(new Configuration(), classLoader),
+        new CodeGeneratorContext(config, classLoader),
         new MapType(new IntType(), new VarCharType()),
         "name")
       .newInstance(classLoader)
@@ -116,7 +114,7 @@ class HashCodeGeneratorTest {
     // test complex row type of element
     val hashFunc3 = HashCodeGenerator
       .generateArrayHash(
-        new CodeGeneratorContext(new Configuration(), classLoader),
+        new CodeGeneratorContext(config, classLoader),
         RowType.of(new IntType(), new BigIntType()),
         "name")
       .newInstance(classLoader)
@@ -130,12 +128,12 @@ class HashCodeGeneratorTest {
     assertNotEquals(hashFunc3.hashCode(array7), hashFunc3.hashCode(array9))
   }
 
-  @Test
+  @TestTemplate
   def testMapHash(): Unit = {
     // test primitive type
     val hashFunc1 = HashCodeGenerator
       .generateMapHash(
-        new CodeGeneratorContext(new Configuration(), classLoader),
+        new CodeGeneratorContext(config, classLoader),
         new IntType(),
         new VarCharType(),
         "name")
@@ -153,7 +151,7 @@ class HashCodeGeneratorTest {
     // test complex row type of value
     val hashFunc2 = HashCodeGenerator
       .generateMapHash(
-        new CodeGeneratorContext(new Configuration(), classLoader),
+        new CodeGeneratorContext(config, classLoader),
         new IntType(),
         RowType.of(new IntType(), new BigIntType()),
         "name")
@@ -168,7 +166,7 @@ class HashCodeGeneratorTest {
     // test complex array type of value
     val hashFunc3 = HashCodeGenerator
       .generateMapHash(
-        new CodeGeneratorContext(new Configuration(), classLoader),
+        new CodeGeneratorContext(config, classLoader),
         new IntType(),
         new ArrayType(new IntType()),
         "name")
@@ -185,6 +183,33 @@ class HashCodeGeneratorTest {
         10 -> null,
         5 -> new GenericArrayData(Array(2, 4, 8))))
     assertEquals(hashFunc3.hashCode(map6), hashFunc3.hashCode(map7))
+  }
+
+  @TestTemplate
+  def testHashWithIndependentNameCounter(): Unit = {
+    val hashFunctionCode1 = HashCodeGenerator
+      .generateRowHash(
+        new CodeGeneratorContext(config, classLoader),
+        RowType.of(new IntType(), new BigIntType(), new VarBinaryType(VarBinaryType.MAX_LENGTH)),
+        "name",
+        Array(1, 0)
+      )
+      .getCode
+
+    val hashFunctionCode2 = HashCodeGenerator
+      .generateRowHash(
+        new CodeGeneratorContext(config, classLoader),
+        RowType.of(new IntType(), new BigIntType(), new VarBinaryType(VarBinaryType.MAX_LENGTH)),
+        "name",
+        Array(1, 0)
+      )
+      .getCode
+
+    if (config.get(TableConfigOptions.INDEPENDENT_NAME_COUNTER_ENABLED)) {
+      assertEquals(hashFunctionCode1, hashFunctionCode2)
+    } else {
+      assertNotEquals(hashFunctionCode1, hashFunctionCode2)
+    }
   }
 
   def ji(i: Int): Integer = {

@@ -221,7 +221,7 @@ object BridgingFunctionGenUtil {
     val outputType = outputDataType.getLogicalType
 
     val collectorCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
-    val externalResultTerm = newName("externalResult")
+    val externalResultTerm = newName(ctx, "externalResult")
 
     // code for wrapping atomic types
     val collectorCode = if (!isCompositeType(outputType)) {
@@ -252,7 +252,7 @@ object BridgingFunctionGenUtil {
       genToInternalConverter(ctx, outputDataType),
       collectorCode
     )
-    val resultCollectorTerm = newName("resultConverterCollector")
+    val resultCollectorTerm = newName(ctx, "resultConverterCollector")
     CollectorCodeGenerator.addToContext(ctx, resultCollectorTerm, resultCollector)
 
     resultCollectorTerm
@@ -581,7 +581,7 @@ object BridgingFunctionGenUtil {
         s"($externalResultTypeTerm) (${typeTerm(externalResultClassBoxed)})"
       }
 
-      val evaluatorName = newName("ExpressionEvaluator")
+      val evaluatorName = newName(ctx, "ExpressionEvaluator")
       val evaluatorCode =
         s"""
            |public class $evaluatorName extends ${className[AbstractRichFunction]} {

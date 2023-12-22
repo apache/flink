@@ -18,26 +18,28 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.data.{DecimalData, GenericRowData, RowData, TimestampData}
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.writer.BinaryRowWriter
 import org.apache.flink.table.runtime.generated.Projection
 import org.apache.flink.table.types.logical.{BigIntType, DecimalType, IntType, RowType, TimestampType}
 
-import org.junit.jupiter.api.{Assertions, Test}
+import org.junit.jupiter.api.{Assertions, TestTemplate}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertNotEquals}
 
 import scala.util.Random
 
 /** Test for [[ProjectionCodeGenerator]]. */
-class ProjectionCodeGeneratorTest {
+class ProjectionCodeGeneratorTest(config: Configuration) extends CodeGeneratorTestBase {
 
   private val classLoader = Thread.currentThread().getContextClassLoader
 
-  @Test
+  @TestTemplate
   def testProjectionBinaryRow(): Unit = {
     val projection = ProjectionCodeGenerator
       .generateProjection(
-        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
+        new CodeGeneratorContext(config, classLoader),
         "name",
         RowType.of(new IntType(), new BigIntType()),
         RowType.of(new BigIntType(), new IntType()),
@@ -50,11 +52,11 @@ class ProjectionCodeGeneratorTest {
     Assertions.assertEquals(8, row.getLong(0))
   }
 
-  @Test
+  @TestTemplate
   def testProjectionGenericRow(): Unit = {
     val projection = ProjectionCodeGenerator
       .generateProjection(
-        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
+        new CodeGeneratorContext(config, classLoader),
         "name",
         RowType.of(new IntType(), new BigIntType()),
         RowType.of(new BigIntType(), new IntType()),
@@ -68,12 +70,12 @@ class ProjectionCodeGeneratorTest {
     Assertions.assertEquals(8, row.getLong(0))
   }
 
-  @Test
+  @TestTemplate
   def testProjectionManyField(): Unit = {
     val rowType = RowType.of((0 until 100).map(_ => new IntType()).toArray: _*)
     val projection = ProjectionCodeGenerator
       .generateProjection(
-        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
+        new CodeGeneratorContext(config, classLoader),
         "name",
         rowType,
         rowType,
@@ -89,12 +91,12 @@ class ProjectionCodeGeneratorTest {
     }
   }
 
-  @Test
+  @TestTemplate
   def testProjectionManyFieldGenericRow(): Unit = {
     val rowType = RowType.of((0 until 100).map(_ => new IntType()).toArray: _*)
     val projection = ProjectionCodeGenerator
       .generateProjection(
-        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
+        new CodeGeneratorContext(config, classLoader),
         "name",
         rowType,
         rowType,
@@ -111,11 +113,11 @@ class ProjectionCodeGeneratorTest {
     }
   }
 
-  @Test
+  @TestTemplate
   def testProjectionBinaryRowWithVariableLengthData(): Unit = {
     val projection = ProjectionCodeGenerator
       .generateProjection(
-        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
+        new CodeGeneratorContext(config, classLoader),
         "name",
         RowType.of(new DecimalType(38, 0), new DecimalType(38, 0), new TimestampType(9)),
         RowType.of(new DecimalType(38, 0), new TimestampType(9), new DecimalType(38, 0)),
@@ -136,6 +138,33 @@ class ProjectionCodeGeneratorTest {
 
     val actual: BinaryRowData = projection.apply(GenericRowData.of(decimal, decimal, timestamp))
     Assertions.assertEquals(expected, actual)
+  }
+  @TestTemplate
+  def testProjectionWithIndependentNameCounter(): Unit = {
+    val projectionCode1 = ProjectionCodeGenerator
+      .generateProjection(
+        new CodeGeneratorContext(config, classLoader),
+        "name",
+        RowType.of(new IntType(), new BigIntType()),
+        RowType.of(new BigIntType(), new IntType()),
+        Array(1, 0)
+      )
+      .getCode
+
+    val projectionCode2 = ProjectionCodeGenerator
+      .generateProjection(
+        new CodeGeneratorContext(config, classLoader),
+        "name",
+        RowType.of(new IntType(), new BigIntType()),
+        RowType.of(new BigIntType(), new IntType()),
+        Array(1, 0)
+      )
+      .getCode
+    if (config.get(TableConfigOptions.INDEPENDENT_NAME_COUNTER_ENABLED)) {
+      assertEquals(projectionCode1, projectionCode2)
+    } else {
+      assertNotEquals(projectionCode1, projectionCode2)
+    }
   }
 
   def ji(i: Int): Integer = {

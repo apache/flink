@@ -80,7 +80,7 @@ object FusionCodegenUtil {
     fusionCtx.addReusableInitStatement(
       s"this.inputSelectionHandler = new ${className[InputSelectionHandler]}($inputSpecRefs);")
 
-    val operatorName = newName("FusionStreamOperator")
+    val operatorName = newName(fusionCtx, "FusionStreamOperator")
     val operatorCode =
       s"""
       public final class $operatorName extends ${className[FusionStreamOperatorBase]} {
@@ -229,11 +229,11 @@ object FusionCodegenUtil {
       resultType: RowType): String = {
     val parameters = mutable.ArrayBuffer[String]()
     val paramVars = mutable.ArrayBuffer[GeneratedExpression]()
-    val consumeFunctionName = newName(prefix + "DoConsume")
+    val consumeFunctionName = newName(opCodegenCtx, prefix + "DoConsume")
     for (i <- 0 until resultType.getFieldCount) {
       val paramType = getFieldTypes(resultType).get(i)
       val paramTypeTerm = primitiveTypeTermForType(paramType)
-      val Seq(paramTerm, paramNullTerm) = newNames("field", "isNull")
+      val Seq(paramTerm, paramNullTerm) = newNames(opCodegenCtx, "field", "isNull")
 
       parameters += s"$paramTypeTerm $paramTerm"
       parameters += s"boolean $paramNullTerm"

@@ -94,7 +94,7 @@ object ProjectionCodeGenerator {
       outRecordTerm: String = DEFAULT_OUT_RECORD_TERM,
       outRecordWriterTerm: String = DEFAULT_OUT_RECORD_WRITER_TERM,
       reusedOutRecord: Boolean = true): GeneratedProjection = {
-    val className = newName(name)
+    val className = newName(ctx, name)
     val baseClass = classOf[Projection[_, _]]
 
     val expression = generateProjectionExpression(

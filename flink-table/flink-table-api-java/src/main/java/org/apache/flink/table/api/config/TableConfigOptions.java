@@ -233,6 +233,16 @@ public class TableConfigOptions {
                     .withDescription(
                             "Specifies a threshold where class members of generated code will be grouped into arrays by types.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> INDEPENDENT_NAME_COUNTER_ENABLED =
+            key("table.generated-code.independent-name-counter.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "If it is true, we will use the independent name counter in each CodeGeneratorContext, while if false, "
+                                    + "we will use a static self-incrementing counter in CodeGenUtils. It is must be true if "
+                                    + "we want to reuse generated code between different jobs.");
+
     // ------------------------------------------------------------------------------------------
     // Enum option types
     // ------------------------------------------------------------------------------------------

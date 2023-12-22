@@ -86,7 +86,8 @@ class StringToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Stri
                     .toString();
         } else {
             final int targetLength = LogicalTypeChecks.getLength(targetLogicalType);
-            final String byteArrayTerm = CodeGenUtils.newName("byteArrayTerm");
+            final String byteArrayTerm =
+                    CodeGenUtils.newName(context.getCodeGeneratorContext(), "byteArrayTerm");
 
             return new CastRuleUtils.CodeWriter()
                     .declStmt(byte[].class, byteArrayTerm, methodCall(inputTerm, "toBytes"))

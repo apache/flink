@@ -72,9 +72,12 @@ object LongHashJoinGenerator {
     s"return $term;"
   }
 
-  def genAnyNullsInKeys(keyMapping: Array[Int], rowTerm: String): (String, String) = {
+  def genAnyNullsInKeys(
+      keyMapping: Array[Int],
+      rowTerm: String,
+      ctx: CodeGeneratorContext): (String, String) = {
     val builder = new StringBuilder()
-    val anyNullTerm = newName("anyNull")
+    val anyNullTerm = newName(ctx, "anyNull")
     keyMapping.foreach(key => builder.append(s"$anyNullTerm |= $rowTerm.isNullAt($key);"))
     (
       s"""
@@ -118,8 +121,8 @@ object LongHashJoinGenerator {
     val buildSer = new BinaryRowDataSerializer(buildType.getFieldCount)
     val probeSer = new BinaryRowDataSerializer(probeType.getFieldCount)
 
-    val tableTerm = newName("LongHashTable")
     val ctx = new CodeGeneratorContext(tableConfig, classLoader)
+    val tableTerm = newName(ctx, "LongHashTable")
     val buildSerTerm = ctx.addReusableObject(buildSer, "buildSer")
     val probeSerTerm = ctx.addReusableObject(probeSer, "probeSer")
 
@@ -148,7 +151,7 @@ object LongHashJoinGenerator {
     ctx.addReusableOpenStatement(s"condFunc.open(new ${className[Configuration]}());")
     ctx.addReusableCloseStatement(s"condFunc.close();")
 
-    val leftIsBuildTerm = newName("leftIsBuild")
+    val leftIsBuildTerm = newName(ctx, "leftIsBuild")
     ctx.addReusableMember(s"private final boolean $leftIsBuildTerm = $leftIsBuild;")
 
     val smjFunctionTerm = className[SortMergeJoinFunction]
@@ -156,7 +159,7 @@ object LongHashJoinGenerator {
     val smjFunctionRefs = ctx.addReusableObject(Array(sortMergeJoinFunction), "smjFunctionRefs")
     ctx.addReusableInitStatement(s"sortMergeJoinFunction = $smjFunctionRefs[0];")
 
-    val fallbackSMJ = newName("fallbackSMJ")
+    val fallbackSMJ = newName(ctx, "fallbackSMJ")
     ctx.addReusableMember(s"private transient boolean $fallbackSMJ = false;")
 
     val gauge = classOf[Gauge[_]].getCanonicalName
@@ -224,8 +227,8 @@ object LongHashJoinGenerator {
     ctx.addReusableMember(s"$tableTerm table;")
     ctx.addReusableOpenStatement(s"table = new $tableTerm();")
 
-    val (nullCheckBuildCode, nullCheckBuildTerm) = genAnyNullsInKeys(buildKeyMapping, "row")
-    val (nullCheckProbeCode, nullCheckProbeTerm) = genAnyNullsInKeys(probeKeyMapping, "row")
+    val (nullCheckBuildCode, nullCheckBuildTerm) = genAnyNullsInKeys(buildKeyMapping, "row", ctx)
+    val (nullCheckProbeCode, nullCheckProbeTerm) = genAnyNullsInKeys(probeKeyMapping, "row", ctx)
 
     def collectCode(term1: String, term2: String) =
       if (reverseJoinFunction) {
@@ -407,7 +410,7 @@ object LongHashJoinGenerator {
                                      |}
        """.stripMargin)
 
-    val buildEnd = newName("buildEnd")
+    val buildEnd = newName(ctx, "buildEnd")
     ctx.addReusableMember(s"private transient boolean $buildEnd = false;")
 
     val genOp = OperatorCodeGenerator.generateTwoInputStreamOperator[RowData, RowData, RowData](

@@ -20,7 +20,10 @@ package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.utils.CastExecutor;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.types.logical.LogicalType;
+
+import javax.annotation.Nullable;
 
 import java.time.ZoneId;
 
@@ -88,7 +91,16 @@ public interface CastRule<IN, OUT> {
                 public ClassLoader getClassLoader() {
                     return classLoader;
                 }
+
+                @Override
+                @Nullable
+                public CodeGeneratorContext getCodeGeneratorContext() {
+                    return null;
+                }
             };
         }
+
+        @Nullable
+        CodeGeneratorContext getCodeGeneratorContext();
     }
 }
