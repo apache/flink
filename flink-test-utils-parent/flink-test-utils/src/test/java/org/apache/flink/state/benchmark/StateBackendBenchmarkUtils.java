@@ -225,7 +225,7 @@ public class StateBackendBenchmarkUtils {
         return backendBuilder.build();
     }
 
-    private static File prepareDirectory(String prefix, File parentDir) throws IOException {
+    public static File prepareDirectory(String prefix, File parentDir) throws IOException {
         File target = File.createTempFile(prefix, "", parentDir);
         if (target.exists() && !target.delete()) {
             throw new IOException(
