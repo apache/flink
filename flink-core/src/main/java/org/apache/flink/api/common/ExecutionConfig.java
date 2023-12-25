@@ -1233,6 +1233,14 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         configuration
                 .getOptional(JobManagerOptions.SCHEDULER)
                 .ifPresent(t -> this.configuration.set(JobManagerOptions.SCHEDULER, t));
+        // reset RestartStrategies for backward compatibility
+        configuration
+                .getOptional(RestartStrategyOptions.RESTART_STRATEGY)
+                .ifPresent(
+                        s ->
+                                this.setRestartStrategy(
+                                        new RestartStrategies
+                                                .FallbackRestartStrategyConfiguration()));
     }
 
     private void setRestartStrategy(ReadableConfig configuration) {
