@@ -80,8 +80,6 @@ object HashCodeGenerator {
       }
     """.stripMargin
 
-    System.out.println(code)
-
     new GeneratedHashFunction(className, code, ctx.references.toArray, ctx.tableConfig)
   }
 

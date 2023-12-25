@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.codegen
 import org.apache.flink.api.common.functions.Function
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.configuration.ReadableConfig
-import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.data.conversion.{DataStructureConverter, DataStructureConverters}
 import org.apache.flink.table.functions.{FunctionContext, TableFunction, UserDefinedFunction}
@@ -38,7 +37,7 @@ import org.apache.flink.util.InstantiationUtil
 
 import java.time.ZoneId
 import java.util.TimeZone
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import java.util.function.{Supplier => JSupplier}
 
 import scala.collection.mutable
@@ -150,12 +149,7 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
   /** the class is used as the  generated operator code's base class. */
   private var operatorBaseClass: Class[_] = classOf[TableStreamOperator[_]]
 
-  private val nameCounter =
-    if (tableConfig.get(TableConfigOptions.INDEPENDENT_NAME_COUNTER_ENABLED)) {
-      new AtomicInteger
-    } else {
-      null
-    }
+  private val nameCounter = new AtomicLong
 
   // ---------------------------------------------------------------------------------
   // Getter
@@ -164,7 +158,7 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
   def getReusableInputUnboxingExprs(inputTerm: String, index: Int): Option[GeneratedExpression] =
     reusableInputUnboxingExprs.get((inputTerm, index))
 
-  def getNameCounter: AtomicInteger = nameCounter
+  def getNameCounter: AtomicLong = nameCounter
 
   /**
    * Add a line comment to [[reusableHeaderComments]] list which will be concatenated into a single
