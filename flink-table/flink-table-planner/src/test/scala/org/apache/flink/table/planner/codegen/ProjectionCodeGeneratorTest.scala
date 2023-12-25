@@ -18,7 +18,6 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.data.{DecimalData, GenericRowData, RowData, TimestampData}
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.writer.BinaryRowWriter
