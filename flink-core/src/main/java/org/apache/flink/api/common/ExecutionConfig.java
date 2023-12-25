@@ -1224,10 +1224,15 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         configuration
                 .getOptional(ExecutionOptions.SNAPSHOT_COMPRESSION)
                 .ifPresent(this::setUseSnapshotCompression);
-        RestartStrategies.fromConfiguration(configuration).ifPresent(this::setRestartStrategy);
         configuration
                 .getOptional(RestartStrategyOptions.RESTART_STRATEGY)
-                .ifPresent(s -> this.setRestartStrategy(configuration));
+                .ifPresent(
+                        s -> {
+                            this.setRestartStrategy(configuration);
+                            // reset RestartStrategies for backward compatibility
+                            this.setRestartStrategy(
+                                    new RestartStrategies.FallbackRestartStrategyConfiguration());
+                        });
         configuration
                 .getOptional(PipelineOptions.KRYO_DEFAULT_SERIALIZERS)
                 .map(s -> parseKryoSerializersWithExceptionHandling(classLoader, s))

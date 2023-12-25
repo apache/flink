@@ -60,16 +60,22 @@ public final class RestartBackoffTimeStrategyFactoryLoader {
      */
     public static RestartBackoffTimeStrategy.Factory createRestartBackoffTimeStrategyFactory(
             final RestartStrategies.RestartStrategyConfiguration jobRestartStrategyConfiguration,
+            final Configuration jobConfiguration,
             final Configuration clusterConfiguration,
             final boolean isCheckpointingEnabled) {
 
         checkNotNull(jobRestartStrategyConfiguration);
+        checkNotNull(jobConfiguration);
         checkNotNull(clusterConfiguration);
 
         return getJobRestartStrategyFactory(jobRestartStrategyConfiguration)
                 .orElse(
-                        getClusterRestartStrategyFactory(clusterConfiguration)
-                                .orElse(getDefaultRestartStrategyFactory(isCheckpointingEnabled)));
+                        getRestartStrategyFactoryFromConfig(jobConfiguration)
+                                .orElse(
+                                        (getRestartStrategyFactoryFromConfig(clusterConfiguration)
+                                                .orElse(
+                                                        getDefaultRestartStrategyFactory(
+                                                                isCheckpointingEnabled)))));
     }
 
     private static Optional<RestartBackoffTimeStrategy.Factory> getJobRestartStrategyFactory(
@@ -120,38 +126,35 @@ public final class RestartBackoffTimeStrategyFactoryLoader {
         }
     }
 
-    private static Optional<RestartBackoffTimeStrategy.Factory> getClusterRestartStrategyFactory(
-            final Configuration clusterConfiguration) {
-
-        final String restartStrategyName =
-                clusterConfiguration.getString(RestartStrategyOptions.RESTART_STRATEGY);
-        if (restartStrategyName == null) {
-            return Optional.empty();
-        }
-
-        switch (restartStrategyName.toLowerCase()) {
-            case "none":
-            case "off":
-            case "disable":
-                return Optional.of(
-                        NoRestartBackoffTimeStrategy.NoRestartBackoffTimeStrategyFactory.INSTANCE);
-            case "fixeddelay":
-            case "fixed-delay":
-                return Optional.of(
-                        FixedDelayRestartBackoffTimeStrategy.createFactory(clusterConfiguration));
-            case "failurerate":
-            case "failure-rate":
-                return Optional.of(
-                        FailureRateRestartBackoffTimeStrategy.createFactory(clusterConfiguration));
-            case "exponentialdelay":
-            case "exponential-delay":
-                return Optional.of(
-                        ExponentialDelayRestartBackoffTimeStrategy.createFactory(
-                                clusterConfiguration));
-            default:
-                throw new IllegalArgumentException(
-                        "Unknown restart strategy " + restartStrategyName + ".");
-        }
+    private static Optional<RestartBackoffTimeStrategy.Factory> getRestartStrategyFactoryFromConfig(
+            final Configuration configuration) {
+        final Optional<String> restartStrategyNameOptional =
+                configuration.getOptional(RestartStrategyOptions.RESTART_STRATEGY);
+        return restartStrategyNameOptional.map(
+                restartStrategyName -> {
+                    switch (restartStrategyName.toLowerCase()) {
+                        case "none":
+                        case "off":
+                        case "disable":
+                            return NoRestartBackoffTimeStrategy.NoRestartBackoffTimeStrategyFactory
+                                    .INSTANCE;
+                        case "fixeddelay":
+                        case "fixed-delay":
+                            return FixedDelayRestartBackoffTimeStrategy.createFactory(
+                                    configuration);
+                        case "failurerate":
+                        case "failure-rate":
+                            return FailureRateRestartBackoffTimeStrategy.createFactory(
+                                    configuration);
+                        case "exponentialdelay":
+                        case "exponential-delay":
+                            return ExponentialDelayRestartBackoffTimeStrategy.createFactory(
+                                    configuration);
+                        default:
+                            throw new IllegalArgumentException(
+                                    "Unknown restart strategy " + restartStrategyName + ".");
+                    }
+                });
     }
 
     private static RestartBackoffTimeStrategy.Factory getDefaultRestartStrategyFactory(
