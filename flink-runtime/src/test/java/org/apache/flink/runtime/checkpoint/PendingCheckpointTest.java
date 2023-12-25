@@ -37,6 +37,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorInfo;
 import org.apache.flink.runtime.operators.coordination.TestingOperatorInfo;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.TestingStreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
@@ -606,6 +607,9 @@ class PendingCheckpointTest {
             throws IOException {
 
         final Path checkpointDir = new Path(TempDirUtils.newFolder(tmpFolder).toURI());
+        final FsCheckpointStorageAccess.CheckpointFileAccessStatistic
+                checkpointFileAccessStatistic =
+                        new FsCheckpointStorageAccess.CheckpointFileAccessStatistic();
         final FsCheckpointStorageLocation location =
                 new FsCheckpointStorageLocation(
                         LocalFileSystem.getSharedInstance(),
@@ -614,7 +618,8 @@ class PendingCheckpointTest {
                         checkpointDir,
                         CheckpointStorageLocationReference.getDefault(),
                         1024,
-                        4096);
+                        4096,
+                        checkpointFileAccessStatistic);
 
         PendingCheckpoint pendingCheckpoint =
                 new PendingCheckpoint(

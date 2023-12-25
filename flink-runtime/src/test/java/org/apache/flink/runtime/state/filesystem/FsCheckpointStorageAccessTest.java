@@ -167,6 +167,9 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
         final FileSystem fs = LocalFileSystem.getSharedInstance();
         final Path checkpointDir = randomTempPath();
         final Path sharedStateDir = randomTempPath();
+        final FsCheckpointStorageAccess.CheckpointFileAccessStatistic
+                checkpointFileAccessStatistic =
+                        new FsCheckpointStorageAccess.CheckpointFileAccessStatistic();
 
         FsCheckpointStorageLocation storageLocation =
                 new FsCheckpointStorageLocation(
@@ -176,7 +179,8 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
                         randomTempPath(),
                         CheckpointStorageLocationReference.getDefault(),
                         FILE_SIZE_THRESHOLD,
-                        WRITE_BUFFER_SIZE);
+                        WRITE_BUFFER_SIZE,
+                        checkpointFileAccessStatistic);
 
         assertThat(storageLocation.getSharedStateDirectory())
                 .isNotEqualTo(storageLocation.getCheckpointDirectory());

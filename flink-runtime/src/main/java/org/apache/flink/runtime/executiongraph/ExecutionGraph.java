@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -91,7 +92,8 @@ public interface ExecutionGraph extends AccessExecutionGraph {
             CheckpointStorage checkpointStorage,
             CheckpointStatsTracker statsTracker,
             CheckpointsCleaner checkpointsCleaner,
-            String changelogStorage);
+            String changelogStorage,
+            MetricGroup metricGroup);
 
     @Nullable
     CheckpointCoordinator getCheckpointCoordinator();

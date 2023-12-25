@@ -72,6 +72,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
+import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
 import org.apache.flink.runtime.taskmanager.AsynchronousException;
@@ -457,6 +458,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
             CheckpointStorageAccess checkpointStorageAccess =
                     checkpointStorage.createCheckpointStorage(getEnvironment().getJobID());
+            if (checkpointStorageAccess instanceof FsCheckpointStorageAccess) {
+                ((FsCheckpointStorageAccess) checkpointStorageAccess)
+                        .registerMetrics(getEnvironment().getMetricGroup());
+            }
             checkpointStorageAccess =
                     applyFileMergingCheckpoint(
                             checkpointStorageAccess,

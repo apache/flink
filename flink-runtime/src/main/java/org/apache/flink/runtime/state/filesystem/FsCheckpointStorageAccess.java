@@ -23,6 +23,10 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.DuplicatingFileSystem;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.MeterView;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
@@ -43,6 +47,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** An implementation of durable checkpoint storage to file systems. */
 public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess {
 
+    private static final String CHECKPOINT_WRITE_FILE_RATE_METRIC =
+            "checkpointWriteFileBytesPerSecond";
+
+    private static final String CHECKPOINT_WRITE_FILE_LATENCY_METRIC = "checkpointWriteFileLatency";
+
+    private static final String CHECKPOINT_CLOSE_FILE_LATENCY_METRIC = "checkpointCloseFileLatency";
+
     protected final FileSystem fileSystem;
 
     protected final Path checkpointsDirectory;
@@ -56,6 +67,8 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
     private final int writeBufferSize;
 
     private boolean baseLocationsInitialized = false;
+
+    private final CheckpointFileAccessStatistic checkpointFileAccessStatistic;
 
     public FsCheckpointStorageAccess(
             Path checkpointBaseDirectory,
@@ -95,6 +108,140 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
                 new Path(checkpointsDirectory, CHECKPOINT_TASK_OWNED_STATE_DIR);
         this.fileSizeThreshold = fileSizeThreshold;
         this.writeBufferSize = writeBufferSize;
+        this.checkpointFileAccessStatistic = new CheckpointFileAccessStatistic();
+    }
+
+    public void registerMetrics(MetricGroup metricGroup) {
+        metricGroup.meter(
+                CHECKPOINT_WRITE_FILE_RATE_METRIC,
+                new CheckpointWriteFileRate(checkpointFileAccessStatistic));
+        metricGroup.gauge(
+                CHECKPOINT_WRITE_FILE_LATENCY_METRIC,
+                new CheckpointWriteFileLatency(checkpointFileAccessStatistic));
+        metricGroup.gauge(
+                CHECKPOINT_CLOSE_FILE_LATENCY_METRIC,
+                new CheckpointCloseFileLatency(checkpointFileAccessStatistic));
+    }
+
+    /** Metric for interaction performance with the external file system. */
+    public static class CheckpointFileAccessStatistic {
+        private final Object lock = new Object();
+
+        private long writeBytes = 0;
+        private long writeLatency = 0;
+        private long writeCount = 0;
+        private long closeLatency = 0;
+        private long closeCount = 0;
+
+        public void updateWriteFileStatistics(long writeBytes, long writeLatency, long writeCount) {
+            synchronized (lock) {
+                this.writeBytes += writeBytes;
+                this.writeLatency += writeLatency;
+                this.writeCount += writeCount;
+            }
+        }
+
+        public void updateCloseFileStatistics(long closeLatency) {
+            synchronized (lock) {
+                this.closeLatency += closeLatency;
+                this.closeCount++;
+            }
+        }
+
+        public long getAndClearWriteBytes() {
+            synchronized (lock) {
+                long recentWriteBytes = this.writeBytes;
+                this.writeBytes = 0;
+                return recentWriteBytes;
+            }
+        }
+
+        public double getAndClearAvgWriteLatency() {
+            synchronized (lock) {
+                long recentWriteLatency = this.writeLatency;
+                long recentWriteCount = this.writeCount;
+                this.writeLatency = 0;
+                this.writeCount = 0;
+                return recentWriteCount > 0
+                        ? ((double) recentWriteLatency / recentWriteCount)
+                        : 0.0;
+            }
+        }
+
+        public double getAndClearAvgCloseLatency() {
+            synchronized (lock) {
+                long recentCloseLatency = this.closeLatency;
+                long recentCloseCount = this.closeCount;
+                this.closeLatency = 0;
+                this.closeCount = 0;
+                return recentCloseCount > 0
+                        ? ((double) recentCloseLatency / recentCloseCount)
+                        : 0.0;
+            }
+        }
+
+        @Override
+        public String toString() {
+            return "CheckpointFileAccessStatistic{"
+                    + ", writeBytes="
+                    + writeBytes
+                    + ", writeLatency="
+                    + writeLatency
+                    + ", writeCount="
+                    + writeCount
+                    + ", closeLatency="
+                    + closeLatency
+                    + ", closeCount="
+                    + closeCount
+                    + '}';
+        }
+    }
+
+    private static class CheckpointWriteFileRate extends MeterView {
+
+        private final CheckpointFileAccessStatistic checkpointFileAccessStatistic;
+
+        public CheckpointWriteFileRate(
+                CheckpointFileAccessStatistic checkpointFileAccessStatistic) {
+            super(new SimpleCounter());
+            this.checkpointFileAccessStatistic = checkpointFileAccessStatistic;
+        }
+
+        @Override
+        public void update() {
+            markEvent(checkpointFileAccessStatistic.getAndClearWriteBytes());
+            super.update();
+        }
+    }
+
+    private static class CheckpointWriteFileLatency implements Gauge<Double> {
+
+        private final CheckpointFileAccessStatistic checkpointFileAccessStatistic;
+
+        public CheckpointWriteFileLatency(
+                CheckpointFileAccessStatistic checkpointFileAccessStatistic) {
+            this.checkpointFileAccessStatistic = checkpointFileAccessStatistic;
+        }
+
+        @Override
+        public Double getValue() {
+            return checkpointFileAccessStatistic.getAndClearAvgWriteLatency();
+        }
+    }
+
+    private static class CheckpointCloseFileLatency implements Gauge<Double> {
+
+        private final CheckpointFileAccessStatistic checkpointFileAccessStatistic;
+
+        public CheckpointCloseFileLatency(
+                CheckpointFileAccessStatistic checkpointFileAccessStatistic) {
+            this.checkpointFileAccessStatistic = checkpointFileAccessStatistic;
+        }
+
+        @Override
+        public Double getValue() {
+            return checkpointFileAccessStatistic.getAndClearAvgCloseLatency();
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -143,7 +290,8 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
                 taskOwnedStateDirectory,
                 CheckpointStorageLocationReference.getDefault(),
                 fileSizeThreshold,
-                writeBufferSize);
+                writeBufferSize,
+                checkpointFileAccessStatistic);
     }
 
     @Override
@@ -162,7 +310,8 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
                     taskOwnedStateDirectory,
                     reference,
                     fileSizeThreshold,
-                    writeBufferSize);
+                    writeBufferSize,
+                    checkpointFileAccessStatistic);
         } else {
             // location encoded in the reference
             final Path path = decodePathFromReference(reference);
@@ -174,7 +323,8 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
                     path,
                     reference,
                     fileSizeThreshold,
-                    writeBufferSize);
+                    writeBufferSize,
+                    checkpointFileAccessStatistic);
         }
     }
 
@@ -201,7 +351,14 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
     protected CheckpointStorageLocation createSavepointLocation(FileSystem fs, Path location) {
         final CheckpointStorageLocationReference reference = encodePathAsReference(location);
         return new FsCheckpointStorageLocation(
-                fs, location, location, location, reference, fileSizeThreshold, writeBufferSize);
+                fs,
+                location,
+                location,
+                location,
+                reference,
+                fileSizeThreshold,
+                writeBufferSize,
+                checkpointFileAccessStatistic);
     }
 
     public FsMergingCheckpointStorageAccess toFileMergingStorage(

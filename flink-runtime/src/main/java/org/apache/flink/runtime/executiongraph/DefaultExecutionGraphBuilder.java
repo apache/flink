@@ -341,7 +341,8 @@ public class DefaultExecutionGraphBuilder {
                     rootStorage,
                     checkpointStatsTrackerFactory.get(),
                     checkpointsCleaner,
-                    jobManagerConfig.getString(STATE_CHANGE_LOG_STORAGE));
+                    jobManagerConfig.getString(STATE_CHANGE_LOG_STORAGE),
+                    jobManagerJobMetricGroup);
         }
 
         return executionGraph;

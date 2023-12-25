@@ -33,6 +33,8 @@ import java.nio.file.Path;
 import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit tests for the {@link FsCheckpointStreamFactory}. */
 class FsCheckpointStreamFactoryTest {
@@ -133,6 +135,27 @@ class FsCheckpointStreamFactoryTest {
         flushAndVerify(10, 11, false);
     }
 
+    @Test
+    public void testCheckpointFileAccessStatistic() throws IOException {
+        final FsCheckpointStorageAccess.CheckpointFileAccessStatistic
+                checkpointFileAccessStatistic =
+                        new FsCheckpointStorageAccess.CheckpointFileAccessStatistic();
+        final FsCheckpointStreamFactory factory =
+                createFactory(new DisabledEntropyFS(), 0, 1024, checkpointFileAccessStatistic);
+
+        final FsCheckpointStreamFactory.FsCheckpointStateOutputStream stream =
+                factory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
+        for (int i = 0; i < 5; i++) {
+            stream.write(4563);
+        }
+        stream.closeAndGetHandle();
+        assertEquals(checkpointFileAccessStatistic.getAndClearWriteBytes(), 5);
+        assertTrue(checkpointFileAccessStatistic.getAndClearAvgWriteLatency() > 0);
+        assertTrue(checkpointFileAccessStatistic.getAndClearAvgCloseLatency() > 0);
+        assertEquals(checkpointFileAccessStatistic.getAndClearAvgWriteLatency(), 0);
+        assertEquals(checkpointFileAccessStatistic.getAndClearAvgCloseLatency(), 0);
+    }
+
     private void flushAndVerify(int minFileSize, int bytesToFlush, boolean expectEmpty)
             throws IOException {
         FsCheckpointStreamFactory.FsCheckpointStateOutputStream stream =
@@ -179,6 +202,20 @@ class FsCheckpointStreamFactoryTest {
                 new org.apache.flink.core.fs.Path(sharedStateDir.toUri()),
                 fileSizeThreshold,
                 bufferSize);
+    }
+
+    private FsCheckpointStreamFactory createFactory(
+            FileSystem fs,
+            int fileSizeThreshold,
+            int bufferSize,
+            FsCheckpointStorageAccess.CheckpointFileAccessStatistic checkpointFileAccessStatistic) {
+        return new FsCheckpointStreamFactory(
+                fs,
+                new org.apache.flink.core.fs.Path(exclusiveStateDir.toUri()),
+                new org.apache.flink.core.fs.Path(sharedStateDir.toUri()),
+                fileSizeThreshold,
+                bufferSize,
+                checkpointFileAccessStatistic);
     }
 
     private static final class DisabledEntropyFS extends LocalFileSystem

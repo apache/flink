@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.FinishedTaskStateProvider.PartialFinishingNotSupportedByStateException;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -37,6 +38,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorInfo;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
@@ -44,6 +46,7 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageCoordinatorView;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -284,7 +287,8 @@ public class CheckpointCoordinator {
                 checkpointPlanCalculator,
                 SystemClock.getInstance(),
                 statsTracker,
-                VertexFinishedStateChecker::new);
+                VertexFinishedStateChecker::new,
+                UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
     }
 
     @VisibleForTesting
@@ -306,7 +310,8 @@ public class CheckpointCoordinator {
                             Set<ExecutionJobVertex>,
                             Map<OperatorID, OperatorState>,
                             VertexFinishedStateChecker>
-                    vertexFinishedStateCheckerFactory) {
+                    vertexFinishedStateCheckerFactory,
+            MetricGroup metricGroup) {
 
         // sanity checks
         checkNotNull(checkpointStorage);
@@ -355,7 +360,10 @@ public class CheckpointCoordinator {
 
         try {
             this.checkpointStorageView = checkpointStorage.createCheckpointStorage(job);
-
+            if (this.checkpointStorageView instanceof FsCheckpointStorageAccess) {
+                ((FsCheckpointStorageAccess) this.checkpointStorageView)
+                        .registerMetrics(metricGroup);
+            }
             if (isPeriodicCheckpointingConfigured()) {
                 checkpointStorageView.initializeBaseLocationsForCheckpoint();
                 baseLocationsForCheckpointInitialized = true;

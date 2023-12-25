@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
@@ -277,7 +278,8 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
             CheckpointStorage checkpointStorage,
             CheckpointStatsTracker statsTracker,
             CheckpointsCleaner checkpointsCleaner,
-            String changelogStorage) {
+            String changelogStorage,
+            MetricGroup metricGroup) {
         throw new UnsupportedOperationException();
     }
 

@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
+import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
 import org.apache.flink.util.LambdaUtil;
 import org.apache.flink.util.Preconditions;
@@ -95,6 +96,9 @@ public class SavepointOutputFormat extends RichOutputFormat<CheckpointMetadata> 
             throws IOException {
         final CheckpointStorageLocationReference reference =
                 AbstractFsCheckpointStorageAccess.encodePathAsReference(location);
+        final FsCheckpointStorageAccess.CheckpointFileAccessStatistic
+                checkpointFileAccessStatistic =
+                        new FsCheckpointStorageAccess.CheckpointFileAccessStatistic();
         return new FsCheckpointStorageLocation(
                 location.getFileSystem(),
                 location,
@@ -102,6 +106,7 @@ public class SavepointOutputFormat extends RichOutputFormat<CheckpointMetadata> 
                 location,
                 reference,
                 (int) CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.defaultValue().getBytes(),
-                CheckpointingOptions.FS_WRITE_BUFFER_SIZE.defaultValue());
+                CheckpointingOptions.FS_WRITE_BUFFER_SIZE.defaultValue(),
+                checkpointFileAccessStatistic);
     }
 }

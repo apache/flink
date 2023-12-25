@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
@@ -899,7 +900,8 @@ public class CheckpointCoordinatorTestingUtils {
                     checkpointPlanCalculator,
                     SystemClock.getInstance(),
                     checkpointStatsTracker,
-                    vertexFinishedStateCheckerFactory);
+                    vertexFinishedStateCheckerFactory,
+                    new UnregisteredMetricsGroup());
         }
     }
 
