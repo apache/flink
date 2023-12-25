@@ -118,10 +118,10 @@ public class DataGenConnectorOptions {
                     .withDescription("The proportion of null values.");
 
     /** Placeholder {@link ConfigOption}. Not used for retrieving values. */
-    public static final ConfigOption<Float> FIELD_VAR_LEN =
+    public static final ConfigOption<Boolean> FIELD_VAR_LEN =
             ConfigOptions.key(String.format("%s.#.%s", FIELDS, VAR_LEN))
-                    .floatType()
-                    .defaultValue(0f)
+                    .booleanType()
+                    .defaultValue(false)
                     .withDescription(
                             "Whether to generate a variable-length data, please notice that it should only be used for variable-length types (varchar, string, varbinary, bytes).");
 

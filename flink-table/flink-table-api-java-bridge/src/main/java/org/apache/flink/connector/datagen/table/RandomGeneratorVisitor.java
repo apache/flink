@@ -60,6 +60,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -138,36 +139,22 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
 
     @Override
     public DataGeneratorContainer visit(CharType charType) {
-        ConfigOption<Integer> lenOption =
-                key(DataGenConnectorOptionsUtil.FIELDS
-                                + "."
-                                + name
-                                + "."
-                                + DataGenConnectorOptionsUtil.LENGTH)
-                        .intType()
-                        .defaultValue(RANDOM_STRING_LENGTH_DEFAULT);
         ConfigOption<Float> nr = nullRate.floatType().defaultValue(NULL_RATE_DEFAULT);
         return DataGeneratorContainer.of(
-                getRandomStringGenerator(config.get(lenOption)).withNullRate(config.get(nr)),
-                lenOption,
-                nr);
+                getRandomStringGenerator(charType.getLength()).withNullRate(config.get(nr)), nr);
     }
 
     @Override
     public DataGeneratorContainer visit(VarCharType varCharType) {
-        ConfigOption<Integer> lenOption =
-                key(DataGenConnectorOptionsUtil.FIELDS
-                                + "."
-                                + name
-                                + "."
-                                + DataGenConnectorOptionsUtil.LENGTH)
-                        .intType()
-                        .defaultValue(RANDOM_STRING_LENGTH_DEFAULT);
+        ConfigOption<Integer> lenOption = getLengthOption(varCharType::getLength);
+        int length =
+                config.get(lenOption) == VarCharType.MAX_LENGTH
+                        ? RANDOM_STRING_LENGTH_DEFAULT
+                        : config.get(lenOption);
         ConfigOption<Float> nr = nullRate.floatType().defaultValue(NULL_RATE_DEFAULT);
         ConfigOption<Boolean> varLenOption = varLen.booleanType().defaultValue(false);
-
         return DataGeneratorContainer.of(
-                getRandomStringGenerator(config.get(lenOption))
+                getRandomStringGenerator(length)
                         .withNullRate(config.get(nr))
                         .withVarLen(config.get(varLenOption)),
                 lenOption,
@@ -177,30 +164,19 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
 
     @Override
     public DataGeneratorContainer visit(BinaryType binaryType) {
-        ConfigOption<Integer> lenOption =
-                key(DataGenConnectorOptionsUtil.FIELDS
-                                + "."
-                                + name
-                                + "."
-                                + DataGenConnectorOptionsUtil.LENGTH)
-                        .intType()
-                        .defaultValue(RANDOM_BYTES_LENGTH_DEFAULT);
-        return DataGeneratorContainer.of(getRandomBytesGenerator(config.get(lenOption)), lenOption);
+        return DataGeneratorContainer.of(getRandomBytesGenerator(binaryType.getLength()));
     }
 
     @Override
     public DataGeneratorContainer visit(VarBinaryType varBinaryType) {
-        ConfigOption<Integer> lenOption =
-                key(DataGenConnectorOptionsUtil.FIELDS
-                                + "."
-                                + name
-                                + "."
-                                + DataGenConnectorOptionsUtil.LENGTH)
-                        .intType()
-                        .defaultValue(RANDOM_BYTES_LENGTH_DEFAULT);
+        ConfigOption<Integer> lenOption = getLengthOption(varBinaryType::getLength);
         ConfigOption<Boolean> varLenOption = varLen.booleanType().defaultValue(false);
+        int length =
+                config.get(lenOption) == VarBinaryType.MAX_LENGTH
+                        ? RANDOM_BYTES_LENGTH_DEFAULT
+                        : config.get(lenOption);
         return DataGeneratorContainer.of(
-                getRandomBytesGenerator(config.get(lenOption)).withVarLen(config.get(varLenOption)),
+                getRandomBytesGenerator(length).withVarLen(config.get(varLenOption)),
                 lenOption,
                 varLenOption);
     }
@@ -366,14 +342,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
 
     @Override
     public DataGeneratorContainer visit(ArrayType arrayType) {
-        ConfigOption<Integer> lenOption =
-                key(DataGenConnectorOptionsUtil.FIELDS
-                                + "."
-                                + name
-                                + "."
-                                + DataGenConnectorOptionsUtil.LENGTH)
-                        .intType()
-                        .defaultValue(RANDOM_COLLECTION_LENGTH_DEFAULT);
+        ConfigOption<Integer> lenOption = getLengthOption(() -> RANDOM_COLLECTION_LENGTH_DEFAULT);
 
         String fieldName = name + "." + "element";
         DataGeneratorContainer container =
@@ -390,14 +359,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
 
     @Override
     public DataGeneratorContainer visit(MultisetType multisetType) {
-        ConfigOption<Integer> lenOption =
-                key(DataGenConnectorOptionsUtil.FIELDS
-                                + "."
-                                + name
-                                + "."
-                                + DataGenConnectorOptionsUtil.LENGTH)
-                        .intType()
-                        .defaultValue(RANDOM_COLLECTION_LENGTH_DEFAULT);
+        ConfigOption<Integer> lenOption = getLengthOption(() -> RANDOM_COLLECTION_LENGTH_DEFAULT);
 
         String fieldName = name + "." + "element";
         DataGeneratorContainer container =
@@ -420,14 +382,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
 
     @Override
     public DataGeneratorContainer visit(MapType mapType) {
-        ConfigOption<Integer> lenOption =
-                key(DataGenConnectorOptionsUtil.FIELDS
-                                + "."
-                                + name
-                                + "."
-                                + DataGenConnectorOptionsUtil.LENGTH)
-                        .intType()
-                        .defaultValue(RANDOM_COLLECTION_LENGTH_DEFAULT);
+        ConfigOption<Integer> lenOption = getLengthOption(() -> RANDOM_COLLECTION_LENGTH_DEFAULT);
 
         String keyName = name + "." + "key";
         String valName = name + "." + "value";
@@ -487,6 +442,16 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
     @Override
     protected DataGeneratorContainer defaultMethod(LogicalType logicalType) {
         throw new ValidationException("Unsupported type: " + logicalType);
+    }
+
+    private ConfigOption<Integer> getLengthOption(Supplier<Integer> defaultLengthSupplier) {
+        return key(String.join(
+                        ".",
+                        DataGenConnectorOptionsUtil.FIELDS,
+                        name,
+                        DataGenConnectorOptionsUtil.LENGTH))
+                .intType()
+                .defaultValue(defaultLengthSupplier.get());
     }
 
     private static RandomGenerator<StringData> getRandomStringGenerator(int length) {

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.netty.NettyPartitionRequestListener;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
 import org.junit.jupiter.api.Test;
@@ -33,7 +32,7 @@ import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.v
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ResultPartitionManager}. */
-class ResultPartitionManagerTest extends TestLogger {
+class ResultPartitionManagerTest {
 
     /**
      * Tests that {@link ResultPartitionManager#createSubpartitionView(ResultPartitionID, int,

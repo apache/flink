@@ -254,8 +254,7 @@ public abstract class AbstractPythonStreamAggregateOperator
                             aggregateFunctions[i], specs));
         }
         builder.addAllJobParameters(
-                getRuntimeContext().getExecutionConfig().getGlobalJobParameters().toMap().entrySet()
-                        .stream()
+                getRuntimeContext().getGlobalJobParameters().entrySet().stream()
                         .map(
                                 entry ->
                                         FlinkFnApi.JobParameter.newBuilder()

@@ -28,6 +28,8 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.BinaryType;
+import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -141,7 +143,7 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
     }
 
     private void validateFieldOptions(String name, DataType type, ReadableConfig options) {
-        ConfigOption<Boolean> lenOption =
+        ConfigOption<Boolean> varLenOption =
                 key(DataGenConnectorOptionsUtil.FIELDS
                                 + "."
                                 + name
@@ -149,7 +151,7 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
                                 + DataGenConnectorOptionsUtil.VAR_LEN)
                         .booleanType()
                         .defaultValue(false);
-        options.getOptional(lenOption)
+        options.getOptional(varLenOption)
                 .filter(option -> option)
                 .ifPresent(
                         option -> {
@@ -158,9 +160,42 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
                                     || logicalType instanceof VarBinaryType)) {
                                 throw new ValidationException(
                                         String.format(
-                                                "Only supports specifying '%s' option for variable-length types (varchar, string, varbinary, bytes). The type of field %s is not within this range.",
-                                                "fields.#." + DataGenConnectorOptionsUtil.VAR_LEN,
+                                                "Only supports specifying '%s' option for variable-length types (VARCHAR/STRING/VARBINARY/BYTES). The type of field '%s' is not within this range.",
+                                                DataGenConnectorOptions.FIELD_VAR_LEN.key(), name));
+                            }
+                        });
+
+        ConfigOption<Integer> lenOption =
+                key(DataGenConnectorOptionsUtil.FIELDS
+                                + "."
+                                + name
+                                + "."
+                                + DataGenConnectorOptionsUtil.LENGTH)
+                        .intType()
+                        .noDefaultValue();
+        options.getOptional(lenOption)
+                .ifPresent(
+                        option -> {
+                            LogicalType logicalType = type.getLogicalType();
+                            if (logicalType instanceof CharType
+                                    || logicalType instanceof BinaryType) {
+                                throw new ValidationException(
+                                        String.format(
+                                                "Custom length for fixed-length type (CHAR/BINARY) field '%s' is not supported.",
                                                 name));
+                            }
+                            if (logicalType instanceof VarCharType
+                                    || logicalType instanceof VarBinaryType) {
+                                int length =
+                                        logicalType instanceof VarCharType
+                                                ? ((VarCharType) logicalType).getLength()
+                                                : ((VarBinaryType) logicalType).getLength();
+                                if (option > length) {
+                                    throw new ValidationException(
+                                            String.format(
+                                                    "Custom length '%d' for variable-length type (VARCHAR/STRING/VARBINARY/BYTES) field '%s' should be shorter than '%d' defined in the schema.",
+                                                    option, name, length));
+                                }
                             }
                         });
     }

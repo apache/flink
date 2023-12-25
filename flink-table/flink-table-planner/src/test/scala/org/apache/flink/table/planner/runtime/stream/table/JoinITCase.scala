@@ -36,6 +36,8 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{BeforeEach, Disabled, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
+import java.time.Duration
+
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
@@ -81,7 +83,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   @BeforeEach
   override def before(): Unit = {
     super.before()
-    tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    tEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
   }
 
   @TestTemplate
@@ -1374,7 +1376,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .groupBy('bb)
       .select('bb, 'c.count.as('c))
 
-    tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    tEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
 
     val t = leftTableWithPk
       .join(rightTableWithPk, 'b === 'bb)

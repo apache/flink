@@ -24,6 +24,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.traces.SpanBuilder;
 
 import java.util.Map;
 
@@ -40,6 +41,11 @@ public class ProxyMetricGroup<P extends MetricGroup> implements MetricGroup {
 
     public ProxyMetricGroup(P parentMetricGroup) {
         this.parentMetricGroup = checkNotNull(parentMetricGroup);
+    }
+
+    @Override
+    public void addSpan(SpanBuilder spanBuilder) {
+        parentMetricGroup.addSpan(spanBuilder);
     }
 
     @Override

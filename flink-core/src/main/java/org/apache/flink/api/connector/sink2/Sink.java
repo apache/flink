@@ -53,11 +53,11 @@ public interface Sink<InputT> extends Serializable {
      * @return A sink writer.
      * @throws IOException for any failure during creation.
      */
-    SinkWriter<InputT> createWriter(WriterInitContext context) throws IOException;
+    SinkWriter<InputT> createWriter(InitContext context) throws IOException;
 
     /** The interface exposes some runtime info for creating a {@link SinkWriter}. */
     @PublicEvolving
-    interface WriterInitContext extends InitContext {
+    interface InitContext extends org.apache.flink.api.connector.sink2.InitContext {
         /**
          * Gets the {@link UserCodeClassLoader} to load classes that are not in system's classpath,
          * but are part of the jar file of a user job.

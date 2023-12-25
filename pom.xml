@@ -150,7 +150,7 @@ under the License.
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
 		<junit4.version>4.13.2</junit4.version>
-		<junit5.version>5.9.1</junit5.version>
+		<junit5.version>5.10.1</junit5.version>
 		<archunit.version>1.2.0</archunit.version>
 		<mockito.version>3.4.6</mockito.version>
 		<powermock.version>2.0.9</powermock.version>
@@ -1017,6 +1017,24 @@ under the License.
 		</profile>
 
 		<profile>
+			<id>github-actions</id>
+
+			<build>
+				<pluginManagement>
+					<plugins>
+						<plugin>
+							<groupId>org.apache.maven.plugins</groupId>
+							<artifactId>maven-surefire-plugin</artifactId>
+							<configuration>
+								<excludedGroups>org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser</excludedGroups>
+							</configuration>
+						</plugin>
+					</plugins>
+				</pluginManagement>
+			</build>
+		</profile>
+
+		<profile>
 			<id>java11</id>
 			<activation>
 				<jdk>[11,)</jdk>
@@ -1714,7 +1732,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>3.0.0-M5</version>
+				<version>3.2.2</version>
 				<configuration>
 					<!-- enables TCP/IP communication between surefire and forked JVM-->
 					<forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>

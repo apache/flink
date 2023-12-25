@@ -34,7 +34,7 @@ import org.apache.flink.testutils.TestingUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.stubbing.Answer;
 
 import javax.annotation.Nullable;
@@ -50,16 +50,16 @@ import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.connect;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.initServerAndClient;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.shutdown;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class CancelPartitionRequestTest {
+class CancelPartitionRequestTest {
 
     /**
      * Verifies that requests for non-existing (failed/cancelled) input channels are properly
@@ -67,7 +67,7 @@ public class CancelPartitionRequestTest {
      * This should cancel the request.
      */
     @Test
-    public void testCancelPartitionRequest() throws Exception {
+    void testCancelPartitionRequest() throws Exception {
 
         NettyServerAndClient serverAndClient = null;
 
@@ -104,12 +104,12 @@ public class CancelPartitionRequestTest {
                     .await();
 
             // Wait for the notification
-            if (!sync.await(TestingUtils.TESTING_DURATION.toMillis(), TimeUnit.MILLISECONDS)) {
-                fail(
-                        "Timed out after waiting for "
-                                + TestingUtils.TESTING_DURATION.toMillis()
-                                + " ms to be notified about cancelled partition.");
-            }
+            assertThat(sync.await(TestingUtils.TESTING_DURATION.toMillis(), TimeUnit.MILLISECONDS))
+                    .withFailMessage(
+                            "Timed out after waiting for "
+                                    + TestingUtils.TESTING_DURATION.toMillis()
+                                    + " ms to be notified about cancelled partition.")
+                    .isTrue();
 
             verify(view, times(1)).releaseAllResources();
         } finally {
@@ -118,7 +118,7 @@ public class CancelPartitionRequestTest {
     }
 
     @Test
-    public void testDuplicateCancel() throws Exception {
+    void testDuplicateCancel() throws Exception {
 
         NettyServerAndClient serverAndClient = null;
 
@@ -163,12 +163,12 @@ public class CancelPartitionRequestTest {
                     .await();
 
             // Wait for the notification
-            if (!sync.await(TestingUtils.TESTING_DURATION.toMillis(), TimeUnit.MILLISECONDS)) {
-                fail(
-                        "Timed out after waiting for "
-                                + TestingUtils.TESTING_DURATION.toMillis()
-                                + " ms to be notified about cancelled partition.");
-            }
+            assertThat(sync.await(TestingUtils.TESTING_DURATION.toMillis(), TimeUnit.MILLISECONDS))
+                    .withFailMessage(
+                            "Timed out after waiting for "
+                                    + TestingUtils.TESTING_DURATION.toMillis()
+                                    + " ms to be notified about cancelled partition.")
+                    .isTrue();
 
             ch.writeAndFlush(new CancelPartitionRequest(inputChannelId)).await();
 

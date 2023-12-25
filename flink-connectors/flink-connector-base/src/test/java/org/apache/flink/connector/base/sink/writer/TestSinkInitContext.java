@@ -43,8 +43,8 @@ import java.util.OptionalLong;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ScheduledFuture;
 
-/** A mock implementation of a {@code Sink.WriterInitContext} to be used in sink unit tests. */
-public class TestSinkInitContext implements Sink.WriterInitContext {
+/** A mock implementation of a {@code Sink.InitContext} to be used in sink unit tests. */
+public class TestSinkInitContext implements Sink.InitContext {
 
     private static final TestProcessingTimeService processingTimeService;
     private final MetricListener metricListener = new MetricListener();

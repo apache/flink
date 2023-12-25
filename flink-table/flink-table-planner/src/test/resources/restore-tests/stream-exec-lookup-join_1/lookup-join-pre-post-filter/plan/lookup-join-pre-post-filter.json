@@ -1,0 +1,281 @@
+{
+  "flinkVersion" : "1.19",
+  "nodes" : [ {
+    "id" : 21,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`orders_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "order_id",
+              "dataType" : "INT"
+            }, {
+              "name" : "customer_id",
+              "dataType" : "INT"
+            }, {
+              "name" : "total",
+              "dataType" : "DOUBLE"
+            }, {
+              "name" : "order_time",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "proc_time",
+              "kind" : "COMPUTED",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "CALL",
+                  "internalName" : "$PROCTIME$1",
+                  "operands" : [ ],
+                  "type" : {
+                    "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                    "nullable" : false,
+                    "precision" : 3,
+                    "kind" : "PROCTIME"
+                  }
+                },
+                "serializableString" : "PROCTIME()"
+              }
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 0 ], [ 1 ], [ 2 ] ],
+        "producedType" : "ROW<`order_id` INT, `customer_id` INT, `total` DOUBLE> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`order_id` INT, `customer_id` INT, `total` DOUBLE> NOT NULL"
+      } ]
+    },
+    "outputType" : "ROW<`order_id` INT, `customer_id` INT, `total` DOUBLE>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, orders_t, project=[order_id, customer_id, total], metadata=[]]], fields=[order_id, customer_id, total])",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 22,
+    "type" : "stream-exec-lookup-join_1",
+    "joinType" : "LEFT",
+    "preFilterCondition" : {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$>$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 2,
+        "type" : "DOUBLE"
+      }, {
+        "kind" : "LITERAL",
+        "value" : "15.3",
+        "type" : "DECIMAL(3, 1) NOT NULL"
+      } ],
+      "type" : "BOOLEAN"
+    },
+    "joinCondition" : {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$<$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$CAST$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 2,
+          "type" : "DOUBLE"
+        } ],
+        "type" : "INT"
+      }, {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 5,
+        "type" : "INT"
+      } ],
+      "type" : "BOOLEAN"
+    },
+    "temporalTable" : {
+      "lookupTableSource" : {
+        "table" : {
+          "identifier" : "`default_catalog`.`default_database`.`customers_t`",
+          "resolvedTable" : {
+            "schema" : {
+              "columns" : [ {
+                "name" : "id",
+                "dataType" : "INT NOT NULL"
+              }, {
+                "name" : "name",
+                "dataType" : "VARCHAR(2147483647)"
+              }, {
+                "name" : "age",
+                "dataType" : "INT"
+              }, {
+                "name" : "city",
+                "dataType" : "VARCHAR(2147483647)"
+              }, {
+                "name" : "state",
+                "dataType" : "VARCHAR(2147483647)"
+              }, {
+                "name" : "zipcode",
+                "dataType" : "INT"
+              } ],
+              "watermarkSpecs" : [ ],
+              "primaryKey" : {
+                "name" : "PK_id",
+                "type" : "PRIMARY_KEY",
+                "columns" : [ "id" ]
+              }
+            },
+            "partitionKeys" : [ ]
+          }
+        }
+      },
+      "outputType" : "ROW<`id` INT NOT NULL, `name` VARCHAR(2147483647), `age` INT, `city` VARCHAR(2147483647), `state` VARCHAR(2147483647), `zipcode` INT> NOT NULL"
+    },
+    "lookupKeys" : {
+      "0" : {
+        "type" : "FieldRef",
+        "index" : 1
+      }
+    },
+    "projectionOnTemporalTable" : null,
+    "filterOnTemporalTable" : null,
+    "lookupKeyContainsPrimaryKey" : true,
+    "inputChangelogMode" : [ "INSERT" ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`order_id` INT, `customer_id` INT, `total` DOUBLE, `id` INT, `name` VARCHAR(2147483647), `age` INT, `city` VARCHAR(2147483647), `state` VARCHAR(2147483647), `zipcode` INT>",
+    "description" : "LookupJoin(table=[default_catalog.default_database.customers_t], joinType=[LeftOuterJoin], lookup=[id=customer_id], joinCondition=[(total > 15.3)(CAST(total AS INTEGER) < age)], select=[order_id, customer_id, total, id, name, age, city, state, zipcode])"
+  }, {
+    "id" : 23,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "DOUBLE"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 5,
+      "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 6,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 7,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 8,
+      "type" : "INT"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`order_id` INT, `total` DOUBLE, `id` INT, `name` VARCHAR(2147483647), `age` INT, `city` VARCHAR(2147483647), `state` VARCHAR(2147483647), `zipcode` INT>",
+    "description" : "Calc(select=[order_id, total, id, name, age, city, state, zipcode])"
+  }, {
+    "id" : 24,
+    "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "order_id",
+              "dataType" : "INT"
+            }, {
+              "name" : "total",
+              "dataType" : "DOUBLE"
+            }, {
+              "name" : "id",
+              "dataType" : "INT"
+            }, {
+              "name" : "name",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "age",
+              "dataType" : "INT"
+            }, {
+              "name" : "city",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "state",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "zipcode",
+              "dataType" : "INT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`order_id` INT, `total` DOUBLE, `id` INT, `name` VARCHAR(2147483647), `age` INT, `city` VARCHAR(2147483647), `state` VARCHAR(2147483647), `zipcode` INT>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[order_id, total, id, name, age, city, state, zipcode])"
+  } ],
+  "edges" : [ {
+    "source" : 21,
+    "target" : 22,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 22,
+    "target" : 23,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 23,
+    "target" : 24,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

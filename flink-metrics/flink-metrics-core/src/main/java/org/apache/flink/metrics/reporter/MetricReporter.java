@@ -24,9 +24,9 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 
 /**
- * Reporters are used to export {@link Metric Metrics} to an external backend.
+ * Metric reporters are used to export {@link Metric Metrics} to an external backend.
  *
- * <p>Reporters are instantiated via a {@link MetricReporterFactory}.
+ * <p>Metric reporters are instantiated via a {@link MetricReporterFactory}.
  */
 @Public
 public interface MetricReporter {

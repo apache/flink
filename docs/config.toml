@@ -100,6 +100,8 @@ pygmentsUseClasses = true
 [markup]
 [markup.goldmark.renderer]
   unsafe = true
+[markup.tableOfContents]
+  startLevel = 1
 
 [languages]
 [languages.en]

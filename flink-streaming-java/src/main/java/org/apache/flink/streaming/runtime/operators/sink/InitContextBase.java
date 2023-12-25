@@ -28,14 +28,13 @@ import java.util.OptionalLong;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Base implementation for the {@link InitContext}. */
-public class InitContextBase implements InitContext {
+class InitContextBase implements InitContext {
 
     private final OptionalLong restoredCheckpointId;
 
     private final StreamingRuntimeContext runtimeContext;
 
-    public InitContextBase(
-            StreamingRuntimeContext runtimeContext, OptionalLong restoredCheckpointId) {
+    InitContextBase(StreamingRuntimeContext runtimeContext, OptionalLong restoredCheckpointId) {
         this.runtimeContext = checkNotNull(runtimeContext);
         this.restoredCheckpointId = restoredCheckpointId;
     }

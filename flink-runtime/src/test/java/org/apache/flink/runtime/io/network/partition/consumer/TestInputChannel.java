@@ -41,7 +41,7 @@ import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createB
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** A mocked input channel. */
 public class TestInputChannel extends InputChannel {
@@ -259,12 +259,12 @@ public class TestInputChannel extends InputChannel {
 
     private void assertReturnedBuffersAreRecycled(boolean assertBuffers, boolean assertEvents) {
         for (Buffer b : allReturnedBuffers) {
-            if (b.isBuffer() && assertBuffers && !b.isRecycled()) {
-                fail("Data Buffer " + b + " not recycled");
-            }
-            if (!b.isBuffer() && assertEvents && !b.isRecycled()) {
-                fail("Event Buffer " + b + " not recycled");
-            }
+            assertThat(b.isBuffer() && assertBuffers && !b.isRecycled())
+                    .as("Data Buffer not recycled")
+                    .isFalse();
+            assertThat(!b.isBuffer() && assertEvents && !b.isRecycled())
+                    .as("Event Buffer not recycled")
+                    .isFalse();
         }
     }
 

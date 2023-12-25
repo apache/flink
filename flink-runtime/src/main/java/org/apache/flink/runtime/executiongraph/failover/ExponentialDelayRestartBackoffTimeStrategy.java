@@ -47,9 +47,11 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
 
     private final double jitterFactor;
 
-    private final String strategyString;
+    private final int attemptsBeforeResetBackoff;
 
     private final Clock clock;
+
+    private int currentRestartAttempt;
 
     private long currentBackoffMS;
 
@@ -61,7 +63,8 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
             long maxBackoffMS,
             double backoffMultiplier,
             long resetBackoffThresholdMS,
-            double jitterFactor) {
+            double jitterFactor,
+            int attemptsBeforeResetBackoff) {
 
         checkArgument(initialBackoffMS >= 1, "Initial backoff must be at least 1.");
         checkArgument(maxBackoffMS >= 1, "Maximum backoff must be at least 1.");
@@ -74,6 +77,9 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
                 "Threshold duration for exponential backoff reset must be at least 1.");
         checkArgument(
                 0 <= jitterFactor && jitterFactor <= 1, "Jitter factor must be >= 0 and <= 1.");
+        checkArgument(
+                attemptsBeforeResetBackoff >= 1,
+                "The attemptsBeforeResetBackoff must be at least 1.");
 
         this.initialBackoffMS = initialBackoffMS;
         setInitialBackoff();
@@ -81,15 +87,15 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
         this.backoffMultiplier = backoffMultiplier;
         this.resetBackoffThresholdMS = resetBackoffThresholdMS;
         this.jitterFactor = jitterFactor;
+        this.attemptsBeforeResetBackoff = attemptsBeforeResetBackoff;
 
         this.clock = checkNotNull(clock);
         this.lastFailureTimestamp = 0;
-        this.strategyString = generateStrategyString();
     }
 
     @Override
     public boolean canRestart() {
-        return true;
+        return currentRestartAttempt <= attemptsBeforeResetBackoff;
     }
 
     @Override
@@ -106,16 +112,36 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
         } else {
             increaseBackoff();
         }
+        currentRestartAttempt++;
         lastFailureTimestamp = now;
     }
 
     @Override
     public String toString() {
-        return strategyString;
+        return "ExponentialDelayRestartBackoffTimeStrategy(initialBackoffMS="
+                + initialBackoffMS
+                + ", maxBackoffMS="
+                + maxBackoffMS
+                + ", backoffMultiplier="
+                + backoffMultiplier
+                + ", resetBackoffThresholdMS="
+                + resetBackoffThresholdMS
+                + ", jitterFactor="
+                + jitterFactor
+                + ", attemptsBeforeResetBackoff="
+                + attemptsBeforeResetBackoff
+                + ", currentRestartAttempt="
+                + currentRestartAttempt
+                + ", currentBackoffMS="
+                + currentBackoffMS
+                + ", lastFailureTimestamp="
+                + lastFailureTimestamp
+                + ")";
     }
 
     private void setInitialBackoff() {
         currentBackoffMS = initialBackoffMS;
+        currentRestartAttempt = 0;
     }
 
     private void increaseBackoff() {
@@ -140,24 +166,6 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
             long offset = (long) (currentBackoffMS * jitterFactor);
             return ThreadLocalRandom.current().nextLong(-offset, offset + 1);
         }
-    }
-
-    private String generateStrategyString() {
-        return "ExponentialDelayRestartBackoffTimeStrategy(initialBackoffMS="
-                + initialBackoffMS
-                + ", maxBackoffMS="
-                + maxBackoffMS
-                + ", backoffMultiplier="
-                + backoffMultiplier
-                + ", resetBackoffThresholdMS="
-                + resetBackoffThresholdMS
-                + ", jitterFactor="
-                + jitterFactor
-                + ", currentBackoffMS="
-                + currentBackoffMS
-                + ", lastFailureTimestamp="
-                + lastFailureTimestamp
-                + ")";
     }
 
     public static ExponentialDelayRestartBackoffTimeStrategyFactory createFactory(
@@ -186,12 +194,17 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
                 configuration.get(
                         RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_JITTER_FACTOR);
 
+        int attemptsBeforeResetBackoff =
+                configuration.get(
+                        RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_ATTEMPTS);
+
         return new ExponentialDelayRestartBackoffTimeStrategyFactory(
                 initialBackoffMS,
                 maxBackoffMS,
                 backoffMultiplier,
                 resetBackoffThresholdMS,
-                jitterFactor);
+                jitterFactor,
+                attemptsBeforeResetBackoff);
     }
 
     /** The factory for creating {@link ExponentialDelayRestartBackoffTimeStrategy}. */
@@ -202,18 +215,21 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
         private final double backoffMultiplier;
         private final long resetBackoffThresholdMS;
         private final double jitterFactor;
+        private final int attemptsBeforeResetBackoff;
 
         public ExponentialDelayRestartBackoffTimeStrategyFactory(
                 long initialBackoffMS,
                 long maxBackoffMS,
                 double backoffMultiplier,
                 long resetBackoffThresholdMS,
-                double jitterFactor) {
+                double jitterFactor,
+                int attemptsBeforeResetBackoff) {
             this.initialBackoffMS = initialBackoffMS;
             this.maxBackoffMS = maxBackoffMS;
             this.backoffMultiplier = backoffMultiplier;
             this.resetBackoffThresholdMS = resetBackoffThresholdMS;
             this.jitterFactor = jitterFactor;
+            this.attemptsBeforeResetBackoff = attemptsBeforeResetBackoff;
         }
 
         @Override
@@ -224,7 +240,8 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
                     maxBackoffMS,
                     backoffMultiplier,
                     resetBackoffThresholdMS,
-                    jitterFactor);
+                    jitterFactor,
+                    attemptsBeforeResetBackoff);
         }
     }
 }

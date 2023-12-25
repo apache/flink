@@ -211,7 +211,8 @@ public class SavepointReader {
                         operatorState,
                         MutableConfig.of(env.getConfiguration()),
                         stateBackend,
-                        descriptor);
+                        descriptor,
+                        env.getConfig());
         return SourceBuilder.fromFormat(env, inputFormat, typeInfo);
     }
 
@@ -282,7 +283,8 @@ public class SavepointReader {
                         operatorState,
                         MutableConfig.of(env.getConfiguration()),
                         stateBackend,
-                        descriptor);
+                        descriptor,
+                        env.getConfig());
         return SourceBuilder.fromFormat(env, inputFormat, typeInfo);
     }
 
@@ -391,7 +393,8 @@ public class SavepointReader {
                         operatorState,
                         MutableConfig.of(env.getConfiguration()),
                         stateBackend,
-                        descriptor);
+                        descriptor,
+                        env.getConfig());
         return SourceBuilder.fromFormat(
                 env, inputFormat, new TupleTypeInfo<>(keyTypeInfo, valueTypeInfo));
     }
@@ -491,7 +494,8 @@ public class SavepointReader {
                         operatorState,
                         stateBackend,
                         MutableConfig.of(env.getConfiguration()),
-                        new KeyedStateReaderOperator<>(function, keyTypeInfo));
+                        new KeyedStateReaderOperator<>(function, keyTypeInfo),
+                        env.getConfig());
 
         return SourceBuilder.fromFormat(env, inputFormat, outTypeInfo);
     }

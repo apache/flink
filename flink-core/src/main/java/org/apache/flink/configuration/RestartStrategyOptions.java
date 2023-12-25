@@ -21,6 +21,7 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
 import java.time.Duration;
@@ -219,6 +220,19 @@ public class RestartStrategyOptions {
                                             "Jitter specified as a portion of the backoff if %s has been set to %s. "
                                                     + "It represents how large random value will be added or subtracted to the backoff. "
                                                     + "Useful when you want to avoid restarting multiple jobs at the same time.",
+                                            code(RESTART_STRATEGY.key()), code("exponential-delay"))
+                                    .build());
+
+    @Documentation.OverrideDefault("infinite")
+    public static final ConfigOption<Integer> RESTART_STRATEGY_EXPONENTIAL_DELAY_ATTEMPTS =
+            ConfigOptions.key("restart-strategy.exponential-delay.attempts-before-reset-backoff")
+                    .intType()
+                    .defaultValue(Integer.MAX_VALUE)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The number of times that Flink retries the execution before failing the job if %s has been set to %s. "
+                                                    + "The number will be reset once the backoff is reset to its initial value.",
                                             code(RESTART_STRATEGY.key()), code("exponential-delay"))
                                     .build());
 

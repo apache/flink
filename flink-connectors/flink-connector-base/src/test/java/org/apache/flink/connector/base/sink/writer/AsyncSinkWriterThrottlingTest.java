@@ -45,7 +45,7 @@ public class AsyncSinkWriterThrottlingTest {
         int numberOfBatchesToSend = 1000;
         Queue<String> testRequests = getTestRequestsBuffer();
 
-        TestSinkInitContext context = new TestSinkInitContext();
+        TestSinkInitContext context = new TestSinkInitContextAnyThreadMailbox();
         TestProcessingTimeService tpts = context.getTestProcessingTimeService();
 
         ThrottlingWriter writer =
@@ -98,7 +98,7 @@ public class AsyncSinkWriterThrottlingTest {
 
         public ThrottlingWriter(
                 ElementConverter<String, Long> elementConverter,
-                Sink.WriterInitContext context,
+                Sink.InitContext context,
                 int maxBatchSize,
                 int maxInFlightRequests) {
             super(

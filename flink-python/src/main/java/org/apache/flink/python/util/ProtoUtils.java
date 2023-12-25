@@ -146,8 +146,7 @@ public enum ProtoUtils {
         builder.setMetricEnabled(isMetricEnabled);
         builder.setProfileEnabled(isProfileEnabled);
         builder.addAllJobParameters(
-                runtimeContext.getExecutionConfig().getGlobalJobParameters().toMap().entrySet()
-                        .stream()
+                runtimeContext.getGlobalJobParameters().entrySet().stream()
                         .map(
                                 entry ->
                                         FlinkFnApi.JobParameter.newBuilder()
@@ -266,8 +265,7 @@ public enum ProtoUtils {
                         .setIndexOfThisSubtask(runtimeContext.getIndexOfThisSubtask())
                         .setAttemptNumber(runtimeContext.getAttemptNumber())
                         .addAllJobParameters(
-                                runtimeContext.getExecutionConfig().getGlobalJobParameters().toMap()
-                                        .entrySet().stream()
+                                runtimeContext.getGlobalJobParameters().entrySet().stream()
                                         .map(
                                                 entry ->
                                                         FlinkFnApi.JobParameter.newBuilder()

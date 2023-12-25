@@ -289,6 +289,15 @@ Enabling RocksDB's native metrics may cause degraded performance and should be s
 ----
 ----
 
+# Traces
+
+Please refer to the [tracing system documentation]({{< ref "docs/ops/traces" >}}) for background on Flink's tracing infrastructure.
+
+{{< generated/trace_configuration >}}
+
+----
+----
+
 # History Server
 
 The history server keeps the information of completed jobs (graphs, runtimes, statistics). To enable it, you have to enable "job archiving" in the JobManager (`jobmanager.archive.fs.dir`).

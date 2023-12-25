@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.api.input;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ValueState;
@@ -73,7 +74,8 @@ public class KeyedStateInputFormatTest {
                         operatorState,
                         new MemoryStateBackend(),
                         new Configuration(),
-                        new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
+                        new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT),
+                        new ExecutionConfig());
         KeyGroupRangeInputSplit[] splits = format.createInputSplits(4);
         Assert.assertEquals(
                 "Failed to properly partition operator state into input splits", 4, splits.length);
@@ -93,7 +95,8 @@ public class KeyedStateInputFormatTest {
                         operatorState,
                         new MemoryStateBackend(),
                         new Configuration(),
-                        new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
+                        new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT),
+                        new ExecutionConfig());
         KeyGroupRangeInputSplit[] splits = format.createInputSplits(129);
         Assert.assertEquals(
                 "Failed to properly partition operator state into input splits",
@@ -115,7 +118,8 @@ public class KeyedStateInputFormatTest {
                         operatorState,
                         new MemoryStateBackend(),
                         new Configuration(),
-                        new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
+                        new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT),
+                        new ExecutionConfig());
         KeyGroupRangeInputSplit split = format.createInputSplits(1)[0];
 
         KeyedStateReaderFunction<Integer, Integer> userFunction = new ReaderFunction();
@@ -139,7 +143,8 @@ public class KeyedStateInputFormatTest {
                         operatorState,
                         new MemoryStateBackend(),
                         new Configuration(),
-                        new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
+                        new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT),
+                        new ExecutionConfig());
         KeyGroupRangeInputSplit split = format.createInputSplits(1)[0];
 
         KeyedStateReaderFunction<Integer, Integer> userFunction = new DoubleReaderFunction();
@@ -164,7 +169,8 @@ public class KeyedStateInputFormatTest {
                         operatorState,
                         new MemoryStateBackend(),
                         new Configuration(),
-                        new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
+                        new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT),
+                        new ExecutionConfig());
         KeyGroupRangeInputSplit split = format.createInputSplits(1)[0];
 
         KeyedStateReaderFunction<Integer, Integer> userFunction = new InvalidReaderFunction();
@@ -189,7 +195,8 @@ public class KeyedStateInputFormatTest {
                         operatorState,
                         new MemoryStateBackend(),
                         new Configuration(),
-                        new KeyedStateReaderOperator<>(new TimerReaderFunction(), Types.INT));
+                        new KeyedStateReaderOperator<>(new TimerReaderFunction(), Types.INT),
+                        new ExecutionConfig());
         KeyGroupRangeInputSplit split = format.createInputSplits(1)[0];
 
         KeyedStateReaderFunction<Integer, Integer> userFunction = new TimerReaderFunction();
@@ -209,7 +216,8 @@ public class KeyedStateInputFormatTest {
                         new OperatorState(OperatorIDGenerator.fromUid("uid"), 1, 4),
                         new MemoryStateBackend(),
                         new Configuration(),
-                        new KeyedStateReaderOperator<>(userFunction, Types.INT));
+                        new KeyedStateReaderOperator<>(userFunction, Types.INT),
+                        new ExecutionConfig());
 
         List<Integer> data = new ArrayList<>();
 

@@ -26,28 +26,23 @@ import org.apache.flink.runtime.io.network.netty.NettyBufferPool;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
-import org.assertj.core.api.Assertions;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ReadOnlySlicedNetworkBuffer}. */
-public class ReadOnlySlicedBufferTest {
+class ReadOnlySlicedBufferTest {
     private static final int BUFFER_SIZE = 1024;
     private static final int DATA_SIZE = 10;
 
     private NetworkBuffer buffer;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
         final MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE);
         buffer =
                 new NetworkBuffer(
@@ -58,40 +53,41 @@ public class ReadOnlySlicedBufferTest {
     }
 
     @Test
-    public void testForwardsIsBuffer() throws IOException {
-        assertEquals(buffer.isBuffer(), buffer.readOnlySlice().isBuffer());
-        assertEquals(buffer.isBuffer(), buffer.readOnlySlice(1, 2).isBuffer());
+    void testForwardsIsBuffer() throws IOException {
+        assertThat(buffer.readOnlySlice().isBuffer()).isEqualTo(buffer.isBuffer());
+        assertThat(buffer.readOnlySlice(1, 2).isBuffer()).isEqualTo(buffer.isBuffer());
         Buffer eventBuffer = EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false);
-        assertEquals(eventBuffer.isBuffer(), eventBuffer.readOnlySlice().isBuffer());
-        assertEquals(eventBuffer.isBuffer(), eventBuffer.readOnlySlice(1, 2).isBuffer());
+        assertThat(eventBuffer.readOnlySlice().isBuffer()).isEqualTo(eventBuffer.isBuffer());
+        assertThat(eventBuffer.readOnlySlice(1, 2).isBuffer()).isEqualTo(eventBuffer.isBuffer());
     }
 
     @Test
-    public void testSetDataType1() {
+    void testSetDataType1() {
         ReadOnlySlicedNetworkBuffer readOnlyBuffer = buffer.readOnlySlice();
         readOnlyBuffer.setDataType(Buffer.DataType.EVENT_BUFFER);
-        Assertions.assertThat(readOnlyBuffer.getDataType()).isEqualTo(Buffer.DataType.EVENT_BUFFER);
+        assertThat(readOnlyBuffer.getDataType()).isEqualTo(Buffer.DataType.EVENT_BUFFER);
     }
 
     @Test
-    public void testSetDataType2() {
+    void testSetDataType2() {
         ReadOnlySlicedNetworkBuffer readOnlyBuffer = buffer.readOnlySlice(1, 2);
         readOnlyBuffer.setDataType(Buffer.DataType.EVENT_BUFFER);
-        Assertions.assertThat(readOnlyBuffer.getDataType()).isEqualTo(Buffer.DataType.EVENT_BUFFER);
-        Assertions.assertThat(buffer.readOnlySlice(1, 2).getDataType())
+        assertThat(readOnlyBuffer.getDataType()).isEqualTo(Buffer.DataType.EVENT_BUFFER);
+        assertThat(buffer.readOnlySlice(1, 2).getDataType())
                 .isNotEqualTo(Buffer.DataType.EVENT_BUFFER);
     }
 
     @Test
-    public void testForwardsGetMemorySegment() {
-        assertSame(buffer.getMemorySegment(), buffer.readOnlySlice().getMemorySegment());
-        assertSame(buffer.getMemorySegment(), buffer.readOnlySlice(1, 2).getMemorySegment());
+    void testForwardsGetMemorySegment() {
+        assertThat(buffer.readOnlySlice().getMemorySegment()).isSameAs(buffer.getMemorySegment());
+        assertThat(buffer.readOnlySlice(1, 2).getMemorySegment())
+                .isSameAs(buffer.getMemorySegment());
     }
 
     @Test
-    public void testForwardsGetRecycler() {
-        assertSame(buffer.getRecycler(), buffer.readOnlySlice().getRecycler());
-        assertSame(buffer.getRecycler(), buffer.readOnlySlice(1, 2).getRecycler());
+    void testForwardsGetRecycler() {
+        assertThat(buffer.readOnlySlice().getRecycler()).isSameAs(buffer.getRecycler());
+        assertThat(buffer.readOnlySlice(1, 2).getRecycler()).isSameAs(buffer.getRecycler());
     }
 
     /**
@@ -99,12 +95,12 @@ public class ReadOnlySlicedBufferTest {
      * ReadOnlySlicedNetworkBuffer#isRecycled()}.
      */
     @Test
-    public void testForwardsRecycleBuffer1() {
+    void testForwardsRecycleBuffer1() {
         ReadOnlySlicedNetworkBuffer slice = buffer.readOnlySlice();
-        assertFalse(slice.isRecycled());
+        assertThat(slice.isRecycled()).isFalse();
         slice.recycleBuffer();
-        assertTrue(slice.isRecycled());
-        assertTrue(buffer.isRecycled());
+        assertThat(slice.isRecycled()).isTrue();
+        assertThat(buffer.isRecycled()).isTrue();
     }
 
     /**
@@ -112,12 +108,12 @@ public class ReadOnlySlicedBufferTest {
      * ReadOnlySlicedNetworkBuffer#isRecycled()}.
      */
     @Test
-    public void testForwardsRecycleBuffer2() {
+    void testForwardsRecycleBuffer2() {
         ReadOnlySlicedNetworkBuffer slice = buffer.readOnlySlice(1, 2);
-        assertFalse(slice.isRecycled());
+        assertThat(slice.isRecycled()).isFalse();
         slice.recycleBuffer();
-        assertTrue(slice.isRecycled());
-        assertTrue(buffer.isRecycled());
+        assertThat(slice.isRecycled()).isTrue();
+        assertThat(buffer.isRecycled()).isTrue();
     }
 
     /**
@@ -125,11 +121,11 @@ public class ReadOnlySlicedBufferTest {
      * ReadOnlySlicedNetworkBuffer#isRecycled()}.
      */
     @Test
-    public void testForwardsRetainBuffer1() {
+    void testForwardsRetainBuffer1() {
         ReadOnlySlicedNetworkBuffer slice = buffer.readOnlySlice();
-        assertEquals(buffer.refCnt(), slice.refCnt());
+        assertThat(slice.refCnt()).isEqualTo(buffer.refCnt());
         slice.retainBuffer();
-        assertEquals(buffer.refCnt(), slice.refCnt());
+        assertThat(slice.refCnt()).isEqualTo(buffer.refCnt());
     }
 
     /**
@@ -137,75 +133,76 @@ public class ReadOnlySlicedBufferTest {
      * ReadOnlySlicedNetworkBuffer#isRecycled()}.
      */
     @Test
-    public void testForwardsRetainBuffer2() {
+    void testForwardsRetainBuffer2() {
         ReadOnlySlicedNetworkBuffer slice = buffer.readOnlySlice(1, 2);
-        assertEquals(buffer.refCnt(), slice.refCnt());
+        assertThat(slice.refCnt()).isEqualTo(buffer.refCnt());
         slice.retainBuffer();
-        assertEquals(buffer.refCnt(), slice.refCnt());
+        assertThat(slice.refCnt()).isEqualTo(buffer.refCnt());
     }
 
     @Test
-    public void testCreateSlice1() {
+    void testCreateSlice1() {
         buffer.readByte(); // so that we do not start at position 0
         ReadOnlySlicedNetworkBuffer slice1 = buffer.readOnlySlice();
         buffer.readByte(); // should not influence the second slice at all
         ReadOnlySlicedNetworkBuffer slice2 = slice1.readOnlySlice();
-        assertSame(buffer, slice2.unwrap().unwrap());
-        assertSame(slice1.getMemorySegment(), slice2.getMemorySegment());
-        assertEquals(1, slice1.getMemorySegmentOffset());
-        assertEquals(slice1.getMemorySegmentOffset(), slice2.getMemorySegmentOffset());
+        assertThat(slice2.unwrap().unwrap()).isSameAs(buffer);
+        assertThat(slice2.getMemorySegment()).isEqualTo(slice1.getMemorySegment());
+        assertThat(slice2.getMemorySegmentOffset())
+                .isEqualTo(slice1.getMemorySegmentOffset())
+                .isOne();
 
         assertReadableBytes(slice1, 1, 2, 3, 4, 5, 6, 7, 8, 9);
         assertReadableBytes(slice2, 1, 2, 3, 4, 5, 6, 7, 8, 9);
     }
 
     @Test
-    public void testCreateSlice2() {
+    void testCreateSlice2() {
         buffer.readByte(); // so that we do not start at position 0
         ReadOnlySlicedNetworkBuffer slice1 = buffer.readOnlySlice();
         buffer.readByte(); // should not influence the second slice at all
         ReadOnlySlicedNetworkBuffer slice2 = slice1.readOnlySlice(1, 2);
-        assertSame(buffer, slice2.unwrap().unwrap());
-        assertSame(slice1.getMemorySegment(), slice2.getMemorySegment());
-        assertEquals(1, slice1.getMemorySegmentOffset());
-        assertEquals(2, slice2.getMemorySegmentOffset());
+        assertThat(slice2.unwrap().unwrap()).isSameAs(buffer);
+        assertThat(slice2.getMemorySegment()).isEqualTo(slice1.getMemorySegment());
+        assertThat(slice1.getMemorySegmentOffset()).isOne();
+        assertThat(slice2.getMemorySegmentOffset()).isEqualTo(2);
 
         assertReadableBytes(slice1, 1, 2, 3, 4, 5, 6, 7, 8, 9);
         assertReadableBytes(slice2, 2, 3);
     }
 
     @Test
-    public void testCreateSlice3() {
+    void testCreateSlice3() {
         ReadOnlySlicedNetworkBuffer slice1 = buffer.readOnlySlice(1, 2);
         buffer.readByte(); // should not influence the second slice at all
         ReadOnlySlicedNetworkBuffer slice2 = slice1.readOnlySlice();
-        assertSame(buffer, slice2.unwrap().unwrap());
-        assertSame(slice1.getMemorySegment(), slice2.getMemorySegment());
-        assertEquals(1, slice1.getMemorySegmentOffset());
-        assertEquals(1, slice2.getMemorySegmentOffset());
+        assertThat(slice2.unwrap().unwrap()).isSameAs(buffer);
+        assertThat(slice2.getMemorySegment()).isSameAs(slice1.getMemorySegment());
+        assertThat(slice1.getMemorySegmentOffset()).isOne();
+        assertThat(slice2.getMemorySegmentOffset()).isOne();
 
         assertReadableBytes(slice1, 1, 2);
         assertReadableBytes(slice2, 1, 2);
     }
 
     @Test
-    public void testCreateSlice4() {
+    void testCreateSlice4() {
         ReadOnlySlicedNetworkBuffer slice1 = buffer.readOnlySlice(1, 5);
         buffer.readByte(); // should not influence the second slice at all
         ReadOnlySlicedNetworkBuffer slice2 = slice1.readOnlySlice(1, 2);
-        assertSame(buffer, slice2.unwrap().unwrap());
-        assertSame(slice1.getMemorySegment(), slice2.getMemorySegment());
-        assertEquals(1, slice1.getMemorySegmentOffset());
-        assertEquals(2, slice2.getMemorySegmentOffset());
+        assertThat(slice2.unwrap().unwrap()).isSameAs(buffer);
+        assertThat(slice2.getMemorySegment()).isSameAs(slice1.getMemorySegment());
+        assertThat(slice1.getMemorySegmentOffset()).isOne();
+        assertThat(slice2.getMemorySegmentOffset()).isEqualTo(2);
 
         assertReadableBytes(slice1, 1, 2, 3, 4, 5);
         assertReadableBytes(slice2, 2, 3);
     }
 
     @Test
-    public void testGetMaxCapacity() {
-        assertEquals(DATA_SIZE, buffer.readOnlySlice().getMaxCapacity());
-        assertEquals(2, buffer.readOnlySlice(1, 2).getMaxCapacity());
+    void testGetMaxCapacity() {
+        assertThat(buffer.readOnlySlice().getMaxCapacity()).isEqualTo(DATA_SIZE);
+        assertThat(buffer.readOnlySlice(1, 2).getMaxCapacity()).isEqualTo(2);
     }
 
     /**
@@ -214,7 +211,7 @@ public class ReadOnlySlicedBufferTest {
      * ReadOnlySlicedNetworkBuffer#getReaderIndex()}.
      */
     @Test
-    public void testGetSetReaderIndex1() {
+    void testGetSetReaderIndex1() {
         testGetSetReaderIndex(buffer.readOnlySlice());
     }
 
@@ -224,16 +221,16 @@ public class ReadOnlySlicedBufferTest {
      * ReadOnlySlicedNetworkBuffer#getReaderIndex()}.
      */
     @Test
-    public void testGetSetReaderIndex2() {
+    void testGetSetReaderIndex2() {
         testGetSetReaderIndex(buffer.readOnlySlice(1, 2));
     }
 
     private void testGetSetReaderIndex(ReadOnlySlicedNetworkBuffer slice) {
-        assertEquals(0, buffer.getReaderIndex());
-        assertEquals(0, slice.getReaderIndex());
+        assertThat(buffer.getReaderIndex()).isZero();
+        assertThat(slice.getReaderIndex()).isZero();
         slice.setReaderIndex(1);
-        assertEquals(0, buffer.getReaderIndex());
-        assertEquals(1, slice.getReaderIndex());
+        assertThat(buffer.getReaderIndex()).isZero();
+        assertThat(slice.getReaderIndex()).isOne();
     }
 
     /**
@@ -241,7 +238,7 @@ public class ReadOnlySlicedBufferTest {
      * ReadOnlySlicedNetworkBuffer#setSize(int)}, {@link ReadOnlySlicedNetworkBuffer#getSize()}.
      */
     @Test
-    public void testGetSetSize1() {
+    void testGetSetSize1() {
         testGetSetSize(buffer.readOnlySlice(), DATA_SIZE);
     }
 
@@ -250,96 +247,96 @@ public class ReadOnlySlicedBufferTest {
      * ReadOnlySlicedNetworkBuffer#setSize(int)}, {@link ReadOnlySlicedNetworkBuffer#getSize()}.
      */
     @Test
-    public void testGetSetSize2() {
+    void testGetSetSize2() {
         testGetSetSize(buffer.readOnlySlice(1, 2), 2);
     }
 
     private void testGetSetSize(ReadOnlySlicedNetworkBuffer slice, int sliceSize) {
-        assertEquals(DATA_SIZE, buffer.getSize());
-        assertEquals(sliceSize, slice.getSize());
+        assertThat(buffer.getSize()).isEqualTo(DATA_SIZE);
+        assertThat(slice.getSize()).isEqualTo(sliceSize);
         buffer.setSize(DATA_SIZE + 1);
-        assertEquals(DATA_SIZE + 1, buffer.getSize());
-        assertEquals(sliceSize, slice.getSize());
+        assertThat(buffer.getSize()).isEqualTo(DATA_SIZE + 1);
+        assertThat(slice.getSize()).isEqualTo(sliceSize);
     }
 
     @Test
-    public void testReadableBytes() {
-        assertEquals(buffer.readableBytes(), buffer.readOnlySlice().readableBytes());
-        assertEquals(2, buffer.readOnlySlice(1, 2).readableBytes());
+    void testReadableBytes() {
+        assertThat(buffer.readOnlySlice().readableBytes()).isEqualTo(buffer.readableBytes());
+        assertThat(buffer.readOnlySlice(1, 2).readableBytes()).isEqualTo(2);
     }
 
     @Test
-    public void testGetNioBufferReadable1() {
+    void testGetNioBufferReadable1() {
         testGetNioBufferReadable(buffer.readOnlySlice(), DATA_SIZE);
     }
 
     @Test
-    public void testGetNioBufferReadable2() {
+    void testGetNioBufferReadable2() {
         testGetNioBufferReadable(buffer.readOnlySlice(1, 2), 2);
     }
 
     private void testGetNioBufferReadable(ReadOnlySlicedNetworkBuffer slice, int sliceSize) {
         ByteBuffer sliceByteBuffer = slice.getNioBufferReadable();
-        assertTrue(sliceByteBuffer.isReadOnly());
-        assertEquals(sliceSize, sliceByteBuffer.remaining());
-        assertEquals(sliceSize, sliceByteBuffer.limit());
-        assertEquals(sliceSize, sliceByteBuffer.capacity());
+        assertThat(sliceByteBuffer.isReadOnly()).isTrue();
+        assertThat(sliceByteBuffer.remaining()).isEqualTo(sliceSize);
+        assertThat(sliceByteBuffer.limit()).isEqualTo(sliceSize);
+        assertThat(sliceByteBuffer.capacity()).isEqualTo(sliceSize);
 
         // modify sliceByteBuffer position and verify nothing has changed in the original buffer
         sliceByteBuffer.position(1);
-        assertEquals(0, buffer.getReaderIndex());
-        assertEquals(0, slice.getReaderIndex());
-        assertEquals(DATA_SIZE, buffer.getSize());
-        assertEquals(sliceSize, slice.getSize());
+        assertThat(buffer.getReaderIndex()).isZero();
+        assertThat(slice.getReaderIndex()).isZero();
+        assertThat(buffer.getSize()).isEqualTo(DATA_SIZE);
+        assertThat(slice.getSize()).isEqualTo(sliceSize);
     }
 
     @Test
-    public void testGetNioBuffer1() {
+    void testGetNioBuffer1() {
         testGetNioBuffer(buffer.readOnlySlice(), DATA_SIZE);
     }
 
     @Test
-    public void testGetNioBuffer2() {
+    void testGetNioBuffer2() {
         testGetNioBuffer(buffer.readOnlySlice(1, 2), 2);
     }
 
     private void testGetNioBuffer(ReadOnlySlicedNetworkBuffer slice, int sliceSize) {
         ByteBuffer sliceByteBuffer = slice.getNioBuffer(1, 1);
-        assertTrue(sliceByteBuffer.isReadOnly());
-        assertEquals(1, sliceByteBuffer.remaining());
-        assertEquals(1, sliceByteBuffer.limit());
-        assertEquals(1, sliceByteBuffer.capacity());
+        assertThat(sliceByteBuffer.isReadOnly()).isTrue();
+        assertThat(sliceByteBuffer.remaining()).isOne();
+        assertThat(sliceByteBuffer.limit()).isOne();
+        assertThat(sliceByteBuffer.capacity()).isOne();
 
         // modify sliceByteBuffer position and verify nothing has changed in the original buffer
         sliceByteBuffer.position(1);
-        assertEquals(0, buffer.getReaderIndex());
-        assertEquals(0, slice.getReaderIndex());
-        assertEquals(DATA_SIZE, buffer.getSize());
-        assertEquals(sliceSize, slice.getSize());
+        assertThat(buffer.getReaderIndex()).isZero();
+        assertThat(slice.getReaderIndex()).isZero();
+        assertThat(buffer.getSize()).isEqualTo(DATA_SIZE);
+        assertThat(slice.getSize()).isEqualTo(sliceSize);
     }
 
     @Test
-    public void testGetNioBufferReadableThreadSafe1() {
+    void testGetNioBufferReadableThreadSafe1() {
         NetworkBufferTest.testGetNioBufferReadableThreadSafe(buffer.readOnlySlice());
     }
 
     @Test
-    public void testGetNioBufferReadableThreadSafe2() {
+    void testGetNioBufferReadableThreadSafe2() {
         NetworkBufferTest.testGetNioBufferReadableThreadSafe(buffer.readOnlySlice(1, 2));
     }
 
     @Test
-    public void testGetNioBufferThreadSafe1() {
+    void testGetNioBufferThreadSafe1() {
         NetworkBufferTest.testGetNioBufferThreadSafe(buffer.readOnlySlice(), DATA_SIZE);
     }
 
     @Test
-    public void testGetNioBufferThreadSafe2() {
+    void testGetNioBufferThreadSafe2() {
         NetworkBufferTest.testGetNioBufferThreadSafe(buffer.readOnlySlice(1, 2), 2);
     }
 
     @Test
-    public void testForwardsSetAllocator() {
+    void testForwardsSetAllocator() {
         testForwardsSetAllocator(buffer.readOnlySlice());
         testForwardsSetAllocator(buffer.readOnlySlice(1, 2));
     }
@@ -347,8 +344,8 @@ public class ReadOnlySlicedBufferTest {
     private void testForwardsSetAllocator(ReadOnlySlicedNetworkBuffer slice) {
         NettyBufferPool allocator = new NettyBufferPool(1);
         slice.setAllocator(allocator);
-        assertSame(buffer.alloc(), slice.alloc());
-        assertSame(allocator, slice.alloc());
+        assertThat(slice.alloc()).isSameAs(buffer.alloc());
+        assertThat(slice.alloc()).isSameAs(allocator);
     }
 
     private static void assertReadableBytes(Buffer actualBuffer, int... expectedBytes) {
@@ -357,19 +354,19 @@ public class ReadOnlySlicedBufferTest {
         for (int i = 0; i < actual.length; ++i) {
             actual[i] = actualBytesBuffer.get();
         }
-        assertArrayEquals(expectedBytes, actual);
+        assertThat(actual).isEqualTo(expectedBytes);
 
         // verify absolutely positioned read method:
         ByteBuf buffer = (ByteBuf) actualBuffer;
         for (int i = 0; i < buffer.readableBytes(); ++i) {
             actual[i] = buffer.getByte(buffer.readerIndex() + i);
         }
-        assertArrayEquals(expectedBytes, actual);
+        assertThat(actual).isEqualTo(expectedBytes);
 
         // verify relatively positioned read method:
         for (int i = 0; i < buffer.readableBytes(); ++i) {
             actual[i] = buffer.readByte();
         }
-        assertArrayEquals(expectedBytes, actual);
+        assertThat(actual).isEqualTo(expectedBytes);
     }
 }

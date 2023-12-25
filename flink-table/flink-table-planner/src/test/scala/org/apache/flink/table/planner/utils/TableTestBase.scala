@@ -77,7 +77,9 @@ import _root_.scala.collection.JavaConversions._
 import _root_.scala.io.Source
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.rel2sql.RelToSqlConverter
 import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
+import org.apache.calcite.sql.dialect.AnsiSqlDialect
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType, fail}
 import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
@@ -102,6 +104,8 @@ abstract class TableTestBase {
 
   @TempDir
   var tempFolder: Path = _
+
+  def methodName: String = testName.getMethodName
 
   def streamTestUtil(tableConfig: TableConfig = TableConfig.getDefault): StreamTableTestUtil =
     StreamTableTestUtil(this, tableConfig = tableConfig)
@@ -831,7 +835,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     // between the test class name and the result file name
     val clazz = test.getClass
     val testClassDirPath = clazz.getName.replaceAll("\\.", "/") + "_jsonplan"
-    val testMethodFileName = test.testName.getMethodName + ".out"
+    val testMethodFileName = test.methodName + ".out"
     val resourceTestFilePath = s"/$testClassDirPath/$testMethodFileName"
     val plannerDirPath = clazz.getResource("/").getFile.replace("/target/test-classes/", "")
     val file = new File(s"$plannerDirPath/src/test/resources$resourceTestFilePath")
@@ -1129,16 +1133,16 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def assertEqualsOrExpand(tag: String, actual: String, expand: Boolean = true): Unit = {
     val expected = s"$${$tag}"
     if (!expand) {
-      diffRepository.assertEquals(test.testName.getMethodName, tag, expected, actual)
+      diffRepository.assertEquals(test.methodName, tag, expected, actual)
       return
     }
-    val expanded = diffRepository.expand(test.testName.getMethodName, tag, expected)
+    val expanded = diffRepository.expand(test.methodName, tag, expected)
     if (expanded != null && !expanded.equals(expected)) {
       // expected does exist, check result
-      diffRepository.assertEquals(test.testName.getMethodName, tag, expected, actual)
+      diffRepository.assertEquals(test.methodName, tag, expected, actual)
     } else {
       // expected does not exist, update
-      diffRepository.expand(test.testName.getMethodName, tag, actual)
+      diffRepository.expand(test.methodName, tag, actual)
     }
   }
 }
@@ -1280,7 +1284,10 @@ case class StreamTableTestUtil(
       rowtimeFieldIdx,
       expr
     )
-    val queryOperation = new PlannerQueryOperation(watermarkAssigner)
+    val queryOperation = new PlannerQueryOperation(
+      watermarkAssigner,
+      () =>
+        throw new TableException("Cannot convert a LogicalWatermarkAssigner back to a SQL string."))
     testingTableEnv.createTemporaryView(tableName, testingTableEnv.createTable(queryOperation))
   }
 

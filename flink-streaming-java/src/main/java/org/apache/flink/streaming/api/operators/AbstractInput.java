@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
@@ -74,6 +75,11 @@ public abstract class AbstractInput<IN, OUT> implements Input<IN>, KeyContextHan
     @Override
     public void setKeyContextElement(StreamRecord record) throws Exception {
         owner.internalSetKeyContextElement(record, stateKeySelector);
+    }
+
+    @Override
+    public void processRecordAttributes(RecordAttributes recordAttributes) throws Exception {
+        owner.processRecordAttributes(recordAttributes, inputId);
     }
 
     @Override

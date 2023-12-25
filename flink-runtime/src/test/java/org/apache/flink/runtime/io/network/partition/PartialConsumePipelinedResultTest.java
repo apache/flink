@@ -32,18 +32,17 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.nio.ByteBuffer;
 
 /** Test for consuming a pipelined result only partially. */
-public class PartialConsumePipelinedResultTest extends TestLogger {
+class PartialConsumePipelinedResultTest {
 
     // Test configuration
     private static final int NUMBER_OF_TMS = 1;
@@ -52,9 +51,9 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 
     private static final int NUMBER_OF_NETWORK_BUFFERS = 128;
 
-    @ClassRule
-    public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterResource(
+    @RegisterExtension
+    private static final InternalMiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new InternalMiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getFlinkConfiguration())
                             .setNumberTaskManagers(NUMBER_OF_TMS)
@@ -81,7 +80,7 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
      * @see <a href="https://issues.apache.org/jira/browse/FLINK-1930">FLINK-1930</a>
      */
     @Test
-    public void testPartialConsumePipelinedResultReceiver() throws Exception {
+    void testPartialConsumePipelinedResultReceiver() throws Exception {
         final JobVertex sender = new JobVertex("Sender");
         sender.setInvokableClass(SlowBufferSender.class);
         sender.setParallelism(PARALLELISM);

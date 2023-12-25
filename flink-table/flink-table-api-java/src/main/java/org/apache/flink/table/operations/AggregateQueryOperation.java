@@ -26,6 +26,8 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Relational operation that performs computations on top of subsets of input rows grouped by key.
@@ -70,6 +72,19 @@ public class AggregateQueryOperation implements QueryOperation {
 
     public List<ResolvedExpression> getAggregateExpressions() {
         return aggregateExpressions;
+    }
+
+    @Override
+    public String asSerializableString() {
+        return String.format(
+                "SELECT %s FROM (%s\n)\nGROUP BY %s",
+                Stream.concat(groupingExpressions.stream(), aggregateExpressions.stream())
+                        .map(ResolvedExpression::asSerializableString)
+                        .collect(Collectors.joining(", ")),
+                OperationUtils.indent(child.asSerializableString()),
+                groupingExpressions.stream()
+                        .map(ResolvedExpression::asSerializableString)
+                        .collect(Collectors.joining(", ")));
     }
 
     @Override

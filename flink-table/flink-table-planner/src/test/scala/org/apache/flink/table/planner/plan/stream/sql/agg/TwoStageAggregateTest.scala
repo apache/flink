@@ -25,6 +25,8 @@ import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, TableTestBa
 
 import org.junit.jupiter.api.{BeforeEach, Test}
 
+import java.time.Duration
+
 class TwoStageAggregateTest extends TableTestBase {
 
   private val util = streamTestUtil()
@@ -33,7 +35,7 @@ class TwoStageAggregateTest extends TableTestBase {
   @BeforeEach
   def before(): Unit = {
     util.enableMiniBatch()
-    util.tableEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    util.tableEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
     util.tableEnv.getConfig.set(
       OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
       AggregatePhaseStrategy.TWO_PHASE.toString)

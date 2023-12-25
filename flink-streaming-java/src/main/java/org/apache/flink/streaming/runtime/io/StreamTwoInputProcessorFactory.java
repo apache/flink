@@ -40,6 +40,7 @@ import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
@@ -287,6 +288,15 @@ public class StreamTwoInputProcessorFactory {
                 operator.processLatencyMarker1(latencyMarker);
             } else {
                 operator.processLatencyMarker2(latencyMarker);
+            }
+        }
+
+        @Override
+        public void emitRecordAttributes(RecordAttributes recordAttributes) throws Exception {
+            if (inputIndex == 0) {
+                operator.processRecordAttributes1(recordAttributes);
+            } else {
+                operator.processRecordAttributes2(recordAttributes);
             }
         }
     }

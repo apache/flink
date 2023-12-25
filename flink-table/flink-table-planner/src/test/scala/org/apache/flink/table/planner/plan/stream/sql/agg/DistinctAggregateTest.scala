@@ -28,6 +28,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedT
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
+import java.time.Duration
 import java.util
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
@@ -41,7 +42,7 @@ class DistinctAggregateTest(
 
   @BeforeEach
   def before(): Unit = {
-    util.tableEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    util.tableEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
     util.enableMiniBatch()
     util.tableEnv.getConfig
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggPhaseEnforcer.toString)

@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -120,13 +121,16 @@ public class FileUtilsTest {
     }
 
     @Test
-    void testDeleteDirectory() throws Exception {
-
+    void testDeleteNonExistentDirectory() throws Exception {
         // deleting a non-existent file should not cause an error
 
         File doesNotExist = TempDirUtils.newFolder(temporaryFolder, "abc");
         FileUtils.deleteDirectory(doesNotExist);
+    }
 
+    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
+    @Test
+    void testDeleteProtectedDirectory() throws Exception {
         // deleting a write protected file should throw an error
 
         File cannotDeleteParent = TempDirUtils.newFolder(temporaryFolder);

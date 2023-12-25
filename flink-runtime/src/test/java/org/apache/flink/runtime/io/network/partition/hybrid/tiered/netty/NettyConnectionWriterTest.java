@@ -28,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link NettyConnectionWriter}. */
-public class NettyConnectionWriterTest {
+class NettyConnectionWriterTest {
 
     private static final int SUBPARTITION_ID = 0;
 

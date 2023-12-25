@@ -24,9 +24,8 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
-import org.apache.flink.api.connector.sink2.InitContext;
 import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.Sink.WriterInitContext;
+import org.apache.flink.api.connector.sink2.Sink.InitContext;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
@@ -133,7 +132,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
     @Override
     public void initializeState(StateInitializationContext context) throws Exception {
         super.initializeState(context);
-        WriterInitContext initContext = createInitContext(context.getRestoredCheckpointId());
+        InitContext initContext = createInitContext(context.getRestoredCheckpointId());
         if (context.isRestored()) {
             if (committableSerializer != null) {
                 final ListState<List<CommT>> legacyCommitterState =
@@ -239,7 +238,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         }
     }
 
-    private WriterInitContext createInitContext(OptionalLong restoredCheckpointId) {
+    private InitContext createInitContext(OptionalLong restoredCheckpointId) {
         return new InitContextImpl(
                 getRuntimeContext(),
                 processingTimeService,
@@ -268,7 +267,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         }
     }
 
-    private static class InitContextImpl extends InitContextBase implements WriterInitContext {
+    private static class InitContextImpl extends InitContextBase implements InitContext {
 
         private final ProcessingTimeService processingTimeService;
 
@@ -334,7 +333,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
 
         @Override
         public boolean isObjectReuseEnabled() {
-            return getRuntimeContext().getExecutionConfig().isObjectReuseEnabled();
+            return getRuntimeContext().isObjectReuseEnabled();
         }
 
         @Override

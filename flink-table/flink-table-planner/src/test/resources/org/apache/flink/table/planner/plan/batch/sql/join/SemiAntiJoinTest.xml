@@ -1498,39 +1498,6 @@ HashJoin(joinType=[LeftSemiJoin], where=[((a = $0) AND (b = $1))], select=[a, b,
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testNotSimplifyJoinConditionWithSameDigest">
-    <Resource name="sql">
-      <![CDATA[
-SELECT a
-FROM l
-WHERE c NOT IN (
-    SELECT f FROM r WHERE f = c)
-]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0])
-+- LogicalFilter(condition=[NOT(IN($2, {
-LogicalProject(f=[$2])
-  LogicalFilter(condition=[=($2, $cor0.c)])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
-}))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[a])
-+- HashJoin(joinType=[LeftAntiJoin], where=[AND(OR(IS NULL(c), IS NULL(f), =(c, f)), =(f, c))], select=[a, c], build=[right])
-   :- Exchange(distribution=[hash[c]])
-   :  +- Calc(select=[a, c])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-   +- Exchange(distribution=[hash[f]])
-      +- Calc(select=[f])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testInWithUncorrelated_SimpleCondition1">
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r)]]>
@@ -2043,7 +2010,7 @@ NestedLoopJoin(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d
 :- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d])
-      +- HashJoin(joinType=[LeftAntiJoin], where=[((e IS NULL OR j IS NULL OR (e = j)) AND (i = d))], select=[d, e], build=[left])
+      +- HashJoin(joinType=[LeftAntiJoin], where=[((e IS NULL OR j IS NULL OR (e = j)) AND (i = d))], select=[d, e], build=[right])
          :- Exchange(distribution=[hash[d]])
          :  +- Calc(select=[d, e])
          :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
@@ -2374,7 +2341,7 @@ LogicalProject(d=[$0], f=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (c IS NULL OR f IS NULL OR (c = f)) AND (b = e))], select=[a, b, c], build=[left])
+HashJoin(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (c IS NULL OR f IS NULL OR (c = f)) AND (b = e))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[b]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[e]])
@@ -2680,6 +2647,39 @@ Calc(select=[a, b, c])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
       +- Calc(select=[d])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotSimplifyJoinConditionWithSameDigest">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a
+FROM l
+WHERE c NOT IN (
+    SELECT f FROM r WHERE f = c)
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[NOT(IN($2, {
+LogicalProject(f=[$2])
+  LogicalFilter(condition=[=($2, $cor0.c)])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a])
++- HashJoin(joinType=[LeftAntiJoin], where=[AND(OR(IS NULL(c), IS NULL(f), =(c, f)), =(f, c))], select=[a, c], build=[right])
+   :- Exchange(distribution=[hash[c]])
+   :  +- Calc(select=[a, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[f]])
+      +- Calc(select=[f])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>

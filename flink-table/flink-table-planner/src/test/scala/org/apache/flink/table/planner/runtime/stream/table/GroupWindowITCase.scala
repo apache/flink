@@ -34,6 +34,7 @@ import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.math.BigDecimal
+import java.time.Duration
 
 /**
  * We only test some aggregations until better testing of constructed DataStream programs is
@@ -62,7 +63,7 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
 
   @TestTemplate
   def testProcessingTimeSlidingGroupWindowOverCount(): Unit = {
-    tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    tEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
     val stream = failingDataSource(data)
     val table = stream.toTable(tEnv, 'long, 'int, 'string, 'proctime.proctime)
 
@@ -135,7 +136,7 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
 
   @TestTemplate
   def testAllProcessingTimeTumblingGroupWindowOverCount(): Unit = {
-    tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    tEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
     val stream = failingDataSource(data)
     val table = stream.toTable(tEnv, 'long, 'int, 'string, 'proctime.proctime)
     val countFun = new CountAggFunction
