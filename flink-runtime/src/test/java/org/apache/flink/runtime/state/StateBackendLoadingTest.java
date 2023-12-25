@@ -59,9 +59,9 @@ class StateBackendLoadingTest {
     // ------------------------------------------------------------------------
 
     @Test
-    void testNoStateBackendDefined() throws Exception {
+    void testDefaultStateBackend() throws Exception {
         assertThat(StateBackendLoader.loadStateBackendFromConfig(new Configuration(), cl, null))
-                .isNull();
+                .isInstanceOf(HashMapStateBackend.class);
     }
 
     @Test

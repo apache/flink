@@ -36,6 +36,7 @@ import org.apache.flink.util.TernaryBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -110,6 +111,7 @@ public class StateBackendLoader {
      * @throws IOException May be thrown by the StateBackendFactory when instantiating the state
      *     backend
      */
+    @Nonnull
     public static StateBackend loadStateBackendFromConfig(
             ReadableConfig config, ClassLoader classLoader, @Nullable Logger logger)
             throws IllegalConfigurationException, DynamicCodeLoadingException, IOException {
@@ -118,9 +120,6 @@ public class StateBackendLoader {
         checkNotNull(classLoader, "classLoader");
 
         final String backendName = config.get(StateBackendOptions.STATE_BACKEND);
-        if (backendName == null) {
-            return null;
-        }
 
         // by default the factory class is the backend name
         String factoryClassName = backendName;
@@ -253,18 +252,7 @@ public class StateBackendLoader {
             }
         } else {
             // (2) check if the config defines a state backend
-            final StateBackend fromConfig = loadStateBackendFromConfig(config, classLoader, logger);
-            if (fromConfig != null) {
-                backend = fromConfig;
-            } else {
-                // (3) use the default
-                backend = new HashMapStateBackendFactory().createFromConfig(config, classLoader);
-                if (logger != null) {
-                    logger.info(
-                            "No state backend has been configured, using default (HashMap) {}",
-                            backend);
-                }
-            }
+            backend = loadStateBackendFromConfig(config, classLoader, logger);
         }
 
         return backend;
@@ -350,18 +338,13 @@ public class StateBackendLoader {
         // (2) check if the config defines a state backend
         try {
             final StateBackend fromConfig = loadStateBackendFromConfig(config, classLoader, LOG);
-            if (fromConfig != null) {
-                return fromConfig.useManagedMemory();
-            }
+            return fromConfig.useManagedMemory();
         } catch (IllegalConfigurationException | DynamicCodeLoadingException | IOException e) {
             LOG.warn(
                     "Cannot decide whether state backend uses managed memory. Will reserve managed memory by default.",
                     e);
             return true;
         }
-
-        // (3) use the default MemoryStateBackend
-        return false;
     }
 
     /**
