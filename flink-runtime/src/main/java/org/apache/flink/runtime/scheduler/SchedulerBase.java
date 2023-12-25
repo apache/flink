@@ -22,6 +22,8 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
@@ -134,6 +136,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     private final JobGraph jobGraph;
 
+    protected final JobInfo jobInfo;
+
     private final ExecutionGraph executionGraph;
 
     private final SchedulingTopology schedulingTopology;
@@ -188,6 +192,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
         this.log = checkNotNull(log);
         this.jobGraph = checkNotNull(jobGraph);
+        this.jobInfo = new JobInfoImpl(jobGraph.getJobID(), jobGraph.getName());
         this.executionGraphFactory = executionGraphFactory;
 
         this.jobManagerJobMetricGroup = checkNotNull(jobManagerJobMetricGroup);
