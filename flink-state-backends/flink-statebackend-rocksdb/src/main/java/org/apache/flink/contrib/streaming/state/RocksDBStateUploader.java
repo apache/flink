@@ -45,6 +45,7 @@ import java.util.stream.Collectors;
 
 /** Help class for uploading RocksDB state files. */
 public class RocksDBStateUploader extends RocksDBStateDataTransfer {
+
     private static final int READ_BUFFER_SIZE = 16 * 1024;
 
     public RocksDBStateUploader(int numberOfSnapshottingThreads) {
@@ -52,7 +53,8 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
     }
 
     /**
-     * Upload all the files to checkpoint fileSystem using specified number of threads.
+     * Upload all the files to checkpoint fileSystem using specified number of threads. When the
+     * upload runs into problems, it will retry with a fixed number of times at a fixed interval.
      *
      * @param files The files will be uploaded to checkpoint filesystem.
      * @param checkpointStreamFactory The checkpoint streamFactory used to create outputstream.
@@ -105,16 +107,17 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
         return files.stream()
                 .map(
                         e ->
-                                CompletableFuture.supplyAsync(
-                                        CheckedSupplier.unchecked(
-                                                () ->
-                                                        uploadLocalFileToCheckpointFs(
-                                                                e,
-                                                                checkpointStreamFactory,
-                                                                stateScope,
-                                                                closeableRegistry,
-                                                                tmpResourcesRegistry)),
-                                        executorService))
+                                retry(
+                                        CompletableFuture.supplyAsync(
+                                                CheckedSupplier.unchecked(
+                                                        () ->
+                                                                uploadLocalFileToCheckpointFs(
+                                                                        e,
+                                                                        checkpointStreamFactory,
+                                                                        stateScope,
+                                                                        closeableRegistry,
+                                                                        tmpResourcesRegistry)),
+                                                executorService)))
                 .collect(Collectors.toList());
     }
 

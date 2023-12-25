@@ -29,6 +29,9 @@ import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.Streams;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -37,10 +40,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /** Help class for downloading RocksDB state files. */
 public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
+
+    private static final Logger LOG = LoggerFactory.getLogger(RocksDBStateDownloader.class);
+
     public RocksDBStateDownloader(int restoringThreadNum) {
         super(restoringThreadNum);
     }
@@ -62,8 +67,7 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
         closeableRegistry.registerCloseable(internalCloser);
         try {
             List<CompletableFuture<Void>> futures =
-                    transferAllStateDataToDirectoryAsync(downloadRequests, internalCloser)
-                            .collect(Collectors.toList());
+                    transferAllStateDataToDirectoryAsync(downloadRequests, internalCloser);
             // Wait until either all futures completed successfully or one failed exceptionally.
             FutureUtils.completeAll(futures).get();
         } catch (Exception e) {
@@ -88,7 +92,7 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
     }
 
     /** Asynchronously runs the specified download requests on executorService. */
-    private Stream<CompletableFuture<Void>> transferAllStateDataToDirectoryAsync(
+    private List<CompletableFuture<Void>> transferAllStateDataToDirectoryAsync(
             Collection<StateHandleDownloadSpec> handleWithPaths,
             CloseableRegistry closeableRegistry) {
         return handleWithPaths.stream()
@@ -117,7 +121,8 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
                                                                             remoteFileHandle,
                                                                             closeableRegistry));
                                                 }))
-                .map(runnable -> CompletableFuture.runAsync(runnable, executorService));
+                .map(runnable -> retry(CompletableFuture.runAsync(runnable, executorService)))
+                .collect(Collectors.toList());
     }
 
     /** Copies the file from a single state handle to the given path. */

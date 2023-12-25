@@ -18,10 +18,16 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.FixedRetryStrategy;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import java.io.Closeable;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.util.concurrent.Executors.newDirectExecutorService;
 
@@ -29,6 +35,12 @@ import static org.apache.flink.util.concurrent.Executors.newDirectExecutorServic
 class RocksDBStateDataTransfer implements Closeable {
 
     protected final ExecutorService executorService;
+
+    /** ExecutorService to run data transfer operations that can be retried on exceptions. */
+    protected final ScheduledExecutorService retryExecutorService;
+
+    private static final int DEFAULT_RETRY_TIMES = 3;
+    private static final Duration DEFAULT_RETRY_DELAY = Duration.ofSeconds(1L);
 
     RocksDBStateDataTransfer(int threadNum) {
         if (threadNum > 1) {
@@ -38,10 +50,23 @@ class RocksDBStateDataTransfer implements Closeable {
         } else {
             executorService = newDirectExecutorService();
         }
+
+        retryExecutorService =
+                Executors.newSingleThreadScheduledExecutor(
+                        new ExecutorThreadFactory("Flink-RocksDBStateDataTransfer-Retry"));
     }
 
     @Override
     public void close() {
         executorService.shutdownNow();
+        retryExecutorService.shutdownNow();
+    }
+
+    protected <T> CompletableFuture<T> retry(CompletableFuture<T> dataTransferOperation) {
+        return FutureUtils.retryWithDelay(
+                () -> dataTransferOperation,
+                new FixedRetryStrategy(DEFAULT_RETRY_TIMES, DEFAULT_RETRY_DELAY),
+                throwable -> true,
+                new ScheduledExecutorServiceAdapter(retryExecutorService));
     }
 }
