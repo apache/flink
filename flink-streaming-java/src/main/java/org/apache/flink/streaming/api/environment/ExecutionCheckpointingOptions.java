@@ -85,7 +85,7 @@ public class ExecutionCheckpointingOptions {
     public static final ConfigOption<Integer> TOLERABLE_FAILURE_NUMBER =
             ConfigOptions.key("execution.checkpointing.tolerable-failed-checkpoints")
                     .intType()
-                    .noDefaultValue()
+                    .defaultValue(0)
                     .withDescription(
                             "The tolerable checkpoint consecutive failure number. If set to 0, that means "
                                     + "we do not tolerance any checkpoint failure. This only applies to the following failure reasons: IOException on the "

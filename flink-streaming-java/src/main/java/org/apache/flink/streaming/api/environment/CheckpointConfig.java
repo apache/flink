@@ -478,9 +478,7 @@ public class CheckpointConfig implements java.io.Serializable {
      * tolerate any declined checkpoint failure.
      */
     public int getTolerableCheckpointFailureNumber() {
-        return configuration
-                .getOptional(ExecutionCheckpointingOptions.TOLERABLE_FAILURE_NUMBER)
-                .orElse(0);
+        return configuration.get(ExecutionCheckpointingOptions.TOLERABLE_FAILURE_NUMBER);
     }
 
     /**
