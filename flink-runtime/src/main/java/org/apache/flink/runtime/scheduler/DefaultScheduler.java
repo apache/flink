@@ -173,19 +173,11 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
         final Context taskFailureCtx =
                 DefaultFailureEnricherContext.forTaskFailure(
-                        jobGraph.getJobID(),
-                        jobGraph.getName(),
-                        jobManagerJobMetricGroup,
-                        ioExecutor,
-                        userCodeLoader);
+                        this.jobInfo, jobManagerJobMetricGroup, ioExecutor, userCodeLoader);
 
         final Context globalFailureCtx =
                 DefaultFailureEnricherContext.forGlobalFailure(
-                        jobGraph.getJobID(),
-                        jobGraph.getName(),
-                        jobManagerJobMetricGroup,
-                        ioExecutor,
-                        userCodeLoader);
+                        this.jobInfo, jobManagerJobMetricGroup, ioExecutor, userCodeLoader);
 
         this.executionFailureHandler =
                 new ExecutionFailureHandler(

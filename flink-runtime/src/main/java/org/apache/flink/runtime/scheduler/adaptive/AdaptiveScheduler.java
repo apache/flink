@@ -20,6 +20,8 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -178,6 +180,9 @@ public class AdaptiveScheduler
     private static final Logger LOG = LoggerFactory.getLogger(AdaptiveScheduler.class);
 
     private final JobGraph jobGraph;
+
+    private final JobInfo jobInfo;
+
     private final VertexParallelismStore initialParallelismStore;
 
     private final DeclarativeSlotPool declarativeSlotPool;
@@ -261,6 +266,7 @@ public class AdaptiveScheduler
         assertPreconditions(jobGraph);
 
         this.jobGraph = jobGraph;
+        this.jobInfo = new JobInfoImpl(jobGraph.getJobID(), jobGraph.getName());
         this.executionMode = configuration.get(JobManagerOptions.SCHEDULER_MODE);
 
         VertexParallelismStore vertexParallelismStore =
@@ -528,11 +534,7 @@ public class AdaptiveScheduler
     public void handleGlobalFailure(Throwable cause) {
         final FailureEnricher.Context ctx =
                 DefaultFailureEnricherContext.forGlobalFailure(
-                        jobInformation.getJobID(),
-                        jobInformation.getName(),
-                        jobManagerJobMetricGroup,
-                        ioExecutor,
-                        userCodeClassLoader);
+                        jobInfo, jobManagerJobMetricGroup, ioExecutor, userCodeClassLoader);
         final CompletableFuture<Map<String, String>> failureLabels =
                 FailureEnricherUtils.labelFailure(
                         cause, ctx, getMainThreadExecutor(), failureEnrichers);
@@ -546,11 +548,7 @@ public class AdaptiveScheduler
             final Throwable cause = taskExecutionStateTransition.getError(userCodeClassLoader);
             final Context ctx =
                     DefaultFailureEnricherContext.forTaskFailure(
-                            jobGraph.getJobID(),
-                            jobGraph.getName(),
-                            jobManagerJobMetricGroup,
-                            ioExecutor,
-                            userCodeClassLoader);
+                            jobInfo, jobManagerJobMetricGroup, ioExecutor, userCodeClassLoader);
             return FailureEnricherUtils.labelFailure(
                     cause, ctx, getMainThreadExecutor(), failureEnrichers);
         }
