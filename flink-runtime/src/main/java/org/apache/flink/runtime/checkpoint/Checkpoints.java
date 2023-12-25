@@ -319,31 +319,16 @@ public class Checkpoints {
             logger.info("Attempting to load configured state backend for savepoint disposal");
         }
 
-        StateBackend backend = null;
         try {
-            backend =
-                    StateBackendLoader.loadStateBackendFromConfig(configuration, classLoader, null);
-
-            if (backend == null && logger != null) {
-                logger.debug(
-                        "No state backend configured, attempting to dispose savepoint "
-                                + "with configured checkpoint storage");
-            }
+            return StateBackendLoader.loadStateBackendFromConfig(configuration, classLoader, null);
         } catch (Throwable t) {
             // catches exceptions and errors (like linking errors)
             if (logger != null) {
                 logger.info("Could not load configured state backend.");
                 logger.debug("Detailed exception:", t);
             }
+            return new HashMapStateBackend();
         }
-
-        if (backend == null) {
-            // We use the hashmap state backend by default. This will
-            // force the checkpoint storage loader to load
-            // the configured storage backend.
-            backend = new HashMapStateBackend();
-        }
-        return backend;
     }
 
     @Nonnull

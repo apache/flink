@@ -62,6 +62,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.connector.datagen.functions.FromElementsGeneratorFunction;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
@@ -1040,8 +1041,9 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         configuration
                 .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
                 .ifPresent(this::enableChangelogStateBackend);
-        Optional.ofNullable(loadStateBackend(configuration, classLoader))
-                .ifPresent(this::setStateBackend);
+        configuration
+                .getOptional(StateBackendOptions.STATE_BACKEND)
+                .ifPresent(conf -> setStateBackend(loadStateBackend(configuration, classLoader)));
         configuration
                 .getOptional(PipelineOptions.OPERATOR_CHAINING)
                 .ifPresent(c -> this.isChainingEnabled = c);
