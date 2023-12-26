@@ -1117,6 +1117,7 @@ object AggregateUtil extends Enumeration {
   }
 
   /** Compute field index of given timeField expression. */
+  @Deprecated
   def timeFieldIndex(
       inputType: RelDataType,
       relBuilder: RelBuilder,
