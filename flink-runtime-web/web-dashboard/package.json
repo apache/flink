@@ -10,7 +10,6 @@
     "lint:fix": "eslint --fix --cache src --ext .ts,.html && stylelint \"**/*.less\" --fix",
     "ci-check": "npm run lint && npm run build",
     "proxy": "ng serve --proxy-config proxy.conf.json",
-    "prepare": "cd ../.. && husky install flink-runtime-web/web-dashboard/.husky",
     "lint-staged": "lint-staged"
   },
   "private": true,
@@ -60,7 +59,6 @@
     "eslint-plugin-prefer-arrow": "^1.2.3",
     "eslint-plugin-prettier": "^4.0.0",
     "eslint-plugin-unused-imports": "^2.0.0",
-    "husky": "^7.0.4",
     "jasmine-core": "^4.0.0",
     "jasmine-spec-reporter": "^7.0.0",
     "karma": "~6.3.14",
