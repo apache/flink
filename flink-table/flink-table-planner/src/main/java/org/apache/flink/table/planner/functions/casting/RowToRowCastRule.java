@@ -221,7 +221,8 @@ class RowToRowCastRule extends AbstractNullAwareCodeGeneratorCastRule<RowData, R
                                     elseBodyWriter.stmt(writeNull));
         }
 
-        writer.stmt(methodCall(writerTerm, "complete")).assignStmt(returnVariable, rowTerm);
+        writer.stmt(methodCall(writerTerm, "complete"))
+                .assignStmt(returnVariable, methodCall(rowTerm, "copy"));
         return writer.toString();
     }
 

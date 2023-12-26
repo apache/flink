@@ -18,8 +18,10 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
@@ -68,14 +70,28 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
     /** The log object used for debugging. */
     private static final Logger LOG = LoggerFactory.getLogger(Configuration.class);
 
-    /** Stores the concrete key/value pairs of this configuration object. */
+    /**
+     * Stores the concrete key/value pairs of this configuration object.
+     *
+     * <p>NOTE: This map stores the values that are actually used, and does not include any escaping
+     * that is required by the standard YAML syntax.
+     */
     protected final HashMap<String, Object> confData;
+
+    protected final boolean standardYaml;
 
     // --------------------------------------------------------------------------------------------
 
     /** Creates a new empty configuration. */
     public Configuration() {
         this.confData = new HashMap<>();
+        this.standardYaml = GlobalConfiguration.isStandardYaml();
+    }
+
+    @VisibleForTesting
+    Configuration(boolean standardYaml) {
+        this.confData = new HashMap<>();
+        this.standardYaml = standardYaml;
     }
 
     /**
@@ -85,6 +101,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      */
     public Configuration(Configuration other) {
         this.confData = new HashMap<>(other.confData);
+        this.standardYaml = other.standardYaml;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -152,7 +169,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      */
     @Deprecated
     public String getString(String key, String defaultValue) {
-        return getRawValue(key).map(ConfigurationUtils::convertToString).orElse(defaultValue);
+        return getRawValue(key)
+                .map(o -> ConfigurationUtils.convertToString(o, standardYaml))
+                .orElse(defaultValue);
     }
 
     /**
@@ -725,9 +744,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 
         try {
             if (option.isList()) {
-                return rawValue.map(v -> ConfigurationUtils.convertToList(v, clazz));
+                return rawValue.map(v -> ConfigurationUtils.convertToList(v, clazz, standardYaml));
             } else {
-                return rawValue.map(v -> ConfigurationUtils.convertValue(v, clazz));
+                return rawValue.map(v -> ConfigurationUtils.convertValue(v, clazz, standardYaml));
             }
         } catch (Exception e) {
             throw new IllegalArgumentException(
@@ -755,9 +774,38 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
             Map<String, String> ret =
                     CollectionUtil.newHashMapWithExpectedSize(this.confData.size());
             for (Map.Entry<String, Object> entry : confData.entrySet()) {
-                ret.put(entry.getKey(), ConfigurationUtils.convertToString(entry.getValue()));
+                ret.put(
+                        entry.getKey(),
+                        ConfigurationUtils.convertToString(entry.getValue(), standardYaml));
             }
             return ret;
+        }
+    }
+
+    /**
+     * Convert Config into a {@code Map<String, String>} representation.
+     *
+     * <p>NOTE: This method is extracted from the {@link Configuration#toMap} method and should be
+     * called when Config needs to be written to a file.
+     *
+     * <p>This method ensures the value is properly escaped when writing the key-value pair to a
+     * standard YAML file.
+     */
+    @Internal
+    public Map<String, String> toFileWritableMap() {
+        if (standardYaml) {
+            synchronized (this.confData) {
+                Map<String, String> ret =
+                        CollectionUtil.newHashMapWithExpectedSize(this.confData.size());
+                for (Map.Entry<String, Object> entry : confData.entrySet()) {
+                    // Because some character in standard yaml should be escaped by quotes, such as
+                    // '*', here we should wrap the value by Yaml pattern
+                    ret.put(entry.getKey(), YamlParserUtils.toYAMLString(entry.getValue()));
+                }
+                return ret;
+            }
+        } else {
+            return toMap();
         }
     }
 
@@ -833,7 +881,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
                 return Optional.ofNullable(valueFromExactKey);
             }
             final Map<String, String> valueFromPrefixMap =
-                    convertToPropertiesPrefixed(confData, key);
+                    convertToPropertiesPrefixed(confData, key, standardYaml);
             if (valueFromPrefixMap.isEmpty()) {
                 return Optional.empty();
             }

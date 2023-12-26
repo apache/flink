@@ -51,7 +51,7 @@ abstract class CheckpointIDCounterTestBase {
      * checkpoint), a negative ID is passed.
      */
     @Test
-    public void testCounterIsNeverNegative() throws Exception {
+    void testCounterIsNeverNegative() throws Exception {
         final CheckpointIDCounter counter = createCheckpointIdCounter();
 
         try {
@@ -64,7 +64,7 @@ abstract class CheckpointIDCounterTestBase {
 
     /** Tests serial increment and get calls. */
     @Test
-    public void testSerialIncrementAndGet() throws Exception {
+    void testSerialIncrementAndGet() throws Exception {
         final CheckpointIDCounter counter = createCheckpointIdCounter();
 
         try {
@@ -87,7 +87,7 @@ abstract class CheckpointIDCounterTestBase {
      * counts strictly increasing.
      */
     @Test
-    public void testConcurrentGetAndIncrement() throws Exception {
+    void testConcurrentGetAndIncrement() throws Exception {
         // Config
         final int numThreads = 8;
 
@@ -150,7 +150,7 @@ abstract class CheckpointIDCounterTestBase {
 
     /** Tests a simple {@link CheckpointIDCounter#setCount(long)} operation. */
     @Test
-    public void testSetCount() throws Exception {
+    void testSetCount() throws Exception {
         final CheckpointIDCounter counter = createCheckpointIdCounter();
         counter.start();
 

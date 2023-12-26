@@ -33,6 +33,7 @@ import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInf
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.KeyGroupPartitionedPriorityQueue;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
 import org.rocksdb.ColumnFamilyHandle;
@@ -51,8 +52,8 @@ import java.util.function.Function;
  */
 public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 
-    /** Default cache size per key-group. */
-    @VisibleForTesting static final int DEFAULT_CACHES_SIZE = 128; // TODO make this configurable
+    /** The priorityQueue cache size per key-group. */
+    private final int cacheSize;
 
     /** A shared buffer to serialize elements for the priority queue. */
     @Nonnull private final DataOutputSerializer sharedElementOutView;
@@ -81,7 +82,8 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
             RocksDBWriteBatchWrapper writeBatchWrapper,
             RocksDBNativeMetricMonitor nativeMetricMonitor,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
-            Long writeBufferManagerCapacity) {
+            Long writeBufferManagerCapacity,
+            int cacheSize) {
         this.keyGroupRange = keyGroupRange;
         this.keyGroupPrefixBytes = keyGroupPrefixBytes;
         this.numberOfKeyGroups = numberOfKeyGroups;
@@ -94,6 +96,8 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
         this.sharedElementOutView = new DataOutputSerializer(128);
         this.sharedElementInView = new DataInputDeserializer();
         this.writeBufferManagerCapacity = writeBufferManagerCapacity;
+        Preconditions.checkArgument(cacheSize > 0);
+        this.cacheSize = cacheSize;
     }
 
     @Nonnull
@@ -131,8 +135,7 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
                             int numKeyGroups,
                             @Nonnull KeyExtractorFunction<T> keyExtractor,
                             @Nonnull PriorityComparator<T> elementPriorityComparator) {
-                        TreeOrderedSetCache orderedSetCache =
-                                new TreeOrderedSetCache(DEFAULT_CACHES_SIZE);
+                        TreeOrderedSetCache orderedSetCache = new TreeOrderedSetCache(cacheSize);
                         return new RocksDBCachingPriorityQueueSet<>(
                                 keyGroupId,
                                 keyGroupPrefixBytes,
@@ -224,5 +227,10 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
         }
 
         return stateInfo;
+    }
+
+    @VisibleForTesting
+    public int getCacheSize() {
+        return cacheSize;
     }
 }

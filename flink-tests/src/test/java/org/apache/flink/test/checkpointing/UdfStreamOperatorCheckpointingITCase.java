@@ -18,11 +18,11 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -175,7 +175,7 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             long failurePosMin =
                     (long) (0.4 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
             long failurePosMax =

@@ -20,7 +20,8 @@ package org.apache.flink.table.planner.plan.stream.sql.join
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Test
 
 /** Tests for window join. */
 class WindowJoinTest extends TableTestBase {
@@ -148,9 +149,9 @@ class WindowJoinTest extends TableTestBase {
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
 
-    thrown.expectMessage("Processing time Window Join is not supported yet.")
-    thrown.expect(classOf[TableException])
-    util.verifyExplain(sql)
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Processing time Window Join is not supported yet.")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -255,9 +256,9 @@ class WindowJoinTest extends TableTestBase {
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
 
-    thrown.expectMessage("Processing time Window Join is not supported yet.")
-    thrown.expect(classOf[TableException])
-    util.verifyExplain(sql)
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Processing time Window Join is not supported yet.")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -362,9 +363,9 @@ class WindowJoinTest extends TableTestBase {
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
 
-    thrown.expectMessage("Processing time Window Join is not supported yet.")
-    thrown.expect(classOf[TableException])
-    util.verifyExplain(sql)
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Processing time Window Join is not supported yet.")
+      .isInstanceOf[TableException]
   }
 
   // ----------------------------------------------------------------------------------------

@@ -23,6 +23,7 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Operator;
@@ -37,7 +38,6 @@ import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.SingleInputOperator;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
@@ -51,7 +51,12 @@ import scala.Product;
  * data set produced by the function.
  *
  * @param <IN> The type of the data set aggregated by the operator.
+ * @deprecated All Flink Scala APIs are deprecated and will be removed in a future Flink major
+ *     version. You can still build your application in Scala, but you should move to the Java
+ *     version of either the DataStream and/or Table API.
+ * @see <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
+@Deprecated
 @Public
 public class ScalaAggregateOperator<IN>
         extends SingleInputOperator<IN, IN, ScalaAggregateOperator<IN>> {
@@ -275,13 +280,12 @@ public class ScalaAggregateOperator<IN>
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             for (AggregationFunction<Object> aggFunction : aggFunctions) {
                 aggFunction.initializeAggregate();
             }
             this.serializer =
-                    (TupleSerializerBase<T>)
-                            typeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
+                    (TupleSerializerBase<T>) getRuntimeContext().createSerializer(typeInfo);
         }
 
         @Override

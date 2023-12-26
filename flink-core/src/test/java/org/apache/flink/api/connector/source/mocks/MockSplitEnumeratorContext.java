@@ -199,6 +199,9 @@ public class MockSplitEnumeratorContext<SplitT extends SourceSplit>
         mainExecutor.execute(runnable);
     }
 
+    @Override
+    public void setIsProcessingBacklog(boolean isProcessingBacklog) {}
+
     public void close() throws Exception {
         stoppedAcceptAsyncCalls.set(true);
         workerExecutor.shutdownNow();

@@ -21,13 +21,12 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator.CheckpointTriggerRequest;
 import org.apache.flink.util.clock.ManualClock;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.LongConsumer;
+import java.util.function.BiConsumer;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.stream.Collectors.toList;
@@ -35,25 +34,21 @@ import static java.util.stream.IntStream.rangeClosed;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.MINIMUM_TIME_BETWEEN_CHECKPOINTS;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.TOO_MANY_CHECKPOINT_REQUESTS;
 import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link CheckpointRequestDecider} test. */
-public class CheckpointRequestDeciderTest {
+class CheckpointRequestDeciderTest {
 
     @Test
-    public void testForce() {
+    void testForce() {
         CheckpointRequestDecider decider =
                 decider(1, 1, Integer.MAX_VALUE, new AtomicInteger(1), new AtomicInteger(0));
         CheckpointTriggerRequest request = periodicSavepoint();
-        assertEquals(Optional.of(request), decider.chooseRequestToExecute(request, false, 123));
+        assertThat(decider.chooseRequestToExecute(request, false, 123)).hasValue(request);
     }
 
     @Test
-    public void testEnqueueOnTooManyPending() {
+    void testEnqueueOnTooManyPending() {
         final int maxPending = 1;
         final boolean isTriggering = false;
         final AtomicInteger currentPending = new AtomicInteger(maxPending);
@@ -61,14 +56,14 @@ public class CheckpointRequestDeciderTest {
                 decider(Integer.MAX_VALUE, maxPending, 1, currentPending, new AtomicInteger(0));
 
         CheckpointTriggerRequest request = regularCheckpoint();
-        assertFalse(decider.chooseRequestToExecute(request, isTriggering, 0).isPresent());
+        assertThat(decider.chooseRequestToExecute(request, isTriggering, 0)).isNotPresent();
 
         currentPending.set(0);
-        assertEquals(Optional.of(request), decider.chooseQueuedRequestToExecute(isTriggering, 0));
+        assertThat(decider.chooseQueuedRequestToExecute(isTriggering, 0)).hasValue(request);
     }
 
     @Test
-    public void testNonForcedEnqueueOnTooManyPending() {
+    void testNonForcedEnqueueOnTooManyPending() {
         final int maxPending = 1;
         final boolean isTriggering = false;
         final AtomicInteger currentPending = new AtomicInteger(maxPending);
@@ -77,14 +72,14 @@ public class CheckpointRequestDeciderTest {
                 decider(Integer.MAX_VALUE, maxPending, 1, currentPending, currentCleaning);
 
         CheckpointTriggerRequest request = nonForcedSavepoint();
-        assertFalse(decider.chooseRequestToExecute(request, isTriggering, 0).isPresent());
+        assertThat(decider.chooseRequestToExecute(request, isTriggering, 0)).isNotPresent();
 
         currentPending.set(0);
-        assertEquals(Optional.of(request), decider.chooseQueuedRequestToExecute(isTriggering, 0));
+        assertThat(decider.chooseQueuedRequestToExecute(isTriggering, 0)).hasValue(request);
     }
 
     @Test
-    public void testEnqueueOnTooManyCleaning() {
+    void testEnqueueOnTooManyCleaning() {
         final boolean isTriggering = false;
         int maxQueuedRequests = 10;
         int maxConcurrentCheckpointAttempts = 10;
@@ -99,15 +94,15 @@ public class CheckpointRequestDeciderTest {
                         currentCleaning);
 
         CheckpointTriggerRequest request = regularCheckpoint();
-        assertFalse(decider.chooseRequestToExecute(request, isTriggering, 0).isPresent());
+        assertThat(decider.chooseRequestToExecute(request, isTriggering, 0)).isNotPresent();
 
         // a checkpoint has been cleaned
         currentCleaning.decrementAndGet();
-        assertEquals(Optional.of(request), decider.chooseQueuedRequestToExecute(isTriggering, 0));
+        assertThat(decider.chooseQueuedRequestToExecute(isTriggering, 0)).hasValue(request);
     }
 
     @Test
-    public void testUserSubmittedPrioritized() {
+    void testUserSubmittedPrioritized() {
         CheckpointTriggerRequest userSubmitted = regularSavepoint();
         CheckpointTriggerRequest periodic = periodicSavepoint();
         testRequestsOrdering(
@@ -116,7 +111,7 @@ public class CheckpointRequestDeciderTest {
     }
 
     @Test
-    public void testSavepointPrioritized() {
+    void testSavepointPrioritized() {
         CheckpointTriggerRequest savepoint = regularSavepoint();
         CheckpointTriggerRequest checkpoint = regularCheckpoint();
         testRequestsOrdering(
@@ -125,7 +120,7 @@ public class CheckpointRequestDeciderTest {
     }
 
     @Test
-    public void testNonForcedUserSubmittedPrioritized() {
+    void testNonForcedUserSubmittedPrioritized() {
         CheckpointTriggerRequest userSubmitted = nonForcedSavepoint();
         CheckpointTriggerRequest periodic = nonForcedPeriodicSavepoint();
         testRequestsOrdering(
@@ -134,7 +129,7 @@ public class CheckpointRequestDeciderTest {
     }
 
     @Test
-    public void testNonForcedSavepointPrioritized() {
+    void testNonForcedSavepointPrioritized() {
         CheckpointTriggerRequest savepoint = nonForcedSavepoint();
         CheckpointTriggerRequest checkpoint = regularCheckpoint();
         testRequestsOrdering(
@@ -143,7 +138,7 @@ public class CheckpointRequestDeciderTest {
     }
 
     @Test
-    public void testQueueSizeLimit() {
+    void testQueueSizeLimit() {
         final int maxQueuedRequests = 10;
         final boolean isTriggering = true;
         CheckpointRequestDecider decider = decider(maxQueuedRequests);
@@ -153,18 +148,18 @@ public class CheckpointRequestDeciderTest {
                         .collect(toList());
         int numAdded = 0;
         for (CheckpointTriggerRequest request : requests) {
-            assertFalse(decider.chooseRequestToExecute(request, isTriggering, 0).isPresent());
+            assertThat(decider.chooseRequestToExecute(request, isTriggering, 0)).isNotPresent();
             List<CheckpointTriggerRequest> completed =
                     requests.stream()
                             .filter(r1 -> r1.getOnCompletionFuture().isDone())
                             .collect(toList());
             completed.forEach(r -> assertFailed(r, TOO_MANY_CHECKPOINT_REQUESTS));
-            assertEquals(Math.max(++numAdded - maxQueuedRequests, 0), completed.size());
+            assertThat(completed).hasSize(Math.max(++numAdded - maxQueuedRequests, 0));
         }
     }
 
     @Test
-    public void testQueueSizeLimitPriority() {
+    void testQueueSizeLimitPriority() {
         final int maxQueuedRequests = 1;
         final boolean isTriggering = true;
         CheckpointRequestDecider decider = decider(maxQueuedRequests);
@@ -176,18 +171,18 @@ public class CheckpointRequestDeciderTest {
         decider.chooseRequestToExecute(savepoint, isTriggering, 0);
 
         assertFailed(checkpoint, TOO_MANY_CHECKPOINT_REQUESTS);
-        assertFalse(savepoint.getOnCompletionFuture().isDone());
+        assertThat(savepoint.getOnCompletionFuture()).isNotDone();
     }
 
     @Test
-    public void testSavepointTiming() {
+    void testSavepointTiming() {
         testTiming(regularSavepoint(), TriggerExpectation.IMMEDIATELY);
         testTiming(periodicSavepoint(), TriggerExpectation.IMMEDIATELY);
         testTiming(nonForcedSavepoint(), TriggerExpectation.IMMEDIATELY);
     }
 
     @Test
-    public void testCheckpointTiming() {
+    void testCheckpointTiming() {
         testTiming(regularCheckpoint(), TriggerExpectation.DROPPED);
         testTiming(manualCheckpoint(), TriggerExpectation.IMMEDIATELY);
     }
@@ -210,23 +205,19 @@ public class CheckpointRequestDeciderTest {
 
         switch (expectation) {
             case IMMEDIATELY:
-                assertTrue(
-                        decider.chooseRequestToExecute(request, isTriggering, lastCompletionMs)
-                                .isPresent());
+                assertThat(decider.chooseRequestToExecute(request, isTriggering, lastCompletionMs))
+                        .isPresent();
                 break;
             case AFTER_PAUSE:
-                assertFalse(
-                        decider.chooseRequestToExecute(request, isTriggering, lastCompletionMs)
-                                .isPresent());
+                assertThat(decider.chooseRequestToExecute(request, isTriggering, lastCompletionMs))
+                        .isNotPresent();
                 clock.advanceTime(pause, MILLISECONDS);
-                assertTrue(
-                        decider.chooseQueuedRequestToExecute(isTriggering, lastCompletionMs)
-                                .isPresent());
+                assertThat(decider.chooseQueuedRequestToExecute(isTriggering, lastCompletionMs))
+                        .isPresent();
                 break;
             case DROPPED:
-                assertFalse(
-                        decider.chooseRequestToExecute(request, isTriggering, lastCompletionMs)
-                                .isPresent());
+                assertThat(decider.chooseRequestToExecute(request, isTriggering, lastCompletionMs))
+                        .isNotPresent();
                 assertFailed(request, MINIMUM_TIME_BETWEEN_CHECKPOINTS);
                 break;
             default:
@@ -239,24 +230,26 @@ public class CheckpointRequestDeciderTest {
             CheckpointTriggerRequest[] expectedExecutionOrder) {
         CheckpointRequestDecider decider = decider(10);
         for (CheckpointTriggerRequest r : requests) {
-            assertFalse(decider.chooseRequestToExecute(r, true, 123).isPresent());
+            assertThat(decider.chooseRequestToExecute(r, true, 123)).isNotPresent();
         }
         for (CheckpointTriggerRequest r : expectedExecutionOrder) {
-            assertEquals(Optional.of(r), decider.chooseQueuedRequestToExecute(false, 123));
+            assertThat(decider.chooseQueuedRequestToExecute(false, 123)).hasValue(r);
         }
     }
 
     private void assertFailed(CheckpointTriggerRequest request, CheckpointFailureReason reason) {
-        assertTrue(request.getOnCompletionFuture().isCompletedExceptionally());
+        assertThat(request.getOnCompletionFuture()).isCompletedExceptionally();
         request.getOnCompletionFuture()
                 .handle(
                         (checkpoint, throwable) -> {
-                            assertNull(checkpoint);
-                            assertNotNull(throwable);
-                            assertTrue(throwable instanceof CheckpointException);
-                            assertEquals(
-                                    reason,
-                                    ((CheckpointException) throwable).getCheckpointFailureReason());
+                            assertThat(checkpoint).isNull();
+                            assertThat(throwable)
+                                    .isNotNull()
+                                    .isInstanceOfSatisfying(
+                                            CheckpointException.class,
+                                            e ->
+                                                    assertThat(e.getCheckpointFailureReason())
+                                                            .isEqualTo(reason));
                             return null;
                         })
                 .join();
@@ -284,7 +277,7 @@ public class CheckpointRequestDeciderTest {
                 maxQueued);
     }
 
-    private static final LongConsumer NO_OP = unused -> {};
+    private static final BiConsumer<Long, Long> NO_OP = (currentTimeMillis, tillNextMillis) -> {};
 
     static CheckpointTriggerRequest regularCheckpoint() {
         return checkpointRequest(true);

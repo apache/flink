@@ -28,6 +28,8 @@ public class ProducerMergedPartitionFile {
 
     public static final String DATA_FILE_SUFFIX = ".tier-storage.data";
 
+    public static final String INDEX_FILE_SUFFIX = ".tier-storage.index";
+
     public static ProducerMergedPartitionFileWriter createPartitionFileWriter(
             Path dataFilePath, ProducerMergedPartitionFileIndex partitionFileIndex) {
         return new ProducerMergedPartitionFileWriter(dataFilePath, partitionFileIndex);

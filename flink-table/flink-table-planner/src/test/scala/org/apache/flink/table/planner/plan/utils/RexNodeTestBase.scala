@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.DataTypes
-import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.utils.InputTypeBuilder.inputOf
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
 
@@ -39,14 +39,16 @@ abstract class RexNodeTestBase {
   val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(
     Thread.currentThread().getContextClassLoader)
 
-  val allFieldNames: java.util.List[String] = List("name", "id", "amount", "price", "flag").asJava
+  val allFieldNames: java.util.List[String] =
+    List("name", "id", "amount", "price", "flag", "blob").asJava
 
   val allFieldTypes: java.util.List[RelDataType] = List(
     DataTypes.VARCHAR(100),
     DataTypes.BIGINT(),
     DataTypes.INT(),
     DataTypes.DOUBLE(),
-    DataTypes.BOOLEAN())
+    DataTypes.BOOLEAN(),
+    DataTypes.BYTES())
     .map(LogicalTypeDataTypeConverter.fromDataTypeToLogicalType)
     .map(typeFactory.createFieldTypeFromLogicalType)
     .asJava

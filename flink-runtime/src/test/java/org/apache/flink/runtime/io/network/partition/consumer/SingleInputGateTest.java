@@ -28,6 +28,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorGroup;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.IndexRange;
@@ -69,7 +70,6 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
-import org.apache.flink.util.CompressedSerializedValue;
 
 import org.apache.flink.shaded.guava31.com.google.common.io.Closer;
 
@@ -105,10 +105,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SingleInputGate}. */
-public class SingleInputGateTest extends InputGateTestBase {
+class SingleInputGateTest extends InputGateTestBase {
 
     @Test
-    void testCheckpointsDeclinedUnlessAllChannelsAreKnown() throws CheckpointException {
+    void testCheckpointsDeclinedUnlessAllChannelsAreKnown() {
         SingleInputGate gate =
                 createInputGate(createNettyShuffleEnvironment(), 1, ResultPartitionType.PIPELINED);
         gate.setInputChannels(
@@ -124,7 +124,7 @@ public class SingleInputGateTest extends InputGateTestBase {
     }
 
     @Test
-    void testCheckpointsDeclinedUnlessStateConsumed() throws CheckpointException {
+    void testCheckpointsDeclinedUnlessStateConsumed() {
         SingleInputGate gate = createInputGate(createNettyShuffleEnvironment());
         checkState(!gate.getStateConsumedFuture().isDone());
         assertThatThrownBy(
@@ -634,11 +634,13 @@ public class SingleInputGateTest extends InputGateTestBase {
                 };
 
         int initialBackoff = 137;
+        int partitionRequestTimeout = 600;
         int maxBackoff = 1001;
 
         final NettyShuffleEnvironment netEnv =
                 new NettyShuffleEnvironmentBuilder()
                         .setPartitionRequestInitialBackoff(initialBackoff)
+                        .setPartitionRequestTimeout(partitionRequestTimeout)
                         .setPartitionRequestMaxBackoff(maxBackoff)
                         .build();
 
@@ -674,14 +676,10 @@ public class SingleInputGateTest extends InputGateTestBase {
             InputChannel localChannel = channelMap.get(createSubpartitionInfo(partitionIds[0]));
             assertThat(localChannel.getClass()).isEqualTo(LocalInputChannel.class);
 
-            InputChannel remoteChannel = channelMap.get(createSubpartitionInfo(partitionIds[1]));
-            assertThat(remoteChannel.getClass()).isEqualTo(RemoteInputChannel.class);
-
             InputChannel unknownChannel = channelMap.get(createSubpartitionInfo(partitionIds[2]));
             assertThat(unknownChannel.getClass()).isEqualTo(UnknownInputChannel.class);
 
-            InputChannel[] channels =
-                    new InputChannel[] {localChannel, remoteChannel, unknownChannel};
+            InputChannel[] channels = new InputChannel[] {localChannel, unknownChannel};
             for (InputChannel ch : channels) {
                 assertThat(ch.getCurrentBackoff()).isEqualTo(0);
 
@@ -699,6 +697,22 @@ public class SingleInputGateTest extends InputGateTestBase {
 
                 assertThat(ch.increaseBackoff()).isFalse();
             }
+
+            InputChannel remoteChannel = channelMap.get(createSubpartitionInfo(partitionIds[1]));
+            assertThat(remoteChannel.getClass()).isEqualTo(RemoteInputChannel.class);
+
+            assertThat(remoteChannel.getCurrentBackoff()).isEqualTo(0);
+
+            assertThat(remoteChannel.increaseBackoff()).isTrue();
+            assertThat(remoteChannel.getCurrentBackoff()).isEqualTo(partitionRequestTimeout);
+
+            assertThat(remoteChannel.increaseBackoff()).isTrue();
+            assertThat(remoteChannel.getCurrentBackoff()).isEqualTo(partitionRequestTimeout * 2);
+
+            assertThat(remoteChannel.increaseBackoff()).isTrue();
+            assertThat(remoteChannel.getCurrentBackoff()).isEqualTo(partitionRequestTimeout * 3);
+
+            assertThat(remoteChannel.increaseBackoff()).isFalse();
         }
     }
 
@@ -1322,8 +1336,8 @@ public class SingleInputGateTest extends InputGateTestBase {
                         subpartitionIndexRange,
                         channelDescs.length,
                         Collections.singletonList(
-                                new TaskDeploymentDescriptor.NonOffloaded<>(
-                                        CompressedSerializedValue.fromObject(channelDescs))));
+                                new TaskDeploymentDescriptor.NonOffloadedRaw<>(
+                                        new ShuffleDescriptorGroup(channelDescs))));
 
         final TaskMetricGroup taskMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
@@ -1338,6 +1352,7 @@ public class SingleInputGateTest extends InputGateTestBase {
                                 : netEnv.getResultPartitionManager(),
                         new TaskEventDispatcher(),
                         netEnv.getNetworkBufferPool(),
+                        null,
                         null)
                 .create(
                         netEnv.createShuffleIOOwnerContext(
@@ -1345,8 +1360,7 @@ public class SingleInputGateTest extends InputGateTestBase {
                         0,
                         gateDesc,
                         SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
-                        newUnregisteredInputChannelMetrics(),
-                        null);
+                        newUnregisteredInputChannelMetrics());
     }
 
     private static Map<InputGateID, SingleInputGate> createInputGateWithLocalChannels(

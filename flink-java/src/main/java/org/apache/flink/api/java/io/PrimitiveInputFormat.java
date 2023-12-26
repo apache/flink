@@ -31,7 +31,14 @@ import java.io.IOException;
  * An input format that reads single field primitive data from a given file. The difference between
  * this and {@link org.apache.flink.api.java.io.CsvInputFormat} is that it won't go through {@link
  * org.apache.flink.api.java.tuple.Tuple1}.
+ *
+ * @deprecated All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a
+ *     future Flink major version. You can still build your application in DataSet, but you should
+ *     move to either the DataStream and/or Table API.
+ * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
+ *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet API</a>
  */
+@Deprecated
 @PublicEvolving
 public class PrimitiveInputFormat<OT> extends DelimitedInputFormat<OT> {
 

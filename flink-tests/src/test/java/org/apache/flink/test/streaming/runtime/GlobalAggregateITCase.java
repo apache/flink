@@ -19,10 +19,10 @@
 package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.functions.AggregateFunction;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.test.util.AbstractTestBase;
@@ -43,7 +43,7 @@ public class GlobalAggregateITCase extends AbstractTestBase {
 
         streamExecutionEnvironment
                 .addSource(new TestSourceFunction(new IntegerAggregateFunction(), false))
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         streamExecutionEnvironment.execute();
     }
@@ -55,7 +55,7 @@ public class GlobalAggregateITCase extends AbstractTestBase {
 
         streamExecutionEnvironment
                 .addSource(new TestSourceFunction(new ExceptionThrowingAggregateFunction(), true))
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         streamExecutionEnvironment.execute();
     }
@@ -79,8 +79,8 @@ public class GlobalAggregateITCase extends AbstractTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             StreamingRuntimeContext runtimeContext = (StreamingRuntimeContext) getRuntimeContext();
             aggregateManager = runtimeContext.getGlobalAggregateManager();
         }

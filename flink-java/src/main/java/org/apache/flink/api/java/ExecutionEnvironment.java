@@ -102,7 +102,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @see LocalEnvironment
  * @see RemoteEnvironment
+ * @deprecated All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a
+ *     future Flink major version. You can still build your application in DataSet, but you should
+ *     move to either the DataStream and/or Table API.
+ * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
+ *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet API</a>
  */
+@Deprecated
 @Public
 public class ExecutionEnvironment {
 
@@ -1342,7 +1348,7 @@ public class ExecutionEnvironment {
     /**
      * Creates a {@link RemoteEnvironment}. The remote environment sends (parts of) the program to a
      * cluster for execution. Note that all file paths used in the program must be accessible from
-     * the cluster. The custom configuration file is used to configure Akka specific configuration
+     * the cluster. The custom configuration file is used to configure Pekko specific configuration
      * parameters for the Client only; Program parallelism can be set via {@link
      * ExecutionEnvironment#setParallelism(int)}.
      *
@@ -1422,7 +1428,7 @@ public class ExecutionEnvironment {
      */
     protected static void initializeContextEnvironment(ExecutionEnvironmentFactory ctx) {
         contextEnvironmentFactory = Preconditions.checkNotNull(ctx);
-        threadLocalContextEnvironmentFactory.set(contextEnvironmentFactory);
+        threadLocalContextEnvironmentFactory.set(ctx);
     }
 
     /**

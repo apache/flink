@@ -449,7 +449,7 @@ It performs a regular inner join with different state TTL for left and right sid
         "description" : "Exchange(distribution=[hash[line_order_id]])"
       }, {
         "id" : 5,
-        "type" : "stream-exec-join_2",
+        "type" : "stream-exec-join_1",
         "joinSpec" : { ... },
         "state" : [ {
           "index" : 0,
@@ -473,7 +473,7 @@ It performs a regular inner join with different state TTL for left and right sid
         "description" : "Calc(select=[order_id, line_order_id, ship_mode])"
       }, {
         "id" : 7,
-        "type" : "stream-exec-sink_2",
+        "type" : "stream-exec-sink_1",
         "configuration" : { ... },
         "dynamicTableSink" : {
           "table" : {

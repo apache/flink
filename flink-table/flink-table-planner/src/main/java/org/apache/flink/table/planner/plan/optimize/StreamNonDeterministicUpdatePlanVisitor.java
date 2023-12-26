@@ -301,8 +301,10 @@ public class StreamNonDeterministicUpdatePlanVisitor {
 
                 // required determinism cannot be satisfied even upsert materialize was enabled if:
                 // 1. remaining join condition contains non-deterministic call
-                JavaScalaConversionUtil.toJava(lookupJoin.remainingCondition())
-                        .ifPresent(condi -> checkNonDeterministicCondition(condi, lookupJoin));
+                JavaScalaConversionUtil.toJava(lookupJoin.finalPreFilterCondition())
+                        .ifPresent(cond -> checkNonDeterministicCondition(cond, lookupJoin));
+                JavaScalaConversionUtil.toJava(lookupJoin.finalRemainingCondition())
+                        .ifPresent(cond -> checkNonDeterministicCondition(cond, lookupJoin));
 
                 // 2. inner calc in lookJoin contains either non-deterministic condition or calls
                 JavaScalaConversionUtil.toJava(lookupJoin.calcOnTemporalTable())
@@ -662,9 +664,18 @@ public class StreamNonDeterministicUpdatePlanVisitor {
             // transit requireDeterminism transparently
             return transmitDeterminismRequirement(rel, requireDeterminism);
         } else if (rel instanceof StreamPhysicalMatch) {
-            // TODO to be supported in FLINK-28743
-            throw new TableException(
-                    "Unsupported to resolve non-deterministic issue in match-recognize.");
+            StreamPhysicalMatch match = (StreamPhysicalMatch) rel;
+            if (inputInsertOnly(match)) {
+                // similar to over aggregate, output is insert only when input is insert only, so
+                // required determinism always be satisfied here.
+                return transmitDeterminismRequirement(match, NO_REQUIRED_DETERMINISM);
+            } else {
+                // The DEFINE and MEASURES clauses in match-recognize have similar meanings to the
+                // WHERE and SELECT clauses in SQL query, we should analyze and transmit the
+                // determinism requirement via the RexNodes in these two clauses.
+                throw new UnsupportedOperationException(
+                        "Unsupported to resolve non-deterministic issue in match-recognize when input has updates.");
+            }
         } else {
             throw new UnsupportedOperationException(
                     String.format(

@@ -313,7 +313,7 @@ Source 是你的程序从中读取其输入的地方。你可以用 `StreamExecu
   
 - `fromParallelCollection(SplittableIterator, Class)` - 从迭代器并行创建数据流。class 参数指定迭代器返回元素的数据类型。
   
-- `generateSequence(from, to)` - 基于给定间隔内的数字序列并行生成数据流。
+- `fromSequence(from, to)` - 基于给定间隔内的数字序列并行生成数据流。
 
 自定义：
 
@@ -357,7 +357,7 @@ Source 是你的程序从中读取其输入的地方。你可以用 `StreamExecu
   
 - `fromParallelCollection(SplittableIterator, Class)` - 从迭代器并行创建数据流。class 参数指定迭代器返回元素的数据类型。
   
-- `generateSequence(from, to)` - 基于给定间隔内的数字序列并行生成数据流。
+- `fromSequence(from, to)` - 基于给定间隔内的数字序列并行生成数据流。
 
 自定义：
 
@@ -425,96 +425,6 @@ Data sinks 使用 DataStream 并将它们转发到文件、套接字、外部系
 注意，DataStream 的 `write*()` 方法主要用于调试目的。它们不参与 Flink 的 checkpointing，这意味着这些函数通常具有至少有一次语义。刷新到目标系统的数据取决于 OutputFormat 的实现。这意味着并非所有发送到 OutputFormat 的元素都会立即显示在目标系统中。此外，在失败的情况下，这些记录可能会丢失。
 
 为了将流可靠地、精准一次地传输到文件系统中，请使用 `FileSink`。此外，通过 `.addSink(...)` 方法调用的自定义实现也可以参与 Flink 的 checkpointing，以实现精准一次的语义。
-
-{{< top >}}
-
-<a name="iterations"></a>
-
-Iterations
-----------
-
-{{< tabs "c4cc97af-7ce1-4333-a010-3072b34d5540" >}}
-{{< tab "Java" >}}
-
-Iterative streaming 程序实现了 step function 并将其嵌入到 `IterativeStream` 。由于 DataStream 程序可能永远不会完成，因此没有最大迭代次数。相反，你需要指定流的哪一部分反馈给迭代，哪一部分使用[旁路输出]({{< ref "docs/dev/datastream/side_output" >}})或`过滤器`转发到下游。这里，我们展示了一个使用过滤器的示例。首先，我们定义一个 IterativeStream
-
-```java
-IterativeStream<Integer> iteration = input.iterate();
-```
-
-然后，我们使用一系列转换（这里是一个简单的 `map` 转换）指定将在循环内执行的逻辑
-
-```java
-DataStream<Integer> iterationBody = iteration.map(/* this is executed many times */);
-```
-
-要关闭迭代并定义迭代尾部，请调用 `IterativeStream` 的 `closeWith(feedbackStream)` 方法。提供给 `closeWith` 函数的 DataStream 将反馈给迭代头。一种常见的模式是使用过滤器将反馈的流部分和向前传播的流部分分开。例如，这些过滤器可以定义“终止”逻辑，其中允许元素向下游传播而不是被反馈。
-
-```java
-iteration.closeWith(iterationBody.filter(/* one part of the stream */));
-DataStream<Integer> output = iterationBody.filter(/* some other part of the stream */);
-```
-
-例如，下面的程序从一系列整数中连续减去 1，直到它们达到零：
-
-```java
-DataStream<Long> someIntegers = env.generateSequence(0, 1000);
-
-IterativeStream<Long> iteration = someIntegers.iterate();
-
-DataStream<Long> minusOne = iteration.map(new MapFunction<Long, Long>() {
-  @Override
-  public Long map(Long value) throws Exception {
-    return value - 1 ;
-  }
-});
-
-DataStream<Long> stillGreaterThanZero = minusOne.filter(new FilterFunction<Long>() {
-  @Override
-  public boolean filter(Long value) throws Exception {
-    return (value > 0);
-  }
-});
-
-iteration.closeWith(stillGreaterThanZero);
-
-DataStream<Long> lessThanZero = minusOne.filter(new FilterFunction<Long>() {
-  @Override
-  public boolean filter(Long value) throws Exception {
-    return (value <= 0);
-  }
-});
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-
-Iterative streaming 程序实现了 step function 并将其嵌入到 `IterativeStream` 。由于 DataStream 程序可能永远不会完成，因此没有最大迭代次数。相反，你需要指定流的哪一部分反馈给迭代，哪一部分使用[旁路输出]({{< ref "docs/dev/datastream/side_output" >}})或`过滤器`转发到下游。这里，我们展示了一个迭代示例，其中主体（重复计算的部分）是一个简单的映射转换，使用过滤器将反馈的元素和向下游转发的元素进行分离。
-
-```scala
-val iteratedStream = someDataStream.iterate(
-  iteration => {
-    val iterationBody = iteration.map(/* this is executed many times */)
-    (iterationBody.filter(/* one part of the stream */), iterationBody.filter(/* some other part of the stream */))
-})
-```
-
-例如，下面的程序从一系列整数中连续减去 1，直到它们达到零：
-
-```scala
-val someIntegers: DataStream[Long] = env.generateSequence(0, 1000)
-
-val iteratedStream = someIntegers.iterate(
-  iteration => {
-    val minusOne = iteration.map( v => v - 1)
-    val stillGreaterThanZero = minusOne.filter (_ > 0)
-    val lessThanZero = minusOne.filter(_ <= 0)
-    (stillGreaterThanZero, lessThanZero)
-  }
-)
-```
-
-{{< /tab >}}
-{{< /tabs >}}
 
 {{< top >}}
 

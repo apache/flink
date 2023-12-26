@@ -31,8 +31,10 @@ import org.apache.calcite.sql.SqlGroupedWindowFunction;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlJsonConstructorNullClause;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlMatchRecognize;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlPostfixOperator;
+import org.apache.calcite.sql.SqlPrefixOperator;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.InferTypes;
@@ -938,7 +940,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
             new SqlFunction(
                     "RAND",
                     SqlKind.OTHER_FUNCTION,
-                    ReturnTypes.DOUBLE,
+                    ReturnTypes.cascade(
+                            ReturnTypes.explicit(SqlTypeName.DOUBLE),
+                            SqlTypeTransforms.TO_NULLABLE),
                     null,
                     OperandTypes.or(
                             new SqlSingleOperandTypeChecker[] {
@@ -956,7 +960,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
             new SqlFunction(
                     "RAND_INTEGER",
                     SqlKind.OTHER_FUNCTION,
-                    ReturnTypes.INTEGER,
+                    ReturnTypes.cascade(
+                            ReturnTypes.explicit(SqlTypeName.INTEGER),
+                            SqlTypeTransforms.TO_NULLABLE),
                     null,
                     OperandTypes.or(
                             new SqlSingleOperandTypeChecker[] {
@@ -1219,6 +1225,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlFunction LAST = SqlStdOperatorTable.LAST;
     public static final SqlFunction PREV = SqlStdOperatorTable.PREV;
     public static final SqlFunction NEXT = SqlStdOperatorTable.NEXT;
+    public static final SqlPrefixOperator SKIP_TO_FIRST = SqlMatchRecognize.SKIP_TO_FIRST;
+    public static final SqlPrefixOperator SKIP_TO_LAST = SqlMatchRecognize.SKIP_TO_LAST;
     public static final SqlFunction CLASSIFIER = SqlStdOperatorTable.CLASSIFIER;
     public static final SqlOperator FINAL = SqlStdOperatorTable.FINAL;
     public static final SqlOperator RUNNING = SqlStdOperatorTable.RUNNING;

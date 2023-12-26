@@ -23,18 +23,18 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, StreamTableTestUtil, TableTestBase}
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.time.Duration
 
 class TwoStageAggregateTest extends TableTestBase {
 
   private var util: StreamTableTestUtil = _
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util = streamTestUtil()
     util.tableEnv.getConfig
-      .setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+      .setIdleStateRetention(Duration.ofHours(1))
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))

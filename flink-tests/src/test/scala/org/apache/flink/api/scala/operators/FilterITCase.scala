@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.scala.operators
 
-import org.apache.flink.api.common.functions.RichFilterFunction
+import org.apache.flink.api.common.functions.{OpenContext, RichFilterFunction}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.configuration.Configuration
@@ -147,7 +147,7 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
     val filterDs = ds
       .filter(new RichFilterFunction[(Int, Long, String)] {
         var literal = -1
-        override def open(config: Configuration): Unit = {
+        override def open(openContext: OpenContext): Unit = {
           val ints = getRuntimeContext.getBroadcastVariable[Int]("ints")
           for (i <- ints.asScala) {
             literal = if (literal < i) i else literal

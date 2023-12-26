@@ -25,17 +25,17 @@ import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.Con
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test json serialization/deserialization for window aggregate. */
-public class WindowAggregateJsonPlanTest extends TableTestBase {
+class WindowAggregateJsonPlanTest extends TableTestBase {
 
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
 
@@ -53,7 +53,7 @@ public class WindowAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testEventTimeTumbleWindow() {
+    void testEventTimeTumbleWindow() {
         tEnv.createFunction("concat_distinct_agg", ConcatDistinctAggFunction.class);
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
@@ -82,7 +82,7 @@ public class WindowAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testEventTimeTumbleWindowWithOffset() {
+    void testEventTimeTumbleWindowWithOffset() {
         tEnv.createFunction("concat_distinct_agg", ConcatDistinctAggFunction.class);
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
@@ -115,7 +115,7 @@ public class WindowAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testProcTimeTumbleWindow() {
+    void testProcTimeTumbleWindow() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + " b BIGINT,\n"
@@ -135,7 +135,7 @@ public class WindowAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testEventTimeHopWindow() {
+    void testEventTimeHopWindow() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + " b BIGINT,\n"
@@ -155,7 +155,7 @@ public class WindowAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testEventTimeHopWindowWithOffset() {
+    void testEventTimeHopWindowWithOffset() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + " b BIGINT,\n"
@@ -180,7 +180,7 @@ public class WindowAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testProcTimeHopWindow() {
+    void testProcTimeHopWindow() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + " b BIGINT,\n"
@@ -198,7 +198,7 @@ public class WindowAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testEventTimeCumulateWindow() {
+    void testEventTimeCumulateWindow() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + " b BIGINT,\n"
@@ -224,7 +224,7 @@ public class WindowAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testEventTimeCumulateWindowWithOffset() {
+    void testEventTimeCumulateWindowWithOffset() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + " b BIGINT,\n"
@@ -251,7 +251,7 @@ public class WindowAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testProcTimeCumulateWindow() {
+    void testProcTimeCumulateWindow() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + " b BIGINT,\n"
@@ -273,7 +273,7 @@ public class WindowAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testDistinctSplitEnabled() {
+    void testDistinctSplitEnabled() {
         tEnv.getConfig()
                 .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true);
         String sinkTableDdl =

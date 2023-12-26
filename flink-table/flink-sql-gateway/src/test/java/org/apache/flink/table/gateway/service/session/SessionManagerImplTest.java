@@ -20,6 +20,9 @@ package org.apache.flink.table.gateway.service.session;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.catalog.CatalogDescriptor;
+import org.apache.flink.table.catalog.CommonCatalogOptions;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
@@ -30,13 +33,17 @@ import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.time.Duration;
 import java.util.Collections;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test for {@link SessionManagerImpl}. */
 class SessionManagerImplTest {
@@ -101,5 +108,106 @@ class SessionManagerImplTest {
                 SqlGatewayException.class,
                 () -> sessionManager.openSession(environment),
                 "Failed to create session, the count of active sessions exceeds the max count: 3");
+    }
+
+    @Test
+    void testRunWithCatalogStore() {
+        Configuration conf = new Configuration();
+        // Set a long idle timeout value in case the session is auto-closed.
+        conf.set(
+                SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_IDLE_TIMEOUT,
+                Duration.ofSeconds(60 * 1000));
+        conf.set(
+                SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_CHECK_INTERVAL,
+                Duration.ofMillis(100));
+        conf.set(CommonCatalogOptions.TABLE_CATALOG_STORE_KIND, "test-catalog-store");
+        conf.set(SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_MAX_NUM, 3);
+        sessionManager = new SessionManagerImpl(new DefaultContext(conf, Collections.emptyList()));
+        sessionManager.start();
+
+        SessionEnvironment environment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .build();
+        // Open two sessions that will share all created catalogs.
+        Session session1 = sessionManager.openSession(environment);
+        Session session2 = sessionManager.openSession(environment);
+
+        Configuration configuration = new Configuration();
+        configuration.setString("type", "generic_in_memory");
+        session1.createExecutor()
+                .getTableEnvironment()
+                .getCatalogManager()
+                .createCatalog("cat1", CatalogDescriptor.of("cat1", configuration));
+        session2.createExecutor()
+                .getTableEnvironment()
+                .getCatalogManager()
+                .createCatalog("cat2", CatalogDescriptor.of("cat2", configuration));
+
+        assertTrue(session1.createExecutor().listCatalogs().contains("cat1"));
+        assertTrue(session1.createExecutor().listCatalogs().contains("cat2"));
+
+        assertThatThrownBy(
+                        () ->
+                                session1.createExecutor()
+                                        .getTableEnvironment()
+                                        .createCatalog(
+                                                "cat2",
+                                                CatalogDescriptor.of("cat2", configuration)))
+                .isInstanceOf(CatalogException.class)
+                .hasMessageContaining("Catalog cat2 already exists in catalog store.");
+
+        sessionManager.stop();
+    }
+
+    @Test
+    void testRunWithFileCatalogStore(@TempDir File tempFolder) {
+        Configuration conf = new Configuration();
+        // Set a long idle timeout value in case the session is auto-closed.
+        conf.set(
+                SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_IDLE_TIMEOUT,
+                Duration.ofSeconds(60 * 1000));
+        // Config file catalog store
+        conf.set(CommonCatalogOptions.TABLE_CATALOG_STORE_KIND, "file");
+        conf.setString(
+                CommonCatalogOptions.TABLE_CATALOG_STORE_OPTION_PREFIX + "file.path",
+                tempFolder.getAbsolutePath());
+        sessionManager = new SessionManagerImpl(new DefaultContext(conf, Collections.emptyList()));
+        sessionManager.start();
+
+        SessionEnvironment environment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .build();
+
+        // catalog configuration
+        Configuration configuration = new Configuration();
+        configuration.setString("type", "generic_in_memory");
+
+        // Open two sessions that will share all created catalogs.
+        Session session1 = sessionManager.openSession(environment);
+
+        session1.createExecutor()
+                .getTableEnvironment()
+                .getCatalogManager()
+                .createCatalog("cat1", CatalogDescriptor.of("cat1", configuration));
+        assertTrue(session1.createExecutor().listCatalogs().contains("cat1"));
+
+        Session session2 = sessionManager.openSession(environment);
+
+        session2.createExecutor()
+                .getTableEnvironment()
+                .getCatalogManager()
+                .createCatalog("cat2", CatalogDescriptor.of("cat2", configuration));
+
+        // session1 can access the catalog created by session2
+        assertTrue(session1.createExecutor().listCatalogs().contains("cat1"));
+        assertTrue(session1.createExecutor().listCatalogs().contains("cat2"));
+
+        // session2 can access the catalog created by session1
+        assertTrue(session2.createExecutor().listCatalogs().contains("cat2"));
+        assertTrue(session2.createExecutor().listCatalogs().contains("cat1"));
+
+        sessionManager.stop();
     }
 }

@@ -18,31 +18,44 @@
 
 package org.apache.flink.streaming.examples.windowing;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.connector.datagen.source.DataGeneratorSource;
+import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
-/**
- * An example of grouped stream windowing into sliding time windows. This example uses {@link
- * RichParallelSourceFunction} to generate a list of key-value pairs.
- */
+/** An example of grouped stream windowing into sliding time windows. */
 public class GroupedProcessingTimeWindowExample {
 
     public static void main(String[] args) throws Exception {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Tuple2<Long, Long>> stream = env.addSource(new DataSource());
+        final long numElementsPerParallel = 20000000;
+        final long numKeys = 10000;
+
+        GeneratorFunction<Long, Tuple2<Long, Long>> generatorFunction =
+                new DataGeneratorFunction(numElementsPerParallel, numKeys);
+
+        DataGeneratorSource<Tuple2<Long, Long>> generatorSource =
+                new DataGeneratorSource<>(
+                        generatorFunction,
+                        numElementsPerParallel * env.getParallelism(),
+                        Types.TUPLE(Types.LONG, Types.LONG));
+
+        DataStream<Tuple2<Long, Long>> stream =
+                env.fromSource(generatorSource, WatermarkStrategy.noWatermarks(), "Data Generator");
 
         stream.keyBy(value -> value.f0)
                 .window(
@@ -56,7 +69,7 @@ public class GroupedProcessingTimeWindowExample {
                 // Time.milliseconds(500)))
                 //			.apply(new SummingWindowFunction())
 
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         env.execute();
     }
@@ -97,38 +110,39 @@ public class GroupedProcessingTimeWindowExample {
         }
     }
 
-    /** Parallel data source that serves a list of key-value pairs. */
-    private static class DataSource extends RichParallelSourceFunction<Tuple2<Long, Long>> {
+    /**
+     * This class represents a data generator function that generates a stream of tuples. Each tuple
+     * contains a key and a value. The function measures and prints the time it takes to generate
+     * numElements. The key space is limited to numKeys. The value is always 1.
+     */
+    private static class DataGeneratorFunction
+            implements GeneratorFunction<Long, Tuple2<Long, Long>> {
 
-        private volatile boolean running = true;
+        private final long numElements;
+        private final long numKeys;
+        private long startTime;
 
-        @Override
-        public void run(SourceContext<Tuple2<Long, Long>> ctx) throws Exception {
-
-            final long startTime = System.currentTimeMillis();
-
-            final long numElements = 20000000;
-            final long numKeys = 10000;
-            long val = 1L;
-            long count = 0L;
-
-            while (running && count < numElements) {
-                count++;
-                ctx.collect(new Tuple2<>(val++, 1L));
-
-                if (val > numKeys) {
-                    val = 1L;
-                }
-            }
-
-            final long endTime = System.currentTimeMillis();
-            System.out.println(
-                    "Took " + (endTime - startTime) + " msecs for " + numElements + " values");
+        public DataGeneratorFunction(long numElements, long numKeys) {
+            this.numElements = numElements;
+            this.numKeys = numKeys;
         }
 
         @Override
-        public void cancel() {
-            running = false;
+        public Tuple2<Long, Long> map(Long value) throws Exception {
+            if ((value % numElements) == 0) {
+                startTime = System.currentTimeMillis();
+            }
+            if ((value % numElements + 1) == numElements) {
+                final long endTime = System.currentTimeMillis();
+                System.out.println(
+                        Thread.currentThread()
+                                + ": Took "
+                                + (endTime - startTime)
+                                + " msecs for "
+                                + numElements
+                                + " values");
+            }
+            return new Tuple2<>(value % numKeys, 1L);
         }
     }
 }

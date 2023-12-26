@@ -280,6 +280,8 @@ public class FlinkImageBuilder {
                     return "11";
                 case "17":
                     return "17";
+                case "21":
+                    return "21";
                 default:
                     throw new IllegalStateException("Unexpected Java version: " + javaSpecVersion);
             }
@@ -292,7 +294,7 @@ public class FlinkImageBuilder {
         Path flinkConfFile = tempDirectory.resolve(GlobalConfiguration.FLINK_CONF_FILENAME);
         Files.write(
                 flinkConfFile,
-                finalConfiguration.toMap().entrySet().stream()
+                finalConfiguration.toFileWritableMap().entrySet().stream()
                         .map(entry -> entry.getKey() + ": " + entry.getValue())
                         .collect(Collectors.toList()));
 

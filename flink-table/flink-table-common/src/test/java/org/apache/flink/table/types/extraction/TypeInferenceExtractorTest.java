@@ -22,6 +22,7 @@ import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.InputGroup;
+import org.apache.flink.table.annotation.ProcedureHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.RowData;
@@ -29,6 +30,7 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.procedures.Procedure;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
@@ -60,6 +62,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class TypeInferenceExtractorTest {
 
     private static Stream<TestSpec> testData() {
+        return Stream.concat(functionSpecs(), procedureSpecs());
+    }
+
+    private static Stream<TestSpec> functionSpecs() {
         return Stream.of(
                 // function hint defines everything
                 TestSpec.forScalarFunction(FullFunctionHint.class)
@@ -432,6 +438,262 @@ class TypeInferenceExtractorTest {
                                                 .bridgedTo(RowData.class))));
     }
 
+    private static Stream<TestSpec> procedureSpecs() {
+        return Stream.of(
+                // procedure hint defines everything
+                TestSpec.forProcedure(FullProcedureHint.class)
+                        .expectNamedArguments("i", "s")
+                        .expectTypedArguments(DataTypes.INT(), DataTypes.STRING())
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"i", "s"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(DataTypes.INT()),
+                                            InputTypeStrategies.explicit(DataTypes.STRING())
+                                        }),
+                                TypeStrategies.explicit(DataTypes.BOOLEAN())),
+                // procedure hint defines everything
+                TestSpec.forProcedure(FullProcedureHints.class)
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        InputTypeStrategies.explicit(DataTypes.INT())),
+                                TypeStrategies.explicit(DataTypes.INT()))
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        InputTypeStrategies.explicit(DataTypes.BIGINT())),
+                                TypeStrategies.explicit(DataTypes.BIGINT())),
+                // global output hint with local input overloading
+                TestSpec.forProcedure(GlobalOutputProcedureHint.class)
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        InputTypeStrategies.explicit(DataTypes.INT())),
+                                TypeStrategies.explicit(DataTypes.INT()))
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        InputTypeStrategies.explicit(DataTypes.STRING())),
+                                TypeStrategies.explicit(DataTypes.INT())),
+                // global and local overloading
+                TestSpec.forProcedure(SplitFullProcedureHints.class)
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        InputTypeStrategies.explicit(DataTypes.INT())),
+                                TypeStrategies.explicit(DataTypes.INT()))
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        InputTypeStrategies.explicit(DataTypes.BIGINT())),
+                                TypeStrategies.explicit(DataTypes.BIGINT())),
+                // varargs and ANY input group
+                TestSpec.forProcedure(ComplexProcedureHint.class)
+                        .expectOutputMapping(
+                                InputTypeStrategies.varyingSequence(
+                                        new String[] {"myInt", "myAny"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(
+                                                    DataTypes.ARRAY(DataTypes.INT())),
+                                            InputTypeStrategies.ANY
+                                        }),
+                                TypeStrategies.explicit(DataTypes.BOOLEAN())),
+                // global input hints and local output hints
+                TestSpec.forProcedure(GlobalInputProcedureHints.class)
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        InputTypeStrategies.explicit(DataTypes.INT())),
+                                TypeStrategies.explicit(DataTypes.INT()))
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        InputTypeStrategies.explicit(DataTypes.BIGINT())),
+                                TypeStrategies.explicit(DataTypes.INT())),
+
+                // no arguments
+                TestSpec.forProcedure(ZeroArgProcedure.class)
+                        .expectNamedArguments()
+                        .expectTypedArguments()
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[0], new ArgumentTypeStrategy[0]),
+                                TypeStrategies.explicit(DataTypes.INT())),
+
+                // test primitive arguments extraction
+                TestSpec.forProcedure(MixedArgProcedure.class)
+                        .expectNamedArguments("i", "d")
+                        .expectTypedArguments(
+                                DataTypes.INT().notNull().bridgedTo(int.class), DataTypes.DOUBLE())
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"i", "d"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(
+                                                    DataTypes.INT().notNull().bridgedTo(int.class)),
+                                            InputTypeStrategies.explicit(DataTypes.DOUBLE())
+                                        }),
+                                TypeStrategies.explicit(DataTypes.INT())),
+
+                // test overloaded arguments extraction
+                TestSpec.forProcedure(OverloadedProcedure.class)
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"i", "d"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(
+                                                    DataTypes.INT().notNull().bridgedTo(int.class)),
+                                            InputTypeStrategies.explicit(DataTypes.DOUBLE())
+                                        }),
+                                TypeStrategies.explicit(DataTypes.INT()))
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"s"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(DataTypes.STRING())
+                                        }),
+                                TypeStrategies.explicit(
+                                        DataTypes.BIGINT().notNull().bridgedTo(long.class))),
+
+                // test varying arguments extraction
+                TestSpec.forProcedure(VarArgProcedure.class)
+                        .expectOutputMapping(
+                                InputTypeStrategies.varyingSequence(
+                                        new String[] {"i", "more"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(
+                                                    DataTypes.INT().notNull().bridgedTo(int.class)),
+                                            InputTypeStrategies.explicit(
+                                                    DataTypes.INT().notNull().bridgedTo(int.class))
+                                        }),
+                                TypeStrategies.explicit(DataTypes.STRING())),
+
+                // test varying arguments extraction with byte
+                TestSpec.forProcedure(VarArgWithByteProcedure.class)
+                        .expectOutputMapping(
+                                InputTypeStrategies.varyingSequence(
+                                        new String[] {"bytes"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(
+                                                    DataTypes.TINYINT()
+                                                            .notNull()
+                                                            .bridgedTo(byte.class))
+                                        }),
+                                TypeStrategies.explicit(DataTypes.STRING())),
+
+                // output hint with input extraction
+                TestSpec.forProcedure(ExtractWithOutputHintProcedure.class)
+                        .expectNamedArguments("i")
+                        .expectTypedArguments(DataTypes.INT())
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"i"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(DataTypes.INT())
+                                        }),
+                                TypeStrategies.explicit(DataTypes.INT())),
+
+                // output extraction with input hints
+                TestSpec.forProcedure(ExtractWithInputHintProcedure.class)
+                        .expectNamedArguments("i", "b")
+                        .expectTypedArguments(DataTypes.INT(), DataTypes.BOOLEAN())
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"i", "b"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(DataTypes.INT()),
+                                            InputTypeStrategies.explicit(DataTypes.BOOLEAN())
+                                        }),
+                                TypeStrategies.explicit(
+                                        DataTypes.DOUBLE().notNull().bridgedTo(double.class))),
+                // named arguments with overloaded function
+                TestSpec.forProcedure(NamedArgumentsProcedure.class).expectNamedArguments("n"),
+
+                // scalar function that takes any input
+                TestSpec.forProcedure(InputGroupProcedure.class)
+                        .expectNamedArguments("o")
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"o"},
+                                        new ArgumentTypeStrategy[] {InputTypeStrategies.ANY}),
+                                TypeStrategies.explicit(DataTypes.STRING())),
+
+                // scalar function that takes any input as vararg
+                TestSpec.forProcedure(VarArgInputGroupProcedure.class)
+                        .expectOutputMapping(
+                                InputTypeStrategies.varyingSequence(
+                                        new String[] {"o"},
+                                        new ArgumentTypeStrategy[] {InputTypeStrategies.ANY}),
+                                TypeStrategies.explicit(DataTypes.STRING())),
+                TestSpec.forProcedure(
+                                "Procedure with implicit overloading order", OrderedProcedure.class)
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"i"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(DataTypes.INT())
+                                        }),
+                                TypeStrategies.explicit(DataTypes.INT()))
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"l"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(DataTypes.BIGINT())
+                                        }),
+                                TypeStrategies.explicit(DataTypes.BIGINT())),
+                TestSpec.forProcedure(
+                                "Procedure with explicit overloading order by class annotations",
+                                OrderedProcedure2.class)
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        InputTypeStrategies.explicit(DataTypes.BIGINT())),
+                                TypeStrategies.explicit(DataTypes.BIGINT()))
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        InputTypeStrategies.explicit(DataTypes.INT())),
+                                TypeStrategies.explicit(DataTypes.INT())),
+                TestSpec.forProcedure(
+                                "Procedure with explicit overloading order by method annotations",
+                                OrderedProcedure3.class)
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        InputTypeStrategies.explicit(DataTypes.BIGINT())),
+                                TypeStrategies.explicit(DataTypes.BIGINT()))
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        InputTypeStrategies.explicit(DataTypes.INT())),
+                                TypeStrategies.explicit(DataTypes.INT())),
+                TestSpec.forProcedure(
+                                "A data type hint on the method is used for enriching (not a function output hint)",
+                                DataTypeHintOnProcedure.class)
+                        .expectNamedArguments()
+                        .expectTypedArguments()
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {}, new ArgumentTypeStrategy[] {}),
+                                TypeStrategies.explicit(
+                                        DataTypes.ROW(DataTypes.FIELD("i", DataTypes.INT()))
+                                                .bridgedTo(RowData.class))),
+                // unsupported output overloading
+                TestSpec.forProcedure(InvalidSingleOutputProcedureHint.class)
+                        .expectErrorMessage(
+                                "Procedure hints that lead to ambiguous results are not allowed."),
+                // global and local overloading with unsupported output overloading
+                TestSpec.forProcedure(InvalidFullOutputProcedureHint.class)
+                        .expectErrorMessage(
+                                "Procedure hints with same input definition but different result types are not allowed."),
+                // ignore argument names during overloading
+                TestSpec.forProcedure(InvalidFullOutputProcedureWithArgNamesHint.class)
+                        .expectErrorMessage(
+                                "Procedure hints with same input definition but different result types are not allowed."),
+                // invalid data type hint
+                TestSpec.forProcedure(IncompleteProcedureHint.class)
+                        .expectErrorMessage(
+                                "Data type hint does neither specify a data type nor input group for use as function argument."),
+                // mismatch between hints and implementation regarding return type
+                TestSpec.forProcedure(InvalidMethodProcedure.class)
+                        .expectErrorMessage(
+                                "Considering all hints, the method should comply with the signature:\n"
+                                        + "java.lang.String[] call(_, int[])"),
+                // no implementation
+                TestSpec.forProcedure(MissingMethodProcedure.class)
+                        .expectErrorMessage(
+                                "Could not find a publicly accessible method named 'call'."));
+    }
+
     @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("testData")
     void testArgumentNames(TestSpec testSpec) {
@@ -575,6 +837,19 @@ class TypeInferenceExtractorTest {
                     () ->
                             TypeInferenceExtractor.forTableAggregateFunction(
                                     new DataTypeFactoryMock(), function));
+        }
+
+        static TestSpec forProcedure(Class<? extends Procedure> procedure) {
+            return forProcedure(null, procedure);
+        }
+
+        static TestSpec forProcedure(
+                @Nullable String description, Class<? extends Procedure> procedure) {
+            return new TestSpec(
+                    description == null ? procedure.getSimpleName() : description,
+                    () ->
+                            TypeInferenceExtractor.forProcedure(
+                                    new DataTypeFactoryMock(), procedure));
         }
 
         TestSpec expectNamedArguments(String... expectedArgumentNames) {
@@ -924,6 +1199,240 @@ class TypeInferenceExtractorTest {
 
     private static class DataTypeHintOnScalarFunction extends ScalarFunction {
         public @DataTypeHint("ROW<i INT>") RowData eval() {
+            return null;
+        }
+    }
+
+    @ProcedureHint(
+            input = {@DataTypeHint("INT"), @DataTypeHint("STRING")},
+            argumentNames = {"i", "s"},
+            output = @DataTypeHint("BOOLEAN"))
+    private static class FullProcedureHint implements Procedure {
+        public Boolean[] call(Object procedureContext, Integer i, String s) {
+            return null;
+        }
+    }
+
+    private static class ComplexProcedureHint implements Procedure {
+        @ProcedureHint(
+                input = {@DataTypeHint("ARRAY<INT>"), @DataTypeHint(inputGroup = InputGroup.ANY)},
+                argumentNames = {"myInt", "myAny"},
+                output = @DataTypeHint("BOOLEAN"),
+                isVarArgs = true)
+        public Boolean[] call(Object procedureContext, Object... o) {
+            return null;
+        }
+    }
+
+    @ProcedureHint(input = @DataTypeHint("INT"), output = @DataTypeHint("INT"))
+    @ProcedureHint(input = @DataTypeHint("BIGINT"), output = @DataTypeHint("BIGINT"))
+    private static class FullProcedureHints implements Procedure {
+        public Number[] call(Object procedureContext, Number n) {
+            return null;
+        }
+    }
+
+    @ProcedureHint(output = @DataTypeHint("INT"))
+    private static class GlobalOutputProcedureHint implements Procedure {
+        @ProcedureHint(input = @DataTypeHint("INT"))
+        public Integer[] call(Object procedureContext, Integer n) {
+            return null;
+        }
+
+        @ProcedureHint(input = @DataTypeHint("STRING"))
+        public Integer[] call(Object procedureContext, String n) {
+            return null;
+        }
+    }
+
+    @ProcedureHint(output = @DataTypeHint("INT"))
+    private static class InvalidSingleOutputProcedureHint implements Procedure {
+        @ProcedureHint(output = @DataTypeHint("TINYINT"))
+        public Integer call(Object procedureContext, Number n) {
+            return null;
+        }
+    }
+
+    @ProcedureHint(input = @DataTypeHint("INT"), output = @DataTypeHint("INT"))
+    private static class SplitFullProcedureHints implements Procedure {
+        @ProcedureHint(input = @DataTypeHint("BIGINT"), output = @DataTypeHint("BIGINT"))
+        public Number[] call(Object procedureContext, Number n) {
+            return null;
+        }
+    }
+
+    @ProcedureHint(input = @DataTypeHint("INT"), output = @DataTypeHint("INT"))
+    private static class InvalidFullOutputProcedureHint implements Procedure {
+        @ProcedureHint(input = @DataTypeHint("INT"), output = @DataTypeHint("BIGINT"))
+        public Number[] call(Object procedureContext, Integer i) {
+            return null;
+        }
+    }
+
+    @ProcedureHint(input = @DataTypeHint("INT"), argumentNames = "a", output = @DataTypeHint("INT"))
+    private static class InvalidFullOutputProcedureWithArgNamesHint implements Procedure {
+        @ProcedureHint(
+                input = @DataTypeHint("INT"),
+                argumentNames = "b",
+                output = @DataTypeHint("BIGINT"))
+        public Number[] call(Object procedureContext, Integer i) {
+            return null;
+        }
+    }
+
+    @ProcedureHint(input = @DataTypeHint("INT"))
+    private static class InvalidLocalOutputProcedureHint implements Procedure {
+        @ProcedureHint(output = @DataTypeHint("INT"))
+        public Integer[] call(Object procedureContext, Integer n) {
+            return null;
+        }
+
+        @ProcedureHint(output = @DataTypeHint("STRING"))
+        public Integer[] call(Object procedureContext, String n) {
+            return null;
+        }
+    }
+
+    @ProcedureHint(
+            input = {@DataTypeHint("INT"), @DataTypeHint()},
+            output = @DataTypeHint("BOOLEAN"))
+    private static class IncompleteProcedureHint implements Procedure {
+        public Boolean[] call(Object procedureContext, Integer i1, Integer i2) {
+            return null;
+        }
+    }
+
+    @ProcedureHint(input = @DataTypeHint("INT"))
+    @ProcedureHint(input = @DataTypeHint("BIGINT"))
+    private static class GlobalInputProcedureHints implements Procedure {
+        @ProcedureHint(output = @DataTypeHint("INT"))
+        public Integer[] call(Object procedureContext, Number n) {
+            return null;
+        }
+    }
+
+    private static class ZeroArgProcedure implements Procedure {
+        public Integer[] call(Object procedureContext) {
+            return null;
+        }
+    }
+
+    private static class MixedArgProcedure implements Procedure {
+        public Integer[] call(Object procedureContext, int i, Double d) {
+            return null;
+        }
+    }
+
+    private static class OverloadedProcedure implements Procedure {
+        public Integer[] call(Object procedureContext, int i, Double d) {
+            return null;
+        }
+
+        public long[] call(Object procedureContext, String s) {
+            return null;
+        }
+    }
+
+    private static class VarArgProcedure implements Procedure {
+        public String[] call(Object procedureContext, int i, int... more) {
+            return null;
+        }
+    }
+
+    private static class VarArgWithByteProcedure implements Procedure {
+        public String[] call(Object procedureContext, byte... bytes) {
+            return null;
+        }
+    }
+
+    @ProcedureHint(output = @DataTypeHint("INT"))
+    private static class ExtractWithOutputHintProcedure implements Procedure {
+        public Object[] call(Object procedureContext, Integer i) {
+            return null;
+        }
+    }
+
+    @ProcedureHint(
+            input = {@DataTypeHint("INT"), @DataTypeHint("BOOLEAN")},
+            argumentNames = {"i", "b"})
+    private static class ExtractWithInputHintProcedure implements Procedure {
+        public double[] call(Object procedureContext, Object... o) {
+            return new double[] {0.0};
+        }
+    }
+
+    @ProcedureHint(output = @DataTypeHint("STRING"))
+    private static class InvalidMethodProcedure implements Procedure {
+        public Long[] call(Object procedureContext, int[] i) {
+            return null;
+        }
+    }
+
+    private static class NamedArgumentsProcedure implements Procedure {
+        public Integer[] call(Object procedureContext, int n) {
+            return null;
+        }
+
+        public Integer[] call(Object procedureContext, long n) {
+            return null;
+        }
+
+        public Integer[] call(Object procedureContext, @DataTypeHint("DECIMAL(10, 2)") Object n) {
+            return null;
+        }
+    }
+
+    private static class InputGroupProcedure implements Procedure {
+        public String[] call(
+                Object procedureContext, @DataTypeHint(inputGroup = InputGroup.ANY) Object o) {
+            return null;
+        }
+    }
+
+    private static class VarArgInputGroupProcedure implements Procedure {
+        public String[] call(
+                Object procedureContext, @DataTypeHint(inputGroup = InputGroup.ANY) Object... o) {
+            return null;
+        }
+    }
+
+    // extracted order is f(INT) || f(BIGINT) due to method signature sorting
+    private static class OrderedProcedure implements Procedure {
+        public Long[] call(Object procedureContext, Long l) {
+            return null;
+        }
+
+        public Integer[] call(Object procedureContext, Integer i) {
+            return null;
+        }
+    }
+
+    // extracted order is f(BIGINT) || f(INT)
+    @ProcedureHint(input = @DataTypeHint("BIGINT"), output = @DataTypeHint("BIGINT"))
+    @ProcedureHint(input = @DataTypeHint("INT"), output = @DataTypeHint("INT"))
+    private static class OrderedProcedure2 implements Procedure {
+        public Number[] call(Object procedureContext, Number n) {
+            return null;
+        }
+    }
+
+    // extracted order is f(BIGINT) || f(INT)
+    private static class OrderedProcedure3 implements Procedure {
+        @ProcedureHint(input = @DataTypeHint("BIGINT"), output = @DataTypeHint("BIGINT"))
+        @ProcedureHint(input = @DataTypeHint("INT"), output = @DataTypeHint("INT"))
+        public Number[] call(Object procedureContext, Number n) {
+            return null;
+        }
+    }
+
+    private static class DataTypeHintOnProcedure implements Procedure {
+        public @DataTypeHint("ROW<i INT>") RowData[] call(Object procedureContext) {
+            return null;
+        }
+    }
+
+    private static class MissingMethodProcedure implements Procedure {
+        public int[] call1(Object procedureContext) {
             return null;
         }
     }

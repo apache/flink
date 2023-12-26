@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
-import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.operations.Operation;
@@ -33,6 +33,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** Operation to describe a CREATE DATABASE statement. */
+@Internal
 public class CreateDatabaseOperation implements CreateOperation {
     private final String catalogName;
     private final String databaseName;
@@ -80,9 +81,9 @@ public class CreateDatabaseOperation implements CreateOperation {
 
     @Override
     public TableResultInternal execute(Context ctx) {
-        Catalog catalog = ctx.getCatalogManager().getCatalogOrThrowException(catalogName);
         try {
-            catalog.createDatabase(databaseName, catalogDatabase, ignoreIfExists);
+            ctx.getCatalogManager()
+                    .createDatabase(catalogName, databaseName, catalogDatabase, ignoreIfExists);
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (DatabaseAlreadyExistException e) {
             throw new ValidationException(

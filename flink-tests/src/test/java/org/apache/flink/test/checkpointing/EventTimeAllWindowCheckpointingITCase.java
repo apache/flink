@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -106,7 +107,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                 private boolean open = false;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             1, getRuntimeContext().getNumberOfParallelSubtasks());
                                     open = true;
@@ -182,7 +183,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                 private boolean open = false;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             1, getRuntimeContext().getNumberOfParallelSubtasks());
                                     open = true;
@@ -264,7 +265,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                 private boolean open = false;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             1, getRuntimeContext().getNumberOfParallelSubtasks());
                                     open = true;
@@ -297,7 +298,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                             numKeys, numElementsPerKey, windowSize)))
                     .setParallelism(1);
 
-            env.execute("Tumbling Window Test");
+            env.execute("PreAggregated Tumbling Window Test");
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -344,7 +345,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                 private boolean open = false;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             1, getRuntimeContext().getNumberOfParallelSubtasks());
                                     open = true;
@@ -377,7 +378,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                             numKeys, numElementsPerKey, windowSlide)))
                     .setParallelism(1);
 
-            env.execute("Tumbling Window Test");
+            env.execute("PreAggregated Sliding Window Test");
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

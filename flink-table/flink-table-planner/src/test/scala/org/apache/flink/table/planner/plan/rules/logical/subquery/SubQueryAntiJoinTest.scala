@@ -21,7 +21,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 /**
  * Tests for [[org.apache.flink.table.planner.plan.rules.logical.FlinkSubQueryRemoveRule]], this
@@ -34,7 +35,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
   util.addTableSource[(Int, Long)]("x", 'a, 'b)
   util.addTableSource[(Int, Long)]("y", 'c, 'd)
   util.addTableSource[(Int, Long)]("z", 'e, 'f)
-  util.addFunction("table_func", new StringSplit)
+  util.addTemporarySystemFunction("table_func", new StringSplit)
 
   @Test
   def testNotInOnWhere_NotSubQuery(): Unit = {
@@ -210,14 +211,14 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
   def testNotInWithUncorrelatedOnWhere_Case7(): Unit = {
     util.addTableSource[(Int)]("t1", 'i)
 
-    // TODO some bugs in SubQueryRemoveRule
-    thrown.expect(classOf[RuntimeException])
-
     // TODO Calcite does not support project with correlated expressions.
     val sqlQuery = "SELECT b FROM l WHERE " +
       "(CASE WHEN a NOT IN (SELECT i FROM t1 WHERE l.a = t1.i) THEN 1 ELSE 2 END) " +
       "NOT IN (SELECT d FROM r)"
-    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[anti]")
+
+    // TODO some bugs in SubQueryRemoveRule
+    assertThatExceptionOfType(classOf[RuntimeException])
+      .isThrownBy(() => util.verifyRelPlanNotExpected(sqlQuery, "joinType=[anti]"))
   }
 
   @Test
@@ -616,13 +617,14 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
     util.verifyRelPlanNotExpected(sqlQuery4, "joinType=[anti]")
   }
 
-  @Test(expected = classOf[AssertionError])
+  @Test
   def testNotExistsWithCorrelatedOnWhere_UnsupportedCondition2(): Unit = {
     // TODO Calcite decorrelateRel error
     val sqlQuery = "SELECT * FROM l WHERE NOT EXISTS " +
       " (SELECT * FROM (SELECT * FROM r WHERE r.d = l.a AND r.e > 100) s " +
       "LEFT JOIN t ON s.f = t.k AND l.b = t.j)"
-    util.verifyRelPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[AssertionError])
+      .isThrownBy(() => util.verifyRelPlan(sqlQuery))
   }
 
   @Test
@@ -727,17 +729,17 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
   def testNotInNotExists3(): Unit = {
     util.addTableSource[(Int, Long, String)]("t2", 'l, 'm, 'n)
 
-    // TODO some bugs in SubQueryRemoveRule
-    //  the result RelNode (LogicalJoin(condition=[=($1, $11)], joinType=[left]))
-    //  after SubQueryRemoveRule is unexpected
-    thrown.expect(classOf[AssertionError])
-
     // TODO Calcite does not support project with correlated expressions.
     val sqlQuery = "SELECT c FROM l WHERE (" +
       " (CASE WHEN NOT EXISTS (SELECT * FROM t WHERE l.a = t.i) THEN 1 ELSE 2 END), " +
       " (CASE WHEN b NOT IN (SELECT m FROM t2) THEN 3 ELSE 4 END)) " +
       "  NOT IN (SELECT d, e FROM r)"
-    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[anti]")
+
+    // TODO some bugs in SubQueryRemoveRule
+    //  the result RelNode (LogicalJoin(condition=[=($1, $11)], joinType=[left]))
+    //  after SubQueryRemoveRule is unexpected
+    assertThatExceptionOfType(classOf[AssertionError])
+      .isThrownBy(() => util.verifyRelPlanNotExpected(sqlQuery, "joinType=[anti]"))
   }
 
   @Test
@@ -756,16 +758,16 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
   def testInNotInExistsNotExists2(): Unit = {
     util.addTableSource[(Int, Long, String)]("t2", 'l, 'm, 'n)
 
-    // TODO some bugs in SubQueryRemoveRule
-    thrown.expect(classOf[RuntimeException])
-
     // TODO Calcite does not support project with correlated expressions.
     val sqlQuery = "SELECT c FROM l WHERE (" +
       " (CASE WHEN b IN (SELECT j FROM t WHERE l.a = t.i) THEN 1 ELSE 2 END), " +
       " (CASE WHEN NOT EXISTS (SELECT m FROM t2) THEN 3 " +
       "       WHEN EXISTS (select i FROM t) THEN 4 ELSE 5 END)) " +
       "  NOT IN (SELECT d, e FROM r)"
-    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[anti]")
+
+    // TODO some bugs in SubQueryRemoveRule
+    assertThatExceptionOfType(classOf[RuntimeException])
+      .isThrownBy(() => util.verifyRelPlanNotExpected(sqlQuery, "joinType=[anti]"))
   }
 
 }

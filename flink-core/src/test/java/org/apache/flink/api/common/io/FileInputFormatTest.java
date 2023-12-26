@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.testutils.TestFileUtils;
@@ -40,8 +41,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 
 /** Tests for the FileInputFormat */
 public class FileInputFormatTest {
@@ -592,31 +596,30 @@ public class FileInputFormatTest {
     //  Unsplittable input files
     // ------------------------------------------------------------------------
 
-    // ---- Tests for .deflate ---------
+    // ---- Tests for compressed files  ---------
 
     /**
-     * Create directory with files with .deflate extension and see if it creates a split for each
-     * file. Each split has to start from the beginning.
+     * Create directory with compressed files and see if it creates a split for each file. Each
+     * split has to start from the beginning.
      */
     @Test
-    public void testFileInputSplit() {
+    public void testFileInputFormatWithCompression() {
         try {
             String tempFile =
-                    TestFileUtils.createTempFileDirExtension(
+                    TestFileUtils.createTempFileDirForProvidedFormats(
                             temporaryFolder.newFolder(),
-                            ".deflate",
-                            "some",
-                            "stupid",
-                            "meaningless",
-                            "files");
+                            FileInputFormat.getSupportedCompressionFormats());
             final DummyFileInputFormat format = new DummyFileInputFormat();
             format.setFilePath(tempFile);
             format.configure(new Configuration());
             FileInputSplit[] splits = format.createInputSplits(2);
-            Assert.assertEquals(4, splits.length);
+            final Set<String> supportedCompressionFormats =
+                    FileInputFormat.getSupportedCompressionFormats();
+            Assert.assertEquals(supportedCompressionFormats.size(), splits.length);
             for (FileInputSplit split : splits) {
                 Assert.assertEquals(
-                        -1L, split.getLength()); // unsplittable deflate files have this size as a
+                        FileInputFormat.READ_WHOLE_SPLIT_FLAG,
+                        split.getLength()); // unsplittable compressed files have this size as a
                 // flag for "read whole file"
                 Assert.assertEquals(0L, split.getStart()); // always read from the beginning.
             }
@@ -630,12 +633,14 @@ public class FileInputFormatTest {
             formatMixed.setFilePath(tempFile);
             formatMixed.configure(new Configuration());
             FileInputSplit[] splitsMixed = formatMixed.createInputSplits(2);
-            Assert.assertEquals(5, splitsMixed.length);
+            Assert.assertEquals(supportedCompressionFormats.size() + 1, splitsMixed.length);
             for (FileInputSplit split : splitsMixed) {
-                if (split.getPath().getName().endsWith(".deflate")) {
+                final String extension =
+                        FileInputFormat.extractFileExtension(split.getPath().getName());
+                if (supportedCompressionFormats.contains(extension)) {
                     Assert.assertEquals(
-                            -1L,
-                            split.getLength()); // unsplittable deflate files have this size as a
+                            FileInputFormat.READ_WHOLE_SPLIT_FLAG,
+                            split.getLength()); // unsplittable compressed files have this size as a
                     // flag for "read whole file"
                     Assert.assertEquals(0L, split.getStart()); // always read from the beginning.
                 } else {
@@ -650,6 +655,61 @@ public class FileInputFormatTest {
         }
     }
 
+    /**
+     * Some FileInputFormats don't use FileInputFormat#createSplits (that would detect that the file
+     * is non-splittable and deal with reading boundaries correctly), they all create splits
+     * manually from FileSourceSplit. If input files are compressed, ensure that the size of the
+     * split is not the compressed file size and that the compression decorator is called.
+     */
+    @Test
+    public void testFileInputFormatWithCompressionFromFileSource() {
+        try {
+            String tempFile =
+                    TestFileUtils.createTempFileDirForProvidedFormats(
+                            temporaryFolder.newFolder(),
+                            FileInputFormat.getSupportedCompressionFormats());
+            DummyFileInputFormat format = new DummyFileInputFormat();
+            format.setFilePath(tempFile);
+            format.configure(new Configuration());
+
+            // manually create a FileInputSplit per file as FileSource would do
+            // see org.apache.flink.connector.file.table.DeserializationSchemaAdapter.Reader()
+            List<FileInputSplit> splits = manuallyCreateSplits(tempFile);
+            final Set<String> supportedCompressionFormats =
+                    FileInputFormat.getSupportedCompressionFormats();
+            // one file per compression format, one split per file
+            Assert.assertEquals(supportedCompressionFormats.size(), splits.size());
+            for (FileInputSplit split : splits) {
+                Assert.assertEquals(0L, split.getStart()); // always read from the beginning.
+                format.open(split);
+                Assert.assertTrue(format.compressedRead);
+                Assert.assertEquals(
+                        FileInputFormat.READ_WHOLE_SPLIT_FLAG,
+                        format.getSplitLength()); // unsplittable compressed files have this size
+                // as flag for "read whole file"
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            Assert.fail(ex.getMessage());
+        }
+    }
+
+    /**
+     * Simulates splits created by org.apache.flink.connector.file.src.FileSource (one split per
+     * file with length = size of the file). For compressed file, the input format should override
+     * it when it detects that the file is unsplittable in {@link
+     * FileInputFormat#open(FileInputSplit)}.
+     */
+    private List<FileInputSplit> manuallyCreateSplits(String pathString) throws IOException {
+        List<FileInputSplit> splits = new ArrayList<>();
+        final Path path = new Path(pathString);
+        final FileSystem fs = path.getFileSystem();
+        for (FileStatus file : fs.listStatus(path)) {
+            // split created like in DeserializationSchemaAdapter.Reader()
+            splits.add(new FileInputSplit(0, file.getPath(), 0, file.getLen(), null));
+        }
+        return splits;
+    }
     // ------------------------------------------------------------------------
     //  Ignored Files
     // ------------------------------------------------------------------------
@@ -849,8 +909,9 @@ public class FileInputFormatTest {
         }
     }
 
-    private class DummyFileInputFormat extends FileInputFormat<IntValue> {
+    private static class DummyFileInputFormat extends FileInputFormat<IntValue> {
         private static final long serialVersionUID = 1L;
+        private boolean compressedRead = false;
 
         @Override
         public boolean reachedEnd() throws IOException {
@@ -860,6 +921,22 @@ public class FileInputFormatTest {
         @Override
         public IntValue nextRecord(IntValue record) throws IOException {
             return null;
+        }
+
+        @Override
+        public void open(FileInputSplit split) throws IOException {
+            compressedRead = false;
+            super.open(split);
+        }
+
+        @Override
+        protected FSDataInputStream decorateInputStream(
+                FSDataInputStream inputStream, FileInputSplit fileSplit) throws Throwable {
+            compressedRead =
+                    getInflaterInputStreamFactory(
+                                    extractFileExtension(fileSplit.getPath().getName()))
+                            != null;
+            return inputStream;
         }
     }
 

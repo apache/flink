@@ -39,7 +39,7 @@ public class RestartStrategyTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(500);
 
-        env.fromElements(1).print();
+        env.fromData(1).print();
 
         StreamGraph graph = env.getStreamGraph();
         JobGraph jobGraph = graph.getJobGraph();
@@ -65,7 +65,7 @@ public class RestartStrategyTest extends TestLogger {
         env.enableCheckpointing(500);
         env.setNumberOfExecutionRetries(0);
 
-        env.fromElements(1).print();
+        env.fromData(1).print();
 
         StreamGraph graph = env.getStreamGraph();
         JobGraph jobGraph = graph.getJobGraph();
@@ -92,7 +92,7 @@ public class RestartStrategyTest extends TestLogger {
         env.setNumberOfExecutionRetries(42);
         env.getConfig().setExecutionRetryDelay(1337);
 
-        env.fromElements(1).print();
+        env.fromData(1).print();
 
         StreamGraph graph = env.getStreamGraph();
         JobGraph jobGraph = graph.getJobGraph();

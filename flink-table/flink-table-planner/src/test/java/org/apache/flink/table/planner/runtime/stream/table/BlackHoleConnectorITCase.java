@@ -21,17 +21,17 @@ package org.apache.flink.table.planner.runtime.stream.table;
 import org.apache.flink.connector.blackhole.table.BlackHoleTableSinkFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 
 import static org.apache.flink.table.api.Expressions.row;
 
 /** End to end tests for {@link BlackHoleTableSinkFactory}. */
-public class BlackHoleConnectorITCase extends StreamingTestBase {
+class BlackHoleConnectorITCase extends StreamingTestBase {
 
     @Test
-    public void testTypes() throws Exception {
+    void testTypes() throws Exception {
         tEnv().executeSql(
                         "create table blackhole_t (f0 int, f1 double) with ('connector' = 'blackhole')");
         tEnv().fromValues(Arrays.asList(row(1, 1.1), row(2, 2.2)))

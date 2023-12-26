@@ -69,7 +69,7 @@ class KubernetesSessionCliTest {
                 new String[] {
                     "-e",
                     KubernetesSessionClusterExecutor.NAME,
-                    "-Dakka.ask.timeout=5 min",
+                    "-Dpekko.ask.timeout=5 min",
                     "-Denv.java.opts=-DappName=foobar"
                 };
 
@@ -82,7 +82,7 @@ class KubernetesSessionCliTest {
         assertThat(executorConfigMap).hasSize(4);
         assertThat(executorConfigMap)
                 .contains(
-                        entry("akka.ask.timeout", "5 min"),
+                        entry("pekko.ask.timeout", "5 min"),
                         entry("env.java.opts", "-DappName=foobar"));
         assertThat(executorConfig.get(DeploymentOptionsInternal.CONF_DIR))
                 .isEqualTo(confDirPath.toAbsolutePath().toString());

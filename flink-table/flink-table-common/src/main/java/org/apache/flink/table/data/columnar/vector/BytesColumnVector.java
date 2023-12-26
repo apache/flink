@@ -29,6 +29,7 @@ public interface BytesColumnVector extends ColumnVector {
     Bytes getBytes(int i);
 
     /** Bytes data. */
+    @Internal
     class Bytes {
         public final byte[] data;
         public final int offset;

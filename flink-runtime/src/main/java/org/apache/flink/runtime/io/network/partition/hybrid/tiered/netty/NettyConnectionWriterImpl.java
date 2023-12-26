@@ -19,21 +19,25 @@
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 
 import javax.annotation.Nullable;
-
-import java.util.Queue;
 
 /** The default implementation of {@link NettyConnectionWriter}. */
 public class NettyConnectionWriterImpl implements NettyConnectionWriter {
 
-    private final Queue<NettyPayload> bufferQueue;
+    private final NettyPayloadManager nettyPayloadManager;
 
     private final NettyConnectionId connectionId;
 
-    public NettyConnectionWriterImpl(Queue<NettyPayload> bufferQueue) {
-        this.bufferQueue = bufferQueue;
+    private final BufferAvailabilityListener availabilityListener;
+
+    public NettyConnectionWriterImpl(
+            NettyPayloadManager nettyPayloadManager,
+            BufferAvailabilityListener availabilityListener) {
+        this.nettyPayloadManager = nettyPayloadManager;
         this.connectionId = NettyConnectionId.newId();
+        this.availabilityListener = availabilityListener;
     }
 
     @Override
@@ -42,23 +46,33 @@ public class NettyConnectionWriterImpl implements NettyConnectionWriter {
     }
 
     @Override
-    public int numQueuedBuffers() {
-        return bufferQueue.size();
+    public void notifyAvailable() {
+        availabilityListener.notifyDataAvailable();
     }
 
     @Override
-    public void writeBuffer(NettyPayload nettyPayload) {
-        bufferQueue.add(nettyPayload);
+    public int numQueuedPayloads() {
+        return nettyPayloadManager.getSize();
+    }
+
+    @Override
+    public int numQueuedBufferPayloads() {
+        return nettyPayloadManager.getBacklog();
+    }
+
+    @Override
+    public void writeNettyPayload(NettyPayload nettyPayload) {
+        nettyPayloadManager.add(nettyPayload);
     }
 
     @Override
     public void close(@Nullable Throwable error) {
         NettyPayload nettyPayload;
-        while ((nettyPayload = bufferQueue.poll()) != null) {
+        while ((nettyPayload = nettyPayloadManager.poll()) != null) {
             nettyPayload.getBuffer().ifPresent(Buffer::recycleBuffer);
         }
         if (error != null) {
-            writeBuffer(NettyPayload.newError(error));
+            writeNettyPayload(NettyPayload.newError(error));
         }
     }
 }

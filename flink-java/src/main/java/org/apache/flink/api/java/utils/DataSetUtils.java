@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.operators.Keys;
@@ -43,7 +44,6 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
 
@@ -55,7 +55,14 @@ import java.util.List;
 /**
  * This class provides simple utility methods for zipping elements in a data set with an index or
  * with a unique identifier.
+ *
+ * @deprecated All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a
+ *     future Flink major version. You can still build your application in DataSet, but you should
+ *     move to either the DataStream and/or Table API.
+ * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
+ *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet API</a>
  */
+@Deprecated
 @PublicEvolving
 public final class DataSetUtils {
 
@@ -100,8 +107,8 @@ public final class DataSetUtils {
                             long start = 0;
 
                             @Override
-                            public void open(Configuration parameters) throws Exception {
-                                super.open(parameters);
+                            public void open(OpenContext openContext) throws Exception {
+                                super.open(openContext);
 
                                 List<Tuple2<Integer, Long>> offsets =
                                         getRuntimeContext()
@@ -199,8 +206,8 @@ public final class DataSetUtils {
                     long label = 0;
 
                     @Override
-                    public void open(Configuration parameters) throws Exception {
-                        super.open(parameters);
+                    public void open(OpenContext openContext) throws Exception {
+                        super.open(openContext);
                         shifter = getBitSize(getRuntimeContext().getNumberOfParallelSubtasks() - 1);
                         taskId = getRuntimeContext().getIndexOfThisSubtask();
                     }

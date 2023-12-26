@@ -49,6 +49,7 @@ import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 import org.apache.flink.table.planner.plan.cost.FlinkCostFactory;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.CalciteSchema;
@@ -70,6 +71,7 @@ import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.tools.Frameworks;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static java.util.Arrays.asList;
@@ -193,13 +195,20 @@ public class PlannerContext {
         final SchemaPlus finalRootSchema = getRootSchema(rootSchema.plus());
 
         final CatalogManager catalogManager = context.getCatalogManager();
-        return new FlinkCalciteCatalogReader(
-                CalciteSchema.from(finalRootSchema),
-                asList(
+        final List<List<String>> paths = new ArrayList<>();
+        if (!StringUtils.isNullOrWhitespaceOnly(catalogManager.getCurrentCatalog())) {
+            if (!StringUtils.isNullOrWhitespaceOnly(catalogManager.getCurrentDatabase())) {
+                paths.add(
                         asList(
                                 catalogManager.getCurrentCatalog(),
-                                catalogManager.getCurrentDatabase()),
-                        singletonList(catalogManager.getCurrentCatalog())),
+                                catalogManager.getCurrentDatabase()));
+            }
+            paths.add(singletonList(catalogManager.getCurrentCatalog()));
+        }
+
+        return new FlinkCalciteCatalogReader(
+                CalciteSchema.from(finalRootSchema),
+                paths,
                 typeFactory,
                 CalciteConfig$.MODULE$.connectionConfig(newSqlParserConfig));
     }

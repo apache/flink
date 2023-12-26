@@ -13,4 +13,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-org.apache.flink.runtime.rpc.akka.AkkaRpcSystemLoader
+org.apache.flink.runtime.rpc.pekko.PekkoRpcSystemLoader

@@ -238,7 +238,7 @@ The Table API supports the following operations. Please note that not all operat
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
 Similar to the `FROM` clause in a SQL query.
-Performs a scane of registered table.
+Performs a scan of registered table.
 
 {{< tabs "from" >}}
 {{< tab "Java" >}}
@@ -376,7 +376,7 @@ result = orders.select(col("a"), col("c").alias('d'))
 {{< /tab >}}
 {{< /tabs >}}
 
-You can use star `(*)` to act as a wild card, selecting all of the columns in the table.
+You can use star `(*)` to act as a wild card, selecting all columns in the table.
 
 {{< tabs "selectstar" >}}
 {{< tab "Java" >}}
@@ -824,7 +824,7 @@ User-defined aggregation function can also be used with `DISTINCT` modifiers. To
 Table orders = tEnv.from("Orders");
 
 // Use distinct aggregation for user-defined aggregate functions
-tEnv.registerFunction("myUdagg", new MyUdagg());
+tEnv.createTemporarySystemFunction("myUdagg", MyUdagg.class);
 orders.groupBy("users")
     .select(
         $("users"),
@@ -854,7 +854,7 @@ Unsupported
 {{< label "Result Updating" >}}
 
 Similar to a SQL `DISTINCT` clause.
-Returns records with distinct value combinations.
+Return records with distinct value combinations.
 
 {{< tabs "distinct" >}}
 {{< tab "Java" >}}
@@ -1025,8 +1025,7 @@ A row of the left (outer) table is dropped, if its table function call returns a
 {{< tab "Java" >}}
 ```java
 // register User-Defined Table Function
-TableFunction<Tuple3<String,String,String>> split = new MySplitUDTF();
-tableEnv.registerFunction("split", split);
+tableEnv.createTemporarySystemFunction("split", MySplitUDTF.class);
 
 // join
 Table orders = tableEnv.from("Orders");
@@ -1074,8 +1073,7 @@ Currently, the predicate of a table function left outer join can only be empty o
 {{< tab "Java" >}}
 ```java
 // register User-Defined Table Function
-TableFunction<Tuple3<String,String,String>> split = new MySplitUDTF();
-tableEnv.registerFunction("split", split);
+tableEnv.createTemporarySystemFunction("split", MySplitUDTF.class);
 
 // join
 Table orders = tableEnv.from("Orders");
@@ -1116,7 +1114,7 @@ Temporal tables are tables that track changes over time.
 
 A temporal table function provides access to the state of a temporal table at a specific point in time. The syntax to join a table with a temporal table function is the same as in Inner Join with Table Function.
 
-Currently only inner joins with temporal tables are supported.
+Currently, only inner joins with temporal tables are supported.
 
 {{< tabs "temporaltablefunc" >}}
 {{< tab "Java" >}}
@@ -1127,7 +1125,7 @@ Table ratesHistory = tableEnv.from("RatesHistory");
 TemporalTableFunction rates = ratesHistory.createTemporalTableFunction(
     "r_proctime",
     "r_currency");
-tableEnv.registerFunction("rates", rates);
+tableEnv.createTemporarySystemFunction("rates", rates);
 
 // join with "Orders" based on the time attribute and key
 Table orders = tableEnv.from("Orders");
@@ -1398,7 +1396,7 @@ result = left.select(col('a'), col('b'), col('c')).where(col('a').in_(right))
 
 {{< label Batch >}} {{< label Streaming >}}
 
-Similar to a SQL `ORDER BY` clause. Returns records globally sorted across all parallel partitions. For unbounded tables, this operation requires a sorting on a time attribute or a subsequent fetch operation.
+Similar to a SQL `ORDER BY` clause. Return records globally sorted across all parallel partitions. For unbounded tables, this operation requires a sorting on a time attribute or a subsequent fetch operation.
 
 {{< tabs "orderby" >}}
 {{< tab "Java" >}}
@@ -1866,7 +1864,7 @@ Sliding windows are defined by using the `Slide` class as follows:
 
 #### Session (Session Windows)
 
-Session windows do not have a fixed size but their bounds are defined by an interval of inactivity, i.e., a session window is closes if no event appears for a defined gap period. For example a session window with a 30 minute gap starts when a row is observed after 30 minutes inactivity (otherwise the row would be added to an existing window) and is closed if no row is added within 30 minutes. Session windows can work on event-time or processing-time.
+Session windows do not have a fixed size but their bounds are defined by an interval of inactivity, i.e., a session window is closes if no event appears for a defined gap period. For example a session window with a 30-minute gap starts when a row is observed after 30 minutes inactivity (otherwise the row would be added to an existing window) and is closed if no row is added within 30 minutes. Session windows can work on event-time or processing-time.
 
 {{< tabs "58943253-807b-4e4c-b068-0dc1b783b7b5" >}}
 {{< tab "Java" >}}
@@ -1980,7 +1978,7 @@ A session window is defined by using the `Session` class as follows:
 
 ### Over Windows
 
-Over window aggregates are known from standard SQL (`OVER` clause) and defined in the `SELECT` clause of a query. Unlike group windows, which are specified in the `GROUP BY` clause, over windows do not collapse rows. Instead over window aggregates compute an aggregate for each input row over a range of its neighboring rows.
+Over window aggregates are known from standard SQL (`OVER` clause) and defined in the `SELECT` clause of a query. Unlike group windows, which are specified in the `GROUP BY` clause, over windows do not collapse rows. Instead, over window aggregates compute an aggregate for each input row over a range of its neighboring rows.
 
 Over windows are defined using the `window(w: OverWindow*)` clause (using `over_window(*OverWindow)` in Python API) and referenced via an alias in the `select()` method. The following example shows how to define an over window aggregation on a table.
 
@@ -2174,19 +2172,14 @@ The row-based operations generate outputs with multiple columns.
 Performs a map operation with a user-defined scalar function or built-in scalar function. The output will be flattened if the output type is a composite type.
 
 ```java
+@FunctionHint(input = @DataTypeHint("STRING"), output = @DataTypeHint("ROW<s1 STRING, s2 STRING>"))
 public class MyMapFunction extends ScalarFunction {
     public Row eval(String a) {
         return Row.of(a, "pre-" + a);
     }
-
-    @Override
-    public TypeInformation<?> getResultType(Class<?>[] signature) {
-        return Types.ROW(Types.STRING, Types.STRING);
-    }
 }
 
-ScalarFunction func = new MyMapFunction();
-tableEnv.registerFunction("func", func);
+tableEnv.createTemporarySystemFunction("func", MyMapFunction.class);
 
 Table table = input
   .map(call("func", $("c"))).as("a", "b");
@@ -2251,6 +2244,7 @@ table = input.map(pandas_func).alias('a', 'b')
 Performs a `flatMap` operation with a table function.
 
 ```java
+@FunctionHint(output = @DataTypeHint("ROW<s STRING, i INT>"))
 public class MyFlatMapFunction extends TableFunction<Row> {
 
     public void eval(String str) {
@@ -2261,15 +2255,9 @@ public class MyFlatMapFunction extends TableFunction<Row> {
             }
         }
     }
-
-    @Override
-    public TypeInformation<Row> getResultType() {
-        return Types.ROW(Types.STRING, Types.INT);
-    }
 }
 
-TableFunction func = new MyFlatMapFunction();
-tableEnv.registerFunction("func", func);
+tableEnv.createTemporarySystemFunction("func", MyFlatMapFunction.class);
 
 Table table = input
   .flatMap(call("func", $("c"))).as("a", "b");
@@ -2363,13 +2351,21 @@ public class MyMinMax extends AggregateFunction<Row, MyMinMaxAcc> {
     }
 
     @Override
-    public TypeInformation<Row> getResultType() {
-        return new RowTypeInfo(Types.INT, Types.INT);
+    public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+        return TypeInference.newBuilder()
+                .typedArguments(DataTypes.INT())
+                .accumulatorTypeStrategy(
+                        TypeStrategies.explicit(
+                                DataTypes.STRUCTURED(
+                                        MyMinMaxAcc.class,
+                                        DataTypes.FIELD("min", DataTypes.INT()),
+                                        DataTypes.FIELD("max", DataTypes.INT()))))
+                .outputTypeStrategy(TypeStrategies.explicit(DataTypes.INT()))
+                .build();
     }
 }
 
-AggregateFunction myAggFunc = new MyMinMax();
-tableEnv.registerFunction("myAggFunc", myAggFunc);
+tableEnv.createTemporarySystemFunction("myAggFunc", MyMinMax.class);
 Table table = input
   .groupBy($("key"))
   .aggregate(call("myAggFunc", $("a")).as("x", "y"))
@@ -2405,9 +2401,17 @@ class MyMinMax extends AggregateFunction[Row, MyMinMaxAcc] {
     Row.of(Integer.valueOf(acc.min), Integer.valueOf(acc.max))
   }
 
-  override def getResultType: TypeInformation[Row] = {
-    new RowTypeInfo(Types.INT, Types.INT)
-  }
+  override def getTypeInference(typeFactory: DataTypeFactory): TypeInference =
+    TypeInference.newBuilder
+      .typedArguments(DataTypes.INT)
+      .accumulatorTypeStrategy(
+        TypeStrategies.explicit(
+          DataTypes.STRUCTURED(
+            classOf[MyMinMaxAcc],
+            DataTypes.FIELD("min", DataTypes.INT),
+            DataTypes.FIELD("max", DataTypes.INT))))
+      .outputTypeStrategy(TypeStrategies.explicit(DataTypes.INT))
+      .build
 }
 
 val myAggFunc = new MyMinMax
@@ -2490,8 +2494,7 @@ Groups and aggregates a table on a [group window](#group-window) and possibly on
 {{< tabs "group-window-agg" >}}
 {{< tab "Java" >}}
 ```java
-AggregateFunction myAggFunc = new MyMinMax();
-tableEnv.registerFunction("myAggFunc", myAggFunc);
+tableEnv.createTemporarySystemFunction("myAggFunc", MyMinMax.class);
 
 Table table = input
     .window(Tumble.over(lit(5).minutes())
@@ -2544,7 +2547,7 @@ t.select(col('b'), col('rowtime')) \
 
 Similar to a **GroupBy Aggregation**. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.
 
-Instead of using emitValue to output results, you can also use the emitUpdateWithRetract method. Different from emitValue, emitUpdateWithRetract is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The emitUpdateWithRetract method will be used in preference to the emitValue method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than emitValue as it can output values incrementally. 
+Instead of using `emitValue` to output results, you can also use the `emitUpdateWithRetract` method. Different from `emitValue`, `emitUpdateWithRetract` is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The emitUpdateWithRetract method will be used in preference to the emitValue method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than emitValue as it can output values incrementally. 
 
 ```java
 /**
@@ -2596,7 +2599,7 @@ public class Top2 extends TableAggregateFunction<Tuple2<Integer, Integer>, Top2A
     }
 }
 
-tEnv.registerFunction("top2", new Top2());
+tEnv.createTemporarySystemFunction("top2", Top2.class);
 Table orders = tableEnv.from("Orders");
 Table result = orders
     .groupBy($("key"))
@@ -2608,7 +2611,7 @@ Table result = orders
 
 Similar to a **GroupBy Aggregation**. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.
 
-Instead of using emitValue to output results, you can also use the emitUpdateWithRetract method. Different from emitValue, emitUpdateWithRetract is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The emitUpdateWithRetract method will be used in preference to the emitValue method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than emitValue as it can output values incrementally. 
+Instead of using `emitValue` to output results, you can also use the `emitUpdateWithRetract` method. Different from `emitValue`, `emitUpdateWithRetract` is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The `emitUpdateWithRetract` method will be used in preference to the `emitValue` method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than `emitValue` as it can output values incrementally. 
 
 ```scala
 import java.lang.{Integer => JInteger}

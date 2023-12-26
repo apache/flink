@@ -20,13 +20,13 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -718,7 +718,7 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
         private final LifeCycleMonitor lifeCycleMonitor = new LifeCycleMonitor();
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             lifeCycleMonitor.incrementCallTime(LifeCyclePhase.OPEN);
         }
 
@@ -891,8 +891,8 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             if (closeCalled) {
                 fail("Close called before open.");
             }

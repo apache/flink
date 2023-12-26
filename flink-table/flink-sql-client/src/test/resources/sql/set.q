@@ -86,10 +86,11 @@ set;
 |                        pipeline.classpaths |           |
 |                              pipeline.jars |           |
 |                                  rest.port |     $VAR_REST_PORT |
+|         sql-client.display.print-time-cost |     false |
 |           sql-client.execution.result-mode |   tableau |
 |           table.exec.legacy-cast-behaviour |  DISABLED |
 +--------------------------------------------+-----------+
-11 rows in set
+12 rows in set
 !ok
 
 # reset the configuration
@@ -228,6 +229,10 @@ SHOW JARS;
 !ok
 
 SET 'sql-client.execution.result-mode' = 'tableau';
+[INFO] Execute statement succeed.
+!info
+
+SET 'sql-client.display.print-time-cost' = 'false';
 [INFO] Execute statement succeed.
 !info
 

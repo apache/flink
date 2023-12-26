@@ -30,7 +30,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[c], filter=[=(LOWER(d), _UTF-16LE'hello':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")]]], fields=[a, b, c, d])
+TableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[c], watermarkEmitStrategy=[on-periodic], filter=[=(LOWER(d), _UTF-16LE'hello':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -49,7 +49,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c, d], where=[d IS NOT NULL])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[c], filter=[=(LOWER(d), _UTF-16LE'h':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")]]], fields=[a, b, c, d])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[c], watermarkEmitStrategy=[on-periodic], filter=[=(LOWER(d), _UTF-16LE'h':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -87,7 +87,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c, d], where=[(b > 5)])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[c], filter=[]]], fields=[a, b, c, d])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[c], watermarkEmitStrategy=[on-periodic], filter=[]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -107,7 +107,7 @@ LogicalProject(event_time=[$0], name=[$1], lowercase_name=[$2])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[Reinterpret(event_time) AS event_time, name, CAST('foo' AS VARCHAR(2147483647)) AS lowercase_name])
-+- TableSourceScan(table=[[default_catalog, default_database, WithWatermark, watermark=[event_time], filter=[=(LOWER(name), _UTF-16LE'foo':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")]]], fields=[event_time, name])
++- TableSourceScan(table=[[default_catalog, default_database, WithWatermark, watermark=[event_time], watermarkEmitStrategy=[on-periodic], filter=[=(LOWER(name), _UTF-16LE'foo':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")]]], fields=[event_time, name])
 ]]>
     </Resource>
   </TestCase>
@@ -144,7 +144,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], f=[$4])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, Reinterpret(c) AS c, func(c, a) AS d, f])
-+- TableSourceScan(table=[[default_catalog, default_database, UdfTable, watermark=[func(func(func(c, a), a), a)], filter=[=(UPPER(f), _UTF-16LE'welcome':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")]]], fields=[a, b, c, f])
++- TableSourceScan(table=[[default_catalog, default_database, UdfTable, watermark=[func(func(func(c, a), a), a)], watermarkEmitStrategy=[on-periodic], filter=[=(UPPER(f), _UTF-16LE'welcome':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")]]], fields=[a, b, c, f])
 ]]>
     </Resource>
   </TestCase>

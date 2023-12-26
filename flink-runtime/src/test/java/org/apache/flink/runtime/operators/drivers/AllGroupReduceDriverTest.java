@@ -34,17 +34,19 @@ import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+
 @SuppressWarnings("serial")
-public class AllGroupReduceDriverTest {
+class AllGroupReduceDriverTest {
 
     @Test
-    public void testAllReduceDriverImmutableEmpty() {
+    void testAllReduceDriverImmutableEmpty() {
         try {
             TestTaskContext<
                             GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>,
@@ -72,12 +74,12 @@ public class AllGroupReduceDriverTest {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testAllReduceDriverImmutable() {
+    void testAllReduceDriverImmutable() {
         try {
             TestTaskContext<
                             GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>,
@@ -118,17 +120,17 @@ public class AllGroupReduceDriverTest {
             char[] expectedString = "abcddeeeffff".toCharArray();
             Arrays.sort(expectedString);
 
-            Assert.assertArrayEquals(expectedString, foundString);
-            Assert.assertEquals(78, res.f1.intValue());
+            assertThat(foundString).isEqualTo(expectedString);
+            assertThat(res.f1).isEqualTo(78);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testAllReduceDriverMutable() {
+    void testAllReduceDriverMutable() {
         try {
             TestTaskContext<
                             GroupReduceFunction<
@@ -173,19 +175,19 @@ public class AllGroupReduceDriverTest {
             char[] expectedString = "abcddeeeffff".toCharArray();
             Arrays.sort(expectedString);
 
-            Assert.assertArrayEquals(expectedString, foundString);
-            Assert.assertEquals(78, res.f1.getValue());
+            assertThat(foundString).isEqualTo(expectedString);
+            assertThat(res.f1.getValue()).isEqualTo(78);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
     // --------------------------------------------------------------------------------------------
     //  Test UDFs
     // --------------------------------------------------------------------------------------------
 
-    public static final class ConcatSumReducer
+    private static final class ConcatSumReducer
             extends RichGroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>> {
 
         @Override
@@ -203,7 +205,7 @@ public class AllGroupReduceDriverTest {
         }
     }
 
-    public static final class ConcatSumMutableReducer
+    private static final class ConcatSumMutableReducer
             extends RichGroupReduceFunction<
                     Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>> {
 

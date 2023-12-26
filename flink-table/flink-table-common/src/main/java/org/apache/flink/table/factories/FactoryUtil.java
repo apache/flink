@@ -40,6 +40,7 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.utils.EncodingUtils;
+import org.apache.flink.table.watermark.WatermarkEmitStrategy;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -47,6 +48,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -118,6 +120,53 @@ public final class FactoryUtil {
                     .defaultValues("rest")
                     .withDescription("Specify the endpoints that are used.");
 
+    public static final ConfigOption<Integer> SOURCE_PARALLELISM =
+            ConfigOptions.key("scan.parallelism")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Defines a custom parallelism for the source. "
+                                    + "By default, if this option is not defined, the planner will derive the parallelism "
+                                    + "for each statement individually by also considering the global configuration.");
+
+    public static final ConfigOption<WatermarkEmitStrategy> WATERMARK_EMIT_STRATEGY =
+            ConfigOptions.key("scan.watermark.emit.strategy")
+                    .enumType(WatermarkEmitStrategy.class)
+                    .defaultValue(WatermarkEmitStrategy.ON_PERIODIC)
+                    .withDescription(
+                            "The strategy for emitting watermark. "
+                                    + "'on-event' means emitting watermark for every event. "
+                                    + "'on-periodic' means emitting watermark periodically. "
+                                    + "The default strategy is 'on-periodic'");
+
+    public static final ConfigOption<String> WATERMARK_ALIGNMENT_GROUP =
+            ConfigOptions.key("scan.watermark.alignment.group")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("The watermark alignment group name.");
+
+    public static final ConfigOption<Duration> WATERMARK_ALIGNMENT_MAX_DRIFT =
+            ConfigOptions.key("scan.watermark.alignment.max-drift")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription("The max allowed watermark drift.");
+
+    public static final ConfigOption<Duration> WATERMARK_ALIGNMENT_UPDATE_INTERVAL =
+            ConfigOptions.key("scan.watermark.alignment.update-interval")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(1000))
+                    .withDescription("Update interval to align watermark.");
+
+    public static final ConfigOption<Duration> SOURCE_IDLE_TIMEOUT =
+            ConfigOptions.key("scan.watermark.idle-timeout")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "When a source do not receive any elements for the timeout time, "
+                                    + "it will be marked as temporarily idle. This allows downstream "
+                                    + "tasks to advance their watermarks without the need to wait for "
+                                    + "watermarks from this source while it is idle.");
+
     /**
      * Suffix for keys of {@link ConfigOption} in case a connector requires multiple formats (e.g.
      * for both key and value).
@@ -132,6 +181,18 @@ public final class FactoryUtil {
      * Factory} for details.
      */
     public static final String PLACEHOLDER_SYMBOL = "#";
+
+    private static final Set<ConfigOption<?>> watermarkOptionSet;
+
+    static {
+        Set<ConfigOption<?>> set = new HashSet<>();
+        set.add(WATERMARK_EMIT_STRATEGY);
+        set.add(WATERMARK_ALIGNMENT_GROUP);
+        set.add(WATERMARK_ALIGNMENT_MAX_DRIFT);
+        set.add(WATERMARK_ALIGNMENT_UPDATE_INTERVAL);
+        set.add(SOURCE_IDLE_TIMEOUT);
+        watermarkOptionSet = Collections.unmodifiableSet(set);
+    }
 
     /**
      * Creates a {@link DynamicTableSource} from a {@link CatalogTable}.
@@ -345,6 +406,16 @@ public final class FactoryUtil {
     public static CatalogFactoryHelper createCatalogFactoryHelper(
             CatalogFactory factory, CatalogFactory.Context context) {
         return new CatalogFactoryHelper(factory, context);
+    }
+
+    /**
+     * Creates a utility that helps validating options for a {@link CatalogStoreFactory}.
+     *
+     * <p>Note: This utility checks for left-over options in the final step.
+     */
+    public static CatalogStoreFactoryHelper createCatalogStoreFactoryHelper(
+            CatalogStoreFactory factory, CatalogStoreFactory.Context context) {
+        return new CatalogStoreFactoryHelper(factory, context);
     }
 
     /**
@@ -677,6 +748,17 @@ public final class FactoryUtil {
         }
     }
 
+    /** Returns the {@link DynamicTableFactory} via {@link Catalog}. */
+    public static <T extends DynamicTableFactory> Optional<T> getDynamicTableFactory(
+            Class<T> factoryClass, @Nullable Catalog catalog) {
+        if (catalog == null) {
+            return Optional.empty();
+        }
+
+        return catalog.getFactory()
+                .map(f -> factoryClass.isAssignableFrom(f.getClass()) ? (T) f : null);
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helper methods
     // --------------------------------------------------------------------------------------------
@@ -685,17 +767,6 @@ public final class FactoryUtil {
             Class<T> factoryClass, @Nullable Catalog catalog, DynamicTableFactory.Context context) {
         return getDynamicTableFactory(factoryClass, catalog)
                 .orElseGet(() -> discoverTableFactory(factoryClass, context));
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T extends DynamicTableFactory> Optional<T> getDynamicTableFactory(
-            Class<T> factoryClass, @Nullable Catalog catalog) {
-        if (catalog == null) {
-            return Optional.empty();
-        }
-
-        return catalog.getFactory()
-                .map(f -> factoryClass.isAssignableFrom(f.getClass()) ? (T) f : null);
     }
 
     private static <T extends DynamicTableFactory> T discoverTableFactory(
@@ -933,6 +1004,7 @@ public final class FactoryUtil {
                     allOptions.keySet(),
                     consumedOptionKeys,
                     deprecatedOptionKeys);
+            validateWatermarkOptions(factory.factoryIdentifier(), allOptions);
         }
 
         /**
@@ -975,6 +1047,19 @@ public final class FactoryUtil {
     }
 
     /**
+     * Helper utility for validating all options for a {@link CatalogStoreFactory}.
+     *
+     * @see #createCatalogStoreFactoryHelper(CatalogStoreFactory, CatalogStoreFactory.Context)
+     */
+    @PublicEvolving
+    public static class CatalogStoreFactoryHelper extends FactoryHelper<CatalogStoreFactory> {
+        public CatalogStoreFactoryHelper(
+                CatalogStoreFactory catalogStoreFactory, CatalogStoreFactory.Context context) {
+            super(catalogStoreFactory, context.getOptions(), PROPERTY_VERSION);
+        }
+    }
+
+    /**
      * Helper utility for validating all options for a {@link ModuleFactory}.
      *
      * @see #createModuleFactoryHelper(ModuleFactory, ModuleFactory.Context)
@@ -1009,6 +1094,8 @@ public final class FactoryUtil {
             this.context = context;
             this.enrichingOptions = Configuration.fromMap(context.getEnrichmentOptions());
             this.forwardOptions();
+            this.consumedOptionKeys.addAll(
+                    watermarkOptionSet.stream().map(ConfigOption::key).collect(Collectors.toSet()));
         }
 
         /**
@@ -1309,6 +1396,41 @@ public final class FactoryUtil {
         }
     }
 
+    /** Default implementation of {@link CatalogStoreFactory.Context}. */
+    @Internal
+    public static class DefaultCatalogStoreContext implements CatalogStoreFactory.Context {
+
+        private Map<String, String> options;
+
+        private ReadableConfig configuration;
+
+        private ClassLoader classLoader;
+
+        public DefaultCatalogStoreContext(
+                Map<String, String> options,
+                ReadableConfig configuration,
+                ClassLoader classLoader) {
+            this.options = options;
+            this.configuration = configuration;
+            this.classLoader = classLoader;
+        }
+
+        @Override
+        public Map<String, String> getOptions() {
+            return options;
+        }
+
+        @Override
+        public ReadableConfig getConfiguration() {
+            return configuration;
+        }
+
+        @Override
+        public ClassLoader getClassLoader() {
+            return classLoader;
+        }
+    }
+
     /** Default implementation of {@link ModuleFactory.Context}. */
     @Internal
     public static class DefaultModuleContext implements ModuleFactory.Context {
@@ -1345,5 +1467,52 @@ public final class FactoryUtil {
 
     private FactoryUtil() {
         // no instantiation
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Validate watermark options from table options.
+     *
+     * @param factoryIdentifier identifier of table
+     * @param conf table options
+     */
+    public static void validateWatermarkOptions(String factoryIdentifier, ReadableConfig conf) {
+        Optional<String> errMsgOptional = checkWatermarkOptions(conf);
+        if (errMsgOptional.isPresent()) {
+            throw new ValidationException(
+                    String.format(
+                            "Error configuring watermark for '%s', %s",
+                            factoryIdentifier, errMsgOptional.get()));
+        }
+    }
+
+    /**
+     * Check watermark-related options and return error messages.
+     *
+     * @param conf table options
+     * @return Optional of error messages
+     */
+    public static Optional<String> checkWatermarkOptions(ReadableConfig conf) {
+        // try to validate watermark options by parsing it
+        watermarkOptionSet.forEach(option -> readOption(conf, option));
+
+        // check watermark alignment options
+        Optional<String> groupOptional = conf.getOptional(WATERMARK_ALIGNMENT_GROUP);
+        Optional<Duration> maxDriftOptional = conf.getOptional(WATERMARK_ALIGNMENT_MAX_DRIFT);
+        Optional<Duration> updateIntervalOptional =
+                conf.getOptional(WATERMARK_ALIGNMENT_UPDATE_INTERVAL);
+
+        if ((groupOptional.isPresent()
+                        || maxDriftOptional.isPresent()
+                        || updateIntervalOptional.isPresent())
+                && (!groupOptional.isPresent() || !maxDriftOptional.isPresent())) {
+            String errMsg =
+                    String.format(
+                            "'%s' and '%s' must be set when configuring watermark alignment",
+                            WATERMARK_ALIGNMENT_GROUP.key(), WATERMARK_ALIGNMENT_MAX_DRIFT.key());
+            return Optional.of(errMsg);
+        }
+        return Optional.empty();
     }
 }

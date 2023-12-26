@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingStrategy.Decision;
+import org.apache.flink.runtime.metrics.TimerGauge;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -91,6 +92,12 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
                     new ExecutorThreadFactory("hybrid-shuffle-pool-size-checker-executor"));
 
     private final AtomicInteger poolSize;
+
+    /**
+     * If task thread blocked on request buffer from buffer pool, this metric should be updated.
+     * Pre-create it to avoid checkNotNull in hot-path for performance purpose.
+     */
+    private TimerGauge hardBackPressuredTimePerSecond = new TimerGauge();
 
     public HsMemoryDataManager(
             int numSubpartitions,
@@ -200,6 +207,7 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
         for (int i = 0; i < numSubpartitions; i++) {
             getSubpartitionMemoryDataManager(i).setOutputMetrics(metrics);
         }
+        this.hardBackPressuredTimePerSecond = metrics.getHardBackpressureTimerGauge();
     }
 
     // ------------------------------------
@@ -263,7 +271,16 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
 
     @Override
     public BufferBuilder requestBufferFromPool() throws InterruptedException {
-        MemorySegment segment = bufferPool.requestMemorySegmentBlocking();
+        MemorySegment segment = bufferPool.requestMemorySegment();
+
+        if (segment == null) {
+            // only when the buffer is not acquired immediately, it is requested in blocking mode,
+            // which will make the calculation of backpressure more accurate.
+            hardBackPressuredTimePerSecond.markStart();
+            segment = bufferPool.requestMemorySegmentBlocking();
+            hardBackPressuredTimePerSecond.markEnd();
+        }
+
         Optional<Decision> decisionOpt =
                 spillStrategy.onMemoryUsageChanged(
                         numRequestedBuffers.incrementAndGet(), getPoolSize());

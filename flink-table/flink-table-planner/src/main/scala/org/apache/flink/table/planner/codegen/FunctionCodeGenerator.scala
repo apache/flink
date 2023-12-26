@@ -23,7 +23,7 @@ import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.async.{AsyncFunction, RichAsyncFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.Indenter.toISC
-import org.apache.flink.table.runtime.generated.{GeneratedFunction, GeneratedJoinCondition, JoinCondition}
+import org.apache.flink.table.runtime.generated.{FilterCondition, GeneratedFilterCondition, GeneratedFunction, GeneratedJoinCondition, JoinCondition}
 import org.apache.flink.table.types.logical.LogicalType
 
 /**
@@ -180,6 +180,80 @@ object FunctionCodeGenerator {
   }
 
   /**
+   * Generates a [[AbstractRichFunction]] class code that can be passed to Java compiler. Including
+   * [[JoinCondition]] and [[FilterCondition]] rich functions.
+   *
+   * @param ctx
+   *   The context of the code generator
+   * @param name
+   *   Class name of the Function. Not must be unique but has to be a valid Java class identifier.
+   * @param clazz
+   *   Function to be generated.
+   * @param bodyCode
+   *   code contents of the SAM (Single Abstract Method).
+   * @param input1Term
+   *   the first input term
+   * @param input2Term
+   *   the second input term.
+   * @return
+   *   the generated condition function name and code
+   */
+  private def generateCondition[F <: Function](
+      ctx: CodeGeneratorContext,
+      name: String,
+      clazz: Class[F],
+      bodyCode: String,
+      input1Term: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
+      input2Term: String = CodeGenUtils.DEFAULT_INPUT2_TERM): (String, String) = {
+    val funcName = newName(name)
+
+    val methodHeader = {
+      if (clazz == classOf[JoinCondition]) {
+        s"apply($ROW_DATA $input1Term, $ROW_DATA $input2Term)"
+      } else if (clazz == classOf[FilterCondition]) {
+        s"apply($ROW_DATA $input1Term)"
+      } else {
+        throw new CodeGenException(s"Unsupported Condition Function $clazz.")
+      }
+    }
+    val funcCode =
+      j"""
+      public class $funcName extends ${className[AbstractRichFunction]}
+          implements ${clazz.getCanonicalName} {
+
+        ${ctx.reuseMemberCode()}
+
+        public $funcName(Object[] references) throws Exception {
+          ${ctx.reuseInitCode()}
+        }
+
+        ${ctx.reuseConstructorCode(funcName)}
+
+        @Override
+        public void open(${className[Configuration]} parameters) throws Exception {
+          ${ctx.reuseOpenCode()}
+        }
+
+        @Override
+        public boolean $methodHeader throws Exception {
+          ${ctx.reusePerRecordCode()}
+          ${ctx.reuseLocalVariableCode()}
+          ${ctx.reuseInputUnboxingCode()}
+          $bodyCode
+        }
+
+        @Override
+        public void close() throws Exception {
+          super.close();
+          ${ctx.reuseCloseCode()}
+        }
+      }
+     """.stripMargin
+
+    (funcName, funcCode)
+  }
+
+  /**
    * Generates a [[JoinCondition]] that can be passed to Java compiler.
    *
    * @param ctx
@@ -201,42 +275,36 @@ object FunctionCodeGenerator {
       bodyCode: String,
       input1Term: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
       input2Term: String = CodeGenUtils.DEFAULT_INPUT2_TERM): GeneratedJoinCondition = {
-    val funcName = newName(name)
 
-    val funcCode =
-      j"""
-      public class $funcName extends ${className[AbstractRichFunction]}
-          implements ${className[JoinCondition]} {
-
-        ${ctx.reuseMemberCode()}
-
-        public $funcName(Object[] references) throws Exception {
-          ${ctx.reuseInitCode()}
-        }
-
-        ${ctx.reuseConstructorCode(funcName)}
-
-        @Override
-        public void open(${className[Configuration]} parameters) throws Exception {
-          ${ctx.reuseOpenCode()}
-        }
-
-        @Override
-        public boolean apply($ROW_DATA $input1Term, $ROW_DATA $input2Term) throws Exception {
-          ${ctx.reusePerRecordCode()}
-          ${ctx.reuseLocalVariableCode()}
-          ${ctx.reuseInputUnboxingCode()}
-          $bodyCode
-        }
-
-        @Override
-        public void close() throws Exception {
-          super.close();
-          ${ctx.reuseCloseCode()}
-        }
-      }
-     """.stripMargin
+    val (funcName, funcCode) =
+      generateCondition(ctx, name, classOf[JoinCondition], bodyCode, input1Term, input2Term)
 
     new GeneratedJoinCondition(funcName, funcCode, ctx.references.toArray, ctx.tableConfig)
+  }
+
+  /**
+   * Generates a [[FilterCondition]] that can be passed to Java compiler.
+   *
+   * @param ctx
+   *   The context of the code generator
+   * @param name
+   *   Class name of the Function. Not must be unique but has to be a valid Java class identifier.
+   * @param bodyCode
+   *   code contents of the SAM (Single Abstract Method).
+   * @param inputTerm
+   *   the input term
+   * @return
+   *   instance of GeneratedFilterCondition
+   */
+  def generateFilterCondition(
+      ctx: CodeGeneratorContext,
+      name: String,
+      bodyCode: String,
+      inputTerm: String = CodeGenUtils.DEFAULT_INPUT_TERM): GeneratedFilterCondition = {
+
+    val (funcName, funcCode) =
+      generateCondition(ctx, name, classOf[FilterCondition], bodyCode, inputTerm)
+
+    new GeneratedFilterCondition(funcName, funcCode, ctx.references.toArray, ctx.tableConfig)
   }
 }

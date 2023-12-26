@@ -28,8 +28,8 @@ import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSec
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.scala._
 
-import org.junit.Assert._
-import org.junit.Test
+import org.assertj.core.api.Assertions.{assertThat, fail}
+import org.junit.jupiter.api.Test
 
 /**
  * This is a minimal test to verify that semantic annotations are evaluated against the type
@@ -61,18 +61,17 @@ class SemanticPropertiesTranslationTest {
       val fw2: FieldSet = semantics.getForwardingTargetFields(0, 1)
       val fw3: FieldSet = semantics.getForwardingTargetFields(0, 2)
 
-      assertNotNull(fw1)
-      assertNotNull(fw2)
-      assertNotNull(fw3)
-      assertTrue(fw1.contains(0))
-      assertTrue(fw2.contains(1))
-      assertTrue(fw3.contains(2))
+      assertThat(fw1).isNotNull
+      assertThat(fw2).isNotNull
+      assertThat(fw3).isNotNull
+      assertThat(fw1).contains(0)
+      assertThat(fw2).contains(1)
+      assertThat(fw3).contains(2)
     } catch {
-      case e: Exception => {
+      case e: Exception =>
         System.err.println(e.getMessage)
         e.printStackTrace()
         fail("Exception in test: " + e.getMessage)
-      }
     }
   }
 
@@ -98,18 +97,17 @@ class SemanticPropertiesTranslationTest {
       val fw2: FieldSet = semantics.getForwardingTargetFields(0, 1)
       val fw3: FieldSet = semantics.getForwardingTargetFields(0, 2)
 
-      assertNotNull(fw1)
-      assertNotNull(fw2)
-      assertNotNull(fw3)
-      assertTrue(fw1.contains(0))
-      assertTrue(fw2.contains(1))
-      assertTrue(fw3.contains(2))
+      assertThat(fw1).isNotNull
+      assertThat(fw2).isNotNull
+      assertThat(fw3).isNotNull
+      assertThat(fw1).contains(0)
+      assertThat(fw2).contains(1)
+      assertThat(fw3).contains(2)
     } catch {
-      case e: Exception => {
+      case e: Exception =>
         System.err.println(e.getMessage)
         e.printStackTrace()
         fail("Exception in test: " + e.getMessage)
-      }
     }
   }
 
@@ -135,18 +133,17 @@ class SemanticPropertiesTranslationTest {
       val fw2: FieldSet = semantics.getForwardingTargetFields(0, 1)
       val fw3: FieldSet = semantics.getForwardingTargetFields(0, 2)
 
-      assertNotNull(fw1)
-      assertNotNull(fw2)
-      assertNotNull(fw3)
-      assertTrue(fw1.size == 0)
-      assertTrue(fw3.size == 0)
-      assertTrue(fw2.contains(1))
+      assertThat(fw1).isNotNull
+      assertThat(fw2).isNotNull
+      assertThat(fw3).isNotNull
+      assertThat(fw1).isEmpty()
+      assertThat(fw3).isEmpty()
+      assertThat(fw2).contains(1)
     } catch {
-      case e: Exception => {
+      case e: Exception =>
         System.err.println(e.getMessage)
         e.printStackTrace()
         fail("Exception in test: " + e.getMessage)
-      }
     }
   }
 
@@ -177,20 +174,19 @@ class SemanticPropertiesTranslationTest {
       val fw21: FieldSet = semantics.getForwardingTargetFields(1, 0)
       val fw22: FieldSet = semantics.getForwardingTargetFields(1, 1)
 
-      assertNotNull(fw11)
-      assertNotNull(fw21)
-      assertNotNull(fw12)
-      assertNotNull(fw22)
-      assertEquals(0, fw11.size)
-      assertEquals(0, fw22.size)
-      assertTrue(fw12.contains(0))
-      assertTrue(fw21.contains(1))
+      assertThat(fw11).isNotNull
+      assertThat(fw21).isNotNull
+      assertThat(fw12).isNotNull
+      assertThat(fw22).isNotNull
+      assertThat(fw11).isEmpty()
+      assertThat(fw22).isEmpty()
+      assertThat(fw12).contains(0)
+      assertThat(fw21).contains(1)
     } catch {
-      case e: Exception => {
+      case e: Exception =>
         System.err.println(e.getMessage)
         e.printStackTrace()
         fail("Exception in test: " + e.getMessage)
-      }
     }
   }
 
@@ -221,20 +217,19 @@ class SemanticPropertiesTranslationTest {
       val fw21: FieldSet = semantics.getForwardingTargetFields(1, 0)
       val fw22: FieldSet = semantics.getForwardingTargetFields(1, 1)
 
-      assertNotNull(fw11)
-      assertNotNull(fw12)
-      assertNotNull(fw21)
-      assertNotNull(fw22)
-      assertTrue(fw11.contains(0))
-      assertTrue(fw12.contains(1))
-      assertTrue(fw21.contains(2))
-      assertTrue(fw22.contains(3))
+      assertThat(fw11).isNotNull
+      assertThat(fw12).isNotNull
+      assertThat(fw21).isNotNull
+      assertThat(fw22).isNotNull
+      assertThat(fw11).contains(0)
+      assertThat(fw12).contains(1)
+      assertThat(fw21).contains(2)
+      assertThat(fw22).contains(3)
     } catch {
-      case e: Exception => {
+      case e: Exception =>
         System.err.println(e.getMessage)
         e.printStackTrace()
         fail("Exception in test: " + e.getMessage)
-      }
     }
   }
 }

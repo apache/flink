@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -32,7 +33,14 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-/** A {@link SourceFunction} that reads data using an {@link InputFormat}. */
+/**
+ * A {@link SourceFunction} that reads data using an {@link InputFormat}.
+ *
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+ */
+@Deprecated
 @Internal
 public class InputFormatSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
     private static final long serialVersionUID = 1L;
@@ -55,16 +63,16 @@ public class InputFormatSourceFunction<OUT> extends RichParallelSourceFunction<O
 
     @Override
     @SuppressWarnings("unchecked")
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
 
         if (format instanceof RichInputFormat) {
             ((RichInputFormat) format).setRuntimeContext(context);
         }
-        format.configure(parameters);
+        format.configure(new Configuration());
 
         provider = context.getInputSplitProvider();
-        serializer = typeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
+        serializer = getRuntimeContext().createSerializer(typeInfo);
         splitIterator = getInputSplits();
         isRunning = splitIterator.hasNext();
     }

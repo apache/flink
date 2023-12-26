@@ -21,19 +21,20 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.plan.utils.OperatorType
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
-import org.junit.Before
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.util
 
 import scala.collection.JavaConversions._
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class HashAggregateTest(aggStrategy: AggregatePhaseStrategy) extends AggregateTestBase {
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     // disable sort agg
     util.tableEnv.getConfig
@@ -42,28 +43,31 @@ class HashAggregateTest(aggStrategy: AggregatePhaseStrategy) extends AggregateTe
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggStrategy.toString)
   }
 
+  @TestTemplate
   override def testMinWithVariableLengthType(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testMinWithVariableLengthType()
+    assertThatThrownBy(() => super.testMinWithVariableLengthType())
+      .hasMessageContaining("Cannot generate a valid execution plan for the given query")
+      .isInstanceOf[TableException]
   }
 
+  @TestTemplate
   override def testMaxWithVariableLengthType(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testMaxWithVariableLengthType()
+    assertThatThrownBy(() => super.testMaxWithVariableLengthType())
+      .hasMessageContaining("Cannot generate a valid execution plan for the given query")
+      .isInstanceOf[TableException]
   }
 
+  @TestTemplate
   override def testPojoAccumulator(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testPojoAccumulator()
+    assertThatThrownBy(() => super.testPojoAccumulator())
+      .hasMessageContaining("Cannot generate a valid execution plan for the given query")
+      .isInstanceOf[TableException]
   }
 }
 
 object HashAggregateTest {
 
-  @Parameterized.Parameters(name = "aggStrategy={0}")
+  @Parameters(name = "aggStrategy={0}")
   def parameters(): util.Collection[AggregatePhaseStrategy] = {
     Seq[AggregatePhaseStrategy](
       AggregatePhaseStrategy.AUTO,

@@ -28,12 +28,13 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.planner.factories.TestUpdateDeleteTableFactory;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,25 +45,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** The IT case for DELETE statement in batch mode. */
-@RunWith(Parameterized.class)
-public class DeleteTableITCase extends BatchTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class DeleteTableITCase extends BatchTestBase {
     private static final int ROW_NUM = 5;
 
     private final SupportsRowLevelDelete.RowLevelDeleteMode deleteMode;
 
-    @Parameterized.Parameters(name = "deleteMode = {0}")
-    public static Collection<SupportsRowLevelDelete.RowLevelDeleteMode> data() {
+    @Parameters(name = "deleteMode = {0}")
+    private static Collection<SupportsRowLevelDelete.RowLevelDeleteMode> data() {
         return Arrays.asList(
                 SupportsRowLevelDelete.RowLevelDeleteMode.DELETED_ROWS,
                 SupportsRowLevelDelete.RowLevelDeleteMode.REMAINING_ROWS);
     }
 
-    public DeleteTableITCase(SupportsRowLevelDelete.RowLevelDeleteMode deleteMode) {
+    DeleteTableITCase(SupportsRowLevelDelete.RowLevelDeleteMode deleteMode) {
         this.deleteMode = deleteMode;
     }
 
-    @Test
-    public void testDeletePushDown() throws Exception {
+    @TestTemplate
+    void testDeletePushDown() {
         String dataId = registerData();
         tEnv().executeSql(
                         String.format(
@@ -90,8 +91,8 @@ public class DeleteTableITCase extends BatchTestBase {
                                 SupportsRowLevelDelete.class.getName()));
     }
 
-    @Test
-    public void testRowLevelDelete() throws Exception {
+    @TestTemplate
+    void testRowLevelDelete() throws Exception {
         String dataId = registerData();
         tEnv().executeSql(
                         String.format(
@@ -112,8 +113,8 @@ public class DeleteTableITCase extends BatchTestBase {
         assertThat(rows.toString()).isEqualTo("[+I[0, b_0, 0.0]]");
     }
 
-    @Test
-    public void testRowLevelDeleteWithPartitionColumn() throws Exception {
+    @TestTemplate
+    void testRowLevelDeleteWithPartitionColumn() throws Exception {
         String dataId = registerData();
         tEnv().executeSql(
                         String.format(
@@ -153,8 +154,8 @@ public class DeleteTableITCase extends BatchTestBase {
         assertThat(rows.toString()).isEqualTo("[+I[0, b_0, 0.0], +I[1, b_1, 2.0]]");
     }
 
-    @Test
-    public void testMixDelete() throws Exception {
+    @TestTemplate
+    void testMixDelete() throws Exception {
         // test mix delete push down and row-level delete
         String dataId = registerData();
         tEnv().executeSql(
@@ -178,8 +179,8 @@ public class DeleteTableITCase extends BatchTestBase {
         assertThat(rows).isEmpty();
     }
 
-    @Test
-    public void testStatementSetContainDeleteAndInsert() throws Exception {
+    @TestTemplate
+    void testStatementSetContainDeleteAndInsert() {
         tEnv().executeSql(
                         "CREATE TABLE t (a int, b string, c double) WITH"
                                 + " ('connector' = 'test-update-delete')");
@@ -193,8 +194,8 @@ public class DeleteTableITCase extends BatchTestBase {
                         "Unsupported SQL query! Only accept a single SQL statement of type DELETE.");
     }
 
-    @Test
-    public void testCompilePlanSql() throws Exception {
+    @TestTemplate
+    void testCompilePlanSql() {
         tEnv().executeSql(
                         "CREATE TABLE t (a int, b string, c double) WITH"
                                 + " ('connector' = 'test-update-delete')");
@@ -205,8 +206,8 @@ public class DeleteTableITCase extends BatchTestBase {
                         "Unsupported SQL query! compilePlanSql() only accepts a single SQL statement of type INSERT");
     }
 
-    @Test
-    public void testDeleteWithLegacyTableSink() {
+    @TestTemplate
+    void testDeleteWithLegacyTableSink() {
         tEnv().executeSql(
                         "CREATE TABLE t (a int, b string, c double) WITH"
                                 + " ('connector' = 'COLLECTION')");

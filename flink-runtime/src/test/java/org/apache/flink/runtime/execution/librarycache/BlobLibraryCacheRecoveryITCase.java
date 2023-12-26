@@ -210,7 +210,8 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
             }
 
             if (blobStoreService != null) {
-                blobStoreService.closeAndCleanupAllData();
+                blobStoreService.cleanupAllData();
+                blobStoreService.close();
             }
         }
     }

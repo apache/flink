@@ -20,6 +20,7 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -29,7 +30,6 @@ import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.operators.ReduceOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 
 import org.junit.jupiter.api.Test;
@@ -117,7 +117,7 @@ class ReduceOperatorTest implements Serializable {
                         }
 
                         @Override
-                        public void open(Configuration parameters) throws Exception {
+                        public void open(OpenContext openContext) throws Exception {
                             opened.set(true);
                             RuntimeContext ctx = getRuntimeContext();
                             assertThat(ctx.getIndexOfThisSubtask()).isZero();

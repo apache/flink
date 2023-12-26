@@ -26,15 +26,15 @@ import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.types.Row;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 
 /** Tests for ForwardHashExchangeProcessor. */
-public class ForwardHashExchangeITCase extends BatchTestBase {
+class ForwardHashExchangeITCase extends BatchTestBase {
 
-    @Before
+    @BeforeEach
     public void before() throws Exception {
         super.before();
         env().disableOperatorChaining();
@@ -58,7 +58,7 @@ public class ForwardHashExchangeITCase extends BatchTestBase {
     }
 
     @Test
-    public void testOverAggWithHashAgg() {
+    void testOverAggWithHashAgg() {
         tEnv().getConfig().set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg");
         checkResult(
                 "SELECT\n"
@@ -80,7 +80,7 @@ public class ForwardHashExchangeITCase extends BatchTestBase {
     }
 
     @Test
-    public void testOverAggWithSortAgg() {
+    void testOverAggWithSortAgg() {
         tEnv().getConfig().set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
         checkResult(
                 "SELECT\n"

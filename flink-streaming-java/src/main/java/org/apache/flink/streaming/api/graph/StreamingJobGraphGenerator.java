@@ -896,12 +896,13 @@ public class StreamingJobGraphGenerator {
             Integer vertexID,
             List<StreamEdge> chainedOutputs,
             Optional<OperatorChainInfo> operatorChainInfo) {
+        List<ChainedSourceInfo> chainedSourceInfos =
+                operatorChainInfo
+                        .map(chainInfo -> getChainedSourcesByVertexId(vertexID, chainInfo))
+                        .orElse(Collections.emptyList());
         final String operatorName =
                 nameWithChainedSourcesInfo(
-                        streamGraph.getStreamNode(vertexID).getOperatorName(),
-                        operatorChainInfo
-                                .map(chain -> chain.getChainedSources().values())
-                                .orElse(Collections.emptyList()));
+                        streamGraph.getStreamNode(vertexID).getOperatorName(), chainedSourceInfos);
         if (chainedOutputs.size() > 1) {
             List<String> outputChainedNames = new ArrayList<>();
             for (StreamEdge chainable : chainedOutputs) {
@@ -913,6 +914,14 @@ public class StreamingJobGraphGenerator {
         } else {
             return operatorName;
         }
+    }
+
+    private List<ChainedSourceInfo> getChainedSourcesByVertexId(
+            Integer vertexId, OperatorChainInfo chainInfo) {
+        return streamGraph.getStreamNode(vertexId).getInEdges().stream()
+                .map(inEdge -> chainInfo.getChainedSources().get(inEdge.getSourceId()))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
     }
 
     private ResourceSpec createChainedMinResources(
@@ -1914,8 +1923,7 @@ public class StreamingJobGraphGenerator {
 
         long interval = cfg.getCheckpointInterval();
         if (interval < MINIMAL_CHECKPOINT_TIME) {
-            // interval of max value means disable periodic checkpoint
-            interval = Long.MAX_VALUE;
+            interval = CheckpointCoordinatorConfiguration.DISABLED_CHECKPOINT_INTERVAL;
         }
 
         //  --- configure options ---
@@ -2003,6 +2011,8 @@ public class StreamingJobGraphGenerator {
                 new JobCheckpointingSettings(
                         CheckpointCoordinatorConfiguration.builder()
                                 .setCheckpointInterval(interval)
+                                .setCheckpointIntervalDuringBacklog(
+                                        cfg.getCheckpointIntervalDuringBacklog())
                                 .setCheckpointTimeout(cfg.getCheckpointTimeout())
                                 .setMinPauseBetweenCheckpoints(cfg.getMinPauseBetweenCheckpoints())
                                 .setMaxConcurrentCheckpoints(cfg.getMaxConcurrentCheckpoints())

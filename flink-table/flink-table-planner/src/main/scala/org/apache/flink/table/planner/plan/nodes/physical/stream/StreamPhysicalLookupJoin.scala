@@ -100,7 +100,8 @@ class StreamPhysicalLookupJoin(
     new StreamExecLookupJoin(
       tableConfig,
       JoinTypeUtil.getFlinkJoinType(joinType),
-      remainingCondition.orNull,
+      finalPreFilterCondition.orNull,
+      finalRemainingCondition.orNull,
       new TemporalTableSourceSpec(temporalTable),
       allLookupKeys.map(item => (Int.box(item._1), item._2)).asJava,
       projectionOnTemporalTable,

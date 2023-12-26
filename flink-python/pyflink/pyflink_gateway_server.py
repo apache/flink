@@ -163,9 +163,9 @@ def get_jvm_opts(env):
             read_from_config(KEY_ENV_JAVA_OPTS_DEPRECATED, "", flink_conf_file),
             flink_conf_file))
 
-    # Remove leading and ending double quotes (if present) of value
-    jvm_opts = jvm_opts.strip("\"")
-    return jvm_opts.split(" ")
+    # Remove leading and trailing double quotes (if present) of value
+    jvm_opts = jvm_opts.strip('"')
+    return jvm_opts.split()
 
 
 def construct_flink_classpath(env):
@@ -216,17 +216,22 @@ def construct_hadoop_classpath(env):
                  read_from_config(KEY_ENV_HBASE_CONF_DIR, hbase_conf_dir, flink_conf_file))])
 
 
-def construct_test_classpath():
+def construct_test_classpath(env):
     test_jar_patterns = [
         "flink-python/target/test-dependencies/*",
         "flink-python/target/artifacts/testDataStream.jar",
         "flink-python/target/flink-python*-tests.jar",
     ]
     test_jars = []
-    flink_source_root = _find_flink_source_root()
-    for pattern in test_jar_patterns:
-        pattern = pattern.replace("/", os.path.sep)
-        test_jars += glob.glob(os.path.join(flink_source_root, pattern))
+
+    # Connector tests need to add specific jars to the gateway classpath
+    if 'FLINK_TEST_LIBS' in env:
+        test_jars += glob.glob(env['FLINK_TEST_LIBS'])
+    else:
+        flink_source_root = _find_flink_source_root()
+        for pattern in test_jar_patterns:
+            pattern = pattern.replace("/", os.path.sep)
+            test_jars += glob.glob(os.path.join(flink_source_root, pattern))
     return os.path.pathsep.join(test_jars)
 
 
@@ -248,19 +253,32 @@ def launch_gateway_server_process(env, args):
     if program_args.cluster_type == "local":
         java_executable = find_java_executable()
         log_settings = construct_log_settings(env)
-        jvm_args = env.get('JVM_ARGS', '')
+        jvm_args = env.get('JVM_ARGS', '').split()
         jvm_opts = get_jvm_opts(env)
         classpath = os.pathsep.join(
             [construct_flink_classpath(env), construct_hadoop_classpath(env)])
         if "FLINK_TESTING" in env:
-            classpath = os.pathsep.join([classpath, construct_test_classpath()])
-        command = [java_executable, jvm_args, "-XX:+IgnoreUnrecognizedVMOptions",
-                   "--add-opens=jdk.proxy2/jdk.proxy2=ALL-UNNAMED"] \
-            + jvm_opts + log_settings \
-            + ["-cp", classpath, program_args.main_class] + program_args.other_args
+            classpath = os.pathsep.join([classpath, construct_test_classpath(env)])
+        command = [
+            java_executable,
+            *jvm_args,
+            "-XX:+IgnoreUnrecognizedVMOptions",
+            "--add-opens=jdk.proxy2/jdk.proxy2=ALL-UNNAMED",
+            *jvm_opts,
+            *log_settings,
+            "-cp",
+            classpath,
+            program_args.main_class,
+            *program_args.other_args,
+        ]
     else:
-        command = [os.path.join(env["FLINK_BIN_DIR"], "flink"), "run"] + program_args.other_args \
-            + ["-c", program_args.main_class]
+        command = [
+            os.path.join(env["FLINK_BIN_DIR"], "flink"),
+            "run",
+            *program_args.other_args,
+            "-c",
+            program_args.main_class,
+        ]
     preexec_fn = None
     if not on_windows():
         def preexec_func():

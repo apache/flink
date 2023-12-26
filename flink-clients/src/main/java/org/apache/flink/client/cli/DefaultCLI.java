@@ -21,6 +21,8 @@ package org.apache.flink.client.cli;
 import org.apache.flink.client.deployment.executors.RemoteExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.NetUtils;
 
@@ -29,6 +31,7 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
 import java.net.InetSocketAddress;
+import java.net.URL;
 
 import static org.apache.flink.client.cli.CliFrontend.setJobManagerAddressInConfig;
 
@@ -60,12 +63,21 @@ public class DefaultCLI extends AbstractCustomCommandLine {
             String addressWithPort = commandLine.getOptionValue(addressOption.getOpt());
             InetSocketAddress jobManagerAddress = NetUtils.parseHostPortAddress(addressWithPort);
             setJobManagerAddressInConfig(resultingConfiguration, jobManagerAddress);
+
+            URL url = NetUtils.getCorrectHostnamePort(addressWithPort);
+            resultingConfiguration.setString(RestOptions.PATH, url.getPath());
+            resultingConfiguration.setBoolean(
+                    SecurityOptions.SSL_REST_ENABLED, isHttpsProtocol(url));
         }
         resultingConfiguration.setString(DeploymentOptions.TARGET, RemoteExecutor.NAME);
 
         DynamicPropertiesUtil.encodeDynamicProperties(commandLine, resultingConfiguration);
 
         return resultingConfiguration;
+    }
+
+    private static boolean isHttpsProtocol(URL url) {
+        return url.getProtocol() != null && (url.getProtocol().equalsIgnoreCase("https"));
     }
 
     @Override

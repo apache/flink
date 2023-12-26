@@ -42,8 +42,8 @@ import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.MarkPartitionFinishedStrategy;
 import org.apache.flink.runtime.executiongraph.ParallelismAndInputInfos;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
-import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
+import org.apache.flink.runtime.executiongraph.failover.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -278,7 +278,9 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
                     // ExecutionGraph#initializeJobVertex(ExecutionJobVertex, long) to initialize.
                     // TODO: In the future, if we want to load balance for job vertices whose
                     // parallelism has already been decided, we need to refactor the logic here.
-                    getExecutionGraph().initializeJobVertex(jobVertex, createTimestamp);
+                    getExecutionGraph()
+                            .initializeJobVertex(
+                                    jobVertex, createTimestamp, jobManagerJobMetricGroup);
                     newlyInitializedJobVertices.add(jobVertex);
                 } else {
                     Optional<List<BlockingResultInfo>> consumedResultsInfo =
@@ -294,7 +296,8 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
                                 .initializeJobVertex(
                                         jobVertex,
                                         createTimestamp,
-                                        parallelismAndInputInfos.getJobVertexInputInfos());
+                                        parallelismAndInputInfos.getJobVertexInputInfos(),
+                                        jobManagerJobMetricGroup);
                         newlyInitializedJobVertices.add(jobVertex);
                     }
                 }
@@ -448,9 +451,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
 
     private void initializeOperatorCoordinatorsFor(ExecutionJobVertex vertex) {
         operatorCoordinatorHandler.registerAndStartNewCoordinators(
-                vertex.getOperatorCoordinators(),
-                getMainThreadExecutor(),
-                jobManagerJobMetricGroup);
+                vertex.getOperatorCoordinators(), getMainThreadExecutor());
     }
 
     /**

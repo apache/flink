@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -44,7 +45,7 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
@@ -60,6 +61,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -178,8 +180,8 @@ class KubernetesHighAvailabilityRecoverFromSavepointITCase {
                             ValueState<Integer> state;
 
                             @Override
-                            public void open(Configuration parameters) throws Exception {
-                                super.open(parameters);
+                            public void open(OpenContext openContext) throws Exception {
+                                super.open(openContext);
 
                                 ValueStateDescriptor<Integer> descriptor =
                                         new ValueStateDescriptor<>("total", Types.INT);
@@ -199,7 +201,7 @@ class KubernetesHighAvailabilityRecoverFromSavepointITCase {
                             }
                         })
                 .uid(FLAT_MAP_UID)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         return sEnv.getStreamGraph().getJobGraph();
     }
@@ -245,9 +247,9 @@ class KubernetesHighAvailabilityRecoverFromSavepointITCase {
                 running = false;
             }
 
-            stateFromSavepoint.clear();
             // mark this subtask as executed before
-            stateFromSavepoint.add(getRuntimeContext().getIndexOfThisSubtask());
+            stateFromSavepoint.update(
+                    Collections.singletonList(getRuntimeContext().getIndexOfThisSubtask()));
         }
     }
 }

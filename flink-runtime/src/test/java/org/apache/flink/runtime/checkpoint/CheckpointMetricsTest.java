@@ -23,10 +23,10 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link CheckpointMetrics} class. */
-public class CheckpointMetricsTest {
+class CheckpointMetricsTest {
 
     @Test
-    public void testUnalignedCheckpointType() throws Exception {
+    void testUnalignedCheckpointType() {
         CheckpointMetricsBuilder metricsBuilder = new CheckpointMetricsBuilder();
         metricsBuilder.setBytesProcessedDuringAlignment(0L);
         metricsBuilder.setAlignmentDurationNanos(0L);

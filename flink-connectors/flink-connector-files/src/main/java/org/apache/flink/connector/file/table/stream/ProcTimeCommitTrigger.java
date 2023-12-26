@@ -29,6 +29,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -120,8 +121,7 @@ public class ProcTimeCommitTrigger implements PartitionCommitTrigger {
 
     @Override
     public void snapshotState(long checkpointId, long watermark) throws Exception {
-        pendingPartitionsState.clear();
-        pendingPartitionsState.add(new HashMap<>(pendingPartitions));
+        pendingPartitionsState.update(Collections.singletonList(new HashMap<>(pendingPartitions)));
     }
 
     @Override

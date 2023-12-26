@@ -43,9 +43,10 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
+import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.state.TaskLocalStateStore;
 import org.apache.flink.runtime.state.TaskStateManager;
-import org.apache.flink.runtime.state.TaskStateManagerImplTest;
+import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestTaskLocalStateStore;
 import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -289,13 +290,15 @@ public class StreamTaskStateInitializerImplTest {
         InMemoryStateChangelogStorage changelogStorage = new InMemoryStateChangelogStorage();
 
         TaskStateManager taskStateManager =
-                TaskStateManagerImplTest.taskStateManager(
+                new TaskStateManagerImpl(
                         jobID,
                         executionAttemptID,
-                        checkpointResponderMock,
-                        jobManagerTaskRestore,
                         taskLocalStateStore,
-                        changelogStorage);
+                        null,
+                        changelogStorage,
+                        new TaskExecutorStateChangelogStoragesManager(),
+                        jobManagerTaskRestore,
+                        checkpointResponderMock);
 
         DummyEnvironment dummyEnvironment =
                 new DummyEnvironment(

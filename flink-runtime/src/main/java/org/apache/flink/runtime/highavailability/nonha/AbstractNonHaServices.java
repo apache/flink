@@ -106,9 +106,8 @@ public abstract class AbstractNonHaServices implements HighAvailabilityServices 
     }
 
     @Override
-    public void closeAndCleanupAllData() throws Exception {
-        // this stores no data, so this method is the same as 'close()'
-        close();
+    public void cleanupAllData() throws Exception {
+        // this stores no data, do nothing here
     }
 
     // ----------------------------------------------------------------------

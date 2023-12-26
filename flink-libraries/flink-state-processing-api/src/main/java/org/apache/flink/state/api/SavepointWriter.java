@@ -355,9 +355,7 @@ public class SavepointWriter {
         }
 
         DataStream<OperatorState> existingOperatorStates =
-                executionEnvironment
-                        .fromCollection(existingOperators)
-                        .name("existingOperatorStates");
+                executionEnvironment.fromData(existingOperators).name("existingOperatorStates");
 
         existingOperatorStates
                 .flatMap(new StatePathExtractor())

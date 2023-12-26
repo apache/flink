@@ -30,12 +30,16 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.generated.GeneratedWatermarkGenerator;
 import org.apache.flink.table.runtime.generated.GeneratedWatermarkGeneratorSupplier;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.watermark.WatermarkEmitStrategy;
+import org.apache.flink.table.watermark.WatermarkParams;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
 import org.apache.calcite.rex.RexNode;
+
+import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.Objects;
@@ -51,22 +55,29 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @JsonTypeName("WatermarkPushDown")
 public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
     public static final String FIELD_NAME_WATERMARK_EXPR = "watermarkExpr";
-    public static final String FIELD_NAME_IDLE_TIMEOUT_MILLIS = "idleTimeoutMillis";
+    public static final String FIELD_NAME_GLOBAL_IDLE_TIMEOUT_MILLIS = "idleTimeoutMillis";
+    public static final String FIELD_NAME_WATERMARK_PARAMS = "watermarkParams";
 
     @JsonProperty(FIELD_NAME_WATERMARK_EXPR)
     private final RexNode watermarkExpr;
 
-    @JsonProperty(FIELD_NAME_IDLE_TIMEOUT_MILLIS)
-    private final long idleTimeoutMillis;
+    @JsonProperty(FIELD_NAME_GLOBAL_IDLE_TIMEOUT_MILLIS)
+    private final long globalIdleTimeoutMillis;
+
+    @Nullable
+    @JsonProperty(FIELD_NAME_WATERMARK_PARAMS)
+    private final WatermarkParams watermarkParams;
 
     @JsonCreator
     public WatermarkPushDownSpec(
             @JsonProperty(FIELD_NAME_WATERMARK_EXPR) RexNode watermarkExpr,
-            @JsonProperty(FIELD_NAME_IDLE_TIMEOUT_MILLIS) long idleTimeoutMillis,
-            @JsonProperty(FIELD_NAME_PRODUCED_TYPE) RowType producedType) {
+            @JsonProperty(FIELD_NAME_GLOBAL_IDLE_TIMEOUT_MILLIS) long globalIdleTimeoutMillis,
+            @JsonProperty(FIELD_NAME_PRODUCED_TYPE) RowType producedType,
+            @JsonProperty(FIELD_NAME_WATERMARK_PARAMS) WatermarkParams watermarkParams) {
         super(producedType);
         this.watermarkExpr = checkNotNull(watermarkExpr);
-        this.idleTimeoutMillis = idleTimeoutMillis;
+        this.globalIdleTimeoutMillis = globalIdleTimeoutMillis;
+        this.watermarkParams = watermarkParams;
     }
 
     @Override
@@ -81,12 +92,21 @@ public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
                             Option.apply("context"));
 
             WatermarkGeneratorSupplier<RowData> supplier =
-                    new GeneratedWatermarkGeneratorSupplier(generatedWatermarkGenerator);
+                    new GeneratedWatermarkGeneratorSupplier(
+                            generatedWatermarkGenerator, watermarkParams);
 
             WatermarkStrategy<RowData> watermarkStrategy = WatermarkStrategy.forGenerator(supplier);
-            if (idleTimeoutMillis > 0) {
+            if (watermarkParams != null && watermarkParams.alignWatermarkEnabled()) {
                 watermarkStrategy =
-                        watermarkStrategy.withIdleness(Duration.ofMillis(idleTimeoutMillis));
+                        watermarkStrategy.withWatermarkAlignment(
+                                watermarkParams.getAlignGroupName(),
+                                watermarkParams.getAlignMaxDrift(),
+                                watermarkParams.getAlignUpdateInterval());
+            }
+            long actualIdleTimeoutMillis = calculateIdleTimeoutMillis();
+            if (actualIdleTimeoutMillis > 0) {
+                watermarkStrategy =
+                        watermarkStrategy.withIdleness(Duration.ofMillis(actualIdleTimeoutMillis));
             }
             ((SupportsWatermarkPushDown) tableSource).applyWatermark(watermarkStrategy);
         } else {
@@ -98,17 +118,46 @@ public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
     }
 
     @Override
+    public boolean needAdjustFieldReferenceAfterProjection() {
+        return true;
+    }
+
+    public WatermarkPushDownSpec copy(RexNode watermarkExpr, RowType producedType) {
+        return new WatermarkPushDownSpec(
+                watermarkExpr, globalIdleTimeoutMillis, producedType, watermarkParams);
+    }
+
+    public RexNode getWatermarkExpr() {
+        return watermarkExpr;
+    }
+
+    @Override
     public String getDigests(SourceAbilityContext context) {
         final String expressionStr =
                 FlinkRexUtil.getExpressionString(
                         watermarkExpr,
                         JavaScalaConversionUtil.toScala(
                                 context.getSourceRowType().getFieldNames()));
-        if (idleTimeoutMillis > 0) {
-            return String.format(
-                    "watermark=[%s], idletimeout=[%d]", expressionStr, idleTimeoutMillis);
+        StringBuilder sb = new StringBuilder();
+        sb.append("watermark=[").append(expressionStr).append("]");
+        long actualIdleTimeoutMillis = calculateIdleTimeoutMillis();
+        if (actualIdleTimeoutMillis > 0) {
+            sb.append(", idletimeout=[").append(actualIdleTimeoutMillis).append("]");
         }
-        return String.format("watermark=[%s]", expressionStr);
+        if (watermarkParams != null) {
+            WatermarkEmitStrategy emitStrategy = watermarkParams.getEmitStrategy();
+            sb.append(", watermarkEmitStrategy=[").append(emitStrategy).append("]");
+            if (watermarkParams.alignWatermarkEnabled()) {
+                sb.append(", watermarkAlignment=[")
+                        .append(watermarkParams.getAlignGroupName())
+                        .append(", ")
+                        .append(watermarkParams.getAlignMaxDrift())
+                        .append(", ")
+                        .append(watermarkParams.getAlignUpdateInterval())
+                        .append("]");
+            }
+        }
+        return sb.toString();
     }
 
     @Override
@@ -123,12 +172,22 @@ public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
             return false;
         }
         WatermarkPushDownSpec that = (WatermarkPushDownSpec) o;
-        return idleTimeoutMillis == that.idleTimeoutMillis
-                && Objects.equals(watermarkExpr, that.watermarkExpr);
+        return globalIdleTimeoutMillis == that.globalIdleTimeoutMillis
+                && Objects.equals(watermarkExpr, that.watermarkExpr)
+                && Objects.equals(watermarkParams, that.watermarkParams);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), watermarkExpr, idleTimeoutMillis);
+        return Objects.hash(
+                super.hashCode(), watermarkExpr, globalIdleTimeoutMillis, watermarkParams);
+    }
+
+    private long calculateIdleTimeoutMillis() {
+        long actualIdleTimeoutMillis = globalIdleTimeoutMillis;
+        if (watermarkParams != null && watermarkParams.getSourceIdleTimeout() >= 0) {
+            actualIdleTimeoutMillis = watermarkParams.getSourceIdleTimeout();
+        }
+        return actualIdleTimeoutMillis;
     }
 }

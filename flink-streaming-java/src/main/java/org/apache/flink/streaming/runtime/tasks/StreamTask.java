@@ -41,6 +41,7 @@ import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.AvailabilityProvider;
@@ -456,7 +457,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
             CheckpointStorageAccess checkpointStorageAccess =
                     checkpointStorage.createCheckpointStorage(getEnvironment().getJobID());
-
+            checkpointStorageAccess =
+                    applyFileMergingCheckpoint(
+                            checkpointStorageAccess,
+                            environment.getTaskStateManager().getFileMergingSnapshotManager());
             environment.setCheckpointStorageAccess(checkpointStorageAccess);
 
             // if the clock is not already set, then assign a default TimeServiceProvider
@@ -507,6 +511,29 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 ex.addSuppressed(throwable);
             }
             throw ex;
+        }
+    }
+
+    private CheckpointStorageAccess applyFileMergingCheckpoint(
+            CheckpointStorageAccess checkpointStorageAccess,
+            FileMergingSnapshotManager fileMergingSnapshotManager) {
+        if (fileMergingSnapshotManager == null) {
+            return checkpointStorageAccess;
+        }
+
+        try {
+            CheckpointStorageWorkerView mergingCheckpointStorageAccess =
+                    checkpointStorageAccess.toFileMergingStorage(
+                            fileMergingSnapshotManager, environment);
+            return (CheckpointStorageAccess) mergingCheckpointStorageAccess;
+        } catch (IOException e) {
+            LOG.warn(
+                    "Initiating FsMergingCheckpointStorageAccess failed"
+                            + "with exception: {}, falling back to original checkpoint storage access {}.",
+                    e.getMessage(),
+                    checkpointStorageAccess.getClass(),
+                    e);
+            return checkpointStorageAccess;
         }
     }
 
@@ -596,10 +623,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         } else if (!inputProcessor.isAvailable()) {
             timer = new GaugePeriodTimer(ioMetrics.getIdleTimeMsPerSecond());
             resumeFuture = inputProcessor.getAvailableFuture();
-        } else if (changelogWriterAvailabilityProvider != null) {
-            // currently, waiting for changelog availability is reported as busy
-            // todo: add new metric (FLINK-24402)
-            timer = null;
+        } else if (changelogWriterAvailabilityProvider != null
+                && !changelogWriterAvailabilityProvider.isAvailable()) {
+            // waiting for changelog availability is reported as busy
+            timer = new GaugePeriodTimer(ioMetrics.getChangelogBusyTimeMsPerSecond());
             resumeFuture = changelogWriterAvailabilityProvider.getAvailableFuture();
         } else {
             // data availability has changed in the meantime; retry immediately
@@ -700,6 +727,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         }
         isRestoring = true;
         closedOperators = false;
+        getEnvironment().getMetricGroup().getIOMetricGroup().markTaskInitializationStarted();
         LOG.debug("Initializing {}.", getName());
 
         operatorChain =
@@ -715,6 +743,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
         // task specific initialization
         init();
+        configuration.clearInitialConfigs();
 
         // save the work of reloading state, etc, if the task is already canceled
         ensureNotCanceled();

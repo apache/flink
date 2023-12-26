@@ -28,11 +28,13 @@ import org.apache.flink.table.planner.utils.AggregatePhaseStrategy;
 import org.apache.flink.table.planner.utils.PlanKind;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 
@@ -41,21 +43,21 @@ import scala.Enumeration;
 import static scala.runtime.BoxedUnit.UNIT;
 
 /** Test for {@link GroupAggregationAnalyzer}. */
-@RunWith(Parameterized.class)
-public class GroupAggregationAnalyzerTest extends TableTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class GroupAggregationAnalyzerTest extends TableTestBase {
 
     private final StreamTableTestUtil util = streamTestUtil(TableConfig.getDefault());
 
-    @Parameterized.Parameter public boolean isMiniBatchEnabled;
+    @Parameter private boolean isMiniBatchEnabled;
 
-    @Parameterized.Parameter(1)
-    public AggregatePhaseStrategy strategy;
+    @Parameter(1)
+    private AggregatePhaseStrategy strategy;
 
-    @Parameterized.Parameter(2)
-    public long miniBatchLatency;
+    @Parameter(2)
+    private long miniBatchLatency;
 
-    @Parameterized.Parameter(3)
-    public long miniBatchSize;
+    @Parameter(3)
+    private long miniBatchSize;
 
     private final String query =
             "SELECT\n"
@@ -66,8 +68,8 @@ public class GroupAggregationAnalyzerTest extends TableTestBase {
                     + "  MAX(c) FILTER (WHERE a > 1) AS max_c\n"
                     + "FROM MyTable";
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         util.getTableEnv()
                 .getConfig()
                 .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, isMiniBatchEnabled)
@@ -99,8 +101,8 @@ public class GroupAggregationAnalyzerTest extends TableTestBase {
                                 + "  'sink-insert-only' = 'false')");
     }
 
-    @Test
-    public void testSelect() {
+    @TestTemplate
+    void testSelect() {
         util.doVerifyPlan(
                 query,
                 new ExplainDetail[] {ExplainDetail.PLAN_ADVICE},
@@ -109,8 +111,8 @@ public class GroupAggregationAnalyzerTest extends TableTestBase {
                 false);
     }
 
-    @Test
-    public void testInsertInto() {
+    @TestTemplate
+    void testInsertInto() {
         util.doVerifyPlanInsert(
                 String.format("INSERT INTO MySink\n%s", query),
                 new ExplainDetail[] {ExplainDetail.PLAN_ADVICE},
@@ -118,8 +120,8 @@ public class GroupAggregationAnalyzerTest extends TableTestBase {
                 new Enumeration.Value[] {PlanKind.OPT_REL_WITH_ADVICE()});
     }
 
-    @Test
-    public void testStatementSet() {
+    @TestTemplate
+    void testStatementSet() {
         StatementSet stmtSet = util.getTableEnv().createStatementSet();
         util.getTableEnv().executeSql("CREATE TABLE MySink2 LIKE MySink");
         util.getTableEnv()
@@ -151,8 +153,8 @@ public class GroupAggregationAnalyzerTest extends TableTestBase {
                 false);
     }
 
-    @Test
-    public void testSubplanReuse() {
+    @TestTemplate
+    void testSubplanReuse() {
         util.doVerifyPlan(
                 "WITH r AS (SELECT c, SUM(a) a, SUM(b) b FROM MyTable GROUP BY c)\n"
                         + "SELECT * FROM r r1, r r2 WHERE r1.a = CAST(r2.b AS BIGINT) AND r2.a > 1",
@@ -162,8 +164,8 @@ public class GroupAggregationAnalyzerTest extends TableTestBase {
                 false);
     }
 
-    @Test
-    public void testUserDefinedAggCalls() {
+    @TestTemplate
+    void testUserDefinedAggCalls() {
         StatementSet stmtSet = util.getTableEnv().createStatementSet();
         util.addTemporarySystemFunction(
                 "weightedAvg", JavaUserDefinedAggFunctions.WeightedAvgWithMerge.class);
@@ -199,9 +201,9 @@ public class GroupAggregationAnalyzerTest extends TableTestBase {
                 false);
     }
 
-    @Parameterized.Parameters(
+    @Parameters(
             name = "isMiniBatchEnabled={0}, strategy={1}, miniBatchLatency={2}, miniBatchSize={3}")
-    public static Object[][] data() {
+    private static Object[][] data() {
         return new Object[][] {
             new Object[] {true, AggregatePhaseStrategy.ONE_PHASE, 10L, 5L},
             new Object[] {true, AggregatePhaseStrategy.AUTO, 10L, 5L},

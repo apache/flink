@@ -40,7 +40,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGateID;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFactory;
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyServiceImpl;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
@@ -62,6 +61,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.METRIC_GROUP_INPUT;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.METRIC_GROUP_OUTPUT;
@@ -69,6 +69,7 @@ import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFact
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.registerDebloatingTaskMetrics;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.registerInputMetrics;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.registerOutputMetrics;
+import static org.apache.flink.util.ExecutorUtils.gracefulShutdown;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -108,8 +109,6 @@ public class NettyShuffleEnvironment
 
     private final ScheduledExecutorService batchShuffleReadIOExecutor;
 
-    private final TieredStorageNettyServiceImpl nettyService;
-
     private boolean isClosed;
 
     NettyShuffleEnvironment(
@@ -137,10 +136,6 @@ public class NettyShuffleEnvironment
         this.batchShuffleReadBufferPool = batchShuffleReadBufferPool;
         this.batchShuffleReadIOExecutor = batchShuffleReadIOExecutor;
         this.isClosed = false;
-        this.nettyService =
-                config.getTieredStorageConfiguration() == null
-                        ? null
-                        : new TieredStorageNettyServiceImpl();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -272,8 +267,7 @@ public class NettyShuffleEnvironment
                                 gateIndex,
                                 igdd,
                                 partitionProducerStateProvider,
-                                inputChannelMetrics,
-                                nettyService);
+                                inputChannelMetrics);
                 InputGateID id =
                         new InputGateID(
                                 igdd.getConsumedResultId(), ownerContext.getExecutionAttemptID());
@@ -417,15 +411,15 @@ public class NettyShuffleEnvironment
             }
 
             try {
-                batchShuffleReadBufferPool.destroy();
+                gracefulShutdown(10, TimeUnit.SECONDS, batchShuffleReadIOExecutor);
             } catch (Throwable t) {
-                LOG.warn("Cannot shut down batch shuffle read buffer pool properly.", t);
+                LOG.warn("Cannot shut down batch shuffle read IO executor properly.", t);
             }
 
             try {
-                batchShuffleReadIOExecutor.shutdown();
+                batchShuffleReadBufferPool.destroy();
             } catch (Throwable t) {
-                LOG.warn("Cannot shut down batch shuffle read IO executor properly.", t);
+                LOG.warn("Cannot shut down batch shuffle read buffer pool properly.", t);
             }
 
             isClosed = true;

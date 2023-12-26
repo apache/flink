@@ -17,6 +17,7 @@
 ################################################################################
 import os
 import tempfile
+import warnings
 
 from typing import List, Any, Optional, cast
 
@@ -330,7 +331,14 @@ class StreamExecutionEnvironment(object):
 
         :param state_backend: The :class:`StateBackend`.
         :return: This object.
+
+        .. note:: Deprecated since version 1.19: This method is deprecated and will be removed in
+                  future FLINK major version. Use `stream_execution_environment.configure` method
+                  instead to set the state backend.
         """
+        warnings.warn("Deprecated since version 1.19: This method is deprecated and will be removed"
+                      " in future FLINK major version. Use `stream_execution_environment.configure`"
+                      " method instead to set the state backend.", DeprecationWarning)
         self._j_stream_execution_environment = \
             self._j_stream_execution_environment.setStateBackend(state_backend._j_state_backend)
         return self
@@ -424,7 +432,14 @@ class StreamExecutionEnvironment(object):
 
         :param restart_strategy_configuration: Restart strategy configuration to be set.
         :return:
+
+        .. note:: Deprecated since version 1.19: This method is deprecated and will be removed in
+                  future FLINK major version. Use `stream_execution_environment.configure` method
+                  instead to set the restart strategy.
         """
+        warnings.warn("Deprecated since version 1.19: This method is deprecated and will be removed"
+                      " in future FLINK major version. Use `stream_execution_environment.configure`"
+                      " method instead to set the restart strategy.", DeprecationWarning)
         self._j_stream_execution_environment.setRestartStrategy(
             restart_strategy_configuration._j_restart_strategy_configuration)
 

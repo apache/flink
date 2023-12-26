@@ -47,6 +47,18 @@ public class GSFileSystemOptions {
                             "This option sets the chunk size for writes to the underlying Google storage. If set, this must be a multiple "
                                     + "of 256KB. If not set, writes will use Google's default chunk size.");
 
+    /* Flink config option to determine if entropy should be enabled in filesink gcs path. */
+    public static final ConfigOption<Boolean> ENABLE_FILESINK_ENTROPY =
+            ConfigOptions.key("gs.filesink.entropy.enabled")
+                    .booleanType()
+                    .defaultValue(Boolean.FALSE)
+                    .withDescription(
+                            "This option can be used to improve performance due to hotspotting "
+                                    + "issues on GCS. If this is enabled, entropy in the form of "
+                                    + "temporary object id will be injected in the beginning of "
+                                    + "gcs path of the temporary objects. The final object path "
+                                    + "remains unchanged.");
+
     /** The Flink configuration. */
     private final Configuration flinkConfig;
 
@@ -78,6 +90,11 @@ public class GSFileSystemOptions {
     /** The chunk size to use for writes on the underlying Google WriteChannel. */
     public Optional<MemorySize> getWriterChunkSize() {
         return flinkConfig.getOptional(WRITER_CHUNK_SIZE);
+    }
+
+    /** Whether entropy insertion is enabled in filesink path. */
+    public Boolean isFileSinkEntropyEnabled() {
+        return flinkConfig.get(ENABLE_FILESINK_ENTROPY);
     }
 
     @Override

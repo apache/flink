@@ -112,7 +112,8 @@ object HashAggCodeGenerator {
 
     val aggInfos = aggInfoList.aggInfos
     val functionIdentifiers = AggCodeGenHelper.getFunctionIdentifiers(aggInfos)
-    val aggBufferNames = AggCodeGenHelper.getAggBufferNames(auxGrouping, aggInfos)
+    val aggBufferPrefix = "hash"
+    val aggBufferNames = AggCodeGenHelper.getAggBufferNames(aggBufferPrefix, auxGrouping, aggInfos)
     val aggBufferTypes = AggCodeGenHelper.getAggBufferTypes(inputType, auxGrouping, aggInfos)
     val groupKeyRowType = RowTypeUtils.projectRowType(inputType, grouping)
     val aggBufferRowType = RowType.of(aggBufferTypes.flatten, aggBufferNames.flatten)
@@ -219,6 +220,7 @@ object HashAggCodeGenerator {
       aggregateMapTerm,
       (groupKeyTypesTerm, aggBufferTypesTerm),
       (groupKeyRowType, aggBufferRowType),
+      aggBufferPrefix,
       aggBufferNames,
       aggBufferTypes,
       outputTerm,

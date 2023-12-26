@@ -19,11 +19,12 @@ package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 
 /**
  * Base class for implementing a parallel data source that has access to context information (via
- * {@link #getRuntimeContext()}) and additional life-cycle methods ({@link
- * #open(org.apache.flink.configuration.Configuration)} and {@link #close()}.
+ * {@link #getRuntimeContext()}) and additional life-cycle methods ({@link #open(OpenContext)} and
+ * {@link #close()}.
  *
  * <p>This class is useful when implementing parallel sources where different parallel subtasks need
  * to perform different work. Typical patterns for that are:
@@ -41,7 +42,11 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
  * </ul>
  *
  * @param <OUT> The type of the records produced by this source.
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
+@Deprecated
 @Public
 public abstract class RichSourceFunction<OUT> extends AbstractRichFunction
         implements SourceFunction<OUT> {

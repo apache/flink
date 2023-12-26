@@ -18,20 +18,20 @@
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.{Before, Test}
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class TableScanTest extends TableTestBase {
 
   private val util = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
-    util.tableEnv.registerFunction("my_udf", Func0)
+    util.addTemporarySystemFunction("my_udf", Func0)
 
     util.addTable(s"""
                      |create table computed_column_t(
@@ -96,11 +96,12 @@ class TableScanTest extends TableTestBase {
                     |  'bounded' = 'false'
                     |)
       """.stripMargin)
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage(
-      "Querying an unbounded table 'default_catalog.default_database.src' in batch mode is not " +
-        "allowed. The table source is unbounded.")
-    util.verifyExecPlan("SELECT * FROM src WHERE a > 1")
+
+    assertThatThrownBy(() => util.verifyExecPlan("SELECT * FROM src WHERE a > 1"))
+      .hasMessageContaining(
+        "Querying an unbounded table 'default_catalog.default_database.src' in batch mode is not " +
+          "allowed. The table source is unbounded.")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -116,12 +117,13 @@ class TableScanTest extends TableTestBase {
                     |  'changelog-mode' = 'I,UA,UB'
                     |)
       """.stripMargin)
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "Querying a table in batch mode is currently only possible for INSERT-only table sources. " +
-        "But the source for table 'default_catalog.default_database.src' produces other changelog " +
-        "messages than just INSERT.")
-    util.verifyExecPlan("SELECT * FROM src WHERE a > 1")
+
+    assertThatThrownBy(() => util.verifyExecPlan("SELECT * FROM src WHERE a > 1"))
+      .hasMessageContaining(
+        "Querying a table in batch mode is currently only possible for INSERT-only table sources. " +
+          "But the source for table 'default_catalog.default_database.src' produces other changelog " +
+          "messages than just INSERT.")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -138,12 +140,13 @@ class TableScanTest extends TableTestBase {
                     |  'changelog-mode' = 'UA,D'
                     |)
       """.stripMargin)
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "Querying a table in batch mode is currently only possible for INSERT-only table sources. " +
-        "But the source for table 'default_catalog.default_database.src' produces other changelog " +
-        "messages than just INSERT.")
-    util.verifyExecPlan("SELECT * FROM src WHERE a > 1")
+
+    assertThatThrownBy(() => util.verifyExecPlan("SELECT * FROM src WHERE a > 1"))
+      .hasMessageContaining(
+        "Querying a table in batch mode is currently only possible for INSERT-only table sources. " +
+          "But the source for table 'default_catalog.default_database.src' produces other changelog " +
+          "messages than just INSERT.")
+      .isInstanceOf[TableException]
   }
 
   @Test

@@ -41,9 +41,13 @@ public class MemoryTierFactory implements TierFactory {
 
     private final int bufferSizeBytes;
 
-    public MemoryTierFactory(int segmentSizeBytes, int bufferSizeBytes) {
+    private final int subpartitionMaxQueuedBuffers;
+
+    public MemoryTierFactory(
+            int segmentSizeBytes, int bufferSizeBytes, int subpartitionMaxQueuedBuffers) {
         this.segmentSizeBytes = segmentSizeBytes;
         this.bufferSizeBytes = bufferSizeBytes;
+        this.subpartitionMaxQueuedBuffers = subpartitionMaxQueuedBuffers;
     }
 
     @Override
@@ -64,13 +68,13 @@ public class MemoryTierFactory implements TierFactory {
             BatchShuffleReadBufferPool bufferPool,
             ScheduledExecutorService ioExecutor,
             int maxRequestedBuffers,
-            Duration bufferRequestTimeout,
-            int maxBufferReadAhead) {
+            Duration bufferRequestTimeout) {
         return new MemoryTierProducerAgent(
                 partitionID,
                 numSubpartitions,
                 bufferSizeBytes,
                 segmentSizeBytes,
+                subpartitionMaxQueuedBuffers,
                 isBroadcastOnly,
                 memoryManager,
                 nettyService,

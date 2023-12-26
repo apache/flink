@@ -23,36 +23,34 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests creating and initializing {@link SlotSharingGroup}. */
-public class VertexSlotSharingTest {
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+class VertexSlotSharingTest {
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     /**
      * Test setup: - v1 is isolated, no slot sharing. - v2 and v3 (not connected) share slots. - v4
      * and v5 (connected) share slots.
      */
     @Test
-    public void testAssignSlotSharingGroup() {
+    void testAssignSlotSharingGroup() {
         try {
             JobVertex v1 = new JobVertex("v1");
             JobVertex v2 = new JobVertex("v2");
@@ -92,34 +90,35 @@ public class VertexSlotSharingTest {
                             .setVertexParallelismStore(
                                     SchedulerBase.computeVertexParallelismStore(vertices))
                             .build(EXECUTOR_RESOURCE.getExecutor());
-            eg.attachJobGraph(vertices);
+            eg.attachJobGraph(
+                    vertices,
+                    UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
             // verify that the vertices are all in the same slot sharing group
             SlotSharingGroup group1;
             SlotSharingGroup group2;
 
             // verify that v1 tasks are not in the same slot sharing group as v2
-            assertNotEquals(
-                    eg.getJobVertex(v1.getID()).getSlotSharingGroup(),
-                    eg.getJobVertex(v2.getID()).getSlotSharingGroup());
+            assertThat(eg.getJobVertex(v1.getID()).getSlotSharingGroup())
+                    .isNotEqualTo(eg.getJobVertex(v2.getID()).getSlotSharingGroup());
 
             // v2 and v3 are shared
             group1 = eg.getJobVertex(v2.getID()).getSlotSharingGroup();
-            assertNotNull(group1);
-            assertEquals(group1, eg.getJobVertex(v3.getID()).getSlotSharingGroup());
+            assertThat(group1).isNotNull();
+            assertThat(eg.getJobVertex(v3.getID()).getSlotSharingGroup()).isEqualTo(group1);
 
-            assertEquals(2, group1.getJobVertexIds().size());
-            assertTrue(group1.getJobVertexIds().contains(v2.getID()));
-            assertTrue(group1.getJobVertexIds().contains(v3.getID()));
+            assertThat(group1.getJobVertexIds()).hasSize(2);
+            assertThat(group1.getJobVertexIds().contains(v2.getID())).isTrue();
+            assertThat(group1.getJobVertexIds().contains(v3.getID())).isTrue();
 
             // v4 and v5 are shared
             group2 = eg.getJobVertex(v4.getID()).getSlotSharingGroup();
-            assertNotNull(group2);
-            assertEquals(group2, eg.getJobVertex(v5.getID()).getSlotSharingGroup());
+            assertThat(group2).isNotNull();
+            assertThat(eg.getJobVertex(v5.getID()).getSlotSharingGroup()).isEqualTo(group2);
 
-            assertEquals(2, group1.getJobVertexIds().size());
-            assertTrue(group2.getJobVertexIds().contains(v4.getID()));
-            assertTrue(group2.getJobVertexIds().contains(v5.getID()));
+            assertThat(group1.getJobVertexIds()).hasSize(2);
+            assertThat(group2.getJobVertexIds().contains(v4.getID())).isTrue();
+            assertThat(group2.getJobVertexIds().contains(v5.getID())).isTrue();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.TreeSet;
@@ -179,13 +180,9 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 
         saveHandleInState(context.getCheckpointId(), context.getCheckpointTimestamp());
 
-        this.checkpointedState.clear();
-
         try {
-            for (PendingCheckpoint pendingCheckpoint : pendingCheckpoints) {
-                // create a new partition for each entry.
-                this.checkpointedState.add(pendingCheckpoint);
-            }
+            // create a new partition for each entry.
+            this.checkpointedState.update(new ArrayList<>(pendingCheckpoints));
         } catch (Exception e) {
             checkpointedState.clear();
 

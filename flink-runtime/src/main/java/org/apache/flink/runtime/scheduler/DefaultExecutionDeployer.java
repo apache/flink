@@ -94,12 +94,12 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
 
         transitionToScheduled(executionsToDeploy);
 
-        final List<ExecutionSlotAssignment> executionSlotAssignments =
+        final Map<ExecutionAttemptID, ExecutionSlotAssignment> executionSlotAssignmentMap =
                 allocateSlotsFor(executionsToDeploy);
 
         final List<ExecutionDeploymentHandle> deploymentHandles =
                 createDeploymentHandles(
-                        executionsToDeploy, requiredVersionByVertex, executionSlotAssignments);
+                        executionsToDeploy, requiredVersionByVertex, executionSlotAssignmentMap);
 
         waitForAllSlotsAndDeploy(deploymentHandles);
     }
@@ -118,7 +118,7 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
         executionsToDeploy.forEach(e -> e.transitionState(ExecutionState.SCHEDULED));
     }
 
-    private List<ExecutionSlotAssignment> allocateSlotsFor(
+    private Map<ExecutionAttemptID, ExecutionSlotAssignment> allocateSlotsFor(
             final List<Execution> executionsToDeploy) {
         final List<ExecutionAttemptID> executionAttemptIds =
                 executionsToDeploy.stream()
@@ -130,14 +130,13 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
     private List<ExecutionDeploymentHandle> createDeploymentHandles(
             final List<Execution> executionsToDeploy,
             final Map<ExecutionVertexID, ExecutionVertexVersion> requiredVersionByVertex,
-            final List<ExecutionSlotAssignment> executionSlotAssignments) {
-
+            final Map<ExecutionAttemptID, ExecutionSlotAssignment> executionSlotAssignmentMap) {
+        checkState(executionsToDeploy.size() == executionSlotAssignmentMap.size());
         final List<ExecutionDeploymentHandle> deploymentHandles =
                 new ArrayList<>(executionsToDeploy.size());
-        for (int i = 0; i < executionsToDeploy.size(); i++) {
-            final Execution execution = executionsToDeploy.get(i);
-            final ExecutionSlotAssignment assignment = executionSlotAssignments.get(i);
-            checkState(execution.getAttemptId().equals(assignment.getExecutionAttemptId()));
+        for (final Execution execution : executionsToDeploy) {
+            final ExecutionSlotAssignment assignment =
+                    checkNotNull(executionSlotAssignmentMap.get(execution.getAttemptId()));
 
             final ExecutionVertexID executionVertexId = execution.getVertex().getID();
             final ExecutionDeploymentHandle deploymentHandle =

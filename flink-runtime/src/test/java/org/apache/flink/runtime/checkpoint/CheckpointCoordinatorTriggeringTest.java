@@ -39,7 +39,6 @@ import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
@@ -68,7 +67,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for checkpoint coordinator triggering. */
-class CheckpointCoordinatorTriggeringTest extends TestLogger {
+class CheckpointCoordinatorTriggeringTest {
 
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
@@ -120,7 +119,8 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
             checkpointCoordinator.startCheckpointScheduler();
 
             for (int i = 0; i < 5; ++i) {
-                manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+                manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                        CheckpointCoordinator.ScheduledTrigger.class);
                 manuallyTriggeredScheduledExecutor.triggerAll();
             }
             checkRecordedTriggeredCheckpoints(5, start, gateway.getTriggeredCheckpoints(attemptID));
@@ -128,7 +128,8 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
             checkpointCoordinator.stopCheckpointScheduler();
 
             // no further calls may come.
-            manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+            manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                    CheckpointCoordinator.ScheduledTrigger.class);
             manuallyTriggeredScheduledExecutor.triggerAll();
             assertThat(gateway.getTriggeredCheckpoints(attemptID).size()).isEqualTo(5);
 
@@ -137,7 +138,8 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
             checkpointCoordinator.startCheckpointScheduler();
 
             for (int i = 0; i < 5; ++i) {
-                manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+                manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                        CheckpointCoordinator.ScheduledTrigger.class);
                 manuallyTriggeredScheduledExecutor.triggerAll();
             }
             checkRecordedTriggeredCheckpoints(5, start, gateway.getTriggeredCheckpoints(attemptID));
@@ -145,7 +147,8 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
             checkpointCoordinator.stopCheckpointScheduler();
 
             // no further calls may come
-            manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+            manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                    CheckpointCoordinator.ScheduledTrigger.class);
             manuallyTriggeredScheduledExecutor.triggerAll();
             assertThat(gateway.getTriggeredCheckpoints(attemptID).size()).isEqualTo(5);
 
@@ -269,6 +272,9 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
         // trigger a savepoint before any checkpoint completes
         // next triggered checkpoint should still be a full one
         takeSavepoint(graph, attemptID, checkpointCoordinator, 2);
+
+        // a complete checkpoint should not remember in the coordinator.
+        assertThat(checkpointCoordinator.getRecentExpiredCheckpoints().isEmpty()).isTrue();
         checkpointCoordinator.startCheckpointScheduler();
         gateway.resetCount();
         // the checkpoint should be a FULL_CHECKPOINT
@@ -540,12 +546,13 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
 
         try {
             checkpointCoordinator.startCheckpointScheduler();
-            manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+            manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                    CheckpointCoordinator.ScheduledTrigger.class);
             manuallyTriggeredScheduledExecutor.triggerAll();
 
             // wait until the first checkpoint was triggered
             Long firstCallId = gateway.getTriggeredCheckpoints(attemptID).get(0).checkpointId;
-            assertThat(firstCallId).isEqualTo(1L);
+            assertThat(firstCallId).isOne();
 
             AcknowledgeCheckpoint ackMsg =
                     new AcknowledgeCheckpoint(graph.getJobID(), attemptID, 1L);
@@ -555,12 +562,14 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
             checkpointCoordinator.receiveAcknowledgeMessage(ackMsg, TASK_MANAGER_LOCATION_INFO);
 
             gateway.resetCount();
-            manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+            manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                    CheckpointCoordinator.ScheduledTrigger.class);
             manuallyTriggeredScheduledExecutor.triggerAll();
             while (gateway.getTriggeredCheckpoints(attemptID).isEmpty()) {
                 // sleeps for a while to simulate periodic scheduling
                 Thread.sleep(checkpointInterval);
-                manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+                manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                        CheckpointCoordinator.ScheduledTrigger.class);
                 manuallyTriggeredScheduledExecutor.triggerAll();
             }
             // wait until the next checkpoint is triggered
@@ -760,7 +769,8 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
         assertThat(checkpointCoordinator.isTriggering()).isTrue();
 
         // trigger cancellation
-        manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks();
+        manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                CheckpointCoordinator.CheckpointCanceller.class);
         assertThat(checkpointCoordinator.isTriggering()).isTrue();
 
         try {
@@ -775,6 +785,9 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
                     .get()
                     .isEqualTo(CheckpointFailureReason.CHECKPOINT_EXPIRED);
         }
+
+        // an expired checkpoint should remember in the coordinator.
+        assertThat(checkpointCoordinator.getRecentExpiredCheckpoints().size()).isEqualTo(1);
 
         // continue triggering
         masterHookCheckpointFuture.complete("finish master hook");

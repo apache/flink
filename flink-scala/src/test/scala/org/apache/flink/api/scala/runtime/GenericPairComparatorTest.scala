@@ -19,7 +19,6 @@ package org.apache.flink.api.scala.runtime
 
 import org.apache.flink.api.common.typeutils.{GenericPairComparator, TypeComparator, TypeSerializer}
 import org.apache.flink.api.common.typeutils.base.{DoubleComparator, DoubleSerializer, IntComparator, IntSerializer}
-import org.apache.flink.api.java.typeutils.runtime.TupleComparator
 import org.apache.flink.api.scala.runtime.tuple.base.PairComparatorTestBase
 import org.apache.flink.api.scala.typeutils.CaseClassComparator
 

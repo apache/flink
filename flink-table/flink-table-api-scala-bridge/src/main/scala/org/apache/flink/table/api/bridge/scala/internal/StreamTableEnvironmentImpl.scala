@@ -29,7 +29,7 @@ import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.delegation.{Executor, Planner}
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.factories.PlannerFactoryUtil
+import org.apache.flink.table.factories.{PlannerFactoryUtil, TableFactoryUtil}
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations._
@@ -38,7 +38,7 @@ import org.apache.flink.table.sources.{TableSource, TableSourceValidation}
 import org.apache.flink.table.types.AbstractDataType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
-import org.apache.flink.util.{FlinkUserCodeClassLoaders, MutableURLClassLoader, Preconditions}
+import org.apache.flink.util.{FlinkUserCodeClassLoaders, InstantiationUtil, MutableURLClassLoader, Preconditions}
 
 import java.net.URL
 import java.util.Optional
@@ -309,6 +309,16 @@ object StreamTableEnvironmentImpl {
 
     val resourceManager = new ResourceManager(settings.getConfiguration, userClassLoader)
     val moduleManager = new ModuleManager
+
+    val catalogStoreFactory =
+      TableFactoryUtil.findAndCreateCatalogStoreFactory(settings.getConfiguration, userClassLoader)
+    val catalogStoreFactoryContext =
+      TableFactoryUtil.buildCatalogStoreFactoryContext(settings.getConfiguration, userClassLoader)
+    catalogStoreFactory.open(catalogStoreFactoryContext)
+    val catalogStore =
+      if (settings.getCatalogStore != null) settings.getCatalogStore
+      else catalogStoreFactory.createCatalogStore()
+
     val catalogManager = CatalogManager.newBuilder
       .classLoader(userClassLoader)
       .config(tableConfig)
@@ -316,6 +326,16 @@ object StreamTableEnvironmentImpl {
         settings.getBuiltInCatalogName,
         new GenericInMemoryCatalog(settings.getBuiltInCatalogName, settings.getBuiltInDatabaseName))
       .executionConfig(executionEnvironment.getConfig)
+      .catalogModificationListeners(TableFactoryUtil
+        .findCatalogModificationListenerList(tableConfig.getConfiguration, userClassLoader))
+      .catalogStoreHolder(
+        CatalogStoreHolder
+          .newBuilder()
+          .catalogStore(catalogStore)
+          .factory(catalogStoreFactory)
+          .config(tableConfig)
+          .classloader(userClassLoader)
+          .build())
       .build
 
     val functionCatalog =

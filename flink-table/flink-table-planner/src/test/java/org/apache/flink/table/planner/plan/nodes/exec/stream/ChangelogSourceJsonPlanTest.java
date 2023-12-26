@@ -24,24 +24,24 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test json serialization/deserialization for changelog source, including upsert source. */
-public class ChangelogSourceJsonPlanTest extends TableTestBase {
+class ChangelogSourceJsonPlanTest extends TableTestBase {
 
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
         tEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true);
     }
 
     @Test
-    public void testChangelogSource() {
+    void testChangelogSource() {
         String srcTableDdl =
                 "CREATE TABLE MyTable (\n"
                         + "  a bigint,\n"
@@ -68,7 +68,7 @@ public class ChangelogSourceJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testUpsertSource() {
+    void testUpsertSource() {
         String srcTableDdl =
                 "CREATE TABLE MyTable (\n"
                         + "  a bigint,\n"

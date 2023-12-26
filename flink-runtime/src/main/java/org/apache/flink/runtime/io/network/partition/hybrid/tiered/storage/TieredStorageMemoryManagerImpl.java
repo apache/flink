@@ -19,9 +19,12 @@
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.LocalBufferPool;
+import org.apache.flink.runtime.metrics.TimerGauge;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
 
@@ -58,6 +61,9 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
     /** Time to wait for requesting new buffers before triggering buffer reclaiming. */
     private static final int INITIAL_REQUEST_BUFFER_TIMEOUT_FOR_RECLAIMING_MS = 50;
 
+    /** The maximum delay time before triggering buffer reclaiming. */
+    private static final int MAX_DELAY_TIME_TO_TRIGGER_RECLAIM_BUFFER_MS = 1000;
+
     /** The tiered storage memory specs of each memory user owner. */
     private final Map<Object, TieredStorageMemorySpec> tieredMemorySpecs;
 
@@ -83,7 +89,13 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
      * The number of requested buffers from {@link BufferPool} for each memory owner. This field
      * should be thread-safe because it can be touched both by the task thread and the netty thread.
      */
-    private final Map<Object, AtomicInteger> numOwnerRequestedBuffers;
+    private final Map<Object, Integer> numOwnerRequestedBuffers;
+
+    /**
+     * Time gauge to measure that hard backpressure time. Pre-create it to avoid checkNotNull in
+     * hot-path for performance purpose.
+     */
+    private TimerGauge hardBackpressureTimerGauge = new TimerGauge();
 
     /**
      * This is for triggering buffer reclaiming while blocked on requesting new buffers.
@@ -145,6 +157,12 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
     }
 
     @Override
+    public void setMetricGroup(TaskIOMetricGroup metricGroup) {
+        this.hardBackpressureTimerGauge =
+                checkNotNull(metricGroup.getHardBackPressuredTimePerSecond());
+    }
+
+    @Override
     public void listenBufferReclaimRequest(Runnable onBufferReclaimRequest) {
         bufferReclaimRequestListeners.add(onBufferReclaimRequest);
     }
@@ -153,17 +171,23 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
     public BufferBuilder requestBufferBlocking(Object owner) {
         checkIsInitialized();
 
-        reclaimBuffersIfNeeded();
+        reclaimBuffersIfNeeded(0);
 
         CompletableFuture<Void> requestBufferFuture = new CompletableFuture<>();
         scheduleCheckRequestBufferFuture(
                 requestBufferFuture, INITIAL_REQUEST_BUFFER_TIMEOUT_FOR_RECLAIMING_MS);
-        MemorySegment memorySegment = null;
-        try {
-            memorySegment = bufferPool.requestMemorySegmentBlocking();
-        } catch (InterruptedException e) {
-            ExceptionUtils.rethrow(e);
+        MemorySegment memorySegment = bufferPool.requestMemorySegment();
+
+        if (memorySegment == null) {
+            try {
+                hardBackpressureTimerGauge.markStart();
+                memorySegment = bufferPool.requestMemorySegmentBlocking();
+                hardBackpressureTimerGauge.markEnd();
+            } catch (InterruptedException e) {
+                ExceptionUtils.rethrow(e);
+            }
         }
+
         requestBufferFuture.complete(null);
 
         incNumRequestedBuffer(owner);
@@ -196,13 +220,19 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
 
     @Override
     public int numOwnerRequestedBuffer(Object owner) {
-        AtomicInteger numRequestedBuffer = numOwnerRequestedBuffers.get(owner);
-        return numRequestedBuffer == null ? 0 : numRequestedBuffer.get();
+        return numOwnerRequestedBuffers.getOrDefault(owner, 0);
+    }
+
+    @Override
+    public void transferBufferOwnership(Object oldOwner, Object newOwner, Buffer buffer) {
+        checkState(buffer.isBuffer(), "Only buffer supports transfer ownership.");
+        decNumRequestedBuffer(oldOwner);
+        incNumRequestedBuffer(newOwner);
+        buffer.setRecycler(memorySegment -> recycleBuffer(newOwner, memorySegment));
     }
 
     @Override
     public void release() {
-        checkState(numRequestedBuffers.get() == 0, "Leaking buffers.");
         if (executor != null) {
             executor.shutdown();
             try {
@@ -235,30 +265,29 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
         if (requestBufferFuture.isDone()) {
             return;
         }
-        reclaimBuffersIfNeeded();
+        reclaimBuffersIfNeeded(delayForNextCheckMs);
         scheduleCheckRequestBufferFuture(requestBufferFuture, delayForNextCheckMs);
     }
 
     private void incNumRequestedBuffer(Object owner) {
-        numOwnerRequestedBuffers
-                .computeIfAbsent(owner, ignore -> new AtomicInteger(0))
-                .incrementAndGet();
+        numOwnerRequestedBuffers.compute(
+                owner, (ignore, numRequested) -> numRequested == null ? 1 : numRequested + 1);
         numRequestedBuffers.incrementAndGet();
     }
 
     private void decNumRequestedBuffer(Object owner) {
-        AtomicInteger numOwnerRequestedBuffer = numOwnerRequestedBuffers.get(owner);
-        checkNotNull(numOwnerRequestedBuffer).decrementAndGet();
+        numOwnerRequestedBuffers.compute(
+                owner, (ignore, numRequested) -> checkNotNull(numRequested) - 1);
         numRequestedBuffers.decrementAndGet();
     }
 
-    private void reclaimBuffersIfNeeded() {
-        if (shouldReclaimBuffersBeforeRequesting()) {
+    private void reclaimBuffersIfNeeded(long delayForNextCheckMs) {
+        if (shouldReclaimBuffersBeforeRequesting(delayForNextCheckMs)) {
             bufferReclaimRequestListeners.forEach(Runnable::run);
         }
     }
 
-    private boolean shouldReclaimBuffersBeforeRequesting() {
+    private boolean shouldReclaimBuffersBeforeRequesting(long delayForNextCheckMs) {
         // The accuracy of the memory usage ratio may be compromised due to the varying buffer pool
         // sizes. However, this only impacts a single iteration of the buffer usage check. Upon the
         // next iteration, the buffer reclaim will eventually be triggered.
@@ -267,7 +296,9 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
         return numRequested >= numTotal
                 // Because we do the checking before requesting buffers, we need add additional one
                 // buffer when calculating the usage ratio.
-                || ((numRequested + 1) * 1.0 / numTotal) > numTriggerReclaimBuffersRatio;
+                || ((numRequested + 1) * 1.0 / numTotal) > numTriggerReclaimBuffersRatio
+                || delayForNextCheckMs > MAX_DELAY_TIME_TO_TRIGGER_RECLAIM_BUFFER_MS
+                        && bufferPool.getNumberOfAvailableMemorySegments() == 0;
     }
 
     /** Note that this method may be called by the netty thread. */

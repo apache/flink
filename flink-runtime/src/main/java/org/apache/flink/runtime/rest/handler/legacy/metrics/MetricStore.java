@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.legacy.metrics;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails.CurrentAttempts;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.dump.MetricDump;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.util.CollectionUtil;
@@ -30,8 +31,10 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -56,6 +59,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ThreadSafe
 public class MetricStore {
     private static final Logger LOG = LoggerFactory.getLogger(MetricStore.class);
+
+    /**
+     * The set holds the names of the transient metrics which are no longer useful after a subtask
+     * reaches terminal state and shall be removed to avoid misleading users. Note that there may be
+     * other transient metrics, we currently only support cleaning these three.
+     */
+    private static final Set<String> TRANSIENT_METRIC_NAMES =
+            new HashSet<>(
+                    Arrays.asList(
+                            MetricNames.TASK_IDLE_TIME,
+                            MetricNames.TASK_BACK_PRESSURED_TIME,
+                            MetricNames.TASK_BUSY_TIME));
 
     private final ComponentMetricStore jobManager = new ComponentMetricStore();
     private final Map<String, TaskManagerMetricStore> taskManagers = new ConcurrentHashMap<>();
@@ -129,6 +144,13 @@ public class MetricStore {
                                                     subtaskMetricStore ->
                                                             subtaskMetricStore.retainAttempts(
                                                                     attempts.getCurrentAttempts()));
+                                    // Remove transient metrics for terminal subtasks
+                                    if (attempts.isTerminalState()) {
+                                        taskMetricStoreOptional.ifPresent(
+                                                taskMetricStore ->
+                                                        taskMetricStore.removeTransientMetrics(
+                                                                subtaskIndex));
+                                    }
                                 });
                     });
         }
@@ -435,6 +457,11 @@ public class MetricStore {
         }
     }
 
+    private static boolean isTransientMetric(String fullMetricName) {
+        String metricName = fullMetricName.substring(fullMetricName.lastIndexOf('.') + 1);
+        return TRANSIENT_METRIC_NAMES.contains(metricName);
+    }
+
     // -----------------------------------------------------------------------------------------------------------------
     // sub MetricStore classes
     // -----------------------------------------------------------------------------------------------------------------
@@ -551,6 +578,19 @@ public class MetricStore {
             subtasks.keySet().retainAll(activeSubtasks);
         }
 
+        void removeTransientMetrics(int subtaskIndex) {
+            if (subtasks.containsKey(subtaskIndex)) {
+                // Remove in both places as task metrics are duplicated in task metric store and
+                // subtask metric store.
+                metrics.keySet()
+                        .removeIf(
+                                key ->
+                                        key.startsWith(subtaskIndex + ".")
+                                                && isTransientMetric(key));
+                subtasks.get(subtaskIndex).removeTransientMetrics();
+            }
+        }
+
         public ComponentMetricStore getJobManagerOperatorMetricStores(String operatorName) {
             return jmOperators.get(operatorName);
         }
@@ -595,6 +635,16 @@ public class MetricStore {
                     .removeIf(
                             attempt ->
                                     attempt < latestAttempt && !currentAttempts.contains(attempt));
+        }
+
+        void removeTransientMetrics() {
+            attempts.values()
+                    .forEach(
+                            attempt ->
+                                    attempt.metrics
+                                            .keySet()
+                                            .removeIf(MetricStore::isTransientMetric));
+            metrics.keySet().removeIf(MetricStore::isTransientMetric);
         }
 
         private static SubtaskMetricStore unmodifiable(SubtaskMetricStore source) {

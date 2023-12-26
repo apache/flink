@@ -40,7 +40,7 @@ public interface StateObject extends Serializable {
     /**
      * Discards the state referred to and solemnly owned by this handle, to free up resources in the
      * persistent storage. This method is called when the state represented by this object will not
-     * be used any more.
+     * be used anymore.
      */
     void discardState() throws Exception;
 

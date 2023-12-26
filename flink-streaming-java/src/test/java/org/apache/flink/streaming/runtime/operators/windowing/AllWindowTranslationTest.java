@@ -90,7 +90,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         source.windowAll(
                         SlidingEventTimeWindows.of(
@@ -119,7 +119,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         source.windowAll(
                         SlidingEventTimeWindows.of(
@@ -142,7 +142,7 @@ public class AllWindowTranslationTest {
                         + " that does not support merging");
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        env.fromElements("Hello", "Ciao")
+        env.fromData("Hello", "Ciao")
                 .windowAll(EventTimeSessionWindows.withGap(Time.seconds(5)))
                 .trigger(
                         new Trigger<String, TimeWindow>() {
@@ -189,7 +189,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple3<String, String, Integer>> window1 =
                 source.windowAll(EventTimeSessionWindows.withGap(Time.seconds(5)))
@@ -225,7 +225,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.windowAll(
@@ -259,7 +259,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.windowAll(
@@ -293,7 +293,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DummyReducer reducer = new DummyReducer();
 
@@ -344,7 +344,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple3<String, String, Integer>> window =
                 source.windowAll(TumblingProcessingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
@@ -393,7 +393,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DummyReducer reducer = new DummyReducer();
 
@@ -444,7 +444,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple3<String, String, Integer>> window =
                 source.windowAll(TumblingProcessingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
@@ -493,7 +493,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DummyReducer reducer = new DummyReducer();
 
@@ -548,7 +548,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DummyReducer reducer = new DummyReducer();
 
@@ -602,7 +602,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.windowAll(
@@ -638,7 +638,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.windowAll(
@@ -674,7 +674,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple3<String, String, Integer>> window =
                 source.windowAll(TumblingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
@@ -707,7 +707,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple3<String, String, Integer>> window =
                 source.windowAll(TumblingProcessingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
@@ -740,7 +740,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.windowAll(
@@ -777,7 +777,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.windowAll(
@@ -835,7 +835,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.windowAll(TumblingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
@@ -883,7 +883,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.windowAll(TumblingProcessingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
@@ -931,7 +931,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.windowAll(TumblingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
@@ -982,7 +982,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.windowAll(TumblingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
@@ -1035,7 +1035,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.windowAll(TumblingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
@@ -1083,7 +1083,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.windowAll(TumblingProcessingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
@@ -1131,7 +1131,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DummyReducer reducer = new DummyReducer();
 
@@ -1168,7 +1168,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.windowAll(TumblingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
@@ -1217,7 +1217,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DummyReducer reducer = new DummyReducer();
 
@@ -1255,7 +1255,7 @@ public class AllWindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.windowAll(TumblingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))

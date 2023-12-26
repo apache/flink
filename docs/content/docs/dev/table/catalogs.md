@@ -71,6 +71,44 @@ The provided factory identifier will be used for matching against the required `
 User-defined catalogs should replace `Thread.currentThread().getContextClassLoader()` with the user class loader to load classes. Otherwise, `ClassNotFoundException` maybe thrown. The user class loader can be accessed via `CatalogFactory.Context#getClassLoader`.
 {{< /hint >}}
 
+#### Interface in Catalog for supporting time travel
+
+Starting from version 1.18, the Flink framework supports [time travel]({{< ref "docs/dev/table/sql/queries/time-travel" >}}) to query historical data of a table. To query the historical data of a table, users should implement `getTable(ObjectPath tablePath, long timestamp)` method for the catalog that the table belongs to.
+
+```java
+public class MyCatalogSupportTimeTravel implements Catalog {
+
+    @Override
+    public CatalogBaseTable getTable(ObjectPath tablePath, long timestamp)
+            throws TableNotExistException {
+        // Build a schema corresponding to the specific time point.
+        Schema schema = buildSchema(timestamp);
+        // Set parameters to read data at the corresponding time point.
+        Map<String, String> options = buildOptions(timestamp);
+        // Build CatalogTable
+        CatalogTable catalogTable =
+                CatalogTable.of(schema, "", Collections.emptyList(), options, timestamp);
+        return catalogTable;
+    }
+}
+
+public class MyDynamicTableFactory implements DynamicTableSourceFactory {
+    @Override
+    public DynamicTableSource createDynamicTableSource(Context context) {
+        final ReadableConfig configuration =
+                Configuration.fromMap(context.getCatalogTable().getOptions());
+
+        // Get snapshot from CatalogTable
+        final Optional<Long> snapshot = context.getCatalogTable().getSnapshot();
+
+        // Build DynamicTableSource using snapshot options.
+        final DynamicTableSource dynamicTableSource = buildDynamicSource(configuration, snapshot);
+
+        return dynamicTableSource;
+    }
+}
+```
+
 ## How to Create and Register Flink Tables to Catalog
 
 ### Using SQL DDL
@@ -738,3 +776,273 @@ Flink SQL> show tables;
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+## Catalog Modification Listener
+
+Flink supports registering customized listener for catalog modification, such as database and table ddl. Flink will create
+a `CatalogModificationEvent` event for ddl and notify `CatalogModificationListener`. You can implement a listener
+and do some customized operations when receiving the event, such as report the information to some external meta-data systems.
+
+### Implement Catalog Listener
+
+There are two interfaces for the catalog modification listener: `CatalogModificationListenerFactory` to create the listener and `CatalogModificationListener`
+to receive and process the event. You need to implement these interfaces and below is an example.
+
+```java
+/** Factory used to create a {@link CatalogModificationListener} instance. */
+public class YourCatalogListenerFactory implements CatalogModificationListenerFactory {
+    /** The identifier for the customized listener factory, you can named it yourself. */
+    private static final String IDENTIFIER = "your_factory";
+
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
+
+    @Override
+    public CatalogModificationListener createListener(Context context) {
+        return new YourCatalogListener(Create http client from context);
+    }
+}
+
+/** Customized catalog modification listener. */
+public class YourCatalogListener implements CatalogModificationListener {
+    private final HttpClient client;
+
+    YourCatalogListener(HttpClient client) {
+        this.client = client;
+    }
+    
+    @Override
+    public void onEvent(CatalogModificationEvent event) {
+        // Report the database and table information via http client.
+    }
+}
+```
+
+You need to create a file `org.apache.flink.table.factories.Factory` in `META-INF/services`
+with the content of `the full name of YourCatalogListenerFactory` for your
+customized catalog listener factory. After that, you can package the codes into a jar file
+and add it to `lib` of Flink cluster.
+
+### Register Catalog Listener
+
+After implemented above catalog modification factory and listener, you can register it to the table environment.
+
+```java
+Configuration configuration = new Configuration();
+
+// Add the factory identifier, you can set multiple listeners in the configuraiton.
+configuration.set(TableConfigOptions.TABLE_CATALOG_MODIFICATION_LISTENERS, Arrays.asList("your_factory"));
+TableEnvironment env = TableEnvironment.create(
+            EnvironmentSettings.newInstance()
+                .withConfiguration(configuration)
+                .build());
+
+// Create/Alter/Drop database and table.
+env.executeSql("CREATE TABLE ...").wait();
+```
+
+For sql-gateway, you can add the option `table.catalog-modification.listeners` in the `flink-conf.yaml` and start
+the gateway, or you can also start sql-gateway with dynamic parameter, then you can use sql-client to perform ddl directly.
+
+## Catalog Store
+
+Catalog Store is used to store the configuration of catalogs. When using Catalog Store, the configurations
+of catalogs created in the session will be persisted in the corresponding external system of Catalog Store.
+Even if the session is reconstructed, previously created catalogs can still be retrieved from Catalog Store.
+
+### Configure Catalog Store
+
+Users can configure the Catalog Store in different ways, one is to use the Table API, and another is to use YAML configuration.
+
+Register a catalog store using catalog store instance:
+
+```java
+// Initialize a catalog Store instance
+CatalogStore catalogStore = new FileCatalogStore("file:///path/to/catalog/store/");
+
+// set up the catalog store
+final EnvironmentSettings settings =
+        EnvironmentSettings.newInstance().inBatchMode()
+        .withCatalogStore(catalogStore)
+        .build();
+```
+
+Register a catalog store using configuration:
+
+```java 
+// Set up configuration
+Configuration configuration = new Configuration();
+configuration.set("table.catalog-store.kind", "file");
+configuration.set("table.catalog-store.file.path", "file:///path/to/catalog/store/");
+// set up the configuration.
+final EnvironmentSettings settings =
+        EnvironmentSettings.newInstance().inBatchMode()
+        .withConfiguration(configuration)
+        .build();
+
+final TableEnvironment tableEnv = TableEnvironment.create(settings);
+```
+
+In SQL Gateway, it is recommended to configure the settings in a yaml file so that all sessions can automatically
+use the pre-created Catalog. Usually, you need to configure the kind of Catalog Store and other
+required parameters for the Catalog Store.
+
+```yaml
+table.catalog-store.kind: file
+table.catalog-store.file.path: file:///path/to/catalog/store/
+```
+
+### Catalog Store Type
+
+Flink has two built-in Catalog Stores, namely `GenericInMemoryCatalogStore` and `FileCatalogStore`,
+but the Catalog Store model is extendable, so users can also implement their own custom Catalog Store.
+
+#### GenericInMemoryCatalogStore
+
+`GenericInMemoryCatalogStore` is an implementation of `CatalogStore` that saves configuration information in memory.
+All catalog configurations are only available within the sessions' lifecycle, and the stored catalog configurations will be
+automatically cleared after the session is closed.
+
+{{< hint info >}}
+By default, if no Catalog Store related configuration is specified, the system uses this implementation.
+{{< /hint >}}
+
+#### FileCatalogStore
+
+`FileCatalogStore` can save the Catalog configuration to a file. To use `FileCatalogStore`, you need to specify the directory where the Catalog configurations
+needs to be saved. Each Catalog will have its own file named the same as the Catalog Name.
+
+The `FileCatalogStore` implementation supports both local and remote file systems that are available via the [Flink `FileSystem` abstraction]({{< ref "docs/deployment/filesystems/overview" >}}).
+If the given Catalog Store path does not exist either completely or partly, `FileCatalogStore` will try to create the missing directories.
+
+{{< hint warning >}}
+If the given Catalog Store path does not exist and `FileCatalogStore` fails to create a directory, the Catalog Store cannot be initialized, hence an exception will be thrown.
+In case the `FileCatalogstore` initialization is not successful, both SQL Client and SQL Gateway will be broken.
+{{< /hint >}}
+
+Here is an example directory structure representing the storage of Catalog configurations using `FileCatalogStore`:
+
+```shell
+- /path/to/save/the/catalog/
+  - catalog1.yaml
+  - catalog2.yaml
+  - catalog3.yaml
+```
+
+#### Catalog Store Configuration
+
+The following options can be used to adjust the Catalog Store behavior.
+
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>table.catalog-store.kind</h5></td>
+            <td style="word-wrap: break-word;">"generic_in_memory"</td>
+            <td>String</td>
+            <td>The kind of catalog store to be used. Out of the box, 'generic_in_memory' and 'file' options are supported.</td>
+        </tr>
+        <tr>
+            <td><h5>table.catalog-store.file.path</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The configuration option for specifying the path to the file catalog store root directory.</td>
+        </tr>
+    </tbody>
+</table>
+
+#### Custom Catalog Store
+
+Catalog Store is extensible, and users can customize Catalog Store by implementing its interface.
+If SQL CLI or SQL Gateway needs to use Catalog Store, the corresponding CatalogStoreFactory interface
+also needs to be implemented for this Catalog Store.
+
+```java
+public class CustomCatalogStoreFactory implements CatalogStoreFactory {
+
+    public static final String IDENTIFIER = "custom-kind";
+    
+    // Used to connect external storage systems
+    private CustomClient client;
+    
+    @Override
+    public CatalogStore createCatalogStore() {
+        return new CustomCatalogStore();
+    }
+
+    @Override
+    public void open(Context context) throws CatalogException {
+        // initialize the resources, such as http client
+        client = initClient(context);
+    }
+
+    @Override
+    public void close() throws CatalogException {
+        // release the resources
+    }
+
+    @Override
+    public String factoryIdentifier() {
+        // table store kind identifier
+        return IDENTIFIER;
+    }
+    
+    public Set<ConfigOption<?>> requiredOptions() {
+        // define the required options
+        Set<ConfigOption> options = new HashSet();
+        options.add(OPTION_1);
+        options.add(OPTION_2);
+        
+        return options;
+    }
+
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        // define the optional options
+    }
+}
+
+public class CustomCatalogStore extends AbstractCatalogStore {
+
+    private Client client;
+    
+    public CustomCatalogStore(Client client) {
+        this.client = client;
+    }
+
+    @Override
+    public void storeCatalog(String catalogName, CatalogDescriptor catalog)
+            throws CatalogException {
+        // store the catalog
+    }
+
+    @Override
+    public void removeCatalog(String catalogName, boolean ignoreIfNotExists)
+            throws CatalogException {
+        // remove the catalog descriptor
+    }
+
+    @Override
+    public Optional<CatalogDescriptor> getCatalog(String catalogName) {
+        // retrieve the catalog configuration and build the catalog descriptor
+    }
+
+    @Override
+    public Set<String> listCatalogs() {
+        // list all catalogs
+    }
+
+    @Override
+    public boolean contains(String catalogName) {
+    }
+}
+```

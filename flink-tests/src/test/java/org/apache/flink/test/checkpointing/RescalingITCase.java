@@ -48,8 +48,8 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
@@ -656,7 +656,7 @@ public class RescalingITCase extends TestLogger {
 
         DataStream<Integer> input = env.addSource(src);
 
-        input.addSink(new DiscardingSink<Integer>());
+        input.sinkTo(new DiscardingSink<>());
 
         return env.getStreamGraph().getJobGraph();
     }

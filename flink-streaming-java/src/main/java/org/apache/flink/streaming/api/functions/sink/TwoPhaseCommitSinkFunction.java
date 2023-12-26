@@ -45,6 +45,7 @@ import java.time.Clock;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -350,12 +351,12 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichS
         }
         LOG.debug("{} - started new transaction '{}'", name(), currentTransactionHolder);
 
-        state.clear();
-        state.add(
-                new State<>(
-                        this.currentTransactionHolder,
-                        new ArrayList<>(pendingCommitTransactions.values()),
-                        userContext));
+        state.update(
+                Collections.singletonList(
+                        new State<>(
+                                this.currentTransactionHolder,
+                                new ArrayList<>(pendingCommitTransactions.values()),
+                                userContext)));
     }
 
     @Override

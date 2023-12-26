@@ -84,13 +84,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
         producedTransformations = StreamExecRank.RANK_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
-@ExecNodeMetadata(
-        name = "stream-exec-rank",
-        version = 2,
-        consumedOptions = {"table.exec.rank.topn-cache-size"},
-        producedTransformations = StreamExecRank.RANK_TRANSFORMATION,
-        minPlanVersion = FlinkVersion.v1_18,
-        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecRank extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 

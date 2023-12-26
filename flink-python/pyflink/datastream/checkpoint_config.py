@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import warnings
 from enum import Enum
 from typing import Optional
 
@@ -440,7 +441,14 @@ class CheckpointConfig(object):
         HDFS, NFS Drivs, S3, and GCS, this storage policy supports large state size, in the
         magnitude of many terabytes while providing a highly available foundation for stateful
         applications. This checkpoint storage policy is recommended for most production deployments.
+
+        .. note:: Deprecated since version 1.19: This method is deprecated and will be removed in
+                  future FLINK major version. Use `stream_execution_environment.configure` method
+                  instead to set the checkpoint storage.
         """
+        warnings.warn("Deprecated since version 1.19: This method is deprecated and will be removed"
+                      " in future FLINK major version. Use `stream_execution_environment.configure`"
+                      " method instead to set the checkpoint storage.", DeprecationWarning)
         self._j_checkpoint_config.setCheckpointStorage(storage._j_checkpoint_storage)
         return self
 
@@ -448,7 +456,14 @@ class CheckpointConfig(object):
         """
         Configures the application to write out checkpoint snapshots to the configured directory.
         See `FileSystemCheckpointStorage` for more details on checkpointing to a file system.
+
+        .. note:: Deprecated since version 1.19: This method is deprecated and will be removed in
+                  future FLINK major version. Use `stream_execution_environment.configure` method
+                  instead to set the checkpoint storage.
         """
+        warnings.warn("Deprecated since version 1.19: This method is deprecated and will be removed"
+                      " in future FLINK major version. Use `stream_execution_environment.configure`"
+                      " method instead to set the checkpoint storage.", DeprecationWarning)
         self._j_checkpoint_config.setCheckpointStorage(checkpoint_path)
         return self
 
@@ -456,7 +471,14 @@ class CheckpointConfig(object):
         """
         The checkpoint storage that has been configured for the Job, or None if
         none has been set.
+
+        .. note:: Deprecated since version 1.19: This method is deprecated and will be removed in
+                  future FLINK major version. It is recommended to find which checkpoint storage is
+                  used by checkpoint storage ConfigOption.
         """
+        warnings.warn("Deprecated since version 1.19: This method is deprecated and will be removed"
+                      " in future FLINK major version. It is recommended to find which checkpoint"
+                      " storage is used by checkpoint storage ConfigOption.", DeprecationWarning)
         j_storage = self._j_checkpoint_config.getCheckpointStorage()
         if j_storage is None:
             return None

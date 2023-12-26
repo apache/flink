@@ -46,9 +46,9 @@
           },
           "partitionKeys" : [ ],
           "options" : {
-            "disable-lookup" : "true",
-            "connector" : "values",
             "bounded" : "false",
+            "connector" : "values",
+            "disable-lookup" : "true",
             "enable-watermark-push-down" : "true"
           }
         }
@@ -88,6 +88,13 @@
               "kind" : "ROWTIME"
             }
           } ]
+        },
+        "watermarkParams":{
+         "emitStrategy" : "ON_PERIODIC",
+         "alignGroupName" : null,
+         "alignMaxDrift" : "PT0S",
+         "alignUpdateInterval" : "PT1S",
+         "sourceIdleTimeout" : -1
         }
       } ]
     },
@@ -108,14 +115,15 @@
         }
       } ]
     },
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, WatermarkTable, watermark=[-(c, 5000:INTERVAL SECOND)]]], fields=[a, b, c])",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, WatermarkTable, watermark=[-(c, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c])",
     "inputProperties" : [ ]
   }, {
     "id" : 2,
-    "type" : "stream-exec-sink_2",
+    "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
       "table.exec.sink.type-length-enforcer" : "IGNORE",
       "table.exec.sink.upsert-materialize" : "AUTO"
     },

@@ -77,7 +77,7 @@ public class WindowedStateTransformation<T, K, W extends Window> {
         this.builder =
                 new WindowOperatorBuilder<>(
                         windowAssigner,
-                        windowAssigner.getDefaultTrigger(null),
+                        windowAssigner.getDefaultTrigger(),
                         input.getExecutionEnvironment().getConfig(),
                         input.getType(),
                         keySelector,

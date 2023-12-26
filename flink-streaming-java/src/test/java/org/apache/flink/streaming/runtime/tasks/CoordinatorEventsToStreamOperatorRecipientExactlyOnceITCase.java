@@ -33,7 +33,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorEventHandler;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -48,8 +48,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -108,8 +108,8 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
 
     private StreamExecutionEnvironment env;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.enableCheckpointing(100);
@@ -120,20 +120,20 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
     }
 
     @Test
-    public void testCheckpoint() throws Exception {
+    void testCheckpoint() throws Exception {
         executeAndVerifyResults(
                 env, new EventReceivingOperatorFactory<>("eventReceiving", NUM_EVENTS, DELAY));
     }
 
     @Test
-    public void testUnalignedCheckpoint() throws Exception {
+    void testUnalignedCheckpoint() throws Exception {
         env.getCheckpointConfig().enableUnalignedCheckpoints();
         executeAndVerifyResults(
                 env, new EventReceivingOperatorFactory<>("eventReceiving", NUM_EVENTS, DELAY));
     }
 
     @Test
-    public void testCheckpointWithSubtaskFailure() throws Exception {
+    void testCheckpointWithSubtaskFailure() throws Exception {
         executeAndVerifyResults(
                 env,
                 new EventReceivingOperatorWithFailureFactory<>(
@@ -145,7 +145,7 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
     }
 
     @Test
-    public void testUnalignedCheckpointWithSubtaskFailure() throws Exception {
+    void testUnalignedCheckpointWithSubtaskFailure() throws Exception {
         env.getCheckpointConfig().enableUnalignedCheckpoints();
         executeAndVerifyResults(
                 env,
@@ -166,7 +166,7 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
         env.addSource(new ManuallyClosedSourceFunction<>(), TypeInformation.of(Long.class))
                 .disableChaining()
                 .transform(factory.name, TypeInformation.of(Long.class), factory)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         JobExecutionResult executionResult =
                 MINI_CLUSTER

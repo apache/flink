@@ -30,7 +30,13 @@
             <td><h5>execution.checkpointing.interval</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Duration</td>
-            <td>Gets the interval in which checkpoints are periodically scheduled.<br /><br />This setting defines the base interval. Checkpoint triggering may be delayed by the settings <code class="highlighter-rouge">execution.checkpointing.max-concurrent-checkpoints</code> and <code class="highlighter-rouge">execution.checkpointing.min-pause</code></td>
+            <td>Gets the interval in which checkpoints are periodically scheduled.<br /><br />This setting defines the base interval. Checkpoint triggering may be delayed by the settings <code class="highlighter-rouge">execution.checkpointing.max-concurrent-checkpoints</code>, <code class="highlighter-rouge">execution.checkpointing.min-pause</code> and <code class="highlighter-rouge">execution.checkpointing.interval-during-backlog</code></td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.interval-during-backlog</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Duration</td>
+            <td>If it is not null and any source reports isProcessingBacklog=true, it is the interval in which checkpoints are periodically scheduled.<br /><br />Checkpoint triggering may be delayed by the settings <code class="highlighter-rouge">execution.checkpointing.max-concurrent-checkpoints</code> and <code class="highlighter-rouge">execution.checkpointing.min-pause</code>.<br /><br />Note: if it is not null, the value must either be 0, which means the checkpoint is disabled during backlog, or be larger than or equal to execution.checkpointing.interval.</td>
         </tr>
         <tr>
             <td><h5>execution.checkpointing.max-concurrent-checkpoints</h5></td>

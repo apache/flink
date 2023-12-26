@@ -18,8 +18,13 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
+
 /** Tests for the {@link ConfigurationInfo}. */
-public class ConfigurationInfoTest extends RestResponseMarshallingTestBase<ConfigurationInfo> {
+@ExtendWith(NoOpTestExtension.class)
+class ConfigurationInfoTest extends RestResponseMarshallingTestBase<ConfigurationInfo> {
 
     @Override
     protected Class<ConfigurationInfo> getTestResponseClass() {

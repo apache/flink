@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Optional;
 
 /** BlobWriter is used to upload data to the BLOB store. */
 public interface BlobWriter {
@@ -102,11 +103,13 @@ public interface BlobWriter {
         if (serializedValue.getByteArray().length < blobWriter.getMinOffloadingSize()) {
             return Either.Left(serializedValue);
         } else {
-            return offloadWithException(serializedValue, jobId, blobWriter);
+            return offloadWithException(serializedValue, jobId, blobWriter)
+                    .map(Either::<SerializedValue<T>, PermanentBlobKey>Right)
+                    .orElse(Either.Left(serializedValue));
         }
     }
 
-    static <T> Either<SerializedValue<T>, PermanentBlobKey> offloadWithException(
+    static <T> Optional<PermanentBlobKey> offloadWithException(
             SerializedValue<T> serializedValue, JobID jobId, BlobWriter blobWriter) {
         Preconditions.checkNotNull(serializedValue);
         Preconditions.checkNotNull(jobId);
@@ -114,10 +117,10 @@ public interface BlobWriter {
         try {
             final PermanentBlobKey permanentBlobKey =
                     blobWriter.putPermanent(jobId, serializedValue.getByteArray());
-            return Either.Right(permanentBlobKey);
+            return Optional.of(permanentBlobKey);
         } catch (IOException e) {
             LOG.warn("Failed to offload value for job {} to BLOB store.", jobId, e);
-            return Either.Left(serializedValue);
+            return Optional.empty();
         }
     }
 }

@@ -26,7 +26,6 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.metrics.MetricNames;
 
 /** Special {@link org.apache.flink.metrics.MetricGroup} representing an Operator. */
@@ -40,7 +39,8 @@ public class InternalSinkWriterMetricGroup extends ProxyMetricGroup<MetricGroup>
     private final Counter numBytesWritten;
     private final OperatorIOMetricGroup operatorIOMetricGroup;
 
-    private InternalSinkWriterMetricGroup(
+    @VisibleForTesting
+    InternalSinkWriterMetricGroup(
             MetricGroup parentMetricGroup, OperatorIOMetricGroup operatorIOMetricGroup) {
         super(parentMetricGroup);
         numRecordsOutErrors = parentMetricGroup.counter(MetricNames.NUM_RECORDS_OUT_ERRORS);
@@ -59,18 +59,6 @@ public class InternalSinkWriterMetricGroup extends ProxyMetricGroup<MetricGroup>
     public static InternalSinkWriterMetricGroup wrap(OperatorMetricGroup operatorMetricGroup) {
         return new InternalSinkWriterMetricGroup(
                 operatorMetricGroup, operatorMetricGroup.getIOMetricGroup());
-    }
-
-    @VisibleForTesting
-    public static InternalSinkWriterMetricGroup mock(MetricGroup metricGroup) {
-        return new InternalSinkWriterMetricGroup(
-                metricGroup, UnregisteredMetricsGroup.createOperatorIOMetricGroup());
-    }
-
-    @VisibleForTesting
-    public static InternalSinkWriterMetricGroup mock(
-            MetricGroup metricGroup, OperatorIOMetricGroup operatorIOMetricGroup) {
-        return new InternalSinkWriterMetricGroup(metricGroup, operatorIOMetricGroup);
     }
 
     @Override

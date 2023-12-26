@@ -249,6 +249,7 @@ class CatalogBaseTableResolutionTest {
         properties.put("version", "12");
         properties.put("connector", "custom");
         properties.put("comment", "This is an example table.");
+        properties.put("snapshot", "1688918400000");
         return properties;
     }
 

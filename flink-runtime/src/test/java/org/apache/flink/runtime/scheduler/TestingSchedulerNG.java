@@ -25,6 +25,7 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -140,6 +141,12 @@ public class TestingSchedulerNG implements SchedulerNG {
 
     @Override
     public ExecutionGraphInfo requestJob() {
+        failOperation();
+        return null;
+    }
+
+    @Override
+    public CheckpointStatsSnapshot requestCheckpointStats() {
         failOperation();
         return null;
     }

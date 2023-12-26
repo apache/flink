@@ -55,7 +55,7 @@ public interface HsDataView {
             int nextBufferToConsume, Collection<Buffer> buffersToRecycle);
 
     /**
-     * Get the number of buffers backlog.
+     * Get the number of buffers whose {@link Buffer.DataType} is buffer.
      *
      * @return backlog of this view's corresponding subpartition.
      */

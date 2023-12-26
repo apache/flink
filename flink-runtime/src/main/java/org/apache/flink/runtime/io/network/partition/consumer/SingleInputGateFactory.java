@@ -79,6 +79,8 @@ public class SingleInputGateFactory {
 
     protected final int partitionRequestMaxBackoff;
 
+    protected final int partitionRequestListenerTimeout;
+
     @Nonnull protected final ConnectionManager connectionManager;
 
     @Nonnull protected final ResultPartitionManager partitionManager;
@@ -101,9 +103,10 @@ public class SingleInputGateFactory {
 
     private final BufferDebloatConfiguration debloatConfiguration;
 
-    @Nullable
-    private final TieredStorageConfiguration
-            tieredStorageConfiguration; // is null if tiered storage shuffle is disabled.
+    /** The following attributes will be null if tiered storage shuffle is disabled. */
+    @Nullable private final TieredStorageConfiguration tieredStorageConfiguration;
+
+    @Nullable private final TieredStorageNettyServiceImpl tieredStorageNettyService;
 
     public SingleInputGateFactory(
             @Nonnull ResourceID taskExecutorResourceId,
@@ -112,10 +115,12 @@ public class SingleInputGateFactory {
             @Nonnull ResultPartitionManager partitionManager,
             @Nonnull TaskEventPublisher taskEventPublisher,
             @Nonnull NetworkBufferPool networkBufferPool,
-            @Nullable TieredStorageConfiguration tieredStorageConfiguration) {
+            @Nullable TieredStorageConfiguration tieredStorageConfiguration,
+            @Nullable TieredStorageNettyServiceImpl tieredStorageNettyService) {
         this.taskExecutorResourceId = taskExecutorResourceId;
         this.partitionRequestInitialBackoff = networkConfig.partitionRequestInitialBackoff();
         this.partitionRequestMaxBackoff = networkConfig.partitionRequestMaxBackoff();
+        this.partitionRequestListenerTimeout = networkConfig.getPartitionRequestListenerTimeout();
         this.maxRequiredBuffersPerGate = networkConfig.maxRequiredBuffersPerGate();
         this.configuredNetworkBuffersPerChannel =
                 NettyShuffleUtils.getNetworkBuffersPerInputChannel(
@@ -130,6 +135,7 @@ public class SingleInputGateFactory {
         this.networkBufferPool = networkBufferPool;
         this.debloatConfiguration = networkConfig.getDebloatConfiguration();
         this.tieredStorageConfiguration = tieredStorageConfiguration;
+        this.tieredStorageNettyService = tieredStorageNettyService;
     }
 
     /** Creates an input gate and all of its input channels. */
@@ -138,8 +144,7 @@ public class SingleInputGateFactory {
             int gateIndex,
             @Nonnull InputGateDeploymentDescriptor igdd,
             @Nonnull PartitionProducerStateProvider partitionProducerStateProvider,
-            @Nonnull InputChannelMetrics metrics,
-            @Nullable TieredStorageNettyServiceImpl nettyService) {
+            @Nonnull InputChannelMetrics metrics) {
         GateBuffersSpec gateBuffersSpec =
                 createGateBuffersSpec(
                         maxRequiredBuffersPerGate,
@@ -148,7 +153,8 @@ public class SingleInputGateFactory {
                         igdd.getConsumedPartitionType(),
                         calculateNumChannels(
                                 igdd.getShuffleDescriptors().length,
-                                igdd.getConsumedSubpartitionIndexRange()));
+                                igdd.getConsumedSubpartitionIndexRange()),
+                        tieredStorageConfiguration != null);
         SupplierWithException<BufferPool, IOException> bufferPoolFactory =
                 createBufferPoolFactory(
                         networkBufferPool,
@@ -187,7 +193,7 @@ public class SingleInputGateFactory {
                     new TieredStorageConsumerClient(
                             tieredStorageConfiguration.getTierFactories(),
                             tieredStorageConsumerSpecs,
-                            nettyService);
+                            tieredStorageNettyService);
         }
         SingleInputGate inputGate =
                 new SingleInputGate(
@@ -207,7 +213,7 @@ public class SingleInputGateFactory {
                         maybeCreateBufferDebloater(
                                 owningTaskName, gateIndex, networkInputGroup.addGroup(gateIndex)),
                         tieredStorageConsumerClient,
-                        nettyService,
+                        tieredStorageNettyService,
                         tieredStorageConsumerSpecs);
 
         createInputChannels(
@@ -304,6 +310,7 @@ public class SingleInputGateFactory {
                             connectionManager,
                             partitionRequestInitialBackoff,
                             partitionRequestMaxBackoff,
+                            partitionRequestListenerTimeout,
                             buffersPerChannel,
                             metrics);
                 },
@@ -360,6 +367,7 @@ public class SingleInputGateFactory {
                     connectionManager,
                     partitionRequestInitialBackoff,
                     partitionRequestMaxBackoff,
+                    partitionRequestListenerTimeout,
                     buffersPerChannel,
                     metrics);
         }

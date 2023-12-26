@@ -21,12 +21,12 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.source.mocks.MockSource;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.state.CheckpointStorage;
@@ -34,7 +34,7 @@ import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
@@ -83,7 +83,7 @@ public class ManualCheckpointITCase extends AbstractTestBase {
                         "generator")
                 .keyBy(key -> key % parallelism)
                 .flatMap(new StatefulMapper())
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         final JobClient jobClient = env.executeAsync();
         final JobID jobID = jobClient.getJobID();
@@ -115,7 +115,7 @@ public class ManualCheckpointITCase extends AbstractTestBase {
                         "generator")
                 .keyBy(key -> key % parallelism)
                 .flatMap(new StatefulMapper())
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         final JobClient jobClient = env.executeAsync();
         final JobID jobID = jobClient.getJobID();
@@ -158,7 +158,7 @@ public class ManualCheckpointITCase extends AbstractTestBase {
         private ValueState<Long> count;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             count =
                     getRuntimeContext()
                             .getState(

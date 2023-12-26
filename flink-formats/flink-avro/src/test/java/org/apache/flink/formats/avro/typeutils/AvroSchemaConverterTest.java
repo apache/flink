@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.formats.avro.utils.AvroTestUtils;
 import org.apache.flink.table.api.DataTypes;
@@ -38,9 +39,13 @@ import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -66,8 +71,9 @@ class AvroSchemaConverterTest {
         validateUserSchema(AvroSchemaConverter.convertToDataType(schema));
     }
 
-    @Test
-    void testAddingOptionalField() throws IOException {
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testAddingOptionalField(AvroEncoding encoding) throws IOException {
         Schema oldSchema =
                 SchemaBuilder.record("record")
                         .fields()
@@ -92,14 +98,21 @@ class AvroSchemaConverterTest {
                                 .set("category_id", 1L)
                                 .set("name", "test")
                                 .build(),
-                        oldSchema);
+                        oldSchema,
+                        encoding);
         GenericDatumReader<GenericRecord> datumReader =
                 new GenericDatumReader<>(oldSchema, newSchema);
-        GenericRecord newRecord =
-                datumReader.read(
-                        null,
-                        DecoderFactory.get()
-                                .binaryDecoder(serializedRecord, 0, serializedRecord.length, null));
+        Decoder decoder;
+        if (encoding == AvroEncoding.JSON) {
+            ByteArrayInputStream input = new ByteArrayInputStream(serializedRecord);
+            decoder = DecoderFactory.get().jsonDecoder(oldSchema, input);
+        } else {
+            decoder =
+                    DecoderFactory.get()
+                            .binaryDecoder(serializedRecord, 0, serializedRecord.length, null);
+        }
+
+        GenericRecord newRecord = datumReader.read(null, decoder);
         assertThat(newRecord)
                 .isEqualTo(
                         new GenericRecordBuilder(newSchema)

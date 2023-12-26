@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<artifactId>flink-examples-build-helper</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.19-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-examples-streaming-state-machine</artifactId>
@@ -71,15 +71,16 @@ under the License.
 							</transformers>
 							<artifactSet>
 								<includes>
-									<include>org.apache.flink:flink-connector-kafka*</include>
-									<include>org.apache.flink:flink-examples-streaming*</include>
+                                    <include>org.apache.flink:flink-connector-datagen</include>
+                                    <include>org.apache.flink:flink-connector-kafka</include>
+									<include>org.apache.flink:flink-examples-streaming</include>
 									<include>org.apache.kafka:*</include>
 								</includes>
 							</artifactSet>
 
 							<filters>
 								<filter>
-									<artifact>org.apache.flink:flink-examples-streaming_*</artifact>
+									<artifact>org.apache.flink:flink-examples-streaming</artifact>
 									<includes>
 										<include>org/apache/flink/streaming/examples/statemachine/**</include>
 									</includes>

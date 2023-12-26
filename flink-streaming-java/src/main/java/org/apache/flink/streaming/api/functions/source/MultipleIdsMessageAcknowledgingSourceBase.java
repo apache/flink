@@ -19,9 +19,9 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 
 import org.slf4j.Logger;
@@ -52,7 +52,11 @@ import java.util.Set;
  * @param <UId> The type of the unique IDs which are consistent across sessions.
  * @param <SessionId> The type of the IDs that are used for acknowledging elements (ids valid during
  *     session).
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
+@Deprecated
 @PublicEvolving
 public abstract class MultipleIdsMessageAcknowledgingSourceBase<Type, UId, SessionId>
         extends MessageAcknowledgingSourceBase<Type, UId> {
@@ -89,8 +93,8 @@ public abstract class MultipleIdsMessageAcknowledgingSourceBase<Type, UId, Sessi
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         sessionIds = new ArrayList<>(64);
         sessionIdsPerSnapshot = new ArrayDeque<>();
     }

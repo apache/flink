@@ -26,7 +26,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequestHandler;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
@@ -72,12 +71,12 @@ public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHan
     }
 
     @Override
-    public void initializeOperatorCoordinators(
-            ComponentMainThreadExecutor mainThreadExecutor,
-            JobManagerJobMetricGroup jobManagerJobMetricGroup) {
+    public void initializeOperatorCoordinators(ComponentMainThreadExecutor mainThreadExecutor) {
         for (OperatorCoordinatorHolder coordinatorHolder : coordinatorMap.values()) {
             coordinatorHolder.lazyInitialize(
-                    globalFailureHandler, mainThreadExecutor, jobManagerJobMetricGroup);
+                    globalFailureHandler,
+                    mainThreadExecutor,
+                    executionGraph.getCheckpointCoordinator());
         }
     }
 
@@ -154,13 +153,14 @@ public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHan
     @Override
     public void registerAndStartNewCoordinators(
             Collection<OperatorCoordinatorHolder> coordinators,
-            ComponentMainThreadExecutor mainThreadExecutor,
-            JobManagerJobMetricGroup jobManagerJobMetricGroup) {
+            ComponentMainThreadExecutor mainThreadExecutor) {
 
         for (OperatorCoordinatorHolder coordinator : coordinators) {
             coordinatorMap.put(coordinator.operatorId(), coordinator);
             coordinator.lazyInitialize(
-                    globalFailureHandler, mainThreadExecutor, jobManagerJobMetricGroup);
+                    globalFailureHandler,
+                    mainThreadExecutor,
+                    executionGraph.getCheckpointCoordinator());
         }
         startOperatorCoordinators(coordinators);
     }

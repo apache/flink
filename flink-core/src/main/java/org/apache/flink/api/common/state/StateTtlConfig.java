@@ -299,11 +299,39 @@ public class StateTtlConfig implements Serializable {
         }
 
         /**
+         * Cleanup expired state while Rocksdb compaction is running.
+         *
+         * <p>RocksDB compaction filter will query current timestamp, used to check expiration, from
+         * Flink every time after processing {@code queryTimeAfterNumEntries} number of state
+         * entries. Updating the timestamp more often can improve cleanup speed but it decreases
+         * compaction performance because it uses JNI call from native code.
+         *
+         * <p>Periodic compaction could speed up expired state entries cleanup, especially for state
+         * entries rarely accessed. Files older than this value will be picked up for compaction,
+         * and re-written to the same level as they were before. It makes sure a file goes through
+         * compaction filters periodically.
+         *
+         * @param queryTimeAfterNumEntries number of state entries to process by compaction filter
+         *     before updating current timestamp
+         * @param periodicCompactionTime periodic compaction which could speed up expired state
+         *     cleanup. 0 means turning off periodic compaction.
+         */
+        @Nonnull
+        public Builder cleanupInRocksdbCompactFilter(
+                long queryTimeAfterNumEntries, Time periodicCompactionTime) {
+            strategies.put(
+                    CleanupStrategies.Strategies.ROCKSDB_COMPACTION_FILTER,
+                    new RocksdbCompactFilterCleanupStrategy(
+                            queryTimeAfterNumEntries, periodicCompactionTime));
+            return this;
+        }
+
+        /**
          * Disable default cleanup of expired state in background (enabled by default).
          *
          * <p>If some specific cleanup is configured, e.g. {@link #cleanupIncrementally(int,
-         * boolean)} or {@link #cleanupInRocksdbCompactFilter(long)}, this setting does not disable
-         * it.
+         * boolean)} or {@link #cleanupInRocksdbCompactFilter(long)} or {@link
+         * #cleanupInRocksdbCompactFilter(long, Time)} , this setting does not disable it.
          */
         @Nonnull
         public Builder disableCleanupInBackground() {
@@ -433,6 +461,12 @@ public class StateTtlConfig implements Serializable {
             implements CleanupStrategies.CleanupStrategy {
         private static final long serialVersionUID = 3109278796506988980L;
 
+        /**
+         * Default value is 30 days so that every file goes through the compaction process at least
+         * once every 30 days if not compacted sooner.
+         */
+        static final Time DEFAULT_PERIODIC_COMPACTION_TIME = Time.days(30);
+
         static final RocksdbCompactFilterCleanupStrategy
                 DEFAULT_ROCKSDB_COMPACT_FILTER_CLEANUP_STRATEGY =
                         new RocksdbCompactFilterCleanupStrategy(1000L);
@@ -443,12 +477,30 @@ public class StateTtlConfig implements Serializable {
          */
         private final long queryTimeAfterNumEntries;
 
+        /**
+         * Periodic compaction could speed up expired state entries cleanup, especially for state
+         * entries rarely accessed. Files older than this value will be picked up for compaction,
+         * and re-written to the same level as they were before. It makes sure a file goes through
+         * compaction filters periodically. 0 means turning off periodic compaction.
+         */
+        private final Time periodicCompactionTime;
+
         private RocksdbCompactFilterCleanupStrategy(long queryTimeAfterNumEntries) {
+            this(queryTimeAfterNumEntries, DEFAULT_PERIODIC_COMPACTION_TIME);
+        }
+
+        private RocksdbCompactFilterCleanupStrategy(
+                long queryTimeAfterNumEntries, Time periodicCompactionTime) {
             this.queryTimeAfterNumEntries = queryTimeAfterNumEntries;
+            this.periodicCompactionTime = periodicCompactionTime;
         }
 
         public long getQueryTimeAfterNumEntries() {
             return queryTimeAfterNumEntries;
+        }
+
+        public Time getPeriodicCompactionTime() {
+            return periodicCompactionTime;
         }
     }
 }

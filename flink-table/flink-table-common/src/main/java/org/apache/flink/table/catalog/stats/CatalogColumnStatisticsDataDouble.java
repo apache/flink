@@ -18,11 +18,14 @@
 
 package org.apache.flink.table.catalog.stats;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
 /** Column statistics value of double type. */
+@PublicEvolving
 public class CatalogColumnStatisticsDataDouble extends CatalogColumnStatisticsDataBase {
     /** mim value. */
     private final Double min;

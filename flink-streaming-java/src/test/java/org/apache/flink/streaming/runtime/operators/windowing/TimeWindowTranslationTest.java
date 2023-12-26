@@ -58,7 +58,7 @@ public class TimeWindowTranslationTest {
         env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DummyReducer reducer = new DummyReducer();
 
@@ -111,7 +111,7 @@ public class TimeWindowTranslationTest {
         env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.keyBy(0)
@@ -139,7 +139,7 @@ public class TimeWindowTranslationTest {
         env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.keyBy(0)

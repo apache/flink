@@ -126,8 +126,9 @@ EmbeddedRocksDBStateBackend 是目前唯一支持增量 CheckPoint 的 State Bac
 {{< tabs "c8226811-7dea-4c75-8f56-44ee2f40a682" >}}
 {{< tab "Java" >}}
 ```java
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setStateBackend(new HashMapStateBackend());
+Configuration config = new Configuration();
+config.set(StateBackendOptions.STATE_BACKEND, "hashmap");
+env.configure(config);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -138,8 +139,9 @@ env.setStateBackend(new HashMapStateBackend())
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-env = StreamExecutionEnvironment.get_execution_environment()
-env.set_state_backend(HashMapStateBackend())
+config = Configuration()
+config.set_string('state.backend.type', 'hashmap')
+env = StreamExecutionEnvironment.get_execution_environment(config)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -497,9 +499,10 @@ state.checkpoint-storage: jobmanager
 {{< tabs "memorystatebackendmigration" >}}
 {{< tab "Java" >}}
 ```java
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setStateBackend(new HashMapStateBackend());
-env.getCheckpointConfig().setCheckpointStorage(new JobManagerCheckpointStorage());
+Configuration config = new Configuration();
+config.set(StateBackendOptions.STATE_BACKEND, "hashmap");
+config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "jobmanager");
+env.configure(config);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -511,9 +514,10 @@ env.getCheckpointConfig().setCheckpointStorage(new JobManagerCheckpointStorage)
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-env = StreamExecutionEnvironment.get_execution_environment()
-env.set_state_backend(HashMapStateBackend())
-env.get_checkpoint_config().set_checkpoint_storage(JobManagerCheckpointStorage())
+config = Configuration()
+config.set_string('state.backend.type', 'hashmap')
+config.set_string('state.checkpoint-storage', 'jobmanager')
+env = StreamExecutionEnvironment.get_execution_environment(config)
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -538,14 +542,17 @@ state.checkpoint-storage: filesystem
 {{< tabs "fsstatebackendmigration" >}}
 {{< tab "Java" >}}
 ```java
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setStateBackend(new HashMapStateBackend());
-env.getCheckpointConfig().setCheckpointStorage("file:///checkpoint-dir");
+Configuration config = new Configuration();
+config.set(StateBackendOptions.STATE_BACKEND, "hashmap");
+config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///checkpoint-dir");
+env.configure(config);
 
 
 // Advanced FsStateBackend configurations, such as write buffer size
-// can be set by manually instantiating a FileSystemCheckpointStorage object.
-env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage("file:///checkpoint-dir"));
+// can be set manually by using CheckpointingOptions.
+config.set(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, 4 * 1024);
+env.configure(config);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -562,14 +569,17 @@ env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage("
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-env = StreamExecutionEnvironment.get_execution_environment()
-env.set_state_backend(HashMapStateBackend())
-env.get_checkpoint_config().set_checkpoint_storage_dir("file:///checkpoint-dir")
+config = Configuration()
+config.set_string('state.backend.type', 'hashmap')
+config.set_string('state.checkpoint-storage', 'filesystem')
+config.set_string('state.checkpoints.dir', 'file:///checkpoint-dir')
+env = StreamExecutionEnvironment.get_execution_environment(config)
 
 
 # Advanced FsStateBackend configurations, such as write buffer size
-# can be set by manually instantiating a FileSystemCheckpointStorage object.
-env.get_checkpoint_config().set_checkpoint_storage(FileSystemCheckpointStorage("file:///checkpoint-dir"))
+# can be set manually by using CheckpointingOptions.
+config.set_string('state.storage.fs.write-buffer-size', '4096');
+env.configure(config);
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -594,19 +604,22 @@ state.checkpoint-storage: filesystem
 {{< tabs "rocksdbstatebackendmigration" >}}
 {{< tab "Java" >}}
 ```java
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setStateBackend(new EmbeddedRocksDBStateBackend());
-env.getCheckpointConfig().setCheckpointStorage("file:///checkpoint-dir");
+Configuration config = new Configuration();
+config.set(StateBackendOptions.STATE_BACKEND, "rocksdb");
+config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///checkpoint-dir");
+env.configure(config);
 
 
 // If you manually passed FsStateBackend into the RocksDBStateBackend constructor
 // to specify advanced checkpointing configurations such as write buffer size,
-// you can achieve the same results by using manually instantiating a FileSystemCheckpointStorage object.
-env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage("file:///checkpoint-dir"));
+// you can achieve the same results by using CheckpointingOptions.
+config.set(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, 4 * 1024);
+env.configure(config);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
-```java
+```scala
 val env = StreamExecutionEnvironment.getExecutionEnvironment
 env.setStateBackend(new EmbeddedRocksDBStateBackend)
 env.getCheckpointConfig().setCheckpointStorage("file:///checkpoint-dir")
@@ -620,15 +633,18 @@ env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage("
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-env = StreamExecutionEnvironment.get_execution_environment()
-env.set_state_backend(EmbeddedRocksDBStateBackend())
-env.get_checkpoint_config().set_checkpoint_storage_dir("file:///checkpoint-dir")
+config = Configuration()
+config.set_string('state.backend.type', 'hashmap')
+config.set_string('state.checkpoint-storage', 'filesystem')
+config.set_string('state.checkpoints.dir', 'file:///checkpoint-dir')
+env = StreamExecutionEnvironment.get_execution_environment(config)
 
 
 # If you manually passed FsStateBackend into the RocksDBStateBackend constructor
 # to specify advanced checkpointing configurations such as write buffer size,
-# you can achieve the same results by using manually instantiating a FileSystemCheckpointStorage object.
-env.get_checkpoint_config().set_checkpoint_storage(FileSystemCheckpointStorage("file:///checkpoint-dir"))
+# you can achieve the same results by using CheckpointingOptions.
+config.set_string('state.storage.fs.write-buffer-size', '4096');
+env.configure(config);
 ```
 {{< /tab >}}
 {{< /tabs>}}

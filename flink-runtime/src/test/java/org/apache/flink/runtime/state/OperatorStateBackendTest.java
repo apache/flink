@@ -40,13 +40,12 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
 import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.File;
 import java.io.IOException;
@@ -64,26 +63,22 @@ import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class OperatorStateBackendTest {
+class OperatorStateBackendTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ExecutorService> EXECUTOR_RESOURCE =
-            new TestExecutorResource<>(() -> Executors.newFixedThreadPool(1));
+    @RegisterExtension
+    private static final TestExecutorExtension<ExecutorService> EXECUTOR_EXTENSION =
+            new TestExecutorExtension<>(Executors::newCachedThreadPool);
 
     private final ClassLoader classLoader = getClass().getClassLoader();
     private final Collection<OperatorStateHandle> emptyStateHandles = Collections.emptyList();
 
     @Test
-    public void testCreateOnAbstractStateBackend() throws Exception {
+    void testCreateOnAbstractStateBackend() throws Exception {
         // we use the memory state backend as a subclass of the AbstractStateBackend
         final AbstractStateBackend abstractStateBackend = new MemoryStateBackend();
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
@@ -94,24 +89,25 @@ public class OperatorStateBackendTest {
                         emptyStateHandles,
                         cancelStreamRegistry);
 
-        assertNotNull(operatorStateBackend);
-        assertTrue(operatorStateBackend.getRegisteredStateNames().isEmpty());
-        assertTrue(operatorStateBackend.getRegisteredBroadcastStateNames().isEmpty());
+        assertThat(operatorStateBackend).isNotNull();
+        assertThat(operatorStateBackend.getRegisteredStateNames()).isEmpty();
+        assertThat(operatorStateBackend.getRegisteredBroadcastStateNames()).isEmpty();
     }
 
     @Test
-    public void testRegisterStatesWithoutTypeSerializer() throws Exception {
+    void testRegisterStatesWithoutTypeSerializer() throws Exception {
         // prepare an execution config with a non standard type registered
         final Class<?> registeredType = FutureTask.class;
 
         // validate the precondition of this test - if this condition fails, we need to pick a
         // different
         // example serializer
-        assertFalse(
-                new KryoSerializer<>(File.class, new ExecutionConfig())
-                                .getKryo()
-                                .getDefaultSerializer(registeredType)
-                        instanceof com.esotericsoftware.kryo.serializers.JavaSerializer);
+        assertThat(
+                        new KryoSerializer<>(File.class, new ExecutionConfig())
+                                        .getKryo()
+                                        .getDefaultSerializer(registeredType)
+                                instanceof com.esotericsoftware.kryo.serializers.JavaSerializer)
+                .isFalse();
 
         final ExecutionConfig cfg = new ExecutionConfig();
         cfg.registerTypeWithKryoSerializer(
@@ -127,36 +123,35 @@ public class OperatorStateBackendTest {
                 new ListStateDescriptor<>("test2", String.class);
 
         ListState<File> listState = operatorStateBackend.getListState(stateDescriptor);
-        assertNotNull(listState);
+        assertThat(listState).isNotNull();
 
         ListState<String> listState2 = operatorStateBackend.getListState(stateDescriptor2);
-        assertNotNull(listState2);
+        assertThat(listState2).isNotNull();
 
-        assertEquals(2, operatorStateBackend.getRegisteredStateNames().size());
+        assertThat(operatorStateBackend.getRegisteredStateNames()).hasSize(2);
 
         // make sure that type registrations are forwarded
         TypeSerializer<?> serializer =
                 ((PartitionableListState<?>) listState)
                         .getStateMetaInfo()
                         .getPartitionStateSerializer();
-        assertTrue(serializer instanceof KryoSerializer);
-        assertTrue(
-                ((KryoSerializer<?>) serializer).getKryo().getSerializer(registeredType)
-                        instanceof com.esotericsoftware.kryo.serializers.JavaSerializer);
+        assertThat(serializer).isInstanceOf(KryoSerializer.class);
+        assertThat(((KryoSerializer<?>) serializer).getKryo().getSerializer(registeredType))
+                .isInstanceOf(com.esotericsoftware.kryo.serializers.JavaSerializer.class);
 
         Iterator<String> it = listState2.get().iterator();
-        assertFalse(it.hasNext());
+        assertThat(it).isExhausted();
         listState2.add("kevin");
         listState2.add("sunny");
 
         it = listState2.get().iterator();
-        assertEquals("kevin", it.next());
-        assertEquals("sunny", it.next());
-        assertFalse(it.hasNext());
+        assertThat(it.next()).isEqualTo("kevin");
+        assertThat(it.next()).isEqualTo("sunny");
+        assertThat(it).isExhausted();
     }
 
     @Test
-    public void testRegisterStates() throws Exception {
+    void testRegisterStates() throws Exception {
         final OperatorStateBackend operatorStateBackend =
                 new DefaultOperatorStateBackendBuilder(
                                 classLoader,
@@ -173,86 +168,78 @@ public class OperatorStateBackendTest {
         ListStateDescriptor<Serializable> stateDescriptor3 =
                 new ListStateDescriptor<>("test3", new JavaSerializer<>());
         ListState<Serializable> listState1 = operatorStateBackend.getListState(stateDescriptor1);
-        assertNotNull(listState1);
-        assertEquals(1, operatorStateBackend.getRegisteredStateNames().size());
+        assertThat(listState1).isNotNull();
+        assertThat(operatorStateBackend.getRegisteredStateNames()).hasSize(1);
         Iterator<Serializable> it = listState1.get().iterator();
-        assertFalse(it.hasNext());
+        assertThat(it).isExhausted();
         listState1.add(42);
         listState1.add(4711);
 
         it = listState1.get().iterator();
-        assertEquals(42, it.next());
-        assertEquals(4711, it.next());
-        assertFalse(it.hasNext());
+        assertThat(it.next()).isEqualTo(42);
+        assertThat(it.next()).isEqualTo(4711);
+        assertThat(it).isExhausted();
 
         ListState<Serializable> listState2 = operatorStateBackend.getListState(stateDescriptor2);
-        assertNotNull(listState2);
-        assertEquals(2, operatorStateBackend.getRegisteredStateNames().size());
-        assertFalse(it.hasNext());
+        assertThat(listState2).isNotNull();
+        assertThat(operatorStateBackend.getRegisteredStateNames()).hasSize(2);
+        assertThat(it).isExhausted();
         listState2.add(7);
         listState2.add(13);
         listState2.add(23);
 
         it = listState2.get().iterator();
-        assertEquals(7, it.next());
-        assertEquals(13, it.next());
-        assertEquals(23, it.next());
-        assertFalse(it.hasNext());
+        assertThat(it.next()).isEqualTo(7);
+        assertThat(it.next()).isEqualTo(13);
+        assertThat(it.next()).isEqualTo(23);
+        assertThat(it).isExhausted();
 
         ListState<Serializable> listState3 =
                 operatorStateBackend.getUnionListState(stateDescriptor3);
-        assertNotNull(listState3);
-        assertEquals(3, operatorStateBackend.getRegisteredStateNames().size());
-        assertFalse(it.hasNext());
+        assertThat(listState3).isNotNull();
+        assertThat(operatorStateBackend.getRegisteredStateNames()).hasSize(3);
+        assertThat(it).isExhausted();
         listState3.add(17);
         listState3.add(3);
         listState3.add(123);
 
         it = listState3.get().iterator();
-        assertEquals(17, it.next());
-        assertEquals(3, it.next());
-        assertEquals(123, it.next());
-        assertFalse(it.hasNext());
+        assertThat(it.next()).isEqualTo(17);
+        assertThat(it.next()).isEqualTo(3);
+        assertThat(it.next()).isEqualTo(123);
+        assertThat(it).isExhausted();
 
         ListState<Serializable> listState1b = operatorStateBackend.getListState(stateDescriptor1);
-        assertNotNull(listState1b);
+        assertThat(listState1b).isNotNull();
         listState1b.add(123);
         it = listState1b.get().iterator();
-        assertEquals(42, it.next());
-        assertEquals(4711, it.next());
-        assertEquals(123, it.next());
-        assertFalse(it.hasNext());
+        assertThat(it.next()).isEqualTo(42);
+        assertThat(it.next()).isEqualTo(4711);
+        assertThat(it.next()).isEqualTo(123);
+        assertThat(it).isExhausted();
 
         it = listState1.get().iterator();
-        assertEquals(42, it.next());
-        assertEquals(4711, it.next());
-        assertEquals(123, it.next());
-        assertFalse(it.hasNext());
+        assertThat(it.next()).isEqualTo(42);
+        assertThat(it.next()).isEqualTo(4711);
+        assertThat(it.next()).isEqualTo(123);
+        assertThat(it).isExhausted();
 
         it = listState1b.get().iterator();
-        assertEquals(42, it.next());
-        assertEquals(4711, it.next());
-        assertEquals(123, it.next());
-        assertFalse(it.hasNext());
+        assertThat(it.next()).isEqualTo(42);
+        assertThat(it.next()).isEqualTo(4711);
+        assertThat(it.next()).isEqualTo(123);
+        assertThat(it).isExhausted();
 
-        try {
-            operatorStateBackend.getUnionListState(stateDescriptor2);
-            fail("Did not detect changed mode");
-        } catch (IllegalStateException ignored) {
+        assertThatThrownBy(() -> operatorStateBackend.getUnionListState(stateDescriptor2))
+                .isInstanceOf(IllegalStateException.class);
 
-        }
-
-        try {
-            operatorStateBackend.getListState(stateDescriptor3);
-            fail("Did not detect changed mode");
-        } catch (IllegalStateException ignored) {
-
-        }
+        assertThatThrownBy(() -> operatorStateBackend.getListState(stateDescriptor3))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testCorrectClassLoaderUsedOnSnapshot() throws Exception {
+    void testCorrectClassLoaderUsedOnSnapshot() throws Exception {
 
         AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
 
@@ -300,9 +287,9 @@ public class OperatorStateBackendTest {
         FutureUtils.runIfNotDoneAndGet(runnableFuture);
 
         // make sure that the copy method has been called
-        assertTrue(copyCounter.get() > 0);
-        assertTrue(keyCopyCounter.get() > 0);
-        assertTrue(valueCopyCounter.get() > 0);
+        assertThat(copyCounter.get()).isGreaterThan(0);
+        assertThat(keyCopyCounter.get()).isGreaterThan(0);
+        assertThat(valueCopyCounter.get()).isGreaterThan(0);
     }
 
     /** Int serializer which verifies that the given classloader is set for the copy operation */
@@ -336,14 +323,14 @@ public class OperatorStateBackendTest {
 
         @Override
         public Integer copy(Integer from) {
-            assertEquals(classLoader, Thread.currentThread().getContextClassLoader());
+            assertThat(classLoader).isEqualTo(Thread.currentThread().getContextClassLoader());
             atomicInteger.incrementAndGet();
             return IntSerializer.INSTANCE.copy(from);
         }
 
         @Override
         public Integer copy(Integer from, Integer reuse) {
-            assertEquals(classLoader, Thread.currentThread().getContextClassLoader());
+            assertThat(classLoader).isEqualTo(Thread.currentThread().getContextClassLoader());
             atomicInteger.incrementAndGet();
             return IntSerializer.INSTANCE.copy(from, reuse);
         }
@@ -370,7 +357,7 @@ public class OperatorStateBackendTest {
 
         @Override
         public void copy(DataInputView source, DataOutputView target) throws IOException {
-            assertEquals(classLoader, Thread.currentThread().getContextClassLoader());
+            assertThat(classLoader).isEqualTo(Thread.currentThread().getContextClassLoader());
             atomicInteger.incrementAndGet();
             IntSerializer.INSTANCE.copy(source, target);
         }
@@ -404,7 +391,7 @@ public class OperatorStateBackendTest {
     }
 
     @Test
-    public void testSnapshotEmpty() throws Exception {
+    void testSnapshotEmpty() throws Exception {
         final AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
 
@@ -427,11 +414,11 @@ public class OperatorStateBackendTest {
         SnapshotResult<OperatorStateHandle> snapshotResult =
                 FutureUtils.runIfNotDoneAndGet(snapshot);
         OperatorStateHandle stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
-        assertNull(stateHandle);
+        assertThat(stateHandle).isNull();
     }
 
     @Test
-    public void testSnapshotBroadcastStateWithEmptyOperatorState() throws Exception {
+    void testSnapshotBroadcastStateWithEmptyOperatorState() throws Exception {
         final AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
 
         OperatorStateBackend operatorStateBackend =
@@ -468,7 +455,7 @@ public class OperatorStateBackendTest {
             SnapshotResult<OperatorStateHandle> snapshotResult =
                     FutureUtils.runIfNotDoneAndGet(snapshot);
             stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
-            assertNotNull(stateHandle);
+            assertThat(stateHandle).isNotNull();
 
             final Map<Integer, Integer> retrieved = new HashMap<>();
 
@@ -482,7 +469,7 @@ public class OperatorStateBackendTest {
             for (Map.Entry<Integer, Integer> e : retrievedState.entries()) {
                 retrieved.put(e.getKey(), e.getValue());
             }
-            assertEquals(expected, retrieved);
+            assertThat(retrieved).isEqualTo(expected);
 
             // remove an element from both expected and stored state.
             retrievedState.remove(1);
@@ -509,7 +496,7 @@ public class OperatorStateBackendTest {
             for (Map.Entry<Integer, Integer> e : retrievedState.immutableEntries()) {
                 retrieved.put(e.getKey(), e.getValue());
             }
-            assertEquals(expected, retrieved);
+            assertThat(retrieved).isEqualTo(expected);
 
             // remove all elements from both expected and stored state.
             retrievedState.clear();
@@ -537,8 +524,8 @@ public class OperatorStateBackendTest {
             for (Map.Entry<Integer, Integer> e : retrievedState.immutableEntries()) {
                 retrieved.put(e.getKey(), e.getValue());
             }
-            assertTrue(expected.isEmpty());
-            assertEquals(expected, retrieved);
+            assertThat(expected).isEmpty();
+            assertThat(retrieved).isEqualTo(expected);
             if (stateHandle != null) {
                 stateHandle.discardState();
                 stateHandle = null;
@@ -553,7 +540,7 @@ public class OperatorStateBackendTest {
     }
 
     @Test
-    public void testSnapshotRestoreSync() throws Exception {
+    void testSnapshotRestoreSync() throws Exception {
         AbstractStateBackend abstractStateBackend = new MemoryStateBackend(2 * 4096);
 
         OperatorStateBackend operatorStateBackend =
@@ -629,8 +616,8 @@ public class OperatorStateBackendTest {
                             StateObjectCollection.singleton(stateHandle),
                             new CloseableRegistry());
 
-            assertEquals(3, operatorStateBackend.getRegisteredStateNames().size());
-            assertEquals(3, operatorStateBackend.getRegisteredBroadcastStateNames().size());
+            assertThat(operatorStateBackend.getRegisteredStateNames()).hasSize(3);
+            assertThat(operatorStateBackend.getRegisteredBroadcastStateNames()).hasSize(3);
 
             listState1 = operatorStateBackend.getListState(stateDescriptor1);
             listState2 = operatorStateBackend.getListState(stateDescriptor2);
@@ -640,47 +627,48 @@ public class OperatorStateBackendTest {
             broadcastState2 = operatorStateBackend.getBroadcastState(broadcastStateDescriptor2);
             broadcastState3 = operatorStateBackend.getBroadcastState(broadcastStateDescriptor3);
 
-            assertEquals(3, operatorStateBackend.getRegisteredStateNames().size());
-            assertEquals(3, operatorStateBackend.getRegisteredBroadcastStateNames().size());
+            assertThat(operatorStateBackend.getRegisteredStateNames()).hasSize(3);
+            assertThat(operatorStateBackend.getRegisteredBroadcastStateNames()).hasSize(3);
 
             Iterator<Serializable> it = listState1.get().iterator();
-            assertEquals(42, it.next());
-            assertEquals(4711, it.next());
-            assertFalse(it.hasNext());
+            assertThat(it.next()).isEqualTo(42);
+            assertThat(it.next()).isEqualTo(4711);
+            assertThat(it).isExhausted();
 
             it = listState2.get().iterator();
-            assertEquals(7, it.next());
-            assertEquals(13, it.next());
-            assertEquals(23, it.next());
-            assertFalse(it.hasNext());
+            assertThat(it.next()).isEqualTo(7);
+            assertThat(it.next()).isEqualTo(13);
+            assertThat(it.next()).isEqualTo(23);
+            assertThat(it).isExhausted();
 
             it = listState3.get().iterator();
-            assertEquals(17, it.next());
-            assertEquals(18, it.next());
-            assertEquals(19, it.next());
-            assertEquals(20, it.next());
-            assertFalse(it.hasNext());
+            assertThat(it.next()).isEqualTo(17);
+            assertThat(it.next()).isEqualTo(18);
+            assertThat(it.next()).isEqualTo(19);
+            assertThat(it.next()).isEqualTo(20);
+            assertThat(it).isExhausted();
 
             Iterator<Map.Entry<Serializable, Serializable>> bIt = broadcastState1.iterator();
-            assertTrue(bIt.hasNext());
+            assertThat(bIt).hasNext();
             Map.Entry<Serializable, Serializable> entry = bIt.next();
-            assertEquals(1, entry.getKey());
-            assertEquals(2, entry.getValue());
-            assertTrue(bIt.hasNext());
+            assertThat(entry.getKey()).isEqualTo(1);
+            assertThat(entry.getValue()).isEqualTo(2);
+
+            assertThat(bIt).hasNext();
             entry = bIt.next();
-            assertEquals(2, entry.getKey());
-            assertEquals(5, entry.getValue());
-            assertFalse(bIt.hasNext());
+            assertThat(entry.getKey()).isEqualTo(2);
+            assertThat(entry.getValue()).isEqualTo(5);
+            assertThat(bIt).isExhausted();
 
             bIt = broadcastState2.iterator();
-            assertTrue(bIt.hasNext());
+            assertThat(bIt).hasNext();
             entry = bIt.next();
-            assertEquals(2, entry.getKey());
-            assertEquals(5, entry.getValue());
-            assertFalse(bIt.hasNext());
+            assertThat(entry.getKey()).isEqualTo(2);
+            assertThat(entry.getValue()).isEqualTo(5);
+            assertThat(bIt).isExhausted();
 
             bIt = broadcastState3.iterator();
-            assertFalse(bIt.hasNext());
+            assertThat(bIt).isExhausted();
 
             operatorStateBackend.close();
             operatorStateBackend.dispose();
@@ -690,7 +678,7 @@ public class OperatorStateBackendTest {
     }
 
     @Test
-    public void testSnapshotRestoreAsync() throws Exception {
+    void testSnapshotRestoreAsync() throws Exception {
         OperatorStateBackend operatorStateBackend =
                 new DefaultOperatorStateBackendBuilder(
                                 OperatorStateBackendTest.class.getClassLoader(),
@@ -765,7 +753,7 @@ public class OperatorStateBackendTest {
                 operatorStateBackend.snapshot(
                         1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
-        ExecutorService executorService = EXECUTOR_RESOURCE.getExecutor();
+        ExecutorService executorService = EXECUTOR_EXTENSION.getExecutor();
 
         executorService.submit(runnableFuture);
 
@@ -814,8 +802,8 @@ public class OperatorStateBackendTest {
                             StateObjectCollection.singleton(stateHandle),
                             cancelStreamRegistry);
 
-            assertEquals(3, operatorStateBackend.getRegisteredStateNames().size());
-            assertEquals(3, operatorStateBackend.getRegisteredBroadcastStateNames().size());
+            assertThat(operatorStateBackend.getRegisteredStateNames()).hasSize(3);
+            assertThat(operatorStateBackend.getRegisteredBroadcastStateNames()).hasSize(3);
 
             listState1 = operatorStateBackend.getListState(stateDescriptor1);
             listState2 = operatorStateBackend.getListState(stateDescriptor2);
@@ -825,47 +813,47 @@ public class OperatorStateBackendTest {
             broadcastState2 = operatorStateBackend.getBroadcastState(broadcastStateDescriptor2);
             broadcastState3 = operatorStateBackend.getBroadcastState(broadcastStateDescriptor3);
 
-            assertEquals(3, operatorStateBackend.getRegisteredStateNames().size());
-            assertEquals(3, operatorStateBackend.getRegisteredBroadcastStateNames().size());
+            assertThat(operatorStateBackend.getRegisteredStateNames()).hasSize(3);
+            assertThat(operatorStateBackend.getRegisteredBroadcastStateNames()).hasSize(3);
 
             Iterator<MutableType> it = listState1.get().iterator();
-            assertEquals(42, it.next().value);
-            assertEquals(4711, it.next().value);
-            assertFalse(it.hasNext());
+            assertThat(it.next().value).isEqualTo(42);
+            assertThat(it.next().value).isEqualTo(4711);
+            assertThat(it).isExhausted();
 
             it = listState2.get().iterator();
-            assertEquals(7, it.next().value);
-            assertEquals(13, it.next().value);
-            assertEquals(23, it.next().value);
-            assertFalse(it.hasNext());
+            assertThat(it.next().value).isEqualTo(7);
+            assertThat(it.next().value).isEqualTo(13);
+            assertThat(it.next().value).isEqualTo(23);
+            assertThat(it).isExhausted();
 
             it = listState3.get().iterator();
-            assertEquals(17, it.next().value);
-            assertEquals(18, it.next().value);
-            assertEquals(19, it.next().value);
-            assertEquals(20, it.next().value);
-            assertFalse(it.hasNext());
+            assertThat(it.next().value).isEqualTo(17);
+            assertThat(it.next().value).isEqualTo(18);
+            assertThat(it.next().value).isEqualTo(19);
+            assertThat(it.next().value).isEqualTo(20);
+            assertThat(it).isExhausted();
 
             Iterator<Map.Entry<MutableType, MutableType>> bIt = broadcastState1.iterator();
-            assertTrue(bIt.hasNext());
+            assertThat(bIt).hasNext();
             Map.Entry<MutableType, MutableType> entry = bIt.next();
-            assertEquals(1, entry.getKey().value);
-            assertEquals(2, entry.getValue().value);
-            assertTrue(bIt.hasNext());
+            assertThat(entry.getKey().value).isOne();
+            assertThat(entry.getValue().value).isEqualTo(2);
+            assertThat(bIt).hasNext();
             entry = bIt.next();
-            assertEquals(2, entry.getKey().value);
-            assertEquals(5, entry.getValue().value);
-            assertFalse(bIt.hasNext());
+            assertThat(entry.getKey().value).isEqualTo(2);
+            assertThat(entry.getValue().value).isEqualTo(5);
+            assertThat(bIt).isExhausted();
 
             bIt = broadcastState2.iterator();
-            assertTrue(bIt.hasNext());
+            assertThat(bIt).hasNext();
             entry = bIt.next();
-            assertEquals(2, entry.getKey().value);
-            assertEquals(5, entry.getValue().value);
-            assertFalse(bIt.hasNext());
+            assertThat(entry.getKey().value).isEqualTo(2);
+            assertThat(entry.getValue().value).isEqualTo(5);
+            assertThat(bIt).isExhausted();
 
             bIt = broadcastState3.iterator();
-            assertFalse(bIt.hasNext());
+            assertThat(bIt).isExhausted();
 
             operatorStateBackend.close();
             operatorStateBackend.dispose();
@@ -877,7 +865,7 @@ public class OperatorStateBackendTest {
     }
 
     @Test
-    public void testSnapshotAsyncClose() throws Exception {
+    void testSnapshotAsyncClose() throws Exception {
         DefaultOperatorStateBackend operatorStateBackend =
                 new DefaultOperatorStateBackendBuilder(
                                 OperatorStateBackendTest.class.getClassLoader(),
@@ -919,7 +907,7 @@ public class OperatorStateBackendTest {
                 operatorStateBackend.snapshot(
                         1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
-        EXECUTOR_RESOURCE.getExecutor().submit(runnableFuture);
+        EXECUTOR_EXTENSION.getExecutor().submit(runnableFuture);
 
         // wait until the async checkpoint is in the write code, then continue
         waiterLatch.await();
@@ -928,15 +916,12 @@ public class OperatorStateBackendTest {
 
         blockerLatch.trigger();
 
-        try {
-            runnableFuture.get(60, TimeUnit.SECONDS);
-            Assert.fail();
-        } catch (CancellationException expected) {
-        }
+        assertThatThrownBy(() -> runnableFuture.get(60, TimeUnit.SECONDS))
+                .isInstanceOf(CancellationException.class);
     }
 
     @Test
-    public void testSnapshotAsyncCancel() throws Exception {
+    void testSnapshotAsyncCancel() throws Exception {
         DefaultOperatorStateBackend operatorStateBackend =
                 new DefaultOperatorStateBackendBuilder(
                                 OperatorStateBackendTest.class.getClassLoader(),
@@ -967,7 +952,7 @@ public class OperatorStateBackendTest {
                 operatorStateBackend.snapshot(
                         1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
-        EXECUTOR_RESOURCE.getExecutor().submit(runnableFuture);
+        EXECUTOR_EXTENSION.getExecutor().submit(runnableFuture);
 
         // wait until the async checkpoint is in the stream's write code, then continue
         waiterLatch.await();
@@ -976,17 +961,14 @@ public class OperatorStateBackendTest {
         runnableFuture.cancel(true);
 
         for (BlockingCheckpointOutputStream stream : streamFactory.getAllCreatedStreams()) {
-            Assert.assertTrue(stream.isClosed());
+            assertThat(stream.isClosed()).isTrue();
         }
 
         // we allow the stream under test to proceed
         blockerLatch.trigger();
 
-        try {
-            runnableFuture.get(60, TimeUnit.SECONDS);
-            Assert.fail();
-        } catch (CancellationException ignore) {
-        }
+        assertThatThrownBy(() -> runnableFuture.get(60, TimeUnit.SECONDS))
+                .isInstanceOf(CancellationException.class);
     }
 
     static final class MutableType implements Serializable {

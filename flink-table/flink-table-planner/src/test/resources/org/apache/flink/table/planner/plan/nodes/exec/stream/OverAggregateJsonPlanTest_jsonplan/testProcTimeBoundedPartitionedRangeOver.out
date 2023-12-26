@@ -56,8 +56,8 @@
           },
           "partitionKeys" : [ ],
           "options" : {
-            "connector" : "values",
-            "bounded" : "false"
+            "bounded" : "false",
+            "connector" : "values"
           }
         }
       },
@@ -421,10 +421,11 @@
     "description" : "Calc(select=[$3 AS a, CAST((CASE((w0$o0 > 0), w0$o1, null:BIGINT) / w0$o0) AS DOUBLE) AS b])"
   }, {
     "id" : 8,
-    "type" : "stream-exec-sink_2",
+    "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
       "table.exec.sink.type-length-enforcer" : "IGNORE",
       "table.exec.sink.upsert-materialize" : "AUTO"
     },
@@ -444,9 +445,9 @@
           },
           "partitionKeys" : [ ],
           "options" : {
+            "connector" : "values",
             "sink-insert-only" : "false",
-            "table-sink-class" : "DEFAULT",
-            "connector" : "values"
+            "table-sink-class" : "DEFAULT"
           }
         }
       }

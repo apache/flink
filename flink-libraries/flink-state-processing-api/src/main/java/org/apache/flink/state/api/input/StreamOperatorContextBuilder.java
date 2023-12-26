@@ -19,6 +19,7 @@
 package org.apache.flink.state.api.input;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
@@ -49,6 +50,8 @@ class StreamOperatorContextBuilder {
 
     private final RuntimeContext ctx;
 
+    private final ExecutionConfig executionConfig;
+
     private final Configuration configuration;
 
     private final OperatorState operatorState;
@@ -71,7 +74,8 @@ class StreamOperatorContextBuilder {
             OperatorState operatorState,
             PrioritizedOperatorSubtaskStateInputSplit split,
             CloseableRegistry registry,
-            @Nullable StateBackend applicationStateBackend) {
+            @Nullable StateBackend applicationStateBackend,
+            ExecutionConfig executionConfig) {
         this.ctx = ctx;
         this.maxParallelism = ctx.getMaxNumberOfParallelSubtasks();
         this.configuration = configuration;
@@ -79,6 +83,7 @@ class StreamOperatorContextBuilder {
         this.split = split;
         this.registry = registry;
         this.applicationStateBackend = applicationStateBackend;
+        this.executionConfig = executionConfig;
     }
 
     StreamOperatorContextBuilder withMaxParallelism(int maxParallelism) {
@@ -94,7 +99,7 @@ class StreamOperatorContextBuilder {
 
     StreamOperatorStateContext build(Logger logger) throws IOException {
         final Environment environment =
-                new SavepointEnvironment.Builder(ctx, maxParallelism)
+                new SavepointEnvironment.Builder(ctx, executionConfig, maxParallelism)
                         .setConfiguration(configuration)
                         .setSubtaskIndex(split.getSplitNumber())
                         .setPrioritizedOperatorSubtaskState(

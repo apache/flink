@@ -23,8 +23,8 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunction
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.types.Row;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -32,16 +32,16 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /** Integration tests for correlate. */
-public class CorrelateJsonPlanITCase extends JsonPlanTestBase {
+class CorrelateJsonPlanITCase extends JsonPlanTestBase {
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         List<Row> data = Collections.singletonList(Row.of("1,1,hi"));
         createTestValuesSourceTable("MyTable", data, "a varchar");
     }
 
     @Test
-    public void testSystemFuncByObject() throws ExecutionException, InterruptedException {
+    void testSystemFuncByObject() throws ExecutionException, InterruptedException {
         tableEnv.createTemporarySystemFunction(
                 "STRING_SPLIT", new JavaUserDefinedTableFunctions.StringSplit());
         createTestValuesSinkTable("MySink", "a STRING", "b STRING");
@@ -49,11 +49,11 @@ public class CorrelateJsonPlanITCase extends JsonPlanTestBase {
                 "insert into MySink SELECT a, v FROM MyTable, lateral table(STRING_SPLIT(a, ',')) as T(v)";
         compileSqlAndExecutePlan(query).await();
         List<String> expected = Arrays.asList("+I[1,1,hi, 1]", "+I[1,1,hi, 1]", "+I[1,1,hi, hi]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 
     @Test
-    public void testSystemFuncByClass() throws ExecutionException, InterruptedException {
+    void testSystemFuncByClass() throws ExecutionException, InterruptedException {
         tableEnv.createTemporarySystemFunction(
                 "STRING_SPLIT", JavaUserDefinedTableFunctions.StringSplit.class);
         createTestValuesSinkTable("MySink", "a STRING", "b STRING");
@@ -61,11 +61,11 @@ public class CorrelateJsonPlanITCase extends JsonPlanTestBase {
                 "insert into MySink SELECT a, v FROM MyTable, lateral table(STRING_SPLIT(a, ',')) as T(v)";
         compileSqlAndExecutePlan(query).await();
         List<String> expected = Arrays.asList("+I[1,1,hi, 1]", "+I[1,1,hi, 1]", "+I[1,1,hi, hi]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 
     @Test
-    public void testTemporaryFuncByObject() throws ExecutionException, InterruptedException {
+    void testTemporaryFuncByObject() throws ExecutionException, InterruptedException {
         tableEnv.createTemporaryFunction(
                 "STRING_SPLIT", new JavaUserDefinedTableFunctions.StringSplit());
         createTestValuesSinkTable("MySink", "a STRING", "b STRING");
@@ -73,11 +73,11 @@ public class CorrelateJsonPlanITCase extends JsonPlanTestBase {
                 "insert into MySink SELECT a, v FROM MyTable, lateral table(STRING_SPLIT(a, ',')) as T(v)";
         compileSqlAndExecutePlan(query).await();
         List<String> expected = Arrays.asList("+I[1,1,hi, 1]", "+I[1,1,hi, 1]", "+I[1,1,hi, hi]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 
     @Test
-    public void testTemporaryFuncByClass() throws ExecutionException, InterruptedException {
+    void testTemporaryFuncByClass() throws ExecutionException, InterruptedException {
         tableEnv.createTemporaryFunction(
                 "STRING_SPLIT", JavaUserDefinedTableFunctions.StringSplit.class);
         createTestValuesSinkTable("MySink", "a STRING", "b STRING");
@@ -85,11 +85,11 @@ public class CorrelateJsonPlanITCase extends JsonPlanTestBase {
                 "insert into MySink SELECT a, v FROM MyTable, lateral table(STRING_SPLIT(a, ',')) as T(v)";
         compileSqlAndExecutePlan(query).await();
         List<String> expected = Arrays.asList("+I[1,1,hi, 1]", "+I[1,1,hi, 1]", "+I[1,1,hi, hi]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 
     @Test
-    public void testFilter() throws ExecutionException, InterruptedException {
+    void testFilter() throws ExecutionException, InterruptedException {
         tableEnv.createTemporarySystemFunction(
                 "STRING_SPLIT", new JavaUserDefinedTableFunctions.StringSplit());
         createTestValuesSinkTable("MySink", "a STRING", "b STRING");
@@ -99,11 +99,11 @@ public class CorrelateJsonPlanITCase extends JsonPlanTestBase {
                         + "where try_cast(v as int) > 0";
         compileSqlAndExecutePlan(query).await();
         List<String> expected = Arrays.asList("+I[1,1,hi, 1]", "+I[1,1,hi, 1]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 
     @Test
-    public void testUnnest() throws ExecutionException, InterruptedException {
+    void testUnnest() throws ExecutionException, InterruptedException {
         List<Row> data =
                 Collections.singletonList(
                         Row.of("Bob", new Row[] {Row.of("1"), Row.of("2"), Row.of("3")}));
@@ -114,6 +114,6 @@ public class CorrelateJsonPlanITCase extends JsonPlanTestBase {
                 "INSERT INTO MySink SELECT name, nested FROM MyNestedTable CROSS JOIN UNNEST(arr) AS t (nested)";
         compileSqlAndExecutePlan(query).await();
         List<String> expected = Arrays.asList("+I[Bob, 1]", "+I[Bob, 2]", "+I[Bob, 3]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 }

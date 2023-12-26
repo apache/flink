@@ -28,8 +28,10 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.operations.ProjectQueryOperation;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.test.junit5.MiniClusterExtension;
@@ -38,7 +40,7 @@ import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
@@ -55,8 +57,10 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.apache.flink.table.api.Expressions.row;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -73,8 +77,10 @@ import static org.assertj.core.api.Assertions.catchThrowable;
  */
 @Execution(ExecutionMode.CONCURRENT)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@ExtendWith(MiniClusterExtension.class)
 abstract class BuiltInFunctionTestBase {
+
+    @RegisterExtension
+    public static final MiniClusterExtension MINI_CLUSTER_EXTENSION = new MiniClusterExtension();
 
     Configuration getConfiguration() {
         return new Configuration();
@@ -133,7 +139,7 @@ abstract class BuiltInFunctionTestBase {
 
         private final List<TestItem> testItems;
 
-        private Object[] fieldData;
+        private @Nullable Object[] fieldData;
 
         private @Nullable AbstractDataType<?>[] fieldDataTypes;
 
@@ -178,6 +184,11 @@ abstract class BuiltInFunctionTestBase {
                     singletonList(expression), singletonList(result), singletonList(dataType));
         }
 
+        TestSetSpec testTableApiResult(Expression expression, AbstractDataType<?> dataType) {
+            return testTableApiResult(
+                    singletonList(expression), emptyList(), singletonList(dataType));
+        }
+
         TestSetSpec testTableApiResult(
                 List<Expression> expression,
                 List<Object> result,
@@ -207,6 +218,10 @@ abstract class BuiltInFunctionTestBase {
 
         TestSetSpec testSqlResult(String expression, Object result, AbstractDataType<?> dataType) {
             return testSqlResult(expression, singletonList(result), singletonList(dataType));
+        }
+
+        TestSetSpec testSqlResult(String expression, AbstractDataType<?> dataType) {
+            return testSqlResult(expression, emptyList(), singletonList(dataType));
         }
 
         TestSetSpec testSqlResult(
@@ -281,6 +296,7 @@ abstract class BuiltInFunctionTestBase {
                 List<AbstractDataType<?>> tableApiDataType,
                 List<AbstractDataType<?>> sqlDataType) {
             testItems.add(new TableApiResultTestItem(expression, result, tableApiDataType));
+            testItems.add(new TableApiSqlResultTestItem(expression, result, tableApiDataType));
             testItems.add(
                     new SqlResultTestItem(String.join(",", sqlExpression), result, sqlDataType));
             return this;
@@ -303,8 +319,13 @@ abstract class BuiltInFunctionTestBase {
                         functions.forEach(
                                 f -> env.createTemporarySystemFunction(f.getSimpleName(), f));
 
+                        Preconditions.checkArgument(
+                                !(fieldData == null && fieldDataTypes != null),
+                                "The field data type is set but the field data is not.");
                         final Table inputTable;
-                        if (fieldDataTypes == null) {
+                        if (fieldData == null) {
+                            inputTable = null;
+                        } else if (fieldDataTypes == null) {
                             inputTable = env.fromValues(Row.of(fieldData));
                         } else {
                             final DataTypes.UnresolvedField[] fields =
@@ -329,7 +350,12 @@ abstract class BuiltInFunctionTestBase {
     }
 
     private interface TestItem {
-        void test(TableEnvironmentInternal env, Table inputTable) throws Exception;
+        /**
+         * @param env The table environment for test to execute.
+         * @param inputTable The input table of this test that contains input data and data type. If
+         *     it is null, the test is not dependent on the input data.
+         */
+        void test(TableEnvironmentInternal env, @Nullable Table inputTable) throws Exception;
     }
 
     private abstract static class ResultTestItem<T> implements TestItem {
@@ -343,10 +369,11 @@ abstract class BuiltInFunctionTestBase {
             this.dataTypes = dataTypes;
         }
 
-        abstract Table query(TableEnvironment env, Table inputTable);
+        abstract Table query(TableEnvironment env, @Nullable Table inputTable);
 
         @Override
-        public void test(TableEnvironmentInternal env, Table inputTable) throws Exception {
+        public void test(TableEnvironmentInternal env, @Nullable Table inputTable)
+                throws Exception {
             final Table resultTable = this.query(env, inputTable);
 
             final List<DataType> expectedDataTypes =
@@ -360,20 +387,27 @@ abstract class BuiltInFunctionTestBase {
                 assertThat(iterator).as("No more rows expected.").isExhausted();
 
                 for (int i = 0; i < row.getArity(); i++) {
-                    assertThat(
-                                    result.getResolvedSchema()
-                                            .getColumnDataTypes()
-                                            .get(i)
-                                            .getLogicalType())
-                            .as("Logical type for spec [%d] of test [%s] doesn't match.", i, this)
-                            .isEqualTo(expectedDataTypes.get(i).getLogicalType());
+                    if (!expectedDataTypes.isEmpty()) {
+                        assertThat(
+                                        result.getResolvedSchema()
+                                                .getColumnDataTypes()
+                                                .get(i)
+                                                .getLogicalType())
+                                .as(
+                                        "Logical type for spec [%d] of test [%s] doesn't match.",
+                                        i, this)
+                                .isEqualTo(expectedDataTypes.get(i).getLogicalType());
+                    }
 
-                    assertThat(Row.of(row.getField(i)))
-                            .as("Result for spec [%d] of test [%s] doesn't match.", i, this)
-                            .isEqualTo(
-                                    // Use Row.equals() to enable equality for complex structure,
-                                    // i.e. byte[]
-                                    Row.of(this.results.get(i)));
+                    if (!this.results.isEmpty()) {
+                        assertThat(Row.of(row.getField(i)))
+                                .as("Result for spec [%d] of test [%s] doesn't match.", i, this)
+                                .isEqualTo(
+                                        // Use Row.equals() to enable equality for complex
+                                        // structure,
+                                        // i.e. byte[]
+                                        Row.of(this.results.get(i)));
+                    }
                 }
             }
         }
@@ -397,7 +431,7 @@ abstract class BuiltInFunctionTestBase {
             this.expectedDuringValidation = expectedDuringValidation;
         }
 
-        abstract Table query(TableEnvironment env, Table inputTable);
+        abstract Table query(TableEnvironment env, @Nullable Table inputTable);
 
         Consumer<? super Throwable> errorMatcher() {
             if (errorClass != null && errorMessage != null) {
@@ -410,7 +444,7 @@ abstract class BuiltInFunctionTestBase {
         }
 
         @Override
-        public void test(TableEnvironmentInternal env, Table inputTable) {
+        public void test(TableEnvironmentInternal env, @Nullable Table inputTable) {
             AtomicReference<TableResult> tableResult = new AtomicReference<>();
 
             Throwable t =
@@ -442,13 +476,49 @@ abstract class BuiltInFunctionTestBase {
         }
 
         @Override
-        Table query(TableEnvironment env, Table inputTable) {
-            return inputTable.select(expression.toArray(new Expression[] {}));
+        Table query(TableEnvironment env, @Nullable Table inputTable) {
+            if (inputTable != null) {
+                return inputTable.select(expression.toArray(new Expression[] {}));
+            } else {
+                // use a mock collection table with row "0" to avoid pruning the project
+                // node with expression by PruneEmptyRules.PROJECT_INSTANCE
+                return env.fromValues(row(0)).select(expression.toArray(new Expression[] {}));
+            }
         }
 
         @Override
         public String toString() {
             return "[API] "
+                    + expression.stream()
+                            .map(Expression::asSummaryString)
+                            .collect(Collectors.joining(", "));
+        }
+    }
+
+    private static class TableApiSqlResultTestItem extends ResultTestItem<List<Expression>> {
+
+        TableApiSqlResultTestItem(
+                List<Expression> expressions,
+                List<Object> results,
+                List<AbstractDataType<?>> dataTypes) {
+            super(expressions, results, dataTypes);
+        }
+
+        @Override
+        Table query(TableEnvironment env, Table inputTable) {
+            final Table select = inputTable.select(expression.toArray(new Expression[] {}));
+            final ProjectQueryOperation projectQueryOperation =
+                    (ProjectQueryOperation) select.getQueryOperation();
+            final String exprAsSerializableString =
+                    projectQueryOperation.getProjectList().stream()
+                            .map(ResolvedExpression::asSerializableString)
+                            .collect(Collectors.joining(", "));
+            return env.sqlQuery("SELECT " + exprAsSerializableString + " FROM " + inputTable);
+        }
+
+        @Override
+        public String toString() {
+            return "[API as SQL] "
                     + expression.stream()
                             .map(Expression::asSummaryString)
                             .collect(Collectors.joining(", "));
@@ -484,8 +554,12 @@ abstract class BuiltInFunctionTestBase {
         }
 
         @Override
-        Table query(TableEnvironment env, Table inputTable) {
-            return env.sqlQuery("SELECT " + expression + " FROM " + inputTable);
+        Table query(TableEnvironment env, @Nullable Table inputTable) {
+            if (inputTable != null) {
+                return env.sqlQuery("SELECT " + expression + " FROM " + inputTable);
+            } else {
+                return env.sqlQuery("SELECT " + expression);
+            }
         }
 
         @Override

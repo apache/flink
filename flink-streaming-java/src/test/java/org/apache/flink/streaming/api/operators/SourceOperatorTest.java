@@ -18,6 +18,7 @@ limitations under the License.
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.mocks.MockSourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
@@ -26,12 +27,21 @@ import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.operators.coordination.MockOperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
+import org.apache.flink.runtime.source.event.IsProcessingBacklogEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.streaming.api.operators.source.CollectingDataOutput;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
+import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.streaming.util.CollectorOutput;
 import org.apache.flink.util.CollectionUtil;
 
 import org.junit.After;
@@ -40,11 +50,13 @@ import org.junit.Test;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -191,5 +203,75 @@ public class SourceOperatorTest {
         operator.snapshotState(new StateSnapshotContextSynchronousImpl(100L, 100L));
         operator.notifyCheckpointAborted(100L);
         assertEquals(100L, (long) mockSourceReader.getAbortedCheckpoints().get(0));
+    }
+
+    @Test
+    public void testHandleBacklogEvent() throws Exception {
+        List<StreamElement> outputStreamElements = new ArrayList<>();
+        context =
+                new SourceOperatorTestContext(
+                        false,
+                        WatermarkStrategy.<Integer>forMonotonousTimestamps()
+                                .withTimestampAssigner((element, recordTimestamp) -> element),
+                        new CollectorOutput<>(outputStreamElements));
+        operator = context.getOperator();
+        operator.initializeState(context.createStateContext());
+        operator.open();
+
+        MockSourceSplit newSplit = new MockSourceSplit(2);
+        newSplit.addRecord(1);
+        newSplit.addRecord(1001);
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(
+                        Collections.singletonList(newSplit), new MockSourceSplitSerializer()));
+        final DataOutputToOutput<Integer> output = new DataOutputToOutput<>(operator.output);
+        operator.emitNext(output);
+        operator.handleOperatorEvent(new IsProcessingBacklogEvent(true));
+
+        operator.emitNext(output);
+        operator.handleOperatorEvent(new IsProcessingBacklogEvent(false));
+
+        assertThat(outputStreamElements)
+                .containsExactly(
+                        new StreamRecord<>(1, 1),
+                        new Watermark(0),
+                        new RecordAttributes(true),
+                        new StreamRecord<>(1001, 1001),
+                        new Watermark(1000),
+                        new RecordAttributes(false));
+    }
+
+    private static class DataOutputToOutput<T> implements PushingAsyncDataInput.DataOutput<T> {
+
+        private final Output<StreamRecord<T>> output;
+
+        DataOutputToOutput(Output<StreamRecord<T>> output) {
+            this.output = output;
+        }
+
+        @Override
+        public void emitRecord(StreamRecord<T> streamRecord) throws Exception {
+            output.collect(streamRecord);
+        }
+
+        @Override
+        public void emitWatermark(Watermark watermark) throws Exception {
+            output.emitWatermark(watermark);
+        }
+
+        @Override
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+            output.emitWatermarkStatus(watermarkStatus);
+        }
+
+        @Override
+        public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
+            output.emitLatencyMarker(latencyMarker);
+        }
+
+        @Override
+        public void emitRecordAttributes(RecordAttributes recordAttributes) throws Exception {
+            output.emitRecordAttributes(recordAttributes);
+        }
     }
 }

@@ -40,7 +40,7 @@ public class TestManagedFileSourceSplitSerializer
     public byte[] serialize(TestManagedIterableSourceSplit split) throws IOException {
         final DataOutputSerializer out = new DataOutputSerializer(64);
         out.writeUTF(split.splitId());
-        split.getFilePath().write(out);
+        Path.serializeToDataOutputView(split.getFilePath(), out);
         final byte[] result = out.getCopyOfBuffer();
         out.clear();
         return result;
@@ -52,8 +52,8 @@ public class TestManagedFileSourceSplitSerializer
         if (version == VERSION) {
             final DataInputDeserializer in = new DataInputDeserializer(serialized);
             final String id = in.readUTF();
-            final Path path = new Path();
-            path.read(in);
+            Path result = Path.deserializeFromDataInputView(in);
+            final Path path = result == null ? new Path() : result;
             return new TestManagedIterableSourceSplit(id, path);
         }
         throw new IOException(String.format("Unknown version %d", version));

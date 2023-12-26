@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators.sort;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichGroupCombineFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
@@ -33,28 +34,21 @@ import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.util.EmptyMutableObjectIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link ExternalSorter}. */
-public class ExternalSorterTest extends TestLogger {
+class ExternalSorterTest {
 
     @Test
-    public void testInMemorySorterDisposal() throws Exception {
+    void testInMemorySorterDisposal() throws Exception {
         final TestingInMemorySorterFactory<Tuple2<Integer, Integer>> inMemorySorterFactory =
                 new TestingInMemorySorterFactory<>();
 
@@ -85,12 +79,12 @@ public class ExternalSorterTest extends TestLogger {
             final Collection<TestingInMemorySorter<?>> inMemorySorters =
                     inMemorySorterFactory.getInMemorySorters();
 
-            assertThat(inMemorySorters, is(not(empty())));
+            assertThat(inMemorySorters).isNotEmpty();
 
             unilateralSortMerger.close();
 
             for (TestingInMemorySorter<?> inMemorySorter : inMemorySorters) {
-                assertThat(inMemorySorter.isDisposed(), is(true));
+                assertThat(inMemorySorter.isDisposed()).isTrue();
             }
         } finally {
             memoryManager.shutdown();
@@ -98,7 +92,7 @@ public class ExternalSorterTest extends TestLogger {
     }
 
     @Test
-    public void testOpeningCombineUdf() throws Exception {
+    void testOpeningCombineUdf() throws Exception {
         final TestingInMemorySorterFactory<Tuple2<Integer, Integer>> inMemorySorterFactory =
                 new TestingInMemorySorterFactory<>();
 
@@ -134,8 +128,8 @@ public class ExternalSorterTest extends TestLogger {
             // wait for the results
             unilateralSortMerger.getIterator();
             unilateralSortMerger.close();
-            assertTrue("Combiner was not opened", combiner.isOpen);
-            assertTrue("Combiner was not closed", combiner.isClosed);
+            assertThat(combiner.isOpen).withFailMessage("Combiner was not opened").isTrue();
+            assertThat(combiner.isClosed).withFailMessage("Combiner was not closed").isTrue();
         } finally {
             memoryManager.shutdown();
         }
@@ -151,10 +145,9 @@ public class ExternalSorterTest extends TestLogger {
         boolean isClosed = false;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            assertFalse("UDF was already opened", isOpen);
+        public void open(OpenContext openContext) throws Exception {
+            assertThat(isOpen).withFailMessage("UDF was already opened").isFalse();
             isOpen = true;
-            assertThat(parameters.get(testOption), equalTo("TEST"));
         }
 
         @Override

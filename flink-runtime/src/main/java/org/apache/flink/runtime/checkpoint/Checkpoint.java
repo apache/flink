@@ -17,6 +17,11 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.util.concurrent.FutureUtils;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+
 /** A checkpoint, pending or completed. */
 public interface Checkpoint {
     DiscardObject NOOP_DISCARD_OBJECT = () -> {};
@@ -33,5 +38,9 @@ public interface Checkpoint {
     /** Extra interface for discarding the checkpoint. */
     interface DiscardObject {
         void discard() throws Exception;
+
+        default CompletableFuture<Void> discardAsync(Executor ioExecutor) {
+            return FutureUtils.runAsync(this::discard, ioExecutor);
+        }
     }
 }

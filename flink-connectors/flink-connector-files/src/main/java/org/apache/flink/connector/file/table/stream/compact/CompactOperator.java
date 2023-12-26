@@ -45,6 +45,7 @@ import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -168,9 +169,8 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
     }
 
     private void snapshotState(long checkpointId) throws Exception {
-        expiredFilesState.clear();
         expiredFiles.put(checkpointId, new ArrayList<>(currentExpiredFiles));
-        expiredFilesState.add(expiredFiles);
+        expiredFilesState.update(Collections.singletonList(expiredFiles));
         currentExpiredFiles.clear();
     }
 

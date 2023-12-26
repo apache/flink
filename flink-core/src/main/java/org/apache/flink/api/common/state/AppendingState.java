@@ -58,7 +58,8 @@ public interface AppendingState<IN, OUT> extends State {
      * of values. The next time {@link #get()} is called (for the same state partition) the returned
      * state will represent the updated list.
      *
-     * <p>If null is passed in, the state value will remain unchanged.
+     * <p>If null is passed in, the behaviour is undefined (implementation related). TODO: An
+     * unified behaviour across all sub-classes.
      *
      * @param value The new value for the state.
      * @throws Exception Thrown if the system cannot access the state.

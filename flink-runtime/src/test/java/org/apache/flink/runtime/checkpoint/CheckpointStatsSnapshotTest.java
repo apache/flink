@@ -20,9 +20,9 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -30,7 +30,7 @@ public class CheckpointStatsSnapshotTest {
 
     /** Tests that the snapshot is actually serializable. */
     @Test
-    public void testIsJavaSerializable() throws Exception {
+    void testIsJavaSerializable() throws Exception {
         CheckpointStatsCounts counts = new CheckpointStatsCounts();
         counts.incrementInProgressCheckpoints();
         counts.incrementInProgressCheckpoints();
@@ -57,31 +57,24 @@ public class CheckpointStatsSnapshotTest {
 
         CheckpointStatsSnapshot copy = CommonTestUtils.createCopySerializable(snapshot);
 
-        assertEquals(
-                counts.getNumberOfCompletedCheckpoints(),
-                copy.getCounts().getNumberOfCompletedCheckpoints());
-        assertEquals(
-                counts.getNumberOfFailedCheckpoints(),
-                copy.getCounts().getNumberOfFailedCheckpoints());
-        assertEquals(
-                counts.getNumberOfInProgressCheckpoints(),
-                copy.getCounts().getNumberOfInProgressCheckpoints());
-        assertEquals(
-                counts.getNumberOfRestoredCheckpoints(),
-                copy.getCounts().getNumberOfRestoredCheckpoints());
-        assertEquals(
-                counts.getTotalNumberOfCheckpoints(),
-                copy.getCounts().getTotalNumberOfCheckpoints());
+        assertThat(copy.getCounts().getNumberOfCompletedCheckpoints())
+                .isEqualTo(counts.getNumberOfCompletedCheckpoints());
+        assertThat(copy.getCounts().getNumberOfFailedCheckpoints())
+                .isEqualTo(counts.getNumberOfFailedCheckpoints());
+        assertThat(copy.getCounts().getNumberOfInProgressCheckpoints())
+                .isEqualTo(counts.getNumberOfInProgressCheckpoints());
+        assertThat(copy.getCounts().getNumberOfRestoredCheckpoints())
+                .isEqualTo(counts.getNumberOfRestoredCheckpoints());
+        assertThat(copy.getCounts().getTotalNumberOfCheckpoints())
+                .isEqualTo(counts.getTotalNumberOfCheckpoints());
 
-        assertEquals(
-                summary.getStateSizeStats().getSum(),
-                copy.getSummaryStats().getStateSizeStats().getSum());
-        assertEquals(
-                summary.getEndToEndDurationStats().getSum(),
-                copy.getSummaryStats().getEndToEndDurationStats().getSum());
+        assertThat(copy.getSummaryStats().getStateSizeStats().getSum())
+                .isEqualTo(summary.getStateSizeStats().getSum());
+        assertThat(copy.getSummaryStats().getEndToEndDurationStats().getSum())
+                .isEqualTo(summary.getEndToEndDurationStats().getSum());
 
-        assertEquals(
-                restored.getCheckpointId(), copy.getLatestRestoredCheckpoint().getCheckpointId());
+        assertThat(copy.getLatestRestoredCheckpoint().getCheckpointId())
+                .isEqualTo(restored.getCheckpointId());
     }
 
     private CompletedCheckpointStats createCompletedCheckpointsStats(

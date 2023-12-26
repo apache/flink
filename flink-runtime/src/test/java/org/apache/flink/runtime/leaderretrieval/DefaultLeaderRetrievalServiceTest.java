@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for {@link DefaultLeaderElectionService}. */
 class DefaultLeaderRetrievalServiceTest {
 
-    private static final String TEST_URL = "akka//user/jobmanager";
+    private static final String TEST_URL = "pekko://user/jobmanager";
 
     @Test
     void testNotifyLeaderAddress() throws Exception {

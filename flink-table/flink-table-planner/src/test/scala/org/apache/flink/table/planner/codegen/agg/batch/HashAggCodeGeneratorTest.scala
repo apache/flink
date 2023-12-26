@@ -26,7 +26,7 @@ import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.types.logical._
 
 import org.apache.calcite.rel.core.AggregateCall
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.mockito.Mockito.{mock, when}
 
 /** Test for [[HashAggCodeGenerator]]. */
@@ -59,6 +59,7 @@ class HashAggCodeGeneratorTest extends BatchAggTestBase {
     val call = mock(classOf[AggregateCall])
     when(aggInfo.agg).thenReturn(call)
     when(call.getName).thenReturn("avg3")
+    when(call.hasFilter).thenReturn(false)
     when(aggInfo.function).thenReturn(new LongAvgAggFunction)
     when(aggInfo.externalAccTypes).thenReturn(Array(DataTypes.BIGINT, DataTypes.BIGINT))
     when(aggInfo.argIndexes).thenReturn(Array(3))

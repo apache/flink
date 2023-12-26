@@ -71,8 +71,12 @@ import java.util.stream.Stream;
  * Resolved locations are cached. When the server address of the requested KvState instance is
  * determined, the client sends out a request to the server. The returned final answer is then
  * forwarded to the Client.
+ *
+ * @deprecated The Queryable State feature is deprecated since Flink 1.18, and will be removed in a
+ *     future Flink major version.
  */
 @PublicEvolving
+@Deprecated
 public class QueryableStateClient {
 
     private static final Logger LOG = LoggerFactory.getLogger(QueryableStateClient.class);

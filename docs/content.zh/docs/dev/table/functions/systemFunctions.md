@@ -175,6 +175,7 @@ Known Limitations:
 | :----------------------- | :--------------------------- |
 | withColumns(...)         | 选择指定的列                   |
 | withoutColumns(...)      | 选择除指定列以外的列            |
+| withAllColumns()    | select all columns (like `SELECT *` in SQL) |
 
 详细语法如下：
 
@@ -182,6 +183,7 @@ Known Limitations:
 列函数:
     withColumns(columnExprs)
     withoutColumns(columnExprs)
+    withAllColumns()
 
 多列表达式:
     columnExpr [, columnExpr]*

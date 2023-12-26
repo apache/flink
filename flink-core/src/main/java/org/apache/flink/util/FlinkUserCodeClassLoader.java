@@ -32,7 +32,7 @@ public abstract class FlinkUserCodeClassLoader extends MutableURLClassLoader {
         ClassLoader.registerAsParallelCapable();
     }
 
-    private final Consumer<Throwable> classLoadingExceptionHandler;
+    protected final Consumer<Throwable> classLoadingExceptionHandler;
 
     protected FlinkUserCodeClassLoader(URL[] urls, ClassLoader parent) {
         this(urls, parent, NOOP_EXCEPTION_HANDLER);

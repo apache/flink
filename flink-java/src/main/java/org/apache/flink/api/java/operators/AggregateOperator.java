@@ -23,6 +23,7 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Operator;
@@ -35,7 +36,6 @@ import org.apache.flink.api.java.aggregation.AggregationFunctionFactory;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
@@ -47,7 +47,13 @@ import java.util.List;
  * data set produced by the function.
  *
  * @param <IN> The type of the data set aggregated by the operator.
+ * @deprecated All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a
+ *     future Flink major version. You can still build your application in DataSet, but you should
+ *     move to either the DataStream and/or Table API.
+ * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
+ *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet API</a>
  */
+@Deprecated
 @Public
 public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, AggregateOperator<IN>> {
 
@@ -277,7 +283,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             for (AggregationFunction<Object> aggFunction : aggFunctions) {
                 aggFunction.initializeAggregate();
             }

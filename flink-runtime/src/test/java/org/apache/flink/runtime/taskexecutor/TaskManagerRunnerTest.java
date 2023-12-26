@@ -36,49 +36,40 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.TimeUtils;
 
-import org.junit.After;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.net.InetAddress;
+import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link TaskManagerRunner}. */
-public class TaskManagerRunnerTest extends TestLogger {
+class TaskManagerRunnerTest {
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
-
-    @Rule public final Timeout timeout = Timeout.seconds(30);
+    @TempDir private Path temporaryFolder;
 
     private TaskManagerRunner taskManagerRunner;
 
-    @After
-    public void after() throws Exception {
+    @AfterEach
+    void after() throws Exception {
         if (taskManagerRunner != null) {
             taskManagerRunner.close();
         }
     }
 
     @Test
-    public void testShouldShutdownOnFatalError() throws Exception {
+    void testShouldShutdownOnFatalError() throws Exception {
         Configuration configuration = createConfiguration();
         // very high timeout, to ensure that we don't fail because of registration timeouts
         configuration.set(TaskManagerOptions.REGISTRATION_TIMEOUT, TimeUtils.parseDuration("42 h"));
@@ -86,59 +77,59 @@ public class TaskManagerRunnerTest extends TestLogger {
 
         taskManagerRunner.onFatalError(new RuntimeException());
 
-        assertThat(
-                taskManagerRunner.getTerminationFuture().join(),
-                is(equalTo(TaskManagerRunner.Result.FAILURE)));
+        assertThatFuture(taskManagerRunner.getTerminationFuture())
+                .eventuallySucceeds()
+                .isEqualTo(TaskManagerRunner.Result.FAILURE);
     }
 
     @Test
-    public void testShouldShutdownIfRegistrationWithJobManagerFails() throws Exception {
+    void testShouldShutdownIfRegistrationWithJobManagerFails() throws Exception {
         Configuration configuration = createConfiguration();
         configuration.set(
                 TaskManagerOptions.REGISTRATION_TIMEOUT, TimeUtils.parseDuration("10 ms"));
         taskManagerRunner = createTaskManagerRunner(configuration);
 
-        assertThat(
-                taskManagerRunner.getTerminationFuture().join(),
-                is(equalTo(TaskManagerRunner.Result.FAILURE)));
+        assertThatFuture(taskManagerRunner.getTerminationFuture())
+                .eventuallySucceeds()
+                .isEqualTo(TaskManagerRunner.Result.FAILURE);
     }
 
     @Test
-    public void testGenerateTaskManagerResourceIDWithMetaData() throws Exception {
+    void testGenerateTaskManagerResourceIDWithMetaData() throws Exception {
         final Configuration configuration = createConfiguration();
         final String metadata = "test";
         configuration.set(TaskManagerOptionsInternal.TASK_MANAGER_RESOURCE_ID_METADATA, metadata);
         final ResourceID taskManagerResourceID =
                 TaskManagerRunner.getTaskManagerResourceID(configuration, "", -1).unwrap();
 
-        assertThat(taskManagerResourceID.getMetadata(), equalTo(metadata));
+        assertThat(taskManagerResourceID.getMetadata()).isEqualTo(metadata);
     }
 
     @Test
-    public void testGenerateTaskManagerResourceIDWithoutMetaData() throws Exception {
+    void testGenerateTaskManagerResourceIDWithoutMetaData() throws Exception {
         final Configuration configuration = createConfiguration();
         final String resourceID = "test";
         configuration.set(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID, resourceID);
         final ResourceID taskManagerResourceID =
                 TaskManagerRunner.getTaskManagerResourceID(configuration, "", -1).unwrap();
 
-        assertThat(taskManagerResourceID.getMetadata(), equalTo(""));
-        assertThat(taskManagerResourceID.getStringWithMetadata(), equalTo("test"));
+        assertThat(taskManagerResourceID.getMetadata()).isEmpty();
+        assertThat(taskManagerResourceID.getStringWithMetadata()).isEqualTo("test");
     }
 
     @Test
-    public void testGenerateTaskManagerResourceIDWithConfig() throws Exception {
+    void testGenerateTaskManagerResourceIDWithConfig() throws Exception {
         final Configuration configuration = createConfiguration();
         final String resourceID = "test";
         configuration.set(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID, resourceID);
         final ResourceID taskManagerResourceID =
                 TaskManagerRunner.getTaskManagerResourceID(configuration, "", -1).unwrap();
 
-        assertThat(taskManagerResourceID.getResourceIdString(), equalTo(resourceID));
+        assertThat(taskManagerResourceID.getResourceIdString()).isEqualTo(resourceID);
     }
 
     @Test
-    public void testGenerateTaskManagerResourceIDWithRemoteRpcService() throws Exception {
+    void testGenerateTaskManagerResourceIDWithRemoteRpcService() throws Exception {
         final Configuration configuration = createConfiguration();
         final String rpcAddress = "flink";
         final int rpcPort = 9090;
@@ -146,14 +137,13 @@ public class TaskManagerRunnerTest extends TestLogger {
                 TaskManagerRunner.getTaskManagerResourceID(configuration, rpcAddress, rpcPort)
                         .unwrap();
 
-        assertThat(taskManagerResourceID, notNullValue());
-        assertThat(
-                taskManagerResourceID.getResourceIdString(),
-                containsString(rpcAddress + ":" + rpcPort));
+        assertThat(taskManagerResourceID).isNotNull();
+        assertThat(taskManagerResourceID.getResourceIdString())
+                .contains(rpcAddress + ":" + rpcPort);
     }
 
     @Test
-    public void testGenerateTaskManagerResourceIDWithLocalRpcService() throws Exception {
+    void testGenerateTaskManagerResourceIDWithLocalRpcService() throws Exception {
         final Configuration configuration = createConfiguration();
         final String rpcAddress = "";
         final int rpcPort = -1;
@@ -161,14 +151,13 @@ public class TaskManagerRunnerTest extends TestLogger {
                 TaskManagerRunner.getTaskManagerResourceID(configuration, rpcAddress, rpcPort)
                         .unwrap();
 
-        assertThat(taskManagerResourceID, notNullValue());
-        assertThat(
-                taskManagerResourceID.getResourceIdString(),
-                containsString(InetAddress.getLocalHost().getHostName()));
+        assertThat(taskManagerResourceID).isNotNull();
+        assertThat(taskManagerResourceID.getResourceIdString())
+                .contains(InetAddress.getLocalHost().getHostName());
     }
 
     @Test
-    public void testUnexpectedTaskManagerTerminationFailsRunnerFatally() throws Exception {
+    void testUnexpectedTaskManagerTerminationFailsRunnerFatally() throws Exception {
         final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
         final TestingTaskExecutorService taskExecutorService =
                 TestingTaskExecutorService.newBuilder()
@@ -181,14 +170,13 @@ public class TaskManagerRunnerTest extends TestLogger {
 
         terminationFuture.complete(null);
 
-        assertThat(
-                taskManagerRunner.getTerminationFuture().join(),
-                is(equalTo(TaskManagerRunner.Result.FAILURE)));
+        assertThatFuture(taskManagerRunner.getTerminationFuture())
+                .eventuallySucceeds()
+                .isEqualTo(TaskManagerRunner.Result.FAILURE);
     }
 
     @Test
-    public void testUnexpectedTaskManagerTerminationAfterRunnerCloseWillBeIgnored()
-            throws Exception {
+    void testUnexpectedTaskManagerTerminationAfterRunnerCloseWillBeIgnored() throws Exception {
         final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
         final TestingTaskExecutorService taskExecutorService =
                 TestingTaskExecutorService.newBuilder()
@@ -204,14 +192,14 @@ public class TaskManagerRunnerTest extends TestLogger {
 
         terminationFuture.complete(null);
 
-        assertThat(
-                taskManagerRunner.getTerminationFuture().join(),
-                is(equalTo(TaskManagerRunner.Result.SUCCESS)));
+        assertThatFuture(taskManagerRunner.getTerminationFuture())
+                .eventuallySucceeds()
+                .isEqualTo(TaskManagerRunner.Result.SUCCESS);
     }
 
     @Test
-    public void testWorkingDirIsSetupWhenStartingTaskManagerRunner() throws Exception {
-        final File workingDirBase = TEMPORARY_FOLDER.newFolder();
+    void testWorkingDirIsSetupWhenStartingTaskManagerRunner() throws Exception {
+        final File workingDirBase = TempDirUtils.newFolder(temporaryFolder);
         final ResourceID taskManagerResourceId = new ResourceID("foobar");
 
         final Configuration configuration =
@@ -222,14 +210,15 @@ public class TaskManagerRunnerTest extends TestLogger {
         final TaskManagerRunner taskManagerRunner = createTaskManagerRunner(configuration);
 
         try {
-            assertTrue(workingDir.exists());
+            assertThat(workingDir).exists();
         } finally {
             taskManagerRunner.close();
         }
 
-        assertFalse(
-                "The working dir should be cleaned up when stopping the TaskManager process gracefully.",
-                workingDir.exists());
+        assertThat(workingDir)
+                .withFailMessage(
+                        "The working dir should be cleaned up when stopping the TaskManager process gracefully.")
+                .doesNotExist();
     }
 
     @Nonnull
@@ -245,8 +234,8 @@ public class TaskManagerRunnerTest extends TestLogger {
     }
 
     @Test
-    public void testWorkingDirIsNotDeletedInCaseOfFailure() throws Exception {
-        final File workingDirBase = TEMPORARY_FOLDER.newFolder();
+    void testWorkingDirIsNotDeletedInCaseOfFailure() throws Exception {
+        final File workingDirBase = TempDirUtils.newFolder(temporaryFolder);
         final ResourceID resourceId = ResourceID.generate();
 
         final Configuration configuration =
@@ -258,10 +247,10 @@ public class TaskManagerRunnerTest extends TestLogger {
 
         taskManagerRunner.getTerminationFuture().join();
 
-        assertTrue(
-                ClusterEntrypointUtils.generateTaskManagerWorkingDirectoryFile(
-                                configuration, resourceId)
-                        .exists());
+        assertThat(
+                        ClusterEntrypointUtils.generateTaskManagerWorkingDirectoryFile(
+                                configuration, resourceId))
+                .exists();
     }
 
     @Nonnull

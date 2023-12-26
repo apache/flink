@@ -265,7 +265,7 @@ GroupAggregate(select=[COUNT(*) AS EXPR$0])
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
 +- LogicalProject($f0=[0])
    +- LogicalProject(sys_col=[$2], id=[$0], cnt=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src, metadata=[sys_col]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -286,7 +286,7 @@ GroupAggregate(select=[COUNT(*) AS EXPR$0])
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
 +- LogicalProject($f0=[0])
    +- LogicalProject(sys_col=[$2], id=[$1], cnt=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src, metadata=[cnt, id, sys_col]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -307,7 +307,7 @@ GroupAggregate(select=[COUNT(*) AS EXPR$0])
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
 +- LogicalProject($f0=[0])
    +- LogicalProject(nested=[$0], sys_col=[$3], id=[$1], cnt=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src, metadata=[sys_col]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

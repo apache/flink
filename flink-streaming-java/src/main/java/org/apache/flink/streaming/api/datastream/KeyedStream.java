@@ -1055,8 +1055,11 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
      *
      * @param queryableStateName Name under which to the publish the queryable state instance
      * @return Queryable state instance
+     * @deprecated The Queryable State feature is deprecated since Flink 1.18, and will be removed
+     *     in a future Flink major version.
      */
     @PublicEvolving
+    @Deprecated
     public QueryableStateStream<KEY, T> asQueryableState(String queryableStateName) {
         ValueStateDescriptor<T> valueStateDescriptor =
                 new ValueStateDescriptor<>(UUID.randomUUID().toString(), getType());
@@ -1070,8 +1073,11 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
      * @param queryableStateName Name under which to the publish the queryable state instance
      * @param stateDescriptor State descriptor to create state instance from
      * @return Queryable state instance
+     * @deprecated The Queryable State feature is deprecated since Flink 1.18, and will be removed
+     *     in a future Flink major version.
      */
     @PublicEvolving
+    @Deprecated
     public QueryableStateStream<KEY, T> asQueryableState(
             String queryableStateName, ValueStateDescriptor<T> stateDescriptor) {
 
@@ -1094,8 +1100,11 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
      * @param queryableStateName Name under which to the publish the queryable state instance
      * @param stateDescriptor State descriptor to create state instance from
      * @return Queryable state instance
+     * @deprecated The Queryable State feature is deprecated since Flink 1.18, and will be removed
+     *     in a future Flink major version.
      */
     @PublicEvolving
+    @Deprecated
     public QueryableStateStream<KEY, T> asQueryableState(
             String queryableStateName, ReducingStateDescriptor<T> stateDescriptor) {
 

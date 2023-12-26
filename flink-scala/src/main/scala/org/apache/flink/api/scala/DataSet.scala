@@ -86,7 +86,14 @@ import scala.reflect.ClassTag
  *
  * @tparam T
  *   The type of the DataSet, i.e., the type of the elements of the DataSet.
+ * @deprecated
+ *   All Flink Scala APIs are deprecated and will be removed in a future Flink major version. You
+ *   can still build your application in Scala, but you should move to the Java version of either
+ *   the DataStream and/or Table API.
+ * @see
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
+@deprecated(org.apache.flink.api.scala.FLIP_265_WARNING, since = "1.18.0")
 @Public
 class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   require(set != null, "Java DataSet must not be null.")

@@ -50,6 +50,8 @@ public final class BufferReaderWriterUtil {
 
     private static final short HEADER_VALUE_IS_EVENT = 1;
 
+    private static final short HEADER_VALUE_IS_SEGMENT_EVENT = 2;
+
     private static final short BUFFER_IS_COMPRESSED = 1;
 
     private static final short BUFFER_IS_NOT_COMPRESSED = 0;
@@ -132,10 +134,23 @@ public final class BufferReaderWriterUtil {
 
     public static void setByteChannelBufferHeader(Buffer buffer, ByteBuffer header) {
         header.clear();
-        header.putShort(buffer.isBuffer() ? HEADER_VALUE_IS_BUFFER : HEADER_VALUE_IS_EVENT);
+        header.putShort(generateDataTypeHeader(buffer));
         header.putShort(buffer.isCompressed() ? BUFFER_IS_COMPRESSED : BUFFER_IS_NOT_COMPRESSED);
         header.putInt(buffer.getSize());
         header.flip();
+    }
+
+    private static short generateDataTypeHeader(Buffer buffer) {
+        Buffer.DataType dataType = buffer.getDataType();
+        if (dataType == Buffer.DataType.DATA_BUFFER) {
+            return HEADER_VALUE_IS_BUFFER;
+        } else if (dataType == Buffer.DataType.END_OF_SEGMENT) {
+            return HEADER_VALUE_IS_SEGMENT_EVENT;
+        } else if (dataType == Buffer.DataType.EVENT_BUFFER) {
+            return HEADER_VALUE_IS_EVENT;
+        } else {
+            throw new RuntimeException("Generating DataType failed, DataType is: " + dataType);
+        }
     }
 
     @Nullable
@@ -237,7 +252,7 @@ public final class BufferReaderWriterUtil {
         }
     }
 
-    static void readByteBufferFully(FileChannel channel, ByteBuffer b) throws IOException {
+    public static void readByteBufferFully(FileChannel channel, ByteBuffer b) throws IOException {
         // the post-checked loop here gets away with one less check in the normal case
         do {
             if (channel.read(b) == -1) {
@@ -279,16 +294,25 @@ public final class BufferReaderWriterUtil {
         }
     }
 
-    static BufferHeader parseBufferHeader(ByteBuffer headerBuffer) {
+    public static BufferHeader parseBufferHeader(ByteBuffer headerBuffer) {
         configureByteBuffer(headerBuffer);
 
-        boolean isEvent = headerBuffer.getShort() == HEADER_VALUE_IS_EVENT;
+        short dataTypeIndex = headerBuffer.getShort();
         boolean isCompressed = headerBuffer.getShort() == BUFFER_IS_COMPRESSED;
         int length = headerBuffer.getInt();
-        return new BufferHeader(
-                isCompressed,
-                length,
-                isEvent ? Buffer.DataType.EVENT_BUFFER : Buffer.DataType.DATA_BUFFER);
+        return new BufferHeader(isCompressed, length, parseDataTypeHeader(dataTypeIndex));
+    }
+
+    private static Buffer.DataType parseDataTypeHeader(Short dataTypeIndex) {
+        if (dataTypeIndex == HEADER_VALUE_IS_BUFFER) {
+            return Buffer.DataType.DATA_BUFFER;
+        } else if (dataTypeIndex == HEADER_VALUE_IS_SEGMENT_EVENT) {
+            return Buffer.DataType.END_OF_SEGMENT;
+        } else if (dataTypeIndex == HEADER_VALUE_IS_EVENT) {
+            return Buffer.DataType.EVENT_BUFFER;
+        } else {
+            throw new RuntimeException("Parsing DataType failed, dataTypeIndex: " + dataTypeIndex);
+        }
     }
 
     private static void throwPrematureEndOfFile() throws IOException {

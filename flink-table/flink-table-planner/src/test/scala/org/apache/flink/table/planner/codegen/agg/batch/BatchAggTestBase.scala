@@ -30,7 +30,7 @@ import org.apache.flink.table.runtime.util.RowDataTestUtil
 import org.apache.flink.table.types.logical._
 import org.apache.flink.util.function.FunctionWithException
 
-import org.junit.Assert
+import org.assertj.core.api.Assertions.assertThat
 
 import java.util
 
@@ -101,6 +101,6 @@ abstract class BatchAggTestBase extends AggTestBase(isBatchMode = true) {
           outQueue.poll().asInstanceOf[StreamRecord[RowData]].getValue,
           args._3.getChildren))
     }
-    Assert.assertArrayEquals(expectedOutput.toArray[AnyRef], outputs.asScala.toArray[AnyRef])
+    assertThat(outputs.asScala.toArray[AnyRef]).isEqualTo(expectedOutput.toArray[AnyRef])
   }
 }

@@ -139,7 +139,7 @@ class TieredStorageSortBufferTest {
                         numSubpartitions,
                         BUFFER_SIZE_BYTES,
                         numBuffersForSort);
-        MemorySegment memorySegment = bufferPool.requestMemorySegmentBlocking();
+        MemorySegment memorySegment = segments.poll();
         sortBuffer.finish();
         assertThat(sortBuffer.getNextBuffer(memorySegment)).isNull();
         assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isEqualTo(numBuffersForSort);

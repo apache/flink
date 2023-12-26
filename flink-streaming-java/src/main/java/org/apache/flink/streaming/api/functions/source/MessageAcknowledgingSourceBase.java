@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -87,7 +88,11 @@ import java.util.Set;
  *
  * @param <Type> The type of the messages created by the source.
  * @param <UId> The type of unique IDs which may be used to acknowledge elements.
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
+@Deprecated
 @PublicEvolving
 public abstract class MessageAcknowledgingSourceBase<Type, UId> extends RichSourceFunction<Type>
         implements CheckpointedFunction, CheckpointListener {
@@ -238,9 +243,9 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId> extends RichSour
                 new Tuple2<>(context.getCheckpointId(), idsForCurrentCheckpoint));
         idsForCurrentCheckpoint = CollectionUtil.newHashSetWithExpectedSize(64);
 
-        this.checkpointedState.clear();
-        this.checkpointedState.add(
-                SerializedCheckpointData.fromDeque(pendingCheckpoints, idSerializer));
+        this.checkpointedState.update(
+                Collections.singletonList(
+                        SerializedCheckpointData.fromDeque(pendingCheckpoints, idSerializer)));
     }
 
     @Override

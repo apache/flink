@@ -33,14 +33,17 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalogFactoryOptions;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.utils.CatalogManagerMocks;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.testutils.ClassLoaderUtils;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.net.URLClassLoader;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -48,12 +51,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** IT Case for catalog ddl. */
-public class CatalogITCase {
+class CatalogITCase {
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE = new MiniClusterExtension();
+
+    @TempDir Path temporaryFolder;
 
     @Test
-    public void testCreateCatalog() {
+    void testCreateCatalog() {
         String name = "c1";
         TableEnvironment tableEnv = getTableEnvironment();
         String ddl =
@@ -68,7 +74,7 @@ public class CatalogITCase {
     }
 
     @Test
-    public void testDropCatalog() {
+    void testDropCatalog() {
         String name = "c1";
         TableEnvironment tableEnv = getTableEnvironment();
 
@@ -93,10 +99,10 @@ public class CatalogITCase {
     }
 
     @Test
-    public void testCreateLegacyCatalogFromUserClassLoader() throws Exception {
+    void testCreateLegacyCatalogFromUserClassLoader() throws Exception {
         final String className = "UserCatalogFactory";
         URLClassLoader classLoader =
-                ClassLoaderUtils.withRoot(temporaryFolder.newFolder())
+                ClassLoaderUtils.withRoot(TempDirUtils.newFolder(temporaryFolder))
                         .addResource(
                                 "META-INF/services/org.apache.flink.table.factories.TableFactory",
                                 "UserCatalogFactory")
@@ -140,10 +146,10 @@ public class CatalogITCase {
     }
 
     @Test
-    public void testCreateCatalogFromUserClassLoader() throws Exception {
+    void testCreateCatalogFromUserClassLoader() throws Exception {
         final String className = "UserCatalogFactory";
         URLClassLoader classLoader =
-                ClassLoaderUtils.withRoot(temporaryFolder.newFolder())
+                ClassLoaderUtils.withRoot(TempDirUtils.newFolder(temporaryFolder))
                         .addResource(
                                 "META-INF/services/org.apache.flink.table.factories.Factory",
                                 "UserCatalogFactory")
@@ -189,7 +195,7 @@ public class CatalogITCase {
     }
 
     @Test
-    public void testGetTablesFromGivenCatalogDatabase() throws Exception {
+    void testGetTablesFromGivenCatalogDatabase() throws Exception {
         final Catalog c1 = new GenericInMemoryCatalog("c1", "default");
         final Catalog c2 = new GenericInMemoryCatalog("c2", "d2");
 

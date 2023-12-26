@@ -21,7 +21,30 @@ package org.apache.flink.table.planner.hint;
 import java.util.List;
 import java.util.Locale;
 
-/** Currently available join strategies and corresponding join hint names. */
+/**
+ * Currently available join strategies and corresponding join hint names.
+ *
+ * <p>The process for handling join hints is as follows:
+ *
+ * <ol>
+ *   <li>Resolve join hint propagation:
+ *       <ol>
+ *         <li>The join hints are resolved using Calcite's functionality to propagate them from the
+ *             sink to the source and within sub-queries
+ *         <li>Capitalize join hints: All join hints are capitalized to ensure consistency, as they
+ *             are expected to be in uppercase.
+ *         <li>Clear incorrectly propagated join hints: Any join hints that have been mistakenly
+ *             propagated into the query block are cleared.
+ *         <li>Clear join hints from unmatched nodes: Join hints attached to unmatched nodes, such
+ *             as {@link org.apache.calcite.rel.core.Project}, are also cleared.
+ *       </ol>
+ *   <li>Validate and modify join hints: The join hints are validated, and the table names in the
+ *       hints are replaced with LEFT or RIGHT to indicate the join input ordinal.
+ *   <li>Clear query block aliases: The query block aliases are cleared from the sink to the source.
+ *   <li>Consume join hints in applicable rules: Finally, the join hints are consumed in specific
+ *       rules where they are relevant.
+ * </ol>
+ */
 public enum JoinStrategy {
     /**
      * Instructs the optimizer to use broadcast hash join strategy. If both sides are specified in

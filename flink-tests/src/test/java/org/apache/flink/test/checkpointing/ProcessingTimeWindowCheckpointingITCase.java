@@ -19,6 +19,7 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -52,7 +53,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * This test uses a custom non-serializable data type to to ensure that state serializability is
+ * This test uses a custom non-serializable data type to ensure that state serializability is
  * handled correctly.
  */
 @SuppressWarnings("serial")
@@ -105,7 +106,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
                                 private boolean open = false;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             PARALLELISM,
                                             getRuntimeContext().getNumberOfParallelSubtasks());
@@ -166,7 +167,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
                                 private boolean open = false;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             PARALLELISM,
                                             getRuntimeContext().getNumberOfParallelSubtasks());

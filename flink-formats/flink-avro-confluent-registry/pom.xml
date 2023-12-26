@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<artifactId>flink-formats</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.19-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
@@ -160,7 +160,7 @@ under the License.
 			<type>test-jar</type>
 		</dependency>
 
-		<!-- ArchUit test dependencies -->
+		<!-- ArchUnit test dependencies -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>

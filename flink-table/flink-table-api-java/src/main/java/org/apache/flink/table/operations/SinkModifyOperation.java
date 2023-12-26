@@ -165,6 +165,7 @@ public class SinkModifyOperation implements ModifyOperation {
     }
 
     /** The type of sink modification. */
+    @Internal
     public enum ModifyType {
         INSERT,
 

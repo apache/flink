@@ -19,6 +19,7 @@
 package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
 
 import java.util.Map;
@@ -181,4 +182,18 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
      * @param runnable a runnable to execute
      */
     void runInCoordinatorThread(Runnable runnable);
+
+    /**
+     * Reports to JM whether this source is currently processing backlog.
+     *
+     * <p>When source is processing backlog, it means the records being emitted by this source is
+     * already stale and there is no processing latency requirement for these records. This allows
+     * downstream operators to optimize throughput instead of reducing latency for intermediate
+     * results.
+     *
+     * <p>If no API has been explicitly invoked to specify the backlog status of a source, the
+     * source is considered to have isProcessingBacklog=false by default.
+     */
+    @PublicEvolving
+    void setIsProcessingBacklog(boolean isProcessingBacklog);
 }

@@ -39,12 +39,15 @@ SHOW CREATE 语句用于打印给定对象的创建 DDL 语句。当前的 SHOW 
 - SHOW TABLES
 - SHOW CREATE TABLE
 - SHOW COLUMNS
+- SHOW PARTITIONS
+- SHOW PROCEDURES
 - SHOW VIEWS
 - SHOW CREATE VIEW
 - SHOW FUNCTIONS
 - SHOW MODULES
 - SHOW FULL MODULES
 - SHOW JARS
+- SHOW JOBS
 
 
 ## 执行 SHOW 语句
@@ -605,7 +608,7 @@ show tables;
 ## SHOW CREATE TABLE
 
 ```sql
-SHOW CREATE TABLE [catalog_name.][db_name.]table_name
+SHOW CREATE TABLE [[catalog_name.]db_name.]table_name
 ```
 
 展示创建指定表的 create 语句。
@@ -623,7 +626,7 @@ CREATE TABLE orders (
   ts TIMESTAMP(3) comment 'notice: watermark, named ''ts''.',
   ptime AS PROCTIME() comment 'notice: computed column, named ''ptime''.',
   WATERMARK FOR ts AS ts - INTERVAL '1' SECOND,
-  CONSTRAINT `PK_3599338` PRIMARY KEY (order_id) NOT ENFORCED
+  CONSTRAINT `PK_order_id` PRIMARY KEY (order_id) NOT ENFORCED
 ) WITH (
   'connector' = 'datagen'
 );
@@ -641,7 +644,7 @@ show create table orders;
   `ts` TIMESTAMP(3) COMMENT 'notice: watermark, named ''ts''.',
   `ptime` AS PROCTIME() COMMENT 'notice: computed column, named ''ptime''.',
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
-  CONSTRAINT `PK_3599338` PRIMARY KEY (`order_id`) NOT ENFORCED
+  CONSTRAINT `PK_order_id` PRIMARY KEY (`order_id`) NOT ENFORCED
 ) WITH (
   'connector' = 'datagen'
 )
@@ -798,6 +801,25 @@ show partitions table1 partition (id=1002);
 +---------+-----------------------------+
 2 rows in set
 ```
+
+## SHOW PROCEDURES
+
+```sql
+SHOW PROCEDURES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]	
+```
+
+展示指定 catalog 和 database 下的所有 procedure。
+如果没有指定 catalog 和 database，则将使用当前 catalog 和 当前 database。另外可以用 `<sql_like_pattern>` 来过滤要返回的 procedure。
+
+**LIKE**
+根据可选的 `LIKE` 语句与 `<sql_like_pattern>` 是否模糊匹配的所有 procedure。
+
+`LIKE` 子句中 SQL 正则式的语法与 `MySQL` 方言中的语法相同。
+* `%` 匹配任意数量的字符, 也包括0数量字符, `\%` 匹配一个 `%` 字符.
+* `_` 只匹配一个字符, `\_` 匹配一个 `_` 字符.
+
+**ILIKE**
+它的行为和 LIKE 相同，只是对于大小写是不敏感的。
 
 ## SHOW VIEWS
 

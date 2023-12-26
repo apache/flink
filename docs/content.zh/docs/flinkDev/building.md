@@ -73,11 +73,11 @@ mvn clean install -DskipTests -Dfast -Pskip-webui-build -T 1C
 
     如果想构建一个可用于 pip 安装的 PyFlink 包，需要先构建 Flink 工程，如 [构建 Flink](#build-flink) 中所述。
 
-2. Python 的版本为 3.7, 3.8, 3.9 或者 3.10.
+2. Python 的版本为 3.8, 3.9 或者 3.10.
 
     ```shell
     $ python --version
-    # the version printed here must be 3.7, 3.8, 3.9 or 3.10
+    # the version printed here must be 3.8, 3.9 or 3.10
     ```
 
 3. 构建 PyFlink 的 Cython 扩展模块（可选的）
@@ -128,7 +128,7 @@ Flink 有使用 [Scala](http://scala-lang.org) 来写的 API，库和运行时�
 
 要针对特定的二进制 Scala 版本进行构建，可以使用
 ```bash
-mvn clean install -DskipTests -Dscala-2.12 -Dscala.version=<scala version>
+mvn clean install -DskipTests -Dscala.version=<scala version>
 ```
 
 {{< top >}}

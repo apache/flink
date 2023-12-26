@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.SerializerFactory;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -31,6 +32,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
@@ -303,7 +305,15 @@ public class StreamingRuntimeContextTest {
         KeyedStateBackend keyedStateBackend = mock(KeyedStateBackend.class);
 
         DefaultKeyedStateStore keyedStateStore =
-                new DefaultKeyedStateStore(keyedStateBackend, config);
+                new DefaultKeyedStateStore(
+                        keyedStateBackend,
+                        new SerializerFactory() {
+                            @Override
+                            public <T> TypeSerializer<T> createSerializer(
+                                    TypeInformation<T> typeInformation) {
+                                return typeInformation.createSerializer(config);
+                            }
+                        });
 
         doAnswer(
                         new Answer<Object>() {
@@ -334,7 +344,15 @@ public class StreamingRuntimeContextTest {
         KeyedStateBackend keyedStateBackend = mock(KeyedStateBackend.class);
 
         DefaultKeyedStateStore keyedStateStore =
-                new DefaultKeyedStateStore(keyedStateBackend, config);
+                new DefaultKeyedStateStore(
+                        keyedStateBackend,
+                        new SerializerFactory() {
+                            @Override
+                            public <T> TypeSerializer<T> createSerializer(
+                                    TypeInformation<T> typeInformation) {
+                                return typeInformation.createSerializer(config);
+                            }
+                        });
 
         when(operatorMock.getExecutionConfig()).thenReturn(config);
 
@@ -390,7 +408,15 @@ public class StreamingRuntimeContextTest {
         KeyedStateBackend keyedStateBackend = mock(KeyedStateBackend.class);
 
         DefaultKeyedStateStore keyedStateStore =
-                new DefaultKeyedStateStore(keyedStateBackend, config);
+                new DefaultKeyedStateStore(
+                        keyedStateBackend,
+                        new SerializerFactory() {
+                            @Override
+                            public <T> TypeSerializer<T> createSerializer(
+                                    TypeInformation<T> typeInformation) {
+                                return typeInformation.createSerializer(config);
+                            }
+                        });
 
         when(operatorMock.getExecutionConfig()).thenReturn(config);
 

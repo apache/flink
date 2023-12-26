@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
@@ -35,12 +34,10 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.DATA_BUFFER;
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.NONE;
-import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.PRIORITIZED_EVENT_BUFFER;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link NettyConnectionReader}. */
@@ -48,113 +45,50 @@ class NettyConnectionReaderTest {
 
     private static final int INPUT_CHANNEL_INDEX = 0;
 
-    private CompletableFuture<Tuple2<Integer, Boolean>> availableAndPriorityConsumer;
-
-    private CompletableFuture<Tuple2<Integer, Integer>> prioritySequenceNumberConsumer;
-
     private CompletableFuture<Integer> requiredSegmentIdFuture;
 
     @BeforeEach
     void before() {
-        availableAndPriorityConsumer = new CompletableFuture<>();
-        prioritySequenceNumberConsumer = new CompletableFuture<>();
         requiredSegmentIdFuture = new CompletableFuture<>();
     }
 
     @Test
-    void testReadBufferOfNonPriorityDataType() {
+    void testReadBuffer() {
         int bufferNumber = 1;
         Supplier<InputChannel> inputChannelSupplier =
-                createInputChannelSupplier(bufferNumber, false, requiredSegmentIdFuture);
-        NettyConnectionReader reader =
-                createNettyConnectionReader(
-                        inputChannelSupplier,
-                        createAvailableAndPriorityConsumer(availableAndPriorityConsumer),
-                        createPrioritySequenceNumberConsumer(prioritySequenceNumberConsumer));
+                createInputChannelSupplier(bufferNumber, requiredSegmentIdFuture);
+        NettyConnectionReader reader = createNettyConnectionReader(inputChannelSupplier);
         Optional<Buffer> buffer = reader.readBuffer(0);
         assertThat(buffer).isPresent();
         assertThat(buffer.get().isBuffer()).isTrue();
         assertThat(requiredSegmentIdFuture).isNotDone();
-        assertThat(availableAndPriorityConsumer).isNotDone();
-        assertThat(prioritySequenceNumberConsumer).isNotDone();
-    }
-
-    @Test
-    void testReadBufferOfPriorityDataType() throws ExecutionException, InterruptedException {
-        int bufferNumber = 2;
-        Supplier<InputChannel> inputChannelSupplier =
-                createInputChannelSupplier(bufferNumber, true, requiredSegmentIdFuture);
-        NettyConnectionReader reader =
-                createNettyConnectionReader(
-                        inputChannelSupplier,
-                        createAvailableAndPriorityConsumer(availableAndPriorityConsumer),
-                        createPrioritySequenceNumberConsumer(prioritySequenceNumberConsumer));
-        Optional<Buffer> buffer = reader.readBuffer(0);
-        assertThat(buffer).isPresent();
-        assertThat(buffer.get().isBuffer()).isFalse();
-        assertThat(requiredSegmentIdFuture).isNotDone();
-        Tuple2<Integer, Boolean> result1 = availableAndPriorityConsumer.get();
-        assertThat(result1.f0).isEqualTo(INPUT_CHANNEL_INDEX);
-        assertThat(result1.f1).isEqualTo(true);
-        Tuple2<Integer, Integer> result2 = prioritySequenceNumberConsumer.get();
-        assertThat(result2.f0).isEqualTo(INPUT_CHANNEL_INDEX);
-        assertThat(result2.f1).isEqualTo(0);
     }
 
     @Test
     void testReadEmptyBuffer() {
         int bufferNumber = 0;
         Supplier<InputChannel> inputChannelSupplier =
-                createInputChannelSupplier(bufferNumber, false, requiredSegmentIdFuture);
-        NettyConnectionReader reader =
-                createNettyConnectionReader(
-                        inputChannelSupplier,
-                        (inputChannelIndex, priority) ->
-                                availableAndPriorityConsumer.complete(
-                                        Tuple2.of(inputChannelIndex, priority)),
-                        (inputChannelIndex, sequenceNumber) ->
-                                prioritySequenceNumberConsumer.complete(
-                                        Tuple2.of(inputChannelIndex, sequenceNumber)));
+                createInputChannelSupplier(bufferNumber, requiredSegmentIdFuture);
+        NettyConnectionReader reader = createNettyConnectionReader(inputChannelSupplier);
         Optional<Buffer> buffer = reader.readBuffer(0);
         assertThat(buffer).isNotPresent();
         assertThat(requiredSegmentIdFuture).isNotDone();
-        assertThat(availableAndPriorityConsumer).isNotDone();
-        assertThat(prioritySequenceNumberConsumer).isNotDone();
     }
 
     @Test
     void testReadDifferentSegments() throws ExecutionException, InterruptedException {
         int bufferNumber = 0;
         Supplier<InputChannel> inputChannelSupplier =
-                createInputChannelSupplier(bufferNumber, false, requiredSegmentIdFuture);
-        NettyConnectionReader reader =
-                createNettyConnectionReader(
-                        inputChannelSupplier,
-                        createAvailableAndPriorityConsumer(availableAndPriorityConsumer),
-                        createPrioritySequenceNumberConsumer(prioritySequenceNumberConsumer));
+                createInputChannelSupplier(bufferNumber, requiredSegmentIdFuture);
+        NettyConnectionReader reader = createNettyConnectionReader(inputChannelSupplier);
         reader.readBuffer(0);
         assertThat(requiredSegmentIdFuture).isNotDone();
         reader.readBuffer(1);
         assertThat(requiredSegmentIdFuture.get()).isEqualTo(1);
     }
 
-    private static BiConsumer<Integer, Boolean> createAvailableAndPriorityConsumer(
-            CompletableFuture<Tuple2<Integer, Boolean>> availableAndPriorityConsumer) {
-        return (inputChannelIndex, priority) ->
-                availableAndPriorityConsumer.complete(Tuple2.of(inputChannelIndex, priority));
-    }
-
-    private static BiConsumer<Integer, Integer> createPrioritySequenceNumberConsumer(
-            CompletableFuture<Tuple2<Integer, Integer>> prioritySequenceNumberConsumer) {
-        return (inputChannelIndex, sequenceNumber) ->
-                prioritySequenceNumberConsumer.complete(
-                        Tuple2.of(inputChannelIndex, sequenceNumber));
-    }
-
     private static Supplier<InputChannel> createInputChannelSupplier(
-            int bufferNumber,
-            boolean priority,
-            CompletableFuture<Integer> requiredSegmentIdFuture) {
+            int bufferNumber, CompletableFuture<Integer> requiredSegmentIdFuture) {
         TestInputChannel inputChannel =
                 new TestInputChannel(
                         new SingleInputGateBuilder().build(),
@@ -166,10 +100,8 @@ class NettyConnectionReaderTest {
                         new NetworkBuffer(
                                 MemorySegmentFactory.allocateUnpooledSegment(0),
                                 FreeingBufferRecycler.INSTANCE,
-                                priority ? PRIORITIZED_EVENT_BUFFER : DATA_BUFFER),
-                        index == bufferNumber - 1
-                                ? NONE
-                                : priority ? PRIORITIZED_EVENT_BUFFER : DATA_BUFFER);
+                                DATA_BUFFER),
+                        index == bufferNumber - 1 ? NONE : DATA_BUFFER);
             }
         } catch (IOException | InterruptedException e) {
             ExceptionUtils.rethrow(e, "Failed to create test input channel.");
@@ -178,14 +110,7 @@ class NettyConnectionReaderTest {
     }
 
     private static NettyConnectionReader createNettyConnectionReader(
-            Supplier<InputChannel> inputChannelSupplier,
-            BiConsumer<Integer, Boolean> availableAndPriorityConsumer,
-            BiConsumer<Integer, Integer> prioritySequenceNumberConsumer) {
-        TestingNettyConnectionReaderAvailabilityAndPriorityHelper.Builder builder =
-                new TestingNettyConnectionReaderAvailabilityAndPriorityHelper.Builder()
-                        .setAvailableAndPriorityConsumer(availableAndPriorityConsumer)
-                        .setPrioritySequenceNumberConsumer(prioritySequenceNumberConsumer);
-        return new NettyConnectionReaderImpl(
-                INPUT_CHANNEL_INDEX, inputChannelSupplier, builder.build());
+            Supplier<InputChannel> inputChannelSupplier) {
+        return new NettyConnectionReaderImpl(inputChannelSupplier);
     }
 }

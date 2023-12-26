@@ -19,6 +19,7 @@
 package org.apache.flink.test.scheduling;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
@@ -31,7 +32,7 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
@@ -87,7 +88,7 @@ public class ReactiveModeITCase extends TestLogger {
         // we set maxParallelism = 1 and assert it never exceeds it
         final DataStream<String> input =
                 env.addSource(new FailOnParallelExecutionSource()).setMaxParallelism(1);
-        input.addSink(new DiscardingSink<>());
+        input.sinkTo(new DiscardingSink<>());
 
         final JobClient jobClient = env.executeAsync();
 
@@ -100,7 +101,7 @@ public class ReactiveModeITCase extends TestLogger {
     public void testScaleUpOnAdditionalTaskManager() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStream<String> input = env.addSource(new DummySource());
-        input.addSink(new DiscardingSink<>());
+        input.sinkTo(new DiscardingSink<>());
 
         final JobClient jobClient = env.executeAsync();
 
@@ -122,7 +123,7 @@ public class ReactiveModeITCase extends TestLogger {
     public void testJsonPlanParallelismAfterRescale() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStream<String> input = env.addSource(new DummySource());
-        input.addSink(new DiscardingSink<>());
+        input.sinkTo(new DiscardingSink<>());
 
         final JobClient jobClient = env.executeAsync();
 
@@ -176,7 +177,7 @@ public class ReactiveModeITCase extends TestLogger {
         // configure exactly one restart to avoid restart loops in error cases
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
         final DataStream<String> input = env.addSource(new DummySource());
-        input.addSink(new DiscardingSink<>());
+        input.sinkTo(new DiscardingSink<>());
 
         final JobClient jobClient = env.executeAsync();
 
@@ -199,7 +200,7 @@ public class ReactiveModeITCase extends TestLogger {
     public void testContinuousFileMonitoringFunctionWithReactiveMode() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStream<String> input = env.readTextFile(tempFolder.getRoot().getPath());
-        input.addSink(new DiscardingSink<>());
+        input.sinkTo(new DiscardingSink<>());
 
         final JobClient jobClient = env.executeAsync();
 
@@ -249,7 +250,7 @@ public class ReactiveModeITCase extends TestLogger {
         private volatile boolean running = true;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             if (getRuntimeContext().getNumberOfParallelSubtasks() > 1) {
                 throw new IllegalStateException(
                         "This is not supposed to be executed in parallel, despite extending the right base class.");

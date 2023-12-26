@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.functions.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.CleanupWhenUnsuccessful;
 import org.apache.flink.api.common.io.OutputFormat;
@@ -58,9 +59,9 @@ public class OutputFormatSinkFunction<IN> extends RichSinkFunction<IN>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         RuntimeContext context = getRuntimeContext();
-        format.configure(parameters);
+        format.configure(new Configuration());
         int indexInSubtaskGroup = context.getIndexOfThisSubtask();
         int currentNumberOfSubtasks = context.getNumberOfParallelSubtasks();
         format.open(

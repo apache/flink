@@ -196,14 +196,6 @@ public class DataStructureConvertersTest {
                                                 1, 2, 3,
                                                 4))), // test List that is not backed by an array
 
-                // test for Array with default conversion class
-                TestSpec.forDataType(ARRAY(INT().notNull()))
-                        .disableBridging()
-                        .convertedTo(int[].class, new int[] {1, 2, 3, 4}),
-                TestSpec.forDataType(ARRAY(INT()))
-                        .disableBridging()
-                        .convertedTo(Integer[].class, new Integer[] {1, 2, 3, 4}),
-
                 // arrays of TINYINT, SMALLINT, INTEGER, BIGINT, FLOAT, DOUBLE are skipped for
                 // simplicity
 
@@ -376,14 +368,10 @@ public class DataStructureConvertersTest {
     @Test
     public void testConversions() {
         for (Map.Entry<Class<?>, Object> from : testSpec.conversions.entrySet()) {
-            DataType fromDataType = testSpec.dataType;
-            if (testSpec.bridgeToTargetClass) {
-                fromDataType = testSpec.dataType.bridgedTo(from.getKey());
-            }
+            final DataType fromDataType = testSpec.dataType.bridgedTo(from.getKey());
 
             if (testSpec.expectedErrorMessage != null) {
-                final DataType type = fromDataType;
-                assertThatThrownBy(() -> DataStructureConverters.getConverter(type))
+                assertThatThrownBy(() -> DataStructureConverters.getConverter(fromDataType))
                         .isInstanceOf(TableException.class)
                         .hasMessage(testSpec.expectedErrorMessage);
             } else {
@@ -426,8 +414,6 @@ public class DataStructureConvertersTest {
 
         private final Map<Class<?>, Object> conversionsWithAnotherValue;
 
-        private boolean bridgeToTargetClass;
-
         private @Nullable String expectedErrorMessage;
 
         private TestSpec(String description, DataType dataType) {
@@ -435,7 +421,6 @@ public class DataStructureConvertersTest {
             this.dataType = dataType;
             this.conversions = new LinkedHashMap<>();
             this.conversionsWithAnotherValue = new LinkedHashMap<>();
-            this.bridgeToTargetClass = true;
         }
 
         static TestSpec forDataType(AbstractDataType<?> dataType) {
@@ -465,11 +450,6 @@ public class DataStructureConvertersTest {
 
         TestSpec expectErrorMessage(String expectedErrorMessage) {
             this.expectedErrorMessage = expectedErrorMessage;
-            return this;
-        }
-
-        TestSpec disableBridging() {
-            this.bridgeToTargetClass = false;
             return this;
         }
 

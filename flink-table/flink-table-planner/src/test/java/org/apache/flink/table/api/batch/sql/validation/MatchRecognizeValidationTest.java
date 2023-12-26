@@ -26,40 +26,40 @@ import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.Wei
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import org.apache.calcite.sql.SqlMatchRecognize;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
 
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+
 /** Validation test for {@link SqlMatchRecognize}. */
-@RunWith(Parameterized.class)
-public class MatchRecognizeValidationTest extends TableTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class MatchRecognizeValidationTest extends TableTestBase {
 
     private static final String STREAM = "stream";
     private static final String BATCH = "batch";
 
-    @Parameterized.Parameter public String mode;
+    @Parameter private String mode;
 
-    @Parameterized.Parameters(name = "mode = {0}")
-    public static Collection<String> parameters() {
+    @Parameters(name = "mode = {0}")
+    private static Collection<String> parameters() {
         return Arrays.asList(STREAM, BATCH);
     }
-
-    @Rule public ExpectedException expectedException = ExpectedException.none();
 
     private TableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util =
                 STREAM.equals(mode)
                         ? streamTestUtil(TableConfig.getDefault())
@@ -86,32 +86,31 @@ public class MatchRecognizeValidationTest extends TableTestBase {
                         + ")");
     }
 
-    @After
-    public void after() {
+    @AfterEach
+    void after() {
         util.getTableEnv().executeSql("DROP TABLE Ticker");
         util.getTableEnv().executeSql("DROP TABLE MyTable");
     }
 
     /** Function 'MATCH_ROWTIME()' can only be used in MATCH_RECOGNIZE. */
-    @Test(expected = ValidationException.class)
-    public void testMatchRowTimeInSelect() {
+    @TestTemplate
+    void testMatchRowTimeInSelect() {
         String sql = "SELECT MATCH_ROWTIME() FROM MyTable";
-        util.verifyExplain(sql);
+        assertThatExceptionOfType(ValidationException.class)
+                .isThrownBy(() -> util.verifyExplain(sql));
     }
 
     /** Function 'MATCH_PROCTIME()' can only be used in MATCH_RECOGNIZE. */
-    @Test(expected = ValidationException.class)
-    public void testMatchProcTimeInSelect() {
+    @TestTemplate
+    void testMatchProcTimeInSelect() {
         String sql = "SELECT MATCH_PROCTIME() FROM MyTable";
-        util.verifyExplain(sql);
+        assertThatExceptionOfType(ValidationException.class)
+                .isThrownBy(() -> util.verifyExplain(sql));
     }
 
-    @Test
-    public void testSortProcessingTimeDesc() {
+    @TestTemplate
+    void testSortProcessingTimeDesc() {
         if (STREAM.equals(mode)) {
-            expectedException.expect(TableException.class);
-            expectedException.expectMessage(
-                    "Primary sort order of a streaming table must be ascending on time.");
             String sqlQuery =
                     "SELECT *\n"
                             + "FROM Ticker\n"
@@ -123,16 +122,16 @@ public class MatchRecognizeValidationTest extends TableTestBase {
                             + "  DEFINE\n"
                             + "    A AS A.symbol = 'a'\n"
                             + ") AS T";
-            tEnv.executeSql(sqlQuery);
+            assertThatExceptionOfType(TableException.class)
+                    .isThrownBy(() -> tEnv.executeSql(sqlQuery))
+                    .withMessageContaining(
+                            "Primary sort order of a streaming table must be ascending on time.");
         }
     }
 
-    @Test
-    public void testSortProcessingTimeSecondaryField() {
+    @TestTemplate
+    void testSortProcessingTimeSecondaryField() {
         if (STREAM.equals(mode)) {
-            expectedException.expect(TableException.class);
-            expectedException.expectMessage(
-                    "You must specify either rowtime or proctime for order by as the first one.");
             String sqlQuery =
                     "SELECT *\n"
                             + "FROM Ticker\n"
@@ -144,16 +143,16 @@ public class MatchRecognizeValidationTest extends TableTestBase {
                             + "  DEFINE\n"
                             + "    A AS A.symbol = 'a'\n"
                             + ") AS T";
-            tEnv.executeSql(sqlQuery);
+            assertThatExceptionOfType(TableException.class)
+                    .isThrownBy(() -> tEnv.executeSql(sqlQuery))
+                    .withMessageContaining(
+                            "You must specify either rowtime or proctime for order by as the first one.");
         }
     }
 
-    @Test
-    public void testSortNoOrder() {
+    @TestTemplate
+    void testSortNoOrder() {
         if (STREAM.equals(mode)) {
-            expectedException.expect(TableException.class);
-            expectedException.expectMessage(
-                    "You must specify either rowtime or proctime for order by.");
             String sqlQuery =
                     "SELECT *\n"
                             + "FROM Ticker\n"
@@ -164,16 +163,16 @@ public class MatchRecognizeValidationTest extends TableTestBase {
                             + "  DEFINE\n"
                             + "    A AS A.symbol = 'a'\n"
                             + ") AS T";
-            tEnv.executeSql(sqlQuery);
+            assertThatExceptionOfType(TableException.class)
+                    .isThrownBy(() -> tEnv.executeSql(sqlQuery))
+                    .withMessageContaining(
+                            "You must specify either rowtime or proctime for order by.");
         }
     }
 
-    @Test
-    public void testUpdatesInUpstreamOperatorNotSupported() {
+    @TestTemplate
+    void testUpdatesInUpstreamOperatorNotSupported() {
         if (STREAM.equals(mode)) {
-            expectedException.expect(TableException.class);
-            expectedException.expectMessage(
-                    "Match Recognize doesn't support consuming update changes which is produced by node GroupAggregate(");
             String sqlQuery =
                     "SELECT *\n"
                             + "FROM (SELECT DISTINCT * FROM Ticker)\n"
@@ -186,14 +185,15 @@ public class MatchRecognizeValidationTest extends TableTestBase {
                             + "  DEFINE\n"
                             + "    A AS A.symbol = 'a'\n"
                             + ") AS T";
-            tEnv.executeSql(sqlQuery);
+            assertThatExceptionOfType(TableException.class)
+                    .isThrownBy(() -> tEnv.executeSql(sqlQuery))
+                    .withMessageContaining(
+                            "Match Recognize doesn't support consuming update changes which is produced by node GroupAggregate(");
         }
     }
 
-    @Test
-    public void testAggregatesOnMultiplePatternVariablesNotSupported() {
-        expectedException.expect(ValidationException.class);
-        expectedException.expectMessage("SQL validation failed.");
+    @TestTemplate
+    void testAggregatesOnMultiplePatternVariablesNotSupported() {
         String sqlQuery =
                 "SELECT *\n"
                         + "FROM Ticker\n"
@@ -205,13 +205,13 @@ public class MatchRecognizeValidationTest extends TableTestBase {
                         + "  DEFINE\n"
                         + "    A AS A.symbol = 'a'\n"
                         + ") AS T";
-        tEnv.executeSql(sqlQuery);
+        assertThatExceptionOfType(ValidationException.class)
+                .isThrownBy(() -> tEnv.executeSql(sqlQuery))
+                .withMessageContaining("SQL validation failed.");
     }
 
-    @Test
-    public void testAggregatesOnMultiplePatternVariablesNotSupportedInUDAGs() {
-        expectedException.expect(ValidationException.class);
-        expectedException.expectMessage("Aggregation must be applied to a single pattern variable");
+    @TestTemplate
+    void testAggregatesOnMultiplePatternVariablesNotSupportedInUDAGs() {
         util.addTemporarySystemFunction("weightedAvg", new WeightedAvg());
         String sqlQuery =
                 "SELECT *\n"
@@ -224,13 +224,13 @@ public class MatchRecognizeValidationTest extends TableTestBase {
                         + "  DEFINE\n"
                         + "    A AS A.symbol = 'a'\n"
                         + ") AS T";
-        tEnv.executeSql(sqlQuery);
+        assertThatExceptionOfType(ValidationException.class)
+                .isThrownBy(() -> tEnv.executeSql(sqlQuery))
+                .withMessageContaining("Aggregation must be applied to a single pattern variable");
     }
 
-    @Test
-    public void testValidatingAmbiguousColumns() {
-        expectedException.expect(ValidationException.class);
-        expectedException.expectMessage("Columns ambiguously defined: {symbol, price}");
+    @TestTemplate
+    void testValidatingAmbiguousColumns() {
         String sqlQuery =
                 "SELECT *\n"
                         + "FROM Ticker\n"
@@ -244,7 +244,9 @@ public class MatchRecognizeValidationTest extends TableTestBase {
                         + "  DEFINE\n"
                         + "    A AS A.symbol = 'a'\n"
                         + ") AS T";
-        tEnv.executeSql(sqlQuery);
+        assertThatExceptionOfType(ValidationException.class)
+                .isThrownBy(() -> tEnv.executeSql(sqlQuery))
+                .withMessageContaining("Columns ambiguously defined: {symbol, price}");
     }
 
     // ***************************************************************************************
@@ -253,11 +255,8 @@ public class MatchRecognizeValidationTest extends TableTestBase {
     // ***************************************************************************************
 
     /** Python Function can not be used in MATCH_RECOGNIZE for now. */
-    @Test
-    public void testMatchPythonFunction() {
-        expectedException.expect(TableException.class);
-        expectedException.expectMessage(
-                "Python Function can not be used in MATCH_RECOGNIZE for now.");
+    @TestTemplate
+    void testMatchPythonFunction() {
         util.addTemporarySystemFunction("pyFunc", new PythonScalarFunction("pyFunc"));
         String sql =
                 "SELECT T.aa as ta\n"
@@ -272,13 +271,14 @@ public class MatchRecognizeValidationTest extends TableTestBase {
                         + "    A AS a = 1,\n"
                         + "    B AS b = 'b'\n"
                         + ") AS T";
-        util.verifyExplain(sql);
+        assertThatExceptionOfType(TableException.class)
+                .isThrownBy(() -> tEnv.executeSql(sql))
+                .withMessageContaining(
+                        "Python Function can not be used in MATCH_RECOGNIZE for now.");
     }
 
-    @Test
-    public void testAllRowsPerMatch() {
-        expectedException.expect(TableException.class);
-        expectedException.expectMessage("All rows per match mode is not supported yet.");
+    @TestTemplate
+    void testAllRowsPerMatch() {
         String sqlQuery =
                 "SELECT *\n"
                         + "FROM Ticker\n"
@@ -291,15 +291,13 @@ public class MatchRecognizeValidationTest extends TableTestBase {
                         + "  DEFINE\n"
                         + "    A AS A.symbol = 'a'\n"
                         + ") AS T";
-        tEnv.executeSql(sqlQuery);
+        assertThatExceptionOfType(TableException.class)
+                .isThrownBy(() -> tEnv.executeSql(sqlQuery))
+                .withMessageContaining("All rows per match mode is not supported yet.");
     }
 
-    @Test
-    public void testGreedyQuantifierAtTheEndIsNotSupported() {
-        expectedException.expect(TableException.class);
-        expectedException.expectMessage(
-                "Greedy quantifiers are not allowed as the last element of a "
-                        + "Pattern yet. Finish your pattern with either a simple variable or reluctant quantifier.");
+    @TestTemplate
+    void testGreedyQuantifierAtTheEndIsNotSupported() {
         String sqlQuery =
                 "SELECT *\n"
                         + "FROM Ticker\n"
@@ -311,15 +309,15 @@ public class MatchRecognizeValidationTest extends TableTestBase {
                         + "  DEFINE\n"
                         + "    A AS A.symbol = 'a'\n"
                         + ") AS T";
-        tEnv.executeSql(sqlQuery);
+        assertThatExceptionOfType(TableException.class)
+                .isThrownBy(() -> tEnv.executeSql(sqlQuery))
+                .withMessageContaining(
+                        "Greedy quantifiers are not allowed as the last element of a "
+                                + "Pattern yet. Finish your pattern with either a simple variable or reluctant quantifier.");
     }
 
-    @Test
-    public void testPatternsProducingEmptyMatchesAreNotSupported() {
-        expectedException.expect(TableException.class);
-        expectedException.expectMessage(
-                "Patterns that can produce empty matches are not supported. "
-                        + "There must be at least one non-optional state.");
+    @TestTemplate
+    void testPatternsProducingEmptyMatchesAreNotSupported() {
         String sqlQuery =
                 "SELECT *\n"
                         + "FROM Ticker\n"
@@ -331,13 +329,15 @@ public class MatchRecognizeValidationTest extends TableTestBase {
                         + "  DEFINE\n"
                         + "    A AS A.symbol = 'a'\n"
                         + ") AS T";
-        tEnv.executeSql(sqlQuery);
+        assertThatExceptionOfType(TableException.class)
+                .isThrownBy(() -> tEnv.executeSql(sqlQuery))
+                .withMessageContaining(
+                        "Patterns that can produce empty matches are not supported. "
+                                + "There must be at least one non-optional state.");
     }
 
-    @Test
-    public void testDistinctAggregationsNotSupported() {
-        expectedException.expect(ValidationException.class);
-        expectedException.expectMessage("SQL validation failed.");
+    @TestTemplate
+    void testDistinctAggregationsNotSupported() {
         String sqlQuery =
                 "SELECT *\n"
                         + "FROM Ticker\n"
@@ -349,6 +349,8 @@ public class MatchRecognizeValidationTest extends TableTestBase {
                         + "  DEFINE\n"
                         + "    A AS A.symbol = 'a'\n"
                         + ") AS T";
-        tEnv.executeSql(sqlQuery);
+        assertThatExceptionOfType(ValidationException.class)
+                .isThrownBy(() -> tEnv.executeSql(sqlQuery))
+                .withMessageContaining("SQL validation failed.");
     }
 }

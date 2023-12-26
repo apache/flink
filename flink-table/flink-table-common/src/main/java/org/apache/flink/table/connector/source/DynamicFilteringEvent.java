@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.connector.source;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.SourceEvent;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -27,6 +28,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * event is sent by the DynamicFilteringDataCollector to the enumerator of a source that supports
  * dynamic filtering, via DynamicFilteringDataCollectorCoordinator and SourceCoordinator.
  */
+@PublicEvolving
 public class DynamicFilteringEvent implements SourceEvent {
     private final DynamicFilteringData data;
 

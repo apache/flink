@@ -227,6 +227,20 @@ env.from("MyTable").select(call(classOf[MyConcatFunction], $"a", $"b", $"c"));
 {{< /tab >}}
 {{< /tabs >}}
 
+{{< hint info >}}
+`TableEnvironment` provides two overload methods to create temporary system function with an `UserDefinedFunction`:
+
+- *createTemporarySystemFunction(
+  String name, Class<? extends UserDefinedFunction> functionClass)*
+- *createTemporarySystemFunction(String name, UserDefinedFunction functionInstance)*
+
+It is recommended to use `functionClass` over `functionInstance` as far as user-defined functions provide no args constructor, 
+because Flink as the framework underneath can add more logic to control the process of creating new instance.
+Current built-in standard logic in `TableEnvironmentImpl` will validate the class and methods in the class 
+based on different subclass types of `UserDefinedFunction`, e.g. `ScalaFunction`, `TableFunction`. 
+More logic or optimization could be added in the framework in the future with no need to change any users' existing code. 
+{{< /hint >}}
+
 {{< top >}}
 
 Implementation Guide

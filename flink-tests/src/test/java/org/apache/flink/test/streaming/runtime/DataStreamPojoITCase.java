@@ -53,7 +53,7 @@ public class DataStreamPojoITCase extends AbstractTestBase {
         see.getConfig().disableObjectReuse();
         see.setParallelism(3);
 
-        DataStream<Data> dataStream = see.fromCollection(elements);
+        DataStream<Data> dataStream = see.fromData(elements);
 
         DataStream<Data> summedStream =
                 dataStream
@@ -105,7 +105,7 @@ public class DataStreamPojoITCase extends AbstractTestBase {
         see.getConfig().disableObjectReuse();
         see.setParallelism(4);
 
-        DataStream<Data> dataStream = see.fromCollection(elements);
+        DataStream<Data> dataStream = see.fromData(elements);
 
         DataStream<Data> summedStream =
                 dataStream
@@ -160,7 +160,7 @@ public class DataStreamPojoITCase extends AbstractTestBase {
         see.getConfig().disableObjectReuse();
         see.setParallelism(4);
 
-        DataStream<Data> dataStream = see.fromCollection(elements);
+        DataStream<Data> dataStream = see.fromData(elements);
 
         DataStream<Data> summedStream =
                 dataStream
@@ -198,7 +198,7 @@ public class DataStreamPojoITCase extends AbstractTestBase {
     public void testFailOnNestedPojoFieldAccessor() throws Exception {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Data> dataStream = see.fromCollection(elements);
+        DataStream<Data> dataStream = see.fromData(elements);
         dataStream.keyBy("aaa", "stats.count").sum("stats.nonExistingField");
     }
 

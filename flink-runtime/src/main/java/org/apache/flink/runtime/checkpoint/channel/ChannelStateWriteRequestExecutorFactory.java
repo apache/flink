@@ -44,6 +44,20 @@ public class ChannelStateWriteRequestExecutorFactory {
             int subtaskIndex,
             CheckpointStorage checkpointStorage,
             int maxSubtasksPerChannelStateFile) {
+        return getOrCreateExecutor(
+                jobVertexID, subtaskIndex, checkpointStorage, maxSubtasksPerChannelStateFile, true);
+    }
+
+    /**
+     * @param startExecutor It is for test to prevent create too many threads when some unit tests
+     *     create executor frequently.
+     */
+    ChannelStateWriteRequestExecutor getOrCreateExecutor(
+            JobVertexID jobVertexID,
+            int subtaskIndex,
+            CheckpointStorage checkpointStorage,
+            int maxSubtasksPerChannelStateFile,
+            boolean startExecutor) {
         synchronized (lock) {
             if (executor == null) {
                 executor =
@@ -52,12 +66,14 @@ public class ChannelStateWriteRequestExecutorFactory {
                                         checkpointStorage, jobID, new ChannelStateSerializerImpl()),
                                 maxSubtasksPerChannelStateFile,
                                 executor -> {
-                                    synchronized (lock) {
-                                        checkState(this.executor == executor);
-                                        this.executor = null;
-                                    }
-                                });
-                executor.start();
+                                    assert Thread.holdsLock(lock);
+                                    checkState(this.executor == executor);
+                                    this.executor = null;
+                                },
+                                lock);
+                if (startExecutor) {
+                    executor.start();
+                }
             }
             ChannelStateWriteRequestExecutor currentExecutor = executor;
             currentExecutor.registerSubtask(jobVertexID, subtaskIndex);

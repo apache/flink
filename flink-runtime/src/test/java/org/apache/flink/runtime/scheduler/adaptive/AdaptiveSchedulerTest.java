@@ -54,9 +54,9 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FixedDelayRestartBackoffTimeStrategy;
-import org.apache.flink.runtime.executiongraph.failover.flip1.NoRestartBackoffTimeStrategy;
-import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.failover.FixedDelayRestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.failover.NoRestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.failover.TestRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
@@ -2062,6 +2062,16 @@ public class AdaptiveSchedulerTest {
         scheduler.updateJobResourceRequirements(newJobResourceRequirements);
         assertThat(scheduler.requestJobResourceRequirements())
                 .isEqualTo(newJobResourceRequirements);
+
+        final JobResourceRequirements newJobResourceRequirements2 =
+                JobResourceRequirements.newBuilder()
+                        .setParallelismForJobVertex(JOB_VERTEX.getID(), 4, 12)
+                        .build();
+        assertThat(scheduler.requestJobResourceRequirements())
+                .isNotEqualTo(newJobResourceRequirements2);
+        scheduler.updateJobResourceRequirements(newJobResourceRequirements2);
+        assertThat(scheduler.requestJobResourceRequirements())
+                .isEqualTo(newJobResourceRequirements2);
     }
 
     // ---------------------------------------------------------------------------------------------

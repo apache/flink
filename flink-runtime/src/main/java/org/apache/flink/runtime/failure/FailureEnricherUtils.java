@@ -75,9 +75,9 @@ public class FailureEnricherUtils {
     @VisibleForTesting
     static Collection<FailureEnricher> getFailureEnrichers(
             final Configuration configuration, final PluginManager pluginManager) {
-        Set<String> includedEnrichers = getIncludedFailureEnrichers(configuration);
+        final Set<String> enrichersToLoad = getIncludedFailureEnrichers(configuration);
         //  When empty, NO enrichers will be started.
-        if (includedEnrichers.isEmpty()) {
+        if (enrichersToLoad.isEmpty()) {
             return Collections.emptySet();
         }
         final Iterator<FailureEnricherFactory> factoryIterator =
@@ -87,7 +87,7 @@ public class FailureEnricherUtils {
             final FailureEnricherFactory failureEnricherFactory = factoryIterator.next();
             final FailureEnricher failureEnricher =
                     failureEnricherFactory.createFailureEnricher(configuration);
-            if (includedEnrichers.contains(failureEnricher.getClass().getName())) {
+            if (enrichersToLoad.remove(failureEnricher.getClass().getName())) {
                 failureEnrichers.add(failureEnricher);
                 LOG.info(
                         "Found failure enricher {} at {}.",
@@ -102,8 +102,14 @@ public class FailureEnricherUtils {
                 LOG.debug(
                         "Excluding failure enricher {}, not configured in enricher list ({}).",
                         failureEnricherFactory.getClass().getName(),
-                        includedEnrichers);
+                        enrichersToLoad);
             }
+        }
+
+        if (!enrichersToLoad.isEmpty()) {
+            LOG.error(
+                    "The following failure enrichers were configured but not found on the classpath: {}.",
+                    enrichersToLoad);
         }
 
         return filterInvalidEnrichers(failureEnrichers);
@@ -200,6 +206,14 @@ public class FailureEnricherUtils {
                                                     }
                                                 });
                                         return validLabels;
+                                    })
+                            .exceptionally(
+                                    t -> {
+                                        LOG.warn(
+                                                "Enricher {} threw an exception.",
+                                                enricher.getClass(),
+                                                t);
+                                        return Collections.emptyMap();
                                     }));
         }
         // combine all CompletableFutures into a single CompletableFuture containing a Map of labels

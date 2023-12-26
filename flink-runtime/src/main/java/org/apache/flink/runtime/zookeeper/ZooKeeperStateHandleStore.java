@@ -364,6 +364,9 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
                     return client.getChildren().forPath(path);
                 } catch (KeeperException.NoNodeException ignored) {
                     // Concurrent deletion, retry
+                    LOG.debug(
+                            "Unable to get all handles, retrying (ZNode was likely deleted concurrently: {})",
+                            ignored.getMessage());
                 }
             }
         }

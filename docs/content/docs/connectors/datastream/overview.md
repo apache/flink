@@ -34,9 +34,10 @@ The [predefined data sources]({{< ref "docs/dev/datastream/overview" >}}#data-so
 ingesting data from collections and iterators.
 The [predefined data sinks]({{< ref "docs/dev/datastream/overview" >}}#data-sinks) support writing to files, to stdout and stderr, and to sockets.
 
-## Bundled Connectors
+## Flink Project Connectors
 
-Connectors provide code for interfacing with various third-party systems. Currently these systems are supported:
+Connectors provide code for interfacing with various third-party systems. 
+Currently these systems are supported as part of the Apache Flink project:
 
  * [Apache Kafka]({{< ref "docs/connectors/datastream/kafka" >}}) (source/sink)
  * [Apache Cassandra]({{< ref "docs/connectors/datastream/cassandra" >}}) (source/sink)
@@ -60,8 +61,6 @@ Note also that while the streaming connectors listed in this section are part of
 Flink project and are included in source releases, they are not included in the binary distributions. 
 Further instructions can be found in the corresponding subsections.
 
-Filesystem source formats are gradually replaced with new Flink Source API starting with Flink 1.14.0.
-
 ## Connectors in Apache Bahir
 
 Additional streaming connectors for Flink are being released through [Apache Bahir](https://bahir.apache.org/), including:
@@ -81,15 +80,6 @@ One common pattern is to query an external database or web service in a `Map` or
 in order to enrich the primary datastream.
 Flink offers an API for [Asynchronous I/O]({{< ref "docs/dev/datastream/operators/asyncio" >}})
 to make it easier to do this kind of enrichment efficiently and robustly.
-
-### Queryable State
-
-When a Flink application pushes a lot of data to an external data store, this
-can become an I/O bottleneck.
-If the data involved has many fewer reads than writes, a better approach can be
-for an external application to pull from Flink the data it needs.
-The [Queryable State]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}) interface
-enables this by allowing the state being managed by Flink to be queried on demand.
 
 {{< top >}}
 

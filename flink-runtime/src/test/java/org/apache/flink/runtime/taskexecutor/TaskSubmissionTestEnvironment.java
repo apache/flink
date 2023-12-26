@@ -35,6 +35,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTrackerImpl;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -309,6 +310,15 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                                     configuration.getInteger(
                                             NettyShuffleEnvironmentOptions
                                                     .NETWORK_REQUEST_BACKOFF_MAX))
+                            .setResultPartitionManager(
+                                    new ResultPartitionManager(
+                                            (int)
+                                                    configuration
+                                                            .get(
+                                                                    NettyShuffleEnvironmentOptions
+                                                                            .NETWORK_PARTITION_REQUEST_TIMEOUT)
+                                                            .toMillis(),
+                                            testingRpcService.getScheduledExecutor()))
                             .setNettyConfig(localCommunication ? null : nettyConfig)
                             .build();
 

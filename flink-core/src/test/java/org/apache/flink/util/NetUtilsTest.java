@@ -18,6 +18,8 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.configuration.IllegalConfigurationException;
+
 import org.assertj.core.api.Assertions;
 import org.junit.Assert;
 import org.junit.Test;
@@ -47,6 +49,14 @@ public class NetUtilsTest extends TestLogger {
     public void testCorrectHostnamePort() throws Exception {
         final URL url = new URL("http", "foo.com", 8080, "/index.html");
         assertEquals(url, NetUtils.getCorrectHostnamePort("foo.com:8080/index.html"));
+    }
+
+    @Test
+    public void testCorrectHostnamePortWithHttpsScheme() throws Exception {
+        final URL url = new URL("https", "foo.com", 8080, "/some/other/path/index.html");
+        assertEquals(
+                url,
+                NetUtils.getCorrectHostnamePort("https://foo.com:8080/some/other/path/index.html"));
     }
 
     @Test
@@ -258,6 +268,38 @@ public class NetUtilsTest extends TestLogger {
             error = t;
         }
         Assert.assertTrue(error instanceof NumberFormatException);
+
+        // invalid port
+        try {
+            NetUtils.getPortRangeFromString("70000");
+        } catch (Throwable t) {
+            error = t;
+        }
+        Assert.assertTrue(error instanceof IllegalConfigurationException);
+
+        // invalid start
+        try {
+            NetUtils.getPortRangeFromString("70000-70001");
+        } catch (Throwable t) {
+            error = t;
+        }
+        Assert.assertTrue(error instanceof IllegalConfigurationException);
+
+        // invalid end
+        try {
+            NetUtils.getPortRangeFromString("0-70000");
+        } catch (Throwable t) {
+            error = t;
+        }
+        Assert.assertTrue(error instanceof IllegalConfigurationException);
+
+        // same range
+        try {
+            NetUtils.getPortRangeFromString("5-5");
+        } catch (Throwable t) {
+            error = t;
+        }
+        Assert.assertTrue(error instanceof IllegalConfigurationException);
     }
 
     @Test
@@ -351,6 +393,22 @@ public class NetUtilsTest extends TestLogger {
     public void testSocketToUrl() throws MalformedURLException {
         InetSocketAddress socketAddress = new InetSocketAddress("foo.com", 8080);
         URL expectedResult = new URL("http://foo.com:8080");
+
+        Assertions.assertThat(socketToUrl(socketAddress)).isEqualTo(expectedResult);
+    }
+
+    @Test
+    public void testIpv6SocketToUrl() throws MalformedURLException {
+        InetSocketAddress socketAddress = new InetSocketAddress("[2001:1db8::ff00:42:8329]", 8080);
+        URL expectedResult = new URL("http://[2001:1db8::ff00:42:8329]:8080");
+
+        Assertions.assertThat(socketToUrl(socketAddress)).isEqualTo(expectedResult);
+    }
+
+    @Test
+    public void testIpv4SocketToUrl() throws MalformedURLException {
+        InetSocketAddress socketAddress = new InetSocketAddress("192.168.0.1", 8080);
+        URL expectedResult = new URL("http://192.168.0.1:8080");
 
         Assertions.assertThat(socketToUrl(socketAddress)).isEqualTo(expectedResult);
     }

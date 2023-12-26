@@ -29,14 +29,18 @@ import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.api.connector.source.SupportsIntermediateNoMoreSplits;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.InternalSplitEnumeratorMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
+import org.apache.flink.runtime.source.event.IsProcessingBacklogEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.ThrowableCatchingRunnable;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
@@ -110,6 +114,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     private final boolean supportsConcurrentExecutionAttempts;
     private final boolean[] subtaskHasNoMoreSplits;
     private volatile boolean closed;
+    private volatile TernaryBoolean backlog = TernaryBoolean.UNDEFINED;
 
     public SourceCoordinatorContext(
             SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory,
@@ -358,6 +363,27 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     @VisibleForTesting
     boolean isClosed() {
         return closed;
+    }
+
+    @Override
+    public void setIsProcessingBacklog(boolean isProcessingBacklog) {
+        CheckpointCoordinator checkpointCoordinator =
+                getCoordinatorContext().getCheckpointCoordinator();
+        OperatorID operatorID = getCoordinatorContext().getOperatorId();
+        if (checkpointCoordinator != null) {
+            checkpointCoordinator.setIsProcessingBacklog(operatorID, isProcessingBacklog);
+        }
+        backlog = TernaryBoolean.fromBoolean(isProcessingBacklog);
+        callInCoordinatorThread(
+                () -> {
+                    final IsProcessingBacklogEvent isProcessingBacklogEvent =
+                            new IsProcessingBacklogEvent(isProcessingBacklog);
+                    for (int i = 0; i < getCoordinatorContext().currentParallelism(); i++) {
+                        sendEventToSourceOperatorIfTaskReady(i, isProcessingBacklogEvent);
+                    }
+                    return null;
+                },
+                "Failed to send BacklogEvent to reader.");
     }
 
     // --------- Package private additional methods for the SourceCoordinator ------------
@@ -615,6 +641,14 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                 throw new IllegalStateException("No cached split is expected.");
             }
         }
+    }
+
+    /**
+     * Returns whether the Source is processing backlog data. UNDEFINED is returned if it is not set
+     * by the {@link #setIsProcessingBacklog} method.
+     */
+    public TernaryBoolean isBacklog() {
+        return backlog;
     }
 
     /** Maintains the subtask gateways for different execution attempts of different subtasks. */

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
@@ -107,6 +108,11 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
     public CompletableFuture<String> triggerSavepoint(
             JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType) {
         return miniCluster.triggerSavepoint(jobId, savepointDirectory, false, formatType);
+    }
+
+    @Override
+    public CompletableFuture<Long> triggerCheckpoint(JobID jobId, CheckpointType checkpointType) {
+        return miniCluster.triggerCheckpoint(jobId, checkpointType);
     }
 
     @Override

@@ -17,9 +17,8 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.planner.alias.ClearJoinHintWithInvalidPropagationShuttle
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkRelFactories}
-import org.apache.flink.table.planner.hint.FlinkHints
+import org.apache.flink.table.planner.hint.{ClearJoinHintsWithInvalidPropagationShuttle, FlinkHints}
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand, RelOptUtil}
@@ -101,7 +100,7 @@ class FlinkSubQueryRemoveRule(
         val nodeWithHint = RelOptUtil.propagateRelHints(newNode, false)
         val nodeWithCapitalizedJoinHints = FlinkHints.capitalizeJoinHints(nodeWithHint)
         val finalNode =
-          nodeWithCapitalizedJoinHints.accept(new ClearJoinHintWithInvalidPropagationShuttle)
+          nodeWithCapitalizedJoinHints.accept(new ClearJoinHintsWithInvalidPropagationShuttle)
         call.transformTo(finalNode)
       case _ => // do nothing
     }
@@ -216,6 +215,18 @@ class FlinkSubQueryRemoveRule(
 
       // EXISTS and NOT EXISTS
       case SqlKind.EXISTS =>
+        val mq = subQuery.rel.getCluster.getMetadataQuery
+        val minRowCount = mq.getMinRowCount(subQuery.rel)
+        // If the sub-query is guaranteed to produce at least one row, just return TRUE.
+        if (minRowCount != null && minRowCount >= 1d) {
+          return Option.apply(relBuilder.literal(!withNot))
+        }
+        val maxRowCount = mq.getMaxRowCount(subQuery.rel)
+        // If the sub-query is guaranteed to produce no rows then return FALSE.
+        if (maxRowCount != null && maxRowCount < 1d) {
+          return Option.apply(relBuilder.literal(withNot))
+        }
+
         val joinCondition = if (equivalent != null) {
           // EXISTS has correlation variables
           relBuilder.push(equivalent.getKey) // push join right

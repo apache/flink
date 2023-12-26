@@ -47,8 +47,7 @@ public interface TierFactory {
             BatchShuffleReadBufferPool bufferPool,
             ScheduledExecutorService ioExecutor,
             int maxRequestedBuffers,
-            Duration bufferRequestTimeout,
-            int maxBufferReadAhead);
+            Duration bufferRequestTimeout);
 
     /** Creates the consumer-side agent of a Tier. */
     TierConsumerAgent createConsumerAgent(

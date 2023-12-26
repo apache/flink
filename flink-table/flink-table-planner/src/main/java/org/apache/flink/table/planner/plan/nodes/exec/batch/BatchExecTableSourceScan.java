@@ -23,9 +23,6 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
-import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -36,8 +33,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
-import org.apache.flink.table.runtime.operators.dynamicfiltering.DynamicFilteringDataCollectorOperatorFactory;
-import org.apache.flink.table.runtime.operators.dynamicfiltering.ExecutionOrderEnforcerOperatorFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
@@ -54,8 +49,7 @@ public class BatchExecTableSourceScan extends CommonExecTableSourceScan
 
     // Avoids creating different ids if translated multiple times
     private final String dynamicFilteringDataListenerID = UUID.randomUUID().toString();
-
-    private boolean needDynamicFilteringDependency;
+    private final ReadableConfig tableConfig;
 
     // This constructor can be used only when table source scan has
     // BatchExecDynamicFilteringDataCollector input
@@ -73,6 +67,7 @@ public class BatchExecTableSourceScan extends CommonExecTableSourceScan
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
+        this.tableConfig = tableConfig;
     }
 
     public BatchExecTableSourceScan(
@@ -88,10 +83,11 @@ public class BatchExecTableSourceScan extends CommonExecTableSourceScan
                 Collections.emptyList(),
                 outputType,
                 description);
+        this.tableConfig = tableConfig;
     }
 
-    public void setNeedDynamicFilteringDependency(boolean needDynamicFilteringDependency) {
-        this.needDynamicFilteringDependency = needDynamicFilteringDependency;
+    public String getDynamicFilteringDataListenerID() {
+        return dynamicFilteringDataListenerID;
     }
 
     @Override
@@ -102,50 +98,10 @@ public class BatchExecTableSourceScan extends CommonExecTableSourceScan
         // the boundedness has been checked via the runtime provider already, so we can safely
         // declare all legacy transformations as bounded to make the stream graph generator happy
         ExecNodeUtil.makeLegacySourceTransformationsBounded(transformation);
-
-        // no dynamic filtering applied
-        if (getInputEdges().isEmpty() || !(transformation instanceof SourceTransformation)) {
-            return transformation;
-        }
-
-        // handle dynamic filtering
-        BatchExecDynamicFilteringDataCollector dynamicFilteringDataCollector =
-                getDynamicFilteringDataCollector(this);
-
-        // Set the dynamic filtering data listener ids for both sides. Must use translateToPlan to
-        // avoid duplication.
-        Transformation<Object> dynamicFilteringTransform =
-                dynamicFilteringDataCollector.translateToPlan(planner);
-        ((SourceTransformation<?, ?, ?>) transformation)
-                .setCoordinatorListeningID(dynamicFilteringDataListenerID);
-        ((DynamicFilteringDataCollectorOperatorFactory)
-                        ((OneInputTransformation<?, ?>) dynamicFilteringTransform)
-                                .getOperatorFactory())
-                .registerDynamicFilteringDataListenerID(dynamicFilteringDataListenerID);
-
-        // Translate the predecessor nodes. Must use translateToPlan to avoid duplication.
-        BatchExecNode<?> input = (BatchExecNode<?>) getInputEdges().get(0).getSource();
-        Transformation<?> dynamicFilteringInputTransform = input.translateToPlan(planner);
-
-        if (!needDynamicFilteringDependency) {
-            planner.addExtraTransformation(dynamicFilteringInputTransform);
-            return transformation;
-        } else {
-            MultipleInputTransformation<RowData> multipleInputTransformation =
-                    new MultipleInputTransformation<>(
-                            "Order-Enforcer",
-                            new ExecutionOrderEnforcerOperatorFactory<>(),
-                            transformation.getOutputType(),
-                            transformation.getParallelism(),
-                            false);
-            multipleInputTransformation.addInput(dynamicFilteringInputTransform);
-            multipleInputTransformation.addInput(transformation);
-
-            return multipleInputTransformation;
-        }
+        return transformation;
     }
 
-    private BatchExecDynamicFilteringDataCollector getDynamicFilteringDataCollector(
+    public static BatchExecDynamicFilteringDataCollector getDynamicFilteringDataCollector(
             BatchExecNode<?> node) {
         Preconditions.checkState(
                 node.getInputEdges().size() == 1,
@@ -176,5 +132,16 @@ public class BatchExecTableSourceScan extends CommonExecTableSourceScan
         final InputFormatSourceFunction<RowData> function =
                 new InputFormatSourceFunction<>(inputFormat, outputTypeInfo);
         return env.addSource(function, operatorName, outputTypeInfo).getTransformation();
+    }
+
+    public BatchExecTableSourceScan copyAndRemoveInputs() {
+        BatchExecTableSourceScan tableSourceScan =
+                new BatchExecTableSourceScan(
+                        tableConfig,
+                        getTableSourceSpec(),
+                        (RowType) getOutputType(),
+                        getDescription());
+        tableSourceScan.setInputEdges(Collections.emptyList());
+        return tableSourceScan;
     }
 }

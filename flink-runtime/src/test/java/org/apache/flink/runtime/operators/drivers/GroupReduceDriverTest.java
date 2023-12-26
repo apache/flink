@@ -34,26 +34,25 @@ import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.fail;
+
 @SuppressWarnings("serial")
-public class GroupReduceDriverTest {
+class GroupReduceDriverTest {
 
     @Test
-    public void testAllReduceDriverImmutableEmpty() {
+    void testAllReduceDriverImmutableEmpty() {
         try {
             TestTaskContext<
                             GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>,
                             Tuple2<String, Integer>>
-                    context =
-                            new TestTaskContext<
-                                    GroupReduceFunction<
-                                            Tuple2<String, Integer>, Tuple2<String, Integer>>,
-                                    Tuple2<String, Integer>>();
+                    context = new TestTaskContext<>();
 
             List<Tuple2<String, Integer>> data = DriverTestData.createReduceImmutableData();
             TupleTypeInfo<Tuple2<String, Integer>> typeInfo =
@@ -66,53 +65,47 @@ public class GroupReduceDriverTest {
             context.setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 
             GatheringCollector<Tuple2<String, Integer>> result =
-                    new GatheringCollector<Tuple2<String, Integer>>(
-                            typeInfo.createSerializer(new ExecutionConfig()));
+                    new GatheringCollector<>(typeInfo.createSerializer(new ExecutionConfig()));
 
             context.setInput1(input, typeInfo.createSerializer(new ExecutionConfig()));
             context.setComparator1(comparator);
             context.setCollector(result);
 
             GroupReduceDriver<Tuple2<String, Integer>, Tuple2<String, Integer>> driver =
-                    new GroupReduceDriver<Tuple2<String, Integer>, Tuple2<String, Integer>>();
+                    new GroupReduceDriver<>();
             driver.setup(context);
             driver.prepare();
             driver.run();
 
-            Assert.assertTrue(result.getList().isEmpty());
+            assertThat(result.getList()).isEmpty();
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testAllReduceDriverImmutable() {
+    void testAllReduceDriverImmutable() {
         try {
             TestTaskContext<
                             GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>,
                             Tuple2<String, Integer>>
-                    context =
-                            new TestTaskContext<
-                                    GroupReduceFunction<
-                                            Tuple2<String, Integer>, Tuple2<String, Integer>>,
-                                    Tuple2<String, Integer>>();
+                    context = new TestTaskContext<>();
 
             List<Tuple2<String, Integer>> data = DriverTestData.createReduceImmutableData();
             TupleTypeInfo<Tuple2<String, Integer>> typeInfo =
                     (TupleTypeInfo<Tuple2<String, Integer>>)
                             TypeExtractor.getForObject(data.get(0));
             MutableObjectIterator<Tuple2<String, Integer>> input =
-                    new RegularToMutableObjectIterator<Tuple2<String, Integer>>(
+                    new RegularToMutableObjectIterator<>(
                             data.iterator(), typeInfo.createSerializer(new ExecutionConfig()));
             TypeComparator<Tuple2<String, Integer>> comparator =
                     typeInfo.createComparator(
                             new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
 
             GatheringCollector<Tuple2<String, Integer>> result =
-                    new GatheringCollector<Tuple2<String, Integer>>(
-                            typeInfo.createSerializer(new ExecutionConfig()));
+                    new GatheringCollector<>(typeInfo.createSerializer(new ExecutionConfig()));
 
             context.setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
             context.setInput1(input, typeInfo.createSerializer(new ExecutionConfig()));
@@ -121,7 +114,7 @@ public class GroupReduceDriverTest {
             context.setUdf(new ConcatSumReducer());
 
             GroupReduceDriver<Tuple2<String, Integer>, Tuple2<String, Integer>> driver =
-                    new GroupReduceDriver<Tuple2<String, Integer>, Tuple2<String, Integer>>();
+                    new GroupReduceDriver<>();
             driver.setup(context);
             driver.prepare();
             driver.run();
@@ -133,38 +126,32 @@ public class GroupReduceDriverTest {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testAllReduceDriverMutable() {
+    void testAllReduceDriverMutable() {
         try {
             TestTaskContext<
                             GroupReduceFunction<
                                     Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>>,
                             Tuple2<StringValue, IntValue>>
-                    context =
-                            new TestTaskContext<
-                                    GroupReduceFunction<
-                                            Tuple2<StringValue, IntValue>,
-                                            Tuple2<StringValue, IntValue>>,
-                                    Tuple2<StringValue, IntValue>>();
+                    context = new TestTaskContext<>();
 
             List<Tuple2<StringValue, IntValue>> data = DriverTestData.createReduceMutableData();
             TupleTypeInfo<Tuple2<StringValue, IntValue>> typeInfo =
                     (TupleTypeInfo<Tuple2<StringValue, IntValue>>)
                             TypeExtractor.getForObject(data.get(0));
             MutableObjectIterator<Tuple2<StringValue, IntValue>> input =
-                    new RegularToMutableObjectIterator<Tuple2<StringValue, IntValue>>(
+                    new RegularToMutableObjectIterator<>(
                             data.iterator(), typeInfo.createSerializer(new ExecutionConfig()));
             TypeComparator<Tuple2<StringValue, IntValue>> comparator =
                     typeInfo.createComparator(
                             new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
 
             GatheringCollector<Tuple2<StringValue, IntValue>> result =
-                    new GatheringCollector<Tuple2<StringValue, IntValue>>(
-                            typeInfo.createSerializer(new ExecutionConfig()));
+                    new GatheringCollector<>(typeInfo.createSerializer(new ExecutionConfig()));
 
             context.setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
             context.setInput1(input, typeInfo.createSerializer(new ExecutionConfig()));
@@ -173,8 +160,7 @@ public class GroupReduceDriverTest {
             context.setUdf(new ConcatSumMutableReducer());
 
             GroupReduceDriver<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>> driver =
-                    new GroupReduceDriver<
-                            Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>>();
+                    new GroupReduceDriver<>();
             driver.setup(context);
             driver.prepare();
             driver.run();
@@ -186,48 +172,42 @@ public class GroupReduceDriverTest {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testAllReduceDriverIncorrectlyAccumulatingMutable() {
+    void testAllReduceDriverIncorrectlyAccumulatingMutable() {
         try {
             TestTaskContext<
                             GroupReduceFunction<
                                     Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>>,
                             Tuple2<StringValue, IntValue>>
-                    context =
-                            new TestTaskContext<
-                                    GroupReduceFunction<
-                                            Tuple2<StringValue, IntValue>,
-                                            Tuple2<StringValue, IntValue>>,
-                                    Tuple2<StringValue, IntValue>>();
+                    context = new TestTaskContext<>();
 
             List<Tuple2<StringValue, IntValue>> data = DriverTestData.createReduceMutableData();
             TupleTypeInfo<Tuple2<StringValue, IntValue>> typeInfo =
                     (TupleTypeInfo<Tuple2<StringValue, IntValue>>)
                             TypeExtractor.getForObject(data.get(0));
             MutableObjectIterator<Tuple2<StringValue, IntValue>> input =
-                    new RegularToMutableObjectIterator<Tuple2<StringValue, IntValue>>(
+                    new RegularToMutableObjectIterator<>(
                             data.iterator(), typeInfo.createSerializer(new ExecutionConfig()));
             TypeComparator<Tuple2<StringValue, IntValue>> comparator =
                     typeInfo.createComparator(
                             new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
 
             GatheringCollector<Tuple2<StringValue, IntValue>> result =
-                    new GatheringCollector<Tuple2<StringValue, IntValue>>(
-                            typeInfo.createSerializer(new ExecutionConfig()));
+                    new GatheringCollector<>(typeInfo.createSerializer(new ExecutionConfig()));
 
             context.setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
             context.setInput1(input, typeInfo.createSerializer(new ExecutionConfig()));
             context.setComparator1(comparator);
             context.setCollector(result);
             context.setUdf(new ConcatSumMutableAccumulatingReducer());
+            context.getExecutionConfig().enableObjectReuse();
 
             GroupReduceDriver<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>> driver =
-                    new GroupReduceDriver<
-                            Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>>();
+                    new GroupReduceDriver<>();
             driver.setup(context);
             driver.prepare();
             driver.run();
@@ -235,59 +215,48 @@ public class GroupReduceDriverTest {
             Object[] res = result.getList().toArray();
             Object[] expected = DriverTestData.createReduceMutableDataGroupedResult().toArray();
 
-            try {
-                DriverTestData.compareTupleArrays(expected, res);
-                Assert.fail(
-                        "Accumulationg mutable objects is expected to result in incorrect values.");
-            } catch (AssertionError e) {
-                // expected
-            }
+            assertThatExceptionOfType(AssertionError.class)
+                    .as("Accumulationg mutable objects is expected to result in incorrect values.")
+                    .isThrownBy(() -> DriverTestData.compareTupleArrays(expected, res));
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testAllReduceDriverAccumulatingImmutable() {
+    void testAllReduceDriverAccumulatingImmutable() {
         try {
             TestTaskContext<
                             GroupReduceFunction<
                                     Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>>,
                             Tuple2<StringValue, IntValue>>
-                    context =
-                            new TestTaskContext<
-                                    GroupReduceFunction<
-                                            Tuple2<StringValue, IntValue>,
-                                            Tuple2<StringValue, IntValue>>,
-                                    Tuple2<StringValue, IntValue>>();
+                    context = new TestTaskContext<>();
 
             List<Tuple2<StringValue, IntValue>> data = DriverTestData.createReduceMutableData();
             TupleTypeInfo<Tuple2<StringValue, IntValue>> typeInfo =
                     (TupleTypeInfo<Tuple2<StringValue, IntValue>>)
                             TypeExtractor.getForObject(data.get(0));
             MutableObjectIterator<Tuple2<StringValue, IntValue>> input =
-                    new RegularToMutableObjectIterator<Tuple2<StringValue, IntValue>>(
+                    new RegularToMutableObjectIterator<>(
                             data.iterator(), typeInfo.createSerializer(new ExecutionConfig()));
             TypeComparator<Tuple2<StringValue, IntValue>> comparator =
                     typeInfo.createComparator(
                             new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
 
             GatheringCollector<Tuple2<StringValue, IntValue>> result =
-                    new GatheringCollector<Tuple2<StringValue, IntValue>>(
-                            typeInfo.createSerializer(new ExecutionConfig()));
+                    new GatheringCollector<>(typeInfo.createSerializer(new ExecutionConfig()));
 
             context.setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
             context.setInput1(input, typeInfo.createSerializer(new ExecutionConfig()));
             context.setComparator1(comparator);
             context.setCollector(result);
             context.setUdf(new ConcatSumMutableAccumulatingReducer());
-            context.setMutableObjectMode(false);
+            context.getExecutionConfig().disableObjectReuse();
 
             GroupReduceDriver<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>> driver =
-                    new GroupReduceDriver<
-                            Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>>();
+                    new GroupReduceDriver<>();
             driver.setup(context);
             driver.prepare();
             driver.run();
@@ -299,7 +268,7 @@ public class GroupReduceDriverTest {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
@@ -313,7 +282,7 @@ public class GroupReduceDriverTest {
         @Override
         public void reduce(
                 Iterable<Tuple2<String, Integer>> values, Collector<Tuple2<String, Integer>> out) {
-            Tuple2<String, Integer> current = new Tuple2<String, Integer>("", 0);
+            Tuple2<String, Integer> current = new Tuple2<>("", 0);
 
             for (Tuple2<String, Integer> next : values) {
                 next.f0 = current.f0 + next.f0;
@@ -334,7 +303,7 @@ public class GroupReduceDriverTest {
                 Iterable<Tuple2<StringValue, IntValue>> values,
                 Collector<Tuple2<StringValue, IntValue>> out) {
             Tuple2<StringValue, IntValue> current =
-                    new Tuple2<StringValue, IntValue>(new StringValue(""), new IntValue(0));
+                    new Tuple2<>(new StringValue(""), new IntValue(0));
 
             for (Tuple2<StringValue, IntValue> next : values) {
                 next.f0.append(current.f0);
@@ -355,8 +324,7 @@ public class GroupReduceDriverTest {
                 Iterable<Tuple2<StringValue, IntValue>> values,
                 Collector<Tuple2<StringValue, IntValue>> out)
                 throws Exception {
-            List<Tuple2<StringValue, IntValue>> all =
-                    new ArrayList<Tuple2<StringValue, IntValue>>();
+            List<Tuple2<StringValue, IntValue>> all = new ArrayList<>();
 
             for (Tuple2<StringValue, IntValue> t : values) {
                 all.add(t);

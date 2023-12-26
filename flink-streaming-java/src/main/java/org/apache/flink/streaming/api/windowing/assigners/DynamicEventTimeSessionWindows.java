@@ -68,6 +68,13 @@ public class DynamicEventTimeSessionWindows<T> extends MergingWindowAssigner<T, 
     @SuppressWarnings("unchecked")
     @Override
     public Trigger<T, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
+        throw new UnsupportedOperationException(
+                "This method is deprecated and shouldn't be invoked. Please use getDefaultTrigger() instead.");
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public Trigger<T, TimeWindow> getDefaultTrigger() {
         return (Trigger<T, TimeWindow>) EventTimeTrigger.create();
     }
 

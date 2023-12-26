@@ -28,7 +28,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.util.TestUtils;
 
@@ -43,7 +43,9 @@ import org.junit.jupiter.api.Test;
 import java.io.File;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -81,7 +83,10 @@ class YARNFileReplicationITCase extends YarnTestBase {
                 createYarnClusterDescriptor(configuration)) {
 
             yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-            yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
+            yarnClusterDescriptor.addShipFiles(
+                    Arrays.stream(Objects.requireNonNull(flinkLibFolder.listFiles()))
+                            .map(file -> new Path(file.toURI()))
+                            .collect(Collectors.toList()));
 
             final int masterMemory =
                     yarnClusterDescriptor
@@ -138,7 +143,7 @@ class YARNFileReplicationITCase extends YarnTestBase {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(2);
 
-        env.addSource(new NoDataSource()).shuffle().addSink(new DiscardingSink<>());
+        env.addSource(new NoDataSource()).shuffle().sinkTo(new DiscardingSink<>());
 
         return env.getStreamGraph().getJobGraph();
     }

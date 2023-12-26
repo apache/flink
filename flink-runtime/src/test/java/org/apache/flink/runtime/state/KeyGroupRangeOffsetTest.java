@@ -20,15 +20,17 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 
-public class KeyGroupRangeOffsetTest {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+class KeyGroupRangeOffsetTest {
 
     @Test
-    public void testKeyGroupIntersection() {
+    void testKeyGroupIntersection() {
         long[] offsets = new long[9];
         for (int i = 0; i < offsets.length; ++i) {
             offsets[i] = i;
@@ -44,33 +46,32 @@ public class KeyGroupRangeOffsetTest {
                 new KeyGroupRangeOffsets(
                         KeyGroupRange.of(3, 7),
                         Arrays.copyOfRange(offsets, 3 - startKeyGroup, 8 - startKeyGroup));
-        Assert.assertEquals(expected, intersection);
+        assertThat(intersection).isEqualTo(expected);
 
-        Assert.assertEquals(
-                keyGroupRangeOffsets,
-                keyGroupRangeOffsets.getIntersection(keyGroupRangeOffsets.getKeyGroupRange()));
+        assertThat(keyGroupRangeOffsets.getIntersection(keyGroupRangeOffsets.getKeyGroupRange()))
+                .isEqualTo(keyGroupRangeOffsets);
 
         intersection = keyGroupRangeOffsets.getIntersection(KeyGroupRange.of(11, 13));
-        Assert.assertEquals(KeyGroupRange.EMPTY_KEY_GROUP_RANGE, intersection.getKeyGroupRange());
-        Assert.assertFalse(intersection.iterator().hasNext());
+        assertThat(intersection.getKeyGroupRange()).isEqualTo(KeyGroupRange.EMPTY_KEY_GROUP_RANGE);
+        assertThat(intersection.iterator()).isExhausted();
 
         intersection = keyGroupRangeOffsets.getIntersection(KeyGroupRange.of(5, 13));
         expected =
                 new KeyGroupRangeOffsets(
                         KeyGroupRange.of(5, 10),
                         Arrays.copyOfRange(offsets, 5 - startKeyGroup, 11 - startKeyGroup));
-        Assert.assertEquals(expected, intersection);
+        assertThat(intersection).isEqualTo(expected);
 
         intersection = keyGroupRangeOffsets.getIntersection(KeyGroupRange.of(0, 2));
         expected =
                 new KeyGroupRangeOffsets(
                         KeyGroupRange.of(2, 2),
                         Arrays.copyOfRange(offsets, 2 - startKeyGroup, 3 - startKeyGroup));
-        Assert.assertEquals(intersection, intersection);
+        assertThat(intersection).isEqualTo(expected);
     }
 
     @Test
-    public void testKeyGroupRangeOffsetsBasics() {
+    void testKeyGroupRangeOffsetsBasics() {
         testKeyGroupRangeOffsetsBasicsInternal(0, 0);
         testKeyGroupRangeOffsetsBasicsInternal(0, 1);
         testKeyGroupRangeOffsetsBasicsInternal(1, 2);
@@ -79,19 +80,15 @@ public class KeyGroupRangeOffsetTest {
         testKeyGroupRangeOffsetsBasicsInternal(0, Short.MAX_VALUE);
         testKeyGroupRangeOffsetsBasicsInternal(Short.MAX_VALUE - 1, Short.MAX_VALUE);
 
-        try {
-            testKeyGroupRangeOffsetsBasicsInternal(-3, 2);
-            Assert.fail();
-        } catch (IllegalArgumentException ex) {
-            // expected
-        }
+        assertThatThrownBy(() -> testKeyGroupRangeOffsetsBasicsInternal(-3, 2))
+                .isInstanceOf(IllegalArgumentException.class);
 
         KeyGroupRangeOffsets testNoGivenOffsets = new KeyGroupRangeOffsets(3, 7);
         for (int i = 3; i <= 7; ++i) {
             testNoGivenOffsets.setKeyGroupOffset(i, i + 1);
         }
         for (int i = 3; i <= 7; ++i) {
-            Assert.assertEquals(i + 1, testNoGivenOffsets.getKeyGroupOffset(i));
+            assertThat(testNoGivenOffsets.getKeyGroupOffset(i)).isEqualTo(i + 1);
         }
     }
 
@@ -106,23 +103,24 @@ public class KeyGroupRangeOffsetTest {
                 new KeyGroupRangeOffsets(startKeyGroup, endKeyGroup, offsets);
         KeyGroupRangeOffsets sameButDifferentConstr =
                 new KeyGroupRangeOffsets(KeyGroupRange.of(startKeyGroup, endKeyGroup), offsets);
-        Assert.assertEquals(keyGroupRange, sameButDifferentConstr);
+        assertThat(sameButDifferentConstr).isEqualTo(keyGroupRange);
 
         int numberOfKeyGroup = keyGroupRange.getKeyGroupRange().getNumberOfKeyGroups();
-        Assert.assertEquals(Math.max(0, endKeyGroup - startKeyGroup + 1), numberOfKeyGroup);
+        assertThat(numberOfKeyGroup).isEqualTo(Math.max(0, endKeyGroup - startKeyGroup + 1));
         if (numberOfKeyGroup > 0) {
-            Assert.assertEquals(startKeyGroup, keyGroupRange.getKeyGroupRange().getStartKeyGroup());
-            Assert.assertEquals(endKeyGroup, keyGroupRange.getKeyGroupRange().getEndKeyGroup());
+            assertThat(keyGroupRange.getKeyGroupRange().getStartKeyGroup())
+                    .isEqualTo(startKeyGroup);
+            assertThat(keyGroupRange.getKeyGroupRange().getEndKeyGroup()).isEqualTo(endKeyGroup);
             int c = startKeyGroup;
             for (Tuple2<Integer, Long> tuple : keyGroupRange) {
-                Assert.assertEquals(c, (int) tuple.f0);
-                Assert.assertTrue(keyGroupRange.getKeyGroupRange().contains(tuple.f0));
-                Assert.assertEquals((long) c - startKeyGroup, (long) tuple.f1);
+                assertThat(tuple.f0).isEqualTo(c);
+                assertThat(keyGroupRange.getKeyGroupRange()).contains(tuple.f0);
+                assertThat(tuple.f1).isEqualTo((long) c - startKeyGroup);
                 ++c;
             }
 
             for (int i = startKeyGroup; i <= endKeyGroup; ++i) {
-                Assert.assertEquals(i - startKeyGroup, keyGroupRange.getKeyGroupOffset(i));
+                assertThat(keyGroupRange.getKeyGroupOffset(i)).isEqualTo(i - startKeyGroup);
             }
 
             int newOffset = 42;
@@ -132,14 +130,14 @@ public class KeyGroupRangeOffsetTest {
             }
 
             for (int i = startKeyGroup; i <= endKeyGroup; ++i) {
-                Assert.assertEquals(42 + i - startKeyGroup, keyGroupRange.getKeyGroupOffset(i));
+                assertThat(keyGroupRange.getKeyGroupOffset(i)).isEqualTo(42 + i - startKeyGroup);
             }
 
-            Assert.assertEquals(endKeyGroup + 1, c);
-            Assert.assertFalse(keyGroupRange.getKeyGroupRange().contains(startKeyGroup - 1));
-            Assert.assertFalse(keyGroupRange.getKeyGroupRange().contains(endKeyGroup + 1));
+            assertThat(c).isEqualTo(endKeyGroup + 1);
+            assertThat(keyGroupRange.getKeyGroupRange()).doesNotContain(startKeyGroup - 1);
+            assertThat(keyGroupRange.getKeyGroupRange()).doesNotContain(endKeyGroup + 1);
         } else {
-            Assert.assertEquals(KeyGroupRange.EMPTY_KEY_GROUP_RANGE, keyGroupRange);
+            assertThat(keyGroupRange).isEqualTo(KeyGroupRange.EMPTY_KEY_GROUP_RANGE);
         }
     }
 }

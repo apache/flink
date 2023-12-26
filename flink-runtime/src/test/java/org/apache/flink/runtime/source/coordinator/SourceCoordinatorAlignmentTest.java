@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.source.coordinator;
 
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
@@ -30,7 +31,10 @@ import org.apache.flink.runtime.source.event.WatermarkAlignmentEvent;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,6 +44,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Unit tests for watermark alignment of the {@link SourceCoordinator}. */
 @SuppressWarnings("serial")
 class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
+
+    private static final Random RANDOM = new Random();
 
     @Test
     void testWatermarkAlignment() throws Exception {
@@ -256,6 +262,92 @@ class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
         waitForSentEvents(5);
         // SourceAlignment will ignore the task not ready error, so job will not fail
         assertThat(operatorCoordinatorContext.isJobFailed()).isFalse();
+    }
+
+    @Test
+    void testWatermarkAggregator() {
+        final SourceCoordinator.WatermarkAggregator<Integer> combinedWatermark =
+                new SourceCoordinator.WatermarkAggregator<>();
+
+        combinedWatermark.aggregate(0, new Watermark(10));
+        assertThat(combinedWatermark.getAggregatedWatermark().getTimestamp()).isEqualTo(10);
+
+        combinedWatermark.aggregate(1, new Watermark(12));
+        assertThat(combinedWatermark.getAggregatedWatermark().getTimestamp()).isEqualTo(10);
+
+        combinedWatermark.aggregate(2, new Watermark(13));
+        assertThat(combinedWatermark.getAggregatedWatermark().getTimestamp()).isEqualTo(10);
+
+        combinedWatermark.aggregate(1, new Watermark(9));
+        assertThat(combinedWatermark.getAggregatedWatermark().getTimestamp()).isEqualTo(9);
+
+        // The watermark of idle source
+        combinedWatermark.aggregate(1, new Watermark(Long.MAX_VALUE));
+        assertThat(combinedWatermark.getAggregatedWatermark().getTimestamp()).isEqualTo(10);
+
+        combinedWatermark.aggregate(1, new Watermark(8));
+        assertThat(combinedWatermark.getAggregatedWatermark().getTimestamp()).isEqualTo(8);
+
+        combinedWatermark.aggregate(1, new Watermark(20));
+        assertThat(combinedWatermark.getAggregatedWatermark().getTimestamp()).isEqualTo(10);
+
+        combinedWatermark.aggregate(0, new Watermark(23));
+        assertThat(combinedWatermark.getAggregatedWatermark().getTimestamp()).isEqualTo(13);
+
+        combinedWatermark.aggregate(2, new Watermark(22));
+        assertThat(combinedWatermark.getAggregatedWatermark().getTimestamp()).isEqualTo(20);
+    }
+
+    @Test
+    void testWatermarkAggregatorRandomly() {
+        testWatermarkAggregatorRandomly(20, 1000, true, true);
+        testWatermarkAggregatorRandomly(20, 1000, true, false);
+        testWatermarkAggregatorRandomly(20, 2000, true, true);
+        testWatermarkAggregatorRandomly(20, 2000, true, false);
+        testWatermarkAggregatorRandomly(20, 5000, true, true);
+        testWatermarkAggregatorRandomly(20, 5000, true, false);
+        testWatermarkAggregatorRandomly(10, 10000, true, true);
+        testWatermarkAggregatorRandomly(10, 10000, true, false);
+    }
+
+    private void testWatermarkAggregatorRandomly(
+            int roundNumber, int keyNumber, boolean checkResult, boolean testSourceIdle) {
+        final SourceCoordinator.WatermarkAggregator<Integer> combinedWatermark =
+                new SourceCoordinator.WatermarkAggregator<>();
+        final Map<Integer, Long> latestWatermarks = new HashMap<>();
+
+        for (long round = 0; round < roundNumber; round++) {
+            for (int key = 0; key < keyNumber; key++) {
+                long timestamp = getRandomTimestamp(testSourceIdle);
+                combinedWatermark.aggregate(key, new Watermark(timestamp));
+
+                if (checkResult) {
+                    latestWatermarks.put(key, timestamp);
+                    // Disable the check for benchmark
+                    assertAggregatedWatermark(combinedWatermark, latestWatermarks);
+                }
+            }
+        }
+    }
+
+    // Randomizes the last three digits of the timestamp
+    private long getRandomTimestamp(boolean testSourceIdle) {
+        if (testSourceIdle && RANDOM.nextInt(100) == 0) {
+            // Simulate the source idle and the default watermark
+            return RANDOM.nextBoolean() ? Long.MAX_VALUE : Long.MIN_VALUE;
+        }
+        return System.currentTimeMillis() / 1000 * 1000 + RANDOM.nextInt(1000);
+    }
+
+    private void assertAggregatedWatermark(
+            SourceCoordinator.WatermarkAggregator<Integer> combinedWatermark,
+            Map<Integer, Long> latestWatermarks) {
+        long expectAggregatedWatermark =
+                latestWatermarks.values().stream()
+                        .min(Comparable::compareTo)
+                        .orElseThrow(IllegalStateException::new);
+        assertThat(combinedWatermark.getAggregatedWatermark().getTimestamp())
+                .isEqualTo(expectAggregatedWatermark);
     }
 
     private SourceCoordinator<?, ?> getAndStartNewSourceCoordinator(

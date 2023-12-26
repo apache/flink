@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.tests;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -26,7 +27,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
 import java.io.IOException;
@@ -59,7 +59,7 @@ public class SlidingWindowCheckMapper
     }
 
     @Override
-    public void open(Configuration parameters) {
+    public void open(OpenContext openContext) {
         ValueStateDescriptor<List<Tuple2<Event, Integer>>> previousWindowDescriptor =
                 new ValueStateDescriptor<>(
                         "eventsSeenSoFar",

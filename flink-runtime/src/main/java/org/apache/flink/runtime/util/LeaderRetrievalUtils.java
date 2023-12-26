@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -39,26 +40,25 @@ public class LeaderRetrievalUtils {
     private static final Logger LOG = LoggerFactory.getLogger(LeaderRetrievalUtils.class);
 
     /**
-     * Retrieves the leader akka url and the current leader session ID. The values are stored in a
-     * {@link LeaderConnectionInfo} instance.
+     * Retrieves the leader pekko url and the current leader session ID. The values are stored in a
+     * {@link LeaderInformation} instance.
      *
      * @param leaderRetrievalService Leader retrieval service to retrieve the leader connection
      *     information
      * @param timeout Timeout when to give up looking for the leader
-     * @return LeaderConnectionInfo containing the leader's akka URL and the current leader session
-     *     ID
+     * @return LeaderInformation containing the leader's rpc URL and the current leader session ID
      * @throws LeaderRetrievalException
      */
-    public static LeaderConnectionInfo retrieveLeaderConnectionInfo(
+    public static LeaderInformation retrieveLeaderInformation(
             LeaderRetrievalService leaderRetrievalService, Duration timeout)
             throws LeaderRetrievalException {
 
-        LeaderConnectionInfoListener listener = new LeaderConnectionInfoListener();
+        LeaderInformationListener listener = new LeaderInformationListener();
 
         try {
             leaderRetrievalService.start(listener);
 
-            return listener.getLeaderConnectionInfoFuture()
+            return listener.getLeaderInformationFuture()
                     .get(timeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             throw new LeaderRetrievalException(
@@ -109,14 +109,14 @@ public class LeaderRetrievalUtils {
     }
 
     /**
-     * Helper class which is used by the retrieveLeaderConnectionInfo method to retrieve the
-     * leader's akka URL and the current leader session ID.
+     * Helper class which is used by the retrieveLeaderInformation method to retrieve the leader's
+     * rpc URL and the current leader session ID.
      */
-    public static class LeaderConnectionInfoListener implements LeaderRetrievalListener {
-        private final CompletableFuture<LeaderConnectionInfo> connectionInfoFuture =
+    public static class LeaderInformationListener implements LeaderRetrievalListener {
+        private final CompletableFuture<LeaderInformation> connectionInfoFuture =
                 new CompletableFuture<>();
 
-        public CompletableFuture<LeaderConnectionInfo> getLeaderConnectionInfoFuture() {
+        public CompletableFuture<LeaderInformation> getLeaderInformationFuture() {
             return connectionInfoFuture;
         }
 
@@ -125,9 +125,9 @@ public class LeaderRetrievalUtils {
             if (leaderAddress != null
                     && !leaderAddress.equals("")
                     && !connectionInfoFuture.isDone()) {
-                final LeaderConnectionInfo leaderConnectionInfo =
-                        new LeaderConnectionInfo(leaderSessionID, leaderAddress);
-                connectionInfoFuture.complete(leaderConnectionInfo);
+                final LeaderInformation leaderInformation =
+                        LeaderInformation.known(leaderSessionID, leaderAddress);
+                connectionInfoFuture.complete(leaderInformation);
             }
         }
 

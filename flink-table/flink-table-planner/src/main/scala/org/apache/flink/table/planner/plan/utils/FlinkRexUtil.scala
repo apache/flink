@@ -644,7 +644,8 @@ object FlinkRexUtil {
         inputNames,
         context.getFunctionCatalog,
         context.getCatalogManager,
-        TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(context.getTableConfig)));
+        TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(context.getTableConfig)),
+        Some(rel.getRowType));
 
     RexNodeExtractor.extractConjunctiveConditions(
       filterExpression,

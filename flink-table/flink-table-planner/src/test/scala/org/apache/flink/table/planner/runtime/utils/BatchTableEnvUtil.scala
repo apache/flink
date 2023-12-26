@@ -22,7 +22,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.{Table, TableEnvironment}
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.planner.delegation.PlannerBase

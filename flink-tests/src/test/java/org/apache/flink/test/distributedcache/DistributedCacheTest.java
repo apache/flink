@@ -18,10 +18,10 @@
 
 package org.apache.flink.test.distributedcache;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
@@ -68,7 +68,7 @@ public class DistributedCacheTest extends AbstractTestBase {
         private final List<String> wordList = new ArrayList<>();
 
         @Override
-        public void open(Configuration conf) throws IOException {
+        public void open(OpenContext openContext) throws IOException {
             File file = getRuntimeContext().getDistributedCache().getFile("cache_test");
             try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
                 String tempString;

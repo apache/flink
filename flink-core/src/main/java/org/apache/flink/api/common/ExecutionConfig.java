@@ -149,12 +149,19 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      */
     @Deprecated private long executionRetryDelay = DEFAULT_RESTART_DELAY;
 
+    /**
+     * @deprecated The field is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided by {@link org.apache.flink.configuration.RestartStrategyOptions} for configuring
+     *     restart strategies.
+     */
+    @Deprecated
     private RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration =
             new RestartStrategies.FallbackRestartStrategyConfiguration();
 
     // ------------------------------- User code values --------------------------------------------
-
-    private GlobalJobParameters globalJobParameters = new GlobalJobParameters();
 
     // Serializers and types registered with Kryo and the PojoSerializer
     // we store them in linked maps/sets to ensure they are registered in order in all kryo
@@ -436,8 +443,15 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * 	1000 // delay between retries));
      * }</pre>
      *
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided by {@link org.apache.flink.configuration.RestartStrategyOptions} for configuring
+     *     restart strategies.
      * @param restartStrategyConfiguration Configuration defining the restart strategy to use
      */
+    @Deprecated
     @PublicEvolving
     public void setRestartStrategy(
             RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
@@ -448,10 +462,16 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     /**
      * Returns the restart strategy which has been set for the current job.
      *
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided by {@link org.apache.flink.configuration.RestartStrategyOptions} for configuring
+     *     restart strategies.
      * @return The specified restart configuration
      */
+    @Deprecated
     @PublicEvolving
-    @SuppressWarnings("deprecation")
     public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
         if (restartStrategyConfiguration
                 instanceof RestartStrategies.FallbackRestartStrategyConfiguration) {
@@ -544,7 +564,15 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * <p>The default execution mode is {@link ExecutionMode#PIPELINED}.
      *
      * @param executionMode The execution mode to use.
+     * @deprecated The {@link ExecutionMode} is deprecated because it's only used in DataSet APIs.
+     *     All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future
+     *     Flink major version. You can still build your application in DataSet, but you should move
+     *     to either the DataStream and/or Table API.
+     * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
+     *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet
+     *     API</a>
      */
+    @Deprecated
     public void setExecutionMode(ExecutionMode executionMode) {
         configuration.set(EXECUTION_MODE, executionMode);
     }
@@ -556,7 +584,15 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * <p>The default execution mode is {@link ExecutionMode#PIPELINED}.
      *
      * @return The execution mode for the program.
+     * @deprecated The {@link ExecutionMode} is deprecated because it's only used in DataSet APIs.
+     *     All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future
+     *     Flink major version. You can still build your application in DataSet, but you should move
+     *     to either the DataStream and/or Table API.
+     * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
+     *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet
+     *     API</a>
      */
+    @Deprecated
     public ExecutionMode getExecutionMode() {
         return configuration.get(EXECUTION_MODE);
     }
@@ -746,7 +782,10 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     }
 
     public GlobalJobParameters getGlobalJobParameters() {
-        return globalJobParameters;
+        return configuration
+                .getOptional(PipelineOptions.GLOBAL_JOB_PARAMETERS)
+                .map(MapBasedJobParameters::new)
+                .orElse(new MapBasedJobParameters(Collections.emptyMap()));
     }
 
     /**
@@ -756,7 +795,11 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      */
     public void setGlobalJobParameters(GlobalJobParameters globalJobParameters) {
         Preconditions.checkNotNull(globalJobParameters, "globalJobParameters shouldn't be null");
-        this.globalJobParameters = globalJobParameters;
+        setGlobalJobParameters(globalJobParameters.toMap());
+    }
+
+    private void setGlobalJobParameters(Map<String, String> parameters) {
+        configuration.set(PipelineOptions.GLOBAL_JOB_PARAMETERS, parameters);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -913,13 +956,35 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         return registeredPojoTypes;
     }
 
+    /**
+     * Get if the auto type registration is disabled.
+     *
+     * @return if the auto type registration is disabled.
+     * @deprecated The method is deprecated because it's only used in DataSet API. All Flink DataSet
+     *     APIs are deprecated since Flink 1.18 and will be removed in a future Flink major version.
+     *     You can still build your application in DataSet, but you should move to either the
+     *     DataStream and/or Table API.
+     * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
+     *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet
+     *     API</a>
+     */
+    @Deprecated
     public boolean isAutoTypeRegistrationDisabled() {
         return !configuration.get(PipelineOptions.AUTO_TYPE_REGISTRATION);
     }
 
     /**
      * Control whether Flink is automatically registering all types in the user programs with Kryo.
+     *
+     * @deprecated The method is deprecated because it's only used in DataSet API. All Flink DataSet
+     *     APIs are deprecated since Flink 1.18 and will be removed in a future Flink major version.
+     *     You can still build your application in DataSet, but you should move to either the
+     *     DataStream and/or Table API.
+     * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
+     *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet
+     *     API</a>
      */
+    @Deprecated
     public void disableAutoTypeRegistration() {
         setAutoTypeRegistration(false);
     }
@@ -941,14 +1006,12 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         if (obj instanceof ExecutionConfig) {
             ExecutionConfig other = (ExecutionConfig) obj;
 
-            return other.canEqual(this)
-                    && Objects.equals(configuration, other.configuration)
+            return Objects.equals(configuration, other.configuration)
                     && ((restartStrategyConfiguration == null
                                     && other.restartStrategyConfiguration == null)
                             || (null != restartStrategyConfiguration
                                     && restartStrategyConfiguration.equals(
                                             other.restartStrategyConfiguration)))
-                    && Objects.equals(globalJobParameters, other.globalJobParameters)
                     && registeredTypesWithKryoSerializerClasses.equals(
                             other.registeredTypesWithKryoSerializerClasses)
                     && defaultKryoSerializerClasses.equals(other.defaultKryoSerializerClasses)
@@ -965,7 +1028,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         return Objects.hash(
                 configuration,
                 restartStrategyConfiguration,
-                globalJobParameters,
                 registeredTypesWithKryoSerializerClasses,
                 defaultKryoSerializerClasses,
                 registeredKryoTypes,
@@ -981,8 +1043,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 + executionRetryDelay
                 + ", restartStrategyConfiguration="
                 + restartStrategyConfiguration
-                + ", globalJobParameters="
-                + globalJobParameters
                 + ", registeredTypesWithKryoSerializers="
                 + registeredTypesWithKryoSerializers
                 + ", registeredTypesWithKryoSerializerClasses="
@@ -998,6 +1058,12 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 + '}';
     }
 
+    /**
+     * This method simply checks whether the object is an {@link ExecutionConfig} instance.
+     *
+     * @deprecated It is not intended to be used by users.
+     */
+    @Deprecated
     public boolean canEqual(Object obj) {
         return obj instanceof ExecutionConfig;
     }
@@ -1107,7 +1173,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         configuration.getOptional(PipelineOptions.FORCE_KRYO).ifPresent(this::setForceKryo);
         configuration
                 .getOptional(PipelineOptions.GLOBAL_JOB_PARAMETERS)
-                .<GlobalJobParameters>map(MapBasedJobParameters::new)
                 .ifPresent(this::setGlobalJobParameters);
 
         configuration
@@ -1159,7 +1224,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     /**
      * @return A copy of internal {@link #configuration}. Note it is missing all options that are
      *     stored as plain java fields in {@link ExecutionConfig}, for example {@link
-     *     #registeredKryoTypes} or {@link #globalJobParameters}.
+     *     #registeredKryoTypes}.
      */
     @Internal
     public Configuration toConfiguration() {

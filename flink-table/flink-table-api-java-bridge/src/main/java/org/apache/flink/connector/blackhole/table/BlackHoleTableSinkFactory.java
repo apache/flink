@@ -20,10 +20,10 @@ package org.apache.flink.connector.blackhole.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkFunctionProvider;
+import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.types.RowKind;
@@ -80,7 +80,7 @@ public class BlackHoleTableSinkFactory implements DynamicTableSinkFactory {
 
         @Override
         public SinkRuntimeProvider getSinkRuntimeProvider(DynamicTableSink.Context context) {
-            return SinkFunctionProvider.of(new DiscardingSink<>());
+            return SinkV2Provider.of(new DiscardingSink<>());
         }
 
         @Override

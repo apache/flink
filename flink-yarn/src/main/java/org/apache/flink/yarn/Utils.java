@@ -667,4 +667,12 @@ public final class Utils {
                             acl));
         }
     }
+
+    public static Path getPathFromLocalFile(File localFile) {
+        return new Path(localFile.toURI());
+    }
+
+    public static Path getPathFromLocalFilePathStr(String localPathStr) {
+        return getPathFromLocalFile(new File(localPathStr));
+    }
 }

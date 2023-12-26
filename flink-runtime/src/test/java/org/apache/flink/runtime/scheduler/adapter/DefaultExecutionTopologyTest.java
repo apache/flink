@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
@@ -177,11 +178,13 @@ class DefaultExecutionTopologyTest {
         final ExecutionJobVertex ejv1 = executionGraph.getJobVertex(jobVertices[0].getID());
         final ExecutionJobVertex ejv2 = executionGraph.getJobVertex(jobVertices[1].getID());
 
-        executionGraph.initializeJobVertex(ejv1, 0L);
+        executionGraph.initializeJobVertex(
+                ejv1, 0L, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
         adapter.notifyExecutionGraphUpdated(executionGraph, Collections.singletonList(ejv1));
         assertThat(adapter.getVertices()).hasSize(3);
 
-        executionGraph.initializeJobVertex(ejv2, 0L);
+        executionGraph.initializeJobVertex(
+                ejv2, 0L, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
         adapter.notifyExecutionGraphUpdated(executionGraph, Collections.singletonList(ejv2));
         assertThat(adapter.getVertices()).hasSize(6);
 
@@ -197,10 +200,12 @@ class DefaultExecutionTopologyTest {
         final ExecutionJobVertex ejv1 = executionGraph.getJobVertex(jobVertices[0].getID());
         final ExecutionJobVertex ejv2 = executionGraph.getJobVertex(jobVertices[1].getID());
 
-        executionGraph.initializeJobVertex(ejv1, 0L);
+        executionGraph.initializeJobVertex(
+                ejv1, 0L, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
         adapter.notifyExecutionGraphUpdated(executionGraph, Collections.singletonList(ejv1));
 
-        executionGraph.initializeJobVertex(ejv2, 0L);
+        executionGraph.initializeJobVertex(
+                ejv2, 0L, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
         assertThatThrownBy(
                         () ->
                                 adapter.notifyExecutionGraphUpdated(
@@ -217,12 +222,14 @@ class DefaultExecutionTopologyTest {
         final ExecutionJobVertex ejv1 = executionGraph.getJobVertex(jobVertices[0].getID());
         final ExecutionJobVertex ejv2 = executionGraph.getJobVertex(jobVertices[1].getID());
 
-        executionGraph.initializeJobVertex(ejv1, 0L);
+        executionGraph.initializeJobVertex(
+                ejv1, 0L, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
         adapter.notifyExecutionGraphUpdated(executionGraph, Collections.singletonList(ejv1));
         SchedulingPipelinedRegion regionOld =
                 adapter.getPipelinedRegionOfVertex(new ExecutionVertexID(ejv1.getJobVertexId(), 0));
 
-        executionGraph.initializeJobVertex(ejv2, 0L);
+        executionGraph.initializeJobVertex(
+                ejv2, 0L, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
         adapter.notifyExecutionGraphUpdated(executionGraph, Collections.singletonList(ejv2));
         SchedulingPipelinedRegion regionNew =
                 adapter.getPipelinedRegionOfVertex(new ExecutionVertexID(ejv1.getJobVertexId(), 0));

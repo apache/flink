@@ -46,7 +46,7 @@
               {{ narrowData.name }}
             </a>
           </td>
-          <td>{{ narrowData.mtime | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+          <td>{{ narrowData.mtime | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
           <td>{{ narrowData.size / 1024 | number: '1.0-2' }}</td>
         </tr>
       </ng-container>

@@ -238,15 +238,16 @@ class ProcessFailureCancelingITCase {
                 taskManagerProcess.destroy();
             }
             if (dispatcherResourceManagerComponent != null) {
-                dispatcherResourceManagerComponent.stopApplication(
-                        ApplicationStatus.SUCCEEDED, null);
+                dispatcherResourceManagerComponent
+                        .stopApplication(ApplicationStatus.SUCCEEDED, null)
+                        .get();
             }
 
             fatalErrorHandler.rethrowError();
 
             RpcUtils.terminateRpcService(rpcService);
 
-            haServices.closeAndCleanupAllData();
+            haServices.closeWithOptionalClean(true);
         }
     }
 

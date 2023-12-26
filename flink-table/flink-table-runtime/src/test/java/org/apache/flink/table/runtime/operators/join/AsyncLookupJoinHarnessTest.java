@@ -19,9 +19,10 @@
 package org.apache.flink.table.runtime.operators.join;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
@@ -186,6 +187,7 @@ public class AsyncLookupJoinHarnessTest {
             testHarness.processElement(insertRecord(3, "c"));
             testHarness.processElement(insertRecord(4, "d"));
             testHarness.processElement(insertRecord(5, "e"));
+            testHarness.processElement(insertRecord(6, null));
         }
 
         // wait until all async collectors in the buffer have been emitted out.
@@ -201,6 +203,7 @@ public class AsyncLookupJoinHarnessTest {
         expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
         expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
         expectedOutput.add(insertRecord(5, "e", null, null));
+        expectedOutput.add(insertRecord(6, null, null, null));
 
         checkResult(expectedOutput, testHarness.getOutput());
     }
@@ -218,6 +221,7 @@ public class AsyncLookupJoinHarnessTest {
             testHarness.processElement(insertRecord(3, "c"));
             testHarness.processElement(insertRecord(4, "d"));
             testHarness.processElement(insertRecord(5, "e"));
+            testHarness.processElement(insertRecord(6, null));
         }
 
         // wait until all async collectors in the buffer have been emitted out.
@@ -232,6 +236,7 @@ public class AsyncLookupJoinHarnessTest {
         expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
         expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
         expectedOutput.add(insertRecord(5, "e", null, null));
+        expectedOutput.add(insertRecord(6, null, null, null));
 
         checkResult(expectedOutput, testHarness.getOutput());
     }
@@ -257,6 +262,8 @@ public class AsyncLookupJoinHarnessTest {
                             new GeneratedFunctionWrapper(new TestingFetcherFunction()),
                             fetcherConverter,
                             new GeneratedResultFutureWrapper<>(new TestingFetcherResultFuture()),
+                            new GeneratedFunctionWrapper(
+                                    new LookupJoinHarnessTest.TestingPreFilterCondition()),
                             rightRowSerializer,
                             isLeftJoin,
                             ASYNC_BUFFER_CAPACITY);
@@ -267,6 +274,8 @@ public class AsyncLookupJoinHarnessTest {
                             fetcherConverter,
                             new GeneratedFunctionWrapper<>(new CalculateOnTemporalTable()),
                             new GeneratedResultFutureWrapper<>(new TestingFetcherResultFuture()),
+                            new GeneratedFunctionWrapper(
+                                    new LookupJoinHarnessTest.TestingPreFilterCondition()),
                             rightRowSerializer,
                             isLeftJoin,
                             ASYNC_BUFFER_CAPACITY);
@@ -290,6 +299,8 @@ public class AsyncLookupJoinHarnessTest {
                         new GeneratedFunctionWrapper(new TestingFetcherFunction()),
                         fetcherConverter,
                         new GeneratedResultFutureWrapper<>(new TestingFetcherResultFuture()),
+                        new GeneratedFunctionWrapper(
+                                new LookupJoinHarnessTest.TestingPreFilterCondition()),
                         rightRowSerializer,
                         true,
                         100);
@@ -297,11 +308,11 @@ public class AsyncLookupJoinHarnessTest {
         closeAsyncLookupJoinRunner(joinRunner);
 
         joinRunner.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
-        joinRunner.open(new Configuration());
+        joinRunner.open(DefaultOpenContext.INSTANCE);
         assertThat(joinRunner.getAllResultFutures()).isNotNull();
         closeAsyncLookupJoinRunner(joinRunner);
 
-        joinRunner.open(new Configuration());
+        joinRunner.open(DefaultOpenContext.INSTANCE);
         joinRunner.asyncInvoke(row(1, "a"), new TestingFetcherResultFuture());
         assertThat(joinRunner.getAllResultFutures()).isNotNull();
         closeAsyncLookupJoinRunner(joinRunner);
@@ -355,8 +366,8 @@ public class AsyncLookupJoinHarnessTest {
         private transient ExecutorService executor;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             // generate unordered result for async lookup
             this.executor = Executors.newFixedThreadPool(2);
         }

@@ -656,7 +656,7 @@ class JobMasterServiceLeadershipRunnerTest {
         final JobID jobId = new JobID();
         final JobResult jobResult =
                 TestingJobResultStore.createJobResult(jobId, ApplicationStatus.UNKNOWN);
-        jobResultStore.createDirtyResult(new JobResultEntry(jobResult));
+        jobResultStore.createDirtyResultAsync(new JobResultEntry(jobResult)).get();
         try (JobManagerRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .setJobMasterServiceProcessFactory(

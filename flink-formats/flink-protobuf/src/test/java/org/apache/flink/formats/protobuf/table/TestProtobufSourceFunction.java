@@ -18,8 +18,8 @@
 
 package org.apache.flink.formats.protobuf.table;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.table.data.RowData;
 
@@ -32,8 +32,8 @@ public class TestProtobufSourceFunction extends RichSourceFunction<RowData> {
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         this.deserializer.open(null);
     }
 

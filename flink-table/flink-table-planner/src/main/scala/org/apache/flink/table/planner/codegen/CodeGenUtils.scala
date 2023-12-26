@@ -38,7 +38,7 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getPrecision, getScale}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getPrecision, getScale, isCompositeType}
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass
 import org.apache.flink.table.types.utils.DataTypeUtils.isInternal
 import org.apache.flink.table.utils.EncodingUtils
@@ -57,6 +57,8 @@ object CodeGenUtils {
   val DEFAULT_LEGACY_CAST_BEHAVIOUR = "legacyCastBehaviour"
 
   val DEFAULT_TIMEZONE_TERM = "timeZone"
+
+  val DEFAULT_INPUT_TERM = "in"
 
   val DEFAULT_INPUT1_TERM = "in1"
 
@@ -934,9 +936,7 @@ object CodeGenUtils {
     if (targetDataType.getConversionClass.isPrimitive) {
       externalResultTerm
     } else {
-      // Cast of null is required because of janino issue https://github.com/janino-compiler/janino/issues/188
-      val externalResultTypeTerm = typeTerm(targetDataType.getConversionClass)
-      s"${internalExpr.nullTerm} ? ($externalResultTypeTerm) null : ($externalResultTerm)"
+      s"${internalExpr.nullTerm} ? null : ($externalResultTerm)"
     }
   }
 
@@ -1034,19 +1034,52 @@ object CodeGenUtils {
     }
 
     // convert internal format to target type
-    val (externalResultTerm, externalResultTypeTerm) = if (isInternalClass(targetDataType)) {
-      (s"($targetTypeTerm) ${internalExpr.resultTerm}", s"($targetTypeTerm)")
+    val externalResultTerm = if (isInternalClass(targetDataType)) {
+      s"($targetTypeTerm) ${internalExpr.resultTerm}"
     } else {
-      (
-        genToExternalConverterWithLegacy(ctx, targetDataType, internalExpr.resultTerm),
-        typeTerm(targetDataType.getConversionClass))
+      genToExternalConverterWithLegacy(ctx, targetDataType, internalExpr.resultTerm)
     }
     // merge null term into the result term
     if (targetDataType.getConversionClass.isPrimitive) {
       externalResultTerm
     } else {
-      // Cast of null is required because of janino issue https://github.com/janino-compiler/janino/issues/188
-      s"${internalExpr.nullTerm} ? ($externalResultTypeTerm) null : ($externalResultTerm)"
+      s"${internalExpr.nullTerm} ? null : ($externalResultTerm)"
+    }
+  }
+
+  def fieldIndices(t: LogicalType): Array[Int] = {
+    if (isCompositeType(t)) {
+      (0 until getFieldCount(t)).toArray
+    } else {
+      Array(0)
+    }
+  }
+
+  def getReuseRowFieldExprs(
+      ctx: CodeGeneratorContext,
+      inputType: RowType,
+      inputRowTerm: String): Seq[GeneratedExpression] = {
+    fieldIndices(inputType)
+      .map(
+        index => {
+          val expr = GenerateUtils.generateFieldAccess(ctx, inputType, inputRowTerm, index)
+          ctx.addReusableInputUnboxingExprs(inputRowTerm, index, expr)
+          expr
+        })
+      .toSeq
+  }
+
+  def getFieldExpr(
+      ctx: CodeGeneratorContext,
+      inputTerm: String,
+      inputType: RowType,
+      index: Int): GeneratedExpression = {
+    ctx.getReusableInputUnboxingExprs(inputTerm, index) match {
+      // For operator fusion codegen case, the input field expr have been prepared before do this logic.
+      case Some(expr) => expr
+      // For single operator codegen case, this is needed.
+      case None =>
+        GenerateUtils.generateFieldAccess(ctx, inputType, inputTerm, index)
     }
   }
 }

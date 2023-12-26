@@ -41,6 +41,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
+import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.Utils;
@@ -62,6 +63,8 @@ import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
+import org.apache.flink.connector.datagen.functions.FromElementsGeneratorFunction;
+import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.core.execution.CacheSupportedPipelineExecutor;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
@@ -73,6 +76,8 @@ import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.scheduler.ClusterDatasetCorruptedException;
+import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
@@ -198,8 +203,15 @@ public class StreamExecutionEnvironment implements AutoCloseable {
 
     private boolean isChainingOfOperatorsWithDifferentMaxParallelismEnabled = true;
 
-    /** The state backend used for storing k/v state and state snapshots. */
-    private StateBackend defaultStateBackend;
+    /**
+     * The state backend used for storing k/v state and state snapshots.
+     *
+     * @deprecated The field is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     field will be removed entirely.
+     */
+    @Deprecated private StateBackend defaultStateBackend;
 
     /** Whether to enable ChangelogStateBackend, default value is unset. */
     private TernaryBoolean changelogStateBackendEnabled = TernaryBoolean.UNDEFINED;
@@ -661,10 +673,24 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * org.apache.flink.runtime.state.CheckpointStorage} which configures how and where state
      * backends persist during a checkpoint.
      *
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided for configuring state backend like the following code snippet:
+     *     <pre>{@code
+     * Configuration config = new Configuration();
+     * config.set(StateBackendOptions.STATE_BACKEND, "hashmap");
+     * StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+     * }</pre>
+     *     For more details on using ConfigOption for state backend configuration, please refer to
+     *     the Flink documentation: <a
+     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/state_backends">state-backends</a>
      * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
      * @see #getStateBackend()
      * @see CheckpointConfig#setCheckpointStorage( org.apache.flink.runtime.state.CheckpointStorage)
      */
+    @Deprecated
     @PublicEvolving
     public StreamExecutionEnvironment setStateBackend(StateBackend backend) {
         this.defaultStateBackend = Preconditions.checkNotNull(backend);
@@ -674,8 +700,16 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     /**
      * Gets the state backend that defines how to store and checkpoint state.
      *
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to find which state backend is used by
+     *     state backend ConfigOption. For more details on using ConfigOption for state backend
+     *     configuration, please refer to the Flink documentation: <a
+     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/state_backends">state-backends</a>
      * @see #setStateBackend(StateBackend)
      */
+    @Deprecated
     @PublicEvolving
     public StateBackend getStateBackend() {
         return defaultStateBackend;
@@ -784,8 +818,15 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * Sets the restart strategy configuration. The configuration specifies which restart strategy
      * will be used for the execution graph in case of a restart.
      *
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided by {@link org.apache.flink.configuration.RestartStrategyOptions} for configuring
+     *     restart strategies.
      * @param restartStrategyConfiguration Restart strategy configuration to be set
      */
+    @Deprecated
     @PublicEvolving
     public void setRestartStrategy(
             RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
@@ -795,8 +836,15 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     /**
      * Returns the specified restart strategy configuration.
      *
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided by {@link org.apache.flink.configuration.RestartStrategyOptions} for configuring
+     *     restart strategies.
      * @return The restart strategy configuration to be used
      */
+    @Deprecated
     @PublicEvolving
     public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
         return config.getRestartStrategy();
@@ -1065,6 +1113,11 @@ public class StreamExecutionEnvironment implements AutoCloseable {
 
         config.configure(configuration, classLoader);
         checkpointCfg.configure(configuration);
+
+        // here we should make sure the configured checkpoint storage will take effect
+        // this needs to happen after checkpointCfg#configure(...) to override the effect of
+        // checkpointCfg#setCheckpointStorage(checkpointDirectory)
+        configureCheckpointStorage(configuration, checkpointCfg);
     }
 
     private void registerCustomListeners(
@@ -1098,9 +1151,189 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         }
     }
 
+    protected void configureCheckpointStorage(
+            ReadableConfig configuration, CheckpointConfig checkpointCfg) {
+        try {
+            Optional<CheckpointStorage> storageOptional =
+                    CheckpointStorageLoader.fromConfig(configuration, userClassloader, null);
+            storageOptional.ifPresent(checkpointCfg::setCheckpointStorage);
+        } catch (DynamicCodeLoadingException e) {
+            throw new WrappingRuntimeException(e);
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
     // Data stream creations
     // --------------------------------------------------------------------------------------------
+
+    /**
+     * Creates a new data stream that contains the given elements. The elements must all be of the
+     * same type, for example, all of the {@link String} or {@link Integer}.
+     *
+     * <p>The framework will try and determine the exact type from the elements. In case of generic
+     * elements, it may be necessary to manually supply the type information via {@link
+     * #fromData(org.apache.flink.api.common.typeinfo.TypeInformation, OUT...)}.
+     *
+     * <p>NOTE: This creates a non-parallel data stream source by default (parallelism of one).
+     * Adjustment of parallelism is supported via {@code setParallelism()} on the result.
+     *
+     * @param data The array of elements to create the data stream from.
+     * @param <OUT> The type of the returned data stream
+     * @return The data stream representing the given array of elements
+     */
+    @SafeVarargs
+    public final <OUT> DataStreamSource<OUT> fromData(OUT... data) {
+        if (data.length == 0) {
+            throw new IllegalArgumentException(
+                    "fromElements needs at least one element as argument");
+        }
+
+        TypeInformation<OUT> typeInfo;
+        try {
+            typeInfo = TypeExtractor.getForObject(data[0]);
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Could not create TypeInformation for type "
+                            + data[0].getClass().getName()
+                            + "; please specify the TypeInformation manually via "
+                            + "StreamExecutionEnvironment#fromData(Collection, TypeInformation)",
+                    e);
+        }
+        return fromData(Arrays.asList(data), typeInfo);
+    }
+
+    /**
+     * Creates a new data stream that contains the given elements. The elements should be the same
+     * or be the subclass to the {@code typeInfo} type. The sequence of elements must not be empty.
+     *
+     * <p>NOTE: This creates a non-parallel data stream source by default (parallelism of one).
+     * Adjustment of parallelism is supported via {@code setParallelism()} on the result.
+     *
+     * @param typeInfo The type information of the elements.
+     * @param data The array of elements to create the data stream from.
+     * @param <OUT> The type of the returned data stream
+     * @return The data stream representing the given array of elements
+     */
+    @SafeVarargs
+    public final <OUT> DataStreamSource<OUT> fromData(TypeInformation<OUT> typeInfo, OUT... data) {
+        if (data.length == 0) {
+            throw new IllegalArgumentException(
+                    "fromElements needs at least one element as argument");
+        }
+        return fromData(Arrays.asList(data), typeInfo);
+    }
+
+    /**
+     * Creates a new data stream that contains the given elements. The elements must all be of the
+     * same type, for example, all of the {@link String} or {@link Integer}.
+     *
+     * <p>The framework will try and determine the exact type from the elements. In case of generic
+     * elements, it may be necessary to manually supply the type information via {@link
+     * #fromData(org.apache.flink.api.common.typeinfo.TypeInformation, OUT...)}.
+     *
+     * <p>NOTE: This creates a non-parallel data stream source by default (parallelism of one).
+     * Adjustment of parallelism is supported via {@code setParallelism()} on the result.
+     *
+     * @param data The collection of elements to create the data stream from.
+     * @param typeInfo The type information of the elements.
+     * @param <OUT> The generic type of the returned data stream.
+     * @return The data stream representing the given collection
+     */
+    public <OUT> DataStreamSource<OUT> fromData(
+            Collection<OUT> data, TypeInformation<OUT> typeInfo) {
+        Preconditions.checkNotNull(data, "Collection must not be null");
+
+        FromElementsGeneratorFunction<OUT> generatorFunction =
+                new FromElementsGeneratorFunction<>(typeInfo, getConfig(), data);
+
+        DataGeneratorSource<OUT> generatorSource =
+                new DataGeneratorSource<>(generatorFunction, data.size(), typeInfo);
+
+        return fromSource(
+                        generatorSource,
+                        WatermarkStrategy.forMonotonousTimestamps(),
+                        "Collection Source")
+                .setParallelism(1);
+    }
+
+    /**
+     * Creates a new data stream that contains the given elements. The framework will determine the
+     * type according to the based type user supplied. The elements should be the same or be the
+     * subclass to the based type. The sequence of elements must not be empty.
+     *
+     * <p>NOTE: This creates a non-parallel data stream source by default (parallelism of one).
+     * Adjustment of parallelism is supported via {@code setParallelism()} on the result.
+     *
+     * @param type The based class type in the collection.
+     * @param data The array of elements to create the data stream from.
+     * @param <OUT> The type of the returned data stream
+     * @return The data stream representing the given array of elements
+     */
+    @SafeVarargs
+    public final <OUT> DataStreamSource<OUT> fromData(Class<OUT> type, OUT... data) {
+        if (data.length == 0) {
+            throw new IllegalArgumentException(
+                    "fromElements needs at least one element as argument");
+        }
+
+        TypeInformation<OUT> typeInfo;
+        try {
+            typeInfo = TypeExtractor.getForClass(type);
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Could not create TypeInformation for type "
+                            + type.getName()
+                            + "; please specify the TypeInformation manually via "
+                            + "StreamExecutionEnvironment#fromData(Collection, TypeInformation)",
+                    e);
+        }
+        return fromData(Arrays.asList(data), typeInfo);
+    }
+
+    /**
+     * Creates a new data stream that contains the given elements.The type of the data stream is
+     * that of the elements in the collection.
+     *
+     * <p>The framework will try and determine the exact type from the collection elements. In case
+     * of generic elements, it may be necessary to manually supply the type information via {@link
+     * #fromData(java.util.Collection, org.apache.flink.api.common.typeinfo.TypeInformation)}.
+     *
+     * <p>NOTE: This creates a non-parallel data stream source by default (parallelism of one).
+     * Adjustment of parallelism is supported via {@code setParallelism()} on the result.
+     *
+     * @param data The collection of elements to create the data stream from.
+     * @param <OUT> The generic type of the returned data stream.
+     * @return The data stream representing the given collection
+     */
+    public <OUT> DataStreamSource<OUT> fromData(Collection<OUT> data) {
+        TypeInformation<OUT> typeInfo = extractTypeInfoFromCollection(data);
+        return fromData(data, typeInfo);
+    }
+
+    private static <OUT> TypeInformation<OUT> extractTypeInfoFromCollection(Collection<OUT> data) {
+        Preconditions.checkNotNull(data, "Collection must not be null");
+        if (data.isEmpty()) {
+            throw new IllegalArgumentException("Collection must not be empty");
+        }
+
+        OUT first = data.iterator().next();
+        if (first == null) {
+            throw new IllegalArgumentException("Collection must not contain null elements");
+        }
+
+        TypeInformation<OUT> typeInfo;
+        try {
+            typeInfo = TypeExtractor.getForObject(first);
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Could not create TypeInformation for type "
+                            + first.getClass()
+                            + "; please specify the TypeInformation manually via the version of the "
+                            + "method that explicitly accepts it as an argument.",
+                    e);
+        }
+        return typeInfo;
+    }
 
     /**
      * Creates a new data stream that contains a sequence of numbers. This is a parallel source, if
@@ -1167,8 +1400,11 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param data The array of elements to create the data stream from.
      * @param <OUT> The type of the returned data stream
      * @return The data stream representing the given array of elements
+     * @deprecated This method will be removed a future release, possibly as early as version 2.0.
+     *     Use {@link #fromData(OUT...)} instead.
      */
     @SafeVarargs
+    @Deprecated
     public final <OUT> DataStreamSource<OUT> fromElements(OUT... data) {
         if (data.length == 0) {
             throw new IllegalArgumentException(
@@ -1200,8 +1436,11 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param data The array of elements to create the data stream from.
      * @param <OUT> The type of the returned data stream
      * @return The data stream representing the given array of elements
+     * @deprecated This method will be removed a future release, possibly as early as version 2.0.
+     *     Use {@link #fromData(OUT...)} instead.
      */
     @SafeVarargs
+    @Deprecated
     public final <OUT> DataStreamSource<OUT> fromElements(Class<OUT> type, OUT... data) {
         if (data.length == 0) {
             throw new IllegalArgumentException(
@@ -1236,29 +1475,11 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param data The collection of elements to create the data stream from.
      * @param <OUT> The generic type of the returned data stream.
      * @return The data stream representing the given collection
+     * @deprecated This method will be removed a future release, possibly as early as version 2.0.
+     *     Use {@link #fromData(Collection)} instead.
      */
     public <OUT> DataStreamSource<OUT> fromCollection(Collection<OUT> data) {
-        Preconditions.checkNotNull(data, "Collection must not be null");
-        if (data.isEmpty()) {
-            throw new IllegalArgumentException("Collection must not be empty");
-        }
-
-        OUT first = data.iterator().next();
-        if (first == null) {
-            throw new IllegalArgumentException("Collection must not contain null elements");
-        }
-
-        TypeInformation<OUT> typeInfo;
-        try {
-            typeInfo = TypeExtractor.getForObject(first);
-        } catch (Exception e) {
-            throw new RuntimeException(
-                    "Could not create TypeInformation for type "
-                            + first.getClass()
-                            + "; please specify the TypeInformation manually via "
-                            + "StreamExecutionEnvironment#fromElements(Collection, TypeInformation)",
-                    e);
-        }
+        TypeInformation<OUT> typeInfo = extractTypeInfoFromCollection(data);
         return fromCollection(data, typeInfo);
     }
 
@@ -1272,6 +1493,8 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param typeInfo The TypeInformation for the produced data stream
      * @param <OUT> The type of the returned data stream
      * @return The data stream representing the given collection
+     * @deprecated This method will be removed a future release, possibly as early as version 2.0.
+     *     Use {@link #fromData(Collection, TypeInformation)} instead.
      */
     public <OUT> DataStreamSource<OUT> fromCollection(
             Collection<OUT> data, TypeInformation<OUT> typeInfo) {
@@ -1301,6 +1524,11 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @return The data stream representing the elements in the iterator
      * @see #fromCollection(java.util.Iterator,
      *     org.apache.flink.api.common.typeinfo.TypeInformation)
+     * @deprecated This method will be removed a future release, possibly as early as version 2.0.
+     *     Use {@link #fromData(Collection, TypeInformation)} instead. For rate-limited data
+     *     generation, use {@link DataGeneratorSource} with {@link RateLimiterStrategy}. If you need
+     *     to use a fixed set of elements in such scenario, combine it with {@link
+     *     FromElementsGeneratorFunction}.
      */
     public <OUT> DataStreamSource<OUT> fromCollection(Iterator<OUT> data, Class<OUT> type) {
         return fromCollection(data, TypeExtractor.getForClass(type));
@@ -1322,6 +1550,11 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param typeInfo The TypeInformation for the produced data stream
      * @param <OUT> The type of the returned data stream
      * @return The data stream representing the elements in the iterator
+     * @deprecated This method will be removed a future release, possibly as early as version 2.0.
+     *     Use {@link #fromData(Collection, TypeInformation)} instead. For rate-limited data
+     *     generation, use {@link DataGeneratorSource} with {@link RateLimiterStrategy}. If you need
+     *     to use a fixed set of elements in such scenario, combine it with {@link
+     *     FromElementsGeneratorFunction}.
      */
     public <OUT> DataStreamSource<OUT> fromCollection(
             Iterator<OUT> data, TypeInformation<OUT> typeInfo) {
@@ -1910,7 +2143,12 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param function the user defined function
      * @param <OUT> type of the returned stream
      * @return the data stream constructed
+     * @deprecated This method relies on the {@link
+     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+     *     removed. Use the {@link #fromSource(Source, WatermarkStrategy, String)} method based on
+     *     the new {@link org.apache.flink.api.connector.source.Source} API instead.
      */
+    @Deprecated
     public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function) {
         return addSource(function, "Custom Source");
     }
@@ -1924,7 +2162,12 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param sourceName Name of the data source
      * @param <OUT> type of the returned stream
      * @return the data stream constructed
+     * @deprecated This method relies on the {@link
+     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+     *     removed. Use the {@link #fromSource(Source, WatermarkStrategy, String)} method based on
+     *     the new {@link org.apache.flink.api.connector.source.Source} API instead.
      */
+    @Deprecated
     public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName) {
         return addSource(function, sourceName, null);
     }
@@ -1938,7 +2181,12 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param <OUT> type of the returned stream
      * @param typeInfo the user defined type information for the stream
      * @return the data stream constructed
+     * @deprecated This method relies on the {@link
+     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+     *     removed. Use the {@link #fromSource(Source, WatermarkStrategy, String, TypeInformation)}
+     *     method based on the new {@link org.apache.flink.api.connector.source.Source} API instead.
      */
+    @Deprecated
     public <OUT> DataStreamSource<OUT> addSource(
             SourceFunction<OUT> function, TypeInformation<OUT> typeInfo) {
         return addSource(function, "Custom Source", typeInfo);
@@ -1954,7 +2202,12 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param <OUT> type of the returned stream
      * @param typeInfo the user defined type information for the stream
      * @return the data stream constructed
+     * @deprecated This method relies on the {@link
+     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+     *     removed. Use the {@link #fromSource(Source, WatermarkStrategy, String, TypeInformation)}
+     *     method based on the new {@link org.apache.flink.api.connector.source.Source} API instead.
      */
+    @Deprecated
     public <OUT> DataStreamSource<OUT> addSource(
             SourceFunction<OUT> function, String sourceName, TypeInformation<OUT> typeInfo) {
         return addSource(function, sourceName, typeInfo, Boundedness.CONTINUOUS_UNBOUNDED);
@@ -2193,9 +2446,10 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public JobClient executeAsync(String jobName) throws Exception {
-        Preconditions.checkNotNull(jobName, "Streaming Job name should not be null.");
         final StreamGraph streamGraph = getStreamGraph();
-        streamGraph.setJobName(jobName);
+        if (jobName != null) {
+            streamGraph.setJobName(jobName);
+        }
         return executeAsync(streamGraph);
     }
 
@@ -2592,7 +2846,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
 
     protected static void initializeContextEnvironment(StreamExecutionEnvironmentFactory ctx) {
         contextEnvironmentFactory = ctx;
-        threadLocalContextEnvironmentFactory.set(contextEnvironmentFactory);
+        threadLocalContextEnvironmentFactory.set(ctx);
     }
 
     protected static void resetContextEnvironment() {

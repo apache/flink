@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.connector.source.abilities;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.connector.RowLevelModificationScanContext;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
@@ -36,6 +37,7 @@ import javax.annotation.Nullable;
  * sink, the table source doesn't need to implement this interface. See more details at {@link
  * #applyRowLevelModificationScan(RowLevelModificationType, RowLevelModificationScanContext)}.
  */
+@PublicEvolving
 public interface SupportsRowLevelModificationScan {
 
     /**
@@ -72,6 +74,7 @@ public interface SupportsRowLevelModificationScan {
      *   <li>DELETE
      * </ul>
      */
+    @PublicEvolving
     enum RowLevelModificationType {
         UPDATE,
 

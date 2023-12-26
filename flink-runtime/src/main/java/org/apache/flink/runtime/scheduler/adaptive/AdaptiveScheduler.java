@@ -39,6 +39,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
@@ -57,8 +58,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.MutableVertexAttemptNumberStore;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
-import org.apache.flink.runtime.executiongraph.failover.flip1.ExecutionFailureHandler;
-import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.failover.ExecutionFailureHandler;
+import org.apache.flink.runtime.executiongraph.failover.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.failure.DefaultFailureEnricherContext;
 import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -107,6 +108,7 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.ReservedSlots;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.EnforceMinimalIncreaseRescalingController;
+import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.EnforceParallelismChangeRescalingController;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.RescalingController;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
@@ -203,6 +205,8 @@ public class AdaptiveScheduler
 
     private final RescalingController rescalingController;
 
+    private final RescalingController forceRescalingController;
+
     private final Duration initialResourceAllocationTimeout;
 
     private final Duration resourceStabilizationTimeout;
@@ -292,6 +296,8 @@ public class AdaptiveScheduler
         this.componentMainThreadExecutor = mainThreadExecutor;
 
         this.rescalingController = new EnforceMinimalIncreaseRescalingController(configuration);
+
+        this.forceRescalingController = new EnforceParallelismChangeRescalingController();
 
         this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
 
@@ -594,6 +600,11 @@ public class AdaptiveScheduler
     }
 
     @Override
+    public CheckpointStatsSnapshot requestCheckpointStats() {
+        return state.getJob().getCheckpointStatsSnapshot();
+    }
+
+    @Override
     public void archiveFailure(RootExceptionHistoryEntry failure) {
         exceptionHistory.add(failure);
     }
@@ -798,7 +809,8 @@ public class AdaptiveScheduler
     public JobResourceRequirements requestJobResourceRequirements() {
         final JobResourceRequirements.Builder builder = JobResourceRequirements.newBuilder();
         for (JobInformation.VertexInformation vertex : jobInformation.getVertices()) {
-            builder.setParallelismForJobVertex(vertex.getJobVertexID(), 1, vertex.getParallelism());
+            builder.setParallelismForJobVertex(
+                    vertex.getJobVertexID(), vertex.getMinParallelism(), vertex.getParallelism());
         }
         return builder.build();
     }
@@ -828,7 +840,7 @@ public class AdaptiveScheduler
     @Override
     public boolean hasDesiredResources() {
         final Collection<? extends SlotInfo> freeSlots =
-                declarativeSlotPool.getFreeSlotsInformation();
+                declarativeSlotPool.getFreeSlotInfoTracker().getFreeSlotsInformation();
         return hasDesiredResources(desiredResources, freeSlots);
     }
 
@@ -866,7 +878,7 @@ public class AdaptiveScheduler
         return slotAllocator
                 .determineParallelismAndCalculateAssignment(
                         jobInformation,
-                        declarativeSlotPool.getFreeSlotsInformation(),
+                        declarativeSlotPool.getFreeSlotInfoTracker().getFreeSlotsInformation(),
                         JobAllocationsInformation.fromGraph(previousExecutionGraph))
                 .orElseThrow(
                         () ->
@@ -1155,16 +1167,24 @@ public class AdaptiveScheduler
                 LOG);
     }
 
+    /**
+     * In regular mode, rescale the job if added resource meets {@link
+     * JobManagerOptions#MIN_PARALLELISM_INCREASE}. In force mode rescale if the parallelism has
+     * changed.
+     */
     @Override
-    public boolean shouldRescale(ExecutionGraph executionGraph) {
+    public boolean shouldRescale(ExecutionGraph executionGraph, boolean forceRescale) {
         final Optional<VertexParallelism> maybeNewParallelism =
                 slotAllocator.determineParallelism(
                         jobInformation, declarativeSlotPool.getAllSlotsInformation());
         return maybeNewParallelism
                 .filter(
-                        vertexParallelism ->
-                                rescalingController.shouldRescale(
-                                        getCurrentParallelism(executionGraph), vertexParallelism))
+                        vertexParallelism -> {
+                            RescalingController rescalingControllerToUse =
+                                    forceRescale ? forceRescalingController : rescalingController;
+                            return rescalingControllerToUse.shouldRescale(
+                                    getCurrentParallelism(executionGraph), vertexParallelism);
+                        })
                 .isPresent();
     }
 

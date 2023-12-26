@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
@@ -41,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 /** Tests for {@link TieredStorageMemoryManagerImpl}. */
-public class TieredStorageMemoryManagerImplTest {
+class TieredStorageMemoryManagerImplTest {
 
     private static final int NETWORK_BUFFER_SIZE = 1024;
 
@@ -209,7 +210,40 @@ public class TieredStorageMemoryManagerImplTest {
     }
 
     @Test
-    void testReleaseBeforeRecyclingBuffers() throws IOException {
+    void testTransferBufferOwnership() throws IOException {
+        TieredStorageMemoryManagerImpl memoryManager =
+                createStorageMemoryManager(
+                        1, Collections.singletonList(new TieredStorageMemorySpec(this, 0)));
+        BufferBuilder bufferBuilder = memoryManager.requestBufferBlocking(this);
+        assertThat(memoryManager.numOwnerRequestedBuffer(this)).isEqualTo(1);
+
+        BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumerFromBeginning();
+        Buffer buffer = bufferConsumer.build();
+        bufferBuilder.close();
+        bufferConsumer.close();
+        Object newOwner = new Object();
+        memoryManager.transferBufferOwnership(this, newOwner, buffer);
+        assertThat(memoryManager.numOwnerRequestedBuffer(this)).isEqualTo(0);
+        assertThat(memoryManager.numOwnerRequestedBuffer(newOwner)).isEqualTo(1);
+        buffer.recycleBuffer();
+        assertThat(memoryManager.numOwnerRequestedBuffer(newOwner)).isEqualTo(0);
+    }
+
+    @Test
+    void testCanNotTransferOwnershipForEvent() throws IOException {
+        TieredStorageMemoryManagerImpl memoryManager =
+                createStorageMemoryManager(
+                        1, Collections.singletonList(new TieredStorageMemorySpec(this, 0)));
+        BufferConsumer bufferConsumer =
+                BufferBuilderTestUtils.createEventBufferConsumer(1, Buffer.DataType.EVENT_BUFFER);
+        Buffer buffer = bufferConsumer.build();
+        bufferConsumer.close();
+        assertThatThrownBy(() -> memoryManager.transferBufferOwnership(this, new Object(), buffer))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void testRelease() throws IOException {
         int numBuffers = 5;
 
         TieredStorageMemoryManagerImpl storageMemoryManager =
@@ -217,26 +251,10 @@ public class TieredStorageMemoryManagerImplTest {
                         numBuffers,
                         Collections.singletonList(new TieredStorageMemorySpec(this, 0)));
         requestedBuffers.add(storageMemoryManager.requestBufferBlocking(this));
-        assertThatThrownBy(storageMemoryManager::release).isInstanceOf(IllegalStateException.class);
+        assertThat(storageMemoryManager.numOwnerRequestedBuffer(this)).isOne();
         recycleRequestedBuffers();
         storageMemoryManager.release();
-    }
-
-    @Test
-    void testLeakingBuffers() throws IOException {
-        int numBuffers = 10;
-
-        TieredStorageMemoryManagerImpl storageMemoryManager =
-                createStorageMemoryManager(
-                        numBuffers,
-                        Collections.singletonList(new TieredStorageMemorySpec(this, 0)));
-
-        requestedBuffers.add(storageMemoryManager.requestBufferBlocking(this));
-        assertThatThrownBy(storageMemoryManager::release)
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Leaking buffers");
-        recycleRequestedBuffers();
-        storageMemoryManager.release();
+        assertThat(storageMemoryManager.numOwnerRequestedBuffer(this)).isZero();
     }
 
     public void onBufferReclaimRequest() {

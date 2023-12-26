@@ -39,8 +39,9 @@ Flink 提供了多种 state backends，它用于指定状态的存储方式和�
 {{< tabs "03941da4-5c40-4bb8-97ce-dd14c08bb9a9" >}}
 {{< tab "Java" >}}
 ```java
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setStateBackend(...);
+Configuration config = new Configuration();
+config.set(StateBackendOptions.STATE_BACKEND, "rocksdb");
+env.configure(config);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -51,8 +52,9 @@ env.setStateBackend(...)
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-env = StreamExecutionEnvironment.get_execution_environment()
-env.set_state_backend(...)
+config = Configuration()
+config.set_string('state.backend.type', 'rocksdb')
+env = StreamExecutionEnvironment.get_execution_environment(config)
 ```
 {{< /tab >}}
 {{< /tabs >}}

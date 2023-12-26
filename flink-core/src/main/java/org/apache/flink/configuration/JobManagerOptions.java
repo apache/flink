@@ -66,6 +66,10 @@ public class JobManagerOptions {
                                     + " leader from potentially multiple standby JobManagers.");
 
     /** The local address of the network interface that the job manager binds to. */
+    @Documentation.Section({
+        Documentation.Sections.COMMON_HOST_PORT,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
     public static final ConfigOption<String> BIND_HOST =
             key("jobmanager.bind-host")
                     .stringType()
@@ -105,6 +109,10 @@ public class JobManagerOptions {
                                     + " leader from potentially multiple standby JobManagers.");
 
     /** The local port that the job manager binds to. */
+    @Documentation.Section({
+        Documentation.Sections.COMMON_HOST_PORT,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
     public static final ConfigOption<Integer> RPC_BIND_PORT =
             key("jobmanager.rpc.bind-port")
                     .intType()
@@ -321,7 +329,7 @@ public class JobManagerOptions {
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "Dictionary for JobManager to store the archives of completed jobs.");
+                            "Directory for JobManager to store the archives of completed jobs.");
 
     /** The job store cache size in bytes which is used to keep completed jobs in memory. */
     @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
@@ -498,6 +506,32 @@ public class JobManagerOptions {
                     .defaultValue(1)
                     .withDescription(
                             "Configure the minimum increase in parallelism for a job to scale up.");
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> SCHEDULER_SCALING_INTERVAL_MIN =
+            key("jobmanager.adaptive-scheduler.scaling-interval.min")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(30))
+                    // rescaling and let the user increase the value for high workloads
+                    .withDescription("Determines the minimum time between scaling operations.");
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> SCHEDULER_SCALING_INTERVAL_MAX =
+            key("jobmanager.adaptive-scheduler.scaling-interval.max")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Determines the maximum interval time after which a scaling operation is forced even if the %s aren't met. The scaling operation will be ignored when the resource hasn't changed. This option is disabled by default.",
+                                            code(MIN_PARALLELISM_INCREASE.key()))
+                                    .build());
 
     @Documentation.Section({
         Documentation.Sections.EXPERT_SCHEDULING,

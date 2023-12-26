@@ -54,10 +54,12 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -69,15 +71,12 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import org.apache.commons.io.IOUtils;
-import org.junit.After;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nonnull;
 import javax.net.ssl.HttpsURLConnection;
@@ -109,22 +108,15 @@ import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.hamcrest.CoreMatchers.hasItems;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** IT cases for {@link RestClient} and {@link RestServerEndpoint}. */
-@RunWith(Parameterized.class)
-public class RestServerEndpointITCase extends TestLogger {
+@ExtendWith(ParameterizedTestExtension.class)
+public class RestServerEndpointITCase {
 
     private static final JobID PATH_JOB_ID = new JobID();
     private static final JobID QUERY_JOB_ID = new JobID();
@@ -132,11 +124,11 @@ public class RestServerEndpointITCase extends TestLogger {
     private static final Time timeout = Time.seconds(10L);
     private static final int TEST_REST_MAX_CONTENT_LENGTH = 4096;
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir java.nio.file.Path tempFolder;
 
     private RestServerEndpoint serverEndpoint;
     private RestClient restClient;
@@ -153,7 +145,7 @@ public class RestServerEndpointITCase extends TestLogger {
         this.config = requireNonNull(config);
     }
 
-    @Parameterized.Parameters
+    @Parameters
     public static Collection<Object[]> data() throws Exception {
         final Configuration config = getBaseConfig();
 
@@ -194,9 +186,9 @@ public class RestServerEndpointITCase extends TestLogger {
         return config;
     }
 
-    @Before
-    public void setup() throws Exception {
-        config.setString(WebOptions.UPLOAD_DIR, temporaryFolder.newFolder().getCanonicalPath());
+    @BeforeEach
+    void setup() throws Exception {
+        config.setString(WebOptions.UPLOAD_DIR, tempFolder.toUri().getPath());
 
         defaultSSLContext = SSLContext.getDefault();
         defaultSSLSocketFactory = HttpsURLConnection.getDefaultSSLSocketFactory();
@@ -238,7 +230,7 @@ public class RestServerEndpointITCase extends TestLogger {
 
         final StaticFileServerHandler<RestfulGateway> staticFileServerHandler =
                 new StaticFileServerHandler<>(
-                        mockGatewayRetriever, RpcUtils.INF_TIMEOUT, temporaryFolder.getRoot());
+                        mockGatewayRetriever, RpcUtils.INF_TIMEOUT, tempFolder.toFile());
 
         serverEndpoint =
                 TestRestServerEndpoint.builder(config)
@@ -252,13 +244,13 @@ public class RestServerEndpointITCase extends TestLogger {
                                 staticFileServerHandler)
                         .withHandler(new TestUnavailableHandler(mockGatewayRetriever))
                         .buildAndStart();
-        restClient = new RestClient(config, EXECUTOR_RESOURCE.getExecutor());
+        restClient = new RestClient(config, EXECUTOR_EXTENSION.getExecutor());
 
         serverAddress = serverEndpoint.getServerAddress();
     }
 
-    @After
-    public void teardown() throws Exception {
+    @AfterEach
+    void teardown() throws Exception {
         if (defaultSSLContext != null) {
             SSLContext.setDefault(defaultSSLContext);
             HttpsURLConnection.setDefaultSSLSocketFactory(defaultSSLSocketFactory);
@@ -279,8 +271,8 @@ public class RestServerEndpointITCase extends TestLogger {
      * Tests that request are handled as individual units which don't interfere with each other.
      * This means that request responses can overtake each other.
      */
-    @Test
-    public void testRequestInterleaving() throws Exception {
+    @TestTemplate
+    void testRequestInterleaving() throws Exception {
         final BlockerSync sync = new BlockerSync();
         testHandler.handlerBody =
                 id -> {
@@ -302,13 +294,13 @@ public class RestServerEndpointITCase extends TestLogger {
         // send second request and verify response
         final CompletableFuture<TestResponse> response2 =
                 sendRequestToTestHandler(new TestRequest(2));
-        assertEquals(2, response2.get().id);
+        assertThat(response2.get().id).isEqualTo(2);
 
         // wake up blocked handler
         sync.releaseBlocker();
 
         // verify response to first request
-        assertEquals(1, response1.get().id);
+        assertThat(response1.get().id).isOne();
     }
 
     /**
@@ -317,8 +309,8 @@ public class RestServerEndpointITCase extends TestLogger {
      *
      * <p>See FLINK-7663
      */
-    @Test
-    public void testBadHandlerRequest() throws Exception {
+    @TestTemplate
+    void testBadHandlerRequest() throws Exception {
         final FaultyTestParameters parameters = new FaultyTestParameters();
 
         parameters.faultyJobIDPathParameter.resolve(PATH_JOB_ID);
@@ -332,59 +324,46 @@ public class RestServerEndpointITCase extends TestLogger {
                         new TestHeaders(),
                         parameters,
                         new TestRequest(2));
-
-        try {
-            response.get();
-
-            fail("The request should fail with a bad request return code.");
-        } catch (ExecutionException ee) {
-            Throwable t = ExceptionUtils.stripExecutionException(ee);
-
-            assertTrue(t instanceof RestClientException);
-
-            RestClientException rce = (RestClientException) t;
-
-            assertEquals(HttpResponseStatus.BAD_REQUEST, rce.getHttpResponseStatus());
-        }
+        assertThatFuture(response)
+                .eventuallyFailsWith(ExecutionException.class)
+                .withCauseInstanceOf(RestClientException.class)
+                .satisfies(
+                        e ->
+                                assertThat(
+                                                ((RestClientException) e.getCause())
+                                                        .getHttpResponseStatus())
+                                        .isEqualTo(HttpResponseStatus.BAD_REQUEST));
     }
 
     /** Tests that requests larger than {@link #TEST_REST_MAX_CONTENT_LENGTH} are rejected. */
-    @Test
-    public void testShouldRespectMaxContentLengthLimitForRequests() throws Exception {
+    @TestTemplate
+    void testShouldRespectMaxContentLengthLimitForRequests() throws Exception {
         testHandler.handlerBody =
                 id -> {
                     throw new AssertionError("Request should not arrive at server.");
                 };
 
-        try {
-            sendRequestToTestHandler(
-                            new TestRequest(2, createStringOfSize(TEST_REST_MAX_CONTENT_LENGTH)))
-                    .get();
-            fail("Expected exception not thrown");
-        } catch (final ExecutionException e) {
-            final Throwable throwable = ExceptionUtils.stripExecutionException(e);
-            assertThat(throwable, instanceOf(RestClientException.class));
-            assertThat(throwable.getMessage(), containsString("Try to raise"));
-        }
+        assertThatFuture(
+                        sendRequestToTestHandler(
+                                new TestRequest(
+                                        2, createStringOfSize(TEST_REST_MAX_CONTENT_LENGTH))))
+                .eventuallyFailsWith(ExecutionException.class)
+                .withCauseInstanceOf(RestClientException.class)
+                .withMessageContaining("Try to raise");
     }
 
     /** Tests that responses larger than {@link #TEST_REST_MAX_CONTENT_LENGTH} are rejected. */
-    @Test
-    public void testShouldRespectMaxContentLengthLimitForResponses() throws Exception {
+    @TestTemplate
+    void testShouldRespectMaxContentLengthLimitForResponses() throws Exception {
         testHandler.handlerBody =
                 id ->
                         CompletableFuture.completedFuture(
                                 new TestResponse(
                                         id, createStringOfSize(TEST_REST_MAX_CONTENT_LENGTH)));
-
-        try {
-            sendRequestToTestHandler(new TestRequest(1)).get();
-            fail("Expected exception not thrown");
-        } catch (final ExecutionException e) {
-            final Throwable throwable = ExceptionUtils.stripExecutionException(e);
-            assertThat(throwable, instanceOf(TooLongFrameException.class));
-            assertThat(throwable.getMessage(), containsString("Try to raise"));
-        }
+        assertThatFuture(sendRequestToTestHandler(new TestRequest(1)))
+                .eventuallyFailsWith(ExecutionException.class)
+                .withCauseInstanceOf(TooLongFrameException.class)
+                .withMessageContaining("Try to raise");
     }
 
     /**
@@ -392,8 +371,8 @@ public class RestServerEndpointITCase extends TestLogger {
      *
      * @see FileUploadHandler
      */
-    @Test
-    public void testFileUpload() throws Exception {
+    @TestTemplate
+    void testFileUpload() throws Exception {
         final String boundary = generateMultiPartBoundary();
         final String crlf = "\r\n";
         final String uploadedContent = "hello";
@@ -415,17 +394,18 @@ public class RestServerEndpointITCase extends TestLogger {
             writer.append("--" + boundary + "--").append(crlf).flush();
         }
 
-        assertEquals(200, connection.getResponseCode());
+        assertThat(connection.getResponseCode()).isEqualTo(200);
         final byte[] lastUploadedFileContents = testUploadHandler.getLastUploadedFileContents();
-        assertEquals(uploadedContent, new String(lastUploadedFileContents, StandardCharsets.UTF_8));
+        assertThat(uploadedContent)
+                .isEqualTo(new String(lastUploadedFileContents, StandardCharsets.UTF_8));
     }
 
     /**
      * Sending multipart/form-data without a file should result in a bad request if the handler
      * expects a file upload.
      */
-    @Test
-    public void testMultiPartFormDataWithoutFileUpload() throws Exception {
+    @TestTemplate
+    void testMultiPartFormDataWithoutFileUpload() throws Exception {
         final String boundary = generateMultiPartBoundary();
         final String crlf = "\r\n";
         final HttpURLConnection connection = openHttpConnectionForUpload(boundary);
@@ -444,13 +424,13 @@ public class RestServerEndpointITCase extends TestLogger {
             writer.append("--" + boundary + "--").append(crlf).flush();
         }
 
-        assertEquals(400, connection.getResponseCode());
+        assertThat(connection.getResponseCode()).isEqualTo(400);
     }
 
     /** Tests that files can be served with the {@link StaticFileServerHandler}. */
-    @Test
-    public void testStaticFileServerHandler() throws Exception {
-        final File file = temporaryFolder.newFile();
+    @TestTemplate
+    void testStaticFileServerHandler() throws Exception {
+        File file = TempDirUtils.newFile(tempFolder);
         Files.write(file.toPath(), Collections.singletonList("foobar"));
 
         final URL url = new URL(serverEndpoint.getRestBaseUrl() + "/" + file.getName());
@@ -458,11 +438,11 @@ public class RestServerEndpointITCase extends TestLogger {
         connection.setRequestMethod("GET");
         final String fileContents = IOUtils.toString(connection.getInputStream());
 
-        assertEquals("foobar", fileContents.trim());
+        assertThat(fileContents.trim()).isEqualTo("foobar");
     }
 
-    @Test
-    public void testVersioning() throws Exception {
+    @TestTemplate
+    void testVersioning() throws Exception {
         CompletableFuture<EmptyResponseBody> unspecifiedVersionResponse =
                 restClient.sendRequest(
                         serverAddress.getHostName(),
@@ -487,8 +467,8 @@ public class RestServerEndpointITCase extends TestLogger {
         specifiedVersionResponse.get(5, TimeUnit.SECONDS);
     }
 
-    @Test
-    public void testVersionSelection() throws Exception {
+    @TestTemplate
+    void testVersionSelection() throws Exception {
         CompletableFuture<EmptyResponseBody> version1Response =
                 restClient.sendRequest(
                         serverAddress.getHostName(),
@@ -499,13 +479,16 @@ public class RestServerEndpointITCase extends TestLogger {
                         Collections.emptyList(),
                         RuntimeRestAPIVersion.V0);
 
-        try {
-            version1Response.get(5, TimeUnit.SECONDS);
-            fail();
-        } catch (ExecutionException ee) {
-            RestClientException rce = (RestClientException) ee.getCause();
-            assertEquals(HttpResponseStatus.OK, rce.getHttpResponseStatus());
-        }
+        assertThatFuture(version1Response)
+                .failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(RestClientException.class)
+                .satisfies(
+                        e ->
+                                assertThat(
+                                                ((RestClientException) e.getCause())
+                                                        .getHttpResponseStatus())
+                                        .isEqualTo(HttpResponseStatus.OK));
 
         CompletableFuture<EmptyResponseBody> version2Response =
                 restClient.sendRequest(
@@ -517,20 +500,23 @@ public class RestServerEndpointITCase extends TestLogger {
                         Collections.emptyList(),
                         RuntimeRestAPIVersion.V1);
 
-        try {
-            version2Response.get(5, TimeUnit.SECONDS);
-            fail();
-        } catch (ExecutionException ee) {
-            RestClientException rce = (RestClientException) ee.getCause();
-            assertEquals(HttpResponseStatus.ACCEPTED, rce.getHttpResponseStatus());
-        }
+        assertThatFuture(version2Response)
+                .failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(RestClientException.class)
+                .satisfies(
+                        e ->
+                                assertThat(
+                                                ((RestClientException) e.getCause())
+                                                        .getHttpResponseStatus())
+                                        .isEqualTo(HttpResponseStatus.ACCEPTED));
     }
 
-    @Test
-    public void testDefaultVersionRouting() throws Exception {
-        Assume.assumeFalse(
-                "Ignoring SSL-enabled test to keep OkHttp usage simple.",
-                config.getBoolean(SecurityOptions.SSL_REST_ENABLED));
+    @TestTemplate
+    void testDefaultVersionRouting() throws Exception {
+        assumeThat(config.getBoolean(SecurityOptions.SSL_REST_ENABLED))
+                .as("Ignoring SSL-enabled test to keep OkHttp usage simple.")
+                .isFalse();
 
         OkHttpClient client = new OkHttpClient();
 
@@ -543,21 +529,22 @@ public class RestServerEndpointITCase extends TestLogger {
                         .build();
 
         try (final Response response = client.newCall(request).execute()) {
-            assertEquals(HttpResponseStatus.ACCEPTED.code(), response.code());
+            assertThat(response.code()).isEqualTo(HttpResponseStatus.ACCEPTED.code());
         }
     }
 
-    @Test
-    public void testNonSslRedirectForEnabledSsl() throws Exception {
-        Assume.assumeTrue(config.getBoolean(SecurityOptions.SSL_REST_ENABLED));
+    @TestTemplate
+    void testNonSslRedirectForEnabledSsl() throws Exception {
+        assumeThat(config.getBoolean(SecurityOptions.SSL_REST_ENABLED)).isTrue();
+
         OkHttpClient client = new OkHttpClient.Builder().followRedirects(false).build();
         String httpsUrl = serverEndpoint.getRestBaseUrl() + "/path";
         String httpUrl = httpsUrl.replace("https://", "http://");
         Request request = new Request.Builder().url(httpUrl).build();
         try (final Response response = client.newCall(request).execute()) {
-            assertEquals(HttpResponseStatus.MOVED_PERMANENTLY.code(), response.code());
-            assertThat(response.headers().names(), hasItems("location"));
-            assertEquals(httpsUrl, response.header("location"));
+            assertThat(response.code()).isEqualTo(HttpResponseStatus.MOVED_PERMANENTLY.code());
+            assertThat(response.headers().names()).contains("location");
+            assertThat(response.header("location")).isEqualTo(httpsUrl);
         }
     }
 
@@ -566,8 +553,8 @@ public class RestServerEndpointITCase extends TestLogger {
      * first, and we wait for in-flight requests to finish. As long as not all handlers are closed,
      * HTTP requests should be served.
      */
-    @Test
-    public void testShouldWaitForHandlersWhenClosing() throws Exception {
+    @TestTemplate
+    void testShouldWaitForHandlersWhenClosing() throws Exception {
         testHandler.closeFuture = new CompletableFuture<>();
         final BlockerSync sync = new BlockerSync();
         testHandler.handlerBody =
@@ -587,7 +574,7 @@ public class RestServerEndpointITCase extends TestLogger {
 
         // Initiate closing RestServerEndpoint but the test handler should block.
         final CompletableFuture<Void> closeRestServerEndpointFuture = serverEndpoint.closeAsync();
-        assertThat(closeRestServerEndpointFuture.isDone(), is(false));
+        assertThat(closeRestServerEndpointFuture).isNotDone();
 
         // create an in-flight request
         final CompletableFuture<TestResponse> request =
@@ -597,7 +584,7 @@ public class RestServerEndpointITCase extends TestLogger {
         // Allow handler to close but there is still one in-flight request which should prevent
         // the RestServerEndpoint from closing.
         testHandler.closeFuture.complete(null);
-        assertThat(closeRestServerEndpointFuture.isDone(), is(false));
+        assertThat(closeRestServerEndpointFuture).isNotDone();
 
         // Finish the in-flight request.
         sync.releaseBlocker();
@@ -607,8 +594,8 @@ public class RestServerEndpointITCase extends TestLogger {
     }
 
     /** Tests that new requests are ignored after a handler is shut down. */
-    @Test
-    public void testRequestsRejectedAfterShutdownOfHandlerIsCompleted() throws Exception {
+    @TestTemplate
+    void testRequestsRejectedAfterShutdownOfHandlerIsCompleted() throws Exception {
         testHandler.handlerBody =
                 id -> CompletableFuture.completedFuture(new TestResponse(id, "foobar"));
 
@@ -617,7 +604,7 @@ public class RestServerEndpointITCase extends TestLogger {
 
         final CompletableFuture<Void> closeRestServerEndpointFuture = serverEndpoint.closeAsync();
 
-        assertThat(closeRestServerEndpointFuture.isDone(), is(false));
+        assertThat(closeRestServerEndpointFuture).isNotDone();
 
         // wait until the TestHandler is closed
         testHandler.closeLatch.await();
@@ -639,8 +626,8 @@ public class RestServerEndpointITCase extends TestLogger {
         }
     }
 
-    @Test
-    public void testRestServerBindPort() throws Exception {
+    @TestTemplate
+    void testRestServerBindPort() throws Exception {
         final int portRangeStart = 52300;
         final int portRangeEnd = 52400;
         final Configuration config = new Configuration();
@@ -654,28 +641,23 @@ public class RestServerEndpointITCase extends TestLogger {
             serverEndpoint1.start();
             serverEndpoint2.start();
 
-            assertNotEquals(
-                    serverEndpoint1.getServerAddress().getPort(),
-                    serverEndpoint2.getServerAddress().getPort());
+            assertThat(serverEndpoint1.getServerAddress().getPort())
+                    .isNotEqualTo(serverEndpoint2.getServerAddress().getPort());
 
-            assertThat(
-                    serverEndpoint1.getServerAddress().getPort(),
-                    is(greaterThanOrEqualTo(portRangeStart)));
-            assertThat(
-                    serverEndpoint1.getServerAddress().getPort(),
-                    is(lessThanOrEqualTo(portRangeEnd)));
+            assertThat(serverEndpoint1.getServerAddress().getPort())
+                    .isGreaterThanOrEqualTo(portRangeStart);
+            assertThat(serverEndpoint1.getServerAddress().getPort())
+                    .isLessThanOrEqualTo(portRangeEnd);
 
-            assertThat(
-                    serverEndpoint2.getServerAddress().getPort(),
-                    is(greaterThanOrEqualTo(portRangeStart)));
-            assertThat(
-                    serverEndpoint2.getServerAddress().getPort(),
-                    is(lessThanOrEqualTo(portRangeEnd)));
+            assertThat(serverEndpoint2.getServerAddress().getPort())
+                    .isGreaterThanOrEqualTo(portRangeStart);
+            assertThat(serverEndpoint2.getServerAddress().getPort())
+                    .isLessThanOrEqualTo(portRangeEnd);
         }
     }
 
-    @Test
-    public void testEndpointsMustBeUnique() throws Exception {
+    @TestTemplate
+    void testEndpointsMustBeUnique() throws Exception {
         assertThrows(
                 "REST handler registration",
                 FlinkRuntimeException.class,
@@ -691,8 +673,8 @@ public class RestServerEndpointITCase extends TestLogger {
                 });
     }
 
-    @Test
-    public void testDuplicateHandlerRegistrationIsForbidden() throws Exception {
+    @TestTemplate
+    void testDuplicateHandlerRegistrationIsForbidden() throws Exception {
         assertThrows(
                 "Duplicate REST handler",
                 FlinkRuntimeException.class,
@@ -708,8 +690,8 @@ public class RestServerEndpointITCase extends TestLogger {
                 });
     }
 
-    @Test
-    public void testOnUnavailableRpcEndpointReturns503() throws IOException {
+    @TestTemplate
+    void testOnUnavailableRpcEndpointReturns503() throws IOException {
         CompletableFuture<EmptyResponseBody> response =
                 restClient.sendRequest(
                         serverAddress.getHostName(),
@@ -771,8 +753,9 @@ public class RestServerEndpointITCase extends TestLogger {
         @Override
         protected CompletableFuture<TestResponse> handleRequest(
                 @Nonnull HandlerRequest<TestRequest> request, RestfulGateway gateway) {
-            assertEquals(request.getPathParameter(JobIDPathParameter.class), PATH_JOB_ID);
-            assertEquals(request.getQueryParameter(JobIDQueryParameter.class).get(0), QUERY_JOB_ID);
+            assertThat(request.getPathParameter(JobIDPathParameter.class)).isEqualTo(PATH_JOB_ID);
+            assertThat(request.getQueryParameter(JobIDQueryParameter.class).get(0))
+                    .isEqualTo(QUERY_JOB_ID);
 
             final int id = request.getRequestBody().id;
             return handlerBody.apply(id);

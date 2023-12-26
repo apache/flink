@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.arrow.sources;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -27,7 +28,6 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -54,9 +54,17 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.channels.Channels;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 
-/** An Arrow {@link SourceFunction} which takes the serialized arrow record batch data as input. */
+/**
+ * An Arrow {@link SourceFunction} which takes the serialized arrow record batch data as input.
+ *
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+ */
+@Deprecated
 @Internal
 public class ArrowSourceFunction extends RichParallelSourceFunction<RowData>
         implements ResultTypeQueryable<RowData>, CheckpointedFunction {
@@ -101,7 +109,7 @@ public class ArrowSourceFunction extends RichParallelSourceFunction<RowData>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         allocator =
                 ArrowUtils.getRootAllocator()
                         .newChildAllocator("ArrowSourceFunction", 0, Long.MAX_VALUE);
@@ -176,10 +184,7 @@ public class ArrowSourceFunction extends RichParallelSourceFunction<RowData>
                 this.checkpointedState != null,
                 "The " + getClass().getSimpleName() + " state has not been properly initialized.");
 
-        this.checkpointedState.clear();
-        for (Tuple2<Integer, Integer> v : indexesToEmit) {
-            this.checkpointedState.add(v);
-        }
+        this.checkpointedState.update(new ArrayList<>(indexesToEmit));
     }
 
     @Override

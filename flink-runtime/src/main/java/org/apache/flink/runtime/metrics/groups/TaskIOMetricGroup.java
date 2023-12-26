@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics.groups;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
@@ -30,17 +31,24 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogram;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.TimerGauge;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.runtime.metrics.MetricNames.INITIALIZATION_TIME;
+
 /**
  * Metric group that contains shareable pre-defined IO-related metrics. The metrics registration is
  * forwarded to the parent task metric group.
  */
 public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
+    private static final long INVALID_TIMESTAMP = -1L;
+
+    private final Clock clock;
 
     private final Counter numBytesIn;
     private final Counter numBytesOut;
@@ -59,6 +67,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     private final Gauge<Long> backPressuredTimePerSecond;
     private final TimerGauge softBackPressuredTimePerSecond;
     private final TimerGauge hardBackPressuredTimePerSecond;
+    private final TimerGauge changelogBusyTimeMsPerSecond;
     private final Gauge<Long> maxSoftBackPressuredTime;
     private final Gauge<Long> maxHardBackPressuredTime;
     private final Gauge<Long> accumulatedBackPressuredTime;
@@ -67,17 +76,23 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     private final Meter mailboxThroughput;
     private final Histogram mailboxLatency;
     private final SizeGauge mailboxSize;
+    private final Counter initializationDuration;
 
     private volatile boolean busyTimeEnabled;
 
     private long taskStartTime;
+    private long taskInitializeTime;
 
     private final Map<IntermediateResultPartitionID, ResultPartitionBytesCounter>
             resultPartitionBytes = new HashMap<>();
 
     public TaskIOMetricGroup(TaskMetricGroup parent) {
-        super(parent);
+        this(parent, SystemClock.getInstance());
+    }
 
+    public TaskIOMetricGroup(TaskMetricGroup parent, Clock clock) {
+        super(parent);
+        this.clock = clock;
         this.numBytesIn = counter(MetricNames.IO_NUM_BYTES_IN);
         this.numBytesOut = counter(MetricNames.IO_NUM_BYTES_OUT);
         this.numBytesInRate = meter(MetricNames.IO_NUM_BYTES_IN_RATE, new MeterView(numBytesIn));
@@ -94,11 +109,11 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         this.numBuffersOutRate =
                 meter(MetricNames.IO_NUM_BUFFERS_OUT_RATE, new MeterView(numBuffersOut));
 
-        this.idleTimePerSecond = gauge(MetricNames.TASK_IDLE_TIME, new TimerGauge());
+        this.idleTimePerSecond = gauge(MetricNames.TASK_IDLE_TIME, new TimerGauge(clock));
         this.softBackPressuredTimePerSecond =
-                gauge(MetricNames.TASK_SOFT_BACK_PRESSURED_TIME, new TimerGauge());
+                gauge(MetricNames.TASK_SOFT_BACK_PRESSURED_TIME, new TimerGauge(clock));
         this.hardBackPressuredTimePerSecond =
-                gauge(MetricNames.TASK_HARD_BACK_PRESSURED_TIME, new TimerGauge());
+                gauge(MetricNames.TASK_HARD_BACK_PRESSURED_TIME, new TimerGauge(clock));
         this.backPressuredTimePerSecond =
                 gauge(MetricNames.TASK_BACK_PRESSURED_TIME, this::getBackPressuredTimeMsPerSecond);
 
@@ -112,6 +127,9 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
                         hardBackPressuredTimePerSecond::getMaxSingleMeasurement);
 
         this.busyTimePerSecond = gauge(MetricNames.TASK_BUSY_TIME, this::getBusyTimePerSecond);
+
+        this.changelogBusyTimeMsPerSecond =
+                gauge(MetricNames.CHANGELOG_BUSY_TIME, new TimerGauge(clock));
 
         this.accumulatedBusyTime =
                 gauge(MetricNames.ACC_TASK_BUSY_TIME, this::getAccumulatedBusyTime);
@@ -128,6 +146,29 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         this.mailboxLatency =
                 histogram(MetricNames.MAILBOX_LATENCY, new DescriptiveStatisticsHistogram(60));
         this.mailboxSize = gauge(MetricNames.MAILBOX_SIZE, new SizeGauge());
+        this.initializationDuration =
+                counter(
+                        INITIALIZATION_TIME,
+                        new Counter() {
+                            @Override
+                            public void inc() {}
+
+                            @Override
+                            public void inc(long n) {}
+
+                            @Override
+                            public void dec() {}
+
+                            @Override
+                            public void dec(long n) {}
+
+                            @Override
+                            public long getCount() {
+                                return getTaskInitializationDuration();
+                            }
+                        });
+        this.taskStartTime = INVALID_TIMESTAMP;
+        this.taskInitializeTime = INVALID_TIMESTAMP;
     }
 
     public IOMetrics createSnapshot() {
@@ -182,6 +223,10 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         return hardBackPressuredTimePerSecond;
     }
 
+    public TimerGauge getChangelogBusyTimeMsPerSecond() {
+        return changelogBusyTimeMsPerSecond;
+    }
+
     public long getBackPressuredTimeMsPerSecond() {
         return getSoftBackPressuredTimePerSecond().getValue()
                 + getHardBackPressuredTimePerSecond().getValue();
@@ -193,27 +238,56 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     }
 
     public void markTaskStart() {
-        this.taskStartTime = System.currentTimeMillis();
+        this.taskStartTime = clock.absoluteTimeMillis();
+    }
+
+    public void markTaskInitializationStarted() {
+        if (taskInitializeTime == INVALID_TIMESTAMP) {
+            this.taskInitializeTime = clock.absoluteTimeMillis();
+        }
+    }
+
+    /**
+     * Returns the duration of time required for a task's restoring/initialization, which reaches
+     * its maximum when the task begins running and remains constant throughout the task's running.
+     * Return 0 when the task is not in initialization/running status.
+     */
+    @VisibleForTesting
+    public long getTaskInitializationDuration() {
+        if (taskInitializeTime == INVALID_TIMESTAMP) {
+            return 0L;
+        } else if (taskStartTime == INVALID_TIMESTAMP) {
+            return clock.absoluteTimeMillis() - taskInitializeTime;
+        } else {
+            return taskStartTime - taskInitializeTime;
+        }
     }
 
     public void setEnableBusyTime(boolean enabled) {
         busyTimeEnabled = enabled;
     }
 
-    private double getBusyTimePerSecond() {
+    @VisibleForTesting
+    double getBusyTimePerSecond() {
         double busyTime = idleTimePerSecond.getValue() + getBackPressuredTimeMsPerSecond();
         return busyTimeEnabled ? 1000.0 - Math.min(busyTime, 1000.0) : Double.NaN;
     }
 
-    private double getAccumulatedBusyTime() {
-        return busyTimeEnabled
-                ? Math.max(
-                        System.currentTimeMillis()
-                                - taskStartTime
-                                - idleTimePerSecond.getAccumulatedCount()
-                                - getAccumulatedBackPressuredTimeMs(),
-                        0)
-                : Double.NaN;
+    @VisibleForTesting
+    double getAccumulatedBusyTime() {
+        if (!busyTimeEnabled) {
+            return Double.NaN;
+        }
+        if (taskStartTime == INVALID_TIMESTAMP) {
+            return Double.NaN;
+        } else {
+            return Math.max(
+                    clock.absoluteTimeMillis()
+                            - taskStartTime
+                            - idleTimePerSecond.getAccumulatedCount()
+                            - getAccumulatedBackPressuredTimeMs(),
+                    0);
+        }
     }
 
     public Meter getMailboxThroughput() {

@@ -35,11 +35,12 @@ import org.apache.flink.util.Preconditions;
 
 import java.time.Duration;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import static java.time.ZoneId.SHORT_IDS;
+import static org.apache.flink.table.api.internal.TableConfigValidation.validateTimeZone;
 
 /**
  * Configuration for the current {@link TableEnvironment} session to adjust Table & SQL API
@@ -242,11 +243,12 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      * @see org.apache.flink.table.types.logical.LocalZonedTimestampType
      */
     public ZoneId getLocalTimeZone() {
-        String zone = configuration.getString(TableConfigOptions.LOCAL_TIME_ZONE);
+        final String zone = configuration.getString(TableConfigOptions.LOCAL_TIME_ZONE);
+        if (TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)) {
+            return ZoneId.systemDefault();
+        }
         validateTimeZone(zone);
-        return TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)
-                ? ZoneId.systemDefault()
-                : ZoneId.of(zone);
+        return ZoneId.of(zone);
     }
 
     /**
@@ -296,22 +298,17 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      * @see org.apache.flink.table.types.logical.LocalZonedTimestampType
      */
     public void setLocalTimeZone(ZoneId zoneId) {
-        validateTimeZone(zoneId.toString());
-        configuration.setString(TableConfigOptions.LOCAL_TIME_ZONE, zoneId.toString());
-    }
-
-    /** Validates user configured time zone. */
-    private void validateTimeZone(String zone) {
-        final String zoneId = zone.toUpperCase();
-        if (zoneId.startsWith("UTC+")
-                || zoneId.startsWith("UTC-")
-                || SHORT_IDS.containsKey(zoneId)) {
-            throw new IllegalArgumentException(
-                    String.format(
-                            "The supported Zone ID is either a full name such as 'America/Los_Angeles',"
-                                    + " or a custom timezone id such as 'GMT-08:00', but configured Zone ID is '%s'.",
-                            zone));
+        final String zone;
+        if (zoneId instanceof ZoneOffset) {
+            // Give ZoneOffset a timezone for backwards compatibility reasons.
+            // In general, advertising either TZDB ID, GMT+xx:xx, or UTC is the best we can do.
+            zone = ZoneId.ofOffset("GMT", (ZoneOffset) zoneId).toString();
+        } else {
+            zone = zoneId.toString();
         }
+        validateTimeZone(zone);
+
+        configuration.setString(TableConfigOptions.LOCAL_TIME_ZONE, zone);
     }
 
     /** Returns the current configuration of Planner for Table API and SQL queries. */

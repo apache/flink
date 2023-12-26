@@ -33,7 +33,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
 import org.apache.flink.test.junit5.InjectMiniCluster;
 import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -68,13 +70,7 @@ class FileSourceTextLinesITCase {
 
     @RegisterExtension
     private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
-            new MiniClusterExtension(
-                    new MiniClusterResourceConfiguration.Builder()
-                            .setNumberTaskManagers(1)
-                            .setNumberSlotsPerTaskManager(PARALLELISM)
-                            .setRpcServiceSharing(RpcServiceSharing.DEDICATED)
-                            .withHaLeadershipControl()
-                            .build());
+            new MiniClusterExtension(createMiniClusterConfiguration());
 
     // ------------------------------------------------------------------------
     //  test cases
@@ -93,10 +89,11 @@ class FileSourceTextLinesITCase {
      * restarts TaskManager.
      */
     @Test
-    void testBoundedTextFileSourceWithTaskManagerFailover(
-            @TempDir java.nio.file.Path tmpTestDir, @InjectMiniCluster MiniCluster miniCluster)
+    void testBoundedTextFileSourceWithTaskManagerFailover(@TempDir java.nio.file.Path tmpTestDir)
             throws Exception {
-        testBoundedTextFileSource(tmpTestDir, FailoverType.TM, miniCluster);
+        // This test will kill TM, so we run it in a new cluster to avoid affecting other tests
+        runTestWithNewMiniCluster(
+                miniCluster -> testBoundedTextFileSource(tmpTestDir, FailoverType.TM, miniCluster));
     }
 
     /**
@@ -104,10 +101,11 @@ class FileSourceTextLinesITCase {
      * triggers JobManager failover.
      */
     @Test
-    void testBoundedTextFileSourceWithJobManagerFailover(
-            @TempDir java.nio.file.Path tmpTestDir, @InjectMiniCluster MiniCluster miniCluster)
+    void testBoundedTextFileSourceWithJobManagerFailover(@TempDir java.nio.file.Path tmpTestDir)
             throws Exception {
-        testBoundedTextFileSource(tmpTestDir, FailoverType.JM, miniCluster);
+        // This test will kill JM, so we run it in a new cluster to avoid affecting other tests
+        runTestWithNewMiniCluster(
+                miniCluster -> testBoundedTextFileSource(tmpTestDir, FailoverType.JM, miniCluster));
     }
 
     private void testBoundedTextFileSource(
@@ -170,10 +168,12 @@ class FileSourceTextLinesITCase {
      */
     @Test
     @Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler") // FLINK-21450
-    void testContinuousTextFileSourceWithTaskManagerFailover(
-            @TempDir java.nio.file.Path tmpTestDir, @InjectMiniCluster MiniCluster miniCluster)
+    void testContinuousTextFileSourceWithTaskManagerFailover(@TempDir java.nio.file.Path tmpTestDir)
             throws Exception {
-        testContinuousTextFileSource(tmpTestDir, FailoverType.TM, miniCluster);
+        // This test will kill TM, so we run it in a new cluster to avoid affecting other tests
+        runTestWithNewMiniCluster(
+                miniCluster ->
+                        testContinuousTextFileSource(tmpTestDir, FailoverType.TM, miniCluster));
     }
 
     /**
@@ -181,10 +181,12 @@ class FileSourceTextLinesITCase {
      * record format (text lines) and triggers JobManager failover.
      */
     @Test
-    void testContinuousTextFileSourceWithJobManagerFailover(
-            @TempDir java.nio.file.Path tmpTestDir, @InjectMiniCluster MiniCluster miniCluster)
+    void testContinuousTextFileSourceWithJobManagerFailover(@TempDir java.nio.file.Path tmpTestDir)
             throws Exception {
-        testContinuousTextFileSource(tmpTestDir, FailoverType.JM, miniCluster);
+        // This test will kill JM, so we run it in a new cluster to avoid affecting other tests
+        runTestWithNewMiniCluster(
+                miniCluster ->
+                        testContinuousTextFileSource(tmpTestDir, FailoverType.JM, miniCluster));
     }
 
     private void testContinuousTextFileSource(
@@ -248,6 +250,29 @@ class FileSourceTextLinesITCase {
         NONE,
         TM,
         JM
+    }
+
+    private static MiniClusterResourceConfiguration createMiniClusterConfiguration() {
+        return new MiniClusterResourceConfiguration.Builder()
+                .setNumberTaskManagers(1)
+                .setNumberSlotsPerTaskManager(PARALLELISM)
+                .setRpcServiceSharing(RpcServiceSharing.DEDICATED)
+                .withHaLeadershipControl()
+                .build();
+    }
+
+    private static void runTestWithNewMiniCluster(
+            ThrowingConsumer<MiniCluster, Exception> testMethod) throws Exception {
+        MiniClusterWithClientResource miniCluster = null;
+        try {
+            miniCluster = new MiniClusterWithClientResource(createMiniClusterConfiguration());
+            miniCluster.before();
+            testMethod.accept(miniCluster.getMiniCluster());
+        } finally {
+            if (miniCluster != null) {
+                miniCluster.after();
+            }
+        }
     }
 
     private static void triggerFailover(

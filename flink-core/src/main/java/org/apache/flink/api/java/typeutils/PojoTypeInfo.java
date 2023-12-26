@@ -59,6 +59,10 @@ import static org.apache.flink.util.Preconditions.checkState;
  *       field can be null independent of the field's type.
  * </ul>
  *
+ * Java Record classes can also be used as valid POJOs (even though they don't fulfill some of the
+ * above criteria). In this case Flink will use the record canonical constructor to create the
+ * objects.
+ *
  * @param <T> The type represented by this type information.
  */
 @Public

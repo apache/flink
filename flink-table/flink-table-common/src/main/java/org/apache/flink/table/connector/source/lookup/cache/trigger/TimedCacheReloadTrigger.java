@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.connector.source.lookup.cache.trigger;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ReadableConfig;
 
@@ -41,6 +42,7 @@ import static org.apache.flink.table.connector.source.lookup.LookupOptions.Reloa
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** A trigger that reloads at a specific time and repeats for the given interval in days. */
+@PublicEvolving
 public class TimedCacheReloadTrigger implements CacheReloadTrigger {
     private static final long serialVersionUID = 1L;
 

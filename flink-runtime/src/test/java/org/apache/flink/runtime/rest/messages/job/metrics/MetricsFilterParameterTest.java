@@ -18,33 +18,29 @@
 
 package org.apache.flink.runtime.rest.messages.job.metrics;
 
-import org.apache.flink.util.TestLogger;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Before;
-import org.junit.Test;
-
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link MetricsFilterParameter}. */
-public class MetricsFilterParameterTest extends TestLogger {
+class MetricsFilterParameterTest {
 
     private MetricsFilterParameter metricsFilterParameter;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         metricsFilterParameter = new MetricsFilterParameter();
     }
 
     @Test
-    public void testIsOptionalParameter() {
-        assertFalse(metricsFilterParameter.isMandatory());
+    void testIsOptionalParameter() {
+        assertThat(metricsFilterParameter.isMandatory()).isFalse();
     }
 
     @Test
-    public void testConversions() {
-        assertThat(metricsFilterParameter.convertValueToString("test"), equalTo("test"));
-        assertThat(metricsFilterParameter.convertStringToValue("test"), equalTo("test"));
+    void testConversions() {
+        assertThat(metricsFilterParameter.convertValueToString("test")).isEqualTo("test");
+        assertThat(metricsFilterParameter.convertStringToValue("test")).isEqualTo("test");
     }
 }

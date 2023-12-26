@@ -81,14 +81,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
                 StreamExecGlobalGroupAggregate.GLOBAL_GROUP_AGGREGATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
-@ExecNodeMetadata(
-        name = "stream-exec-global-group-aggregate",
-        version = 2,
-        consumedOptions = {"table.exec.mini-batch.enabled", "table.exec.mini-batch.size"},
-        producedTransformations =
-                StreamExecGlobalGroupAggregate.GLOBAL_GROUP_AGGREGATE_TRANSFORMATION,
-        minPlanVersion = FlinkVersion.v1_18,
-        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecGlobalGroupAggregate.class);

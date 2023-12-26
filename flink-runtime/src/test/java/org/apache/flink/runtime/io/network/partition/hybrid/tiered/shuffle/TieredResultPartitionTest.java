@@ -32,6 +32,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.TestingBufferAccumulator;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.TestingTierProducerAgent;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.TestingTieredStorageMemoryManager;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyServiceImpl;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageProducerClient;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
@@ -40,6 +41,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.IgnoreShutdownRejectedExecutionHandler;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,6 +53,7 @@ import java.util.Collections;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
+import static org.apache.flink.runtime.shuffle.NettyShuffleUtils.getMinMaxNetworkBuffersPerResultPartition;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -134,6 +137,24 @@ class TieredResultPartitionTest {
     }
 
     @Test
+    void testMinMaxNetworkBuffersTieredResultPartition() {
+        int numSubpartitions = 105;
+        int tieredStorageTotalExclusiveBufferNum = 103;
+        Pair<Integer, Integer> minMaxNetworkBuffers =
+                getMinMaxNetworkBuffersPerResultPartition(
+                        100,
+                        5,
+                        100,
+                        10,
+                        numSubpartitions,
+                        true,
+                        tieredStorageTotalExclusiveBufferNum,
+                        ResultPartitionType.HYBRID_SELECTIVE);
+        assertThat(minMaxNetworkBuffers.getLeft()).isEqualTo(tieredStorageTotalExclusiveBufferNum);
+        assertThat(minMaxNetworkBuffers.getRight()).isEqualTo(Integer.MAX_VALUE);
+    }
+
+    @Test
     void testCreateSubpartitionViewAfterRelease() throws Exception {
         final int numBuffers = 10;
         BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
@@ -184,6 +205,8 @@ class TieredResultPartitionTest {
             int numSubpartitions, BufferPool bufferPool, boolean isBroadcastOnly)
             throws IOException {
         TestingTierProducerAgent tierProducerAgent = new TestingTierProducerAgent.Builder().build();
+        TieredStorageResourceRegistry tieredStorageResourceRegistry =
+                new TieredStorageResourceRegistry();
         TieredResultPartition tieredResultPartition =
                 new TieredResultPartition(
                         "TieredStoreResultPartitionTest",
@@ -201,8 +224,10 @@ class TieredResultPartitionTest {
                                 new TestingBufferAccumulator(),
                                 null,
                                 Collections.singletonList(tierProducerAgent)),
-                        new TieredStorageResourceRegistry(),
-                        new TieredStorageNettyServiceImpl());
+                        tieredStorageResourceRegistry,
+                        new TieredStorageNettyServiceImpl(tieredStorageResourceRegistry),
+                        Collections.emptyList(),
+                        new TestingTieredStorageMemoryManager.Builder().build());
         taskIOMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup();
         tieredResultPartition.setup();

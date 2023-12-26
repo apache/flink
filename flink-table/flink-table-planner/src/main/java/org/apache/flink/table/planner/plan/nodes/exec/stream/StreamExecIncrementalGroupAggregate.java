@@ -72,14 +72,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
                 StreamExecIncrementalGroupAggregate.INCREMENTAL_GROUP_AGGREGATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
-@ExecNodeMetadata(
-        name = "stream-exec-incremental-group-aggregate",
-        version = 2,
-        consumedOptions = {"table.exec.mini-batch.enabled", "table.exec.mini-batch.size"},
-        producedTransformations =
-                StreamExecIncrementalGroupAggregate.INCREMENTAL_GROUP_AGGREGATE_TRANSFORMATION,
-        minPlanVersion = FlinkVersion.v1_18,
-        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase {
 
     public static final String INCREMENTAL_GROUP_AGGREGATE_TRANSFORMATION =

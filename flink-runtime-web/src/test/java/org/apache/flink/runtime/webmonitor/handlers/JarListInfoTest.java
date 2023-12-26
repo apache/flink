@@ -19,12 +19,16 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** Tests that the {@link JarListInfo} can be marshalled and unmarshalled. */
-public class JarListInfoTest extends RestResponseMarshallingTestBase<JarListInfo> {
+/** Tests for the {@link JarListInfo}. */
+@ExtendWith(NoOpTestExtension.class)
+class JarListInfoTest extends RestResponseMarshallingTestBase<JarListInfo> {
     @Override
     protected Class<JarListInfo> getTestResponseClass() {
         return JarListInfo.class;

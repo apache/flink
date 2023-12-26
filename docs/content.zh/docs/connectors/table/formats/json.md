@@ -135,6 +135,13 @@ Format 参数
       <td>Boolean</td>
       <td>将所有 DECIMAL 类型的数据保持原状，不使用科学计数法表示。例：<code>0.000000027</code> 默认会表示为 <code>2.7E-8</code>。当此选项设为 true 时，则会表示为 <code>0.000000027</code>。</td>
     </tr>
+    <tr>
+      <td><h5>decode.json-parser.enabled</h5></td>
+      <td>选填</td>
+      <td style="word-wrap: break-word;">true</td>
+      <td>Boolean</td>
+      <td><code>JsonParser</code> 是 Jackson 提供的流式读取 JSON 数据的 API。与 <code>JsonNode</code> 方式相比，这种方式读取速度更快，内存消耗更少。同时，<code>JsonParser</code> 在读取数据时还支持嵌套字段的投影下推。该参数默认启用。如果遇到任何不兼容性问题，可以禁用并回退到 <code>JsonNode</code> 方式。</td>
+    </tr>
     </tbody>
 </table>
 

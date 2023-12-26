@@ -26,12 +26,12 @@ import org.apache.flink.table.planner.utils.TableConfigUtils
 
 import org.apache.calcite.rel.core.Aggregate
 import org.apache.calcite.tools.RuleSets
-import org.junit.Before
+import org.junit.jupiter.api.BeforeEach
 
 /** Test for [[EnforceLocalHashAggRule]]. */
 class EnforceLocalHashAggRuleTest extends EnforceLocalAggRuleTestBase {
 
-  @Before
+  @BeforeEach
   override def setup(): Unit = {
     super.setup()
     val program = FlinkBatchProgram.buildProgram(util.tableEnv.getConfig)

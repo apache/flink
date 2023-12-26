@@ -53,10 +53,10 @@ import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.TestingJobStatusHook;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
-import org.apache.flink.runtime.executiongraph.failover.flip1.RestartAllFailoverStrategy;
-import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionFailoverStrategy;
-import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
+import org.apache.flink.runtime.executiongraph.failover.RestartAllFailoverStrategy;
+import org.apache.flink.runtime.executiongraph.failover.RestartPipelinedRegionFailoverStrategy;
+import org.apache.flink.runtime.executiongraph.failover.TestRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.executiongraph.utils.TestFailoverStrategyFactory;
 import org.apache.flink.runtime.failure.FailureEnricherUtils;
@@ -639,6 +639,28 @@ public class DefaultSchedulerTest extends TestLogger {
                 testExecutionOperations.getDeployedVertices();
         final ExecutionVertexID executionVertexId = new ExecutionVertexID(onlyJobVertex.getID(), 0);
         assertThat(deployedExecutionVertices).contains(executionVertexId, executionVertexId);
+    }
+
+    @Test
+    void testRestoreVertexEndOfDataListener() throws Exception {
+        final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+        enableCheckpointing(jobGraph, null, null, Long.MAX_VALUE - 1, true);
+
+        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+        final ArchivedExecutionVertex onlyExecutionVertex =
+                Iterables.getOnlyElement(
+                        scheduler
+                                .requestJob()
+                                .getArchivedExecutionGraph()
+                                .getAllExecutionVertices());
+        final ExecutionAttemptID attemptId =
+                onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
+
+        scheduler.notifyEndOfData(attemptId);
+        assertThat(scheduler.getVertexEndOfDataListener().areAllTasksEndOfData()).isTrue();
+
+        scheduler.restoreState(Collections.singleton(attemptId.getExecutionVertexId()), true);
+        assertThat(scheduler.getVertexEndOfDataListener().areAllTasksEndOfData()).isFalse();
     }
 
     /**

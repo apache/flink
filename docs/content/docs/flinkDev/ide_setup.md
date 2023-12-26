@@ -260,7 +260,7 @@ versions.
 [Flake8](https://pypi.org/project/flake8/) is used to enforce some coding guidelines.
 
 1. Install flake8 for your Python interpreter using `pip install flake8`.
-2. In PyCharm go to "Preferences" → "Tools" → "External Tools".
+2. In PyCharm go to "Settings" → "Tools" → "External Tools".
 3. Select the "+" button to add a new external tool.
 4. Set "Name" to "flake8".
 5. Set "Description" to "Code Style Check".

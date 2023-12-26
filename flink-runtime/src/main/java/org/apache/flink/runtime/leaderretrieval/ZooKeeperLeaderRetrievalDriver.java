@@ -30,6 +30,8 @@ import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cac
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.TreeCache;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.ConnectionState;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.ConnectionStateListener;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.KeeperException;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.Watcher;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +40,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
 import java.util.UUID;
 
+import static org.apache.flink.runtime.util.ZooKeeperUtils.RESOURCE_MANAGER_NODE;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -122,6 +125,19 @@ public class ZooKeeperLeaderRetrievalDriver implements LeaderRetrievalDriver {
         client.getConnectionStateListenable().removeListener(connectionStateListener);
 
         cache.close();
+
+        try {
+            if (client.getZookeeperClient().isConnected()
+                    && !connectionInformationPath.contains(RESOURCE_MANAGER_NODE)) {
+                client.watchers()
+                        .removeAll()
+                        .ofType(Watcher.WatcherType.Any)
+                        .forPath(connectionInformationPath);
+            }
+        } catch (KeeperException.NoWatcherException e) {
+            // Ignore the no watcher exception as it's just a safetynet to fix watcher leak issue.
+            // For more details, please refer to FLINK-33053.
+        }
     }
 
     private void retrieveLeaderInformationFromZooKeeper() {

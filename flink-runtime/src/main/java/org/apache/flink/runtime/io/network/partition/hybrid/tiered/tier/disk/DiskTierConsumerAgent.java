@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.Tiered
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.NettyConnectionReader;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyService;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.AvailabilityNotifier;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierConsumerAgent;
 
@@ -59,6 +60,11 @@ public class DiskTierConsumerAgent implements TierConsumerAgent {
 
     @Override
     public void start() {
+        // noop
+    }
+
+    @Override
+    public void registerAvailabilityNotifier(AvailabilityNotifier notifier) {
         // noop
     }
 

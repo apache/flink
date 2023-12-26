@@ -75,16 +75,6 @@ import java.util.List;
         producedTransformations = StreamExecChangelogNormalize.CHANGELOG_NORMALIZE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
-@ExecNodeMetadata(
-        name = "stream-exec-changelog-normalize",
-        version = 2,
-        consumedOptions = {
-            "table.exec.mini-batch.enabled",
-            "table.exec.mini-batch.size",
-        },
-        producedTransformations = StreamExecChangelogNormalize.CHANGELOG_NORMALIZE_TRANSFORMATION,
-        minPlanVersion = FlinkVersion.v1_18,
-        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 

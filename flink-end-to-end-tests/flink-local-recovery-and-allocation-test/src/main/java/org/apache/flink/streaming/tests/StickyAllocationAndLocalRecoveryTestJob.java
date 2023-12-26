@@ -46,6 +46,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -131,7 +132,14 @@ public class StickyAllocationAndLocalRecoveryTestJob {
         env.execute("Sticky Allocation And Local Recovery Test");
     }
 
-    /** Source function that produces a long sequence. */
+    /**
+     * Source function that produces a long sequence.
+     *
+     * @deprecated This class is based on the {@link
+     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+     *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+     */
+    @Deprecated
     private static final class RandomLongSource extends RichParallelSourceFunction<Long>
             implements CheckpointedFunction {
 
@@ -192,8 +200,7 @@ public class StickyAllocationAndLocalRecoveryTestJob {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            sourceCurrentKeyState.clear();
-            sourceCurrentKeyState.add(currentKey);
+            sourceCurrentKeyState.update(Collections.singletonList(currentKey));
         }
 
         @Override
@@ -359,8 +366,8 @@ public class StickyAllocationAndLocalRecoveryTestJob {
                             taskNameWithSubtasks,
                             allocationID);
 
-            schedulingAndFailureState.clear();
-            schedulingAndFailureState.add(currentSchedulingAndFailureInfo);
+            schedulingAndFailureState.update(
+                    Collections.singletonList(currentSchedulingAndFailureInfo));
         }
 
         @Override

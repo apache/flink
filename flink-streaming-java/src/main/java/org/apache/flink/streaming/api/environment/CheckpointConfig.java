@@ -29,6 +29,7 @@ import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
@@ -219,6 +220,68 @@ public class CheckpointConfig implements java.io.Serializable {
         }
         configuration.set(
                 ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL,
+                Duration.ofMillis(checkpointInterval));
+    }
+
+    /**
+     * Gets the interval in which checkpoints are periodically scheduled during backlog.
+     *
+     * <p>This setting defines the base interval. Checkpoint triggering may be delayed by the
+     * settings {@link #getMaxConcurrentCheckpoints()} and {@link #getMinPauseBetweenCheckpoints()}.
+     *
+     * <p>If not explicitly configured, checkpoint interval during backlog will be the same as that
+     * in normal situation(see {@link #getCheckpointInterval()}). If the return value is zero, it
+     * means that checkpoints would be disabled during backlog.
+     *
+     * @return The checkpoint interval, in milliseconds.
+     */
+    public long getCheckpointIntervalDuringBacklog() {
+        long intervalDuringBacklog =
+                configuration
+                        .getOptional(
+                                ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG)
+                        .map(Duration::toMillis)
+                        .orElseGet(this::getCheckpointInterval);
+
+        if (intervalDuringBacklog < MINIMAL_CHECKPOINT_TIME) {
+            intervalDuringBacklog = CheckpointCoordinatorConfiguration.DISABLED_CHECKPOINT_INTERVAL;
+        }
+
+        long checkpointInterval = getCheckpointInterval();
+        if (checkpointInterval < MINIMAL_CHECKPOINT_TIME) {
+            checkpointInterval = CheckpointCoordinatorConfiguration.DISABLED_CHECKPOINT_INTERVAL;
+        }
+        if (intervalDuringBacklog < checkpointInterval) {
+            throw new IllegalArgumentException(
+                    "Checkpoint interval during backlog must "
+                            + "be larger than or equal to that in normal situation.");
+        }
+
+        return intervalDuringBacklog;
+    }
+
+    /**
+     * Sets the interval in which checkpoints are periodically scheduled during backlog.
+     *
+     * <p>This setting defines the base interval. Checkpoint triggering may be delayed by the
+     * settings {@link #setMaxConcurrentCheckpoints(int)} and {@link
+     * #setMinPauseBetweenCheckpoints(long)}.
+     *
+     * <p>If not explicitly configured, checkpoint interval during backlog will be the same as that
+     * in normal situation(see {@link #setCheckpointInterval(long)}). If configured to zero,
+     * checkpoints would be disabled during backlog.
+     *
+     * @param checkpointInterval The checkpoint interval, in milliseconds.
+     */
+    public void setCheckpointIntervalDuringBacklog(long checkpointInterval) {
+        if (checkpointInterval != 0 && checkpointInterval < MINIMAL_CHECKPOINT_TIME) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Checkpoint interval must be zero or larger than or equal to %s ms",
+                            MINIMAL_CHECKPOINT_TIME));
+        }
+        configuration.set(
+                ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG,
                 Duration.ofMillis(checkpointInterval));
     }
 
@@ -684,8 +747,23 @@ public class CheckpointConfig implements java.io.Serializable {
      * terabytes while providing a highly available foundation for stateful applications. This
      * checkpoint storage policy is recommended for most production deployments.
      *
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided for configuring checkpoint storage like the following code snippet:
+     *     <pre>{@code
+     * Configuration config = new Configuration();
+     * config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+     * config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///flink/checkpoints");
+     * StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+     * }</pre>
+     *     For more details on using ConfigOption for checkpoint storage configuration, please refer
+     *     to the Flink documentation: <a
+     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/checkpoints">Checkpoints</a>
      * @param storage The checkpoint storage policy.
      */
+    @Deprecated
     @PublicEvolving
     public void setCheckpointStorage(CheckpointStorage storage) {
         Preconditions.checkNotNull(storage, "Checkpoint storage must not be null");
@@ -696,9 +774,24 @@ public class CheckpointConfig implements java.io.Serializable {
      * Configures the application to write out checkpoint snapshots to the configured directory. See
      * {@link FileSystemCheckpointStorage} for more details on checkpointing to a file system.
      *
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided for configuring checkpoint storage like the following code snippet:
+     *     <pre>{@code
+     * Configuration config = new Configuration();
+     * config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+     * config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///flink/checkpoints");
+     * StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+     * }</pre>
+     *     For more details on using ConfigOption for checkpoint storage configuration, please refer
+     *     to the Flink documentation: <a
+     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/checkpoints">Checkpoints</a>
      * @param checkpointDirectory The path to write checkpoint metadata to.
      * @see #setCheckpointStorage(CheckpointStorage)
      */
+    @Deprecated
     @PublicEvolving
     public void setCheckpointStorage(String checkpointDirectory) {
         Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
@@ -709,9 +802,24 @@ public class CheckpointConfig implements java.io.Serializable {
      * Configures the application to write out checkpoint snapshots to the configured directory. See
      * {@link FileSystemCheckpointStorage} for more details on checkpointing to a file system.
      *
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided for configuring checkpoint storage like the following code snippet:
+     *     <pre>{@code
+     * Configuration config = new Configuration();
+     * config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+     * config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///flink/checkpoints");
+     * StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+     * }</pre>
+     *     For more details on using ConfigOption for checkpoint storage configuration, please refer
+     *     to the Flink documentation: <a
+     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/checkpoints">Checkpoints</a>
      * @param checkpointDirectory The path to write checkpoint metadata to.
      * @see #setCheckpointStorage(CheckpointStorage)
      */
+    @Deprecated
     @PublicEvolving
     public void setCheckpointStorage(URI checkpointDirectory) {
         Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
@@ -722,9 +830,24 @@ public class CheckpointConfig implements java.io.Serializable {
      * Configures the application to write out checkpoint snapshots to the configured directory. See
      * {@link FileSystemCheckpointStorage} for more details on checkpointing to a file system.
      *
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided for configuring checkpoint storage like the following code snippet:
+     *     <pre>{@code
+     * Configuration config = new Configuration();
+     * config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+     * config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///flink/checkpoints");
+     * StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+     * }</pre>
+     *     For more details on using ConfigOption for checkpoint storage configuration, please refer
+     *     to the Flink documentation: <a
+     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/checkpoints">Checkpoints</a>
      * @param checkpointDirectory The path to write checkpoint metadata to.
      * @see #setCheckpointStorage(String)
      */
+    @Deprecated
     @PublicEvolving
     public void setCheckpointStorage(Path checkpointDirectory) {
         Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
@@ -732,10 +855,18 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to find which checkpoint storage is
+     *     used by checkpoint storage ConfigOption. For more details on using ConfigOption for
+     *     checkpoint storage configuration, please refer to the Flink documentation: <a
+     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/checkpoints">Checkpoints</a>
      * @return The {@link CheckpointStorage} that has been configured for the job. Or {@code null}
      *     if none has been set.
      * @see #setCheckpointStorage(CheckpointStorage)
      */
+    @Deprecated
     @Nullable
     @PublicEvolving
     public CheckpointStorage getCheckpointStorage() {
@@ -840,6 +971,9 @@ public class CheckpointConfig implements java.io.Serializable {
         configuration
                 .getOptional(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL)
                 .ifPresent(i -> this.setCheckpointInterval(i.toMillis()));
+        configuration
+                .getOptional(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG)
+                .ifPresent(i -> this.setCheckpointIntervalDuringBacklog(i.toMillis()));
         configuration
                 .getOptional(ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT)
                 .ifPresent(t -> this.setCheckpointTimeout(t.toMillis()));

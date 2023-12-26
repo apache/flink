@@ -86,7 +86,6 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
 
         checkNotNull(newHandle, "State handle should not be null.");
 
-        StreamStateHandle scheduledStateDeletion = null;
         SharedStateEntry entry;
 
         synchronized (registeredStates) {
@@ -122,37 +121,23 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
                 LOG.trace(
                         "Duplicated registration under key {} with a placeholder (normal case)",
                         registrationKey);
-                scheduledStateDeletion = newHandle;
-            } else if (entry.confirmed) {
-                LOG.info(
-                        "Duplicated registration under key {} of a new state: {}. "
-                                + "This might happen if checkpoint confirmation was delayed and state backend re-uploaded the state. "
-                                + "Discarding the new state and keeping the old one which is included into a completed checkpoint",
-                        registrationKey,
-                        newHandle);
-                scheduledStateDeletion = newHandle;
             } else {
-                // Old entry is not in a confirmed checkpoint yet, and the new one differs.
-                // This might result from (omitted KG range here for simplicity):
-                // 1. Flink recovers from a failure using a checkpoint 1
-                // 2. State Backend is initialized to UID xyz and a set of SST: { 01.sst }
-                // 3. JM triggers checkpoint 2
-                // 4. TM sends handle: "xyz-002.sst"; JM registers it under "xyz-002.sst"
-                // 5. TM crashes; everything is repeated from (2)
-                // 6. TM recovers from CP 1 again: backend UID "xyz", SST { 01.sst }
-                // 7. JM triggers checkpoint 3
-                // 8. TM sends NEW state "xyz-002.sst"
-                // 9. JM discards it as duplicate
-                // 10. checkpoint completes, but a wrong SST file is used
-                // So we use a new entry and discard the old one:
+                // might be a bug expect the StreamStateHandleWrapper used by
+                // ChangelogStateBackendHandleImpl
                 LOG.info(
-                        "Duplicated registration under key {} of a new state: {}. "
-                                + "This might happen during the task failover if state backend creates different states with the same key before and after the failure. "
-                                + "Discarding the OLD state and keeping the NEW one which is included into a completed checkpoint",
+                        "the registered handle should equal to the previous one or is a placeholder, register key:{}, handle:{}",
                         registrationKey,
                         newHandle);
-                scheduledStateDeletion = entry.stateHandle;
-                entry.stateHandle = newHandle;
+                if (entry.stateHandle instanceof EmptyDiscardStateObjectForRegister) {
+                    // This situation means that newHandle is a StreamStateHandleWrapper registered
+                    // by ChangelogStateBackendHandleImpl, keep the new one for discard the
+                    // underlying handle while it was useless. Refactor this once FLINK-25862 is
+                    // resolved.
+                    entry.stateHandle = newHandle;
+                } else {
+                    throw new IllegalStateException(
+                            "StateObjects underlying same key should be equal !");
+                }
             }
 
             LOG.trace(
@@ -167,7 +152,6 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
             }
         } // end of synchronized (registeredStates)
 
-        scheduleAsyncDelete(scheduledStateDeletion);
         return entry.stateHandle;
     }
 
@@ -246,11 +230,7 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
 
     @Override
     public void checkpointCompleted(long checkpointId) {
-        for (SharedStateEntry entry : registeredStates.values()) {
-            if (entry.lastUsedCheckpointID == checkpointId) {
-                entry.confirmed = true;
-            }
-        }
+        // nothing to do here
     }
 
     @Override
@@ -330,9 +310,6 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
         private final long createdByCheckpointID;
 
         private long lastUsedCheckpointID;
-
-        /** Whether this entry is included into a confirmed checkpoint. */
-        private boolean confirmed;
 
         SharedStateEntry(StreamStateHandle value, long checkpointID) {
             this.stateHandle = value;

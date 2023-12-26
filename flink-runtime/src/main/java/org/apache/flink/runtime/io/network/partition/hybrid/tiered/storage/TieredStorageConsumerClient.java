@@ -109,6 +109,12 @@ public class TieredStorageConsumerClient {
         return Optional.of(bufferData);
     }
 
+    public void registerAvailabilityNotifier(AvailabilityNotifier notifier) {
+        for (TierConsumerAgent tierConsumerAgent : tierConsumerAgents) {
+            tierConsumerAgent.registerAvailabilityNotifier(notifier);
+        }
+    }
+
     public void close() throws IOException {
         for (TierConsumerAgent tierConsumerAgent : tierConsumerAgents) {
             tierConsumerAgent.close();

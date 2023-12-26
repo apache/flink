@@ -429,6 +429,9 @@ will lead to compatibility failure and `StateMigrationException`.
 
 - The TTL configuration is not part of check- or savepoints but rather a way of how Flink treats it in the currently running job.
 
+- It is not recommended to restore checkpoint state with adjusting the ttl from a short value to a long value,
+which may cause potential data errors.
+
 - The map state with TTL currently supports null user values only if the user value serializer can handle null values. 
 If the serializer does not support null values, it can be wrapped with `NullableSerializer` at the cost of an extra byte in the serialized form.
 
@@ -598,7 +601,7 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 
 StateTtlConfig ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
-    .cleanupInRocksdbCompactFilter(1000)
+    .cleanupInRocksdbCompactFilter(1000, Time.hours(1))
     .build();
 ```
 {{< /tab >}}
@@ -608,7 +611,7 @@ import org.apache.flink.api.common.state.StateTtlConfig
 
 val ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
-    .cleanupInRocksdbCompactFilter(1000)
+    .cleanupInRocksdbCompactFilter(1000, Time.hours(1))
     .build
 ```
 {{< /tab >}}
@@ -619,7 +622,7 @@ from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
   .new_builder(Time.seconds(1)) \
-  .cleanup_in_rocksdb_compact_filter(1000) \
+  .cleanup_in_rocksdb_compact_filter(1000, Time.hours(1)) \
   .build()
 ```
 {{< /tab >}}
@@ -632,6 +635,15 @@ You can change it and pass a custom value to
 Updating the timestamp more often can improve cleanup speed 
 but it decreases compaction performance because it uses JNI call from native code.
 The default background cleanup for RocksDB backend queries the current timestamp each time 1000 entries have been processed.
+
+Periodic compaction could speed up expired state entries cleanup, especially for state entries rarely accessed. 
+Files older than this value will be picked up for compaction, and re-written to the same level as they were before. 
+It makes sure a file goes through compaction filters periodically.
+You can change it and pass a custom value to
+`StateTtlConfig.newBuilder(...).cleanupInRocksdbCompactFilter(long queryTimeAfterNumEntries, Time periodicCompactionTime)` method.
+The default value of Periodic compaction seconds is 30 days.
+You could set it to 0 to turn off periodic compaction or set a small value to speed up expired state entries cleanup, but it
+would trigger more compactions.
 
 You can activate debug logs from the native code of RocksDB filter 
 by activating debug level for `FlinkCompactionFilter`:
@@ -648,6 +660,7 @@ the native TTL filter has to call additionally a Flink java type serializer of t
 where at least the first element has expired to determine the offset of the next unexpired element. 
 - For existing jobs, this cleanup strategy can be activated or deactivated anytime in `StateTtlConfig`, 
 e.g. after restart from savepoint.
+- Periodic compaction could only work when TTL is enabled.
 
 ### State in the Scala DataStream API
 
@@ -779,10 +792,7 @@ public class BufferingSink
 
     @Override
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
-        checkpointedState.clear();
-        for (Tuple2<String, Integer> element : bufferedElements) {
-            checkpointedState.add(element);
-        }
+        checkpointedState.update(bufferedElements);
     }
 
     @Override
@@ -825,10 +835,7 @@ class BufferingSink(threshold: Int = 0)
   }
 
   override def snapshotState(context: FunctionSnapshotContext): Unit = {
-    checkpointedState.clear()
-    for (element <- bufferedElements) {
-      checkpointedState.add(element)
-    }
+    checkpointedState.update(bufferedElements.asJava)
   }
 
   override def initializeState(context: FunctionInitializationContext): Unit = {
@@ -956,8 +963,7 @@ public static class CounterSource
 
     @Override
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
-        state.clear();
-        state.add(offset);
+        state.update(Collections.singletonList(offset));
     }
 }
 ```
@@ -999,8 +1005,7 @@ class CounterSource
   }
 
   override def snapshotState(context: FunctionSnapshotContext): Unit = {
-    state.clear()
-    state.add(offset)
+    state.update(java.util.Collections.singletonList(offset))
   }
 }
 ```

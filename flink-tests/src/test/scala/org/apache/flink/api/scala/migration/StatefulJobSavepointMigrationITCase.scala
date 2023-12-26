@@ -19,7 +19,7 @@ package org.apache.flink.api.scala.migration
 
 import org.apache.flink.FlinkVersion
 import org.apache.flink.api.common.accumulators.IntCounter
-import org.apache.flink.api.common.functions.RichFlatMapFunction
+import org.apache.flink.api.common.functions.{OpenContext, RichFlatMapFunction}
 import org.apache.flink.api.common.state.{ListState, ListStateDescriptor, ValueState, ValueStateDescriptor}
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.Tuple2
@@ -274,8 +274,7 @@ class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
     }
 
     override def snapshotState(context: FunctionSnapshotContext): Unit = {
-      state.clear()
-      state.add(CustomCaseClass("Here be dragons!", 123))
+      state.update(java.util.Collections.singletonList(CustomCaseClass("Here be dragons!", 123)))
     }
   }
 
@@ -290,8 +289,8 @@ class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
     private var count: Int = 0
 
     @throws[Exception]
-    override def open(parameters: Configuration) {
-      super.open(parameters)
+    override def open(openContext: OpenContext) {
+      super.open(openContext)
       getRuntimeContext.addAccumulator(
         AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
         new IntCounter)
@@ -318,7 +317,7 @@ class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
     private var enumOneState: ValueState[CustomEnum] = _
     private var enumThreeState: ValueState[CustomEnum] = _
 
-    override def open(parameters: Configuration): Unit = {
+    override def open(openContext: OpenContext): Unit = {
       caseClassState = getRuntimeContext.getState(
         new ValueStateDescriptor[CustomCaseClass](
           "caseClassState",

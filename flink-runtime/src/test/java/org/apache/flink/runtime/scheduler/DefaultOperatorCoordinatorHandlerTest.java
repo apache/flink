@@ -64,17 +64,17 @@ public class DefaultOperatorCoordinatorHandlerTest {
         ExecutionJobVertex ejv2 = executionGraph.getJobVertex(jobVertices[1].getID());
         executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
-        executionGraph.initializeJobVertex(ejv1, 0L);
+        executionGraph.initializeJobVertex(
+                ejv1, 0L, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         DefaultOperatorCoordinatorHandler handler =
                 new DefaultOperatorCoordinatorHandler(executionGraph, throwable -> {});
         assertThat(handler.getCoordinatorMap().keySet(), containsInAnyOrder(operatorId1));
 
-        executionGraph.initializeJobVertex(ejv2, 0L);
+        executionGraph.initializeJobVertex(
+                ejv2, 0L, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
         handler.registerAndStartNewCoordinators(
-                ejv2.getOperatorCoordinators(),
-                executionGraph.getJobMasterMainThreadExecutor(),
-                UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
+                ejv2.getOperatorCoordinators(), executionGraph.getJobMasterMainThreadExecutor());
 
         assertThat(
                 handler.getCoordinatorMap().keySet(), containsInAnyOrder(operatorId1, operatorId2));

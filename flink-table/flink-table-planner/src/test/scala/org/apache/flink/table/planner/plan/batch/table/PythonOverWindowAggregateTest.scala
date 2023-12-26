@@ -22,7 +22,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{PandasAggregateFunction, TestPythonAggregateFunction}
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 class PythonOverWindowAggregateTest extends TableTestBase {
 
@@ -64,7 +65,7 @@ class PythonOverWindowAggregateTest extends TableTestBase {
     util.verifyExecPlan(resultTable)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testGeneralRangeOverWindowAggregate(): Unit = {
     val util = batchTestUtil()
     val sourceTable =
@@ -80,6 +81,7 @@ class PythonOverWindowAggregateTest extends TableTestBase {
           .as('w))
       .select('b, func('a, 'c).over('w))
 
-    util.verifyExecPlan(resultTable)
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyExecPlan(resultTable))
   }
 }

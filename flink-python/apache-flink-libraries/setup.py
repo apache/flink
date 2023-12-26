@@ -26,6 +26,7 @@ import sys
 from shutil import copytree, copy, rmtree
 
 from setuptools import setup
+from xml.etree import ElementTree as ET
 
 
 def remove_if_exists(file_path):
@@ -97,7 +98,15 @@ try:
             print("Temp path for symlink to parent already exists {0}".format(TEMP_PATH),
                   file=sys.stderr)
             sys.exit(-1)
-        flink_version = VERSION.replace(".dev0", "-SNAPSHOT")
+        flink_version = ET.parse("../../pom.xml").getroot().find(
+            'POM:version',
+            namespaces={
+                'POM': 'http://maven.apache.org/POM/4.0.0'
+            }).text
+        if not flink_version:
+            print("Not able to get flink version", file=sys.stderr)
+            sys.exit(-1)
+        print("Detected flink version: {0}".format(flink_version))
         FLINK_HOME = os.path.abspath(
             "../../flink-dist/target/flink-%s-bin/flink-%s" % (flink_version, flink_version))
 
@@ -216,17 +225,17 @@ run sdist.
         license='https://www.apache.org/licenses/LICENSE-2.0',
         author='Apache Software Foundation',
         author_email='dev@flink.apache.org',
-        python_requires='>=3.6',
+        python_requires='>=3.8',
         description='Apache Flink Libraries',
         long_description=long_description,
         long_description_content_type='text/markdown',
         classifiers=[
             'Development Status :: 5 - Production/Stable',
             'License :: OSI Approved :: Apache Software License',
-            'Programming Language :: Python :: 3.6',
-            'Programming Language :: Python :: 3.7',
             'Programming Language :: Python :: 3.8',
-            'Programming Language :: Python :: 3.9'],
+            'Programming Language :: Python :: 3.9',
+            'Programming Language :: Python :: 3.10',
+            'Programming Language :: Python :: 3.11'],
     )
 finally:
     if in_flink_source:

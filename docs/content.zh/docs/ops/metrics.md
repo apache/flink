@@ -1,6 +1,6 @@
 ---
 title: "指标"
-weight: 6
+weight: 5
 type: docs
 aliases:
   - /zh/ops/metrics.html
@@ -1632,7 +1632,7 @@ Note that the metrics are only available via reporters.
       <td>Histogram</td>
     </tr>
     <tr>
-      <th rowspan="23"><strong>Task</strong></th>
+      <th rowspan="24"><strong>Task</strong></th>
       <td>numBytesInLocal</td>
       <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{< ref "docs/ops/metrics" >}}#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
@@ -1733,6 +1733,11 @@ Note that the metrics are only available via reporters.
       <td>Gauge</td>
     </tr>
     <tr>
+      <td>changelogBusyTimeMsPerSecond</td>
+      <td>The time (in milliseconds) taken by the Changelog state backend to do IO operations, only positive when Changelog state backend is enabled. Please check 'dstl.dfs.upload.max-in-flight' for more information.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
       <td>mailboxMailsPerSecond</td>
       <td>The number of actions processed from the task's mailbox per second which includes all actions, e.g., checkpointing, timer, or cancellation actions.</td>
       <td>Meter</td>
@@ -1746,6 +1751,11 @@ Note that the metrics are only available via reporters.
       <td>mailboxQueueSize</td>
       <td>The number of actions in the task's mailbox that are waiting to be processed.</td>
       <td>Gauge</td>
+    </tr>
+   <tr>
+      <td>initializationTime</td>
+      <td>The time in milliseconds that one task spends on initialization, return 0 when the task is not in initialization/running status. Most of the initialization time is usually spent in restoring from the checkpoint.</td>
+      <td>Counter</td>
     </tr>
     <tr>
       <td rowspan="2"><strong>Task (only if buffer debloating is enabled and in non-source tasks)</strong></td>

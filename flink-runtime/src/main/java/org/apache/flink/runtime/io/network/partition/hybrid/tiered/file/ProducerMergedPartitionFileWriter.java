@@ -156,7 +156,8 @@ public class ProducerMergedPartitionFileWriter implements PartitionFileWriter {
                             new ProducerMergedPartitionFileIndex.FlushedBuffer(
                                     subpartitionId,
                                     bufferWithIndex.f1,
-                                    totalBytesWritten + expectedBytes));
+                                    totalBytesWritten + expectedBytes,
+                                    buffer.readableBytes() + BufferReaderWriterUtil.HEADER_LENGTH));
                     expectedBytes += buffer.readableBytes() + BufferReaderWriterUtil.HEADER_LENGTH;
                 }
             }

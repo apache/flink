@@ -38,7 +38,15 @@ import scala.language.implicitConversions
 /**
  * Implicit conversions from Scala literals to [[Expression]] and from [[Expression]] to
  * [[ImplicitExpressionOperations]].
+ *
+ * @deprecated
+ *   All Flink Scala APIs are deprecated and will be removed in a future Flink major version. You
+ *   can still build your application in Scala, but you should move to the Java version of either
+ *   the DataStream and/or Table API.
+ * @see
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
+@deprecated(since = "1.18.0")
 @PublicEvolving
 trait ImplicitExpressionConversions {
 
@@ -50,28 +58,27 @@ trait ImplicitExpressionConversions {
    * Offset constant to be used in the `preceding` clause of unbounded [[Over]] windows. Use this
    * constant for a time interval. Unbounded over windows start with the first row of a partition.
    */
-  implicit val UNBOUNDED_ROW: Expression = unresolvedCall(BuiltInFunctionDefinitions.UNBOUNDED_ROW)
+  implicit val UNBOUNDED_ROW: Expression = lit(OverWindowRange.UNBOUNDED_ROW)
 
   /**
    * Offset constant to be used in the `preceding` clause of unbounded [[Over]] windows. Use this
    * constant for a row-count interval. Unbounded over windows start with the first row of a
    * partition.
    */
-  implicit val UNBOUNDED_RANGE: Expression =
-    unresolvedCall(BuiltInFunctionDefinitions.UNBOUNDED_RANGE)
+  implicit val UNBOUNDED_RANGE: Expression = lit(OverWindowRange.UNBOUNDED_RANGE)
 
   /**
    * Offset constant to be used in the `following` clause of [[Over]] windows. Use this for setting
    * the upper bound of the window to the current row.
    */
-  implicit val CURRENT_ROW: Expression = unresolvedCall(BuiltInFunctionDefinitions.CURRENT_ROW)
+  implicit val CURRENT_ROW: Expression = lit(OverWindowRange.CURRENT_ROW)
 
   /**
    * Offset constant to be used in the `following` clause of [[Over]] windows. Use this for setting
    * the upper bound of the window to the sort key of the current row, i.e., all rows with the same
    * sort key as the current row are included in the window.
    */
-  implicit val CURRENT_RANGE: Expression = unresolvedCall(BuiltInFunctionDefinitions.CURRENT_RANGE)
+  implicit val CURRENT_RANGE: Expression = lit(OverWindowRange.CURRENT_RANGE)
 
   // ----------------------------------------------------------------------------------------------
   // Implicit conversions

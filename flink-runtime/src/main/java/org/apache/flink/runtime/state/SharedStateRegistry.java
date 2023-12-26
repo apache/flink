@@ -54,19 +54,20 @@ public interface SharedStateRegistry extends AutoCloseable {
     }
 
     /**
-     * Register a reference to the given shared state in the registry. If there is already a state
-     * handle registered under the given key, the "new" state handle is disposed .
+     * Register a reference to the given shared state in the registry. The registry key should be
+     * based on the physical identifier of the state. If there is already a state handle registered
+     * under the same key and the 'new' state is not equal to the old one, an exception will be
+     * thrown.
      *
-     * <p>IMPORTANT: caller should check the state handle returned by the result, because the
-     * registry is performing de-duplication and could potentially return a handle that is supposed
-     * to replace the one from the registration request.
+     * <p>IMPORTANT: the caller must use the returned state handle instead of the passed one because
+     * the registry might replace or update it.
      *
      * @param state the shared state for which we register a reference.
      * @param checkpointID which uses the state
      * @param preventDiscardingCreatedCheckpoint as long as this state is still in use. The
      *     "checkpoint that created the state" is recorded on the first state registration.
-     * @return the result of this registration request, consisting of the state handle that is
-     *     registered under the key by the end of the operation and its current reference count.
+     * @return the state handle registered under the given key. It might differ from the passed
+     *     state handle, e.g. if it was a placeholder.
      */
     StreamStateHandle registerReference(
             SharedStateRegistryKey registrationKey,

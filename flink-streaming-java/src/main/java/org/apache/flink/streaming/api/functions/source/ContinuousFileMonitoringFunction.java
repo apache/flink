@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.state.ListState;
@@ -63,7 +64,12 @@ import java.util.TreeMap;
  *
  * <p><b>IMPORTANT NOTE: </b> Splits are forwarded downstream for reading in ascending modification
  * time order, based on the modification time of the files they belong to.
+ *
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
+@Deprecated
 @Internal
 public class ContinuousFileMonitoringFunction<OUT>
         extends RichSourceFunction<TimestampedFileInputSplit> implements CheckpointedFunction {
@@ -194,9 +200,9 @@ public class ContinuousFileMonitoringFunction<OUT>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
-        format.configure(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
+        format.configure(new Configuration());
 
         if (LOG.isDebugEnabled()) {
             LOG.debug(
@@ -407,8 +413,7 @@ public class ContinuousFileMonitoringFunction<OUT>
                 this.checkpointedState != null,
                 "The " + getClass().getSimpleName() + " state has not been properly initialized.");
 
-        this.checkpointedState.clear();
-        this.checkpointedState.add(this.globalModificationTime);
+        this.checkpointedState.update(Collections.singletonList(this.globalModificationTime));
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("{} checkpointed {}.", getClass().getSimpleName(), globalModificationTime);

@@ -63,6 +63,8 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
 
     private final float minReservedDiskSpaceFraction;
 
+    private final TieredStorageMemoryManager memoryManager;
+
     private final DiskCacheManager diskCacheManager;
 
     /**
@@ -84,19 +86,19 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
             int numSubpartitions,
             int numBytesPerSegment,
             int bufferSizeBytes,
+            int maxCachedBytesBeforeFlush,
             Path dataFilePath,
             float minReservedDiskSpaceFraction,
             boolean isBroadcastOnly,
             PartitionFileWriter partitionFileWriter,
             PartitionFileReader partitionFileReader,
-            TieredStorageMemoryManager storageMemoryManager,
+            TieredStorageMemoryManager memoryManager,
             TieredStorageNettyService nettyService,
             TieredStorageResourceRegistry resourceRegistry,
             BatchShuffleReadBufferPool bufferPool,
             ScheduledExecutorService ioExecutor,
             int maxRequestedBuffers,
-            Duration bufferRequestTimeout,
-            int maxBufferReadAhead) {
+            Duration bufferRequestTimeout) {
         checkArgument(
                 numBytesPerSegment >= bufferSizeBytes,
                 "One segment should contain at least one buffer.");
@@ -106,6 +108,7 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
         this.bufferSizeBytes = bufferSizeBytes;
         this.dataFilePath = dataFilePath;
         this.minReservedDiskSpaceFraction = minReservedDiskSpaceFraction;
+        this.memoryManager = memoryManager;
         this.firstBufferIndexInSegment = new ArrayList<>();
         this.currentSubpartitionWriteBuffers = new int[numSubpartitions];
 
@@ -119,7 +122,8 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
                 new DiskCacheManager(
                         partitionId,
                         isBroadcastOnly ? 1 : numSubpartitions,
-                        storageMemoryManager,
+                        maxCachedBytesBeforeFlush,
+                        memoryManager,
                         partitionFileWriter);
 
         this.diskIOScheduler =
@@ -129,9 +133,7 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
                         ioExecutor,
                         maxRequestedBuffers,
                         bufferRequestTimeout,
-                        maxBufferReadAhead,
-                        nettyService,
-                        this::retrieveFirstBufferIndexInSegment,
+                        this::firstBufferIndexToSegmentId,
                         partitionFileReader);
 
         nettyService.registerProducer(partitionId, this);
@@ -156,13 +158,17 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
     }
 
     @Override
-    public boolean tryWrite(TieredStorageSubpartitionId subpartitionId, Buffer finishedBuffer) {
+    public boolean tryWrite(
+            TieredStorageSubpartitionId subpartitionId, Buffer finishedBuffer, Object bufferOwner) {
         int subpartitionIndex = subpartitionId.getSubpartitionId();
         if (currentSubpartitionWriteBuffers[subpartitionIndex] != 0
                 && currentSubpartitionWriteBuffers[subpartitionIndex] + 1 > numBuffersPerSegment) {
             emitEndOfSegmentEvent(subpartitionIndex);
             currentSubpartitionWriteBuffers[subpartitionIndex] = 0;
             return false;
+        }
+        if (finishedBuffer.isBuffer()) {
+            memoryManager.transferBufferOwnership(bufferOwner, this, finishedBuffer);
         }
         currentSubpartitionWriteBuffers[subpartitionIndex]++;
         emitBuffer(finishedBuffer, subpartitionIndex);
@@ -210,13 +216,16 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
 
     private void releaseResources() {
         if (!isReleased) {
-            firstBufferIndexInSegment.clear();
+            for (Map<Integer, Integer> subFirstBufferIndexInSegment : firstBufferIndexInSegment) {
+                subFirstBufferIndexInSegment.clear();
+            }
             diskCacheManager.release();
+            diskIOScheduler.release();
             isReleased = true;
         }
     }
 
-    private Integer retrieveFirstBufferIndexInSegment(int subpartitionId, int bufferIndex) {
+    private Integer firstBufferIndexToSegmentId(int subpartitionId, int bufferIndex) {
         return firstBufferIndexInSegment.size() > subpartitionId
                 ? firstBufferIndexInSegment.get(subpartitionId).get(bufferIndex)
                 : null;

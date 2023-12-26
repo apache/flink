@@ -23,7 +23,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class SortTest extends TableTestBase {
 

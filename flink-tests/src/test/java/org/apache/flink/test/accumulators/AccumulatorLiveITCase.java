@@ -20,6 +20,7 @@ package org.apache.flink.test.accumulators;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.accumulators.IntCounter;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.time.Deadline;
@@ -101,7 +102,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 
     private static Configuration getConfiguration() {
         Configuration config = new Configuration();
-        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT);
+        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, TestingUtils.DEFAULT_ASK_TIMEOUT);
         config.setLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, HEARTBEAT_INTERVAL);
 
         return config;
@@ -132,7 +133,7 @@ public class AccumulatorLiveITCase extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
-        DataStream<Integer> input = env.fromCollection(inputData);
+        DataStream<Integer> input = env.fromData(inputData);
         input.flatMap(new NotifyingMapper())
                 .writeUsingOutputFormat(new DummyOutputFormat())
                 .disableChaining();
@@ -219,7 +220,7 @@ public class AccumulatorLiveITCase extends TestLogger {
         private final IntCounter counter = new IntCounter();
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             getRuntimeContext().addAccumulator(ACCUMULATOR_NAME, counter);
         }
 

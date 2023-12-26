@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api.internal;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
@@ -26,6 +27,7 @@ import org.apache.flink.table.operations.ExecutableOperation;
 import org.apache.flink.table.resource.ResourceManager;
 
 /** A simple implementation of {@link ExecutableOperation.Context}. */
+@Internal
 public class ExecutableOperationContextImpl implements ExecutableOperation.Context {
 
     private final CatalogManager catalogManager;

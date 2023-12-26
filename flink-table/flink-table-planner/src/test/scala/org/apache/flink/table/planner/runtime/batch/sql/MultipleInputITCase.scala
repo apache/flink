@@ -237,10 +237,10 @@ object MultipleInputITCase {
     for (_ <- 0 until numRows) {
       data.add(
         BatchTestBase.row(
-          Random.nextInt(3),
-          Random.nextInt(3).longValue(),
+          Random.nextInt(30),
+          Random.nextInt(30).longValue(),
           strs(Random.nextInt(3)),
-          Random.nextInt(3)))
+          Random.nextInt(30)))
     }
     data
   }

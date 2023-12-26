@@ -30,21 +30,22 @@ import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.testutils.statemigration.TestType;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Test for {@link CopyOnWriteStateTable}. */
-public class CopyOnWriteStateTableTest {
+class CopyOnWriteStateTableTest {
 
     /**
      * This tests that Whether serializers are consistent between {@link StateTable} and {@link
      * StateMap}.
      */
     @Test
-    public void testSerializerAfterMetaInfoChanged() {
+    void testSerializerAfterMetaInfoChanged() {
         RegisteredKeyValueStateBackendMetaInfo<Integer, TestType> originalMetaInfo =
                 new RegisteredKeyValueStateBackendMetaInfo<>(
                         StateDescriptor.Type.VALUE,
@@ -66,9 +67,8 @@ public class CopyOnWriteStateTableTest {
         table.setMetaInfo(newMetaInfo);
         Preconditions.checkState(table.getState().length > 0);
         for (StateMap<?, ?, ?> stateEntries : table.getState()) {
-            Assert.assertEquals(
-                    table.getStateSerializer(),
-                    ((CopyOnWriteStateMap<?, ?, ?>) stateEntries).getStateSerializer());
+            assertThat(((CopyOnWriteStateMap<?, ?, ?>) stateEntries).getStateSerializer())
+                    .isEqualTo(table.getStateSerializer());
         }
     }
 
@@ -77,7 +77,7 @@ public class CopyOnWriteStateTableTest {
      * to avoid race conditions in stateful serializers.
      */
     @Test
-    public void testSerializerDuplicationInSnapshot() throws IOException {
+    void testSerializerDuplicationInSnapshot() throws IOException {
 
         final TestDuplicateSerializer namespaceSerializer = new TestDuplicateSerializer();
         final TestDuplicateSerializer stateSerializer = new TestDuplicateSerializer();
@@ -109,7 +109,7 @@ public class CopyOnWriteStateTableTest {
 
     /** This tests that resource can be released for a successful snapshot. */
     @Test
-    public void testReleaseForSuccessfulSnapshot() throws IOException {
+    void testReleaseForSuccessfulSnapshot() throws IOException {
         int numberOfKeyGroups = 10;
         CopyOnWriteStateTable<Integer, Integer, Float> table =
                 createStateTableForSnapshotRelease(numberOfKeyGroups);
@@ -123,7 +123,7 @@ public class CopyOnWriteStateTableTest {
         for (int group = 0; group < numberOfKeyGroups; group++) {
             snapshot.writeStateInKeyGroup(dataOutputView, group);
             // resource used by one key group should be released after the snapshot is successful
-            Assert.assertTrue(isResourceReleasedForKeyGroup(table, group));
+            assertThat(isResourceReleasedForKeyGroup(table, group)).isTrue();
         }
         snapshot.release();
         verifyResourceIsReleasedForAllKeyGroup(table, 1);
@@ -131,7 +131,7 @@ public class CopyOnWriteStateTableTest {
 
     /** This tests that resource can be released for a failed snapshot. */
     @Test
-    public void testReleaseForFailedSnapshot() throws IOException {
+    void testReleaseForFailedSnapshot() throws IOException {
         int numberOfKeyGroups = 10;
         CopyOnWriteStateTable<Integer, Integer, Float> table =
                 createStateTableForSnapshotRelease(numberOfKeyGroups);
@@ -145,10 +145,10 @@ public class CopyOnWriteStateTableTest {
         // only snapshot part of key groups to simulate a failed snapshot
         for (int group = 0; group < numberOfKeyGroups / 2; group++) {
             snapshot.writeStateInKeyGroup(dataOutputView, group);
-            Assert.assertTrue(isResourceReleasedForKeyGroup(table, group));
+            assertThat(isResourceReleasedForKeyGroup(table, group)).isTrue();
         }
         for (int group = numberOfKeyGroups / 2; group < numberOfKeyGroups; group++) {
-            Assert.assertFalse(isResourceReleasedForKeyGroup(table, group));
+            assertThat(isResourceReleasedForKeyGroup(table, group)).isFalse();
         }
         snapshot.release();
         verifyResourceIsReleasedForAllKeyGroup(table, 2);
@@ -181,8 +181,8 @@ public class CopyOnWriteStateTableTest {
             CopyOnWriteStateTable table, int snapshotVersion) {
         StateMap[] stateMaps = table.getState();
         for (StateMap map : stateMaps) {
-            Assert.assertFalse(
-                    ((CopyOnWriteStateMap) map).getSnapshotVersions().contains(snapshotVersion));
+            assertThat(((CopyOnWriteStateMap) map).getSnapshotVersions().contains(snapshotVersion))
+                    .isFalse();
         }
     }
 

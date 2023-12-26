@@ -30,40 +30,37 @@ import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link InternalOperatorMetricGroup}. */
-public class InternalOperatorGroupTest extends TestLogger {
+class InternalOperatorGroupTest {
 
     private MetricRegistryImpl registry;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration());
     }
 
-    @After
-    public void teardown() throws Exception {
+    @AfterEach
+    void teardown() throws Exception {
         if (registry != null) {
             registry.closeAsync().get();
         }
     }
 
     @Test
-    public void testGenerateScopeDefault() throws Exception {
+    void testGenerateScopeDefault() throws Exception {
         TaskManagerMetricGroup tmGroup =
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         registry, "theHostName", new ResourceID("test-tm-id"));
@@ -74,19 +71,16 @@ public class InternalOperatorGroupTest extends TestLogger {
         InternalOperatorMetricGroup opGroup =
                 taskGroup.getOrAddOperator(new OperatorID(), "myOpName");
 
-        assertArrayEquals(
-                new String[] {
-                    "theHostName", "taskmanager", "test-tm-id", "myJobName", "myOpName", "11"
-                },
-                opGroup.getScopeComponents());
+        assertThat(opGroup.getScopeComponents())
+                .containsExactly(
+                        "theHostName", "taskmanager", "test-tm-id", "myJobName", "myOpName", "11");
 
-        assertEquals(
-                "theHostName.taskmanager.test-tm-id.myJobName.myOpName.11.name",
-                opGroup.getMetricIdentifier("name"));
+        assertThat(opGroup.getMetricIdentifier("name"))
+                .isEqualTo("theHostName.taskmanager.test-tm-id.myJobName.myOpName.11.name");
     }
 
     @Test
-    public void testGenerateScopeCustom() throws Exception {
+    void testGenerateScopeCustom() throws Exception {
         Configuration cfg = new Configuration();
         cfg.setString(
                 MetricOptions.SCOPE_NAMING_OPERATOR,
@@ -107,27 +101,24 @@ public class InternalOperatorGroupTest extends TestLogger {
                             .addTask(createExecutionAttemptId(vertexId, 13, 2), "aTaskname")
                             .getOrAddOperator(operatorID, operatorName);
 
-            assertArrayEquals(
-                    new String[] {
-                        tmID,
-                        jid.toString(),
-                        vertexId.toString(),
-                        operatorName,
-                        operatorID.toString()
-                    },
-                    operatorGroup.getScopeComponents());
+            assertThat(operatorGroup.getScopeComponents())
+                    .containsExactly(
+                            tmID,
+                            jid.toString(),
+                            vertexId.toString(),
+                            operatorName,
+                            operatorID.toString());
 
-            assertEquals(
-                    String.format(
-                            "%s.%s.%s.%s.%s.name", tmID, jid, vertexId, operatorName, operatorID),
-                    operatorGroup.getMetricIdentifier("name"));
+            assertThat(operatorGroup.getMetricIdentifier("name"))
+                    .isEqualTo(
+                            "%s.%s.%s.%s.%s.name", tmID, jid, vertexId, operatorName, operatorID);
         } finally {
             registry.closeAsync().get();
         }
     }
 
     @Test
-    public void testIOMetricGroupInstantiation() throws Exception {
+    void testIOMetricGroupInstantiation() throws Exception {
         TaskManagerMetricGroup tmGroup =
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         registry, "theHostName", new ResourceID("test-tm-id"));
@@ -138,13 +129,13 @@ public class InternalOperatorGroupTest extends TestLogger {
         InternalOperatorMetricGroup opGroup =
                 taskGroup.getOrAddOperator(new OperatorID(), "myOpName");
 
-        assertNotNull(opGroup.getIOMetricGroup());
-        assertNotNull(opGroup.getIOMetricGroup().getNumRecordsInCounter());
-        assertNotNull(opGroup.getIOMetricGroup().getNumRecordsOutCounter());
+        assertThat(opGroup.getIOMetricGroup()).isNotNull();
+        assertThat(opGroup.getIOMetricGroup().getNumRecordsInCounter()).isNotNull();
+        assertThat(opGroup.getIOMetricGroup().getNumRecordsOutCounter()).isNotNull();
     }
 
     @Test
-    public void testVariables() {
+    void testVariables() {
         JobID jid = new JobID();
         JobVertexID tid = new JobVertexID();
         ExecutionAttemptID eid = createExecutionAttemptId(tid, 11, 0);
@@ -175,12 +166,11 @@ public class InternalOperatorGroupTest extends TestLogger {
     private static void testVariable(
             Map<String, String> variables, String key, String expectedValue) {
         String actualValue = variables.get(key);
-        assertNotNull(actualValue);
-        assertEquals(expectedValue, actualValue);
+        assertThat(actualValue).isNotNull().isEqualTo(expectedValue);
     }
 
     @Test
-    public void testCreateQueryServiceMetricInfo() {
+    void testCreateQueryServiceMetricInfo() {
         JobID jid = new JobID();
         JobVertexID vid = new JobVertexID();
         ExecutionAttemptID eid = createExecutionAttemptId(vid, 4, 5);
@@ -194,10 +184,10 @@ public class InternalOperatorGroupTest extends TestLogger {
 
         QueryScopeInfo.OperatorQueryScopeInfo info =
                 operator.createQueryServiceMetricInfo(new DummyCharacterFilter());
-        assertEquals("", info.scope);
-        assertEquals(jid.toString(), info.jobID);
-        assertEquals(vid.toString(), info.vertexID);
-        assertEquals(4, info.subtaskIndex);
-        assertEquals("operator", info.operatorName);
+        assertThat(info.scope).isEmpty();
+        assertThat(info.jobID).isEqualTo(jid.toString());
+        assertThat(info.vertexID).isEqualTo(vid.toString());
+        assertThat(info.subtaskIndex).isEqualTo(4);
+        assertThat(info.operatorName).isEqualTo("operator");
     }
 }

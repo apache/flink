@@ -32,6 +32,7 @@ import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.AggregatingState;
@@ -44,19 +45,21 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
  * Rich variant of the {@link AsyncFunction}. As a {@link RichFunction}, it gives access to the
  * {@link RuntimeContext} and provides setup and teardown methods: {@link
- * RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
- * RichFunction#close()}.
+ * RichFunction#open(OpenContext)} and {@link RichFunction#close()}.
  *
  * <p>State related apis in {@link RuntimeContext} are not supported yet because the key may get
  * changed while accessing states in the working thread.
@@ -146,8 +149,24 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
         }
 
         @Override
+        @Deprecated
         public ExecutionConfig getExecutionConfig() {
             return runtimeContext.getExecutionConfig();
+        }
+
+        @Override
+        public <T> TypeSerializer<T> createSerializer(TypeInformation<T> typeInformation) {
+            return runtimeContext.createSerializer(typeInformation);
+        }
+
+        @Override
+        public Map<String, String> getGlobalJobParameters() {
+            return runtimeContext.getGlobalJobParameters();
+        }
+
+        @Override
+        public boolean isObjectReuseEnabled() {
+            return runtimeContext.isObjectReuseEnabled();
         }
 
         @Override

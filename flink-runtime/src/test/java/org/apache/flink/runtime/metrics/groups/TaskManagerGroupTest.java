@@ -29,35 +29,28 @@ import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
-import java.io.IOException;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link TaskManagerMetricGroup}. */
-public class TaskManagerGroupTest extends TestLogger {
+class TaskManagerGroupTest {
 
     private MetricRegistryImpl registry;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration());
     }
 
-    @After
-    public void teardown() throws Exception {
+    @AfterEach
+    void teardown() throws Exception {
         if (registry != null) {
             registry.closeAsync().get();
         }
@@ -68,7 +61,7 @@ public class TaskManagerGroupTest extends TestLogger {
     // ------------------------------------------------------------------------
 
     @Test
-    public void addAndRemoveJobs() throws IOException {
+    void addAndRemoveJobs() {
         final TaskManagerMetricGroup group =
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         registry, "localhost", ResourceID.generate());
@@ -95,37 +88,36 @@ public class TaskManagerGroupTest extends TestLogger {
 
         TaskMetricGroup tmGroup21 = group.addJob(jid2, jobName2).addTask(execution21, "test");
 
-        assertEquals(2, group.numRegisteredJobMetricGroups());
-        assertFalse(tmGroup11.parent().isClosed());
-        assertFalse(tmGroup12.parent().isClosed());
-        assertFalse(tmGroup21.parent().isClosed());
+        assertThat(group.numRegisteredJobMetricGroups()).isEqualTo(2);
+        assertThat(tmGroup11.parent().isClosed()).isFalse();
+        assertThat(tmGroup12.parent().isClosed()).isFalse();
+        assertThat(tmGroup21.parent().isClosed()).isFalse();
 
         // close all for job 2 and one from job 1
         tmGroup11.close();
         tmGroup21.close();
-        assertTrue(tmGroup11.isClosed());
-        assertTrue(tmGroup21.isClosed());
+        assertThat(tmGroup11.isClosed()).isTrue();
+        assertThat(tmGroup21.isClosed()).isTrue();
 
         // job 2 should be removed, job should still be there
-        assertFalse(tmGroup11.parent().isClosed());
-        assertFalse(tmGroup12.parent().isClosed());
+        assertThat(tmGroup11.parent().isClosed()).isFalse();
+        assertThat(tmGroup12.parent().isClosed()).isFalse();
 
         // should keep TaskManagerJobMetricGroup open - slot isn't released yet
-        assertFalse(tmGroup21.parent().isClosed());
-        assertEquals(2, group.numRegisteredJobMetricGroups());
+        assertThat(tmGroup21.parent().isClosed()).isFalse();
+        assertThat(group.numRegisteredJobMetricGroups()).isEqualTo(2);
 
         // add one more to job one
 
         TaskMetricGroup tmGroup13 = group.addJob(jid1, jobName1).addTask(execution13, "test");
-        assertSame(
-                tmGroup11.parent(),
-                tmGroup13.parent()); // should use the same TaskManagerJobMetricGroup
+        assertThat(tmGroup11.parent())
+                .isSameAs(tmGroup13.parent()); // should use the same TaskManagerJobMetricGroup
         tmGroup12.close();
         tmGroup13.close();
     }
 
     @Test
-    public void testCloseClosesAll() throws IOException {
+    void testCloseClosesAll() {
         final TaskManagerMetricGroup group =
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         registry, "localhost", new ResourceID(new AbstractID().toString()));
@@ -152,9 +144,9 @@ public class TaskManagerGroupTest extends TestLogger {
 
         group.close();
 
-        assertTrue(tmGroup11.isClosed());
-        assertTrue(tmGroup12.isClosed());
-        assertTrue(tmGroup21.isClosed());
+        assertThat(tmGroup11.isClosed()).isTrue();
+        assertThat(tmGroup12.isClosed()).isTrue();
+        assertThat(tmGroup21.isClosed()).isTrue();
     }
 
     // ------------------------------------------------------------------------
@@ -162,18 +154,17 @@ public class TaskManagerGroupTest extends TestLogger {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testGenerateScopeDefault() {
+    void testGenerateScopeDefault() {
         TaskManagerMetricGroup group =
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         registry, "localhost", new ResourceID("id"));
 
-        assertArrayEquals(
-                new String[] {"localhost", "taskmanager", "id"}, group.getScopeComponents());
-        assertEquals("localhost.taskmanager.id.name", group.getMetricIdentifier("name"));
+        assertThat(group.getScopeComponents()).containsExactly("localhost", "taskmanager", "id");
+        assertThat(group.getMetricIdentifier("name")).isEqualTo("localhost.taskmanager.id.name");
     }
 
     @Test
-    public void testGenerateScopeCustom() throws Exception {
+    void testGenerateScopeCustom() throws Exception {
         Configuration cfg = new Configuration();
         cfg.setString(MetricOptions.SCOPE_NAMING_TM, "constant.<host>.foo.<host>");
         MetricRegistryImpl registry =
@@ -182,21 +173,20 @@ public class TaskManagerGroupTest extends TestLogger {
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         registry, "host", new ResourceID("id"));
 
-        assertArrayEquals(
-                new String[] {"constant", "host", "foo", "host"}, group.getScopeComponents());
-        assertEquals("constant.host.foo.host.name", group.getMetricIdentifier("name"));
+        assertThat(group.getScopeComponents()).containsExactly("constant", "host", "foo", "host");
+        assertThat(group.getMetricIdentifier("name")).isEqualTo("constant.host.foo.host.name");
         registry.closeAsync().get();
     }
 
     @Test
-    public void testCreateQueryServiceMetricInfo() {
+    void testCreateQueryServiceMetricInfo() {
         TaskManagerMetricGroup tm =
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         registry, "host", new ResourceID("id"));
 
         QueryScopeInfo.TaskManagerQueryScopeInfo info =
                 tm.createQueryServiceMetricInfo(new DummyCharacterFilter());
-        assertEquals("", info.scope);
-        assertEquals("id", info.taskManagerID);
+        assertThat(info.scope).isEmpty();
+        assertThat(info.taskManagerID).isEqualTo("id");
     }
 }

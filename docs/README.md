@@ -28,6 +28,12 @@ $ docker run -v $(pwd):/src -p 1313:1313 jakejarvis/hugo-extended:latest server 
 Make sure you have installed [Hugo](https://gohugo.io/getting-started/installing/) on your system.
 
 ```sh
+$ ./setup_hugo.sh
+```
+
+Then build the docs from source:
+
+```sh
 $ ./build_docs.sh
 ```
 

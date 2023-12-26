@@ -33,6 +33,8 @@ import org.apache.flink.table.runtime.util.FileChannelUtil;
 import org.apache.flink.table.runtime.util.RowIterator;
 import org.apache.flink.util.MathUtils;
 
+import javax.annotation.Nullable;
+
 import java.io.EOFException;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -40,6 +42,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.table.runtime.hashtable.LongHashPartition.INVALID_ADDRESS;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Special optimized hashTable with key long.
@@ -67,6 +70,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
     private long maxKey;
     private MemorySegment[] denseBuckets;
     private LongHashPartition densePartition;
+    private LongHashPartition currentProbePartition;
 
     public LongHybridHashTable(
             Object owner,
@@ -118,6 +122,53 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
         this.probeIterator = new ProbeIterator(this.probeSideSerializer.createInstance());
 
         tryDenseMode();
+    }
+
+    /**
+     * This method is only used for operator fusion codegen to get build row from hash table. If the
+     * build partition has spilled to disk, return null directly which requires the join operator
+     * also spill probe row to disk.
+     */
+    public final @Nullable RowIterator<BinaryRowData> get(long probeKey) throws IOException {
+        if (denseMode) {
+            if (probeKey >= minKey && probeKey <= maxKey) {
+                long denseBucket = probeKey - minKey;
+                long denseBucketOffset = denseBucket << 3;
+                int denseSegIndex = (int) (denseBucketOffset >>> segmentSizeBits);
+                int denseSegOffset = (int) (denseBucketOffset & segmentSizeMask);
+
+                long address = denseBuckets[denseSegIndex].getLong(denseSegOffset);
+                this.matchIterator = densePartition.valueIter(address);
+            } else {
+                this.matchIterator = densePartition.valueIter(INVALID_ADDRESS);
+            }
+
+            return matchIterator;
+        } else {
+            final int hash = hashLong(probeKey, this.currentRecursionDepth);
+            currentProbePartition =
+                    this.partitionsBeingBuilt.get(hash % partitionsBeingBuilt.size());
+            if (currentProbePartition.isInMemory()) {
+                this.matchIterator = currentProbePartition.get(probeKey, hash);
+                return matchIterator;
+            } else {
+                // If the build partition has spilled to disk, return null directly which requires
+                // the join operator also spill probe row to disk.
+                return null;
+            }
+        }
+    }
+
+    /**
+     * If the probe row corresponding partition has been spilled to disk, just call this method
+     * spill probe row to disk.
+     *
+     * <p>Note: This must be called only after {@link LongHybridHashTable#get} method.
+     */
+    public final void insertIntoProbeBuffer(RowData probeRecord) throws IOException {
+        checkNotNull(currentProbePartition);
+        currentProbePartition.insertIntoProbeBuffer(
+                probeSideSerializer, probeToBinary(probeRecord));
     }
 
     public boolean tryProbe(RowData record) throws IOException {

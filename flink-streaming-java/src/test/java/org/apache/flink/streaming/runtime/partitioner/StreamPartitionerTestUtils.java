@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 
@@ -55,7 +55,7 @@ public class StreamPartitionerTestUtils {
                 env.fromSequence(0, 99).slotSharingGroup(sourceSlotSharingGroup).name("source");
 
         setPartitioner(source, streamPartitioner, exchangeMode)
-                .addSink(new DiscardingSink<>())
+                .sinkTo(new DiscardingSink<>())
                 .slotSharingGroup(sinkSlotSharingGroup)
                 .name("sink");
 

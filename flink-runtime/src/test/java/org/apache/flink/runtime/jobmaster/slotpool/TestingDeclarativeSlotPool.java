@@ -64,7 +64,9 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
                     Collection<SlotOffer>>
             registerSlotsFunction;
 
-    private final Supplier<Collection<SlotInfoWithUtilization>> getFreeSlotsInformationSupplier;
+    private final Supplier<Collection<SlotInfo>> getFreeSlotsInformationSupplier;
+
+    private final Supplier<FreeSlotInfoTracker> getFreeSlotInfoTrackerSupplier;
 
     private final Supplier<Collection<? extends SlotInfo>> getAllSlotsInformationSupplier;
 
@@ -103,7 +105,8 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
                             Long,
                             Collection<SlotOffer>>
                     registerSlotsFunction,
-            Supplier<Collection<SlotInfoWithUtilization>> getFreeSlotsInformationSupplier,
+            Supplier<Collection<SlotInfo>> getFreeSlotsInformationSupplier,
+            Supplier<FreeSlotInfoTracker> getFreeSlotInfoTrackerSupplier,
             Supplier<Collection<? extends SlotInfo>> getAllSlotsInformationSupplier,
             BiFunction<ResourceID, Exception, ResourceCounter> releaseSlotsFunction,
             BiFunction<AllocationID, Exception, ResourceCounter> releaseSlotFunction,
@@ -119,6 +122,7 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
         this.offerSlotsFunction = offerSlotsFunction;
         this.registerSlotsFunction = registerSlotsFunction;
         this.getFreeSlotsInformationSupplier = getFreeSlotsInformationSupplier;
+        this.getFreeSlotInfoTrackerSupplier = getFreeSlotInfoTrackerSupplier;
         this.getAllSlotsInformationSupplier = getAllSlotsInformationSupplier;
         this.releaseSlotsFunction = releaseSlotsFunction;
         this.releaseSlotFunction = releaseSlotFunction;
@@ -171,8 +175,8 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     @Override
-    public Collection<SlotInfoWithUtilization> getFreeSlotsInformation() {
-        return getFreeSlotsInformationSupplier.get();
+    public FreeSlotInfoTracker getFreeSlotInfoTracker() {
+        return getFreeSlotInfoTrackerSupplier.get();
     }
 
     @Override

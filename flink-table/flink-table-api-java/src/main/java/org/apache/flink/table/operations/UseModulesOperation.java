@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
@@ -26,6 +27,7 @@ import java.util.Collections;
 import java.util.List;
 
 /** Operation to describe a USE MODULES statement. */
+@Internal
 public class UseModulesOperation implements UseOperation {
     private final List<String> moduleNames;
 

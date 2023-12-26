@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowStagger;
@@ -199,8 +198,6 @@ public class TumblingProcessingTimeWindowsTest extends TestLogger {
         assertFalse(assigner.isEventTime());
         assertEquals(
                 new TimeWindow.Serializer(), assigner.getWindowSerializer(new ExecutionConfig()));
-        assertThat(
-                assigner.getDefaultTrigger(mock(StreamExecutionEnvironment.class)),
-                instanceOf(ProcessingTimeTrigger.class));
+        assertThat(assigner.getDefaultTrigger(), instanceOf(ProcessingTimeTrigger.class));
     }
 }

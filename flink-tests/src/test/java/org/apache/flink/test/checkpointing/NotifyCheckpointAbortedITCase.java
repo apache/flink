@@ -96,6 +96,7 @@ import static org.junit.Assert.assertEquals;
 public class NotifyCheckpointAbortedITCase extends TestLogger {
 
     private static final long DECLINE_CHECKPOINT_ID = 2L;
+    private static final OneShotLatch DECLINE_CHECKPOINT_WAIT_LATCH = new OneShotLatch();
     private static final long TEST_TIMEOUT = 100000;
     private static final String DECLINE_SINK_NAME = "DeclineSink";
     private static MiniClusterWithClientResource cluster;
@@ -155,7 +156,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(200, CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig().enableUnalignedCheckpoints(unalignedCheckpointEnabled);
-        env.getCheckpointConfig().setTolerableCheckpointFailureNumber(1);
+        env.getCheckpointConfig().setTolerableCheckpointFailureNumber(2);
         env.disableOperatorChaining();
         env.setParallelism(1);
 
@@ -184,7 +185,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         resetAllOperatorsNotifyAbortedLatches();
         verifyAllOperatorsNotifyAbortedTimes(1);
 
-        NormalSource.waitLatch.trigger();
+        DECLINE_CHECKPOINT_WAIT_LATCH.trigger();
         log.info("Verifying whether all operators have been notified of checkpoint-2 aborted.");
         verifyAllOperatorsNotifyAborted();
         log.info("Verified that all operators have been notified of checkpoint-2 aborted.");
@@ -214,7 +215,6 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
             implements SourceFunction<Tuple2<Integer, Integer>>, CheckpointedFunction {
         private static final long serialVersionUID = 1L;
         protected volatile boolean running;
-        private static final OneShotLatch waitLatch = new OneShotLatch();
 
         NormalSource() {
             this.running = true;
@@ -241,7 +241,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
             if (context.getCheckpointId() == DECLINE_CHECKPOINT_ID) {
-                waitLatch.await();
+                DECLINE_CHECKPOINT_WAIT_LATCH.await();
             }
         }
 
@@ -249,7 +249,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         public void initializeState(FunctionInitializationContext context) throws Exception {}
 
         static void reset() {
-            waitLatch.reset();
+            DECLINE_CHECKPOINT_WAIT_LATCH.reset();
         }
     }
 
@@ -287,7 +287,11 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         }
 
         @Override
-        public void snapshotState(FunctionSnapshotContext context) {}
+        public void snapshotState(FunctionSnapshotContext context) throws InterruptedException {
+            if (context.getCheckpointId() == DECLINE_CHECKPOINT_ID) {
+                DECLINE_CHECKPOINT_WAIT_LATCH.await();
+            }
+        }
 
         @Override
         public void initializeState(FunctionInitializationContext context) throws Exception {
@@ -327,7 +331,11 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
             implements SnapshotStrategy<OperatorStateHandle, SnapshotResources> {
 
         @Override
-        public SnapshotResources syncPrepareResources(long checkpointId) {
+        public SnapshotResources syncPrepareResources(long checkpointId)
+                throws InterruptedException {
+            if (checkpointId == DECLINE_CHECKPOINT_ID) {
+                DECLINE_CHECKPOINT_WAIT_LATCH.await();
+            }
             return null;
         }
 

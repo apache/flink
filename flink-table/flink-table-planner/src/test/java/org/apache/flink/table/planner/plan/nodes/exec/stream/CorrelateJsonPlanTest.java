@@ -24,17 +24,17 @@ import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableFunc1;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 /** Test json serialization/deserialization for correlate. */
-public class CorrelateJsonPlanTest extends TableTestBase {
+class CorrelateJsonPlanTest extends TableTestBase {
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
 
@@ -51,7 +51,7 @@ public class CorrelateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testCrossJoin() {
+    void testCrossJoin() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a varchar,\n"
@@ -68,8 +68,8 @@ public class CorrelateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    @Ignore("the case is ignored because of FLINK-21870")
-    public void testRegisterByClass() {
+    @Disabled("the case is ignored because of FLINK-21870")
+    void testRegisterByClass() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a varchar,\n"
@@ -86,7 +86,7 @@ public class CorrelateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testCrossJoinOverrideParameters() {
+    void testCrossJoinOverrideParameters() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a varchar,\n"
@@ -103,7 +103,7 @@ public class CorrelateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testLeftOuterJoinWithLiteralTrue() {
+    void testLeftOuterJoinWithLiteralTrue() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a varchar,\n"
@@ -120,7 +120,7 @@ public class CorrelateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testJoinWithFilter() {
+    void testJoinWithFilter() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a varchar,\n"

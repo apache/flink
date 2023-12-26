@@ -65,7 +65,7 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable>
         ByteBuffer serializedRecord = serializeRecord(serializer, record);
         for (int channelIndex = 0; channelIndex < numberOfChannels; channelIndex++) {
             serializedRecord.rewind();
-            emit(record, channelIndex);
+            emit(serializedRecord, channelIndex);
         }
 
         if (flushAlways) {

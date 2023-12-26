@@ -25,7 +25,6 @@ import org.apache.flink.kubernetes.configuration.KubernetesHighAvailabilityOptio
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.leaderelection.LeaderElectionEvent;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionListener;
@@ -43,7 +42,6 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -56,7 +54,7 @@ class KubernetesLeaderElectionAndRetrievalITCase {
 
     private static final String LEADER_CONFIGMAP_NAME = "leader-test-cluster";
     private static final String LEADER_ADDRESS =
-            "akka.tcp://flink@172.20.1.21:6123/user/rpc/dispatcher";
+            "pekko.tcp://flink@172.20.1.21:6123/user/rpc/dispatcher";
 
     @RegisterExtension
     static final KubernetesExtension KUBERNETES_EXTENSION = new KubernetesExtension();
@@ -87,9 +85,7 @@ class KubernetesLeaderElectionAndRetrievalITCase {
         final List<AutoCloseable> closeables = new ArrayList<>();
 
         final KubernetesConfigMapSharedWatcher configMapSharedWatcher =
-                flinkKubeClient.createConfigMapSharedWatcher(
-                        KubernetesUtils.getConfigMapLabels(
-                                clusterId, LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY));
+                flinkKubeClient.createConfigMapSharedWatcher(configMapName);
         closeables.add(configMapSharedWatcher);
 
         final TestingLeaderElectionListener electionEventHandler =

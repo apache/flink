@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations;
 
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.table.api.DataTypes;
@@ -165,11 +166,8 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
     @Test
     public void testAlterDatabase() throws Exception {
         catalogManager.registerCatalog("cat1", new GenericInMemoryCatalog("default", "default"));
-        catalogManager
-                .getCatalog("cat1")
-                .get()
-                .createDatabase(
-                        "db1", new CatalogDatabaseImpl(new HashMap<>(), "db1_comment"), true);
+        catalogManager.createDatabase(
+                "cat1", "db1", new CatalogDatabaseImpl(new HashMap<>(), "db1_comment"), true);
         final String sql = "alter database cat1.db1 set ('k1'='v1', 'K2'='V2')";
         Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(AlterDatabaseOperation.class);
@@ -2213,6 +2211,57 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                         "ALTER TABLE cat1.db1.tb1 DROP IF EXISTS PARTITION (b=1, c=2) PARTITION (b=2)");
     }
 
+    @Test
+    public void testCreateViewWithDuplicateFieldName() {
+        Map<String, String> prop = new HashMap<>();
+        prop.put("connector", "values");
+        prop.put("bounded", "true");
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("id", DataTypes.BIGINT().notNull())
+                                .column("uid", DataTypes.BIGINT().notNull())
+                                .build(),
+                        null,
+                        Collections.emptyList(),
+                        prop);
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "id_table"), false);
+
+        assertThatThrownBy(
+                        () -> parse("CREATE VIEW id_view AS\nSELECT id, uid AS id FROM id_table"))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                SqlValidateException.class,
+                                "A column with the same name `id` has been defined at line 2, column 8."));
+
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "CREATE VIEW union_view AS\n"
+                                                + "  SELECT id, uid AS id FROM id_table\n"
+                                                + "  UNION\n"
+                                                + "  SELECT uid, id AS uid FROM id_table"))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                SqlValidateException.class,
+                                "A column with the same name `id` has been defined at line 2, column 10."));
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "CREATE VIEW cte_view AS\n"
+                                                + "WITH id_num AS (\n"
+                                                + "  select id from id_table\n"
+                                                + ")\n"
+                                                + "SELECT id, uid as id\n"
+                                                + "FROM id_table\n"))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                SqlValidateException.class,
+                                "A column with the same name `id` has been defined at line 5, column 8."));
+    }
+
     // ~ Tool Methods ----------------------------------------------------------
 
     private static TestItem createTestItem(Object... args) {
@@ -2256,7 +2305,8 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         if (!catalogManager.getCatalog("cat1").isPresent()) {
             catalogManager.registerCatalog("cat1", catalog);
         }
-        catalog.createDatabase("db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
+        catalogManager.createDatabase(
+                "cat1", "db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
         Schema.Builder builder =
                 Schema.newBuilder()
                         .column("a", DataTypes.INT().notNull())

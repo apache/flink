@@ -26,7 +26,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 
 import org.junit.After;
@@ -138,7 +138,7 @@ public class ChangelogCompatibilityITCase {
         env.fromSequence(Long.MIN_VALUE, Long.MAX_VALUE)
                 .countWindowAll(37) // any stateful transformation suffices
                 .reduce((ReduceFunction<Long>) Long::sum) // overflow is fine, result is discarded
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
         return env.getStreamGraph().getJobGraph();
     }
 

@@ -26,6 +26,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.testframe.environment.TestEnvironment;
 import org.apache.flink.connector.testframe.environment.TestEnvironmentSettings;
@@ -140,7 +141,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
                                 .build());
         execEnv.enableCheckpointing(50);
         DataStream<T> dataStream =
-                execEnv.fromCollection(testRecords)
+                execEnv.fromData(testRecords)
                         .name("sourceInSinkTest")
                         .setParallelism(1)
                         .returns(externalContext.getProducedType());
@@ -611,7 +612,8 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
                 operator.getOperatorIdFuture(),
                 serializer,
                 accumulatorName,
-                stream.getExecutionEnvironment().getCheckpointConfig());
+                stream.getExecutionEnvironment().getCheckpointConfig(),
+                AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue().toMillis());
     }
 
     private void waitExpectedSizeData(CollectResultIterator<T> iterator, int targetNum) {

@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.LocalBufferPool;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
 import java.util.List;
 
@@ -52,6 +54,13 @@ public interface TieredStorageMemoryManager {
      * @param storageMemorySpecs the memory specs for different tiered storages
      */
     void setup(BufferPool bufferPool, List<TieredStorageMemorySpec> storageMemorySpecs);
+
+    /**
+     * Set the {@link TaskIOMetricGroup} for this memory manager.
+     *
+     * @param metricGroup the metric group to set
+     */
+    void setMetricGroup(TaskIOMetricGroup metricGroup);
 
     /**
      * Register a listener to listen the buffer reclaim request from the {@link
@@ -99,6 +108,16 @@ public interface TieredStorageMemoryManager {
      * @return the number of requested buffers belonging to the owner.
      */
     int numOwnerRequestedBuffer(Object owner);
+
+    /**
+     * Notify the memory manager that transferring one buffer's ownership from the old owner to the
+     * new owner.
+     *
+     * @param oldOwner the old owner of one buffer
+     * @param newOwner the new owner of one buffer
+     * @param buffer the buffer to transfer the ownership
+     */
+    void transferBufferOwnership(Object oldOwner, Object newOwner, Buffer buffer);
 
     /**
      * Release all the resources(if exists) and check the state of the {@link

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.NoOpTaskExecutorBlobService;
@@ -51,29 +52,29 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
+import org.apache.flink.runtime.rpc.TestingRpcServiceExtension;
 import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
-import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.Reference;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
@@ -84,13 +85,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.StreamSupport;
 
-import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
-import static org.hamcrest.core.IsCollectionContaining.hasItem;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the execution deployment-reconciliation logic in the {@link TaskExecutor}. */
-public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogger {
+class TaskExecutorExecutionDeploymentReconciliationTest {
 
     private static final Time timeout = Time.seconds(10L);
 
@@ -102,33 +100,33 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
             new SettableLeaderRetrievalService();
     private final JobID jobId = new JobID();
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
-    @ClassRule
-    public static final TestingRpcServiceResource RPC_SERVICE_RESOURCE =
-            new TestingRpcServiceResource();
+    @RegisterExtension
+    static final AllCallbackWrapper<TestingRpcServiceExtension> RPC_SERVICE_EXTENSION_WRAPPER =
+            new AllCallbackWrapper<>(new TestingRpcServiceExtension());
 
-    @Rule
-    public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource =
-            new TestingFatalErrorHandlerResource();
+    @RegisterExtension
+    private final TestingFatalErrorHandlerExtension testingFatalErrorHandlerExtension =
+            new TestingFatalErrorHandlerExtension();
 
-    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
+    @TempDir private Path tempDir;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
         haServices.setJobMasterLeaderRetriever(jobId, jobManagerLeaderRetriever);
     }
 
-    @After
-    public void shutdown() {
-        RPC_SERVICE_RESOURCE.getTestingRpcService().clearGateways();
+    @AfterEach
+    void shutdown() {
+        RPC_SERVICE_EXTENSION_WRAPPER.getCustomExtension().getTestingRpcService().clearGateways();
     }
 
     @Test
-    public void testDeployedExecutionReporting() throws Exception {
+    void testDeployedExecutionReporting() throws Exception {
         final OneShotLatch slotOfferLatch = new OneShotLatch();
         final BlockingQueue<Set<ExecutionAttemptID>> deployedExecutionsQueue =
                 new ArrayBlockingQueue<>(3);
@@ -147,13 +145,13 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
         final TaskExecutorLocalStateStoresManager localStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
                         false,
-                        Reference.owned(new File[] {tmp.newFolder()}),
+                        Reference.owned(new File[] {TempDirUtils.newFolder(tempDir)}),
                         Executors.directExecutor());
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder()
                         .setTaskSlotTable(
                                 TaskSlotUtils.createTaskSlotTable(
-                                        1, timeout, EXECUTOR_RESOURCE.getExecutor()))
+                                        1, timeout, EXECUTOR_EXTENSION.getExecutor()))
                         .setShuffleEnvironment(new NettyShuffleEnvironmentBuilder().build())
                         .setTaskStateManager(localStateStoresManager)
                         .build();
@@ -192,7 +190,7 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
 
             // nothing as deployed, so the deployment report should be empty
             taskExecutorGateway.heartbeatFromJobManager(jobManagerResourceId, slotAllocationReport);
-            assertThat(deployedExecutionsQueue.take(), hasSize(0));
+            assertThat(deployedExecutionsQueue.take()).isEmpty();
 
             taskExecutorGateway
                     .submitTask(
@@ -203,16 +201,15 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
 
             // task is deployed, so the deployment report should contain it
             taskExecutorGateway.heartbeatFromJobManager(jobManagerResourceId, slotAllocationReport);
-            assertThat(
-                    deployedExecutionsQueue.take(),
-                    hasItem(taskDeploymentDescriptor.getExecutionAttemptId()));
+            assertThat(deployedExecutionsQueue.take())
+                    .contains(taskDeploymentDescriptor.getExecutionAttemptId());
 
             TestingInvokable.sync.releaseBlocker();
 
             // task is finished ans was cleaned up, so the deployment report should be empty
             taskFinishedFuture.get();
             taskExecutorGateway.heartbeatFromJobManager(jobManagerResourceId, slotAllocationReport);
-            assertThat(deployedExecutionsQueue.take(), hasSize(0));
+            assertThat(deployedExecutionsQueue.take()).isEmpty();
         } finally {
             RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
@@ -237,7 +234,7 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
             throws IOException {
         final Configuration configuration = new Configuration();
         return new TestingTaskExecutor(
-                RPC_SERVICE_RESOURCE.getTestingRpcService(),
+                RPC_SERVICE_EXTENSION_WRAPPER.getCustomExtension().getTestingRpcService(),
                 TaskManagerConfiguration.fromConfiguration(
                         configuration,
                         TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(
@@ -251,7 +248,7 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
                 UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
                 null,
                 NoOpTaskExecutorBlobService.INSTANCE,
-                testingFatalErrorHandlerResource.getFatalErrorHandler(),
+                testingFatalErrorHandlerExtension.getTestingFatalErrorHandler(),
                 new TestingTaskExecutorPartitionTracker(),
                 new DelegationTokenReceiverRepository(configuration, null));
     }
@@ -323,10 +320,12 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
             AllocationID allocationId)
             throws Exception {
         final String jobMasterAddress = "jm";
-        RPC_SERVICE_RESOURCE
+        RPC_SERVICE_EXTENSION_WRAPPER
+                .getCustomExtension()
                 .getTestingRpcService()
                 .registerGateway(jobMasterAddress, jobMasterGateway);
-        RPC_SERVICE_RESOURCE
+        RPC_SERVICE_EXTENSION_WRAPPER
+                .getCustomExtension()
                 .getTestingRpcService()
                 .registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
 
@@ -340,7 +339,7 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
         final Optional<SlotStatus> slotStatusOptional =
                 StreamSupport.stream(initialSlotReportFuture.get().spliterator(), false).findAny();
 
-        assertTrue(slotStatusOptional.isPresent());
+        assertThat(slotStatusOptional).isPresent();
 
         taskExecutorGateway
                 .requestSlot(

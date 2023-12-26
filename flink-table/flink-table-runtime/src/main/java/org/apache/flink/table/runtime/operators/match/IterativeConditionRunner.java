@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.runtime.operators.match;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.cep.pattern.conditions.RichIterativeCondition;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 
@@ -40,10 +40,10 @@ public class IterativeConditionRunner extends RichIterativeCondition<RowData> {
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         this.function = generatedFunction.newInstance(getRuntimeContext().getUserCodeClassLoader());
         FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext());
-        FunctionUtils.openFunction(function, parameters);
+        FunctionUtils.openFunction(function, openContext);
     }
 
     @Override

@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.api.common.functions.OpenContext
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.scala.AsyncDataStreamITCase._
@@ -250,7 +251,7 @@ class AsyncDataStreamITCase(ordered: Boolean) extends AbstractTestBase {
 class AsyncFunctionWithTimeoutExpired extends RichAsyncFunction[Int, Int] {
   @transient var invokeLatch: CountDownLatch = _
 
-  override def open(parameters: Configuration): Unit = {
+  override def open(openContext: OpenContext): Unit = {
     invokeLatch = new CountDownLatch(1)
   }
 
@@ -275,7 +276,7 @@ class AsyncFunctionWithTimeoutExpired extends RichAsyncFunction[Int, Int] {
 class AsyncFunctionWithoutTimeoutExpired extends RichAsyncFunction[Int, Int] {
   @transient var timeoutLatch: CountDownLatch = _
 
-  override def open(parameters: Configuration): Unit = {
+  override def open(openContext: OpenContext): Unit = {
     timeoutLatch = new CountDownLatch(1)
   }
 
@@ -296,7 +297,7 @@ class AsyncFunctionWithoutTimeoutExpired extends RichAsyncFunction[Int, Int] {
 
 class MyRichAsyncFunction extends RichAsyncFunction[Int, Int] {
 
-  override def open(parameters: Configuration): Unit = {
+  override def open(openContext: OpenContext): Unit = {
     assertEquals(getRuntimeContext.getNumberOfParallelSubtasks, 1)
   }
 

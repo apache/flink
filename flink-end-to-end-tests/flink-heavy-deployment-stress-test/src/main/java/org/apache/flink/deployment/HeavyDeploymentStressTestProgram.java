@@ -29,7 +29,7 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.util.Preconditions;
 
@@ -71,13 +71,20 @@ public class HeavyDeploymentStressTestProgram {
 
         env.addSource(new SimpleEndlessSourceWithBloatedState(numStates, numPartitionsPerState))
                 .setParallelism(env.getParallelism())
-                .addSink(new DiscardingSink<>())
+                .sinkTo(new DiscardingSink<>())
                 .setParallelism(1);
 
         env.execute("HeavyDeploymentStressTestProgram");
     }
 
-    /** Source with dummy operator state that results in inflated meta data. */
+    /**
+     * Source with dummy operator state that results in inflated meta data.
+     *
+     * @deprecated This class is based on the {@link
+     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+     *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+     */
+    @Deprecated
     static class SimpleEndlessSourceWithBloatedState extends RichParallelSourceFunction<String>
             implements CheckpointedFunction, CheckpointListener {
 

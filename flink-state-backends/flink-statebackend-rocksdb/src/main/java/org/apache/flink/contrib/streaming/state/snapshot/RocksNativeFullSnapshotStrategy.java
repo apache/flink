@@ -26,13 +26,13 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.SnapshotDirectory;
 import org.apache.flink.runtime.state.SnapshotResult;
-import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.Preconditions;
@@ -45,15 +45,14 @@ import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.getUploadedStateSize;
 
 /**
  * Snapshot strategy for {@link RocksDBKeyedStateBackend} based on RocksDB's native checkpoints and
@@ -165,7 +164,7 @@ public class RocksNativeFullSnapshotStrategy<K>
             // Handle to the meta data file
             SnapshotResult<StreamStateHandle> metaStateHandle = null;
             // Handles to all the files in the current snapshot will go here
-            final Map<StateHandleID, StreamStateHandle> privateFiles = new HashMap<>();
+            final List<HandleAndLocalPath> privateFiles = new ArrayList<>();
 
             try {
 
@@ -183,23 +182,25 @@ public class RocksNativeFullSnapshotStrategy<K>
                         metaStateHandle.getJobManagerOwnedSnapshot(),
                         "Metadata for job manager was not properly created.");
 
-                uploadSstFiles(privateFiles, snapshotCloseableRegistry, tmpResourcesRegistry);
                 long checkpointedSize = metaStateHandle.getStateSize();
-                checkpointedSize += getUploadedStateSize(privateFiles.values());
+
+                checkpointedSize +=
+                        uploadSnapshotFiles(
+                                privateFiles, snapshotCloseableRegistry, tmpResourcesRegistry);
 
                 final IncrementalRemoteKeyedStateHandle jmIncrementalKeyedStateHandle =
                         new IncrementalRemoteKeyedStateHandle(
                                 backendUID,
                                 keyGroupRange,
                                 checkpointId,
-                                Collections.emptyMap(),
+                                Collections.emptyList(),
                                 privateFiles,
                                 metaStateHandle.getJobManagerOwnedSnapshot(),
                                 checkpointedSize);
 
                 Optional<KeyedStateHandle> localSnapshot =
                         getLocalSnapshot(
-                                metaStateHandle.getTaskLocalSnapshot(), Collections.emptyMap());
+                                metaStateHandle.getTaskLocalSnapshot(), Collections.emptyList());
                 final SnapshotResult<KeyedStateHandle> snapshotResult =
                         localSnapshot
                                 .map(
@@ -219,8 +220,9 @@ public class RocksNativeFullSnapshotStrategy<K>
             }
         }
 
-        private void uploadSstFiles(
-                @Nonnull Map<StateHandleID, StreamStateHandle> privateFiles,
+        /** upload files and return total uploaded size. */
+        private long uploadSnapshotFiles(
+                @Nonnull List<HandleAndLocalPath> privateFiles,
                 @Nonnull CloseableRegistry snapshotCloseableRegistry,
                 @Nonnull CloseableRegistry tmpResourcesRegistry)
                 throws Exception {
@@ -228,25 +230,23 @@ public class RocksNativeFullSnapshotStrategy<K>
             // write state data
             Preconditions.checkState(localBackupDirectory.exists());
 
-            Map<StateHandleID, Path> privateFilePaths = new HashMap<>();
-
             Path[] files = localBackupDirectory.listDirectory();
+            long uploadedSize = 0;
             if (files != null) {
                 // all sst files are private in full snapshot
-                for (Path filePath : files) {
-                    final String fileName = filePath.getFileName().toString();
-                    final StateHandleID stateHandleID = new StateHandleID(fileName);
-                    privateFilePaths.put(stateHandleID, filePath);
-                }
-
-                privateFiles.putAll(
+                List<HandleAndLocalPath> uploadedFiles =
                         stateUploader.uploadFilesToCheckpointFs(
-                                privateFilePaths,
+                                Arrays.asList(files),
                                 checkpointStreamFactory,
                                 CheckpointedStateScope.EXCLUSIVE,
                                 snapshotCloseableRegistry,
-                                tmpResourcesRegistry));
+                                tmpResourcesRegistry);
+
+                uploadedSize += uploadedFiles.stream().mapToLong(e -> e.getStateSize()).sum();
+
+                privateFiles.addAll(uploadedFiles);
             }
+            return uploadedSize;
         }
     }
 }

@@ -23,13 +23,11 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nonnull;
@@ -43,13 +41,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /** Tests for the {@link FileSlotAllocationSnapshotPersistenceService}. */
-@ExtendWith(TestLoggerExtension.class)
 class FileSlotAllocationSnapshotPersistenceServiceTest {
 
     @TempDir private File tempDirectory;
 
     @Test
-    public void loadNoSlotAllocationSnapshotsIfDirectoryIsEmpty() throws IOException {
+    void loadNoSlotAllocationSnapshotsIfDirectoryIsEmpty() throws IOException {
         assumeTrue(FileUtils.isEmptyDirectory(tempDirectory));
 
         final FileSlotAllocationSnapshotPersistenceService persistenceService =
@@ -59,7 +56,7 @@ class FileSlotAllocationSnapshotPersistenceServiceTest {
     }
 
     @Test
-    public void loadPersistedSlotAllocationSnapshots() throws IOException {
+    void loadPersistedSlotAllocationSnapshots() throws IOException {
         final FileSlotAllocationSnapshotPersistenceService persistenceService =
                 new FileSlotAllocationSnapshotPersistenceService(tempDirectory);
 
@@ -79,7 +76,7 @@ class FileSlotAllocationSnapshotPersistenceServiceTest {
     }
 
     @Test
-    public void newInstanceLoadsPersistedSlotAllocationSnapshots() throws IOException {
+    void newInstanceLoadsPersistedSlotAllocationSnapshots() throws IOException {
         final FileSlotAllocationSnapshotPersistenceService persistenceService =
                 new FileSlotAllocationSnapshotPersistenceService(tempDirectory);
 
@@ -102,7 +99,7 @@ class FileSlotAllocationSnapshotPersistenceServiceTest {
     }
 
     @Test
-    public void deletePersistedSlotAllocationSnapshot() throws IOException {
+    void deletePersistedSlotAllocationSnapshot() throws IOException {
         final FileSlotAllocationSnapshotPersistenceService persistenceService =
                 new FileSlotAllocationSnapshotPersistenceService(tempDirectory);
 
@@ -116,7 +113,7 @@ class FileSlotAllocationSnapshotPersistenceServiceTest {
     }
 
     @Test
-    public void deleteCorruptedSlotAllocationSnapshots() throws IOException {
+    void deleteCorruptedSlotAllocationSnapshots() throws IOException {
         final FileSlotAllocationSnapshotPersistenceService persistenceService =
                 new FileSlotAllocationSnapshotPersistenceService(tempDirectory);
 

@@ -151,6 +151,35 @@ $ ./bin/flink savepoint \
 Triggering the savepoint disposal through the `savepoint` action does not only remove the data from 
 the storage but makes Flink clean up the savepoint-related metadata as well.
 
+### Creating a Checkpoint
+[Checkpoints]({{< ref "docs/ops/state/checkpoints" >}}) can also be manually created to save the 
+current state. To get the difference between checkpoint and savepoint, please refer to 
+[Checkpoints vs. Savepoints]({{< ref "docs/ops/state/checkpoints_vs_savepoints" >}}). All that's 
+needed to trigger a checkpoint manually is the JobID:
+```bash
+$ ./bin/flink checkpoint \
+      $JOB_ID
+```
+```
+Triggering checkpoint for job 99c59fead08c613763944f533bf90c0f.
+Waiting for response...
+Checkpoint(CONFIGURED) 26 for job 99c59fead08c613763944f533bf90c0f completed.
+You can resume your program from this checkpoint with the run command.
+```
+If you want to trigger a full checkpoint while the job periodically triggering incremental checkpoints, 
+please use the `--full` option.
+```bash
+$ ./bin/flink checkpoint \
+      $JOB_ID \
+      --full
+```
+```
+Triggering checkpoint for job 99c59fead08c613763944f533bf90c0f.
+Waiting for response...
+Checkpoint(FULL) 78 for job 99c59fead08c613763944f533bf90c0f completed.
+You can resume your program from this checkpoint with the run command.
+```
+
 ### Terminating a Job
 
 #### Stopping a Job Gracefully Creating a Final Savepoint
@@ -300,6 +329,13 @@ Here's an overview of actions supported by Flink's CLI tool:
             </td>
         </tr>
         <tr>
+            <td><code class="highlighter-rouge">checkpoint</code></td>
+            <td>
+                This action can be used to create checkpoints for a given job. The checkpoint type
+                (full or incremental) can be specified.
+            </td>
+        </tr>
+        <tr>
             <td><code class="highlighter-rouge">cancel</code></td>
             <td>
                 This action can be used to cancel running jobs based on their JobID.
@@ -365,11 +401,11 @@ Currently, users are able to submit a PyFlink job via the CLI. It does not requi
 JAR file path or the entry main class, which is different from the Java job submission.
 
 {{< hint info >}}
-When submitting Python job via `flink run`, Flink will run the command "python". Please run the following command to confirm that the python executable in current environment points to a supported Python version of 3.7+.
+When submitting Python job via `flink run`, Flink will run the command "python". Please run the following command to confirm that the python executable in current environment points to a supported Python version of 3.8+.
 {{< /hint >}}
 ```bash
 $ python --version
-# the version printed here must be 3.7+
+# the version printed here must be 3.8+
 ```
 
 The following commands show different PyFlink job submission use-cases:
@@ -398,7 +434,7 @@ $ ./bin/flink run \
 - Run a PyFlink job with pyFiles and the main entry module specified in `--pyModule`:
 ```bash
 $ ./bin/flink run \
-      --pyModule table.word_count \
+      --pyModule word_count \
       --pyFiles examples/python/table
 ```
 
@@ -520,7 +556,7 @@ related options. Here's an overview of all the Python related options for the ac
             <td>
                 Specify the path of the python interpreter used to execute the python UDF worker
                 (e.g.: --pyExecutable /usr/local/bin/python3).
-                The python UDF worker depends on Python 3.7+, Apache Beam (version == 2.43.0),
+                The python UDF worker depends on Python 3.8+, Apache Beam (version == 2.43.0),
                 Pip (version >= 20.3) and SetupTools (version >= 37.0.0).
                 Please ensure that the specified environment meets the above requirements.
             </td>

@@ -20,10 +20,17 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.fusion.OpFusionCodegenSpecGenerator;
+import org.apache.flink.table.planner.plan.fusion.generator.OneInputOpFusionCodegenSpecGenerator;
+import org.apache.flink.table.planner.plan.fusion.spec.CalcFusionCodegenSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecCalc;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -33,6 +40,7 @@ import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /** Batch {@link ExecNode} for Calc. */
 public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowData> {
@@ -55,5 +63,28 @@ public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowDa
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
+    }
+
+    public boolean supportFusionCodegen() {
+        return true;
+    }
+
+    @Override
+    protected OpFusionCodegenSpecGenerator translateToFusionCodegenSpecInternal(
+            PlannerBase planner, ExecNodeConfig config) {
+        OpFusionCodegenSpecGenerator input =
+                getInputEdges().get(0).translateToFusionCodegenSpec(planner);
+        OpFusionCodegenSpecGenerator calcGenerator =
+                new OneInputOpFusionCodegenSpecGenerator(
+                        input,
+                        0L,
+                        (RowType) getOutputType(),
+                        new CalcFusionCodegenSpec(
+                                new CodeGeneratorContext(
+                                        config, planner.getFlinkContext().getClassLoader()),
+                                JavaScalaConversionUtil.toScala(projection),
+                                JavaScalaConversionUtil.toScala(Optional.ofNullable(condition))));
+        input.addOutput(1, calcGenerator);
+        return calcGenerator;
     }
 }

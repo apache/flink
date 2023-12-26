@@ -20,46 +20,48 @@ package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
 import org.apache.flink.api.scala.createTypeInformation
-import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
-import org.apache.flink.runtime.client.JobExecutionException
+import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink}
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
-import org.junit.Assert.{assertEquals, assertThat, fail}
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.ExtendWith
 
-import java.time.{Duration, Instant, LocalDateTime, ZoneOffset}
+import java.time.{Duration, Instant, LocalDateTime, ZoneId, ZoneOffset}
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class TimeAttributesITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
-  @Test
-  def testMissingTimeAttributeThrowsCorrectException(): Unit = {
-    val data = List(1L -> "hello", 2L -> "world")
-    val stream = env.fromCollection[(Long, String)](data)
+  @TestTemplate
+  def testMissingTimeAttributeInLegacySourceThrowsCorrectException(): Unit = {
+    //TODO: this test can be removed when SourceFunction gets removed (FLIP-27 sources set TimestampAssigner.NO_TIMESTAMP value as event time when no timestamp is provided. See SourceOutputWithWatermarks#collect())
+    val stream = env
+      .addSource(new SourceFunction[(Long, String)]() {
+        def run(ctx: SourceFunction.SourceContext[(Long, String)]) {
+          ctx.collect(1L -> "hello")
+          ctx.collect(2L -> "world")
+        }
 
-    tEnv.createTemporaryView("test", stream, $"event_time".rowtime(), $"data")
+        def cancel() {}
+      })
+    tEnv.createTemporaryView("test", stream, Schema.newBuilder()
+      .columnByMetadata("event_time", DataTypes.TIMESTAMP(3), "rowtime", true)
+      .build())
     val result = tEnv.sqlQuery("SELECT * FROM test")
 
     val sink = new TestingAppendSink()
-    tEnv.toAppendStream[Row](result).addSink(sink)
-    try {
-      env.execute()
-      fail("should fail")
-    } catch {
-      case t: Throwable =>
-        assertThat(
-          t,
-          containsMessage("Rowtime timestamp is not defined. Please make sure that a " +
-            "proper TimestampAssigner is defined and the stream environment uses the EventTime " +
-            "time characteristic."))
-    }
+    tEnv.toDataStream(result).addSink(sink)
+
+    assertThatThrownBy(() => env.execute())
+      .hasMessageNotContaining("Rowtime timestamp is not defined. Please make sure that a " +
+        "proper TimestampAssigner is defined and the stream environment uses the EventTime " +
+        "time characteristic.")
   }
 
-  @Test
+  @TestTemplate
   def testTimestampAttributesWithWatermarkStrategy(): Unit = {
     val data = List(Instant.now().toEpochMilli -> "hello", Instant.now().toEpochMilli -> "world")
     val stream = env.fromCollection[(Long, String)](data).assignTimestampsAndWatermarks(
@@ -73,19 +75,21 @@ class TimeAttributesITCase(mode: StateBackendMode) extends StreamingWithStateTes
         }
     )
 
-    tEnv.createTemporaryView("test", stream, $"event_time".rowtime(), $"data")
+    tEnv.createTemporaryView("test", stream, Schema.newBuilder()
+      .columnByMetadata("event_time", DataTypes.TIMESTAMP(3), "rowtime", true)
+      .build())
     val result = tEnv.sqlQuery("SELECT * FROM test")
 
     val sink = new TestingAppendSink()
-    tEnv.toAppendStream[Row](result).addSink(sink)
+    tEnv.toDataStream(result).addSink(sink)
     env.execute()
 
     val formattedData = data.map {
       case (timestamp, data) =>
         val formattedTimestamp =
-          LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneOffset.UTC).toString
-        s"$formattedTimestamp,$data"
+          LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.systemDefault()).toString
+        s"$timestamp,$data,$formattedTimestamp"
     }
-    assertEquals(sink.getAppendResults.sorted, formattedData.sorted)
+    assertThat(formattedData.sorted).isEqualTo(sink.getAppendResults.sorted)
   }
 }

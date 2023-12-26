@@ -34,17 +34,19 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 import java.time.Duration;
 import java.util.concurrent.Executor;
 
+import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadBalanceMode;
+
 /** Builder for {@link DeclarativeSlotManager}. */
 public class DeclarativeSlotManagerBuilder {
-    private boolean evenlySpreadOutSlots;
+    private TaskManagerLoadBalanceMode taskManagerLoadBalanceMode;
     private final ScheduledExecutor scheduledExecutor;
     private Time taskManagerRequestTimeout;
-    private Time slotRequestTimeout;
     private Time taskManagerTimeout;
     private boolean waitResultConsumedBeforeRelease;
     private WorkerResourceSpec defaultWorkerResourceSpec;
     private int numSlotsPerWorker;
     private SlotManagerMetricGroup slotManagerMetricGroup;
+    private int minSlotNum;
     private int maxSlotNum;
     private int redundantTaskManagerNum;
     private ResourceTracker resourceTracker;
@@ -53,16 +55,16 @@ public class DeclarativeSlotManagerBuilder {
     private Duration declareNeededResourceDelay;
 
     private DeclarativeSlotManagerBuilder(ScheduledExecutor scheduledExecutor) {
-        this.evenlySpreadOutSlots = false;
+        this.taskManagerLoadBalanceMode = TaskManagerLoadBalanceMode.NONE;
         this.scheduledExecutor = scheduledExecutor;
         this.taskManagerRequestTimeout = TestingUtils.infiniteTime();
-        this.slotRequestTimeout = TestingUtils.infiniteTime();
         this.taskManagerTimeout = TestingUtils.infiniteTime();
         this.waitResultConsumedBeforeRelease = true;
         this.defaultWorkerResourceSpec = WorkerResourceSpec.ZERO;
         this.numSlotsPerWorker = 1;
         this.slotManagerMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredSlotManagerMetricGroup();
+        this.minSlotNum = ResourceManagerOptions.MIN_SLOT_NUM.defaultValue();
         this.maxSlotNum = ResourceManagerOptions.MAX_SLOT_NUM.defaultValue();
         this.redundantTaskManagerNum =
                 ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM.defaultValue();
@@ -82,11 +84,6 @@ public class DeclarativeSlotManagerBuilder {
         return this;
     }
 
-    public DeclarativeSlotManagerBuilder setSlotRequestTimeout(Time slotRequestTimeout) {
-        this.slotRequestTimeout = slotRequestTimeout;
-        return this;
-    }
-
     public DeclarativeSlotManagerBuilder setTaskManagerTimeout(Time taskManagerTimeout) {
         this.taskManagerTimeout = taskManagerTimeout;
         return this;
@@ -98,8 +95,9 @@ public class DeclarativeSlotManagerBuilder {
         return this;
     }
 
-    public DeclarativeSlotManagerBuilder setEvenlySpreadOutSlots(boolean evenlySpreadOutSlots) {
-        this.evenlySpreadOutSlots = evenlySpreadOutSlots;
+    public DeclarativeSlotManagerBuilder setTaskManagerLoadBalanceMode(
+            TaskManagerLoadBalanceMode taskManagerLoadBalanceMode) {
+        this.taskManagerLoadBalanceMode = taskManagerLoadBalanceMode;
         return this;
     }
 
@@ -117,6 +115,11 @@ public class DeclarativeSlotManagerBuilder {
     public DeclarativeSlotManagerBuilder setSlotManagerMetricGroup(
             SlotManagerMetricGroup slotManagerMetricGroup) {
         this.slotManagerMetricGroup = slotManagerMetricGroup;
+        return this;
+    }
+
+    public DeclarativeSlotManagerBuilder setMinSlotNum(int minSlotNum) {
+        this.minSlotNum = minSlotNum;
         return this;
     }
 
@@ -155,19 +158,21 @@ public class DeclarativeSlotManagerBuilder {
         final SlotManagerConfiguration slotManagerConfiguration =
                 new SlotManagerConfiguration(
                         taskManagerRequestTimeout,
-                        slotRequestTimeout,
                         taskManagerTimeout,
                         requirementCheckDelay,
                         declareNeededResourceDelay,
                         waitResultConsumedBeforeRelease,
-                        evenlySpreadOutSlots
+                        taskManagerLoadBalanceMode == TaskManagerLoadBalanceMode.SLOTS
                                 ? LeastUtilizationSlotMatchingStrategy.INSTANCE
                                 : AnyMatchingSlotMatchingStrategy.INSTANCE,
-                        evenlySpreadOutSlots,
+                        taskManagerLoadBalanceMode,
                         defaultWorkerResourceSpec,
                         numSlotsPerWorker,
+                        minSlotNum,
                         maxSlotNum,
+                        new CPUResource(Double.MIN_VALUE),
                         new CPUResource(Double.MAX_VALUE),
+                        MemorySize.ZERO,
                         MemorySize.MAX_VALUE,
                         redundantTaskManagerNum);
 

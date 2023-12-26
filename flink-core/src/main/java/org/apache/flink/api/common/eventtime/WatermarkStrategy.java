@@ -18,8 +18,8 @@
 
 package org.apache.flink.api.common.eventtime;
 
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.Serializable;
 import java.time.Duration;
@@ -84,7 +84,7 @@ public interface WatermarkStrategy<T>
      * <p>Once configured Flink will "pause" consuming from a source/task/partition that is ahead of
      * the emitted watermark in the group by more than the maxAllowedWatermarkDrift.
      */
-    @Experimental
+    @PublicEvolving
     default WatermarkAlignmentParams getAlignmentParameters() {
         return WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED;
     }
@@ -164,7 +164,7 @@ public interface WatermarkStrategy<T>
      * @param maxAllowedWatermarkDrift Maximal drift, before we pause consuming from the
      *     source/task/partition
      */
-    @Experimental
+    @PublicEvolving
     default WatermarkStrategy<T> withWatermarkAlignment(
             String watermarkGroup, Duration maxAllowedWatermarkDrift) {
         return withWatermarkAlignment(
@@ -187,7 +187,7 @@ public interface WatermarkStrategy<T>
      * @param updateInterval How often tasks should notify coordinator about the current watermark
      *     and how often the coordinator should announce the maximal aligned watermark.
      */
-    @Experimental
+    @PublicEvolving
     default WatermarkStrategy<T> withWatermarkAlignment(
             String watermarkGroup, Duration maxAllowedWatermarkDrift, Duration updateInterval) {
         return new WatermarksWithWatermarkAlignment<T>(

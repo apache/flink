@@ -161,6 +161,16 @@ public final class DataTypeExtractor {
      */
     public static DataType extractFromMethodOutput(
             DataTypeFactory typeFactory, Class<?> baseClass, Method method) {
+        return extractFromMethodOutput(
+                typeFactory, baseClass, method, method.getGenericReturnType());
+    }
+
+    /**
+     * Extracts a data type from a method return type with specifying the method's type explicitly
+     * by considering surrounding classes and method annotation.
+     */
+    public static DataType extractFromMethodOutput(
+            DataTypeFactory typeFactory, Class<?> baseClass, Method method, Type methodReturnType) {
         final DataTypeHint hint = method.getAnnotation(DataTypeHint.class);
         final DataTypeTemplate template;
         if (hint != null) {
@@ -172,7 +182,7 @@ public final class DataTypeExtractor {
                 typeFactory,
                 template,
                 baseClass,
-                method.getGenericReturnType(),
+                methodReturnType,
                 String.format(
                         " in return type of method '%s' in class '%s'",
                         method.getName(), baseClass.getName()));

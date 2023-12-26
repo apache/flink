@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.runtime.operators.rank;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -64,8 +64,8 @@ public class AppendOnlyFirstNFunction extends AbstractTopNFunction {
     }
 
     @Override
-    public void open(Configuration configure) throws Exception {
-        super.open(configure);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         ValueStateDescriptor<Integer> stateDesc =
                 new ValueStateDescriptor<>("counterState", Types.INT);
         if (ttlConfig.isEnabled()) {

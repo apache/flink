@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.changelog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.state.CheckpointBoundKeyedStateHandle;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsSavepointStateHandle;
@@ -37,7 +38,6 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -174,19 +174,24 @@ public interface ChangelogStateBackendHandle
 
                 StreamStateHandle castMetaStateHandle =
                         restoreFileStateHandle(
-                                incrementalRemoteKeyedStateHandle.getMetaStateHandle());
-                Map<StateHandleID, StreamStateHandle> castSharedStates =
-                        incrementalRemoteKeyedStateHandle.getSharedState().entrySet().stream()
-                                .collect(
-                                        Collectors.toMap(
-                                                Map.Entry::getKey,
-                                                e -> restoreFileStateHandle(e.getValue())));
-                Map<StateHandleID, StreamStateHandle> castPrivateStates =
-                        incrementalRemoteKeyedStateHandle.getPrivateState().entrySet().stream()
-                                .collect(
-                                        Collectors.toMap(
-                                                Map.Entry::getKey,
-                                                e -> restoreFileStateHandle(e.getValue())));
+                                incrementalRemoteKeyedStateHandle.getMetaDataStateHandle());
+                List<HandleAndLocalPath> castSharedStates =
+                        incrementalRemoteKeyedStateHandle.getSharedState().stream()
+                                .map(
+                                        e ->
+                                                HandleAndLocalPath.of(
+                                                        restoreFileStateHandle(e.getHandle()),
+                                                        e.getLocalPath()))
+                                .collect(Collectors.toList());
+
+                List<HandleAndLocalPath> castPrivateStates =
+                        incrementalRemoteKeyedStateHandle.getPrivateState().stream()
+                                .map(
+                                        e ->
+                                                HandleAndLocalPath.of(
+                                                        restoreFileStateHandle(e.getHandle()),
+                                                        e.getLocalPath()))
+                                .collect(Collectors.toList());
 
                 return IncrementalRemoteKeyedStateHandle.restore(
                         incrementalRemoteKeyedStateHandle.getBackendIdentifier(),

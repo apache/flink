@@ -20,73 +20,70 @@ package org.apache.flink.runtime.util.bash;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link FlinkConfigLoader}. */
-public class FlinkConfigLoaderTest extends TestLogger {
+class FlinkConfigLoaderTest {
 
     private static final String TEST_CONFIG_KEY = "test.key";
     private static final String TEST_CONFIG_VALUE = "test_value";
 
-    @Rule
-    public TemporaryFolder confDir =
-            new TemporaryFolder() {
-                @Override
-                protected void before() throws Throwable {
-                    super.create();
-                    File flinkConfFile = newFile("flink-conf.yaml");
-                    FileWriter fw = new FileWriter(flinkConfFile);
-                    fw.write(TEST_CONFIG_KEY + ": " + TEST_CONFIG_VALUE + "\n");
-                    fw.close();
-                }
-            };
+    @TempDir private java.nio.file.Path confDir;
+
+    @BeforeEach
+    void setUp() throws IOException {
+        File flinkConfFile = TempDirUtils.newFile(confDir.toAbsolutePath(), "flink-conf.yaml");
+        FileWriter fw = new FileWriter(flinkConfFile);
+        fw.write(TEST_CONFIG_KEY + ": " + TEST_CONFIG_VALUE + "\n");
+        fw.close();
+    }
 
     @Test
-    public void testLoadConfigurationConfigDirLongOpt() throws Exception {
-        String[] args = {"--configDir", confDir.getRoot().getAbsolutePath()};
+    void testLoadConfigurationConfigDirLongOpt() throws Exception {
+        String[] args = {"--configDir", confDir.toFile().getAbsolutePath()};
         Configuration configuration = FlinkConfigLoader.loadConfiguration(args);
         verifyConfiguration(configuration, TEST_CONFIG_KEY, TEST_CONFIG_VALUE);
     }
 
     @Test
-    public void testLoadConfigurationConfigDirShortOpt() throws Exception {
-        String[] args = {"-c", confDir.getRoot().getAbsolutePath()};
+    void testLoadConfigurationConfigDirShortOpt() throws Exception {
+        String[] args = {"-c", confDir.toFile().getAbsolutePath()};
         Configuration configuration = FlinkConfigLoader.loadConfiguration(args);
         verifyConfiguration(configuration, TEST_CONFIG_KEY, TEST_CONFIG_VALUE);
     }
 
     @Test
-    public void testLoadConfigurationDynamicPropertyWithSpace() throws Exception {
-        String[] args = {"--configDir", confDir.getRoot().getAbsolutePath(), "-D", "key=value"};
+    void testLoadConfigurationDynamicPropertyWithSpace() throws Exception {
+        String[] args = {"--configDir", confDir.toFile().getAbsolutePath(), "-D", "key=value"};
         Configuration configuration = FlinkConfigLoader.loadConfiguration(args);
         verifyConfiguration(configuration, "key", "value");
     }
 
     @Test
-    public void testLoadConfigurationDynamicPropertyWithoutSpace() throws Exception {
-        String[] args = {"--configDir", confDir.getRoot().getAbsolutePath(), "-Dkey=value"};
+    void testLoadConfigurationDynamicPropertyWithoutSpace() throws Exception {
+        String[] args = {"--configDir", confDir.toFile().getAbsolutePath(), "-Dkey=value"};
         Configuration configuration = FlinkConfigLoader.loadConfiguration(args);
         verifyConfiguration(configuration, "key", "value");
     }
 
     @Test
-    public void testLoadConfigurationIgnoreUnknownToken() throws Exception {
+    void testLoadConfigurationIgnoreUnknownToken() throws Exception {
         String[] args = {
             "unknown",
             "-u",
             "--configDir",
-            confDir.getRoot().getAbsolutePath(),
+            confDir.toFile().getAbsolutePath(),
             "--unknown",
             "-Dkey=value"
         };
@@ -97,6 +94,6 @@ public class FlinkConfigLoaderTest extends TestLogger {
 
     private void verifyConfiguration(Configuration config, String key, String expectedValue) {
         ConfigOption<String> option = key(key).stringType().noDefaultValue();
-        assertThat(config.get(option), is(expectedValue));
+        assertThat(config.get(option)).isEqualTo(expectedValue);
     }
 }

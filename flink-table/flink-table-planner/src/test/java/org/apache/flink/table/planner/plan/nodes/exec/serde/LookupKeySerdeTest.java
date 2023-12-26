@@ -25,17 +25,17 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectRea
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 
 import org.apache.calcite.rex.RexBuilder;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test LookupKey json ser/de. */
-public class LookupKeySerdeTest {
+class LookupKeySerdeTest {
 
     @Test
-    public void testLookupKey() throws IOException {
+    void testLookupKey() throws IOException {
         SerdeContext serdeCtx = JsonSerdeTestUtil.configuredSerdeContext();
         ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
         ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);

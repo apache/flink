@@ -170,6 +170,17 @@ public class ExecutionConfigOptions {
                                                     + "You can set to no shuffle(NONE) or force shuffle(FORCE).")
                                     .build());
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<RowtimeInserter> TABLE_EXEC_SINK_ROWTIME_INSERTER =
+            key("table.exec.sink.rowtime-inserter")
+                    .enumType(RowtimeInserter.class)
+                    .defaultValue(RowtimeInserter.ENABLED)
+                    .withDescription(
+                            "Some sink implementations require a single rowtime attribute in the input "
+                                    + "that can be inserted into the underlying stream record. This option "
+                                    + "allows disabling the timestamp insertion and avoids errors around "
+                                    + "multiple time attributes being present in the query schema.");
+
     // ------------------------------------------------------------------------
     //  Sort Options
     // ------------------------------------------------------------------------
@@ -388,6 +399,14 @@ public class ExecutionConfigOptions {
                                     + "Operators that can be disabled include \"NestedLoopJoin\", \"ShuffleHashJoin\", \"BroadcastHashJoin\", "
                                     + "\"SortMergeJoin\", \"HashAgg\", \"SortAgg\".\n"
                                     + "By default no operator is disabled.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_OPERATOR_FUSION_CODEGEN_ENABLED =
+            key("table.exec.operator-fusion-codegen.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "If true, multiple physical operators will be compiled into a single operator by planner which can improve the performance.");
 
     /** @deprecated Use {@link ExecutionOptions#BATCH_SHUFFLE_MODE} instead. */
     @Deprecated
@@ -634,6 +653,28 @@ public class ExecutionConfigOptions {
 
         /** Add keyed shuffle in any case except single parallelism. */
         FORCE
+    }
+
+    /** Rowtime attribute insertion strategy for the sink. */
+    @PublicEvolving
+    public enum RowtimeInserter implements DescribedEnum {
+        ENABLED(
+                text(
+                        "Insert a rowtime attribute (if available) into the underlying stream record. "
+                                + "This requires at most one time attribute in the input for the sink.")),
+        DISABLED(text("Do not insert the rowtime attribute into the underlying stream record."));
+
+        private final InlineElement description;
+
+        RowtimeInserter(InlineElement description) {
+            this.description = description;
+        }
+
+        @Internal
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
     }
 
     /** Output mode for asynchronous operations, equivalent to {@see AsyncDataStream.OutputMode}. */

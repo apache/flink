@@ -46,7 +46,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.ExecNode.FIELD_NAME
         visible = true)
 @JsonTypeIdResolver(ExecNodeTypeIdResolver.class)
 @Internal
-public interface ExecNode<T> extends ExecNodeTranslator<T> {
+public interface ExecNode<T> extends ExecNodeTranslator<T>, FusionCodegenExecNode {
 
     String FIELD_NAME_ID = "id";
     String FIELD_NAME_TYPE = "type";

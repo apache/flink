@@ -50,11 +50,13 @@ public interface TierProducerAgent extends AutoCloseable {
      *
      * @param subpartitionId the subpartition id that the buffer is writing to
      * @param finishedBuffer the writing buffer
+     * @param bufferOwner the current owner of this writing buffer
      * @return return true if the buffer is written successfully, return false if the current
      *     segment can not store this buffer and the current segment is finished. When returning
      *     false, the agent should try start a new segment before writing the buffer.
      */
-    boolean tryWrite(TieredStorageSubpartitionId subpartitionId, Buffer finishedBuffer);
+    boolean tryWrite(
+            TieredStorageSubpartitionId subpartitionId, Buffer finishedBuffer, Object bufferOwner);
 
     /**
      * Close the agent.

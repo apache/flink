@@ -247,15 +247,6 @@ data:
 
 通常，只启动一个 JobManager pod 就足够了，因为一旦 pod 崩溃，Kubernetes 就会重新启动它。如果要实现更快的恢复，需要将 `jobmanager-session-deployment-ha.yaml` 中的 `replicas` 配置 或 `jobmanager-application-ha.yaml` 中的 `parallelism` 配置设定为大于 `1` 的整型值来启动 Standby JobManagers。
 
-<a name="enabling-queryable-state"></a>
-
-### 启用 Queryable State
-
-如果你为 TaskManager 创建了 `NodePort` service，那么你就可以访问 TaskManager 的 Queryable State 服务：
-
-  1. 运行 `kubectl create -f taskmanager-query-state-service.yaml` 来为 `taskmanager` pod 创建 `NodePort` service。`taskmanager-query-state-service.yaml` 的示例文件可以从[附录](#common-cluster-resource-definitions)中找到。
-  2. 运行 `kubectl get svc flink-taskmanager-query-state` 来查询 service 对应 node-port 的端口号。然后你就可以创建 [QueryableStateClient(&lt;public-node-ip&gt;, &lt;node-port&gt;]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}#querying-state) 来提交状态查询。
-
 <a name="using-standalone-kubernetes-with-reactive-mode"></a>
 
 ### 在 Reactive 模式下使用 Standalone Kubernetes
@@ -292,7 +283,6 @@ data:
     blob.server.port: 6124
     jobmanager.rpc.port: 6123
     taskmanager.rpc.port: 6122
-    queryable-state.proxy.ports: 6125
     jobmanager.memory.process.size: 1600m
     taskmanager.memory.process.size: 1728m
     parallelism.default: 2
@@ -309,8 +299,8 @@ data:
     # 下面几行将公共 libraries 或 connectors 的日志级别保持在 INFO 级别。
     # root logger 的配置不会覆盖此处配置。
     # 你必须手动修改这里的日志级别。
-    logger.akka.name = akka
-    logger.akka.level = INFO
+    logger.pekko.name = org.apache.pekko
+    logger.pekko.level = INFO
     logger.kafka.name= org.apache.kafka
     logger.kafka.level = INFO
     logger.hadoop.name = org.apache.hadoop
@@ -360,7 +350,6 @@ data:
     blob.server.port: 6124
     jobmanager.rpc.port: 6123
     taskmanager.rpc.port: 6122
-    queryable-state.proxy.ports: 6125
     jobmanager.memory.process.size: 1600m
     taskmanager.memory.process.size: 1728m
     parallelism.default: 2
@@ -380,8 +369,8 @@ data:
     # 下面几行将公共 libraries 或 connectors 的日志级别保持在 INFO 级别。
     # root logger 的配置不会覆盖此处配置。
     # 你必须手动修改这里的日志级别。
-    logger.akka.name = akka
-    logger.akka.level = INFO
+    logger.pekko.name = org.apache.pekko
+    logger.pekko.level = INFO
     logger.kafka.name= org.apache.kafka
     logger.kafka.level = INFO
     logger.hadoop.name = org.apache.hadoop
@@ -452,25 +441,6 @@ spec:
   selector:
     app: flink
     component: jobmanager
-```
-
-`taskmanager-query-state-service.yaml`。可选的 service，该 service 将 TaskManager 的端口暴露为公共 Kubernetes node 的节点端口，通过该端口来访问 queryable state 服务。  
-
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: flink-taskmanager-query-state
-spec:
-  type: NodePort
-  ports:
-  - name: query-state
-    port: 6125
-    targetPort: 6125
-    nodePort: 30025
-  selector:
-    app: flink
-    component: taskmanager
 ```
 
 <a name="session-cluster-resource-definitions"></a>
@@ -610,8 +580,6 @@ spec:
         ports:
         - containerPort: 6122
           name: rpc
-        - containerPort: 6125
-          name: query-state
         livenessProbe:
           tcpSocket:
             port: 6122
@@ -775,8 +743,6 @@ spec:
         ports:
         - containerPort: 6122
           name: rpc
-        - containerPort: 6125
-          name: query-state
         livenessProbe:
           tcpSocket:
             port: 6122

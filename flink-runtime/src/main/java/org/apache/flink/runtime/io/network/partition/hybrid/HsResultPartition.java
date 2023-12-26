@@ -116,7 +116,7 @@ public class HsResultPartition extends ResultPartition {
                 new HsFileDataIndexImpl(
                         isBroadcastOnly ? 1 : numSubpartitions,
                         new File(dataFileBashPath + INDEX_FILE_SUFFIX).toPath(),
-                        hybridShuffleConfiguration.getSpilledIndexSegmentSize(),
+                        hybridShuffleConfiguration.getRegionGroupSizeInBytes(),
                         hybridShuffleConfiguration.getNumRetainedInMemoryRegionsMax());
         this.hybridShuffleConfiguration = hybridShuffleConfiguration;
         this.isBroadcastOnly = isBroadcastOnly;
@@ -154,7 +154,11 @@ public class HsResultPartition extends ResultPartition {
     public void setMetricGroup(TaskIOMetricGroup metrics) {
         super.setMetricGroup(metrics);
         checkNotNull(memoryDataManager)
-                .setOutputMetrics(new HsOutputMetrics(numBytesOut, numBuffersOut));
+                .setOutputMetrics(
+                        new HsOutputMetrics(
+                                numBytesOut,
+                                numBuffersOut,
+                                metrics.getHardBackPressuredTimePerSecond()));
     }
 
     @Override

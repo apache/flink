@@ -19,7 +19,6 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
@@ -35,7 +34,6 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -62,24 +60,13 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
         CloseableRegistry internalCloser = new CloseableRegistry();
         // Make sure we also react to external close signals.
         closeableRegistry.registerCloseable(internalCloser);
-        List<CompletableFuture<Void>> futures = Collections.emptyList();
         try {
-            try {
-                futures =
-                        transferAllStateDataToDirectoryAsync(downloadRequests, internalCloser)
-                                .collect(Collectors.toList());
-                // Wait until either all futures completed successfully or one failed exceptionally.
-                FutureUtils.waitForAll(futures).get();
-            } finally {
-                // Unregister and close the internal closer. In a failure case, this should
-                // interrupt ongoing downloads.
-                if (closeableRegistry.unregisterCloseable(internalCloser)) {
-                    IOUtils.closeQuietly(internalCloser);
-                }
-            }
+            List<CompletableFuture<Void>> futures =
+                    transferAllStateDataToDirectoryAsync(downloadRequests, internalCloser)
+                            .collect(Collectors.toList());
+            // Wait until either all futures completed successfully or one failed exceptionally.
+            FutureUtils.completeAll(futures).get();
         } catch (Exception e) {
-            // Cleanup on exception: cancel all tasks and delete the created directories
-            futures.forEach(future -> future.cancel(true));
             downloadRequests.stream()
                     .map(StateHandleDownloadSpec::getDownloadDestination)
                     .map(Path::toFile)
@@ -91,6 +78,11 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
                 throw (IOException) throwable;
             } else {
                 throw new FlinkRuntimeException("Failed to download data for state handles.", e);
+            }
+        } finally {
+            // Unregister and close the internal closer.
+            if (closeableRegistry.unregisterCloseable(internalCloser)) {
+                IOUtils.closeQuietly(internalCloser);
             }
         }
     }
@@ -105,21 +97,19 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
                                 // Take all files from shared and private state.
                                 Streams.concat(
                                                 downloadRequest.getStateHandle().getSharedState()
-                                                        .entrySet().stream(),
+                                                        .stream(),
                                                 downloadRequest.getStateHandle().getPrivateState()
-                                                        .entrySet().stream())
+                                                        .stream())
                                         .map(
                                                 // Create one runnable for each StreamStateHandle
                                                 entry -> {
-                                                    StateHandleID stateHandleID = entry.getKey();
+                                                    String localPath = entry.getLocalPath();
                                                     StreamStateHandle remoteFileHandle =
-                                                            entry.getValue();
+                                                            entry.getHandle();
                                                     Path downloadDest =
                                                             downloadRequest
                                                                     .getDownloadDestination()
-                                                                    .resolve(
-                                                                            stateHandleID
-                                                                                    .toString());
+                                                                    .resolve(localPath);
                                                     return ThrowingRunnable.unchecked(
                                                             () ->
                                                                     downloadDataForStateHandle(
@@ -137,15 +127,16 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
             CloseableRegistry closeableRegistry)
             throws IOException {
 
-        FSDataInputStream inputStream = null;
-        OutputStream outputStream = null;
+        if (closeableRegistry.isClosed()) {
+            return;
+        }
 
         try {
-            inputStream = remoteFileHandle.openInputStream();
+            FSDataInputStream inputStream = remoteFileHandle.openInputStream();
             closeableRegistry.registerCloseable(inputStream);
 
             Files.createDirectories(restoreFilePath.getParent());
-            outputStream = Files.newOutputStream(restoreFilePath);
+            OutputStream outputStream = Files.newOutputStream(restoreFilePath);
             closeableRegistry.registerCloseable(outputStream);
 
             byte[] buffer = new byte[8 * 1024];
@@ -157,14 +148,12 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
 
                 outputStream.write(buffer, 0, numBytes);
             }
-        } finally {
-            if (closeableRegistry.unregisterCloseable(inputStream)) {
-                inputStream.close();
-            }
-
-            if (closeableRegistry.unregisterCloseable(outputStream)) {
-                outputStream.close();
-            }
+            closeableRegistry.unregisterAndCloseAll(outputStream, inputStream);
+        } catch (Exception ex) {
+            // Quickly close all open streams. This also stops all concurrent downloads because they
+            // are registered with the same registry.
+            IOUtils.closeQuietly(closeableRegistry);
+            throw new IOException(ex);
         }
     }
 }

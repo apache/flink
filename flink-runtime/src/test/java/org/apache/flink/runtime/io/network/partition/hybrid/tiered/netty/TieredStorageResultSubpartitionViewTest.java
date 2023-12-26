@@ -30,11 +30,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.END_OF_SEGMENT;
@@ -48,7 +46,7 @@ public class TieredStorageResultSubpartitionViewTest {
 
     private CompletableFuture<Void> availabilityListener;
 
-    private List<Queue<NettyPayload>> nettyPayloadQueues;
+    private List<NettyPayloadManager> nettyPayloadManagers;
 
     private List<CompletableFuture<NettyConnectionId>> connectionBrokenConsumers;
 
@@ -57,24 +55,22 @@ public class TieredStorageResultSubpartitionViewTest {
     @BeforeEach
     void before() {
         availabilityListener = new CompletableFuture<>();
-        nettyPayloadQueues = createNettyPayloadQueues();
+        nettyPayloadManagers = createNettyPayloadManagers();
         connectionBrokenConsumers =
                 Arrays.asList(new CompletableFuture<>(), new CompletableFuture<>());
         tieredStorageResultSubpartitionView =
                 new TieredStorageResultSubpartitionView(
                         createBufferAvailabilityListener(availabilityListener),
-                        nettyPayloadQueues,
+                        nettyPayloadManagers,
                         createNettyConnectionIds(),
                         createNettyServiceProducers(connectionBrokenConsumers));
     }
 
     @Test
     void testGetNextBuffer() throws IOException {
-        checkBufferAndBacklog(tieredStorageResultSubpartitionView.getNextBuffer(), 1);
         checkBufferAndBacklog(tieredStorageResultSubpartitionView.getNextBuffer(), 0);
         tieredStorageResultSubpartitionView.notifyRequiredSegmentId(1);
         assertThat(availabilityListener).isDone();
-        checkBufferAndBacklog(tieredStorageResultSubpartitionView.getNextBuffer(), 1);
         checkBufferAndBacklog(tieredStorageResultSubpartitionView.getNextBuffer(), 0);
         assertThat(tieredStorageResultSubpartitionView.getNextBuffer()).isNull();
     }
@@ -82,11 +78,11 @@ public class TieredStorageResultSubpartitionViewTest {
     @Test
     void testGetNextBufferFailed() {
         Throwable expectedError = new IOException();
-        nettyPayloadQueues = createNettyPayloadQueuesWithError(expectedError);
+        nettyPayloadManagers = createNettyPayloadQueuesWithError(expectedError);
         tieredStorageResultSubpartitionView =
                 new TieredStorageResultSubpartitionView(
                         createBufferAvailabilityListener(availabilityListener),
-                        nettyPayloadQueues,
+                        nettyPayloadManagers,
                         createNettyConnectionIds(),
                         createNettyServiceProducers(connectionBrokenConsumers));
         assertThatThrownBy(tieredStorageResultSubpartitionView::getNextBuffer)
@@ -98,11 +94,11 @@ public class TieredStorageResultSubpartitionViewTest {
     void testGetAvailabilityAndBacklog() {
         ResultSubpartitionView.AvailabilityWithBacklog availabilityAndBacklog1 =
                 tieredStorageResultSubpartitionView.getAvailabilityAndBacklog(0);
-        assertThat(availabilityAndBacklog1.getBacklog()).isEqualTo(3);
+        assertThat(availabilityAndBacklog1.getBacklog()).isEqualTo(1);
         assertThat(availabilityAndBacklog1.isAvailable()).isEqualTo(false);
         ResultSubpartitionView.AvailabilityWithBacklog availabilityAndBacklog2 =
                 tieredStorageResultSubpartitionView.getAvailabilityAndBacklog(2);
-        assertThat(availabilityAndBacklog2.getBacklog()).isEqualTo(3);
+        assertThat(availabilityAndBacklog2.getBacklog()).isEqualTo(1);
         assertThat(availabilityAndBacklog2.isAvailable()).isEqualTo(true);
     }
 
@@ -115,8 +111,8 @@ public class TieredStorageResultSubpartitionViewTest {
     @Test
     void testReleaseAllResources() throws IOException {
         tieredStorageResultSubpartitionView.releaseAllResources();
-        assertThat(nettyPayloadQueues.get(0)).hasSize(0);
-        assertThat(nettyPayloadQueues.get(1)).hasSize(0);
+        assertThat(nettyPayloadManagers.get(0).getBacklog()).isZero();
+        assertThat(nettyPayloadManagers.get(1).getBacklog()).isZero();
         assertThat(connectionBrokenConsumers.get(0)).isDone();
         assertThat(connectionBrokenConsumers.get(1)).isDone();
         assertThat(tieredStorageResultSubpartitionView.isReleased()).isTrue();
@@ -124,9 +120,9 @@ public class TieredStorageResultSubpartitionViewTest {
 
     @Test
     void testGetNumberOfQueuedBuffers() {
-        assertThat(tieredStorageResultSubpartitionView.getNumberOfQueuedBuffers()).isEqualTo(3);
+        assertThat(tieredStorageResultSubpartitionView.getNumberOfQueuedBuffers()).isEqualTo(1);
         assertThat(tieredStorageResultSubpartitionView.unsynchronizedGetNumberOfQueuedBuffers())
-                .isEqualTo(3);
+                .isEqualTo(1);
     }
 
     private static void checkBufferAndBacklog(BufferAndBacklog bufferAndBacklog, int backlog) {
@@ -140,13 +136,14 @@ public class TieredStorageResultSubpartitionViewTest {
         return () -> notifier.complete(null);
     }
 
-    private static List<Queue<NettyPayload>> createNettyPayloadQueues() {
-        List<Queue<NettyPayload>> nettyPayloadQueues = new ArrayList<>();
+    private static List<NettyPayloadManager> createNettyPayloadManagers() {
+        List<NettyPayloadManager> nettyPayloadManagers = new ArrayList<>();
         for (int index = 0; index < TIER_NUMBER; ++index) {
-            Queue<NettyPayload> queue = new ArrayDeque<>();
-            queue.add(NettyPayload.newSegment(index));
-            queue.add(NettyPayload.newBuffer(BufferBuilderTestUtils.buildSomeBuffer(0), 0, index));
-            queue.add(
+            NettyPayloadManager nettyPayloadManager = new NettyPayloadManager();
+            nettyPayloadManager.add(NettyPayload.newSegment(index));
+            nettyPayloadManager.add(
+                    NettyPayload.newBuffer(BufferBuilderTestUtils.buildSomeBuffer(0), 0, index));
+            nettyPayloadManager.add(
                     NettyPayload.newBuffer(
                             new NetworkBuffer(
                                     MemorySegmentFactory.allocateUnpooledSegment(0),
@@ -154,20 +151,20 @@ public class TieredStorageResultSubpartitionViewTest {
                                     END_OF_SEGMENT),
                             1,
                             index));
-            nettyPayloadQueues.add(queue);
+            nettyPayloadManagers.add(nettyPayloadManager);
         }
-        return nettyPayloadQueues;
+        return nettyPayloadManagers;
     }
 
-    private static List<Queue<NettyPayload>> createNettyPayloadQueuesWithError(Throwable error) {
-        List<Queue<NettyPayload>> nettyPayloadQueues = new ArrayList<>();
+    private static List<NettyPayloadManager> createNettyPayloadQueuesWithError(Throwable error) {
+        List<NettyPayloadManager> nettyPayloadManagers = new ArrayList<>();
         for (int index = 0; index < TIER_NUMBER; ++index) {
-            Queue<NettyPayload> queue = new ArrayDeque<>();
+            NettyPayloadManager queue = new NettyPayloadManager();
             queue.add(NettyPayload.newSegment(index));
             queue.add(NettyPayload.newError(error));
-            nettyPayloadQueues.add(queue);
+            nettyPayloadManagers.add(queue);
         }
-        return nettyPayloadQueues;
+        return nettyPayloadManagers;
     }
 
     private static List<NettyConnectionId> createNettyConnectionIds() {

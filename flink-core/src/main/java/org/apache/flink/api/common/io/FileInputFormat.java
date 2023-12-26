@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.compression.Bzip2InputStreamFactory;
 import org.apache.flink.api.common.io.compression.DeflateInflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.GzipInflaterInputStreamFactory;
@@ -155,6 +156,11 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
         synchronized (INFLATER_INPUT_STREAM_FACTORIES) {
             return INFLATER_INPUT_STREAM_FACTORIES.get(fileExtension);
         }
+    }
+
+    @VisibleForTesting
+    public static Set<String> getSupportedCompressionFormats() {
+        return INFLATER_INPUT_STREAM_FACTORIES.keySet();
     }
 
     /**
@@ -841,8 +847,11 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 
         this.currentSplit = fileSplit;
         this.splitStart = fileSplit.getStart();
-        this.splitLength = fileSplit.getLength();
-
+        final Path path = fileSplit.getPath();
+        this.splitLength =
+                testForUnsplittable(path.getFileSystem().getFileStatus(path))
+                        ? READ_WHOLE_SPLIT_FLAG
+                        : fileSplit.getLength();
         if (LOG.isDebugEnabled()) {
             LOG.debug(
                     "Opening input split "

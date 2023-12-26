@@ -24,7 +24,7 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -41,7 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @param <T> the type for the aggregation result
  * @param <ACC> accumulate type
  */
-public abstract class AggFunctionTestBase<IN, T, ACC> {
+abstract class AggFunctionTestBase<IN, T, ACC> {
 
     protected abstract List<List<IN>> getInputValueSets();
 
@@ -61,7 +61,7 @@ public abstract class AggFunctionTestBase<IN, T, ACC> {
 
     @Test
     // test aggregate and retract functions without partial merge
-    public void testAccumulateAndRetractWithoutMerge()
+    void testAccumulateAndRetractWithoutMerge()
             throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
         // iterate over input sets
         List<List<IN>> inputValueSets = getInputValueSets();
@@ -88,7 +88,7 @@ public abstract class AggFunctionTestBase<IN, T, ACC> {
     }
 
     @Test
-    public void testAggregateWithMerge()
+    void testAggregateWithMerge()
             throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         AggregateFunction<T, ACC> aggregator = getAggregator();
         if (UserDefinedFunctionUtils.ifMethodExistInFunction("merge", aggregator)) {
@@ -148,7 +148,7 @@ public abstract class AggFunctionTestBase<IN, T, ACC> {
     }
 
     @Test
-    public void testMergeReservedAccumulator()
+    void testMergeReservedAccumulator()
             throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         AggregateFunction<T, ACC> aggregator = getAggregator();
         boolean hasMerge = UserDefinedFunctionUtils.ifMethodExistInFunction("merge", aggregator);
@@ -194,7 +194,7 @@ public abstract class AggFunctionTestBase<IN, T, ACC> {
     }
 
     @Test
-    public void testResetAccumulator()
+    void testResetAccumulator()
             throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         AggregateFunction<T, ACC> aggregator = getAggregator();
         if (UserDefinedFunctionUtils.ifMethodExistInFunction("resetAccumulator", aggregator)) {

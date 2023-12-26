@@ -24,6 +24,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogDescriptor;
+import org.apache.flink.table.catalog.CatalogStore;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -32,6 +34,8 @@ import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleEntry;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.types.AbstractDataType;
+
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -385,8 +389,22 @@ public interface TableEnvironment {
      *
      * @param catalogName The name under which the catalog will be registered.
      * @param catalog The catalog to register.
+     * @deprecated Use {@link #createCatalog(String, CatalogDescriptor)} instead. The new method
+     *     uses a {@link CatalogDescriptor} to initialize the catalog instance and store the {@link
+     *     CatalogDescriptor} to the {@link CatalogStore}.
      */
+    @Deprecated
     void registerCatalog(String catalogName, Catalog catalog);
+
+    /**
+     * Creates a {@link Catalog} using the provided {@link CatalogDescriptor}. All table registered
+     * in the {@link Catalog} can be accessed. The {@link CatalogDescriptor} will be persisted into
+     * the {@link CatalogStore}.
+     *
+     * @param catalogName The name under which the catalog will be created
+     * @param catalogDescriptor The catalog descriptor for creating catalog
+     */
+    void createCatalog(String catalogName, CatalogDescriptor catalogDescriptor);
 
     /**
      * Gets a registered {@link Catalog} by name.
@@ -1110,10 +1128,13 @@ public interface TableEnvironment {
      *     </tbody>
      * </table>
      *
+     * <p>You can unset the current catalog by passing a null value. If the current catalog is
+     * unset, you need to use fully qualified identifiers.
+     *
      * @param catalogName The name of the catalog to set as the current default catalog.
      * @see TableEnvironment#useDatabase(String)
      */
-    void useCatalog(String catalogName);
+    void useCatalog(@Nullable String catalogName);
 
     /**
      * Gets the current default database name of the running session.
@@ -1179,10 +1200,13 @@ public interface TableEnvironment {
      *     </tbody>
      * </table>
      *
+     * <p>You can unset the current database by passing a null value. If the current database is
+     * unset, you need to qualify identifiers at least with the database name.
+     *
      * @param databaseName The name of the database to set as the current database.
      * @see TableEnvironment#useCatalog(String)
      */
-    void useDatabase(String databaseName);
+    void useDatabase(@Nullable String databaseName);
 
     /** Returns the table config that defines the runtime behavior of the Table API. */
     TableConfig getConfig();

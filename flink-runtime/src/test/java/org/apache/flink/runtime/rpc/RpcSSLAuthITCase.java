@@ -22,10 +22,9 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -33,14 +32,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * This test validates that the RPC service gives a good message when it cannot connect to an
  * RpcEndpoint.
  */
-public class RpcSSLAuthITCase extends TestLogger {
+class RpcSSLAuthITCase {
 
     private static final String KEY_STORE_FILE =
             RpcSSLAuthITCase.class.getResource("/local127.keystore").getFile();
@@ -50,7 +48,7 @@ public class RpcSSLAuthITCase extends TestLogger {
             RpcSSLAuthITCase.class.getResource("/untrusted.keystore").getFile();
 
     @Test
-    public void testConnectFailure() throws Exception {
+    void testConnectFailure() throws Exception {
         final Configuration baseConfig = new Configuration();
         baseConfig.setString(AkkaOptions.TCP_TIMEOUT, "1 s");
         // we start the RPC service with a very long timeout to ensure that the test
@@ -86,7 +84,7 @@ public class RpcSSLAuthITCase extends TestLogger {
             // to test whether the test is still good:
             //   - create actorSystem2 with sslConfig1 (same as actorSystem1) and see that both can
             // connect
-            //   - set 'require-mutual-authentication = off' in the AkkaUtils ssl config section
+            //   - set 'require-mutual-authentication = off' in the ConfigUtils ssl config section
             rpcService1 =
                     RpcSystem.load()
                             .localServiceBuilder(sslConfig1)
@@ -105,15 +103,16 @@ public class RpcSSLAuthITCase extends TestLogger {
 
             CompletableFuture<TestGateway> future =
                     rpcService2.connect(endpoint.getAddress(), TestGateway.class);
-            TestGateway gateway = future.get(10000000, TimeUnit.SECONDS);
+            assertThatThrownBy(
+                            () -> {
+                                TestGateway gateway = future.get(10000000, TimeUnit.SECONDS);
 
-            CompletableFuture<String> fooFuture = gateway.foo();
-            fooFuture.get();
-
-            fail("should never complete normally");
-        } catch (ExecutionException e) {
-            // that is what we want
-            assertTrue(e.getCause() instanceof RpcConnectionException);
+                                CompletableFuture<String> fooFuture = gateway.foo();
+                                fooFuture.get();
+                            })
+                    .withFailMessage("should never complete normally")
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(RpcConnectionException.class);
         } finally {
             final CompletableFuture<Void> rpcTerminationFuture1 =
                     rpcService1 != null

@@ -24,9 +24,11 @@ import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 import org.apache.flink.runtime.io.network.metrics.ResultPartitionBytesCounter;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.util.clock.ManualClock;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -36,9 +38,27 @@ class TaskIOMetricGroupTest {
     @Test
     void testTaskIOMetricGroup() throws InterruptedException {
         TaskMetricGroup task = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
-        TaskIOMetricGroup taskIO = task.getIOMetricGroup();
+        ManualClock clock = new ManualClock(System.currentTimeMillis());
+        TaskIOMetricGroup taskIO = new TaskIOMetricGroup(task, clock);
+
+        // test initializing time
+        final long initializationTime = 100L;
+        assertThat(taskIO.getTaskInitializationDuration()).isEqualTo(0L);
+        taskIO.markTaskInitializationStarted();
+        clock.advanceTime(Duration.ofMillis(initializationTime));
+        assertThat(taskIO.getTaskInitializationDuration()).isGreaterThan(0L);
+        long initializationDuration = taskIO.getTaskInitializationDuration();
+        taskIO.markTaskStart();
+        assertThat(taskIO.getTaskInitializationDuration()).isEqualTo(initializationDuration);
+
         taskIO.setEnableBusyTime(true);
-        final long startTime = System.currentTimeMillis();
+        taskIO.markTaskStart();
+        final long startTime = clock.absoluteTimeMillis();
+
+        // test initializing time remains unchanged after running
+        final long runningTime = 200L;
+        clock.advanceTime(Duration.ofMillis(runningTime));
+        assertThat(taskIO.getTaskInitializationDuration()).isEqualTo(initializationDuration);
 
         // test counter forwarding
         assertThat(taskIO.getNumRecordsInCounter()).isNotNull();
@@ -62,14 +82,19 @@ class TaskIOMetricGroupTest {
         taskIO.getIdleTimeMsPerSecond().markStart();
         taskIO.getSoftBackPressuredTimePerSecond().markStart();
         long softSleepTime = 2L;
-        Thread.sleep(softSleepTime);
+        clock.advanceTime(Duration.ofMillis(softSleepTime));
         taskIO.getIdleTimeMsPerSecond().markEnd();
         taskIO.getSoftBackPressuredTimePerSecond().markEnd();
 
         long hardSleepTime = 4L;
         taskIO.getHardBackPressuredTimePerSecond().markStart();
-        Thread.sleep(hardSleepTime);
+        clock.advanceTime(Duration.ofMillis(hardSleepTime));
         taskIO.getHardBackPressuredTimePerSecond().markEnd();
+
+        long ioSleepTime = 3L;
+        taskIO.getChangelogBusyTimeMsPerSecond().markStart();
+        clock.advanceTime(Duration.ofMillis(ioSleepTime));
+        taskIO.getChangelogBusyTimeMsPerSecond().markEnd();
 
         IOMetrics io = taskIO.createSnapshot();
         assertThat(io.getNumRecordsIn()).isEqualTo(32L);
@@ -84,8 +109,8 @@ class TaskIOMetricGroupTest {
                                 + taskIO.getSoftBackPressuredTimePerSecond().getAccumulatedCount())
                 .isEqualTo(io.getAccumulateBackPressuredTime());
         assertThat(io.getAccumulateBusyTime())
-                .isGreaterThanOrEqualTo(
-                        (double) System.currentTimeMillis()
+                .isEqualTo(
+                        clock.absoluteTimeMillis()
                                 - startTime
                                 - io.getAccumulateIdleTime()
                                 - io.getAccumulateBackPressuredTime());
@@ -95,6 +120,53 @@ class TaskIOMetricGroupTest {
                 .isGreaterThanOrEqualTo(softSleepTime);
         assertThat(taskIO.getHardBackPressuredTimePerSecond().getCount())
                 .isGreaterThanOrEqualTo(hardSleepTime);
+        assertThat(taskIO.getChangelogBusyTimeMsPerSecond().getCount())
+                .isGreaterThanOrEqualTo(ioSleepTime);
+    }
+
+    @Test
+    void testConsistencyOfTime() {
+        TaskMetricGroup task = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
+        ManualClock clock = new ManualClock(System.currentTimeMillis());
+        TaskIOMetricGroup taskIO = new TaskIOMetricGroup(task, clock);
+        taskIO.setEnableBusyTime(true);
+        taskIO.markTaskStart();
+        final long startTime = clock.absoluteTimeMillis();
+        long softBackpressureTime = 100L;
+        taskIO.getSoftBackPressuredTimePerSecond().markStart();
+        clock.advanceTime(Duration.ofMillis(softBackpressureTime));
+        taskIO.getSoftBackPressuredTimePerSecond().markEnd();
+        assertThat(taskIO.getSoftBackPressuredTimePerSecond().getAccumulatedCount())
+                .isGreaterThanOrEqualTo(softBackpressureTime);
+
+        long hardBackpressureTime = 200L;
+        taskIO.getHardBackPressuredTimePerSecond().markStart();
+        clock.advanceTime(Duration.ofMillis(hardBackpressureTime));
+        taskIO.getHardBackPressuredTimePerSecond().markEnd();
+        assertThat(taskIO.getHardBackPressuredTimePerSecond().getAccumulatedCount())
+                .isGreaterThanOrEqualTo(hardBackpressureTime);
+
+        long changelogBusyTime = 300L;
+        taskIO.getChangelogBusyTimeMsPerSecond().markStart();
+        clock.advanceTime(Duration.ofMillis(changelogBusyTime));
+        taskIO.getChangelogBusyTimeMsPerSecond().markEnd();
+        assertThat(taskIO.getChangelogBusyTimeMsPerSecond().getAccumulatedCount())
+                .isGreaterThanOrEqualTo(changelogBusyTime);
+
+        long idleTime = 200L;
+        taskIO.getIdleTimeMsPerSecond().markStart();
+        clock.advanceTime(Duration.ofMillis(idleTime));
+        taskIO.getIdleTimeMsPerSecond().markEnd();
+        assertThat(taskIO.getIdleTimeMsPerSecond().getAccumulatedCount())
+                .isGreaterThanOrEqualTo(idleTime);
+        long totalDuration = clock.absoluteTimeMillis() - startTime;
+
+        // busy time = total time - idle time - backpressure time.
+        assertThat(taskIO.getAccumulatedBusyTime())
+                .isEqualTo(
+                        totalDuration
+                                - taskIO.getAccumulatedBackPressuredTimeMs()
+                                - taskIO.getIdleTimeMsPerSecond().getAccumulatedCount());
     }
 
     @Test
@@ -118,7 +190,7 @@ class TaskIOMetricGroupTest {
         Map<IntermediateResultPartitionID, ResultPartitionBytes> resultPartitionBytes =
                 taskIO.createSnapshot().getResultPartitionBytes();
 
-        assertThat(resultPartitionBytes.size()).isEqualTo(2);
+        assertThat(resultPartitionBytes).hasSize(2);
         assertThat(resultPartitionBytes.get(resultPartitionID1).getSubpartitionBytes())
                 .containsExactly(32L, 64L);
         assertThat(resultPartitionBytes.get(resultPartitionID2).getSubpartitionBytes())

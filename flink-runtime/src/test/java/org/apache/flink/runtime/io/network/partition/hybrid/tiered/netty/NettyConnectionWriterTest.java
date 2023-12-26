@@ -23,54 +23,109 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link NettyConnectionWriter}. */
-public class NettyConnectionWriterTest {
+class NettyConnectionWriterTest {
 
     private static final int SUBPARTITION_ID = 0;
 
     @Test
     void testWriteBuffer() {
         int bufferNumber = 10;
-        ArrayDeque<NettyPayload> nettyPayloadQueue = new ArrayDeque<>();
+        NettyPayloadManager nettyPayloadManager = new NettyPayloadManager();
         NettyConnectionWriter nettyConnectionWriter =
-                new NettyConnectionWriterImpl(nettyPayloadQueue);
+                new NettyConnectionWriterImpl(nettyPayloadManager, () -> {});
         writeBufferToWriter(bufferNumber, nettyConnectionWriter);
-        assertThat(nettyPayloadQueue).hasSize(bufferNumber);
-        assertThat(nettyConnectionWriter.numQueuedBuffers()).isEqualTo(bufferNumber);
+        assertThat(nettyPayloadManager.getBacklog()).isEqualTo(bufferNumber);
+        assertThat(nettyConnectionWriter.numQueuedPayloads()).isEqualTo(bufferNumber);
+        assertThat(nettyConnectionWriter.numQueuedBufferPayloads()).isEqualTo(bufferNumber);
     }
 
     @Test
     void testGetNettyConnectionId() {
-        ArrayDeque<NettyPayload> nettyPayloadQueue = new ArrayDeque<>();
         NettyConnectionWriter nettyConnectionWriter =
-                new NettyConnectionWriterImpl(nettyPayloadQueue);
+                new NettyConnectionWriterImpl(new NettyPayloadManager(), () -> {});
         assertThat(nettyConnectionWriter.getNettyConnectionId()).isNotNull();
+    }
+
+    @Test
+    void testNotifyAvailable() {
+        CompletableFuture<Void> notifier = new CompletableFuture<>();
+        NettyConnectionWriter nettyConnectionWriter =
+                new NettyConnectionWriterImpl(
+                        new NettyPayloadManager(),
+                        () -> {
+                            notifier.complete(null);
+                        });
+        nettyConnectionWriter.notifyAvailable();
+        assertThat(notifier).isDone();
     }
 
     @Test
     void testClose() {
         int bufferNumber = 10;
-        ArrayDeque<NettyPayload> nettyPayloadQueue = new ArrayDeque<>();
         NettyConnectionWriter nettyConnectionWriter =
-                new NettyConnectionWriterImpl(nettyPayloadQueue);
+                new NettyConnectionWriterImpl(new NettyPayloadManager(), () -> {});
         writeBufferToWriter(bufferNumber, nettyConnectionWriter);
         nettyConnectionWriter.close(null);
-        assertThat(nettyConnectionWriter.numQueuedBuffers()).isEqualTo(0);
+        assertThat(nettyConnectionWriter.numQueuedPayloads()).isZero();
+        assertThat(nettyConnectionWriter.numQueuedBufferPayloads()).isZero();
         writeBufferToWriter(bufferNumber, nettyConnectionWriter);
         nettyConnectionWriter.close(new IOException());
-        assertThat(nettyConnectionWriter.numQueuedBuffers()).isEqualTo(1);
+        assertThat(nettyConnectionWriter.numQueuedPayloads()).isOne();
+        assertThat(nettyConnectionWriter.numQueuedBufferPayloads()).isZero();
+    }
+
+    @Test
+    void testGetNumQueuedBufferPayloads() {
+        NettyPayloadManager nettyPayloadManager = new NettyPayloadManager();
+        NettyConnectionWriter nettyConnectionWriter =
+                new NettyConnectionWriterImpl(nettyPayloadManager, () -> {});
+        nettyConnectionWriter.writeNettyPayload(NettyPayload.newSegment(0));
+        writeBufferToWriter(3, nettyConnectionWriter);
+        nettyConnectionWriter.writeNettyPayload(NettyPayload.newSegment(2));
+        writeBufferToWriter(1, nettyConnectionWriter);
+        nettyConnectionWriter.writeNettyPayload(NettyPayload.newSegment(3));
+        writeBufferToWriter(1, nettyConnectionWriter);
+        nettyConnectionWriter.writeNettyPayload(NettyPayload.newSegment(5));
+        writeBufferToWriter(5, nettyConnectionWriter);
+        assertThat(nettyConnectionWriter.numQueuedBufferPayloads()).isEqualTo(3);
+        clearNettyPayloadManager(1, nettyPayloadManager);
+        assertThat(nettyConnectionWriter.numQueuedBufferPayloads()).isEqualTo(3);
+        clearNettyPayloadManager(2, nettyPayloadManager);
+        assertThat(nettyConnectionWriter.numQueuedBufferPayloads()).isEqualTo(1);
+        clearNettyPayloadManager(1, nettyPayloadManager);
+        assertThat(nettyConnectionWriter.numQueuedBufferPayloads()).isEqualTo(2);
+        clearNettyPayloadManager(1, nettyPayloadManager);
+        assertThat(nettyConnectionWriter.numQueuedBufferPayloads()).isEqualTo(2);
+        clearNettyPayloadManager(1, nettyPayloadManager);
+        assertThat(nettyConnectionWriter.numQueuedBufferPayloads()).isEqualTo(1);
+        clearNettyPayloadManager(1, nettyPayloadManager);
+        assertThat(nettyConnectionWriter.numQueuedBufferPayloads()).isEqualTo(1);
+        clearNettyPayloadManager(1, nettyPayloadManager);
+        assertThat(nettyConnectionWriter.numQueuedBufferPayloads()).isEqualTo(5);
+        clearNettyPayloadManager(1, nettyPayloadManager);
+        assertThat(nettyConnectionWriter.numQueuedBufferPayloads()).isEqualTo(5);
+        clearNettyPayloadManager(2, nettyPayloadManager);
+        assertThat(nettyConnectionWriter.numQueuedBufferPayloads()).isEqualTo(3);
     }
 
     private static void writeBufferToWriter(
             int bufferNumber, NettyConnectionWriter nettyConnectionWriter) {
         for (int index = 0; index < bufferNumber; ++index) {
-            nettyConnectionWriter.writeBuffer(
+            nettyConnectionWriter.writeNettyPayload(
                     NettyPayload.newBuffer(
                             BufferBuilderTestUtils.buildSomeBuffer(0), index, SUBPARTITION_ID));
+        }
+    }
+
+    private static void clearNettyPayloadManager(
+            int payloadNumber, NettyPayloadManager nettyPayloadManager) {
+        for (int index = 0; index < payloadNumber; ++index) {
+            nettyPayloadManager.poll();
         }
     }
 }

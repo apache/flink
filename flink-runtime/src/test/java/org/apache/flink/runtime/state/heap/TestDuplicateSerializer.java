@@ -23,9 +23,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-import org.junit.Assert;
-
 import java.io.IOException;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * This serializer can be used to test serializer duplication. The serializer that can be disabled.
@@ -75,25 +75,25 @@ public class TestDuplicateSerializer extends TypeSerializer<Integer> {
 
     @Override
     public void serialize(Integer record, DataOutputView target) throws IOException {
-        Assert.assertFalse(disabled);
+        assertThat(disabled).isFalse();
         target.writeInt(record);
     }
 
     @Override
     public Integer deserialize(DataInputView source) throws IOException {
-        Assert.assertFalse(disabled);
+        assertThat(disabled).isFalse();
         return source.readInt();
     }
 
     @Override
     public Integer deserialize(Integer reuse, DataInputView source) throws IOException {
-        Assert.assertFalse(disabled);
+        assertThat(disabled).isFalse();
         return deserialize(source);
     }
 
     @Override
     public void copy(DataInputView source, DataOutputView target) throws IOException {
-        Assert.assertFalse(disabled);
+        assertThat(disabled).isFalse();
         target.writeInt(source.readInt());
     }
 

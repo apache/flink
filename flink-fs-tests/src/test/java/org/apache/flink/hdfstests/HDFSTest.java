@@ -30,12 +30,9 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.examples.java.wordcount.WordCount;
-import org.apache.flink.runtime.blob.BlobCacheCorruptionTest;
-import org.apache.flink.runtime.blob.BlobCacheRecoveryTest;
-import org.apache.flink.runtime.blob.BlobServerCorruptionTest;
-import org.apache.flink.runtime.blob.BlobServerRecoveryTest;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
+import org.apache.flink.runtime.blob.TestingBlobHelpers;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.OperatingSystem;
@@ -215,10 +212,11 @@ public class HDFSTest {
         BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
         try {
-            BlobServerRecoveryTest.testBlobServerRecovery(
+            TestingBlobHelpers.testBlobServerRecovery(
                     config, blobStoreService, temporaryFolder.newFolder());
         } finally {
-            blobStoreService.closeAndCleanupAllData();
+            blobStoreService.cleanupAllData();
+            blobStoreService.close();
         }
     }
 
@@ -238,10 +236,11 @@ public class HDFSTest {
         BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
         try {
-            BlobServerCorruptionTest.testGetFailsFromCorruptFile(
+            TestingBlobHelpers.testGetFailsFromCorruptFile(
                     config, blobStoreService, temporaryFolder.newFolder());
         } finally {
-            blobStoreService.closeAndCleanupAllData();
+            blobStoreService.cleanupAllData();
+            blobStoreService.close();
         }
     }
 
@@ -261,10 +260,11 @@ public class HDFSTest {
         BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
         try {
-            BlobCacheRecoveryTest.testBlobCacheRecovery(
+            TestingBlobHelpers.testBlobCacheRecovery(
                     config, blobStoreService, temporaryFolder.newFolder());
         } finally {
-            blobStoreService.closeAndCleanupAllData();
+            blobStoreService.cleanupAllData();
+            blobStoreService.close();
         }
     }
 
@@ -284,10 +284,11 @@ public class HDFSTest {
         BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
         try {
-            BlobCacheCorruptionTest.testGetFailsFromCorruptFile(
+            TestingBlobHelpers.testGetFailsFromCorruptFile(
                     new JobID(), config, blobStoreService, temporaryFolder.newFolder());
         } finally {
-            blobStoreService.closeAndCleanupAllData();
+            blobStoreService.cleanupAllData();
+            blobStoreService.close();
         }
     }
 

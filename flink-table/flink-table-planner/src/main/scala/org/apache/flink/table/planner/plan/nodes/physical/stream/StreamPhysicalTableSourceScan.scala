@@ -50,6 +50,10 @@ class StreamPhysicalTableSourceScan(
     new StreamPhysicalTableSourceScan(cluster, traitSet, getHints, tableSourceTable)
   }
 
+  override def copy(relOptTable: TableSourceTable): RelNode = {
+    new StreamPhysicalTableSourceScan(cluster, traitSet, getHints, relOptTable)
+  }
+
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val rowCnt = mq.getRowCount(this)
     val rowSize = mq.getAverageRowSize(this)

@@ -19,25 +19,22 @@
 package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.runtime.metrics.ThresholdMeter.ThresholdExceedException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.clock.ManualClock;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static org.hamcrest.Matchers.closeTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 
 /** Tests for {@link ThresholdMeter}. */
-public class ThresholdMeterTest extends TestLogger {
+class ThresholdMeterTest {
     private static final double THRESHOLD_LARGE = 1000.0;
     private static final double THRESHOLD_SMALL = 5.0;
     private static final Duration INTERVAL = Duration.ofMillis(50);
@@ -46,37 +43,37 @@ public class ThresholdMeterTest extends TestLogger {
 
     private static ManualClock clock;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         clock = new ManualClock(42_000_000);
     }
 
     @Test
-    public void testMarkEvent() {
+    void testMarkEvent() {
         final ThresholdMeter thresholdMeter = createLargeThresholdMeter();
 
         thresholdMeter.markEvent();
         clock.advanceTime(SLEEP, TimeUnit.MILLISECONDS);
-        assertThat(thresholdMeter.getCount(), is(1L));
-        assertThat(thresholdMeter.getRate(), closeTo(toPerSecondRate(1), ERROR));
+        assertThat(thresholdMeter.getCount()).isOne();
+        assertThat(thresholdMeter.getRate()).isCloseTo(toPerSecondRate(1), within(ERROR));
 
         thresholdMeter.markEvent();
-        assertThat(thresholdMeter.getCount(), is(2L));
+        assertThat(thresholdMeter.getCount()).isEqualTo(2);
         clock.advanceTime(SLEEP, TimeUnit.MILLISECONDS);
-        assertThat(thresholdMeter.getRate(), closeTo(toPerSecondRate(2), ERROR));
+        assertThat(thresholdMeter.getRate()).isCloseTo(toPerSecondRate(2), within(ERROR));
     }
 
     @Test
-    public void testMarkMultipleEvents() {
+    void testMarkMultipleEvents() {
         final ThresholdMeter thresholdMeter = createLargeThresholdMeter();
         thresholdMeter.markEvent(2);
         clock.advanceTime(SLEEP * 2, TimeUnit.MILLISECONDS);
-        assertThat(thresholdMeter.getCount(), is(2L));
-        assertThat(thresholdMeter.getRate(), closeTo(toPerSecondRate(2), ERROR));
+        assertThat(thresholdMeter.getCount()).isEqualTo(2);
+        assertThat(thresholdMeter.getRate()).isCloseTo(toPerSecondRate(2), within(ERROR));
     }
 
     @Test
-    public void testCheckAgainstThresholdNotExceeded() {
+    void testCheckAgainstThresholdNotExceeded() {
         final ThresholdMeter thresholdMeter = createSmallThresholdMeter();
         for (int i = 0; i < THRESHOLD_SMALL - 1; ++i) {
             thresholdMeter.markEvent();
@@ -86,7 +83,7 @@ public class ThresholdMeterTest extends TestLogger {
     }
 
     @Test
-    public void testCheckAgainstThreshold() {
+    void testCheckAgainstThreshold() {
         final ThresholdMeter thresholdMeter = createSmallThresholdMeter();
 
         // first THRESHOLD_SMALL - 1 events should not exceed threshold
@@ -98,16 +95,12 @@ public class ThresholdMeterTest extends TestLogger {
 
         // the THRESHOLD_SMALL-th event should exceed threshold
         thresholdMeter.markEvent();
-        try {
-            thresholdMeter.checkAgainstThreshold();
-            fail();
-        } catch (ThresholdExceedException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> thresholdMeter.checkAgainstThreshold())
+                .isInstanceOf(ThresholdExceedException.class);
     }
 
     @Test
-    public void testUpdateInterval() {
+    void testUpdateInterval() {
         final ThresholdMeter thresholdMeter = createSmallThresholdMeter();
 
         thresholdMeter.markEvent();
@@ -117,15 +110,14 @@ public class ThresholdMeterTest extends TestLogger {
             thresholdMeter.markEvent();
         }
 
-        assertThat(thresholdMeter.getCount(), is((long) THRESHOLD_SMALL));
-        assertThat(
-                thresholdMeter.getRate(),
-                closeTo(toPerSecondRate((int) (THRESHOLD_SMALL - 1)), ERROR));
+        assertThat(thresholdMeter.getCount()).isEqualTo((long) THRESHOLD_SMALL);
+        assertThat(thresholdMeter.getRate())
+                .isCloseTo(toPerSecondRate((int) (THRESHOLD_SMALL - 1)), within(ERROR));
         thresholdMeter.checkAgainstThreshold();
     }
 
     @Test
-    public void testConcurrentAccess() throws Exception {
+    void testConcurrentAccess() throws Exception {
         final ThresholdMeter thresholdMeter = new ThresholdMeter(THRESHOLD_LARGE, INTERVAL);
         final int repeatNum = 100;
         final int concurrency = 2;
@@ -148,7 +140,7 @@ public class ThresholdMeterTest extends TestLogger {
             thread.join();
         }
 
-        assertEquals(repeatNum * concurrency, thresholdMeter.getCount());
+        assertThat(thresholdMeter.getCount()).isEqualTo(repeatNum * concurrency);
     }
 
     private static Runnable repeat(Runnable task, int repeatNum) {

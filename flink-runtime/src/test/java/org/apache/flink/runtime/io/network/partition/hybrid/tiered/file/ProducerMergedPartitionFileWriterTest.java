@@ -50,6 +50,7 @@ class ProducerMergedPartitionFileWriterTest {
         AtomicInteger receivedBuffers = new AtomicInteger(0);
         TestingProducerMergedPartitionFileIndex partitionFileIndex =
                 new TestingProducerMergedPartitionFileIndex.Builder()
+                        .setIndexFilePath(new File(tempFolder.toFile(), "testIndex").toPath())
                         .setAddBuffersConsumer(buffers -> receivedBuffers.getAndAdd(buffers.size()))
                         .build();
 
@@ -83,6 +84,7 @@ class ProducerMergedPartitionFileWriterTest {
         AtomicBoolean isReleased = new AtomicBoolean(false);
         TestingProducerMergedPartitionFileIndex partitionFileIndex =
                 new TestingProducerMergedPartitionFileIndex.Builder()
+                        .setIndexFilePath(new File(tempFolder.toFile(), "testIndex").toPath())
                         .setReleaseRunnable(() -> isReleased.set(true))
                         .build();
         ProducerMergedPartitionFileWriter partitionFileWriter =

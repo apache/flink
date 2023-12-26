@@ -38,6 +38,7 @@ import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTrack
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
@@ -196,7 +197,8 @@ public class TestingDefaultExecutionGraphBuilder {
                 isDynamicGraph,
                 executionJobVertexFactory,
                 markPartitionFinishedStrategy,
-                nonFinishedHybridPartitionShouldBeUnknown);
+                nonFinishedHybridPartitionShouldBeUnknown,
+                UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
     }
 
     public DefaultExecutionGraph build(ScheduledExecutorService executorService)

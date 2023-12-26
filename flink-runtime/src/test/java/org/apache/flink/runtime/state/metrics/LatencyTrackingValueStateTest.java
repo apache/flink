@@ -25,14 +25,14 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link LatencyTrackingValueState}. */
-public class LatencyTrackingValueStateTest extends LatencyTrackingStateTestBase<Integer> {
+class LatencyTrackingValueStateTest extends LatencyTrackingStateTestBase<Integer> {
     @Override
     @SuppressWarnings("unchecked")
     ValueStateDescriptor<Long> getStateDescriptor() {
@@ -51,7 +51,7 @@ public class LatencyTrackingValueStateTest extends LatencyTrackingStateTestBase<
 
     @Test
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public void testLatencyTrackingValueState() throws Exception {
+    void testLatencyTrackingValueState() throws Exception {
         AbstractKeyedStateBackend<Integer> keyedBackend = createKeyedBackend(getKeySerializer());
         try {
             LatencyTrackingValueState<Integer, VoidNamespace, Long> latencyTrackingState =
@@ -61,17 +61,17 @@ public class LatencyTrackingValueStateTest extends LatencyTrackingStateTestBase<
             LatencyTrackingValueState.ValueStateLatencyMetrics latencyTrackingStateMetric =
                     latencyTrackingState.getLatencyTrackingStateMetric();
 
-            assertEquals(0, latencyTrackingStateMetric.getUpdateCount());
-            assertEquals(0, latencyTrackingStateMetric.getGetCount());
+            assertThat(latencyTrackingStateMetric.getUpdateCount()).isZero();
+            assertThat(latencyTrackingStateMetric.getGetCount()).isZero();
 
             setCurrentKey(keyedBackend);
             for (int index = 1; index <= SAMPLE_INTERVAL; index++) {
                 int expectedResult = index == SAMPLE_INTERVAL ? 0 : index;
                 latencyTrackingState.update(ThreadLocalRandom.current().nextLong());
-                assertEquals(expectedResult, latencyTrackingStateMetric.getUpdateCount());
+                assertThat(latencyTrackingStateMetric.getUpdateCount()).isEqualTo(expectedResult);
 
                 latencyTrackingState.value();
-                assertEquals(expectedResult, latencyTrackingStateMetric.getGetCount());
+                assertThat(latencyTrackingStateMetric.getGetCount()).isEqualTo(expectedResult);
             }
         } finally {
             if (keyedBackend != null) {

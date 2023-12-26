@@ -167,7 +167,12 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
     /**
      * Adopted from {@link StreamExecutionEnvironment#addSource(SourceFunction, String,
      * TypeInformation)} but with custom {@link Boundedness}.
+     *
+     * @deprecated This method relies on the {@link
+     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+     *     removed.
      */
+    @Deprecated
     protected Transformation<RowData> createSourceFunctionTransformation(
             StreamExecutionEnvironment env,
             SourceFunction<RowData> function,

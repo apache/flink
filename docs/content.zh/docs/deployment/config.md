@@ -76,7 +76,7 @@ These values are configured as memory sizes, for example *1536m* or *2g*.
 
 You can configure checkpointing directly in code within your Flink job or application. Putting these values here in the configuration defines them as defaults in case the application does not configure anything.
 
-  - `state.backend.type`: The state backend to use. This defines the data structure mechanism for taking snapshots. Common values are `filesystem` or `rocksdb`.
+  - `state.backend.type`: The state backend to use. This defines the data structure mechanism for taking snapshots. Common values are `hashmap` or `rocksdb`.
   - `state.checkpoints.dir`: The directory to write checkpoints to. This takes a path URI like *s3://mybucket/flink-app/checkpoints* or *hdfs://namenode:port/flink/checkpoints*.
   - `state.savepoints.dir`: The default directory for savepoints. Takes a path URI, similar to `state.checkpoints.dir`.
   - `execution.checkpointing.interval`: The base interval setting. To enable checkpointing, you need to set this value larger than 0.
@@ -130,6 +130,10 @@ The default restart strategy will only take effect if no job specific restart st
 **Fixed Delay Restart Strategy**
 
 {{< generated/fixed_delay_restart_strategy_configuration >}}
+
+**Exponential Delay Restart Strategy**
+
+{{< generated/exponential_delay_restart_strategy_configuration >}}
 
 **Failure Rate Restart Strategy**
 
@@ -283,6 +287,15 @@ Enabling RocksDB's native metrics may cause degraded performance and should be s
 ----
 ----
 
+# Traces
+
+Please refer to the [tracing system documentation]({{< ref "docs/ops/traces" >}}) for background on Flink's tracing infrastructure.
+
+{{< generated/trace_configuration >}}
+
+----
+----
+
 # History Server
 
 The history server keeps the information of completed jobs (graphs, runtimes, statistics). To enable it, you have to enable "job archiving" in the JobManager (`jobmanager.archive.fs.dir`).
@@ -297,16 +310,6 @@ See the [History Server Docs]({{< ref "docs/deployment/advanced/historyserver" >
 # Experimental
 
 *Options for experimental features in Flink.*
-
-### Queryable State
-
-*Queryable State* is an experimental features that gives lets you access Flink's internal state like a key/value store.
-See the [Queryable State Docs]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}) for details.
-
-{{< generated/queryable_state_configuration >}}
-
-----
-----
 
 # Client
 
@@ -324,7 +327,6 @@ See the [Queryable State Docs]({{< ref "docs/dev/datastream/fault-tolerance/quer
 ### Pipeline
 
 {{< generated/pipeline_configuration >}}
-{{< generated/stream_pipeline_configuration >}}
 
 ### Checkpointing
 
@@ -457,10 +459,10 @@ These options are for the network stack that handles the streaming and batch dat
 
 {{< generated/all_taskmanager_network_section >}}
 
-### RPC / Akka
+### RPC / Pekko
 
-Flink uses Akka for RPC between components (JobManager/TaskManager/ResourceManager).
-Flink does not use Akka for data transport.
+Flink uses Pekko for RPC between components (JobManager/TaskManager/ResourceManager).
+Flink does not use Pekko for data transport.
 
 {{< generated/akka_configuration >}}
 

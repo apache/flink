@@ -50,6 +50,7 @@ import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
@@ -86,7 +87,7 @@ class TaskManagerRunnerStartupTest {
     @TempDir public static File workingDirectoryFolder;
 
     @RegisterExtension
-    public static final AllCallbackWrapper<WorkingDirectoryExtension>
+    private static final AllCallbackWrapper<WorkingDirectoryExtension>
             WORKING_DIRECTORY_EXTENSION_WRAPPER =
                     new AllCallbackWrapper<>(
                             new WorkingDirectoryExtension(() -> workingDirectoryFolder));
@@ -105,7 +106,7 @@ class TaskManagerRunnerStartupTest {
 
     @AfterEach
     void tearDownTest() throws Exception {
-        highAvailabilityServices.closeAndCleanupAllData();
+        highAvailabilityServices.closeWithOptionalClean(true);
         highAvailabilityServices = null;
     }
 
@@ -113,6 +114,7 @@ class TaskManagerRunnerStartupTest {
      * Tests that the TaskManagerRunner startup fails synchronously when the I/O directories are not
      * writable.
      */
+    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testIODirectoryNotWritable() throws Exception {
         File nonWritable = TempDirUtils.newFolder(tempFolder);

@@ -21,9 +21,8 @@ package org.apache.flink.runtime.webmonitor.history;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
@@ -31,44 +30,43 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Optional;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link HistoryServerUtils}. */
-public class HistoryServerUtilsTest extends TestLogger {
+class HistoryServerUtilsTest {
 
     private static final String HOSTNAME = "foobar";
     private static final int PORT = 1234;
 
     @Test
-    public void testIsSSLEnabledDefault() {
+    void testIsSSLEnabledDefault() {
         final Configuration configuration = new Configuration();
 
-        assertThat(HistoryServerUtils.isSSLEnabled(configuration), is(false));
+        assertThat(HistoryServerUtils.isSSLEnabled(configuration)).isFalse();
     }
 
     @Test
-    public void testIsSSLEnabledWithoutRestSSL() {
+    void testIsSSLEnabledWithoutRestSSL() {
         final Configuration configuration = new Configuration();
         configuration.setBoolean(HistoryServerOptions.HISTORY_SERVER_WEB_SSL_ENABLED, true);
 
-        assertThat(HistoryServerUtils.isSSLEnabled(configuration), is(false));
+        assertThat(HistoryServerUtils.isSSLEnabled(configuration)).isFalse();
     }
 
     @Test
-    public void testIsSSLEnabledOnlyRestSSL() {
+    void testIsSSLEnabledOnlyRestSSL() {
         final Configuration configuration = new Configuration();
         configuration.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
 
-        assertThat(HistoryServerUtils.isSSLEnabled(configuration), is(false));
+        assertThat(HistoryServerUtils.isSSLEnabled(configuration)).isFalse();
     }
 
     @Test
-    public void testIsSSLEnabled() {
+    void testIsSSLEnabled() {
         final Configuration configuration = new Configuration();
         enableSSL(configuration);
 
-        assertThat(HistoryServerUtils.isSSLEnabled(configuration), is(true));
+        assertThat(HistoryServerUtils.isSSLEnabled(configuration)).isTrue();
     }
 
     private void enableSSL(Configuration configuration) {
@@ -77,31 +75,31 @@ public class HistoryServerUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testGetHistoryServerURL() throws MalformedURLException {
+    void testGetHistoryServerURL() throws MalformedURLException {
         final Configuration configuration = createDefaultConfiguration();
 
         final Optional<URL> historyServerURL =
                 HistoryServerUtils.getHistoryServerURL(configuration);
 
-        assertThat(historyServerURL.get(), is(new URL("http", HOSTNAME, PORT, "")));
+        assertThat(historyServerURL).isPresent().hasValue(new URL("http", HOSTNAME, PORT, ""));
     }
 
     @Test
-    public void testGetHistoryServerURLWithSSL() throws MalformedURLException {
+    void testGetHistoryServerURLWithSSL() throws MalformedURLException {
         final Configuration configuration = createDefaultConfiguration();
         enableSSL(configuration);
 
         final Optional<URL> historyServerURL =
                 HistoryServerUtils.getHistoryServerURL(configuration);
 
-        assertThat(historyServerURL.get(), is(new URL("https", HOSTNAME, PORT, "")));
+        assertThat(historyServerURL).isPresent().hasValue(new URL("https", HOSTNAME, PORT, ""));
     }
 
     @Test
-    public void testGetHistoryServerURLWithoutHS() {
+    void testGetHistoryServerURLWithoutHS() {
         final Configuration configuration = new Configuration();
 
-        assertThat(HistoryServerUtils.getHistoryServerURL(configuration).isPresent(), is(false));
+        assertThat(HistoryServerUtils.getHistoryServerURL(configuration)).isNotPresent();
     }
 
     @Nonnull

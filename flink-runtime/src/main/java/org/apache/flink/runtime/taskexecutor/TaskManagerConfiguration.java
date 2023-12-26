@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -51,9 +50,9 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
     private final String[] tmpDirectories;
 
-    private final Time rpcTimeout;
+    private final Duration rpcTimeout;
 
-    private final Time slotTimeout;
+    private final Duration slotTimeout;
 
     // null indicates an infinite duration
     @Nullable private final Duration maxRegistrationDuration;
@@ -79,8 +78,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
             ResourceProfile defaultSlotResourceProfile,
             ResourceProfile totalResourceProfile,
             String[] tmpDirectories,
-            Time rpcTimeout,
-            Time slotTimeout,
+            Duration rpcTimeout,
+            Duration slotTimeout,
             @Nullable Duration maxRegistrationDuration,
             Configuration configuration,
             boolean exitJvmOnOutOfMemory,
@@ -121,11 +120,11 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
         return totalResourceProfile;
     }
 
-    public Time getRpcTimeout() {
+    public Duration getRpcTimeout() {
         return rpcTimeout;
     }
 
-    public Time getSlotTimeout() {
+    public Duration getSlotTimeout() {
         return slotTimeout;
     }
 
@@ -195,13 +194,11 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
         final String[] tmpDirPaths = ConfigurationUtils.parseTempDirectories(configuration);
 
-        final Time rpcTimeout =
-                Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
+        final Duration rpcTimeout = configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION);
 
         LOG.debug("Messages have a max timeout of " + rpcTimeout);
 
-        final Time slotTimeout =
-                Time.milliseconds(configuration.get(TaskManagerOptions.SLOT_TIMEOUT).toMillis());
+        final Duration slotTimeout = configuration.get(TaskManagerOptions.SLOT_TIMEOUT);
 
         Duration finiteRegistrationDuration;
         try {

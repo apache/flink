@@ -81,6 +81,15 @@ public final class Time implements Serializable {
         return unit.toMillis(size);
     }
 
+    /**
+     * Converts the time interval to seconds.
+     *
+     * @return The time interval in seconds.
+     */
+    public long toSeconds() {
+        return unit.toSeconds(size);
+    }
+
     @Override
     public String toString() {
         return toMilliseconds() + " ms";

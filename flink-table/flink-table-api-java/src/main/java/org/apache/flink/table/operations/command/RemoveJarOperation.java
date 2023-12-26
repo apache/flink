@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.operations.command;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.operations.Operation;
 
 /** Operation to describe an REMOVE JAR statement. */
+@Internal
 public class RemoveJarOperation implements Operation {
 
     private final String path;

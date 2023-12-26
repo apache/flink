@@ -17,7 +17,7 @@
  */
 package org.apache.flink.streaming.api.scala.testutils
 
-import org.apache.flink.api.common.functions.RuntimeContext
+import org.apache.flink.api.common.functions.{OpenContext, RuntimeContext}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.scala.function.RichAllWindowFunction
 import org.apache.flink.streaming.api.windowing.windows.Window
@@ -31,8 +31,8 @@ class CheckingIdentityRichAllWindowFunction[T, W <: Window] extends RichAllWindo
     }
   }
 
-  override def open(conf: Configuration): Unit = {
-    super.open(conf)
+  override def open(openContext: OpenContext): Unit = {
+    super.open(openContext)
     CheckingIdentityRichAllWindowFunction.openCalled = true
   }
 

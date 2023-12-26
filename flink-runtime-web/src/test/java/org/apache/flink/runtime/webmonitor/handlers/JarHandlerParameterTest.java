@@ -85,7 +85,7 @@ abstract class JarHandlerParameterTest<
     static Time timeout = Time.seconds(10);
     static Map<String, String> responseHeaders = Collections.emptyMap();
 
-    private static Path jarWithManifest;
+    protected static Path jarWithManifest;
     private static Path jarWithoutManifest;
 
     static void init(File tmpDir) throws Exception {

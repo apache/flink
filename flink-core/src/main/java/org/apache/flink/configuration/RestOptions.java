@@ -25,6 +25,7 @@ import org.apache.flink.configuration.description.Description;
 import java.time.Duration;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
 
 /** Configuration parameters for REST communication. */
@@ -78,6 +79,15 @@ public class RestOptions {
                     .withFallbackKeys(JobManagerOptions.ADDRESS.key())
                     .withDescription(
                             "The address that should be used by clients to connect to the server. Attention: This option is respected only if the high-availability configuration is NONE.");
+
+    /** The path that should be used by clients to interact with the server. */
+    @Documentation.Section(Documentation.Sections.COMMON_HOST_PORT)
+    public static final ConfigOption<String> PATH =
+            key("rest.path")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            "The path that should be used by clients to interact to the server which is accessible via URL.");
 
     /**
      * The port that the REST client connects to and the REST server binds to if {@link #BIND_PORT}
@@ -192,6 +202,29 @@ public class RestOptions {
                             "Thread priority of the REST server's executor for processing asynchronous requests. "
                                     + "Lowering the thread priority will give Flink's main components more CPU time whereas "
                                     + "increasing will allocate more time for the REST server's processing.");
+
+    /** Duration from write, after which cached checkpoints statistics are cleaned up. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Duration> CACHE_CHECKPOINT_STATISTICS_TIMEOUT =
+            key("rest.cache.checkpoint-statistics.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(WebOptions.REFRESH_INTERVAL.defaultValue()))
+                    .withFallbackKeys(WebOptions.REFRESH_INTERVAL.key())
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Duration from write after which cached checkpoints statistics are cleaned up. For backwards compatibility, if no value is configured, %s will be used instead.",
+                                            code(WebOptions.REFRESH_INTERVAL.key()))
+                                    .build());
+
+    /** Maximum number of entries in the checkpoint statistics cache. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Integer> CACHE_CHECKPOINT_STATISTICS_SIZE =
+            key("rest.cache.checkpoint-statistics.size")
+                    .intType()
+                    .defaultValue(1000)
+                    .withDescription(
+                            "Maximum number of entries in the checkpoint statistics cache.");
 
     /** Enables the experimental flame graph feature. */
     @Documentation.Section(Documentation.Sections.EXPERT_REST)

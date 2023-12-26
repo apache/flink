@@ -39,6 +39,8 @@ public class RemoteTierProducerAgent implements TierProducerAgent {
 
     private final RemoteCacheManager cacheDataManager;
 
+    private final TieredStorageMemoryManager memoryManager;
+
     private final int[] currentSubpartitionSegmentWriteBuffers;
 
     RemoteTierProducerAgent(
@@ -56,6 +58,7 @@ public class RemoteTierProducerAgent implements TierProducerAgent {
 
         this.numSubpartitions = numSubpartitions;
         this.numBuffersPerSegment = numBytesPerSegment / bufferSizeBytes;
+        this.memoryManager = memoryManager;
         this.cacheDataManager =
                 new RemoteCacheManager(
                         partitionId,
@@ -75,12 +78,16 @@ public class RemoteTierProducerAgent implements TierProducerAgent {
     }
 
     @Override
-    public boolean tryWrite(TieredStorageSubpartitionId subpartitionId, Buffer buffer) {
+    public boolean tryWrite(
+            TieredStorageSubpartitionId subpartitionId, Buffer buffer, Object bufferOwner) {
         int subpartitionIndex = subpartitionId.getSubpartitionId();
         if (currentSubpartitionSegmentWriteBuffers[subpartitionIndex] + 1 > numBuffersPerSegment) {
             cacheDataManager.finishSegment(subpartitionIndex);
             currentSubpartitionSegmentWriteBuffers[subpartitionIndex] = 0;
             return false;
+        }
+        if (buffer.isBuffer()) {
+            memoryManager.transferBufferOwnership(bufferOwner, this, buffer);
         }
         currentSubpartitionSegmentWriteBuffers[subpartitionIndex]++;
         cacheDataManager.appendBuffer(buffer, subpartitionIndex);

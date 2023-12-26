@@ -97,7 +97,7 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
           range: {
             alias: 'Time',
             type: 'time',
-            mask: 'HH:mm:ss',
+            mask: 'HH:mm:ss.SSS',
             nice: false
           }
         });
@@ -155,7 +155,7 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
           range: {
             alias: 'Time',
             type: 'time',
-            mask: 'HH:mm:ss',
+            mask: 'HH:mm:ss.SSS',
             nice: false
           }
         });

@@ -293,10 +293,9 @@ public class AsyncWaitOperator<IN, OUT>
                 getOperatorStateBackend()
                         .getListState(
                                 new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));
-        partitionableState.clear();
 
         try {
-            partitionableState.addAll(queue.values());
+            partitionableState.update(queue.values());
         } catch (Exception e) {
             partitionableState.clear();
 

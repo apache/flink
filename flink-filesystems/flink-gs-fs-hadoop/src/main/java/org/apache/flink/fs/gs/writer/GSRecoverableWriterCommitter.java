@@ -31,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -52,6 +53,8 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
 
     /** The max number of blobs to compose in a single operation. */
     private final int composeMaxBlobs;
+
+    private List<GSBlobIdentifier> composedTempBlobIdentifiers = new ArrayList<>();
 
     GSRecoverableWriterCommitter(
             GSBlobStorage storage,
@@ -197,6 +200,7 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
                         BlobUtils.getTemporaryBlobIdentifier(
                                 recoverable.finalBlobIdentifier, temporaryObjectId, options);
                 composeBlobs(recoverable.getComponentBlobIds(options), intermediateBlobIdentifier);
+                composedTempBlobIdentifiers.add(intermediateBlobIdentifier);
                 storage.copy(intermediateBlobIdentifier, recoverable.finalBlobIdentifier);
             }
         }
@@ -212,16 +216,27 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
                 options,
                 recoverable);
 
-        // determine the partial name for the temporary objects to be deleted
+        List<GSBlobIdentifier> foundTempBlobIdentifiers = new ArrayList<>();
         String temporaryBucketName =
                 BlobUtils.getTemporaryBucketName(recoverable.finalBlobIdentifier, options);
-        String temporaryObjectPartialName =
-                BlobUtils.getTemporaryObjectPartialName(recoverable.finalBlobIdentifier);
 
-        // find all the temp blobs by looking for anything that starts with the temporary
-        // object partial name. doing it this way finds any orphaned temp blobs as well
-        List<GSBlobIdentifier> foundTempBlobIdentifiers =
-                storage.list(temporaryBucketName, temporaryObjectPartialName);
+        if (options.isFileSinkEntropyEnabled()) {
+            // if filesink entropy is enabled, we cannot find temp blobs with a fixed prefix.
+            // We should have a predefined list of temp blobs to delete.
+            if (!recoverable.finalBlobIdentifier.bucketName.equals(temporaryBucketName)) {
+                foundTempBlobIdentifiers.addAll(composedTempBlobIdentifiers);
+            }
+            foundTempBlobIdentifiers.addAll(recoverable.getComponentBlobIds(options));
+        } else {
+            // determine the partial name for the temporary objects to be deleted
+            String temporaryObjectPartialName =
+                    BlobUtils.getTemporaryObjectPartialName(recoverable.finalBlobIdentifier);
+
+            // find all the temp blobs by looking for anything that starts with the temporary
+            // object partial name. doing it this way finds any orphaned temp blobs as well
+            foundTempBlobIdentifiers =
+                    storage.list(temporaryBucketName, temporaryObjectPartialName);
+        }
         if (!foundTempBlobIdentifiers.isEmpty()) {
 
             // delete all the temp blobs, and populate the set with ones that were actually deleted

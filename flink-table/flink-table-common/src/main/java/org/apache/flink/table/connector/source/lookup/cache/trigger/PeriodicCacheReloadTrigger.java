@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.connector.source.lookup.cache.trigger;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ReadableConfig;
 
@@ -38,6 +39,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * A trigger that reloads cache entries periodically with specified interval and {@link
  * ScheduleMode}.
  */
+@PublicEvolving
 public class PeriodicCacheReloadTrigger implements CacheReloadTrigger {
     private static final long serialVersionUID = 1L;
 
@@ -128,6 +130,7 @@ public class PeriodicCacheReloadTrigger implements CacheReloadTrigger {
      * ScheduledExecutorService#scheduleWithFixedDelay(Runnable, long, long, TimeUnit) and {@link
      * ScheduledExecutorService#scheduleAtFixedRate(Runnable, long, long, TimeUnit)}}.
      */
+    @PublicEvolving
     public enum ScheduleMode {
         FIXED_DELAY, // reload interval is between the end of previous and start of the next reload
         FIXED_RATE // reload interval is between the start of previous and start of the next reload

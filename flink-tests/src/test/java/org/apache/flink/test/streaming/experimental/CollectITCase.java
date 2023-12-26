@@ -43,7 +43,7 @@ public class CollectITCase extends AbstractTestBase {
         env.setParallelism(1);
 
         final long n = 10;
-        DataStream<Long> stream = env.generateSequence(1, n);
+        DataStream<Long> stream = env.fromSequence(1, n);
 
         long i = 1;
         for (Iterator<Long> it = DataStreamUtils.collect(stream); it.hasNext(); ) {

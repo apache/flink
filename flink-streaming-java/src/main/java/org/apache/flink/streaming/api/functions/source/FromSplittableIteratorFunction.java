@@ -18,14 +18,19 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.util.SplittableIterator;
 
 import java.util.Iterator;
 
 /**
  * A {@link SourceFunction} that reads elements from an {@link SplittableIterator} and emits them.
+ *
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
+@Deprecated
 @PublicEvolving
 public class FromSplittableIteratorFunction<T> extends RichParallelSourceFunction<T> {
 
@@ -42,7 +47,7 @@ public class FromSplittableIteratorFunction<T> extends RichParallelSourceFunctio
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         int numberOfSubTasks = getRuntimeContext().getNumberOfParallelSubtasks();
         int indexofThisSubTask = getRuntimeContext().getIndexOfThisSubtask();
         iterator = fullIterator.split(numberOfSubTasks)[indexofThisSubTask];

@@ -21,10 +21,12 @@ package org.apache.flink.table.types.extraction;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.annotation.ProcedureHint;
 import org.apache.flink.table.catalog.DataTypeFactory;
 
 import javax.annotation.Nullable;
 
+import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.Function;
@@ -33,15 +35,13 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
 
 /**
- * Internal representation of a {@link FunctionHint}.
+ * Internal representation of a {@link FunctionHint} or {@link ProcedureHint}.
  *
  * <p>All parameters of a template are optional. An empty annotation results in a template where all
  * members are {@code null}.
  */
 @Internal
 final class FunctionTemplate {
-
-    private static final FunctionHint DEFAULT_ANNOTATION = getDefaultAnnotation();
 
     private final @Nullable FunctionSignatureTemplate signatureTemplate;
 
@@ -71,6 +71,21 @@ final class FunctionTemplate {
                         hint.isVarArgs()),
                 createResultTemplate(typeFactory, defaultAsNull(hint, FunctionHint::accumulator)),
                 createResultTemplate(typeFactory, defaultAsNull(hint, FunctionHint::output)));
+    }
+
+    /**
+     * Creates an instance using the given {@link ProcedureHint}. It resolves explicitly defined
+     * data types.
+     */
+    static FunctionTemplate fromAnnotation(DataTypeFactory typeFactory, ProcedureHint hint) {
+        return new FunctionTemplate(
+                createSignatureTemplate(
+                        typeFactory,
+                        defaultAsNull(hint, ProcedureHint::input),
+                        defaultAsNull(hint, ProcedureHint::argumentNames),
+                        hint.isVarArgs()),
+                null,
+                createResultTemplate(typeFactory, defaultAsNull(hint, ProcedureHint::output)));
     }
 
     /** Creates an instance of {@link FunctionResultTemplate} from a {@link DataTypeHint}. */
@@ -128,17 +143,27 @@ final class FunctionTemplate {
 
     // --------------------------------------------------------------------------------------------
 
+    @ProcedureHint
     @FunctionHint
     private static class DefaultAnnotationHelper {
         // no implementation
     }
 
-    private static FunctionHint getDefaultAnnotation() {
-        return DefaultAnnotationHelper.class.getAnnotation(FunctionHint.class);
+    private static <H extends Annotation> H getDefaultAnnotation(Class<H> hClass) {
+        return DefaultAnnotationHelper.class.getAnnotation(hClass);
     }
 
     private static <T> T defaultAsNull(FunctionHint hint, Function<FunctionHint, T> accessor) {
-        final T defaultValue = accessor.apply(DEFAULT_ANNOTATION);
+        return defaultAsNull(hint, getDefaultAnnotation(FunctionHint.class), accessor);
+    }
+
+    private static <T> T defaultAsNull(ProcedureHint hint, Function<ProcedureHint, T> accessor) {
+        return defaultAsNull(hint, getDefaultAnnotation(ProcedureHint.class), accessor);
+    }
+
+    private static <T, H extends Annotation> T defaultAsNull(
+            H hint, H defaultHint, Function<H, T> accessor) {
+        final T defaultValue = accessor.apply(defaultHint);
         final T actualValue = accessor.apply(hint);
         if (Objects.deepEquals(defaultValue, actualValue)) {
             return null;

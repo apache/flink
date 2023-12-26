@@ -35,16 +35,21 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGeneratorIterator;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-public abstract class ReOpenableHashTableTestBase extends TestLogger {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+
+abstract class ReOpenableHashTableTestBase {
 
     protected static final int PAGE_SIZE = 8 * 1024;
     protected static final long MEMORY_SIZE = PAGE_SIZE * 1000; // 100 Pages.
@@ -73,8 +78,8 @@ public abstract class ReOpenableHashTableTestBase extends TestLogger {
             pactRecordComparator;
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    @Before
-    public void beforeTest() {
+    @BeforeEach
+    void beforeTest() {
         this.recordSerializer = TestData.getIntStringTupleSerializer();
 
         this.record1Comparator = TestData.getIntStringTupleComparator();
@@ -98,17 +103,18 @@ public abstract class ReOpenableHashTableTestBase extends TestLogger {
         this.ioManager = new IOManagerAsync();
     }
 
-    @After
-    public void afterTest() throws Exception {
+    @AfterEach
+    void afterTest() throws Exception {
         if (this.ioManager != null) {
             this.ioManager.close();
             this.ioManager = null;
         }
 
         if (this.memoryManager != null) {
-            Assert.assertTrue(
-                    "Memory Leak: Not all memory has been returned to the memory manager.",
-                    this.memoryManager.verifyEmpty());
+            assertThat(this.memoryManager.verifyEmpty())
+                    .withFailMessage(
+                            "Memory Leak: Not all memory has been returned to the memory manager.")
+                    .isTrue();
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }
@@ -119,7 +125,7 @@ public abstract class ReOpenableHashTableTestBase extends TestLogger {
      * input is reopened again)
      */
     @Test
-    public void testOverflow() {
+    void testOverflow() {
 
         int buildSize = 1000;
         int probeSize = 1000;
@@ -134,13 +140,13 @@ public abstract class ReOpenableHashTableTestBase extends TestLogger {
             doTest(buildInput, probeInput, bgen, pgen);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
     /** Verify proper operation if the build side is spilled to disk. */
     @Test
-    public void testDoubleProbeSpilling() {
+    void testDoubleProbeSpilling() {
 
         int buildSize = 1000;
         int probeSize = 1000;
@@ -155,7 +161,7 @@ public abstract class ReOpenableHashTableTestBase extends TestLogger {
             doTest(buildInput, probeInput, bgen, pgen);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
@@ -164,7 +170,7 @@ public abstract class ReOpenableHashTableTestBase extends TestLogger {
      * the build side fits completely into memory.
      */
     @Test
-    public void testDoubleProbeInMemory() {
+    void testDoubleProbeInMemory() {
 
         int buildSize = 1000;
         int probeSize = 1000;
@@ -180,7 +186,7 @@ public abstract class ReOpenableHashTableTestBase extends TestLogger {
             doTest(buildInput, probeInput, bgen, pgen);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 

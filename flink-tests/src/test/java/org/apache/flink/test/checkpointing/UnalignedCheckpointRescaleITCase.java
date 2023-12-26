@@ -22,6 +22,7 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -32,7 +33,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -642,7 +642,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         ValueState<Long> state;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             state = getRuntimeContext().getState(DESC);
         }
 
@@ -667,8 +667,8 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         private ListState<Long> state;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             getRuntimeContext().addAccumulator(NUM_INPUTS, numInputCounter);
         }
 

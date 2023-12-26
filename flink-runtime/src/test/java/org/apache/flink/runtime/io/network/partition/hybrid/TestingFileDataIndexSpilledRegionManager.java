@@ -18,7 +18,8 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid;
 
-import org.apache.flink.runtime.io.network.partition.hybrid.HsFileDataIndexImpl.InternalRegion;
+import org.apache.flink.runtime.io.network.partition.hybrid.index.FileDataIndexRegionHelper;
+import org.apache.flink.runtime.io.network.partition.hybrid.index.FileDataIndexSpilledRegionManager;
 
 import javax.annotation.Nullable;
 
@@ -29,17 +30,17 @@ import java.util.List;
 import java.util.TreeMap;
 import java.util.function.BiConsumer;
 
-/** Mock {@link HsFileDataIndexSpilledRegionManager} for testing. */
-public class TestingFileDataIndexSpilledRegionManager
-        implements HsFileDataIndexSpilledRegionManager {
-    private final List<TreeMap<Integer, InternalRegion>> regions;
+/** Mock {@link FileDataIndexSpilledRegionManager} for testing. */
+public class TestingFileDataIndexSpilledRegionManager<T extends FileDataIndexRegionHelper.Region>
+        implements FileDataIndexSpilledRegionManager<T> {
+    private final List<TreeMap<Integer, T>> regions;
 
-    private final BiConsumer<Integer, InternalRegion> cacheRegionConsumer;
+    private final BiConsumer<Integer, T> cacheRegionConsumer;
 
     private int findRegionInvoked = 0;
 
     public TestingFileDataIndexSpilledRegionManager(
-            int numSubpartitions, BiConsumer<Integer, InternalRegion> cacheRegionConsumer) {
+            int numSubpartitions, BiConsumer<Integer, T> cacheRegionConsumer) {
         this.regions = new ArrayList<>();
         this.cacheRegionConsumer = cacheRegionConsumer;
         for (int i = 0; i < numSubpartitions; i++) {
@@ -48,7 +49,7 @@ public class TestingFileDataIndexSpilledRegionManager
     }
 
     @Nullable
-    public InternalRegion getRegion(int subpartition, int bufferIndex) {
+    public T getRegion(int subpartition, int bufferIndex) {
         return regions.get(subpartition).get(bufferIndex);
     }
 
@@ -61,15 +62,14 @@ public class TestingFileDataIndexSpilledRegionManager
     }
 
     @Override
-    public void appendOrOverwriteRegion(int subpartition, InternalRegion region)
-            throws IOException {
+    public void appendOrOverwriteRegion(int subpartition, T region) {
         regions.get(subpartition).put(region.getFirstBufferIndex(), region);
     }
 
     @Override
     public long findRegion(int subpartition, int bufferIndex, boolean loadToCache) {
         findRegionInvoked++;
-        InternalRegion region = regions.get(subpartition).get(bufferIndex);
+        T region = regions.get(subpartition).get(bufferIndex);
         if (region == null) {
             return -1;
         } else {
@@ -87,22 +87,22 @@ public class TestingFileDataIndexSpilledRegionManager
     }
 
     /** Factory of {@link TestingFileDataIndexSpilledRegionManager}. */
-    public static class Factory implements HsFileDataIndexSpilledRegionManager.Factory {
-        public static final Factory INSTANCE = new Factory();
+    public static class Factory<T extends FileDataIndexRegionHelper.Region>
+            implements FileDataIndexSpilledRegionManager.Factory<T> {
 
-        public TestingFileDataIndexSpilledRegionManager lastSpilledRegionManager;
+        public TestingFileDataIndexSpilledRegionManager<T> lastSpilledRegionManager;
 
-        public TestingFileDataIndexSpilledRegionManager getLastSpilledRegionManager() {
+        public TestingFileDataIndexSpilledRegionManager<T> getLastSpilledRegionManager() {
             return lastSpilledRegionManager;
         }
 
         @Override
-        public HsFileDataIndexSpilledRegionManager create(
+        public FileDataIndexSpilledRegionManager<T> create(
                 int numSubpartitions,
                 Path indexFilePath,
-                BiConsumer<Integer, InternalRegion> cacheRegionConsumer) {
-            TestingFileDataIndexSpilledRegionManager testingFileDataIndexSpilledRegionManager =
-                    new TestingFileDataIndexSpilledRegionManager(
+                BiConsumer<Integer, T> cacheRegionConsumer) {
+            TestingFileDataIndexSpilledRegionManager<T> testingFileDataIndexSpilledRegionManager =
+                    new TestingFileDataIndexSpilledRegionManager<>(
                             numSubpartitions, cacheRegionConsumer);
             lastSpilledRegionManager = testingFileDataIndexSpilledRegionManager;
             return testingFileDataIndexSpilledRegionManager;
