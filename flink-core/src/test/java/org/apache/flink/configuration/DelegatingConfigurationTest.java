@@ -141,4 +141,54 @@ class DelegatingConfigurationTest {
 
         assertThat(delegatingConf.set(CoreOptions.DEFAULT_PARALLELISM, 1)).isSameAs(delegatingConf);
     }
+
+    @Test
+    void testGetWithOverrideDefault() {
+        Configuration original = new Configuration();
+        final DelegatingConfiguration delegatingConf =
+                new DelegatingConfiguration(original, "prefix.");
+
+        // Test for integer
+        ConfigOption<Integer> integerOption =
+                ConfigOptions.key("integer.key").intType().noDefaultValue();
+
+        // integerOption doesn't exist in delegatingConf, and it should be overrideDefault.
+        original.setInteger(integerOption, 1);
+        assertThat(delegatingConf.getInteger(integerOption, 2)).isEqualTo(2);
+
+        // integerOption exists in delegatingConf, and it should be value that set before.
+        delegatingConf.setInteger(integerOption, 3);
+        assertThat(delegatingConf.getInteger(integerOption, 2)).isEqualTo(3);
+
+        // Test for float
+        ConfigOption<Float> floatOption =
+                ConfigOptions.key("float.key").floatType().noDefaultValue();
+        original.setFloat(floatOption, 4f);
+        assertThat(delegatingConf.getFloat(floatOption, 5f)).isEqualTo(5f);
+        delegatingConf.setFloat(floatOption, 6f);
+        assertThat(delegatingConf.getFloat(floatOption, 5f)).isEqualTo(6f);
+
+        // Test for double
+        ConfigOption<Double> doubleOption =
+                ConfigOptions.key("double.key").doubleType().noDefaultValue();
+        original.setDouble(doubleOption, 7d);
+        assertThat(delegatingConf.getDouble(doubleOption, 8d)).isEqualTo(8d);
+        delegatingConf.setDouble(doubleOption, 9f);
+        assertThat(delegatingConf.getDouble(doubleOption, 8d)).isEqualTo(9f);
+
+        // Test for long
+        ConfigOption<Long> longOption = ConfigOptions.key("long.key").longType().noDefaultValue();
+        original.setLong(longOption, 10L);
+        assertThat(delegatingConf.getLong(longOption, 11L)).isEqualTo(11L);
+        delegatingConf.setLong(longOption, 12L);
+        assertThat(delegatingConf.getLong(longOption, 11L)).isEqualTo(12L);
+
+        // Test for boolean
+        ConfigOption<Boolean> booleanOption =
+                ConfigOptions.key("boolean.key").booleanType().noDefaultValue();
+        original.setBoolean(booleanOption, false);
+        assertThat(delegatingConf.getBoolean(booleanOption, true)).isEqualTo(true);
+        delegatingConf.setBoolean(booleanOption, false);
+        assertThat(delegatingConf.getBoolean(booleanOption, true)).isEqualTo(false);
+    }
 }
