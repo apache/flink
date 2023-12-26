@@ -137,8 +137,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * The StreamExecutionEnvironment is the context in which a streaming program is executed. A {@link
  * LocalStreamEnvironment} will cause execution in the current JVM, a {@link
@@ -289,8 +287,8 @@ public class StreamExecutionEnvironment implements AutoCloseable {
             final PipelineExecutorServiceLoader executorServiceLoader,
             final Configuration configuration,
             final ClassLoader userClassloader) {
-        this.executorServiceLoader = checkNotNull(executorServiceLoader);
-        this.configuration = new Configuration(checkNotNull(configuration));
+        this.executorServiceLoader = Preconditions.checkNotNull(executorServiceLoader);
+        this.configuration = new Configuration(Preconditions.checkNotNull(configuration));
         this.userClassloader =
                 userClassloader == null ? getClass().getClassLoader() : userClassloader;
 
@@ -360,7 +358,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public StreamExecutionEnvironment setRuntimeMode(final RuntimeExecutionMode executionMode) {
-        checkNotNull(executionMode);
+        Preconditions.checkNotNull(executionMode);
         configuration.set(ExecutionOptions.RUNTIME_MODE, executionMode);
         return this;
     }
@@ -2218,9 +2216,9 @@ public class StreamExecutionEnvironment implements AutoCloseable {
             final String sourceName,
             @Nullable final TypeInformation<OUT> typeInfo,
             final Boundedness boundedness) {
-        checkNotNull(function);
-        checkNotNull(sourceName);
-        checkNotNull(boundedness);
+        Preconditions.checkNotNull(function);
+        Preconditions.checkNotNull(sourceName);
+        Preconditions.checkNotNull(boundedness);
 
         TypeInformation<OUT> resolvedTypeInfo =
                 getTypeInfo(function, sourceName, SourceFunction.class, typeInfo);
@@ -2290,10 +2288,10 @@ public class StreamExecutionEnvironment implements AutoCloseable {
 
         return new DataStreamSource<>(
                 this,
-                checkNotNull(source, "source"),
-                checkNotNull(timestampsAndWatermarks, "timestampsAndWatermarks"),
-                checkNotNull(resolvedTypeInfo),
-                checkNotNull(sourceName));
+                Preconditions.checkNotNull(source, "source"),
+                Preconditions.checkNotNull(timestampsAndWatermarks, "timestampsAndWatermarks"),
+                Preconditions.checkNotNull(resolvedTypeInfo),
+                Preconditions.checkNotNull(sourceName));
     }
 
     /**
@@ -2406,7 +2404,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public void registerJobListener(JobListener jobListener) {
-        checkNotNull(jobListener, "JobListener cannot be null");
+        Preconditions.checkNotNull(jobListener, "JobListener cannot be null");
         jobListeners.add(jobListener);
     }
 
@@ -2465,7 +2463,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @Internal
     public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
-        checkNotNull(streamGraph, "StreamGraph cannot be null.");
+        Preconditions.checkNotNull(streamGraph, "StreamGraph cannot be null.");
         final PipelineExecutor executor = getPipelineExecutor();
 
         CompletableFuture<JobClient> jobClientFuture =
@@ -2749,7 +2747,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public static StreamExecutionEnvironment createLocalEnvironmentWithWebUI(Configuration conf) {
-        checkNotNull(conf, "conf");
+        Preconditions.checkNotNull(conf, "conf");
 
         if (!conf.contains(RestOptions.PORT)) {
             // explicitly set this option so that it's not set to 0 later
@@ -2986,14 +2984,14 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     }
 
     private PipelineExecutor getPipelineExecutor() throws Exception {
-        checkNotNull(
+        Preconditions.checkNotNull(
                 configuration.get(DeploymentOptions.TARGET),
                 "No execution.target specified in your configuration file.");
 
         final PipelineExecutorFactory executorFactory =
                 executorServiceLoader.getExecutorFactory(configuration);
 
-        checkNotNull(
+        Preconditions.checkNotNull(
                 executorFactory,
                 "Cannot find compatible factory for specified execution.target (=%s)",
                 configuration.get(DeploymentOptions.TARGET));
