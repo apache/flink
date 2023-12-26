@@ -117,7 +117,7 @@ public final class DelegatingConfiguration extends Configuration {
 
     @Override
     public int getInteger(ConfigOption<Integer> configOption, int overrideDefault) {
-        return this.backingConfig.getInteger(configOption, overrideDefault);
+        return this.backingConfig.getInteger(prefixOption(configOption, prefix), overrideDefault);
     }
 
     @Override
@@ -142,7 +142,7 @@ public final class DelegatingConfiguration extends Configuration {
 
     @Override
     public long getLong(ConfigOption<Long> configOption, long overrideDefault) {
-        return this.backingConfig.getLong(configOption, overrideDefault);
+        return this.backingConfig.getLong(prefixOption(configOption, prefix), overrideDefault);
     }
 
     @Override
@@ -177,7 +177,7 @@ public final class DelegatingConfiguration extends Configuration {
 
     @Override
     public boolean getBoolean(ConfigOption<Boolean> configOption, boolean overrideDefault) {
-        return this.backingConfig.getBoolean(configOption, overrideDefault);
+        return this.backingConfig.getBoolean(prefixOption(configOption, prefix), overrideDefault);
     }
 
     @Override
@@ -192,7 +192,7 @@ public final class DelegatingConfiguration extends Configuration {
 
     @Override
     public float getFloat(ConfigOption<Float> configOption, float overrideDefault) {
-        return this.backingConfig.getFloat(configOption, overrideDefault);
+        return this.backingConfig.getFloat(prefixOption(configOption, prefix), overrideDefault);
     }
 
     @Override
@@ -217,7 +217,7 @@ public final class DelegatingConfiguration extends Configuration {
 
     @Override
     public double getDouble(ConfigOption<Double> configOption, double overrideDefault) {
-        return this.backingConfig.getDouble(configOption, overrideDefault);
+        return this.backingConfig.getDouble(prefixOption(configOption, prefix), overrideDefault);
     }
 
     @Override
