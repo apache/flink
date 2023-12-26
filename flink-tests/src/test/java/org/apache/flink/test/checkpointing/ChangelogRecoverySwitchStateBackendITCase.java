@@ -93,7 +93,12 @@ public class ChangelogRecoverySwitchStateBackendITCase extends ChangelogRecovery
         File firstCheckpointFolder = TEMPORARY_FOLDER.newFolder();
         MiniCluster miniCluster = cluster.getMiniCluster();
         StreamExecutionEnvironment env1 =
-                getEnv(delegatedStateBackend, firstCheckpointFolder, false, 100, -1);
+                getEnv(
+                        delegatedStateBackend,
+                        firstCheckpointFolder,
+                        false,
+                        100,
+                        Duration.ofNanos(Long.MAX_VALUE /* max allowed by FLINK */).toMillis());
         SharedReference<MiniCluster> miniClusterRef = sharedObjects.add(miniCluster);
 
         JobGraph firstJobGraph =
@@ -113,7 +118,12 @@ public class ChangelogRecoverySwitchStateBackendITCase extends ChangelogRecovery
         // 1st restore, switch from disable to enable.
         File secondCheckpointFolder = TEMPORARY_FOLDER.newFolder();
         StreamExecutionEnvironment env2 =
-                getEnv(delegatedStateBackend, secondCheckpointFolder, true, 100, -1);
+                getEnv(
+                        delegatedStateBackend,
+                        secondCheckpointFolder,
+                        true,
+                        100,
+                        Duration.ofNanos(Long.MAX_VALUE /* max allowed by FLINK */).toMillis());
         JobGraph secondJobGraph =
                 buildJobGraph(env2, TOTAL_ELEMENTS / 3, TOTAL_ELEMENTS / 2, miniClusterRef);
         setSavepointRestoreSettings(secondJobGraph, firstRestorePath);

@@ -140,7 +140,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                             Duration.ofMillis(500),
                             Duration.ofSeconds(1),
                             Duration.ofSeconds(5),
-                            Duration.ofSeconds(-1));
+                            Duration.ofNanos(Long.MAX_VALUE /* max allowed by FLINK */));
                     miniCluster.overrideRestoreModeForChangelogStateBackend();
                 }
             }

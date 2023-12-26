@@ -30,6 +30,7 @@ import org.apache.flink.util.Preconditions;
 import org.junit.Test;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -54,7 +55,13 @@ public class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
         SharedReference<AtomicBoolean> hasMaterialization =
                 sharedObjects.add(new AtomicBoolean(true));
         StreamExecutionEnvironment env =
-                getEnv(delegatedStateBackend, checkpointFolder, 1000, 1, -1, 0);
+                getEnv(
+                        delegatedStateBackend,
+                        checkpointFolder,
+                        1000,
+                        1,
+                        Duration.ofNanos(Long.MAX_VALUE /* max allowed by FLINK */).toMillis(),
+                        0);
         waitAndAssert(
                 buildJobGraph(
                         env,
