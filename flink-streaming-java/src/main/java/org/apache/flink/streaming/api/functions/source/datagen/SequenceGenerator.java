@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.functions.source.datagen;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -64,13 +65,24 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
     /**
      * Creates a DataGenerator that emits all numbers from the given interval exactly once.
      *
-     * @param start Start of the range of numbers to emit.
-     * @param end End of the range of numbers to emit.
+     * @param inclStart Start of the range of numbers to emit.
+     * @param inclEnd End of the range of numbers to emit.
      */
-    public SequenceGenerator(long start, long end) {
-        this.start = start;
-        this.end = end;
+    public SequenceGenerator(long inclStart, long inclEnd) {
+        Preconditions.checkArgument(
+                inclEnd > inclStart,
+                "The start value (%s) cannot be greater than the end value (%s).",
+                inclStart,
+                inclEnd);
+        Preconditions.checkArgument(
+                inclEnd - inclStart <= Long.MAX_VALUE - 1,
+                "The total size of range (%s, %s) exceeds the maximum limit: Long.MAX_VALUE - 1.",
+                inclStart,
+                inclEnd);
+        this.start = inclStart;
+        this.end = inclEnd;
         this.subTaskStates = Queues.newPriorityQueue();
+
     }
 
     @Override
@@ -96,7 +108,7 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
             // The first time the job is executed.
             final int startOffset = runtimeContext.getIndexOfThisSubtask();
             final long stepSize = runtimeContext.getNumberOfParallelSubtasks();
-            SubTaskState state = new SubTaskState(stepSize, start + startOffset);
+            final SubTaskState state = new SubTaskState(stepSize, start + startOffset);
             subTaskStates.offer(state);
         }
     }
@@ -108,7 +120,7 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
         }
 
         final SubTaskState state = subTaskStates.poll();
-        long currentValue = state.nextValue;
+        final long currentValue = state.nextValue;
 
         try {
             state.nextValue = Math.addExact(currentValue, state.stepSize);
