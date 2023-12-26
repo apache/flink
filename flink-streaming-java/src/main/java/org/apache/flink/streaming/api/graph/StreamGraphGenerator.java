@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.SlotSharingGroupUtils;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -93,6 +92,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -168,18 +168,9 @@ public class StreamGraphGenerator {
 
     private CheckpointStorage checkpointStorage;
 
-    private boolean chaining = true;
-
-    private boolean chainingOfOperatorsWithDifferentMaxParallelism = true;
-
-    private Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts =
-            Collections.emptyList();
-
     private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
     private SavepointRestoreSettings savepointRestoreSettings;
-
-    private long defaultBufferTimeout = ExecutionOptions.BUFFER_TIMEOUT.defaultValue().toMillis();
 
     private boolean shouldExecuteInBatchMode;
 
@@ -266,31 +257,8 @@ public class StreamGraphGenerator {
         return this;
     }
 
-    public StreamGraphGenerator setChaining(boolean chaining) {
-        this.chaining = chaining;
-        return this;
-    }
-
-    public StreamGraphGenerator setChainingOfOperatorsWithDifferentMaxParallelism(
-            boolean chainingOfOperatorsWithDifferentMaxParallelism) {
-        this.chainingOfOperatorsWithDifferentMaxParallelism =
-                chainingOfOperatorsWithDifferentMaxParallelism;
-        return this;
-    }
-
-    public StreamGraphGenerator setUserArtifacts(
-            Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts) {
-        this.userArtifacts = checkNotNull(userArtifacts);
-        return this;
-    }
-
     public StreamGraphGenerator setTimeCharacteristic(TimeCharacteristic timeCharacteristic) {
         this.timeCharacteristic = timeCharacteristic;
-        return this;
-    }
-
-    public StreamGraphGenerator setDefaultBufferTimeout(long defaultBufferTimeout) {
-        this.defaultBufferTimeout = defaultBufferTimeout;
         return this;
     }
 
@@ -370,10 +338,6 @@ public class StreamGraphGenerator {
     private void configureStreamGraph(final StreamGraph graph) {
         checkNotNull(graph);
 
-        graph.setChaining(chaining);
-        graph.setChainingOfOperatorsWithDifferentMaxParallelism(
-                chainingOfOperatorsWithDifferentMaxParallelism);
-        graph.setUserArtifacts(userArtifacts);
         graph.setTimeCharacteristic(timeCharacteristic);
         graph.setVertexDescriptionMode(configuration.get(PipelineOptions.VERTEX_DESCRIPTION_MODE));
         graph.setVertexNameIncludeIndexPrefix(
@@ -387,7 +351,9 @@ public class StreamGraphGenerator {
 
         if (shouldExecuteInBatchMode) {
             configureStreamGraphBatch(graph);
-            setDefaultBufferTimeout(-1);
+            configuration.set(
+                    ExecutionOptions.BUFFER_TIMEOUT,
+                    Duration.ofMillis(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT));
         } else {
             configureStreamGraphStreaming(graph);
         }
@@ -616,7 +582,9 @@ public class StreamGraphGenerator {
         if (transform.getBufferTimeout() >= 0) {
             streamGraph.setBufferTimeout(transform.getId(), transform.getBufferTimeout());
         } else {
-            streamGraph.setBufferTimeout(transform.getId(), defaultBufferTimeout);
+            streamGraph.setBufferTimeout(
+                    transform.getId(),
+                    configuration.get(ExecutionOptions.BUFFER_TIMEOUT).toMillis());
         }
 
         if (transform.getUid() != null) {
@@ -957,7 +925,10 @@ public class StreamGraphGenerator {
 
         @Override
         public long getDefaultBufferTimeout() {
-            return streamGraphGenerator.defaultBufferTimeout;
+            return streamGraphGenerator
+                    .configuration
+                    .get(ExecutionOptions.BUFFER_TIMEOUT)
+                    .toMillis();
         }
 
         @Override
