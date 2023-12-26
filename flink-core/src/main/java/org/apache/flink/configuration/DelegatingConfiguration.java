@@ -90,7 +90,7 @@ public final class DelegatingConfiguration extends Configuration {
 
     @Override
     public void setString(ConfigOption<String> key, String value) {
-        this.backingConfig.setString(prefix + key.key(), value);
+        this.backingConfig.setString(prefixOption(key, prefix), value);
     }
 
     @Override
@@ -127,7 +127,7 @@ public final class DelegatingConfiguration extends Configuration {
 
     @Override
     public void setInteger(ConfigOption<Integer> key, int value) {
-        this.backingConfig.setInteger(prefix + key.key(), value);
+        this.backingConfig.setInteger(prefixOption(key, prefix), value);
     }
 
     @Override
@@ -152,7 +152,7 @@ public final class DelegatingConfiguration extends Configuration {
 
     @Override
     public void setLong(ConfigOption<Long> key, long value) {
-        this.backingConfig.setLong(prefix + key.key(), value);
+        this.backingConfig.setLong(prefixOption(key, prefix), value);
     }
 
     @Override
@@ -172,7 +172,7 @@ public final class DelegatingConfiguration extends Configuration {
 
     @Override
     public void setBoolean(ConfigOption<Boolean> key, boolean value) {
-        this.backingConfig.setBoolean(prefix + key.key(), value);
+        this.backingConfig.setBoolean(prefixOption(key, prefix), value);
     }
 
     @Override
@@ -202,7 +202,7 @@ public final class DelegatingConfiguration extends Configuration {
 
     @Override
     public void setFloat(ConfigOption<Float> key, float value) {
-        this.backingConfig.setFloat(prefix + key.key(), value);
+        this.backingConfig.setFloat(prefixOption(key, prefix), value);
     }
 
     @Override
@@ -227,7 +227,7 @@ public final class DelegatingConfiguration extends Configuration {
 
     @Override
     public void setDouble(ConfigOption<Double> key, double value) {
-        this.backingConfig.setDouble(prefix + key.key(), value);
+        this.backingConfig.setDouble(prefixOption(key, prefix), value);
     }
 
     @Override
