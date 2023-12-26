@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.functions.source.datagen;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -82,7 +81,6 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
         this.start = inclStart;
         this.end = inclEnd;
         this.subTaskStates = Queues.newPriorityQueue();
-
     }
 
     @Override
