@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Fail.fail;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
@@ -98,21 +99,16 @@ class StateDescriptorTest {
         final TestStateDescriptor<String> descr = new TestStateDescriptor<>("test", String.class);
 
         assertThat(descr.isSerializerInitialized()).isFalse();
-        try {
-            descr.getSerializer();
-            fail("should fail with an exception");
-        } catch (IllegalStateException ignored) {
-        }
+        assertThatThrownBy(descr::getSerializer)
+                .isInstanceOf(IllegalStateException.class)
+                .describedAs("should fail with an exception");
 
         TestStateDescriptor<String> clone = CommonTestUtils.createCopySerializable(descr);
 
         assertThat(clone.isSerializerInitialized()).isFalse();
-        try {
-            clone.getSerializer();
-            fail("should fail with an exception");
-        } catch (IllegalStateException ignored) {
-        }
-
+        assertThatThrownBy(clone::getSerializer)
+                .isInstanceOf(IllegalStateException.class)
+                .describedAs("should fail with an exception");
         clone.initializeSerializerUnlessSet(new ExecutionConfig());
 
         assertThat(clone.isSerializerInitialized()).isTrue();

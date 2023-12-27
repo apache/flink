@@ -43,13 +43,12 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Fail.fail;
 
 /** The test for inner join operator. */
 public class InnerJoinOperatorBaseTest implements Serializable {
 
     @Test
-    void testJoinPlain() {
+    void testJoinPlain() throws Exception {
         final FlatJoinFunction<String, String, Integer> joiner =
                 (first, second, out) -> {
                     out.collect(first.length());
@@ -73,25 +72,20 @@ public class InnerJoinOperatorBaseTest implements Serializable {
         List<String> inputData2 = new ArrayList<>(Arrays.asList("foobar", "foo"));
         List<Integer> expected = new ArrayList<>(Arrays.asList(3, 3, 6, 6));
 
-        try {
-            ExecutionConfig executionConfig = new ExecutionConfig();
-            executionConfig.disableObjectReuse();
-            List<Integer> resultSafe =
-                    base.executeOnCollections(inputData1, inputData2, null, executionConfig);
-            executionConfig.enableObjectReuse();
-            List<Integer> resultRegular =
-                    base.executeOnCollections(inputData1, inputData2, null, executionConfig);
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        executionConfig.disableObjectReuse();
+        List<Integer> resultSafe =
+                base.executeOnCollections(inputData1, inputData2, null, executionConfig);
+        executionConfig.enableObjectReuse();
+        List<Integer> resultRegular =
+                base.executeOnCollections(inputData1, inputData2, null, executionConfig);
 
-            assertThat(resultSafe).isEqualTo(expected);
-            assertThat(resultRegular).isEqualTo(expected);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThat(resultSafe).isEqualTo(expected);
+        assertThat(resultRegular).isEqualTo(expected);
     }
 
     @Test
-    void testJoinRich() {
+    void testJoinRich() throws Exception {
         final AtomicBoolean opened = new AtomicBoolean(false);
         final AtomicBoolean closed = new AtomicBoolean(false);
         final String taskName = "Test rich join function";
@@ -134,47 +128,42 @@ public class InnerJoinOperatorBaseTest implements Serializable {
         final List<String> inputData2 = new ArrayList<>(Arrays.asList("foobar", "foo"));
         final List<Integer> expected = new ArrayList<>(Arrays.asList(3, 3, 6, 6));
 
-        try {
-            final TaskInfo taskInfo = new TaskInfoImpl(taskName, 1, 0, 1, 0);
-            final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<>();
-            final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
+        final TaskInfo taskInfo = new TaskInfoImpl(taskName, 1, 0, 1, 0);
+        final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<>();
+        final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
 
-            ExecutionConfig executionConfig = new ExecutionConfig();
+        ExecutionConfig executionConfig = new ExecutionConfig();
 
-            executionConfig.disableObjectReuse();
-            List<Integer> resultSafe =
-                    base.executeOnCollections(
-                            inputData1,
-                            inputData2,
-                            new RuntimeUDFContext(
-                                    taskInfo,
-                                    null,
-                                    executionConfig,
-                                    cpTasks,
-                                    accumulatorMap,
-                                    UnregisteredMetricsGroup.createOperatorMetricGroup()),
-                            executionConfig);
+        executionConfig.disableObjectReuse();
+        List<Integer> resultSafe =
+                base.executeOnCollections(
+                        inputData1,
+                        inputData2,
+                        new RuntimeUDFContext(
+                                taskInfo,
+                                null,
+                                executionConfig,
+                                cpTasks,
+                                accumulatorMap,
+                                UnregisteredMetricsGroup.createOperatorMetricGroup()),
+                        executionConfig);
 
-            executionConfig.enableObjectReuse();
-            List<Integer> resultRegular =
-                    base.executeOnCollections(
-                            inputData1,
-                            inputData2,
-                            new RuntimeUDFContext(
-                                    taskInfo,
-                                    null,
-                                    executionConfig,
-                                    cpTasks,
-                                    accumulatorMap,
-                                    UnregisteredMetricsGroup.createOperatorMetricGroup()),
-                            executionConfig);
+        executionConfig.enableObjectReuse();
+        List<Integer> resultRegular =
+                base.executeOnCollections(
+                        inputData1,
+                        inputData2,
+                        new RuntimeUDFContext(
+                                taskInfo,
+                                null,
+                                executionConfig,
+                                cpTasks,
+                                accumulatorMap,
+                                UnregisteredMetricsGroup.createOperatorMetricGroup()),
+                        executionConfig);
 
-            assertThat(resultSafe).isEqualTo(expected);
-            assertThat(resultRegular).isEqualTo(expected);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThat(resultSafe).isEqualTo(expected);
+        assertThat(resultRegular).isEqualTo(expected);
 
         assertThat(opened.get()).isTrue();
         assertThat(closed.get()).isTrue();

@@ -42,116 +42,105 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Fail.fail;
 
 /** The test for map operator. */
 public class MapOperatorTest implements java.io.Serializable {
 
     @Test
-    void testMapPlain() {
-        try {
-            final MapFunction<String, Integer> parser = Integer::parseInt;
+    void testMapPlain() throws Exception {
+        final MapFunction<String, Integer> parser = Integer::parseInt;
 
-            MapOperatorBase<String, Integer, MapFunction<String, Integer>> op =
-                    new MapOperatorBase<>(
-                            parser,
-                            new UnaryOperatorInformation<>(
-                                    BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
-                            "TestMapper");
+        MapOperatorBase<String, Integer, MapFunction<String, Integer>> op =
+                new MapOperatorBase<>(
+                        parser,
+                        new UnaryOperatorInformation<>(
+                                BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
+                        "TestMapper");
 
-            List<String> input = new ArrayList<>(asList("1", "2", "3", "4", "5", "6"));
+        List<String> input = new ArrayList<>(asList("1", "2", "3", "4", "5", "6"));
 
-            ExecutionConfig executionConfig = new ExecutionConfig();
-            executionConfig.disableObjectReuse();
-            List<Integer> resultMutableSafe = op.executeOnCollections(input, null, executionConfig);
-            executionConfig.enableObjectReuse();
-            List<Integer> resultRegular = op.executeOnCollections(input, null, executionConfig);
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        executionConfig.disableObjectReuse();
+        List<Integer> resultMutableSafe = op.executeOnCollections(input, null, executionConfig);
+        executionConfig.enableObjectReuse();
+        List<Integer> resultRegular = op.executeOnCollections(input, null, executionConfig);
 
-            assertThat(resultMutableSafe).isEqualTo(asList(1, 2, 3, 4, 5, 6));
-            assertThat(resultRegular).isEqualTo(asList(1, 2, 3, 4, 5, 6));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThat(resultMutableSafe).isEqualTo(asList(1, 2, 3, 4, 5, 6));
+        assertThat(resultRegular).isEqualTo(asList(1, 2, 3, 4, 5, 6));
     }
 
     @Test
-    void testMapWithRuntimeContext() {
-        try {
-            final String taskName = "Test Task";
-            final AtomicBoolean opened = new AtomicBoolean();
-            final AtomicBoolean closed = new AtomicBoolean();
+    void testMapWithRuntimeContext() throws Exception {
+        final String taskName = "Test Task";
+        final AtomicBoolean opened = new AtomicBoolean();
+        final AtomicBoolean closed = new AtomicBoolean();
 
-            final MapFunction<String, Integer> parser =
-                    new RichMapFunction<String, Integer>() {
+        final MapFunction<String, Integer> parser =
+                new RichMapFunction<String, Integer>() {
 
-                        @Override
-                        public void open(OpenContext openContext) {
-                            opened.set(true);
-                            RuntimeContext ctx = getRuntimeContext();
-                            assertThat(ctx.getTaskInfo().getIndexOfThisSubtask()).isZero();
-                            assertThat(ctx.getTaskInfo().getNumberOfParallelSubtasks()).isEqualTo(1);
-                            assertThat(ctx.getTaskInfo().getTaskName()).isEqualTo(taskName);
-                        }
+                    @Override
+                    public void open(OpenContext openContext) {
+                        opened.set(true);
+                        RuntimeContext ctx = getRuntimeContext();
+                        assertThat(ctx.getTaskInfo().getIndexOfThisSubtask()).isZero();
+                        assertThat(ctx.getTaskInfo().getNumberOfParallelSubtasks()).isEqualTo(1);
+                        assertThat(ctx.getTaskInfo().getTaskName()).isEqualTo(taskName);
+                    }
 
-                        @Override
-                        public Integer map(String value) {
-                            return Integer.parseInt(value);
-                        }
+                    @Override
+                    public Integer map(String value) {
+                        return Integer.parseInt(value);
+                    }
 
-                        @Override
-                        public void close() {
-                            closed.set(true);
-                        }
-                    };
+                    @Override
+                    public void close() {
+                        closed.set(true);
+                    }
+                };
 
-            MapOperatorBase<String, Integer, MapFunction<String, Integer>> op =
-                    new MapOperatorBase<>(
-                            parser,
-                            new UnaryOperatorInformation<>(
-                                    BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
-                            taskName);
+        MapOperatorBase<String, Integer, MapFunction<String, Integer>> op =
+                new MapOperatorBase<>(
+                        parser,
+                        new UnaryOperatorInformation<>(
+                                BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
+                        taskName);
 
-            List<String> input = new ArrayList<>(asList("1", "2", "3", "4", "5", "6"));
-            final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<>();
-            final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
-            final TaskInfo taskInfo = new TaskInfoImpl(taskName, 1, 0, 1, 0);
-            ExecutionConfig executionConfig = new ExecutionConfig();
-            executionConfig.disableObjectReuse();
+        List<String> input = new ArrayList<>(asList("1", "2", "3", "4", "5", "6"));
+        final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<>();
+        final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
+        final TaskInfo taskInfo = new TaskInfoImpl(taskName, 1, 0, 1, 0);
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        executionConfig.disableObjectReuse();
 
-            List<Integer> resultMutableSafe =
-                    op.executeOnCollections(
-                            input,
-                            new RuntimeUDFContext(
-                                    taskInfo,
-                                    null,
-                                    executionConfig,
-                                    cpTasks,
-                                    accumulatorMap,
-                                    UnregisteredMetricsGroup.createOperatorMetricGroup()),
-                            executionConfig);
+        List<Integer> resultMutableSafe =
+                op.executeOnCollections(
+                        input,
+                        new RuntimeUDFContext(
+                                taskInfo,
+                                null,
+                                executionConfig,
+                                cpTasks,
+                                accumulatorMap,
+                                UnregisteredMetricsGroup.createOperatorMetricGroup()),
+                        executionConfig);
 
-            executionConfig.enableObjectReuse();
-            List<Integer> resultRegular =
-                    op.executeOnCollections(
-                            input,
-                            new RuntimeUDFContext(
-                                    taskInfo,
-                                    null,
-                                    executionConfig,
-                                    cpTasks,
-                                    accumulatorMap,
-                                    UnregisteredMetricsGroup.createOperatorMetricGroup()),
-                            executionConfig);
+        executionConfig.enableObjectReuse();
+        List<Integer> resultRegular =
+                op.executeOnCollections(
+                        input,
+                        new RuntimeUDFContext(
+                                taskInfo,
+                                null,
+                                executionConfig,
+                                cpTasks,
+                                accumulatorMap,
+                                UnregisteredMetricsGroup.createOperatorMetricGroup()),
+                        executionConfig);
 
-            assertThat(resultMutableSafe).isEqualTo(asList(1, 2, 3, 4, 5, 6));
-            assertThat(resultRegular).isEqualTo(asList(1, 2, 3, 4, 5, 6));
+        assertThat(resultMutableSafe).isEqualTo(asList(1, 2, 3, 4, 5, 6));
+        assertThat(resultRegular).isEqualTo(asList(1, 2, 3, 4, 5, 6));
 
-            assertThat(opened.get()).isTrue();
-            assertThat(closed.get()).isTrue();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThat(opened.get()).isTrue();
+        assertThat(closed.get()).isTrue();
     }
 }

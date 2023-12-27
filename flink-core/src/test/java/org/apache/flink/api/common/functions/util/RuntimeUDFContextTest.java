@@ -42,170 +42,142 @@ class RuntimeUDFContextTest {
 
     @Test
     void testBroadcastVariableNotFound() {
-        try {
-            RuntimeUDFContext ctx =
-                    new RuntimeUDFContext(
-                            taskInfo,
-                            getClass().getClassLoader(),
-                            new ExecutionConfig(),
-                            new HashMap<>(),
-                            new HashMap<>(),
-                            UnregisteredMetricsGroup.createOperatorMetricGroup());
+        RuntimeUDFContext ctx =
+                new RuntimeUDFContext(
+                        taskInfo,
+                        getClass().getClassLoader(),
+                        new ExecutionConfig(),
+                        new HashMap<>(),
+                        new HashMap<>(),
+                        UnregisteredMetricsGroup.createOperatorMetricGroup());
 
-            assertThat(ctx.hasBroadcastVariable("some name")).isFalse();
+        assertThat(ctx.hasBroadcastVariable("some name")).isFalse();
 
-            assertThatThrownBy(() -> ctx.getBroadcastVariable("some name"))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("some name");
+        assertThatThrownBy(() -> ctx.getBroadcastVariable("some name"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("some name");
 
-            assertThatThrownBy(
-                            () ->
-                                    ctx.getBroadcastVariableWithInitializer(
-                                            "some name", data -> null))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("some name");
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThatThrownBy(() -> ctx.getBroadcastVariableWithInitializer("some name", data -> null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("some name");
     }
 
     @Test
     void testBroadcastVariableSimple() {
-        try {
-            RuntimeUDFContext ctx =
-                    new RuntimeUDFContext(
-                            taskInfo,
-                            getClass().getClassLoader(),
-                            new ExecutionConfig(),
-                            new HashMap<>(),
-                            new HashMap<>(),
-                            UnregisteredMetricsGroup.createOperatorMetricGroup());
+        RuntimeUDFContext ctx =
+                new RuntimeUDFContext(
+                        taskInfo,
+                        getClass().getClassLoader(),
+                        new ExecutionConfig(),
+                        new HashMap<>(),
+                        new HashMap<>(),
+                        UnregisteredMetricsGroup.createOperatorMetricGroup());
 
-            ctx.setBroadcastVariable("name1", Arrays.asList(1, 2, 3, 4));
-            ctx.setBroadcastVariable("name2", Arrays.asList(1.0, 2.0, 3.0, 4.0));
+        ctx.setBroadcastVariable("name1", Arrays.asList(1, 2, 3, 4));
+        ctx.setBroadcastVariable("name2", Arrays.asList(1.0, 2.0, 3.0, 4.0));
 
-            assertThat(ctx.hasBroadcastVariable("name1")).isTrue();
-            assertThat(ctx.hasBroadcastVariable("name2")).isTrue();
+        assertThat(ctx.hasBroadcastVariable("name1")).isTrue();
+        assertThat(ctx.hasBroadcastVariable("name2")).isTrue();
 
-            List<Integer> list1 = ctx.getBroadcastVariable("name1");
-            List<Double> list2 = ctx.getBroadcastVariable("name2");
+        List<Integer> list1 = ctx.getBroadcastVariable("name1");
+        List<Double> list2 = ctx.getBroadcastVariable("name2");
 
-            assertThat(list1).isEqualTo(Arrays.asList(1, 2, 3, 4));
-            assertThat(list2).isEqualTo(Arrays.asList(1.0, 2.0, 3.0, 4.0));
+        assertThat(list1).isEqualTo(Arrays.asList(1, 2, 3, 4));
+        assertThat(list2).isEqualTo(Arrays.asList(1.0, 2.0, 3.0, 4.0));
 
-            // access again
-            List<Integer> list3 = ctx.getBroadcastVariable("name1");
-            List<Double> list4 = ctx.getBroadcastVariable("name2");
+        // access again
+        List<Integer> list3 = ctx.getBroadcastVariable("name1");
+        List<Double> list4 = ctx.getBroadcastVariable("name2");
 
-            assertThat(list3).isEqualTo(Arrays.asList(1, 2, 3, 4));
-            assertThat(list4).isEqualTo(Arrays.asList(1.0, 2.0, 3.0, 4.0));
+        assertThat(list3).isEqualTo(Arrays.asList(1, 2, 3, 4));
+        assertThat(list4).isEqualTo(Arrays.asList(1.0, 2.0, 3.0, 4.0));
 
-            // and again ;-)
-            List<Integer> list5 = ctx.getBroadcastVariable("name1");
-            List<Double> list6 = ctx.getBroadcastVariable("name2");
+        // and again ;-)
+        List<Integer> list5 = ctx.getBroadcastVariable("name1");
+        List<Double> list6 = ctx.getBroadcastVariable("name2");
 
-            assertThat(list5).isEqualTo(Arrays.asList(1, 2, 3, 4));
-            assertThat(list6).isEqualTo(Arrays.asList(1.0, 2.0, 3.0, 4.0));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThat(list5).isEqualTo(Arrays.asList(1, 2, 3, 4));
+        assertThat(list6).isEqualTo(Arrays.asList(1.0, 2.0, 3.0, 4.0));
     }
 
     @Test
     void testBroadcastVariableWithInitializer() {
-        try {
-            RuntimeUDFContext ctx =
-                    new RuntimeUDFContext(
-                            taskInfo,
-                            getClass().getClassLoader(),
-                            new ExecutionConfig(),
-                            new HashMap<>(),
-                            new HashMap<>(),
-                            UnregisteredMetricsGroup.createOperatorMetricGroup());
+        RuntimeUDFContext ctx =
+                new RuntimeUDFContext(
+                        taskInfo,
+                        getClass().getClassLoader(),
+                        new ExecutionConfig(),
+                        new HashMap<>(),
+                        new HashMap<>(),
+                        UnregisteredMetricsGroup.createOperatorMetricGroup());
 
-            ctx.setBroadcastVariable("name", Arrays.asList(1, 2, 3, 4));
+        ctx.setBroadcastVariable("name", Arrays.asList(1, 2, 3, 4));
 
-            // access it the first time with an initializer
-            List<Double> list =
-                    ctx.getBroadcastVariableWithInitializer("name", new ConvertingInitializer());
-            assertThat(list).isEqualTo(Arrays.asList(1.0, 2.0, 3.0, 4.0));
+        // access it the first time with an initializer
+        List<Double> list =
+                ctx.getBroadcastVariableWithInitializer("name", new ConvertingInitializer());
+        assertThat(list).isEqualTo(Arrays.asList(1.0, 2.0, 3.0, 4.0));
 
-            // access it the second time with an initializer (which might not get executed)
-            List<Double> list2 =
-                    ctx.getBroadcastVariableWithInitializer("name", new ConvertingInitializer());
-            assertThat(list2).isEqualTo(Arrays.asList(1.0, 2.0, 3.0, 4.0));
+        // access it the second time with an initializer (which might not get executed)
+        List<Double> list2 =
+                ctx.getBroadcastVariableWithInitializer("name", new ConvertingInitializer());
+        assertThat(list2).isEqualTo(Arrays.asList(1.0, 2.0, 3.0, 4.0));
 
-            // access it the third time without an initializer (should work by "chance", because the
-            // result is a list)
-            List<Double> list3 = ctx.getBroadcastVariable("name");
-            assertThat(list3).isEqualTo(Arrays.asList(1.0, 2.0, 3.0, 4.0));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        // access it the third time without an initializer (should work by "chance", because the
+        // result is a list)
+        List<Double> list3 = ctx.getBroadcastVariable("name");
+        assertThat(list3).isEqualTo(Arrays.asList(1.0, 2.0, 3.0, 4.0));
     }
 
     @Test
     void testResetBroadcastVariableWithInitializer() {
-        try {
-            RuntimeUDFContext ctx =
-                    new RuntimeUDFContext(
-                            taskInfo,
-                            getClass().getClassLoader(),
-                            new ExecutionConfig(),
-                            new HashMap<>(),
-                            new HashMap<>(),
-                            UnregisteredMetricsGroup.createOperatorMetricGroup());
+        RuntimeUDFContext ctx =
+                new RuntimeUDFContext(
+                        taskInfo,
+                        getClass().getClassLoader(),
+                        new ExecutionConfig(),
+                        new HashMap<>(),
+                        new HashMap<>(),
+                        UnregisteredMetricsGroup.createOperatorMetricGroup());
 
-            ctx.setBroadcastVariable("name", Arrays.asList(1, 2, 3, 4));
+        ctx.setBroadcastVariable("name", Arrays.asList(1, 2, 3, 4));
 
-            // access it the first time with an initializer
-            List<Double> list =
-                    ctx.getBroadcastVariableWithInitializer("name", new ConvertingInitializer());
-            assertThat(list).isEqualTo(Arrays.asList(1.0, 2.0, 3.0, 4.0));
+        // access it the first time with an initializer
+        List<Double> list =
+                ctx.getBroadcastVariableWithInitializer("name", new ConvertingInitializer());
+        assertThat(list).isEqualTo(Arrays.asList(1.0, 2.0, 3.0, 4.0));
 
-            // set it again to something different
-            ctx.setBroadcastVariable("name", Arrays.asList(2, 3, 4, 5));
+        // set it again to something different
+        ctx.setBroadcastVariable("name", Arrays.asList(2, 3, 4, 5));
 
-            List<Double> list2 =
-                    ctx.getBroadcastVariableWithInitializer("name", new ConvertingInitializer());
-            assertThat(list2).isEqualTo(Arrays.asList(2.0, 3.0, 4.0, 5.0));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        List<Double> list2 =
+                ctx.getBroadcastVariableWithInitializer("name", new ConvertingInitializer());
+        assertThat(list2).isEqualTo(Arrays.asList(2.0, 3.0, 4.0, 5.0));
     }
 
     @Test
     void testBroadcastVariableWithInitializerAndMismatch() {
+        RuntimeUDFContext ctx =
+                new RuntimeUDFContext(
+                        taskInfo,
+                        getClass().getClassLoader(),
+                        new ExecutionConfig(),
+                        new HashMap<>(),
+                        new HashMap<>(),
+                        UnregisteredMetricsGroup.createOperatorMetricGroup());
+
+        ctx.setBroadcastVariable("name", Arrays.asList(1, 2, 3, 4));
+
+        // access it the first time with an initializer
+        int sum = ctx.getBroadcastVariableWithInitializer("name", new SumInitializer());
+        assertThat(sum).isEqualTo(10);
+
+        // access it the second time with no initializer -> should fail due to type mismatch
         try {
-            RuntimeUDFContext ctx =
-                    new RuntimeUDFContext(
-                            taskInfo,
-                            getClass().getClassLoader(),
-                            new ExecutionConfig(),
-                            new HashMap<>(),
-                            new HashMap<>(),
-                            UnregisteredMetricsGroup.createOperatorMetricGroup());
-
-            ctx.setBroadcastVariable("name", Arrays.asList(1, 2, 3, 4));
-
-            // access it the first time with an initializer
-            int sum = ctx.getBroadcastVariableWithInitializer("name", new SumInitializer());
-            assertThat(sum).isEqualTo(10);
-
-            // access it the second time with no initializer -> should fail due to type mismatch
-            try {
-                ctx.getBroadcastVariable("name");
-                fail("should throw an exception");
-            } catch (IllegalStateException e) {
-                // expected
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
+            ctx.getBroadcastVariable("name");
+            fail("should throw an exception");
+        } catch (IllegalStateException e) {
+            // expected
         }
     }
 

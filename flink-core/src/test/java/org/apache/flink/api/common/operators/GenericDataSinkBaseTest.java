@@ -39,7 +39,6 @@ import java.util.concurrent.Future;
 
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Fail.fail;
 
 /** Checks the GenericDataSinkBase operator for both Rich and non-Rich output formats. */
 class GenericDataSinkBaseTest implements java.io.Serializable {
@@ -50,86 +49,76 @@ class GenericDataSinkBaseTest implements java.io.Serializable {
                     in, new OperatorInformation<>(BasicTypeInfo.STRING_TYPE_INFO), "testSource");
 
     @Test
-    void testDataSourcePlain() {
-        try {
-            TestNonRichOutputFormat out = new TestNonRichOutputFormat();
-            GenericDataSinkBase<String> sink =
-                    new GenericDataSinkBase<>(
-                            out,
-                            new UnaryOperatorInformation<>(
-                                    BasicTypeInfo.STRING_TYPE_INFO,
-                                    BasicTypeInfo.getInfoFor(Nothing.class)),
-                            "test_sink");
-            sink.setInput(source);
+    void testDataSourcePlain() throws Exception {
+        TestNonRichOutputFormat out = new TestNonRichOutputFormat();
+        GenericDataSinkBase<String> sink =
+                new GenericDataSinkBase<>(
+                        out,
+                        new UnaryOperatorInformation<>(
+                                BasicTypeInfo.STRING_TYPE_INFO,
+                                BasicTypeInfo.getInfoFor(Nothing.class)),
+                        "test_sink");
+        sink.setInput(source);
 
-            ExecutionConfig executionConfig = new ExecutionConfig();
-            executionConfig.disableObjectReuse();
-            in.reset();
-            sink.executeOnCollections(asList(TestIOData.NAMES), null, executionConfig);
-            assertThat(asList(TestIOData.NAMES)).isEqualTo(out.output);
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        executionConfig.disableObjectReuse();
+        in.reset();
+        sink.executeOnCollections(asList(TestIOData.NAMES), null, executionConfig);
+        assertThat(asList(TestIOData.NAMES)).isEqualTo(out.output);
 
-            executionConfig.enableObjectReuse();
-            out.clear();
-            in.reset();
-            sink.executeOnCollections(asList(TestIOData.NAMES), null, executionConfig);
-            assertThat(asList(TestIOData.NAMES)).isEqualTo(out.output);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        executionConfig.enableObjectReuse();
+        out.clear();
+        in.reset();
+        sink.executeOnCollections(asList(TestIOData.NAMES), null, executionConfig);
+        assertThat(asList(TestIOData.NAMES)).isEqualTo(out.output);
     }
 
     @Test
-    void testDataSourceWithRuntimeContext() {
-        try {
-            TestRichOutputFormat out = new TestRichOutputFormat();
-            GenericDataSinkBase<String> sink =
-                    new GenericDataSinkBase<>(
-                            out,
-                            new UnaryOperatorInformation<>(
-                                    BasicTypeInfo.STRING_TYPE_INFO,
-                                    BasicTypeInfo.getInfoFor(Nothing.class)),
-                            "test_sink");
-            sink.setInput(source);
+    void testDataSourceWithRuntimeContext() throws Exception {
+        TestRichOutputFormat out = new TestRichOutputFormat();
+        GenericDataSinkBase<String> sink =
+                new GenericDataSinkBase<>(
+                        out,
+                        new UnaryOperatorInformation<>(
+                                BasicTypeInfo.STRING_TYPE_INFO,
+                                BasicTypeInfo.getInfoFor(Nothing.class)),
+                        "test_sink");
+        sink.setInput(source);
 
-            ExecutionConfig executionConfig = new ExecutionConfig();
-            final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<>();
-            final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
-            final TaskInfo taskInfo = new TaskInfoImpl("test_sink", 1, 0, 1, 0);
-            executionConfig.disableObjectReuse();
-            in.reset();
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<>();
+        final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
+        final TaskInfo taskInfo = new TaskInfoImpl("test_sink", 1, 0, 1, 0);
+        executionConfig.disableObjectReuse();
+        in.reset();
 
-            sink.executeOnCollections(
-                    asList(TestIOData.NAMES),
-                    new RuntimeUDFContext(
-                            taskInfo,
-                            null,
-                            executionConfig,
-                            cpTasks,
-                            accumulatorMap,
-                            UnregisteredMetricsGroup.createOperatorMetricGroup()),
-                    executionConfig);
+        sink.executeOnCollections(
+                asList(TestIOData.NAMES),
+                new RuntimeUDFContext(
+                        taskInfo,
+                        null,
+                        executionConfig,
+                        cpTasks,
+                        accumulatorMap,
+                        UnregisteredMetricsGroup.createOperatorMetricGroup()),
+                executionConfig);
 
-            assertThat(asList(TestIOData.RICH_NAMES)).isEqualTo(out.output);
+        assertThat(asList(TestIOData.RICH_NAMES)).isEqualTo(out.output);
 
-            executionConfig.enableObjectReuse();
-            out.clear();
-            in.reset();
+        executionConfig.enableObjectReuse();
+        out.clear();
+        in.reset();
 
-            sink.executeOnCollections(
-                    asList(TestIOData.NAMES),
-                    new RuntimeUDFContext(
-                            taskInfo,
-                            null,
-                            executionConfig,
-                            cpTasks,
-                            accumulatorMap,
-                            UnregisteredMetricsGroup.createOperatorMetricGroup()),
-                    executionConfig);
-            assertThat(asList(TestIOData.RICH_NAMES)).isEqualTo(out.output);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        sink.executeOnCollections(
+                asList(TestIOData.NAMES),
+                new RuntimeUDFContext(
+                        taskInfo,
+                        null,
+                        executionConfig,
+                        cpTasks,
+                        accumulatorMap,
+                        UnregisteredMetricsGroup.createOperatorMetricGroup()),
+                executionConfig);
+        assertThat(asList(TestIOData.RICH_NAMES)).isEqualTo(out.output);
     }
 }

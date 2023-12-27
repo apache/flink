@@ -38,93 +38,82 @@ import java.util.concurrent.Future;
 
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Fail.fail;
 
 /** Checks the GenericDataSourceBase operator for both Rich and non-Rich input formats. */
 class GenericDataSourceBaseTest implements java.io.Serializable {
 
     @Test
-    void testDataSourcePlain() {
-        try {
-            TestNonRichInputFormat in = new TestNonRichInputFormat();
-            GenericDataSourceBase<String, TestNonRichInputFormat> source =
-                    new GenericDataSourceBase<>(
-                            in,
-                            new OperatorInformation<>(BasicTypeInfo.STRING_TYPE_INFO),
-                            "testSource");
+    void testDataSourcePlain() throws Exception {
+        TestNonRichInputFormat in = new TestNonRichInputFormat();
+        GenericDataSourceBase<String, TestNonRichInputFormat> source =
+                new GenericDataSourceBase<>(
+                        in,
+                        new OperatorInformation<>(BasicTypeInfo.STRING_TYPE_INFO),
+                        "testSource");
 
-            ExecutionConfig executionConfig = new ExecutionConfig();
-            executionConfig.disableObjectReuse();
-            List<String> resultMutableSafe = source.executeOnCollections(null, executionConfig);
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        executionConfig.disableObjectReuse();
+        List<String> resultMutableSafe = source.executeOnCollections(null, executionConfig);
 
-            in.reset();
-            executionConfig.enableObjectReuse();
-            List<String> resultRegular = source.executeOnCollections(null, executionConfig);
-            assertThat(resultMutableSafe).isEqualTo(asList(TestIOData.NAMES));
-            assertThat(resultRegular).isEqualTo(asList(TestIOData.NAMES));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        in.reset();
+        executionConfig.enableObjectReuse();
+        List<String> resultRegular = source.executeOnCollections(null, executionConfig);
+        assertThat(resultMutableSafe).isEqualTo(asList(TestIOData.NAMES));
+        assertThat(resultRegular).isEqualTo(asList(TestIOData.NAMES));
     }
 
     @Test
-    void testDataSourceWithRuntimeContext() {
-        try {
-            TestRichInputFormat in = new TestRichInputFormat();
-            GenericDataSourceBase<String, TestRichInputFormat> source =
-                    new GenericDataSourceBase<>(
-                            in,
-                            new OperatorInformation<>(BasicTypeInfo.STRING_TYPE_INFO),
-                            "testSource");
+    void testDataSourceWithRuntimeContext() throws Exception {
+        TestRichInputFormat in = new TestRichInputFormat();
+        GenericDataSourceBase<String, TestRichInputFormat> source =
+                new GenericDataSourceBase<>(
+                        in,
+                        new OperatorInformation<>(BasicTypeInfo.STRING_TYPE_INFO),
+                        "testSource");
 
-            final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<>();
-            final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
-            final TaskInfo taskInfo = new TaskInfoImpl("test_source", 1, 0, 1, 0);
+        final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<>();
+        final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
+        final TaskInfo taskInfo = new TaskInfoImpl("test_source", 1, 0, 1, 0);
 
-            ExecutionConfig executionConfig = new ExecutionConfig();
-            executionConfig.disableObjectReuse();
-            assertThat(in.hasBeenClosed()).isFalse();
-            assertThat(in.hasBeenOpened()).isFalse();
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        executionConfig.disableObjectReuse();
+        assertThat(in.hasBeenClosed()).isFalse();
+        assertThat(in.hasBeenOpened()).isFalse();
 
-            List<String> resultMutableSafe =
-                    source.executeOnCollections(
-                            new RuntimeUDFContext(
-                                    taskInfo,
-                                    null,
-                                    executionConfig,
-                                    cpTasks,
-                                    accumulatorMap,
-                                    UnregisteredMetricsGroup.createOperatorMetricGroup()),
-                            executionConfig);
+        List<String> resultMutableSafe =
+                source.executeOnCollections(
+                        new RuntimeUDFContext(
+                                taskInfo,
+                                null,
+                                executionConfig,
+                                cpTasks,
+                                accumulatorMap,
+                                UnregisteredMetricsGroup.createOperatorMetricGroup()),
+                        executionConfig);
 
-            assertThat(in.hasBeenClosed()).isTrue();
-            assertThat(in.hasBeenOpened()).isTrue();
+        assertThat(in.hasBeenClosed()).isTrue();
+        assertThat(in.hasBeenOpened()).isTrue();
 
-            in.reset();
-            executionConfig.enableObjectReuse();
-            assertThat(in.hasBeenClosed()).isFalse();
-            assertThat(in.hasBeenOpened()).isFalse();
+        in.reset();
+        executionConfig.enableObjectReuse();
+        assertThat(in.hasBeenClosed()).isFalse();
+        assertThat(in.hasBeenOpened()).isFalse();
 
-            List<String> resultRegular =
-                    source.executeOnCollections(
-                            new RuntimeUDFContext(
-                                    taskInfo,
-                                    null,
-                                    executionConfig,
-                                    cpTasks,
-                                    accumulatorMap,
-                                    UnregisteredMetricsGroup.createOperatorMetricGroup()),
-                            executionConfig);
+        List<String> resultRegular =
+                source.executeOnCollections(
+                        new RuntimeUDFContext(
+                                taskInfo,
+                                null,
+                                executionConfig,
+                                cpTasks,
+                                accumulatorMap,
+                                UnregisteredMetricsGroup.createOperatorMetricGroup()),
+                        executionConfig);
 
-            assertThat(in.hasBeenClosed()).isTrue();
-            assertThat(in.hasBeenOpened()).isTrue();
+        assertThat(in.hasBeenClosed()).isTrue();
+        assertThat(in.hasBeenOpened()).isTrue();
 
-            assertThat(resultMutableSafe).isEqualTo(asList(TestIOData.RICH_NAMES));
-            assertThat(resultRegular).isEqualTo(asList(TestIOData.RICH_NAMES));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThat(resultMutableSafe).isEqualTo(asList(TestIOData.RICH_NAMES));
+        assertThat(resultRegular).isEqualTo(asList(TestIOData.RICH_NAMES));
     }
 }

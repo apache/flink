@@ -41,33 +41,27 @@ import java.util.HashMap;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Fail.fail;
 
 /** The test for flat map operator. */
 public class FlatMapOperatorCollectionTest implements Serializable {
 
     @Test
-    void testExecuteOnCollection() {
-        try {
-            IdRichFlatMap<String> udf = new IdRichFlatMap<>();
-            testExecuteOnCollection(udf, Arrays.asList("f", "l", "i", "n", "k"), true);
-            assertThat(udf.isClosed).isTrue();
+    void testExecuteOnCollection() throws Exception {
+        IdRichFlatMap<String> udf = new IdRichFlatMap<>();
+        testExecuteOnCollection(udf, Arrays.asList("f", "l", "i", "n", "k"), true);
+        assertThat(udf.isClosed).isTrue();
 
-            udf = new IdRichFlatMap<>();
-            testExecuteOnCollection(udf, Arrays.asList("f", "l", "i", "n", "k"), false);
-            assertThat(udf.isClosed).isTrue();
+        udf = new IdRichFlatMap<>();
+        testExecuteOnCollection(udf, Arrays.asList("f", "l", "i", "n", "k"), false);
+        assertThat(udf.isClosed).isTrue();
 
-            udf = new IdRichFlatMap<>();
-            testExecuteOnCollection(udf, Collections.emptyList(), true);
-            assertThat(udf.isClosed).isTrue();
+        udf = new IdRichFlatMap<>();
+        testExecuteOnCollection(udf, Collections.emptyList(), true);
+        assertThat(udf.isClosed).isTrue();
 
-            udf = new IdRichFlatMap<>();
-            testExecuteOnCollection(udf, Collections.emptyList(), false);
-            assertThat(udf.isClosed).isTrue();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        udf = new IdRichFlatMap<>();
+        testExecuteOnCollection(udf, Collections.emptyList(), false);
+        assertThat(udf.isClosed).isTrue();
     }
 
     private void testExecuteOnCollection(

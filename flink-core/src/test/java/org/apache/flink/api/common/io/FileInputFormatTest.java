@@ -276,200 +276,178 @@ class FileInputFormatTest {
     // ------------------------------------------------------------------------
 
     @Test
-    void testGetStatisticsNonExistingFile() {
-        try {
-            final DummyFileInputFormat format = new DummyFileInputFormat();
-            format.setFilePath("file:///some/none/existing/directory/");
-            format.configure(new Configuration());
+    void testGetStatisticsNonExistingFile() throws IOException {
 
-            BaseStatistics stats = format.getStatistics(null);
-            assertThat(stats).as("The file statistics should be null.").isNull();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            fail(ex.getMessage());
-        }
+        final DummyFileInputFormat format = new DummyFileInputFormat();
+        format.setFilePath("file:///some/none/existing/directory/");
+        format.configure(new Configuration());
+
+        BaseStatistics stats = format.getStatistics(null);
+        assertThat(stats).as("The file statistics should be null.").isNull();
     }
 
     @Test
-    void testGetStatisticsOneFileNoCachedVersion() {
-        try {
-            final long SIZE = 1024 * 500;
-            String tempFile = TestFileUtils.createTempFile(SIZE);
+    void testGetStatisticsOneFileNoCachedVersion() throws IOException {
 
-            final DummyFileInputFormat format = new DummyFileInputFormat();
-            format.setFilePath(tempFile);
-            format.configure(new Configuration());
+        final long SIZE = 1024 * 500;
+        String tempFile = TestFileUtils.createTempFile(SIZE);
 
-            BaseStatistics stats = format.getStatistics(null);
-            assertThat(stats.getTotalInputSize())
-                    .as("The file size from the statistics is wrong.")
-                    .isEqualTo(SIZE);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            fail(ex.getMessage());
-        }
+        final DummyFileInputFormat format = new DummyFileInputFormat();
+        format.setFilePath(tempFile);
+        format.configure(new Configuration());
+
+        BaseStatistics stats = format.getStatistics(null);
+        assertThat(stats.getTotalInputSize())
+                .as("The file size from the statistics is wrong.")
+                .isEqualTo(SIZE);
     }
 
     @Test
-    void testGetStatisticsMultipleFilesNoCachedVersion() {
-        try {
-            final long SIZE1 = 2077;
-            final long SIZE2 = 31909;
-            final long SIZE3 = 10;
-            final long TOTAL = SIZE1 + SIZE2 + SIZE3;
+    void testGetStatisticsMultipleFilesNoCachedVersion() throws IOException {
 
-            String tempDir =
-                    TestFileUtils.createTempFileDir(
-                            TempDirUtils.newFolder(temporaryFolder), SIZE1, SIZE2, SIZE3);
+        final long SIZE1 = 2077;
+        final long SIZE2 = 31909;
+        final long SIZE3 = 10;
+        final long TOTAL = SIZE1 + SIZE2 + SIZE3;
 
-            final DummyFileInputFormat format = new DummyFileInputFormat();
-            format.setFilePath(tempDir);
-            format.configure(new Configuration());
+        String tempDir =
+                TestFileUtils.createTempFileDir(
+                        TempDirUtils.newFolder(temporaryFolder), SIZE1, SIZE2, SIZE3);
 
-            BaseStatistics stats = format.getStatistics(null);
-            assertThat(stats.getTotalInputSize())
-                    .as("The file size from the statistics is wrong.")
-                    .isEqualTo(TOTAL);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            fail(ex.getMessage());
-        }
+        final DummyFileInputFormat format = new DummyFileInputFormat();
+        format.setFilePath(tempDir);
+        format.configure(new Configuration());
+
+        BaseStatistics stats = format.getStatistics(null);
+        assertThat(stats.getTotalInputSize())
+                .as("The file size from the statistics is wrong.")
+                .isEqualTo(TOTAL);
     }
 
     @Test
-    void testGetStatisticsOneFileWithCachedVersion() {
-        try {
-            final long SIZE = 50873;
-            final long FAKE_SIZE = 10065;
+    void testGetStatisticsOneFileWithCachedVersion() throws IOException {
 
-            String tempFile = TestFileUtils.createTempFile(SIZE);
+        final long SIZE = 50873;
+        final long FAKE_SIZE = 10065;
 
-            DummyFileInputFormat format = new DummyFileInputFormat();
-            format.setFilePath(tempFile);
-            format.configure(new Configuration());
+        String tempFile = TestFileUtils.createTempFile(SIZE);
 
-            FileBaseStatistics stats = format.getStatistics(null);
-            assertThat(stats.getTotalInputSize())
-                    .as("The file size from the statistics is wrong.")
-                    .isEqualTo(SIZE);
+        DummyFileInputFormat format = new DummyFileInputFormat();
+        format.setFilePath(tempFile);
+        format.configure(new Configuration());
 
-            format = new DummyFileInputFormat();
-            format.setFilePath(tempFile);
-            format.configure(new Configuration());
+        FileBaseStatistics stats = format.getStatistics(null);
+        assertThat(stats.getTotalInputSize())
+                .as("The file size from the statistics is wrong.")
+                .isEqualTo(SIZE);
 
-            FileBaseStatistics newStats = format.getStatistics(stats);
-            assertThat(stats).as("Statistics object was changed").isSameAs(newStats);
+        format = new DummyFileInputFormat();
+        format.setFilePath(tempFile);
+        format.configure(new Configuration());
 
-            // insert fake stats with the correct modification time. the call should return the fake
-            // stats
-            format = new DummyFileInputFormat();
-            format.setFilePath(tempFile);
-            format.configure(new Configuration());
+        FileBaseStatistics newStats = format.getStatistics(stats);
+        assertThat(stats).as("Statistics object was changed").isSameAs(newStats);
 
-            FileBaseStatistics fakeStats =
-                    new FileBaseStatistics(
-                            stats.getLastModificationTime(),
-                            FAKE_SIZE,
-                            BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
-            BaseStatistics latest = format.getStatistics(fakeStats);
-            assertThat(latest.getTotalInputSize())
-                    .as("The file size from the statistics is wrong.")
-                    .isEqualTo(FAKE_SIZE);
+        // insert fake stats with the correct modification time. the call should return the fake
+        // stats
+        format = new DummyFileInputFormat();
+        format.setFilePath(tempFile);
+        format.configure(new Configuration());
 
-            // insert fake stats with the expired modification time. the call should return new
-            // accurate stats
-            format = new DummyFileInputFormat();
-            format.setFilePath(tempFile);
-            format.configure(new Configuration());
+        FileBaseStatistics fakeStats =
+                new FileBaseStatistics(
+                        stats.getLastModificationTime(),
+                        FAKE_SIZE,
+                        BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+        BaseStatistics latest = format.getStatistics(fakeStats);
+        assertThat(latest.getTotalInputSize())
+                .as("The file size from the statistics is wrong.")
+                .isEqualTo(FAKE_SIZE);
 
-            FileBaseStatistics outDatedFakeStats =
-                    new FileBaseStatistics(
-                            stats.getLastModificationTime() - 1,
-                            FAKE_SIZE,
-                            BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
-            BaseStatistics reGathered = format.getStatistics(outDatedFakeStats);
-            assertThat(reGathered.getTotalInputSize())
-                    .as("The file size from the statistics is wrong.")
-                    .isEqualTo(SIZE);
+        // insert fake stats with the expired modification time. the call should return new
+        // accurate stats
+        format = new DummyFileInputFormat();
+        format.setFilePath(tempFile);
+        format.configure(new Configuration());
 
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            fail(ex.getMessage());
-        }
+        FileBaseStatistics outDatedFakeStats =
+                new FileBaseStatistics(
+                        stats.getLastModificationTime() - 1,
+                        FAKE_SIZE,
+                        BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+        BaseStatistics reGathered = format.getStatistics(outDatedFakeStats);
+        assertThat(reGathered.getTotalInputSize())
+                .as("The file size from the statistics is wrong.")
+                .isEqualTo(SIZE);
     }
 
     @Test
-    void testGetStatisticsMultipleFilesWithCachedVersion() {
-        try {
-            FileSystem fs = FileSystem.getLocalFileSystem();
+    void testGetStatisticsMultipleFilesWithCachedVersion() throws IOException {
 
-            final long SIZE1 = 2077;
-            final long SIZE2 = 31909;
-            final long SIZE3 = 10;
-            final long TOTAL = SIZE1 + SIZE2 + SIZE3;
-            final long FAKE_SIZE = 10065;
+        FileSystem fs = FileSystem.getLocalFileSystem();
 
-            File tempDirFile = TempDirUtils.newFolder(temporaryFolder);
-            String tempDir = tempDirFile.getAbsolutePath();
-            String f1 = TestFileUtils.createTempFileInDirectory(tempDir, SIZE1);
-            long modTime1 = fs.getFileStatus(new Path(f1)).getModificationTime();
-            String f2 = TestFileUtils.createTempFileInDirectory(tempDir, SIZE2);
-            long modTime2 = fs.getFileStatus(new Path(f2)).getModificationTime();
-            String f3 = TestFileUtils.createTempFileInDirectory(tempDir, SIZE3);
-            long modTime3 = fs.getFileStatus(new Path(f3)).getModificationTime();
+        final long SIZE1 = 2077;
+        final long SIZE2 = 31909;
+        final long SIZE3 = 10;
+        final long TOTAL = SIZE1 + SIZE2 + SIZE3;
+        final long FAKE_SIZE = 10065;
 
-            DummyFileInputFormat format = new DummyFileInputFormat();
-            format.setFilePath(tempDir);
-            format.configure(new Configuration());
+        File tempDirFile = TempDirUtils.newFolder(temporaryFolder);
+        String tempDir = tempDirFile.getAbsolutePath();
+        String f1 = TestFileUtils.createTempFileInDirectory(tempDir, SIZE1);
+        long modTime1 = fs.getFileStatus(new Path(f1)).getModificationTime();
+        String f2 = TestFileUtils.createTempFileInDirectory(tempDir, SIZE2);
+        long modTime2 = fs.getFileStatus(new Path(f2)).getModificationTime();
+        String f3 = TestFileUtils.createTempFileInDirectory(tempDir, SIZE3);
+        long modTime3 = fs.getFileStatus(new Path(f3)).getModificationTime();
 
-            FileBaseStatistics stats = format.getStatistics(null);
-            assertThat(stats.getTotalInputSize())
-                    .as("The file size from the statistics is wrong.")
-                    .isEqualTo(TOTAL);
+        DummyFileInputFormat format = new DummyFileInputFormat();
+        format.setFilePath(tempDir);
+        format.configure(new Configuration());
 
-            format = new DummyFileInputFormat();
-            format.setFilePath(tempDir);
-            format.configure(new Configuration());
+        FileBaseStatistics stats = format.getStatistics(null);
+        assertThat(stats.getTotalInputSize())
+                .as("The file size from the statistics is wrong.")
+                .isEqualTo(TOTAL);
 
-            FileBaseStatistics newStats = format.getStatistics(stats);
-            assertThat(stats).as("Statistics object was changed").isSameAs(newStats);
+        format = new DummyFileInputFormat();
+        format.setFilePath(tempDir);
+        format.configure(new Configuration());
 
-            // insert fake stats with the correct modification time. the call should return the fake
-            // stats
-            format = new DummyFileInputFormat();
-            format.setFilePath(tempDir);
-            format.configure(new Configuration());
+        FileBaseStatistics newStats = format.getStatistics(stats);
+        assertThat(stats).as("Statistics object was changed").isSameAs(newStats);
 
-            FileBaseStatistics fakeStats =
-                    new FileBaseStatistics(
-                            stats.getLastModificationTime(),
-                            FAKE_SIZE,
-                            BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
-            BaseStatistics latest = format.getStatistics(fakeStats);
-            assertThat(latest.getTotalInputSize())
-                    .as("The file size from the statistics is wrong.")
-                    .isEqualTo(FAKE_SIZE);
+        // insert fake stats with the correct modification time. the call should return the fake
+        // stats
+        format = new DummyFileInputFormat();
+        format.setFilePath(tempDir);
+        format.configure(new Configuration());
 
-            // insert fake stats with the correct modification time. the call should return the fake
-            // stats
-            format = new DummyFileInputFormat();
-            format.setFilePath(tempDir);
-            format.configure(new Configuration());
+        FileBaseStatistics fakeStats =
+                new FileBaseStatistics(
+                        stats.getLastModificationTime(),
+                        FAKE_SIZE,
+                        BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+        BaseStatistics latest = format.getStatistics(fakeStats);
+        assertThat(latest.getTotalInputSize())
+                .as("The file size from the statistics is wrong.")
+                .isEqualTo(FAKE_SIZE);
 
-            FileBaseStatistics outDatedFakeStats =
-                    new FileBaseStatistics(
-                            Math.min(Math.min(modTime1, modTime2), modTime3) - 1,
-                            FAKE_SIZE,
-                            BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
-            BaseStatistics reGathered = format.getStatistics(outDatedFakeStats);
-            assertThat(reGathered.getTotalInputSize())
-                    .as("The file size from the statistics is wrong.")
-                    .isEqualTo(TOTAL);
+        // insert fake stats with the correct modification time. the call should return the fake
+        // stats
+        format = new DummyFileInputFormat();
+        format.setFilePath(tempDir);
+        format.configure(new Configuration());
 
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            fail(ex.getMessage());
-        }
+        FileBaseStatistics outDatedFakeStats =
+                new FileBaseStatistics(
+                        Math.min(Math.min(modTime1, modTime2), modTime3) - 1,
+                        FAKE_SIZE,
+                        BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+        BaseStatistics reGathered = format.getStatistics(outDatedFakeStats);
+        assertThat(reGathered.getTotalInputSize())
+                .as("The file size from the statistics is wrong.")
+                .isEqualTo(TOTAL);
     }
 
     // -- Multiple Files -- //
@@ -609,59 +587,52 @@ class FileInputFormatTest {
      * split has to start from the beginning.
      */
     @Test
-    void testFileInputFormatWithCompression() {
-        try {
-            String tempFile =
-                    TestFileUtils.createTempFileDirForProvidedFormats(
-                            TempDirUtils.newFolder(temporaryFolder),
-                            FileInputFormat.getSupportedCompressionFormats());
-            final DummyFileInputFormat format = new DummyFileInputFormat();
-            format.setFilePath(tempFile);
-            format.configure(new Configuration());
-            FileInputSplit[] splits = format.createInputSplits(2);
-            final Set<String> supportedCompressionFormats =
-                    FileInputFormat.getSupportedCompressionFormats();
-            assertThat(splits).hasSize(supportedCompressionFormats.size());
-            for (FileInputSplit split : splits) {
+    void testFileInputFormatWithCompression() throws IOException {
+
+        String tempFile =
+                TestFileUtils.createTempFileDirForProvidedFormats(
+                        TempDirUtils.newFolder(temporaryFolder),
+                        FileInputFormat.getSupportedCompressionFormats());
+        final DummyFileInputFormat format = new DummyFileInputFormat();
+        format.setFilePath(tempFile);
+        format.configure(new Configuration());
+        FileInputSplit[] splits = format.createInputSplits(2);
+        final Set<String> supportedCompressionFormats =
+                FileInputFormat.getSupportedCompressionFormats();
+        assertThat(splits).hasSize(supportedCompressionFormats.size());
+        for (FileInputSplit split : splits) {
+            assertThat(split.getLength())
+                    .isEqualTo(
+                            FileInputFormat.READ_WHOLE_SPLIT_FLAG); // unsplittable compressed files
+            // have this size as a
+            // flag for "read whole file"
+            assertThat(split.getStart()).isEqualTo(0L); // always read from the beginning.
+        }
+
+        // test if this also works for "mixed" directories
+        TestFileUtils.createTempFileInDirectory(
+                tempFile.replace("file:", ""),
+                "this creates a test file with a random extension (at least not .deflate)");
+
+        final DummyFileInputFormat formatMixed = new DummyFileInputFormat();
+        formatMixed.setFilePath(tempFile);
+        formatMixed.configure(new Configuration());
+        FileInputSplit[] splitsMixed = formatMixed.createInputSplits(2);
+        assertThat(splitsMixed).hasSize(supportedCompressionFormats.size() + 1);
+        for (FileInputSplit split : splitsMixed) {
+            final String extension =
+                    FileInputFormat.extractFileExtension(split.getPath().getName());
+            if (supportedCompressionFormats.contains(extension)) {
                 assertThat(split.getLength())
                         .isEqualTo(
-                                FileInputFormat
-                                        .READ_WHOLE_SPLIT_FLAG); // unsplittable compressed files
-                // have this size as a
+                                FileInputFormat.READ_WHOLE_SPLIT_FLAG); // unsplittable compressed
+                // files have this size as a
                 // flag for "read whole file"
                 assertThat(split.getStart()).isEqualTo(0L); // always read from the beginning.
+            } else {
+                assertThat(split.getStart()).isEqualTo(0L);
+                assertThat(split.getLength() > 0).as("split size not correct").isTrue();
             }
-
-            // test if this also works for "mixed" directories
-            TestFileUtils.createTempFileInDirectory(
-                    tempFile.replace("file:", ""),
-                    "this creates a test file with a random extension (at least not .deflate)");
-
-            final DummyFileInputFormat formatMixed = new DummyFileInputFormat();
-            formatMixed.setFilePath(tempFile);
-            formatMixed.configure(new Configuration());
-            FileInputSplit[] splitsMixed = formatMixed.createInputSplits(2);
-            assertThat(splitsMixed).hasSize(supportedCompressionFormats.size() + 1);
-            for (FileInputSplit split : splitsMixed) {
-                final String extension =
-                        FileInputFormat.extractFileExtension(split.getPath().getName());
-                if (supportedCompressionFormats.contains(extension)) {
-                    assertThat(split.getLength())
-                            .isEqualTo(
-                                    FileInputFormat
-                                            .READ_WHOLE_SPLIT_FLAG); // unsplittable compressed
-                    // files have this size as a
-                    // flag for "read whole file"
-                    assertThat(split.getStart()).isEqualTo(0L); // always read from the beginning.
-                } else {
-                    assertThat(split.getStart()).isEqualTo(0L);
-                    assertThat(split.getLength() > 0).as("split size not correct").isTrue();
-                }
-            }
-
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            fail(ex.getMessage());
         }
     }
 
@@ -672,37 +643,32 @@ class FileInputFormatTest {
      * split is not the compressed file size and that the compression decorator is called.
      */
     @Test
-    void testFileInputFormatWithCompressionFromFileSource() {
-        try {
-            String tempFile =
-                    TestFileUtils.createTempFileDirForProvidedFormats(
-                            TempDirUtils.newFolder(temporaryFolder),
-                            FileInputFormat.getSupportedCompressionFormats());
-            DummyFileInputFormat format = new DummyFileInputFormat();
-            format.setFilePath(tempFile);
-            format.configure(new Configuration());
+    void testFileInputFormatWithCompressionFromFileSource() throws IOException {
 
-            // manually create a FileInputSplit per file as FileSource would do
-            // see org.apache.flink.connector.file.table.DeserializationSchemaAdapter.Reader()
-            List<FileInputSplit> splits = manuallyCreateSplits(tempFile);
-            final Set<String> supportedCompressionFormats =
-                    FileInputFormat.getSupportedCompressionFormats();
-            // one file per compression format, one split per file
-            assertThat(splits).hasSize(supportedCompressionFormats.size());
-            for (FileInputSplit split : splits) {
-                assertThat(split.getStart()).isEqualTo(0L); // always read from the beginning.
-                format.open(split);
-                assertThat(format.compressedRead).isTrue();
-                assertThat(format.getSplitLength())
-                        .isEqualTo(
-                                FileInputFormat
-                                        .READ_WHOLE_SPLIT_FLAG); // unsplittable compressed files
-                // have this size
-                // as flag for "read whole file"
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            fail(ex.getMessage());
+        String tempFile =
+                TestFileUtils.createTempFileDirForProvidedFormats(
+                        TempDirUtils.newFolder(temporaryFolder),
+                        FileInputFormat.getSupportedCompressionFormats());
+        DummyFileInputFormat format = new DummyFileInputFormat();
+        format.setFilePath(tempFile);
+        format.configure(new Configuration());
+
+        // manually create a FileInputSplit per file as FileSource would do
+        // see org.apache.flink.connector.file.table.DeserializationSchemaAdapter.Reader()
+        List<FileInputSplit> splits = manuallyCreateSplits(tempFile);
+        final Set<String> supportedCompressionFormats =
+                FileInputFormat.getSupportedCompressionFormats();
+        // one file per compression format, one split per file
+        assertThat(splits).hasSize(supportedCompressionFormats.size());
+        for (FileInputSplit split : splits) {
+            assertThat(split.getStart()).isEqualTo(0L); // always read from the beginning.
+            format.open(split);
+            assertThat(format.compressedRead).isTrue();
+            assertThat(format.getSplitLength())
+                    .isEqualTo(
+                            FileInputFormat.READ_WHOLE_SPLIT_FLAG); // unsplittable compressed files
+            // have this size
+            // as flag for "read whole file"
         }
     }
 
@@ -727,89 +693,79 @@ class FileInputFormatTest {
     // ------------------------------------------------------------------------
 
     @Test
-    void testIgnoredUnderscoreFiles() {
-        try {
-            final String contents = "CONTENTS";
+    void testIgnoredUnderscoreFiles() throws IOException {
 
-            // create some accepted, some ignored files
+        final String contents = "CONTENTS";
 
-            File child1 = TempDirUtils.newFile(temporaryFolder, "dataFile1.txt");
-            File child2 = TempDirUtils.newFile(temporaryFolder, "another_file.bin");
-            File luigiFile = TempDirUtils.newFile(temporaryFolder, "_luigi");
-            File success = TempDirUtils.newFile(temporaryFolder, "_SUCCESS");
+        // create some accepted, some ignored files
 
-            createTempFiles(
-                    contents.getBytes(ConfigConstants.DEFAULT_CHARSET),
-                    child1,
-                    child2,
-                    luigiFile,
-                    success);
+        File child1 = TempDirUtils.newFile(temporaryFolder, "dataFile1.txt");
+        File child2 = TempDirUtils.newFile(temporaryFolder, "another_file.bin");
+        File luigiFile = TempDirUtils.newFile(temporaryFolder, "_luigi");
+        File success = TempDirUtils.newFile(temporaryFolder, "_SUCCESS");
 
-            // test that only the valid files are accepted
+        createTempFiles(
+                contents.getBytes(ConfigConstants.DEFAULT_CHARSET),
+                child1,
+                child2,
+                luigiFile,
+                success);
 
-            final DummyFileInputFormat format = new DummyFileInputFormat();
-            format.setFilePath(temporaryFolder.toFile().getPath());
-            format.configure(new Configuration());
-            FileInputSplit[] splits = format.createInputSplits(1);
+        // test that only the valid files are accepted
 
-            assertThat(splits).hasSize(2);
+        final DummyFileInputFormat format = new DummyFileInputFormat();
+        format.setFilePath(temporaryFolder.toFile().getPath());
+        format.configure(new Configuration());
+        FileInputSplit[] splits = format.createInputSplits(1);
 
-            final URI uri1 = splits[0].getPath().toUri();
-            final URI uri2 = splits[1].getPath().toUri();
+        assertThat(splits).hasSize(2);
 
-            final URI childUri1 = child1.toURI();
-            final URI childUri2 = child2.toURI();
+        final URI uri1 = splits[0].getPath().toUri();
+        final URI uri2 = splits[1].getPath().toUri();
 
-            assertThat(
-                            (uri1.equals(childUri1) && uri2.equals(childUri2))
-                                    || (uri1.equals(childUri2) && uri2.equals(childUri1)))
-                    .isTrue();
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        final URI childUri1 = child1.toURI();
+        final URI childUri2 = child2.toURI();
+
+        assertThat(
+                        (uri1.equals(childUri1) && uri2.equals(childUri2))
+                                || (uri1.equals(childUri2) && uri2.equals(childUri1)))
+                .isTrue();
     }
 
     @Test
-    void testExcludeFiles() {
-        try {
-            final String contents = "CONTENTS";
+    void testExcludeFiles() throws IOException {
 
-            // create some accepted, some ignored files
+        final String contents = "CONTENTS";
 
-            File child1 = TempDirUtils.newFile(temporaryFolder, "dataFile1.txt");
-            File child2 = TempDirUtils.newFile(temporaryFolder, "another_file.bin");
+        // create some accepted, some ignored files
 
-            File[] files = {child1, child2};
+        File child1 = TempDirUtils.newFile(temporaryFolder, "dataFile1.txt");
+        File child2 = TempDirUtils.newFile(temporaryFolder, "another_file.bin");
 
-            createTempFiles(contents.getBytes(ConfigConstants.DEFAULT_CHARSET), files);
+        File[] files = {child1, child2};
 
-            // test that only the valid files are accepted
+        createTempFiles(contents.getBytes(ConfigConstants.DEFAULT_CHARSET), files);
 
-            Configuration configuration = new Configuration();
+        // test that only the valid files are accepted
 
-            final DummyFileInputFormat format = new DummyFileInputFormat();
-            format.setFilePath(temporaryFolder.toFile().getPath());
-            format.configure(configuration);
-            format.setFilesFilter(
-                    new GlobFilePathFilter(
-                            Collections.singletonList("**"),
-                            Collections.singletonList("**/another_file.bin")));
-            FileInputSplit[] splits = format.createInputSplits(1);
+        Configuration configuration = new Configuration();
 
-            assertThat(splits).hasSize(1);
+        final DummyFileInputFormat format = new DummyFileInputFormat();
+        format.setFilePath(temporaryFolder.toFile().getPath());
+        format.configure(configuration);
+        format.setFilesFilter(
+                new GlobFilePathFilter(
+                        Collections.singletonList("**"),
+                        Collections.singletonList("**/another_file.bin")));
+        FileInputSplit[] splits = format.createInputSplits(1);
 
-            final URI uri1 = splits[0].getPath().toUri();
+        assertThat(splits).hasSize(1);
 
-            final URI childUri1 = child1.toURI();
+        final URI uri1 = splits[0].getPath().toUri();
 
-            assertThat(childUri1).isEqualTo(uri1);
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        final URI childUri1 = child1.toURI();
+
+        assertThat(childUri1).isEqualTo(uri1);
     }
 
     @Test
@@ -839,31 +795,26 @@ class FileInputFormatTest {
     }
 
     @Test
-    void testGetStatsIgnoredUnderscoreFiles() {
-        try {
-            final int SIZE = 2048;
-            final long TOTAL = 2 * SIZE;
+    void testGetStatsIgnoredUnderscoreFiles() throws IOException {
 
-            // create two accepted and two ignored files
-            File child1 = TempDirUtils.newFile(temporaryFolder, "dataFile1.txt");
-            File child2 = TempDirUtils.newFile(temporaryFolder, "another_file.bin");
-            File luigiFile = TempDirUtils.newFile(temporaryFolder, "_luigi");
-            File success = TempDirUtils.newFile(temporaryFolder, "_SUCCESS");
+        final int SIZE = 2048;
+        final long TOTAL = 2 * SIZE;
 
-            createTempFiles(new byte[SIZE], child1, child2, luigiFile, success);
+        // create two accepted and two ignored files
+        File child1 = TempDirUtils.newFile(temporaryFolder, "dataFile1.txt");
+        File child2 = TempDirUtils.newFile(temporaryFolder, "another_file.bin");
+        File luigiFile = TempDirUtils.newFile(temporaryFolder, "_luigi");
+        File success = TempDirUtils.newFile(temporaryFolder, "_SUCCESS");
 
-            final DummyFileInputFormat format = new DummyFileInputFormat();
-            format.setFilePath(temporaryFolder.toFile().getPath());
-            format.configure(new Configuration());
+        createTempFiles(new byte[SIZE], child1, child2, luigiFile, success);
 
-            // check that only valid files are used for statistics computation
-            BaseStatistics stats = format.getStatistics(null);
-            assertThat(stats.getTotalInputSize()).isEqualTo(TOTAL);
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        final DummyFileInputFormat format = new DummyFileInputFormat();
+        format.setFilePath(temporaryFolder.toFile().getPath());
+        format.configure(new Configuration());
+
+        // check that only valid files are used for statistics computation
+        BaseStatistics stats = format.getStatistics(null);
+        assertThat(stats.getTotalInputSize()).isEqualTo(TOTAL);
     }
 
     // ------------------------------------------------------------------------
