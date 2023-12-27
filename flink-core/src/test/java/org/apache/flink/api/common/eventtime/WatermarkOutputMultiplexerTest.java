@@ -18,12 +18,10 @@
 
 package org.apache.flink.api.common.eventtime;
 
-import org.hamcrest.MatcherAssert;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
 
-import static org.apache.flink.api.common.eventtime.WatermarkMatchers.watermark;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link WatermarkOutputMultiplexer}. */
@@ -39,7 +37,7 @@ class WatermarkOutputMultiplexerTest {
 
         watermarkOutput.emitWatermark(new Watermark(0));
 
-        MatcherAssert.assertThat(underlyingWatermarkOutput.lastWatermark(), watermark(0));
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(0));
         assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
     }
 
@@ -70,7 +68,7 @@ class WatermarkOutputMultiplexerTest {
 
         watermarkOutput.emitWatermark(new Watermark(0));
 
-        MatcherAssert.assertThat(underlyingWatermarkOutput.lastWatermark(), watermark(0));
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(0));
         assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
     }
 
@@ -88,7 +86,7 @@ class WatermarkOutputMultiplexerTest {
         watermarkOutput2.emitWatermark(new Watermark(5));
         watermarkOutput3.markIdle();
 
-        MatcherAssert.assertThat(underlyingWatermarkOutput.lastWatermark(), watermark(2));
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(2));
         assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
     }
 
@@ -104,11 +102,11 @@ class WatermarkOutputMultiplexerTest {
         watermarkOutput1.emitWatermark(new Watermark(2));
         watermarkOutput2.emitWatermark(new Watermark(5));
 
-        MatcherAssert.assertThat(underlyingWatermarkOutput.lastWatermark(), watermark(2));
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(2));
 
         watermarkOutput1.markIdle();
 
-        MatcherAssert.assertThat(underlyingWatermarkOutput.lastWatermark(), watermark(5));
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(5));
     }
 
     @Test
@@ -124,11 +122,11 @@ class WatermarkOutputMultiplexerTest {
         watermarkOutput2.emitWatermark(new Watermark(5));
         watermarkOutput1.markIdle();
 
-        MatcherAssert.assertThat(underlyingWatermarkOutput.lastWatermark(), watermark(5));
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(5));
 
         watermarkOutput1.emitWatermark(new Watermark(3));
 
-        MatcherAssert.assertThat(underlyingWatermarkOutput.lastWatermark(), watermark(5));
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(5));
     }
 
     /**
@@ -167,7 +165,7 @@ class WatermarkOutputMultiplexerTest {
 
         multiplexer.onPeriodicEmit();
 
-        MatcherAssert.assertThat(underlyingWatermarkOutput.lastWatermark(), watermark(0));
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(0));
     }
 
     @Test
@@ -181,7 +179,7 @@ class WatermarkOutputMultiplexerTest {
         watermarkOutput.emitWatermark(new Watermark(0));
         multiplexer.onPeriodicEmit();
 
-        MatcherAssert.assertThat(underlyingWatermarkOutput.lastWatermark(), watermark(0));
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(0));
         assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
     }
 
@@ -216,7 +214,7 @@ class WatermarkOutputMultiplexerTest {
         watermarkOutput.emitWatermark(new Watermark(0));
         multiplexer.onPeriodicEmit();
 
-        MatcherAssert.assertThat(underlyingWatermarkOutput.lastWatermark(), watermark(0));
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(0));
         assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
     }
 
@@ -236,7 +234,7 @@ class WatermarkOutputMultiplexerTest {
 
         multiplexer.onPeriodicEmit();
 
-        MatcherAssert.assertThat(underlyingWatermarkOutput.lastWatermark(), watermark(2));
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(2));
         assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
     }
 
@@ -255,7 +253,7 @@ class WatermarkOutputMultiplexerTest {
 
         immediateOutput.emitWatermark(new Watermark(2));
 
-        MatcherAssert.assertThat(underlyingWatermarkOutput.lastWatermark(), watermark(2));
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(2));
     }
 
     @Test
@@ -272,14 +270,14 @@ class WatermarkOutputMultiplexerTest {
         deferredOutput.emitWatermark(new Watermark(5));
         multiplexer.onPeriodicEmit();
 
-        MatcherAssert.assertThat(underlyingWatermarkOutput.lastWatermark(), watermark(5));
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(5));
 
         immediateOutput.emitWatermark(new Watermark(2));
 
-        MatcherAssert.assertThat(underlyingWatermarkOutput.lastWatermark(), watermark(5));
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(5));
 
         multiplexer.onPeriodicEmit();
-        MatcherAssert.assertThat(underlyingWatermarkOutput.lastWatermark(), watermark(5));
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(5));
     }
 
     @Test

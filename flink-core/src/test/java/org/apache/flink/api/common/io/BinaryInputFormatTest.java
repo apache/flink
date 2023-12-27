@@ -38,7 +38,7 @@ import static org.assertj.core.api.Fail.fail;
 
 class BinaryInputFormatTest {
 
-    @TempDir private static Path tempDir;
+    @TempDir private Path tempDir;
 
     private static final class MyBinaryInputFormat extends BinaryInputFormat<Record> {
 
@@ -156,9 +156,9 @@ class BinaryInputFormatTest {
         final int numBlocks2 = 5;
 
         final File tempFile =
-                createBinaryInputFile("binary_input_format_test11", blockSize, numBlocks1);
+                createBinaryInputFile("binary_input_format_test", blockSize, numBlocks1);
         final File tempFile2 =
-                createBinaryInputFile("binary_input_format_test22", blockSize, numBlocks2);
+                createBinaryInputFile("binary_input_format_test_2", blockSize, numBlocks2);
 
         final BinaryInputFormat<Record> inputFormat = new MyBinaryInputFormat();
         inputFormat.setFilePaths(tempFile.toURI().toString(), tempFile2.toURI().toString());

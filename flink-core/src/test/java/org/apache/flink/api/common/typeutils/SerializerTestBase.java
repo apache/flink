@@ -33,7 +33,6 @@ import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
-import org.hamcrest.MatcherAssert;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -504,8 +503,9 @@ public abstract class SerializerTestBase<T> {
     // --------------------------------------------------------------------------------------------
 
     private void deepEquals(String message, T should, T is) {
-        MatcherAssert.assertThat(
-                message, is, CustomEqualityMatcher.deeplyEquals(should).withChecker(checker));
+        assertThat(is)
+                .as(message)
+                .matches(CustomEqualityMatcher.deeplyEquals(should).withChecker(checker));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -600,10 +600,12 @@ public abstract class SerializerTestBase<T> {
                         T copySerdeTestItem = serializer.copy(serdeTestItem);
                         dataOutputSerializer.clear();
 
-                        MatcherAssert.assertThat(
-                                "Serialization/Deserialization cycle resulted in an object that are not equal to the original.",
-                                copySerdeTestItem,
-                                CustomEqualityMatcher.deeplyEquals(testItem).withChecker(checker));
+                        assertThat(copySerdeTestItem)
+                                .as(
+                                        "Serialization/Deserialization cycle resulted in an object that are not equal to the original.")
+                                .matches(
+                                        CustomEqualityMatcher.deeplyEquals(testItem)
+                                                .withChecker(checker));
 
                         // try to enforce some upper bound to the test time
                         if (System.nanoTime() >= endTimeNanos) {
