@@ -22,6 +22,8 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,14 +46,13 @@ public final class DelegatingConfiguration extends Configuration {
 
     private final Configuration backingConfig; // the configuration actually storing the data
 
-    private String prefix; // the prefix key by which keys for this config are marked
+    @Nonnull private String prefix; // the prefix key by which keys for this config are marked
 
     // --------------------------------------------------------------------------------------------
 
     /** Default constructor for serialization. Creates an empty delegating configuration. */
     public DelegatingConfiguration() {
-        this.backingConfig = new Configuration();
-        this.prefix = "";
+        this(new Configuration(), "");
     }
 
     /**
@@ -63,7 +64,7 @@ public final class DelegatingConfiguration extends Configuration {
      */
     public DelegatingConfiguration(Configuration backingConfig, String prefix) {
         this.backingConfig = Preconditions.checkNotNull(backingConfig);
-        this.prefix = prefix;
+        this.prefix = Preconditions.checkNotNull(prefix, "The 'prefix' attribute mustn't be null.");
     }
 
     // --------------------------------------------------------------------------------------------
@@ -285,7 +286,7 @@ public final class DelegatingConfiguration extends Configuration {
 
     @Override
     public Set<String> keySet() {
-        if (this.prefix == null) {
+        if (this.prefix.isEmpty()) {
             return this.backingConfig.keySet();
         }
 
@@ -321,12 +322,12 @@ public final class DelegatingConfiguration extends Configuration {
 
     @Override
     public <T> boolean removeConfig(ConfigOption<T> configOption) {
-        return backingConfig.removeConfig(configOption);
+        return backingConfig.removeConfig(prefixOption(configOption, prefix));
     }
 
     @Override
     public boolean removeKey(String key) {
-        return backingConfig.removeKey(key);
+        return backingConfig.removeKey(prefix + key);
     }
 
     @Override
@@ -359,7 +360,7 @@ public final class DelegatingConfiguration extends Configuration {
 
     @Override
     public void read(DataInputView in) throws IOException {
-        this.prefix = in.readUTF();
+        this.prefix = Preconditions.checkNotNull(in.readUTF());
         this.backingConfig.read(in);
     }
 
