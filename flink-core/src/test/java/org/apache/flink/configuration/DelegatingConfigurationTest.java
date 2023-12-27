@@ -27,6 +27,7 @@ import java.util.Properties;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link DelegatingConfiguration}. */
 class DelegatingConfigurationTest {
@@ -78,14 +79,15 @@ class DelegatingConfigurationTest {
     }
 
     @Test
-    void testDelegationConfigurationWithNullPrefix() {
+    void testDelegationConfigurationWithNullOrEmptyPrefix() {
         Configuration backingConf = new Configuration();
         backingConf.setValueInternal("test-key", "value", false);
 
-        DelegatingConfiguration configuration = new DelegatingConfiguration(backingConf, null);
-        Set<String> keySet = configuration.keySet();
+        assertThatThrownBy(() -> new DelegatingConfiguration(backingConf, null))
+                .isInstanceOf(NullPointerException.class);
 
-        assertThat(backingConf.keySet()).isEqualTo(keySet);
+        DelegatingConfiguration configuration = new DelegatingConfiguration(backingConf, "");
+        assertThat(backingConf.keySet()).isEqualTo(configuration.keySet());
     }
 
     @Test
@@ -190,5 +192,28 @@ class DelegatingConfigurationTest {
         assertThat(delegatingConf.getBoolean(booleanOption, true)).isEqualTo(true);
         delegatingConf.setBoolean(booleanOption, false);
         assertThat(delegatingConf.getBoolean(booleanOption, true)).isEqualTo(false);
+    }
+
+    @Test
+    void testRemoveKeyOrConfig() {
+        Configuration original = new Configuration();
+        final DelegatingConfiguration delegatingConf =
+                new DelegatingConfiguration(original, "prefix.");
+        ConfigOption<Integer> integerOption =
+                ConfigOptions.key("integer.key").intType().noDefaultValue();
+
+        // Test for removeConfig
+        delegatingConf.set(integerOption, 0);
+        assertThat(delegatingConf.get(integerOption)).isZero();
+        delegatingConf.removeConfig(integerOption);
+        assertThat(delegatingConf.getOptional(integerOption)).isEmpty();
+        assertThat(delegatingConf.getInteger(integerOption.key(), 0)).isZero();
+
+        // Test for removeKey
+        delegatingConf.set(integerOption, 0);
+        assertThat(delegatingConf.getInteger(integerOption, -1)).isZero();
+        delegatingConf.removeKey(integerOption.key());
+        assertThat(delegatingConf.getOptional(integerOption)).isEmpty();
+        assertThat(delegatingConf.getInteger(integerOption.key(), 0)).isZero();
     }
 }
