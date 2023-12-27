@@ -126,7 +126,7 @@ class FileInputFormatTest {
         format.setFilePath(myPath);
         final Path[] filePaths = format.getFilePaths();
 
-        assertThat(filePaths.length).isEqualTo(1);
+        assertThat(filePaths).hasSize(1);
         assertThat(filePaths[0].toUri().toString()).isEqualTo(myPath);
 
         // ensure backwards compatibility
@@ -140,7 +140,7 @@ class FileInputFormatTest {
         format.setFilePaths(myPath);
         final Path[] filePaths = format.getFilePaths();
 
-        assertThat(filePaths.length).isEqualTo(1);
+        assertThat(filePaths).hasSize(1);
         assertThat(filePaths[0].toUri().toString()).isEqualTo(myPath);
 
         // ensure backwards compatibility
@@ -156,7 +156,7 @@ class FileInputFormatTest {
         format.setFilePaths(myPath, myPath2);
         final Path[] filePaths = format.getFilePaths();
 
-        assertThat(filePaths.length).isEqualTo(2);
+        assertThat(filePaths).hasSize(2);
         assertThat(filePaths[0].toUri().toString()).isEqualTo(myPath);
         assertThat(filePaths[1].toUri().toString()).isEqualTo(myPath2);
     }
@@ -249,7 +249,7 @@ class FileInputFormatTest {
         int numSplitsFile2 = 0;
         int numSplitsFile3 = 0;
 
-        assertThat(splits.length).isEqualTo(3);
+        assertThat(splits).hasSize(3);
         for (FileInputSplit fis : splits) {
             assertThat(fis.getStart()).isZero();
             if (fis.getPath().toString().equals(tempFile1)) {
@@ -621,7 +621,7 @@ class FileInputFormatTest {
             FileInputSplit[] splits = format.createInputSplits(2);
             final Set<String> supportedCompressionFormats =
                     FileInputFormat.getSupportedCompressionFormats();
-            assertThat(splits.length).isEqualTo(supportedCompressionFormats.size());
+            assertThat(splits).hasSize(supportedCompressionFormats.size());
             for (FileInputSplit split : splits) {
                 assertThat(split.getLength())
                         .isEqualTo(
@@ -641,7 +641,7 @@ class FileInputFormatTest {
             formatMixed.setFilePath(tempFile);
             formatMixed.configure(new Configuration());
             FileInputSplit[] splitsMixed = formatMixed.createInputSplits(2);
-            assertThat(splitsMixed.length).isEqualTo(supportedCompressionFormats.size() + 1);
+            assertThat(splitsMixed).hasSize(supportedCompressionFormats.size() + 1);
             for (FileInputSplit split : splitsMixed) {
                 final String extension =
                         FileInputFormat.extractFileExtension(split.getPath().getName());
@@ -752,7 +752,7 @@ class FileInputFormatTest {
             format.configure(new Configuration());
             FileInputSplit[] splits = format.createInputSplits(1);
 
-            assertThat(splits.length).isEqualTo(2);
+            assertThat(splits).hasSize(2);
 
             final URI uri1 = splits[0].getPath().toUri();
             final URI uri2 = splits[1].getPath().toUri();

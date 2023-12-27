@@ -29,7 +29,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.util.JSON
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link AbstractDeserializationSchema}. */
 class AbstractDeserializationSchemaTest {
@@ -80,22 +80,12 @@ class AbstractDeserializationSchemaTest {
 
     @Test
     void testTypeExtractionRawException() {
-        try {
-            new RawSchema();
-            fail("");
-        } catch (FlinkRuntimeException e) {
-            // expected
-        }
+        assertThatThrownBy(RawSchema::new).isInstanceOf(FlinkRuntimeException.class);
     }
 
     @Test
     void testTypeExtractionGenericException() {
-        try {
-            new GenericSchema<>();
-            fail("");
-        } catch (FlinkRuntimeException e) {
-            // expected
-        }
+        assertThatThrownBy(GenericSchema::new).isInstanceOf(FlinkRuntimeException.class);
     }
 
     @Test

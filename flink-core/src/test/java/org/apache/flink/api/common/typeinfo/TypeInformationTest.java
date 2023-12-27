@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Fail.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link TypeInformation} class. */
 class TypeInformationTest {
@@ -40,13 +40,9 @@ class TypeInformationTest {
 
     @Test
     void testOfGenericClassForFlink() {
-        try {
-            TypeInformation.of(Tuple3.class);
-            fail("should fail with an exception");
-        } catch (FlinkRuntimeException e) {
-            // check that the error message mentions the TypeHint
-            assertThat(e.getMessage().indexOf("TypeHint")).isNotEqualTo(-1);
-        }
+        assertThatThrownBy(() -> TypeInformation.of(Tuple3.class))
+                .isInstanceOf(FlinkRuntimeException.class)
+                .hasMessageContaining("TypeHint");
     }
 
     @Test

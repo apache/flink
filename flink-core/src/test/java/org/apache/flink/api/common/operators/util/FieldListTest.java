@@ -78,7 +78,7 @@ class FieldListTest {
             return;
         }
 
-        assertThat(set.size()).isEqualTo(elements.length);
+        assertThat(set).hasSize(elements.length);
 
         // test contains
         for (int i : elements) {

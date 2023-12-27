@@ -28,7 +28,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link StateTtlConfig}. */
 class StateTtlConfigTest {
@@ -79,14 +79,12 @@ class StateTtlConfigTest {
         List<Integer> illegalCleanUpSizes = Arrays.asList(0, -2);
 
         for (Integer illegalCleanUpSize : illegalCleanUpSizes) {
-            try {
-                StateTtlConfig ttlConfig =
-                        StateTtlConfig.newBuilder(Time.seconds(1))
-                                .cleanupIncrementally(illegalCleanUpSize, false)
-                                .build();
-                fail("");
-            } catch (IllegalArgumentException e) {
-            }
+            assertThatThrownBy(
+                            () ->
+                                    StateTtlConfig.newBuilder(Time.seconds(1))
+                                            .cleanupIncrementally(illegalCleanUpSize, false)
+                                            .build())
+                    .isInstanceOf(IllegalArgumentException.class);
         }
     }
 }

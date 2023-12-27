@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link TypeHint}. */
 class TypeHintTest {
@@ -60,11 +60,7 @@ class TypeHintTest {
 
     @Test
     <T> void testWithGenericParameter() {
-        try {
-            new TypeHint<T>() {};
-            fail("");
-        } catch (FlinkRuntimeException ignored) {
-        }
+        assertThatThrownBy(() -> new TypeHint<T>() {}).isInstanceOf(FlinkRuntimeException.class);
 
         // this works, because "List" goes to the GenericType (blackbox) which does
         // not care about generic parametrization

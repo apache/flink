@@ -68,7 +68,7 @@ class EnumerateNestedFilesTest {
             format.configure(this.config);
 
             FileInputSplit[] splits = format.createInputSplits(1);
-            assertThat(splits.length).isEqualTo(1);
+            assertThat(splits).hasSize(1);
         } catch (Exception ex) {
             ex.printStackTrace();
             fail(ex.getMessage());
@@ -95,7 +95,7 @@ class EnumerateNestedFilesTest {
             format.configure(this.config);
 
             FileInputSplit[] splits = format.createInputSplits(1);
-            assertThat(splits.length).isEqualTo(3);
+            assertThat(splits).hasSize(3);
         } catch (Exception ex) {
             ex.printStackTrace();
             fail(ex.getMessage());
@@ -122,7 +122,7 @@ class EnumerateNestedFilesTest {
             format.configure(this.config);
 
             FileInputSplit[] splits = format.createInputSplits(1);
-            assertThat(splits.length).isEqualTo(1);
+            assertThat(splits).hasSize(1);
         } catch (Exception ex) {
             ex.printStackTrace();
             fail(ex.getMessage());
@@ -154,7 +154,7 @@ class EnumerateNestedFilesTest {
             format.configure(this.config);
 
             FileInputSplit[] splits = format.createInputSplits(1);
-            assertThat(splits.length).isEqualTo(4);
+            assertThat(splits).hasSize(4);
         } catch (Exception ex) {
             ex.printStackTrace();
             fail(ex.getMessage());
@@ -188,7 +188,7 @@ class EnumerateNestedFilesTest {
             format.configure(this.config);
 
             FileInputSplit[] splits = format.createInputSplits(1);
-            assertThat(splits.length).isEqualTo(4);
+            assertThat(splits).hasSize(4);
         } catch (Exception ex) {
             ex.printStackTrace();
             fail(ex.getMessage());
@@ -239,7 +239,7 @@ class EnumerateNestedFilesTest {
             format.configure(this.config);
 
             FileInputSplit[] splits = format.createInputSplits(1);
-            assertThat(splits.length).isEqualTo(4);
+            assertThat(splits).hasSize(4);
         } catch (Exception ex) {
             ex.printStackTrace();
             fail(ex.getMessage());
