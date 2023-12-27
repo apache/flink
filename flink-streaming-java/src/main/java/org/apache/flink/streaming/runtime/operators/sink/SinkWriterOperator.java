@@ -44,11 +44,13 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import javax.annotation.Nullable;
@@ -127,6 +129,19 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         } else {
             committableSerializer = null;
         }
+    }
+
+    @Override
+    public void setup(
+            StreamTask<?, ?> containingTask,
+            StreamConfig config,
+            Output<StreamRecord<CommittableMessage<CommT>>> output) {
+        super.setup(containingTask, config, output);
+        // Metric "numRecordsOut" & "numBytesOut" is defined as the total number of records/bytes
+        // written to the external system in FLIP-33, reuse them for task to account for traffic
+        // with external system
+        this.metrics.getIOMetricGroup().reuseOutputMetricsForTask();
+        this.metrics.getIOMetricGroup().reuseBytesOutputMetricsForTask();
     }
 
     @Override

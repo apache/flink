@@ -230,6 +230,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             Output<StreamRecord<OUT>> output) {
         super.setup(containingTask, config, output);
         initSourceMetricGroup();
+        // Metric "numRecordsIn" & "numBytesIn" is defined as the total number of records/bytes
+        // read from the external system in FLIP-33, reuse them for task to account for traffic
+        // with external system
+        this.metrics.getIOMetricGroup().reuseInputMetricsForTask();
+        this.metrics.getIOMetricGroup().reuseBytesInputMetricsForTask();
     }
 
     @VisibleForTesting
