@@ -193,7 +193,7 @@ object CorrelateCodeGenerator {
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val udtfInputTerm = CodeGenUtils.DEFAULT_INPUT2_TERM
 
-    val collectorCtx = new CodeGeneratorContext(tableConfig, ctx.classLoader)
+    val collectorCtx = new CodeGeneratorContext(tableConfig, ctx.classLoader, ctx)
 
     val body = {
       // completely output left input + right

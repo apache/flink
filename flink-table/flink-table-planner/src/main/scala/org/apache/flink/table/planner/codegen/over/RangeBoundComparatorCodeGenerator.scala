@@ -104,7 +104,7 @@ class RangeBoundComparatorCodeGenerator(
         } else if (${inputExpr.nullTerm} || ${currentExpr.nullTerm}) {
            $oneIsNull
         } else {
-           ${getComparatorCode(inputExpr.resultTerm, currentExpr.resultTerm)}
+           ${getComparatorCode(inputExpr.resultTerm, currentExpr.resultTerm, ctx)}
         }
      """.stripMargin
 
@@ -131,7 +131,10 @@ class RangeBoundComparatorCodeGenerator(
     new GeneratedRecordComparator(className, code, ctx.references.toArray, ctx.tableConfig)
   }
 
-  private def getComparatorCode(inputValue: String, currentValue: String): String = {
+  private def getComparatorCode(
+      inputValue: String,
+      currentValue: String,
+      parentCtx: CodeGeneratorContext): String = {
     val (realBoundValue, realKeyType) = keyType.getTypeRoot match {
       case LogicalTypeRoot.DATE =>
         // The constant about time is expressed based millisecond unit in calcite, but
@@ -147,7 +150,7 @@ class RangeBoundComparatorCodeGenerator(
     val relKeyType = typeFactory.createFieldTypeFromLogicalType(realKeyType)
 
     // minus between inputValue and currentValue
-    val ctx = new CodeGeneratorContext(tableConfig, classLoader)
+    val ctx = new CodeGeneratorContext(tableConfig, classLoader, parentCtx)
     val exprCodeGenerator = new ExprCodeGenerator(ctx, false)
     val minusCall = if (keyOrder) {
       relBuilder.call(MINUS, new RexInputRef(0, relKeyType), new RexInputRef(1, relKeyType))

@@ -1249,7 +1249,7 @@ class AggsHandlerCodeGenerator(
     val resultType = fromDataTypeToLogicalType(aggExternalType)
     val resultRowType = LogicalTypeUtils.toRowType(resultType)
 
-    val newCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
+    val newCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader, ctx)
     val exprGenerator = new ExprCodeGenerator(newCtx, false).bindInput(resultType)
     val resultExpr = exprGenerator.generateConverterResultExpression(
       resultRowType,

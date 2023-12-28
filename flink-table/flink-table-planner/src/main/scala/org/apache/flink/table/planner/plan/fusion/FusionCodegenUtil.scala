@@ -42,13 +42,15 @@ object FusionCodegenUtil {
 
   def generateFusionOperator(
       outputGenerator: OpFusionCodegenSpecGenerator,
-      inputSpecs: util.List[InputSelectionSpec]): (OperatorFusionCodegenFactory[RowData], Long) = {
+      inputSpecs: util.List[InputSelectionSpec],
+      parentCtx: CodeGeneratorContext): (OperatorFusionCodegenFactory[RowData], Long) = {
     // Must initialize operator managedMemoryFraction before produce-consume call, codegen need it
     val (opSpecGenerators, totalManagedMemory) = setupOpSpecGenerator(outputGenerator)
 
     val fusionCtx = new CodeGeneratorContext(
       outputGenerator.getOpFusionCodegenSpec.getCodeGeneratorContext.tableConfig,
-      outputGenerator.getOpFusionCodegenSpec.getCodeGeneratorContext.classLoader)
+      outputGenerator.getOpFusionCodegenSpec.getCodeGeneratorContext.classLoader,
+      parentCtx)
 
     // generate process code
     outputGenerator.processProduce(fusionCtx)

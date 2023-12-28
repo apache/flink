@@ -535,13 +535,15 @@ class HashJoinFusionCodegenSpec(
       genProjection(
         opCodegenCtx.tableConfig,
         opCodegenCtx.classLoader,
-        buildType.getChildren.toArray(Array[LogicalType]()))
+        buildType.getChildren.toArray(Array[LogicalType]()),
+        opCodegenCtx)
     opCodegenCtx.addReusableInnerClass(bGenProj.getClassName, bGenProj.getCode)
     val pGenProj =
       genProjection(
         opCodegenCtx.tableConfig,
         opCodegenCtx.classLoader,
-        probeType.getChildren.toArray(Array[LogicalType]()))
+        probeType.getChildren.toArray(Array[LogicalType]()),
+        opCodegenCtx)
     opCodegenCtx.addReusableInnerClass(pGenProj.getClassName, pGenProj.getCode)
 
     opCodegenCtx.addReusableMember(s"${bGenProj.getClassName} $buildToBinaryRow;")

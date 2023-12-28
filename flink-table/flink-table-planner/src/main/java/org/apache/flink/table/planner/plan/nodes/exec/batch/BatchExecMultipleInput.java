@@ -168,8 +168,14 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
                 i++;
             }
 
+            // Create a parent CodeGeneratorContext to ensure that all codes in multiple operator
+            // fusion codegen share the same ancestors CodeGeneratorContext. This way, we can
+            // avoid naming conflicts.
+            CodeGeneratorContext parentCtx =
+                    new CodeGeneratorContext(config, planner.getFlinkContext().getClassLoader());
+
             OpFusionCodegenSpecGenerator inputGenerator =
-                    rootNode.translateToFusionCodegenSpec(planner);
+                    rootNode.translateToFusionCodegenSpec(planner, parentCtx);
             // wrap output operator spec generator of fusion codegen
             OpFusionCodegenSpecGenerator outputGenerator =
                     new OneInputOpFusionCodegenSpecGenerator(
@@ -178,12 +184,15 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
                             (RowType) getOutputType(),
                             new OutputFusionCodegenSpec(
                                     new CodeGeneratorContext(
-                                            config, planner.getFlinkContext().getClassLoader())));
+                                            config,
+                                            planner.getFlinkContext().getClassLoader(),
+                                            parentCtx)));
             inputGenerator.addOutput(1, outputGenerator);
 
             // generate fusion operator
             Tuple2<OperatorFusionCodegenFactory<RowData>, Object> multipleOperatorTuple =
-                    FusionCodegenUtil.generateFusionOperator(outputGenerator, inputSelectionSpecs);
+                    FusionCodegenUtil.generateFusionOperator(
+                            outputGenerator, inputSelectionSpecs, parentCtx);
             operatorFactory = multipleOperatorTuple._1;
 
             Pair<Integer, Integer> parallelismPair = getInputMaxParallelism(inputTransforms);

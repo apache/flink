@@ -122,23 +122,13 @@ object CodeGenUtils {
 
   // ----------------------------------------------------------------------------------------
 
-  private val nameCounter = new AtomicLong
-
-  def newName(context: CodeGeneratorContext = null, name: String): String = {
-    if (context == null || context.getNameCounter == null) {
-      s"$name$$${nameCounter.getAndIncrement}"
-    } else {
-      s"$name$$${context.getNameCounter.getAndIncrement}"
-    }
+  def newName(context: CodeGeneratorContext, name: String): String = {
+    s"$name$$${context.getNameCounter.getAndIncrement}"
   }
 
   def newNames(context: CodeGeneratorContext, names: String*): Seq[String] = {
     require(names.toSet.size == names.length, "Duplicated names")
-    val newId = if (context == null || context.getNameCounter == null) {
-      nameCounter.getAndIncrement
-    } else {
-      context.getNameCounter.getAndIncrement
-    }
+    val newId = context.getNameCounter.getAndIncrement
     names.map(name => s"$name$$$newId")
   }
 

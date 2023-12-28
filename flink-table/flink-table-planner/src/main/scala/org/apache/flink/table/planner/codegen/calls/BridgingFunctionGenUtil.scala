@@ -220,7 +220,7 @@ object BridgingFunctionGenUtil {
       returnType: LogicalType): String = {
     val outputType = outputDataType.getLogicalType
 
-    val collectorCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
+    val collectorCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader, ctx)
     val externalResultTerm = newName(ctx, "externalResult")
 
     // code for wrapping atomic types

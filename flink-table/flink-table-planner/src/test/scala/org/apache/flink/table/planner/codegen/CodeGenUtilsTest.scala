@@ -29,11 +29,6 @@ class CodeGenUtilsTest {
 
   @Test
   def testNewName(): Unit = {
-    // Use name counter in CodeGenUtils.
-    assertEquals("name$0", CodeGenUtils.newName(null, "name"))
-    assertEquals("name$1", CodeGenUtils.newName(null, "name"))
-    assertEquals(ArrayBuffer("name$2", "id$2"), CodeGenUtils.newNames(null, "name", "id"))
-
     val context1 = new CodeGeneratorContext(new Configuration, classLoader)
     // Use name counter in context1, the index will start from zero.
     assertEquals("name$0", CodeGenUtils.newName(context1, "name"))
@@ -42,8 +37,8 @@ class CodeGenUtilsTest {
     assertEquals(ArrayBuffer("name$3", "id$3"), CodeGenUtils.newNames(context1, "name", "id"))
     assertEquals(ArrayBuffer("name$4", "id$4"), CodeGenUtils.newNames(context1, "name", "id"))
 
-    // Use name counter in context2, the index will start from zero.
     val context2 = new CodeGeneratorContext(new Configuration, classLoader)
+    // Use name counter in context2, the index will start from zero.
     assertEquals("name$0", CodeGenUtils.newName(context2, "name"))
     assertEquals("name$1", CodeGenUtils.newName(context2, "name"))
     assertEquals("name$2", CodeGenUtils.newName(context2, "name"))

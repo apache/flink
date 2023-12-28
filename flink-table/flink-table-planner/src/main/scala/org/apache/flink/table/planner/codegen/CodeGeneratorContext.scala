@@ -45,8 +45,20 @@ import scala.collection.mutable
 /**
  * The context for code generator, maintaining various reusable statements that could be insert into
  * different code sections in the final generated class.
+ *
+ * Caution: As we use nameCounter in each CodeGeneratorContext, we must ensure that a unique
+ * CodeGeneratorContext(or contexts share the same ancestors) is used throughout the entire class to
+ * avoid naming conflicts. So when we create a context for a class, we can set parentCtx to null.
+ * However, when we create a context for a code block, we must ensure that all contexts for code
+ * blocks in a class share a common ancestor by setting parentCtx.
  */
-class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: ClassLoader) {
+class CodeGeneratorContext(
+    val tableConfig: ReadableConfig,
+    val classLoader: ClassLoader,
+    parentCtx: CodeGeneratorContext) {
+
+  def this(tableConfig: ReadableConfig, classLoader: ClassLoader) =
+    this(tableConfig, classLoader, null)
 
   // holding a list of objects that could be used passed into generated class
   val references: mutable.ArrayBuffer[AnyRef] = new mutable.ArrayBuffer[AnyRef]()
@@ -158,7 +170,8 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
   def getReusableInputUnboxingExprs(inputTerm: String, index: Int): Option[GeneratedExpression] =
     reusableInputUnboxingExprs.get((inputTerm, index))
 
-  def getNameCounter: AtomicLong = nameCounter
+  /** Prioritize using the nameCounter of the ancestor. */
+  def getNameCounter: AtomicLong = if (parentCtx == null) nameCounter else parentCtx.getNameCounter
 
   /**
    * Add a line comment to [[reusableHeaderComments]] list which will be concatenated into a single

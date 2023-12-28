@@ -114,7 +114,7 @@ class TableFunctionCallGen(rexCall: RexCall, tableFunction: TableFunction[_])
     val externalType = fromDataTypeToLogicalType(externalDataType)
     val wrappedInternalType = LogicalTypeUtils.toRowType(externalType)
 
-    val collectorCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
+    val collectorCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader, ctx)
     val externalTerm = newName(ctx, "externalRecord")
 
     // code for wrapping atomic types
