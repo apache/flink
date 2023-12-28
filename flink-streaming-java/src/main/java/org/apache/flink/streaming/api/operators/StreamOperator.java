@@ -148,4 +148,14 @@ public interface StreamOperator<OUT> extends CheckpointListener, KeyContext, Ser
     OperatorMetricGroup getMetricGroup();
 
     OperatorID getOperatorID();
+
+    /**
+     * Called to get the OperatorAttributes of the operator.If there is no defined attribute, a
+     * default OperatorAttributes is built.
+     *
+     * @return OperatorAttributes of the operator.
+     */
+    default OperatorAttributes getOperatorAttributes() {
+        return new OperatorAttributesBuilder().build();
+    }
 }

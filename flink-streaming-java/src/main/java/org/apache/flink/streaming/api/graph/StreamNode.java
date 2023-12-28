@@ -442,4 +442,11 @@ public class StreamNode {
             boolean supportsConcurrentExecutionAttempts) {
         this.supportsConcurrentExecutionAttempts = supportsConcurrentExecutionAttempts;
     }
+
+    public boolean isOutputOnEOF() {
+        if (operatorFactory == null) {
+            return false;
+        }
+        return operatorFactory.getOperatorAttributes().isOutputOnEOF();
+    }
 }

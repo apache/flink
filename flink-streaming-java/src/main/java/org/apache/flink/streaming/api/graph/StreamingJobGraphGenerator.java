@@ -184,6 +184,12 @@ public class StreamingJobGraphGenerator {
 
     private final Map<Integer, InputOutputFormatContainer> chainedInputOutputFormats;
 
+    // the ids of nodes that output in BLOCKING result partition type
+    private final Set<Integer> outputBlockingNodesID;
+
+    // the ids of upstream nodes of outputBlockingNodes
+    private final Set<Integer> outputBlockingUpstreamNodesID;
+
     private final StreamGraphHasher defaultStreamGraphHasher;
     private final List<StreamGraphHasher> legacyStreamGraphHashers;
 
@@ -224,6 +230,8 @@ public class StreamingJobGraphGenerator {
         this.chainedMinResources = new HashMap<>();
         this.chainedPreferredResources = new HashMap<>();
         this.chainedInputOutputFormats = new HashMap<>();
+        this.outputBlockingNodesID = new HashSet<>();
+        this.outputBlockingUpstreamNodesID = new HashSet<>();
         this.physicalEdgesInOrder = new ArrayList<>();
         this.serializationExecutor = Preconditions.checkNotNull(serializationExecutor);
         this.chainInfos = new HashMap<>();
@@ -675,6 +683,11 @@ public class StreamingJobGraphGenerator {
 
             StreamNode currentNode = streamGraph.getStreamNode(currentNodeId);
 
+            boolean currentNodeIsOutputOnEOF = currentNode.isOutputOnEOF();
+            if (currentNodeIsOutputOnEOF) {
+                outputBlockingNodesID.add(currentNodeId);
+            }
+
             for (StreamEdge outEdge : currentNode.getOutEdges()) {
                 if (isChainable(outEdge, streamGraph)) {
                     chainableOutputs.add(outEdge);
@@ -684,12 +697,20 @@ public class StreamingJobGraphGenerator {
             }
 
             for (StreamEdge chainable : chainableOutputs) {
+                // transfer outputBlocking to downstream nodes in the same chain
+                if (currentNodeIsOutputOnEOF) {
+                    outputBlockingNodesID.add(chainable.getTargetId());
+                }
                 transitiveOutEdges.addAll(
                         createChain(
                                 chainable.getTargetId(),
                                 chainIndex + 1,
                                 chainInfo,
                                 chainEntryPoints));
+                // transfer outputBlocking from all of downstream nodes in the same chain
+                if (outputBlockingNodesID.contains(chainable.getTargetId())) {
+                    outputBlockingNodesID.add(currentNodeId);
+                }
             }
 
             for (StreamEdge nonChainable : nonChainableOutputs) {
@@ -701,6 +722,18 @@ public class StreamingJobGraphGenerator {
                                 nonChainable.getTargetId(),
                                 (k) -> chainInfo.newChain(nonChainable.getTargetId())),
                         chainEntryPoints);
+            }
+
+            if (!outputBlockingNodesID.contains(currentNodeId)
+                    && !outputBlockingUpstreamNodesID.contains(currentNodeId)) {
+                for (StreamEdge edge : currentNode.getOutEdges()) {
+                    int targetId = edge.getTargetId();
+                    if (outputBlockingNodesID.contains(targetId)
+                            || outputBlockingUpstreamNodesID.contains(targetId)) {
+                        outputBlockingUpstreamNodesID.add(currentNodeId);
+                        break;
+                    }
+                }
             }
 
             chainedNames.put(
@@ -1115,7 +1148,13 @@ public class StreamingJobGraphGenerator {
         config.setSavepointDir(streamGraph.getSavepointDirectory());
         config.setGraphContainingLoops(streamGraph.isIterative());
         config.setTimerServiceProvider(streamGraph.getTimerServiceProvider());
-        config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
+        if (outputBlockingNodesID.contains(vertexId)
+                || outputBlockingUpstreamNodesID.contains(vertexId)) {
+            // the output blocking and its upstream vertexes should disable checkpoint.
+            config.setCheckpointingEnabled(false);
+        } else {
+            config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
+        }
         config.getConfiguration()
                 .set(
                         ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
@@ -1472,15 +1511,21 @@ public class StreamingJobGraphGenerator {
             case HYBRID_SELECTIVE:
                 return ResultPartitionType.HYBRID_SELECTIVE;
             case UNDEFINED:
-                return determineUndefinedResultPartitionType(edge.getPartitioner());
+                return determineUndefinedResultPartitionType(edge);
             default:
                 throw new UnsupportedOperationException(
                         "Data exchange mode " + edge.getExchangeMode() + " is not supported yet.");
         }
     }
 
-    private ResultPartitionType determineUndefinedResultPartitionType(
-            StreamPartitioner<?> partitioner) {
+    private ResultPartitionType determineUndefinedResultPartitionType(StreamEdge edge) {
+        if (outputBlockingNodesID.contains(edge.getSourceId())) {
+            // use corresponding partition type if the upstream node outputs EOF
+            edge.setBufferTimeout(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
+            return ResultPartitionType.BLOCKING;
+        }
+
+        StreamPartitioner<?> partitioner = edge.getPartitioner();
         switch (streamGraph.getGlobalStreamExchangeMode()) {
             case ALL_EDGES_BLOCKING:
                 return ResultPartitionType.BLOCKING;

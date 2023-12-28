@@ -27,7 +27,6 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import java.util.BitSet;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
@@ -48,32 +47,21 @@ public class VertexEndOfDataListener {
         }
     }
 
-    public void recordTaskEndOfData(ExecutionAttemptID executionAttemptID) {
-        BitSet subtaskStatus = tasksReachedEndOfData.get(executionAttemptID.getJobVertexId());
+    public boolean recordTaskEndOfData(ExecutionAttemptID executionAttemptID) {
+        boolean areAllTasksOfJobVertexEndOfData = false;
+        JobVertexID jobVertexId = executionAttemptID.getJobVertexId();
+        ExecutionJobVertex jobVertex = executionGraph.getJobVertex(jobVertexId);
+        BitSet subtaskStatus = tasksReachedEndOfData.get(jobVertexId);
         subtaskStatus.set(executionAttemptID.getSubtaskIndex());
-    }
-
-    public boolean areAllTasksOfJobVertexEndOfData(JobVertexID jobVertexID) {
-        BitSet subtaskStatus = tasksReachedEndOfData.get(jobVertexID);
-        return subtaskStatus == null
-                || subtaskStatus.cardinality()
-                        == executionGraph.getJobVertex(jobVertexID).getParallelism();
+        if (subtaskStatus.cardinality() == jobVertex.getParallelism()) {
+            tasksReachedEndOfData.remove(jobVertexId);
+            areAllTasksOfJobVertexEndOfData = true;
+        }
+        return areAllTasksOfJobVertexEndOfData;
     }
 
     public boolean areAllTasksEndOfData() {
-        Iterator<Map.Entry<JobVertexID, BitSet>> iterator =
-                tasksReachedEndOfData.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<JobVertexID, BitSet> entry = iterator.next();
-            JobVertexID vertex = entry.getKey();
-            BitSet status = entry.getValue();
-            if (status.cardinality() != executionGraph.getJobVertex(vertex).getParallelism()) {
-                return false;
-            } else {
-                iterator.remove();
-            }
-        }
-        return true;
+        return tasksReachedEndOfData.isEmpty();
     }
 
     public void restoreVertices(Set<ExecutionVertexID> executionVertices) {

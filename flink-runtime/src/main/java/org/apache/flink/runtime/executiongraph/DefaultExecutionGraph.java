@@ -516,7 +516,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         if (checkpointCoordinator.isPeriodicCheckpointingConfigured()) {
             // the periodic checkpoint scheduler is activated and deactivated as a result of
             // job status changes (running -> on, all other states -> off)
-            registerJobStatusListener(checkpointCoordinator.createActivatorDeactivator());
+            registerJobStatusListener(checkpointCoordinator.createActivatorDeactivator(tasks));
         }
 
         this.stateBackendName = checkpointStateBackend.getName();

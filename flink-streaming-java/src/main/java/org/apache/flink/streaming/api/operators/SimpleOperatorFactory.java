@@ -37,6 +37,8 @@ public class SimpleOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
 
     private final StreamOperator<OUT> operator;
 
+    private transient OperatorAttributes operatorAttributes;
+
     /** Create a SimpleOperatorFactory from existed StreamOperator. */
     @SuppressWarnings("unchecked")
     public static <OUT> SimpleOperatorFactory<OUT> of(StreamOperator<OUT> operator) {
@@ -131,5 +133,13 @@ public class SimpleOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
     @Override
     public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
         return operator.getClass();
+    }
+
+    @Override
+    public OperatorAttributes getOperatorAttributes() {
+        if (operatorAttributes == null) {
+            operatorAttributes = operator.getOperatorAttributes();
+        }
+        return operatorAttributes;
     }
 }

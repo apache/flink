@@ -39,8 +39,11 @@ import java.util.Collections;
 @PublicEvolving
 public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
     private static final long serialVersionUID = 1L;
+    private final Trigger<Object, GlobalWindow> defaultTrigger;
 
-    private GlobalWindows() {}
+    private GlobalWindows(Trigger<Object, GlobalWindow> defaultTrigger) {
+        this.defaultTrigger = defaultTrigger;
+    }
 
     @Override
     public Collection<GlobalWindow> assignWindows(
@@ -56,7 +59,7 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
 
     @Override
     public Trigger<Object, GlobalWindow> getDefaultTrigger() {
-        return new NeverTrigger();
+        return defaultTrigger;
     }
 
     @Override
@@ -65,13 +68,24 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
     }
 
     /**
-     * Creates a new {@code GlobalWindows} {@link WindowAssigner} that assigns all elements to the
-     * same {@link GlobalWindow}.
+     * Creates a new {@code GlobalWindows} {@link WindowAssigner} with {@link NeverTrigger} that
+     * assigns all elements to the same {@link GlobalWindow}.
      *
-     * @return The global window policy.
+     * @return The global window policy with {@link NeverTrigger} as default trigger.
      */
     public static GlobalWindows create() {
-        return new GlobalWindows();
+        return new GlobalWindows(new NeverTrigger());
+    }
+
+    /**
+     * Creates a new {@code GlobalWindows} {@link WindowAssigner} with {@link EndOfStreamTrigger}
+     * that assigns all elements to the same {@link GlobalWindow} and the default trigger fires iff
+     * the input stream reaches EOF.
+     *
+     * @return The global window policy with {@link EndOfStreamTrigger} as default trigger.
+     */
+    public static GlobalWindows createWithEndOfStreamTrigger() {
+        return new GlobalWindows(new EndOfStreamTrigger());
     }
 
     /** A trigger that never fires, as default Trigger for GlobalWindows. */
@@ -105,6 +119,34 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
     @Override
     public TypeSerializer<GlobalWindow> getWindowSerializer(ExecutionConfig executionConfig) {
         return new GlobalWindow.Serializer();
+    }
+
+    /** A trigger that fires iff the input stream reaches EOF. */
+    @Internal
+    public static class EndOfStreamTrigger extends Trigger<Object, GlobalWindow> {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public TriggerResult onElement(
+                Object element, long timestamp, GlobalWindow window, TriggerContext ctx) {
+            return TriggerResult.CONTINUE;
+        }
+
+        @Override
+        public TriggerResult onEventTime(long time, GlobalWindow window, TriggerContext ctx) {
+            return time == window.maxTimestamp() ? TriggerResult.FIRE : TriggerResult.CONTINUE;
+        }
+
+        @Override
+        public TriggerResult onProcessingTime(long time, GlobalWindow window, TriggerContext ctx) {
+            return TriggerResult.CONTINUE;
+        }
+
+        @Override
+        public void clear(GlobalWindow window, TriggerContext ctx) throws Exception {}
+
+        @Override
+        public void onMerge(GlobalWindow window, OnMergeContext ctx) {}
     }
 
     @Override

@@ -19,11 +19,15 @@
 package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -44,28 +48,22 @@ public class TwoInputTransformationTranslator<IN1, IN2, OUT>
             final TwoInputTransformation<IN1, IN2, OUT> transformation, final Context context) {
         Collection<Integer> ids = translateInternal(transformation, context);
 
-        StreamConfig.InputRequirement input1Requirement =
-                transformation.getStateKeySelector1() != null
-                        ? StreamConfig.InputRequirement.SORTED
-                        : StreamConfig.InputRequirement.PASS_THROUGH;
+        maybeApplyBatchExecutionSettings(transformation, context);
 
-        StreamConfig.InputRequirement input2Requirement =
-                transformation.getStateKeySelector2() != null
-                        ? StreamConfig.InputRequirement.SORTED
-                        : StreamConfig.InputRequirement.PASS_THROUGH;
-
-        if (input1Requirement == StreamConfig.InputRequirement.SORTED
-                || input2Requirement == StreamConfig.InputRequirement.SORTED) {
-            BatchExecutionUtils.applyBatchExecutionSettings(
-                    transformation.getId(), context, input1Requirement, input2Requirement);
-        }
         return ids;
     }
 
     @Override
     protected Collection<Integer> translateForStreamingInternal(
             final TwoInputTransformation<IN1, IN2, OUT> transformation, final Context context) {
-        return translateInternal(transformation, context);
+        Collection<Integer> ids = translateInternal(transformation, context);
+
+        if (transformation.isOutputOnEOF()) {
+            // Try to apply batch execution settings for streaming mode transformation.
+            maybeApplyBatchExecutionSettings(transformation, context);
+        }
+
+        return ids;
     }
 
     private Collection<Integer> translateInternal(
@@ -82,5 +80,22 @@ public class TwoInputTransformationTranslator<IN1, IN2, OUT>
                 transformation.getStateKeySelector1(),
                 transformation.getStateKeySelector2(),
                 context);
+    }
+
+    private void maybeApplyBatchExecutionSettings(
+            final TwoInputTransformation<IN1, IN2, OUT> transformation, final Context context) {
+        KeySelector<IN1, ?> keySelector1 = transformation.getStateKeySelector1();
+        KeySelector<IN2, ?> keySelector2 = transformation.getStateKeySelector2();
+        if (keySelector1 != null || keySelector2 != null) {
+            List<Transformation<?>> inputs = transformation.getInputs();
+            List<KeySelector<?, ?>> keySelectors = new ArrayList<>();
+            keySelectors.add(keySelector1);
+            keySelectors.add(keySelector2);
+            StreamConfig.InputRequirement[] inputRequirements =
+                    BatchExecutionUtils.getInputRequirements(
+                            inputs, keySelectors, transformation.isInternalSorterSupported());
+            BatchExecutionUtils.applyBatchExecutionSettings(
+                    transformation.getId(), context, inputRequirements);
+        }
     }
 }

@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.runtime.translators;
 
+import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
@@ -34,7 +36,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -97,6 +101,22 @@ public class BatchExecutionUtils {
             case HEAD:
                 break;
         }
+    }
+
+    static StreamConfig.InputRequirement[] getInputRequirements(
+            List<Transformation<?>> inputs,
+            List<KeySelector<?, ?>> keySelectors,
+            boolean isInternalSorterSupported) {
+        return IntStream.range(0, inputs.size())
+                .mapToObj(
+                        idx -> {
+                            if (!isInternalSorterSupported && keySelectors.get(idx) != null) {
+                                return StreamConfig.InputRequirement.SORTED;
+                            } else {
+                                return StreamConfig.InputRequirement.PASS_THROUGH;
+                            }
+                        })
+                .toArray(StreamConfig.InputRequirement[]::new);
     }
 
     private BatchExecutionUtils() {}

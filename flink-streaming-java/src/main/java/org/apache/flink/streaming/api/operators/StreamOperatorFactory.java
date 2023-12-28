@@ -87,4 +87,14 @@ public interface StreamOperatorFactory<OUT> extends Serializable {
 
     /** Returns the runtime class of the stream operator. */
     Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader);
+
+    /**
+     * Is called to get the OperatorAttributes of the operator. OperatorAttributes can inform the
+     * frame to optimize the job performance.
+     *
+     * @return OperatorAttributes of the operator.
+     */
+    default OperatorAttributes getOperatorAttributes() {
+        return new OperatorAttributesBuilder().build();
+    }
 }

@@ -33,6 +33,7 @@ import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.JobType;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.MultipleConnectedStreams;
@@ -50,6 +51,8 @@ import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OperatorAttributes;
+import org.apache.flink.streaming.api.operators.OperatorAttributesBuilder;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -489,6 +492,55 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
         final CoFeedbackTransformation<Integer> coFeedbackTransformation =
                 new CoFeedbackTransformation<>(2, TypeInformation.of(Integer.TYPE), 5L);
         testNoSupportForIterationsInBatchHelper(coFeedbackTransformation);
+    }
+
+    @Test
+    public void testInternalSorterAndOutputOnEOF() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        TwoInputInternalSortOperator<Integer> internalSortOperator =
+                new TwoInputInternalSortOperator<>();
+        DataStream<Integer> source1 = env.fromElements(1, 10);
+        DataStream<Integer> source2 = env.fromElements(1, 11);
+        SingleOutputStreamOperator<Integer> process =
+                source1.connect(source2)
+                        .keyBy(value -> value, value -> value)
+                        .transform(
+                                "InternalSorterAndOutputOnEOFOperator",
+                                BasicTypeInfo.INT_TYPE_INFO,
+                                internalSortOperator);
+        DataStreamSink<Integer> sink = process.sinkTo(new DiscardingSink<>());
+        StreamGraph streamGraph = getStreamGraphInBatchMode(sink);
+        StreamNode operatorNode = streamGraph.getStreamNode(process.getId());
+        assertThat(operatorNode.getInputRequirements().size(), equalTo(2));
+        // The operator with internal sorter don't require sort externally
+        assertThat(
+                operatorNode.getInputRequirements().get(0),
+                equalTo(StreamConfig.InputRequirement.PASS_THROUGH));
+        assertThat(
+                operatorNode.getInputRequirements().get(1),
+                equalTo(StreamConfig.InputRequirement.PASS_THROUGH));
+        assertThat(
+                operatorNode.getOperatorFactory().getChainingStrategy(),
+                equalTo(ChainingStrategy.HEAD));
+        assertThat(streamGraph.getStateBackend(), instanceOf(BatchExecutionStateBackend.class));
+        assertThat(streamGraph.getTimerServiceProvider(), notNullValue());
+    }
+
+    static class TwoInputInternalSortOperator<T> extends AbstractStreamOperator<T>
+            implements TwoInputStreamOperator<T, T, T> {
+        @Override
+        public void processElement1(StreamRecord<T> element) throws Exception {}
+
+        @Override
+        public void processElement2(StreamRecord<T> element) throws Exception {}
+
+        @Override
+        public OperatorAttributes getOperatorAttributes() {
+            return new OperatorAttributesBuilder()
+                    .setOutputOnEOF(true)
+                    .setInternalSorterSupported(true)
+                    .build();
+        }
     }
 
     private void testNoSupportForIterationsInBatchHelper(

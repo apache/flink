@@ -205,22 +205,22 @@ abstract class StateWithExecutionGraph implements State {
         CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
                 executionGraph.getCheckpointCoordinatorConfiguration();
         if (checkpointCoordinatorConfiguration != null
-                && checkpointCoordinatorConfiguration.isCheckpointingEnabled()
-                && checkpointCoordinatorConfiguration.isEnableCheckpointsAfterTasksFinish()) {
-            vertexEndOfDataListener.recordTaskEndOfData(executionAttemptID);
-            if (vertexEndOfDataListener.areAllTasksOfJobVertexEndOfData(
-                    executionAttemptID.getJobVertexId())) {
+                && checkpointCoordinatorConfiguration.isCheckpointingEnabled()) {
+            boolean areAllTasksOfJobVertexEndOfData =
+                    vertexEndOfDataListener.recordTaskEndOfData(executionAttemptID);
+            if (!areAllTasksOfJobVertexEndOfData) {
+                return;
+            }
+            CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
+            if (checkpointCoordinator != null
+                    && checkpointCoordinator.isPeriodicCheckpointingStarted()) {
                 List<OperatorIDPair> operatorIDPairs =
                         executionGraph
                                 .getJobVertex(executionAttemptID.getJobVertexId())
                                 .getOperatorIDs();
-                CheckpointCoordinator checkpointCoordinator =
-                        executionGraph.getCheckpointCoordinator();
-                if (checkpointCoordinator != null) {
-                    for (OperatorIDPair operatorIDPair : operatorIDPairs) {
-                        checkpointCoordinator.setIsProcessingBacklog(
-                                operatorIDPair.getGeneratedOperatorID(), false);
-                    }
+                for (OperatorIDPair operatorIDPair : operatorIDPairs) {
+                    checkpointCoordinator.setIsProcessingBacklog(
+                            operatorIDPair.getGeneratedOperatorID(), false);
                 }
             }
             if (vertexEndOfDataListener.areAllTasksEndOfData()) {

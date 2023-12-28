@@ -1014,7 +1014,7 @@ public class SingleInputGate extends IndexedInputGate {
     @Override
     public void acknowledgeAllRecordsProcessed(InputChannelInfo channelInfo) throws IOException {
         checkState(!isFinished(), "InputGate already finished.");
-        if (!enabledTieredStorage()) {
+        if (consumedPartitionType.isPipelinedOrPipelinedBoundedResultPartition()) {
             channels[channelInfo.getInputChannelIdx()].acknowledgeAllRecordsProcessed();
         }
     }

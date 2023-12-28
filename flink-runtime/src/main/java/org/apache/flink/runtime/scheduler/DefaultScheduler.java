@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.failure.FailureEnricher.Context;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -31,6 +32,8 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
@@ -43,6 +46,7 @@ import org.apache.flink.runtime.io.network.partition.PartitionException;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
@@ -241,6 +245,27 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 schedulingStrategy.getClass().getName());
         transitionToRunning();
         schedulingStrategy.startScheduling();
+    }
+
+    @Override
+    protected void onTaskRunning(Execution execution) {
+        ExecutionGraph executionGraph = getExecutionGraph();
+        JobGraph jobGraph = getJobGraph();
+        CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
+        if (jobGraph.getJobType() == JobType.STREAMING
+                && jobGraph.isCheckpointingEnabled()
+                && checkpointCoordinator != null
+                && !checkpointCoordinator.isPeriodicCheckpointingStarted()) {
+            for (Map.Entry<ExecutionAttemptID, Execution> executionEntry :
+                    executionGraph.getRegisteredExecutions().entrySet()) {
+                if (executionEntry.getValue().getState() != ExecutionState.RUNNING
+                        || !jobGraph.findVertexByID(executionEntry.getKey().getJobVertexId())
+                                .allOutputsPipelinedOrPipelinedBounded()) {
+                    return;
+                }
+            }
+            checkpointCoordinator.startCheckpointScheduler();
+        }
     }
 
     @Override

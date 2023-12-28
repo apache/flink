@@ -19,12 +19,15 @@
 package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * A {@link TransformationTranslator} for the {@link OneInputTransformation}.
@@ -50,11 +53,8 @@ public final class OneInputTransformationTranslator<IN, OUT>
                         keySelector,
                         transformation.getStateKeyType(),
                         context);
-        boolean isKeyed = keySelector != null;
-        if (isKeyed) {
-            BatchExecutionUtils.applyBatchExecutionSettings(
-                    transformation.getId(), context, StreamConfig.InputRequirement.SORTED);
-        }
+
+        maybeApplyBatchExecutionSettings(transformation, context);
 
         return ids;
     }
@@ -62,12 +62,35 @@ public final class OneInputTransformationTranslator<IN, OUT>
     @Override
     public Collection<Integer> translateForStreamingInternal(
             final OneInputTransformation<IN, OUT> transformation, final Context context) {
-        return translateInternal(
-                transformation,
-                transformation.getOperatorFactory(),
-                transformation.getInputType(),
-                transformation.getStateKeySelector(),
-                transformation.getStateKeyType(),
-                context);
+        Collection<Integer> ids =
+                translateInternal(
+                        transformation,
+                        transformation.getOperatorFactory(),
+                        transformation.getInputType(),
+                        transformation.getStateKeySelector(),
+                        transformation.getStateKeyType(),
+                        context);
+
+        if (transformation.isOutputOnEOF()) {
+            // Try to apply batch execution settings for streaming mode transformation.
+            maybeApplyBatchExecutionSettings(transformation, context);
+        }
+
+        return ids;
+    }
+
+    private void maybeApplyBatchExecutionSettings(
+            final OneInputTransformation<IN, OUT> transformation, final Context context) {
+        KeySelector<IN, ?> keySelector = transformation.getStateKeySelector();
+        boolean isKeyed = keySelector != null;
+        if (isKeyed) {
+            List<Transformation<?>> inputs = transformation.getInputs();
+            List<KeySelector<?, ?>> keySelectors = Collections.singletonList(keySelector);
+            StreamConfig.InputRequirement[] inputRequirements =
+                    BatchExecutionUtils.getInputRequirements(
+                            inputs, keySelectors, transformation.isInternalSorterSupported());
+            BatchExecutionUtils.applyBatchExecutionSettings(
+                    transformation.getId(), context, inputRequirements);
+        }
     }
 }

@@ -155,6 +155,8 @@ public class JobVertex implements java.io.Serializable {
      */
     private boolean supportsConcurrentExecutionAttempts = true;
 
+    private boolean allOutputsPipelinedOrPipelinedBounded = true;
+
     private boolean parallelismConfigured = false;
 
     // --------------------------------------------------------------------------------------------
@@ -496,6 +498,10 @@ public class JobVertex implements java.io.Serializable {
     // --------------------------------------------------------------------------------------------
     public IntermediateDataSet getOrCreateResultDataSet(
             IntermediateDataSetID id, ResultPartitionType partitionType) {
+        if (allOutputsPipelinedOrPipelinedBounded
+                && !partitionType.isPipelinedOrPipelinedBoundedResultPartition()) {
+            allOutputsPipelinedOrPipelinedBounded = false;
+        }
         return this.results.computeIfAbsent(
                 id, key -> new IntermediateDataSet(id, partitionType, this));
     }
@@ -555,6 +561,10 @@ public class JobVertex implements java.io.Serializable {
 
     public boolean isSupportsConcurrentExecutionAttempts() {
         return supportsConcurrentExecutionAttempts;
+    }
+
+    public boolean allOutputsPipelinedOrPipelinedBounded() {
+        return allOutputsPipelinedOrPipelinedBounded;
     }
 
     // --------------------------------------------------------------------------------------------
