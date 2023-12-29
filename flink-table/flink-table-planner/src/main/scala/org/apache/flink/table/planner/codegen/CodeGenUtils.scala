@@ -122,14 +122,29 @@ object CodeGenUtils {
 
   // ----------------------------------------------------------------------------------------
 
-  def newName(context: CodeGeneratorContext, name: String): String = {
-    s"$name$$${context.getNameCounter.getAndIncrement}"
+  private val nameCounter = new AtomicLong
+
+  def newName(context: CodeGeneratorContext = null, name: String): String = {
+    if (context == null || context.getNameCounter == null) {
+      // Add an 'i' in the middle to distinguish from nameCounter in CodeGeneratorContext
+      // and avoid naming conflicts.
+      s"$name$$i${nameCounter.getAndIncrement}"
+    } else {
+      s"$name$$${context.getNameCounter.getAndIncrement}"
+    }
   }
 
   def newNames(context: CodeGeneratorContext, names: String*): Seq[String] = {
     require(names.toSet.size == names.length, "Duplicated names")
-    val newId = context.getNameCounter.getAndIncrement
-    names.map(name => s"$name$$$newId")
+    if (context == null || context.getNameCounter == null) {
+      val newId = nameCounter.getAndIncrement
+      // Add an 'i' in the middle to distinguish from nameCounter in CodeGeneratorContext
+      // and avoid naming conflicts.
+      names.map(name => s"$name$$i$newId")
+    } else {
+      val newId = context.getNameCounter.getAndIncrement
+      names.map(name => s"$name$$$newId")
+    }
   }
 
   /** Retrieve the canonical name of a class type. */
