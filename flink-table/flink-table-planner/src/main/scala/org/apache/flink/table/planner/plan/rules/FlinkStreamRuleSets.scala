@@ -270,7 +270,7 @@ object FlinkStreamRuleSets {
 
     // reduce aggregate functions like AVG, STDDEV_POP etc.
     CoreRules.AGGREGATE_REDUCE_FUNCTIONS,
-    WindowAggregateReduceFunctionsRule.INSTANCE,
+    WindowAggregateReduceFunctionsRule.WINDOW_AGGREGATE_REDUCE_FUNCTIONS_INSTANCE,
 
     // reduce useless aggCall
     PruneAggregateCallRule.PROJECT_ON_AGGREGATE,
