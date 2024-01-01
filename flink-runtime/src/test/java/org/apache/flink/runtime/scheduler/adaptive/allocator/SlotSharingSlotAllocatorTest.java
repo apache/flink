@@ -230,6 +230,27 @@ class SlotSharingSlotAllocatorTest {
     }
 
     @Test
+    void testDetermineParallelismWithLowerBoundsInsufficientSlotsForPartialVertices() {
+        final SlotSharingSlotAllocator slotAllocator =
+                SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
+                        TEST_RESERVE_SLOT_FUNCTION,
+                        TEST_FREE_SLOT_FUNCTION,
+                        TEST_IS_SLOT_FREE_FUNCTION);
+        SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+        final JobInformation.VertexInformation vertex1 =
+                new TestVertexInformation(new JobVertexID(), 2, 2, slotSharingGroup);
+        final JobInformation.VertexInformation vertex2 =
+                new TestVertexInformation(new JobVertexID(), 8, 8, slotSharingGroup);
+
+        final JobInformation jobInformation =
+                new TestJobInformation(Arrays.asList(vertex1, vertex2));
+        final Optional<VertexParallelism> vertexParallelism =
+                slotAllocator.determineParallelism(jobInformation, getSlots(5));
+
+        assertThat(vertexParallelism).isNotPresent();
+    }
+
+    @Test
     void testDetermineParallelismWithAllEqualLowerUpperBoundFreSlots() {
         final SlotSharingSlotAllocator slotAllocator =
                 SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
