@@ -92,7 +92,7 @@ public class RestartStrategyOptions {
                                                     + "If checkpointing is enabled, the default value is %s with %s restart attempts and '%s' delay.",
                                             code("none"),
                                             code("fixed-delay"),
-                                            code("Integer.MAX_VALUE"),
+                                            code("1"),
                                             code("1 s"))
                                     .build());
 

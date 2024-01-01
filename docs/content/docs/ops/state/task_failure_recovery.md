@@ -43,7 +43,7 @@ The default restart strategy is set via Flink's configuration file `flink-conf.y
 The configuration parameter *restart-strategy.type* defines which strategy is taken.
 If checkpointing is not enabled, the "no restart" strategy is used.
 If checkpointing is activated and the restart strategy has not been configured, the fixed-delay strategy is used with 
-`Integer.MAX_VALUE` restart attempts.
+`1` restart attempts.
 See the following list of available restart strategies to learn what values are supported.
 
 Each restart strategy comes with its own set of parameters which control its behaviour.
