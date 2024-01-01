@@ -24,7 +24,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -258,12 +257,14 @@ public class StreamConfig implements Serializable {
      */
     public double getManagedMemoryFractionOperatorUseCaseOfSlot(
             ManagedMemoryUseCase managedMemoryUseCase,
+            Configuration jobConfig,
             Configuration taskManagerConfig,
             ClassLoader cl) {
         return ManagedMemoryUtils.convertToFractionOfSlot(
                 managedMemoryUseCase,
                 config.getDouble(getManagedMemoryFractionConfigOption(managedMemoryUseCase)),
                 getAllManagedMemoryUseCases(),
+                jobConfig,
                 taskManagerConfig,
                 config.getOptional(STATE_BACKEND_USE_MANAGED_MEMORY),
                 cl);
@@ -673,20 +674,6 @@ public class StreamConfig implements Serializable {
         } catch (Exception e) {
             throw new StreamTaskException(
                     "Could not instantiate change log state backend enable flag.", e);
-        }
-    }
-
-    public void setSavepointDir(Path directory) {
-        if (directory != null) {
-            toBeSerializedConfigObjects.put(SAVEPOINT_DIR, directory);
-        }
-    }
-
-    public Path getSavepointDir(ClassLoader cl) {
-        try {
-            return InstantiationUtil.readObjectFromConfig(this.config, SAVEPOINT_DIR, cl);
-        } catch (Exception e) {
-            throw new StreamTaskException("Could not instantiate savepoint directory.", e);
         }
     }
 

@@ -157,6 +157,7 @@ public class StreamTwoInputProcessorFactory {
                             executionConfig.isObjectReuseEnabled(),
                             streamConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(
                                     ManagedMemoryUseCase.OPERATOR,
+                                    jobConfig,
                                     taskManagerConfig,
                                     userClassloader),
                             taskManagerConfig,

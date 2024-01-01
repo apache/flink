@@ -31,7 +31,6 @@ import org.apache.flink.runtime.state.hashmap.HashMapStateBackendFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackendFactory;
 import org.apache.flink.util.DynamicCodeLoadingException;
-import org.apache.flink.util.TernaryBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -207,7 +206,8 @@ public class StateBackendLoader {
      * <p>Refer to {@link #loadStateBackendFromConfig(ReadableConfig, ClassLoader, Logger)} for
      * details on how the state backend is loaded from the configuration.
      *
-     * @param config The configuration to load the state backend from
+     * @param jobConfig The job configuration to load the state backend from
+     * @param clusterConfig The cluster configuration to load the state backend from
      * @param classLoader The class loader that should be used to load the state backend
      * @param logger Optionally, a logger to log actions to (may be null)
      * @return The instantiated state backend.
@@ -220,16 +220,23 @@ public class StateBackendLoader {
      */
     private static StateBackend loadFromApplicationOrConfigOrDefaultInternal(
             @Nullable StateBackend fromApplication,
-            Configuration config,
+            Configuration jobConfig,
+            Configuration clusterConfig,
             ClassLoader classLoader,
             @Nullable Logger logger)
             throws IllegalConfigurationException, DynamicCodeLoadingException, IOException {
 
-        checkNotNull(config, "config");
+        checkNotNull(jobConfig, "jobConfig");
+        checkNotNull(clusterConfig, "clusterConfig");
         checkNotNull(classLoader, "classLoader");
+
+        // Job level config can override the cluster level config.
+        Configuration mergedConfig = new Configuration(clusterConfig);
+        mergedConfig.addAll(jobConfig);
 
         final StateBackend backend;
 
+        // In the FLINK-2.0, the state backend from application will be not supported anymore.
         // (1) the application defined state backend has precedence
         if (fromApplication != null) {
             // see if this is supposed to pick up additional configuration parameters
@@ -242,7 +249,9 @@ public class StateBackendLoader {
                 }
 
                 backend =
-                        ((ConfigurableStateBackend) fromApplication).configure(config, classLoader);
+                        ((ConfigurableStateBackend) fromApplication)
+                                // Use cluster config for backwards compatibility.
+                                .configure(clusterConfig, classLoader);
             } else {
                 // keep as is!
                 backend = fromApplication;
@@ -253,12 +262,15 @@ public class StateBackendLoader {
             }
         } else {
             // (2) check if the config defines a state backend
-            final StateBackend fromConfig = loadStateBackendFromConfig(config, classLoader, logger);
+            final StateBackend fromConfig =
+                    loadStateBackendFromConfig(mergedConfig, classLoader, logger);
             if (fromConfig != null) {
                 backend = fromConfig;
             } else {
                 // (3) use the default
-                backend = new HashMapStateBackendFactory().createFromConfig(config, classLoader);
+                backend =
+                        new HashMapStateBackendFactory()
+                                .createFromConfig(mergedConfig, classLoader);
                 if (logger != null) {
                     logger.info(
                             "No state backend has been configured, using default (HashMap) {}",
@@ -277,9 +289,8 @@ public class StateBackendLoader {
      * If delegation is not enabled, the underlying wrapped state backend is returned instead.
      *
      * @param fromApplication StateBackend defined from application
-     * @param isChangelogStateBackendEnableFromApplication whether to enable the
-     *     ChangelogStateBackend from application
-     * @param config The configuration to load the state backend from
+     * @param jobConfig The job level configuration to load the state backend from
+     * @param clusterConfig The cluster level configuration to load the state backend from
      * @param classLoader The class loader that should be used to load the state backend
      * @param logger Optionally, a logger to log actions to (may be null)
      * @return The instantiated state backend.
@@ -292,22 +303,20 @@ public class StateBackendLoader {
      */
     public static StateBackend fromApplicationOrConfigOrDefault(
             @Nullable StateBackend fromApplication,
-            TernaryBoolean isChangelogStateBackendEnableFromApplication,
-            Configuration config,
+            Configuration jobConfig,
+            Configuration clusterConfig,
             ClassLoader classLoader,
             @Nullable Logger logger)
             throws IllegalConfigurationException, DynamicCodeLoadingException, IOException {
 
         StateBackend rootBackend =
                 loadFromApplicationOrConfigOrDefaultInternal(
-                        fromApplication, config, classLoader, logger);
+                        fromApplication, jobConfig, clusterConfig, classLoader, logger);
 
-        // Configuration from application will override the one from env.
         boolean enableChangeLog =
-                TernaryBoolean.TRUE.equals(isChangelogStateBackendEnableFromApplication)
-                        || (TernaryBoolean.UNDEFINED.equals(
-                                        isChangelogStateBackendEnableFromApplication)
-                                && config.get(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG));
+                jobConfig
+                        .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
+                        .orElse(clusterConfig.get(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG));
 
         StateBackend backend;
         if (enableChangeLog) {
@@ -329,7 +338,7 @@ public class StateBackendLoader {
      * Checks whether state backend uses managed memory, without having to deserialize or load the
      * state backend.
      *
-     * @param config Cluster configuration.
+     * @param config configuration to load the state backend from.
      * @param stateBackendFromApplicationUsesManagedMemory Whether the application-defined backend
      *     uses Flink's managed memory. Empty if application has not defined a backend.
      * @param classLoader User code classloader.

@@ -63,6 +63,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.connector.datagen.functions.FromElementsGeneratorFunction;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
@@ -77,11 +78,8 @@ import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.scheduler.ClusterDatasetCorruptedException;
-import org.apache.flink.runtime.state.CheckpointStorage;
-import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -107,7 +105,6 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
 import org.apache.flink.streaming.api.transformations.CacheTransformation;
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
@@ -121,7 +118,6 @@ import com.esotericsoftware.kryo.Serializer;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
 import java.time.Duration;
@@ -1043,8 +1039,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         configuration
                 .getOptional(StreamPipelineOptions.TIME_CHARACTERISTIC)
                 .ifPresent(this::setStreamTimeCharacteristic);
-        Optional.ofNullable(loadStateBackend(configuration, classLoader))
-                .ifPresent(this::setStateBackend);
         configuration
                 .getOptional(DeploymentOptions.JOB_LISTENERS)
                 .ifPresent(listeners -> registerCustomListeners(classLoader, listeners));
@@ -1059,10 +1053,10 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         config.configure(configuration, classLoader);
         checkpointCfg.configure(configuration);
 
-        // here we should make sure the configured checkpoint storage will take effect
-        // this needs to happen after checkpointCfg#configure(...) to override the effect of
-        // checkpointCfg#setCheckpointStorage(checkpointDirectory)
-        configureCheckpointStorage(configuration, checkpointCfg);
+        // reset state backend for backward compatibility
+        configuration
+                .getOptional(StateBackendOptions.STATE_BACKEND)
+                .ifPresent(ignored -> this.defaultStateBackend = null);
     }
 
     private void registerCustomListeners(
@@ -1075,25 +1069,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
             } catch (FlinkException e) {
                 throw new WrappingRuntimeException("Could not load JobListener : " + listener, e);
             }
-        }
-    }
-
-    private StateBackend loadStateBackend(ReadableConfig configuration, ClassLoader classLoader) {
-        try {
-            return StateBackendLoader.loadStateBackendFromConfig(configuration, classLoader, null);
-        } catch (DynamicCodeLoadingException | IOException e) {
-            throw new WrappingRuntimeException(e);
-        }
-    }
-
-    protected void configureCheckpointStorage(
-            ReadableConfig configuration, CheckpointConfig checkpointCfg) {
-        try {
-            Optional<CheckpointStorage> storageOptional =
-                    CheckpointStorageLoader.fromConfig(configuration, userClassloader, null);
-            storageOptional.ifPresent(checkpointCfg::setCheckpointStorage);
-        } catch (DynamicCodeLoadingException e) {
-            throw new WrappingRuntimeException(e);
         }
     }
 
@@ -2511,8 +2486,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         return new StreamGraphGenerator(
                         new ArrayList<>(transformations), config, checkpointCfg, configuration)
                 .setStateBackend(defaultStateBackend)
-                .setChangelogStateBackendEnabled(isChangelogStateBackendEnabled())
-                .setSavepointDir(getDefaultSavepointDirectory())
                 .setTimeCharacteristic(getStreamTimeCharacteristic())
                 .setSlotSharingGroupResource(slotSharingGroupResources);
     }

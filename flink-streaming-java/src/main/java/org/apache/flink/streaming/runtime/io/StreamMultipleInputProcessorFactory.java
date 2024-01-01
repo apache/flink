@@ -178,6 +178,7 @@ public class StreamMultipleInputProcessorFactory {
                             executionConfig.isObjectReuseEnabled(),
                             streamConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(
                                     ManagedMemoryUseCase.OPERATOR,
+                                    jobConfig,
                                     taskManagerConfig,
                                     userClassloader),
                             taskManagerConfig,

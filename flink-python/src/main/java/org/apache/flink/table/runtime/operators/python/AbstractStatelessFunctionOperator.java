@@ -114,6 +114,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(
                                 ManagedMemoryUseCase.PYTHON,
+                                getContainingTask().getJobConfiguration(),
                                 getContainingTask()
                                         .getEnvironment()
                                         .getTaskManagerInfo()

@@ -37,6 +37,7 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -157,6 +158,10 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
      */
     public TaskManagerRuntimeInfo getTaskManagerRuntimeInfo() {
         return taskEnvironment.getTaskManagerInfo();
+    }
+
+    public Configuration getJobConfiguration() {
+        return taskEnvironment.getJobConfiguration();
     }
 
     @Override

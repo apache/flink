@@ -184,6 +184,7 @@ public abstract class AbstractPythonStreamAggregateOperator
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(
                                 ManagedMemoryUseCase.PYTHON,
+                                getContainingTask().getJobConfiguration(),
                                 getContainingTask()
                                         .getEnvironment()
                                         .getTaskManagerInfo()

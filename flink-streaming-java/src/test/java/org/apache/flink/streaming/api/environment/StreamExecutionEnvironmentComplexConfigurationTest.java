@@ -49,6 +49,7 @@ import java.util.List;
 import static org.apache.flink.configuration.StateChangelogOptions.ENABLE_STATE_CHANGE_LOG;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -72,7 +73,7 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
                 configuration, Thread.currentThread().getContextClassLoader());
 
         StateBackend actualStateBackend = envFromConfiguration.getStateBackend();
-        assertThat(actualStateBackend, instanceOf(MemoryStateBackend.class));
+        assertThat(actualStateBackend, nullValue());
     }
 
     @Test
@@ -222,7 +223,7 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
 
         assertThat(env.getParallelism(), equalTo(10));
         assertThat(env.getConfig().getAutoWatermarkInterval(), equalTo(100L));
-        assertThat(env.getStateBackend(), instanceOf(MemoryStateBackend.class));
+        assertThat(env.getStateBackend(), nullValue());
     }
 
     @Test
@@ -237,7 +238,7 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
 
         assertThat(env.getParallelism(), equalTo(2));
         assertThat(env.getConfig().getAutoWatermarkInterval(), equalTo(100L));
-        assertThat(env.getStateBackend(), instanceOf(MemoryStateBackend.class));
+        assertThat(env.getStateBackend(), nullValue());
     }
 
     /** JobSubmitted counter listener for unit test. */

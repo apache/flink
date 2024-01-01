@@ -792,7 +792,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
                     try {
                         Checkpoints.disposeSavepoint(
-                                savepointPath, configuration, classLoader, log);
+                                savepointPath,
+                                new Configuration(),
+                                configuration,
+                                classLoader,
+                                log);
                     } catch (IOException | FlinkException e) {
                         throw new CompletionException(
                                 new FlinkException(

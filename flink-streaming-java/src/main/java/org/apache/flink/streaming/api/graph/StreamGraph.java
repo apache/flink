@@ -35,7 +35,6 @@ import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.JobStatusHook;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -65,7 +64,6 @@ import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.util.OutputTag;
-import org.apache.flink.util.TernaryBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -122,9 +120,7 @@ public class StreamGraph implements Pipeline {
     protected Map<Integer, String> vertexIDtoBrokerID;
     protected Map<Integer, Long> vertexIDtoLoopTimeout;
     private StateBackend stateBackend;
-    private TernaryBoolean changelogStateBackendEnabled;
     private CheckpointStorage checkpointStorage;
-    private Path savepointDir;
     private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
     private InternalTimeServiceManager.Provider timerServiceProvider;
     private JobType jobType = JobType.STREAMING;
@@ -202,28 +198,12 @@ public class StreamGraph implements Pipeline {
         return this.stateBackend;
     }
 
-    public void setChangelogStateBackendEnabled(TernaryBoolean changelogStateBackendEnabled) {
-        this.changelogStateBackendEnabled = changelogStateBackendEnabled;
-    }
-
-    public TernaryBoolean isChangelogStateBackendEnabled() {
-        return changelogStateBackendEnabled;
-    }
-
     public void setCheckpointStorage(CheckpointStorage checkpointStorage) {
         this.checkpointStorage = checkpointStorage;
     }
 
     public CheckpointStorage getCheckpointStorage() {
         return this.checkpointStorage;
-    }
-
-    public void setSavepointDirectory(Path savepointDir) {
-        this.savepointDir = savepointDir;
-    }
-
-    public Path getSavepointDirectory() {
-        return this.savepointDir;
     }
 
     public InternalTimeServiceManager.Provider getTimerServiceProvider() {
