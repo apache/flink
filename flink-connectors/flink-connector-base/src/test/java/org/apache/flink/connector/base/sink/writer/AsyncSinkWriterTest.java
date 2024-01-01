@@ -112,16 +112,20 @@ public class AsyncSinkWriterTest {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
-                        .maxBatchSize(4)
-                        .delay(100)
+                        .maxBatchSize(2)
+                        .delay(50)
                         .build();
-        for (int i = 0; i < 4; i++) {
-            sink.write(String.valueOf(i));
-        }
+        sink.write(String.valueOf(1));
+        // introduce artificial delay, shouldn't be calculated in send time
+        Thread.sleep(50);
+        long sendStartTimestamp = System.currentTimeMillis();
         sink.flush(true);
+        long sendCompleteTimestamp = System.currentTimeMillis();
+
         assertThat(sinkInitContext.getCurrentSendTimeGauge().get().getValue())
-                .isGreaterThanOrEqualTo(99);
-        assertThat(sinkInitContext.getCurrentSendTimeGauge().get().getValue()).isLessThan(120);
+                .isGreaterThanOrEqualTo(50);
+        assertThat(sinkInitContext.getCurrentSendTimeGauge().get().getValue())
+                .isLessThanOrEqualTo(sendCompleteTimestamp - sendStartTimestamp);
     }
 
     @Test
