@@ -55,7 +55,7 @@ import scala.collection.mutable
 class CodeGeneratorContext(
     val tableConfig: ReadableConfig,
     val classLoader: ClassLoader,
-    parentCtx: CodeGeneratorContext) {
+    val parentCtx: CodeGeneratorContext) {
 
   def this(tableConfig: ReadableConfig, classLoader: ClassLoader) =
     this(tableConfig, classLoader, null)

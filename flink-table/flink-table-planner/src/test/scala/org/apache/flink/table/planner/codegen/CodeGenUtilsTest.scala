@@ -49,5 +49,13 @@ class CodeGenUtilsTest {
     assertEquals("name$2", CodeGenUtils.newName(context2, "name"))
     assertEquals(ArrayBuffer("name$3", "id$3"), CodeGenUtils.newNames(context2, "name", "id"))
     assertEquals(ArrayBuffer("name$4", "id$4"), CodeGenUtils.newNames(context2, "name", "id"))
+
+    val context3 = new CodeGeneratorContext(new Configuration, classLoader, context1)
+    val context4 = new CodeGeneratorContext(new Configuration, classLoader, context3)
+    // Use context4 to get a new name, the ancestor of context4(which is context1) will be used.
+    assertEquals("name$5", CodeGenUtils.newName(context4, "name"))
+    assertEquals("name$6", CodeGenUtils.newName(context4, "name"))
+    assertEquals(ArrayBuffer("name$7", "id$7"), CodeGenUtils.newNames(context4, "name", "id"))
+    assertEquals(ArrayBuffer("name$8", "id$8"), CodeGenUtils.newNames(context4, "name", "id"))
   }
 }
