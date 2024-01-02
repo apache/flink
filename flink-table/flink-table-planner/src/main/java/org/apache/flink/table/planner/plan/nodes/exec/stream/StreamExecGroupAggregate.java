@@ -198,7 +198,7 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
                         .needAccumulate();
 
         if (needRetraction) {
-            generator.needRetract();
+            generator.needRetract(aggCallNeedRetractions);
         }
 
         final AggregateInfoList aggInfoList =

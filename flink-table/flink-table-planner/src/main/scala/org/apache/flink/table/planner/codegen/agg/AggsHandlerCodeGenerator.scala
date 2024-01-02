@@ -86,6 +86,7 @@ class AggsHandlerCodeGenerator(
 
   private var isAccumulateNeeded = false
   private var isRetractNeeded = false
+  private var aggCallNeedRetractions: Array[Boolean] = _
   private var isMergeNeeded = false
   private var isWindowSizeNeeded = false
   private var isIncrementalUpdateNeeded = false
@@ -164,8 +165,9 @@ class AggsHandlerCodeGenerator(
    *
    * @return
    */
-  def needRetract(): AggsHandlerCodeGenerator = {
+  def needRetract(aggCallNeedRetractions: Array[Boolean]): AggsHandlerCodeGenerator = {
     this.isRetractNeeded = true
+    this.aggCallNeedRetractions = aggCallNeedRetractions
     this
   }
 
@@ -1275,8 +1277,15 @@ class AggsHandlerCodeGenerator(
       needReset: Boolean = false,
       needEmitValue: Boolean = false): Unit = {
     // check and validate the needed methods
-    aggBufferCodeGens.foreach(
-      _.checkNeededMethods(needAccumulate, needRetract, needMerge, needReset, needEmitValue))
+    aggBufferCodeGens.zipWithIndex.foreach {
+      case (aggBufferCodeGen, index) =>
+        aggBufferCodeGen.checkNeededMethods(
+          needAccumulate,
+          needRetract && index < aggCallNeedRetractions.length && aggCallNeedRetractions(index),
+          needMerge,
+          needReset,
+          needEmitValue)
+    }
   }
 
   private def genThrowException(msg: String): String = {

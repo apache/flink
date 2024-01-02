@@ -389,10 +389,9 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                         relBuilder,
                         JavaScalaConversionUtil.toScala(Arrays.asList(fieldTypes)),
                         false); // copyInputField
-
         GeneratedAggsHandleFunction genAggsHandler =
                 generator
-                        .needRetract()
+                        .needRetract(aggCallNeedRetractions)
                         .needAccumulate()
                         // over agg code gen must pass the constants
                         .withConstants(JavaScalaConversionUtil.toScala(constants))

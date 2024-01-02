@@ -130,7 +130,7 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
                         .needAccumulate();
 
         if (needRetraction) {
-            generator.needRetract();
+            generator.needRetract(aggCallNeedRetractions);
         }
 
         final AggregateInfoList aggInfoList =
