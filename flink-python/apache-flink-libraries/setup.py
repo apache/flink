@@ -23,7 +23,6 @@ import os
 import platform
 import subprocess
 import sys
-import time
 from shutil import copytree, copy, rmtree
 
 from setuptools import setup
@@ -127,9 +126,6 @@ run sdist.
 
         LIB_PATH = os.path.join(FLINK_HOME, "lib")
         OPT_PATH = os.path.join(FLINK_HOME, "opt")
-
-        print("debugging time")
-        time.sleep(900)
         OPT_PYTHON_JAR_NAME = os.path.basename(
             find_file_path(os.path.join(OPT_PATH, "flink-python*.jar")))
         OPT_SQL_CLIENT_JAR_NAME = os.path.basename(
