@@ -47,6 +47,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -82,7 +83,8 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
     @Test
     public void testImmediateCheckpointing() throws Exception {
         env.setRestartStrategy(RestartStrategies.noRestart());
-        env.enableCheckpointing(Long.MAX_VALUE - 1);
+        env.enableCheckpointing(
+                Duration.ofNanos(Long.MAX_VALUE /* max allowed by FLINK */).toMillis());
         StreamGraph streamGraph = getStreamGraph(env, false, false);
         env.execute(streamGraph);
         assertThat(smallResult.get().size()).isEqualTo(SMALL_SOURCE_NUM_RECORDS);

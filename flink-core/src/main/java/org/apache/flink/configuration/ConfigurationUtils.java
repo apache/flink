@@ -123,14 +123,12 @@ public class ConfigurationUtils {
      * @param stringSerializedMap a string to parse
      * @return parsed map
      */
-    public static Map<String, String> parseMap(String stringSerializedMap) {
-        return StructuredOptionsSplitter.splitEscaped(stringSerializedMap, ',').stream()
-                .map(p -> StructuredOptionsSplitter.splitEscaped(p, ':'))
-                .collect(
-                        Collectors.toMap(
-                                arr -> arr.get(0), // key name
-                                arr -> arr.get(1) // value
-                                ));
+    public static Map<String, String> parseStringToMap(String stringSerializedMap) {
+        return convertToProperties(stringSerializedMap, GlobalConfiguration.isStandardYaml());
+    }
+
+    public static String parseMapToString(Map<String, String> map) {
+        return convertToString(map, GlobalConfiguration.isStandardYaml());
     }
 
     public static Time getStandaloneClusterStartupPeriodTime(Configuration configuration) {

@@ -204,7 +204,8 @@ public class ExecutionConfigTest {
         configFromConfiguration.configure(
                 configuration, Thread.currentThread().getContextClassLoader());
 
-        assertThat(configFromConfiguration).isEqualTo(configFromSetters);
+        assertThat(configFromConfiguration.getRegisteredKryoTypes())
+                .isEqualTo(configFromSetters.getRegisteredKryoTypes());
     }
 
     @Test
@@ -225,27 +226,8 @@ public class ExecutionConfigTest {
         configFromConfiguration.configure(
                 configuration, Thread.currentThread().getContextClassLoader());
 
-        assertThat(configFromConfiguration).isEqualTo(configFromSetters);
-    }
-
-    @Test
-    void testLoadingRestartStrategyFromConfiguration() {
-        ExecutionConfig configFromSetters = new ExecutionConfig();
-        configFromSetters.setRestartStrategy(
-                RestartStrategies.fixedDelayRestart(10, Time.minutes(2)));
-
-        ExecutionConfig configFromConfiguration = new ExecutionConfig();
-
-        Configuration configuration = new Configuration();
-        configuration.setString("restart-strategy", "fixeddelay");
-        configuration.setString("restart-strategy.fixed-delay.attempts", "10");
-        configuration.setString("restart-strategy.fixed-delay.delay", "2 min");
-
-        // mutate config according to configuration
-        configFromConfiguration.configure(
-                configuration, Thread.currentThread().getContextClassLoader());
-
-        assertThat(configFromConfiguration).isEqualTo(configFromSetters);
+        assertThat(configFromConfiguration.getRegisteredPojoTypes())
+                .isEqualTo(configFromSetters.getRegisteredPojoTypes());
     }
 
     @Test
@@ -269,7 +251,8 @@ public class ExecutionConfigTest {
         configFromConfiguration.configure(
                 configuration, Thread.currentThread().getContextClassLoader());
 
-        assertThat(configFromConfiguration).isEqualTo(configFromSetters);
+        assertThat(configFromConfiguration.getDefaultKryoSerializers())
+                .isEqualTo(configFromSetters.getDefaultKryoSerializers());
     }
 
     @Test

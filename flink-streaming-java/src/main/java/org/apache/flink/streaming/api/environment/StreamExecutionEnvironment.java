@@ -52,9 +52,10 @@ import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.configuration.BatchExecutionOptions;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ExecutionOptions;
@@ -123,6 +124,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -188,20 +190,14 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     // ------------------------------------------------------------------------
 
     /** The execution configuration for this environment. */
-    protected final ExecutionConfig config = new ExecutionConfig();
+    protected final ExecutionConfig config;
 
     /** Settings that control the checkpointing behavior. */
-    protected final CheckpointConfig checkpointCfg = new CheckpointConfig();
+    protected final CheckpointConfig checkpointCfg;
 
     protected final List<Transformation<?>> transformations = new ArrayList<>();
 
     private final Map<AbstractID, CacheTransformation<?>> cachedTransformations = new HashMap<>();
-
-    private long bufferTimeout = ExecutionOptions.BUFFER_TIMEOUT.defaultValue().toMillis();
-
-    private boolean isChainingEnabled = true;
-
-    private boolean isChainingOfOperatorsWithDifferentMaxParallelismEnabled = true;
 
     /**
      * The state backend used for storing k/v state and state snapshots.
@@ -212,12 +208,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      *     field will be removed entirely.
      */
     @Deprecated private StateBackend defaultStateBackend;
-
-    /** Whether to enable ChangelogStateBackend, default value is unset. */
-    private TernaryBoolean changelogStateBackendEnabled = TernaryBoolean.UNDEFINED;
-
-    /** The default savepoint directory used by the job. */
-    private Path defaultSavepointDirectory;
 
     /** The time characteristic used by the data streams. */
     private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
@@ -291,6 +281,8 @@ public class StreamExecutionEnvironment implements AutoCloseable {
             final ClassLoader userClassloader) {
         this.executorServiceLoader = checkNotNull(executorServiceLoader);
         this.configuration = new Configuration(checkNotNull(configuration));
+        this.config = new ExecutionConfig(this.configuration);
+        this.checkpointCfg = new CheckpointConfig(this.configuration);
         this.userClassloader =
                 userClassloader == null ? getClass().getClassLoader() : userClassloader;
 
@@ -452,7 +444,10 @@ public class StreamExecutionEnvironment implements AutoCloseable {
             throw new IllegalArgumentException("Timeout of buffer must be non-negative or -1");
         }
 
-        this.bufferTimeout = timeoutMillis;
+        if (timeoutMillis == ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT) {
+            this.configuration.set(ExecutionOptions.BUFFER_TIMEOUT_ENABLED, false);
+        }
+        this.configuration.set(ExecutionOptions.BUFFER_TIMEOUT, Duration.ofMillis(timeoutMillis));
         return this;
     }
 
@@ -463,7 +458,9 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @return The timeout of the buffer.
      */
     public long getBufferTimeout() {
-        return this.bufferTimeout;
+        return this.configuration.get(ExecutionOptions.BUFFER_TIMEOUT_ENABLED)
+                ? this.configuration.get(ExecutionOptions.BUFFER_TIMEOUT).toMillis()
+                : ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT;
     }
 
     /**
@@ -475,7 +472,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public StreamExecutionEnvironment disableOperatorChaining() {
-        this.isChainingEnabled = false;
+        this.configuration.set(PipelineOptions.OPERATOR_CHAINING, false);
         return this;
     }
 
@@ -486,12 +483,13 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public boolean isChainingEnabled() {
-        return isChainingEnabled;
+        return this.configuration.get(PipelineOptions.OPERATOR_CHAINING);
     }
 
     @PublicEvolving
     public boolean isChainingOfOperatorsWithDifferentMaxParallelismEnabled() {
-        return isChainingOfOperatorsWithDifferentMaxParallelismEnabled;
+        return this.configuration.get(
+                PipelineOptions.OPERATOR_CHAINING_CHAIN_OPERATORS_WITH_DIFFERENT_MAX_PARALLELISM);
     }
 
     // ------------------------------------------------------------------------
@@ -747,7 +745,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public StreamExecutionEnvironment enableChangelogStateBackend(boolean enabled) {
-        this.changelogStateBackendEnabled = TernaryBoolean.fromBoolean(enabled);
+        configuration.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, enabled);
         return this;
     }
 
@@ -761,7 +759,10 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public TernaryBoolean isChangelogStateBackendEnabled() {
-        return changelogStateBackendEnabled;
+        return this.configuration
+                .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
+                .map(TernaryBoolean::fromBoolean)
+                .orElse(TernaryBoolean.UNDEFINED);
     }
 
     /**
@@ -773,8 +774,10 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public StreamExecutionEnvironment setDefaultSavepointDirectory(String savepointDirectory) {
-        Preconditions.checkNotNull(savepointDirectory);
-        return setDefaultSavepointDirectory(new Path(savepointDirectory));
+        this.configuration.set(
+                CheckpointingOptions.SAVEPOINT_DIRECTORY,
+                Preconditions.checkNotNull(savepointDirectory));
+        return this;
     }
 
     /**
@@ -787,7 +790,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     @PublicEvolving
     public StreamExecutionEnvironment setDefaultSavepointDirectory(URI savepointDirectory) {
         Preconditions.checkNotNull(savepointDirectory);
-        return setDefaultSavepointDirectory(new Path(savepointDirectory));
+        return setDefaultSavepointDirectory(savepointDirectory.getPath());
     }
 
     /**
@@ -799,7 +802,8 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public StreamExecutionEnvironment setDefaultSavepointDirectory(Path savepointDirectory) {
-        this.defaultSavepointDirectory = Preconditions.checkNotNull(savepointDirectory);
+        Preconditions.checkNotNull(savepointDirectory);
+        setDefaultSavepointDirectory(savepointDirectory.getPath());
         return this;
     }
 
@@ -811,7 +815,8 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     @Nullable
     @PublicEvolving
     public Path getDefaultSavepointDirectory() {
-        return defaultSavepointDirectory;
+        String path = this.configuration.get(CheckpointingOptions.SAVEPOINT_DIRECTORY);
+        return path == null ? null : new Path(path);
     }
 
     /**
@@ -1034,22 +1039,12 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public void configure(ReadableConfig configuration, ClassLoader classLoader) {
+        this.configuration.addAll(Configuration.fromMap(configuration.toMap()));
         configuration
                 .getOptional(StreamPipelineOptions.TIME_CHARACTERISTIC)
                 .ifPresent(this::setStreamTimeCharacteristic);
-        configuration
-                .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
-                .ifPresent(this::enableChangelogStateBackend);
         Optional.ofNullable(loadStateBackend(configuration, classLoader))
                 .ifPresent(this::setStateBackend);
-        configuration
-                .getOptional(PipelineOptions.OPERATOR_CHAINING)
-                .ifPresent(c -> this.isChainingEnabled = c);
-        configuration
-                .getOptional(
-                        PipelineOptions
-                                .OPERATOR_CHAINING_CHAIN_OPERATORS_WITH_DIFFERENT_MAX_PARALLELISM)
-                .ifPresent(c -> this.isChainingOfOperatorsWithDifferentMaxParallelismEnabled = c);
         configuration
                 .getOptional(DeploymentOptions.JOB_LISTENERS)
                 .ifPresent(listeners -> registerCustomListeners(classLoader, listeners));
@@ -1060,56 +1055,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
                             this.cacheFile.clear();
                             this.cacheFile.addAll(DistributedCache.parseCachedFilesFromString(f));
                         });
-        configuration
-                .getOptional(ExecutionOptions.RUNTIME_MODE)
-                .ifPresent(
-                        runtimeMode ->
-                                this.configuration.set(ExecutionOptions.RUNTIME_MODE, runtimeMode));
-
-        configuration
-                .getOptional(ExecutionOptions.BATCH_SHUFFLE_MODE)
-                .ifPresent(
-                        shuffleMode ->
-                                this.configuration.set(
-                                        ExecutionOptions.BATCH_SHUFFLE_MODE, shuffleMode));
-
-        configuration
-                .getOptional(ExecutionOptions.SORT_INPUTS)
-                .ifPresent(
-                        sortInputs ->
-                                this.configuration.set(ExecutionOptions.SORT_INPUTS, sortInputs));
-        configuration
-                .getOptional(ExecutionOptions.USE_BATCH_STATE_BACKEND)
-                .ifPresent(
-                        sortInputs ->
-                                this.configuration.set(
-                                        ExecutionOptions.USE_BATCH_STATE_BACKEND, sortInputs));
-        configuration
-                .getOptional(PipelineOptions.NAME)
-                .ifPresent(jobName -> this.configuration.set(PipelineOptions.NAME, jobName));
-
-        configuration
-                .getOptional(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH)
-                .ifPresent(
-                        flag ->
-                                this.configuration.set(
-                                        ExecutionCheckpointingOptions
-                                                .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                        flag));
-
-        configuration
-                .getOptional(PipelineOptions.JARS)
-                .ifPresent(jars -> this.configuration.set(PipelineOptions.JARS, jars));
-
-        configuration
-                .getOptional(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED)
-                .ifPresent(
-                        flag ->
-                                this.configuration.set(
-                                        BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED,
-                                        flag));
-
-        configBufferTimeout(configuration);
 
         config.configure(configuration, classLoader);
         checkpointCfg.configure(configuration);
@@ -1138,16 +1083,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
             return StateBackendLoader.loadStateBackendFromConfig(configuration, classLoader, null);
         } catch (DynamicCodeLoadingException | IOException e) {
             throw new WrappingRuntimeException(e);
-        }
-    }
-
-    private void configBufferTimeout(ReadableConfig configuration) {
-        if (configuration.get(ExecutionOptions.BUFFER_TIMEOUT_ENABLED)) {
-            configuration
-                    .getOptional(ExecutionOptions.BUFFER_TIMEOUT)
-                    .ifPresent(t -> this.setBufferTimeout(t.toMillis()));
-        } else {
-            this.setBufferTimeout(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
         }
     }
 
@@ -2407,6 +2342,12 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     @PublicEvolving
     public void registerJobListener(JobListener jobListener) {
         checkNotNull(jobListener, "JobListener cannot be null");
+        List<String> listeners =
+                this.configuration
+                        .getOptional(DeploymentOptions.JOB_LISTENERS)
+                        .orElse(new ArrayList<>());
+        listeners.add(jobListener.getClass().getName());
+        this.configuration.set(DeploymentOptions.JOB_LISTENERS, listeners);
         jobListeners.add(jobListener);
     }
 
@@ -2414,6 +2355,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     @PublicEvolving
     public void clearJobListeners() {
         this.jobListeners.clear();
+        this.configuration.removeConfig(DeploymentOptions.JOB_LISTENERS);
     }
 
     /**
@@ -2557,19 +2499,26 @@ public class StreamExecutionEnvironment implements AutoCloseable {
                     "No operators defined in streaming topology. Cannot execute.");
         }
 
+        // Synchronize the cached file to config option PipelineOptions.CACHED_FILES
+        if (!getCachedFiles().isEmpty()) {
+            configuration.set(
+                    PipelineOptions.CACHED_FILES,
+                    DistributedCache.parseStringFromCachedFiles(getCachedFiles()));
+        }
+
         // We copy the transformation so that newly added transformations cannot intervene with the
         // stream graph generation.
         return new StreamGraphGenerator(
                         new ArrayList<>(transformations), config, checkpointCfg, configuration)
                 .setStateBackend(defaultStateBackend)
-                .setChangelogStateBackendEnabled(changelogStateBackendEnabled)
-                .setSavepointDir(defaultSavepointDirectory)
-                .setChaining(isChainingEnabled)
+                .setChangelogStateBackendEnabled(isChangelogStateBackendEnabled())
+                .setSavepointDir(getDefaultSavepointDirectory())
+                .setChaining(isChainingEnabled())
                 .setChainingOfOperatorsWithDifferentMaxParallelism(
-                        isChainingOfOperatorsWithDifferentMaxParallelismEnabled)
-                .setUserArtifacts(cacheFile)
-                .setTimeCharacteristic(timeCharacteristic)
-                .setDefaultBufferTimeout(bufferTimeout)
+                        isChainingOfOperatorsWithDifferentMaxParallelismEnabled())
+                .setUserArtifacts(getCachedFiles())
+                .setTimeCharacteristic(getStreamTimeCharacteristic())
+                .setDefaultBufferTimeout(getBufferTimeout())
                 .setSlotSharingGroupResource(slotSharingGroupResources);
     }
 
@@ -2893,6 +2842,18 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         this.cacheFile.add(
                 new Tuple2<>(
                         name, new DistributedCache.DistributedCacheEntry(filePath, executable)));
+
+        Map<String, String> props = new HashMap<>();
+        props.put("name", name);
+        props.put("path", filePath);
+        props.put("executable", String.valueOf(executable));
+
+        List<String> cachedFileList =
+                this.configuration
+                        .getOptional(PipelineOptions.CACHED_FILES)
+                        .orElse(new ArrayList<>());
+        this.configuration.set(PipelineOptions.CACHED_FILES, cachedFileList);
+        cachedFileList.add(ConfigurationUtils.parseMapToString(props));
     }
 
     /**

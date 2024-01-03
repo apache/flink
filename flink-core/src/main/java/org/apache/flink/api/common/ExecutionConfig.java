@@ -33,6 +33,7 @@ import org.apache.flink.configuration.JobManagerOptions.SchedulerType;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.description.InlineElement;
@@ -43,6 +44,7 @@ import com.esotericsoftware.kryo.Serializer;
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -142,7 +144,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * In the long run, this field should be somehow merged with the {@link Configuration} from
      * StreamExecutionEnvironment.
      */
-    private final Configuration configuration = new Configuration();
+    private final Configuration configuration;
 
     /**
      * @deprecated Should no longer be used because it is subsumed by RestartStrategyConfiguration
@@ -182,6 +184,15 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     private LinkedHashSet<Class<?>> registeredKryoTypes = new LinkedHashSet<>();
 
     private LinkedHashSet<Class<?>> registeredPojoTypes = new LinkedHashSet<>();
+
+    public ExecutionConfig() {
+        this.configuration = new Configuration();
+    }
+
+    @Internal
+    public ExecutionConfig(Configuration configuration) {
+        this.configuration = configuration;
+    }
 
     // --------------------------------------------------------------------------------------------
 
@@ -1202,6 +1213,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 .ifPresent(this::setUseSnapshotCompression);
         RestartStrategies.fromConfiguration(configuration).ifPresent(this::setRestartStrategy);
         configuration
+                .getOptional(RestartStrategyOptions.RESTART_STRATEGY)
+                .ifPresent(s -> this.setRestartStrategy(configuration));
+        configuration
                 .getOptional(PipelineOptions.KRYO_DEFAULT_SERIALIZERS)
                 .map(s -> parseKryoSerializersWithExceptionHandling(classLoader, s))
                 .ifPresent(s -> this.defaultKryoSerializerClasses = s);
@@ -1219,6 +1233,86 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         configuration
                 .getOptional(JobManagerOptions.SCHEDULER)
                 .ifPresent(t -> this.configuration.set(JobManagerOptions.SCHEDULER, t));
+    }
+
+    private void setRestartStrategy(ReadableConfig configuration) {
+        Map<String, String> map = configuration.toMap();
+        Map<String, String> restartStrategyEntries = new HashMap<>();
+        for (Map.Entry<String, String> entry : map.entrySet()) {
+            if (entry.getKey().startsWith(RestartStrategyOptions.RESTART_STRATEGY_CONFIG_PREFIX)) {
+                restartStrategyEntries.put(entry.getKey(), entry.getValue());
+            }
+        }
+        this.configuration.addAll(Configuration.fromMap(restartStrategyEntries));
+    }
+
+    /**
+     * Validates the {@link ExecutionConfig#configuration} object against a set of rules.
+     *
+     * <p>The validation rules are derived and aggregated from the logic contained within the
+     * various setter methods that are invoked by {@link ExecutionConfig#configure(ReadableConfig,
+     * ClassLoader)}.
+     *
+     * @throws IllegalArgumentException if the configuration does not meet the required rules
+     */
+    @Internal
+    public void validateConfiguration() {
+        this.configuration
+                .getOptional(PipelineOptions.MAX_PARALLELISM)
+                .ifPresent(
+                        maxParallelism ->
+                                checkArgument(
+                                        maxParallelism > 0,
+                                        "The maximum parallelism must be greater than 0."));
+        this.configuration
+                .getOptional(CoreOptions.DEFAULT_PARALLELISM)
+                .ifPresent(
+                        parallelism -> {
+                            if (parallelism == PARALLELISM_UNKNOWN) {
+                                this.configuration.removeConfig(CoreOptions.DEFAULT_PARALLELISM);
+                            } else {
+                                if (parallelism < 1 && parallelism != PARALLELISM_DEFAULT) {
+                                    throw new IllegalArgumentException(
+                                            "Parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT (use system default).");
+                                }
+                            }
+                        });
+
+        this.configuration
+                .getOptional(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT)
+                .ifPresent(timeout -> checkArgument(timeout >= 0, "Timeout needs to be >= 0."));
+
+        validateRestartStrategyConfig();
+    }
+
+    /**
+     * Validates the restart strategy configuration. Currently, this only supports checking the type
+     * of restart strategy. If the configured restart strategy is not one of the predefined types,
+     * an IllegalArgumentException is thrown.
+     */
+    private void validateRestartStrategyConfig() {
+        this.configuration
+                .getOptional(RestartStrategyOptions.RESTART_STRATEGY)
+                .ifPresent(
+                        restartStrategyKind -> {
+                            switch (restartStrategyKind.toLowerCase()) {
+                                case "none":
+                                case "off":
+                                case "disable":
+                                case "fixeddelay":
+                                case "fixed-delay":
+                                case "exponentialdelay":
+                                case "exponential-delay":
+                                case "failurerate":
+                                case "failure-rate":
+                                    return;
+                                default:
+                                    throw new IllegalArgumentException(
+                                            "Unknown restart strategy "
+                                                    + restartStrategyKind
+                                                    + ".");
+                            }
+                        });
     }
 
     /**
@@ -1256,7 +1350,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     private LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> parseKryoSerializers(
             ClassLoader classLoader, List<String> kryoSerializers) {
         return kryoSerializers.stream()
-                .map(ConfigurationUtils::parseMap)
+                .map(ConfigurationUtils::parseStringToMap)
                 .collect(
                         Collectors.toMap(
                                 m ->
