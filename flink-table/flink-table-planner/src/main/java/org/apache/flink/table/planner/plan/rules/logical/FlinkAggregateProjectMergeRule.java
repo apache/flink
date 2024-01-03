@@ -56,7 +56,8 @@ import static java.util.Objects.requireNonNull;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Should be removed after legacy groupWindowAggregate was removed: Lines 83 ~ 101
+ *   <li>Should be removed after legacy groupWindowAggregate was removed: Lines 85 ~ 105, Lines 136
+ *       ~ 156
  * </ol>
  */
 public class FlinkAggregateProjectMergeRule extends AggregateProjectMergeRule {

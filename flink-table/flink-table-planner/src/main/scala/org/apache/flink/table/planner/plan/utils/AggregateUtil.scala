@@ -63,7 +63,6 @@ import org.apache.calcite.sql.`type`.{SqlTypeName, SqlTypeUtil}
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.validate.SqlMonotonicity
-import org.apache.calcite.tools.RelBuilder
 
 import java.time.Duration
 import java.util
@@ -1114,15 +1113,6 @@ object AggregateUtil extends Enumeration {
         ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE + " must be > 0.")
     }
     new CountBundleTrigger[RowData](size)
-  }
-
-  /** Compute field index of given timeField expression. */
-  @Deprecated
-  def timeFieldIndex(
-      inputType: RelDataType,
-      relBuilder: RelBuilder,
-      timeField: FieldReferenceExpression): Int = {
-    relBuilder.values(inputType).field(timeField.getName).getIndex
   }
 
   /** Computes the positions of (window start, window end, row time). */
