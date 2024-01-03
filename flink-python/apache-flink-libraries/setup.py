@@ -108,7 +108,6 @@ try:
             "-lyft"
         )
 
-
         FLINK_HOME = os.path.abspath(
             "../../flink-dist/target/flink-%s-bin/flink-%s" % (flink_version, flink_version))
 
