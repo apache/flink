@@ -301,7 +301,7 @@ try:
 
     install_requires = ['py4j==0.10.9.7', 'python-dateutil>=2.8.0,<3',
                         'apache-beam>=2.43.0,<2.52.0',
-                        'cloudpickle==2.2.0', 'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
+                        'cloudpickle>=2.2.0', 'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
                         'pytz>=2018.3', 'fastavro>=1.1.0,<1.4.8', 'requests>=2.26.0',
                         'protobuf>=3.19.0,<=3.21',
                         'numpy>=1.21.4,<1.24.0',
