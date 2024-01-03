@@ -124,7 +124,7 @@ object CodeGenUtils {
 
   private val nameCounter = new AtomicLong
 
-  def newName(context: CodeGeneratorContext = null, name: String): String = {
+  def newName(context: CodeGeneratorContext, name: String): String = {
     if (context == null || context.getNameCounter == null) {
       // Add an 'i' in the middle to distinguish from nameCounter in CodeGeneratorContext
       // and avoid naming conflicts.
