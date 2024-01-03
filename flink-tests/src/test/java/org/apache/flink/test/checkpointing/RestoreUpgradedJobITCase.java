@@ -174,6 +174,7 @@ public class RestoreUpgradedJobITCase extends TestLogger {
         env.getCheckpointConfig()
                 .setCheckpointStorage("file://" + temporaryFolder.getRoot().getAbsolutePath());
         env.setParallelism(PARALLELISM);
+        // Checkpointing is enabled with a large interval, and no checkpoints will be triggered.
         env.enableCheckpointing(Integer.MAX_VALUE);
 
         // Different order of maps before and after savepoint.

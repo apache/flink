@@ -18,7 +18,6 @@
 
 package org.apache.flink.client.program;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
@@ -84,9 +83,7 @@ class StreamContextEnvironmentTest {
                 .hasMessageContainingAll(
                         ExecutionOptions.RUNTIME_MODE.key(),
                         ExecutionOptions.SORT_INPUTS.key(),
-                        CheckpointConfig.class.getSimpleName(),
                         ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL.key(),
-                        ExecutionConfig.class.getSimpleName(),
                         PipelineOptions.MAX_PARALLELISM.key());
     }
 
