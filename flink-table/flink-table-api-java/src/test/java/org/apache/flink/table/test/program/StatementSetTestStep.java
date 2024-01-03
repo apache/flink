@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.test.program;
 
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
@@ -26,6 +27,8 @@ import java.util.List;
 
 /** Test step for creating a statement set. */
 public final class StatementSetTestStep implements TestStep {
+
+    private StatementSet statementSet = null;
 
     public final List<String> statements;
 
@@ -38,9 +41,18 @@ public final class StatementSetTestStep implements TestStep {
         return TestKind.STATEMENT_SET;
     }
 
-    public TableResult apply(TableEnvironment env) {
-        final StatementSet statementSet = env.createStatementSet();
+    /** Returns a CompiledPlan for a statement set. */
+    public CompiledPlan compiledPlan(TableEnvironment env) {
+        statementSet = env.createStatementSet();
         statements.forEach(statementSet::addInsertSql);
+        return statementSet.compilePlan();
+    }
+
+    public TableResult apply(TableEnvironment env) {
+        if (statementSet == null) {
+            statementSet = env.createStatementSet();
+            statements.forEach(statementSet::addInsertSql);
+        }
         return statementSet.execute();
     }
 }

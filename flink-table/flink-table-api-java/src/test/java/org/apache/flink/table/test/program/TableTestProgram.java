@@ -198,6 +198,21 @@ public class TableTestProgram {
         return (SqlTestStep) sqlSteps.get(0);
     }
 
+    /**
+     * Convenience method to avoid boilerplate code. It assumes only one statement set is tested.
+     */
+    public StatementSetTestStep getRunStatementSetTestStep() {
+        List<TestStep> statementSetSteps =
+                runSteps.stream()
+                        .filter(s -> s.getKind() == TestKind.STATEMENT_SET)
+                        .collect(Collectors.toList());
+
+        Preconditions.checkArgument(
+                statementSetSteps.size() == 1, "Single StatementSet step expected.");
+
+        return (StatementSetTestStep) statementSetSteps.get(0);
+    }
+
     /** Builder pattern for {@link TableTestProgram}. */
     public static class Builder {
 
