@@ -456,14 +456,12 @@ class StreamExecutionEnvironmentTest {
                 .isEqualTo(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
 
         // Setting execution.buffer-timeout's to 0ms will not take effect.
-        config.setString(ExecutionOptions.BUFFER_TIMEOUT.key(), "0ms");
-        env.configure(config, this.getClass().getClassLoader());
+        env.setBufferTimeout(0);
         assertThat(env.getBufferTimeout())
                 .isEqualTo(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
 
         // Setting execution.buffer-timeout's to -1ms will not take effect.
-        config.setString(ExecutionOptions.BUFFER_TIMEOUT.key(), "-1ms");
-        env.configure(config, this.getClass().getClassLoader());
+        env.setBufferTimeout(-1);
         assertThat(env.getBufferTimeout())
                 .isEqualTo(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
     }
@@ -481,6 +479,7 @@ class StreamExecutionEnvironmentTest {
                         () -> {
                             config.setString(ExecutionOptions.BUFFER_TIMEOUT.key(), "-1ms");
                             env.configure(config, this.getClass().getClassLoader());
+                            env.getBufferTimeout();
                         })
                 .isInstanceOf(IllegalArgumentException.class);
     }

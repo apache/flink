@@ -130,8 +130,12 @@ public class ConfigurationUtils {
      * @param stringSerializedMap a string to parse
      * @return parsed map
      */
-    public static Map<String, String> parseMap(String stringSerializedMap) {
+    public static Map<String, String> parseStringToMap(String stringSerializedMap) {
         return convertToProperties(stringSerializedMap, GlobalConfiguration.isStandardYaml());
+    }
+
+    public static String parseMapToString(Map<String, String> map) {
+        return convertToString(map, GlobalConfiguration.isStandardYaml());
     }
 
     public static Time getStandaloneClusterStartupPeriodTime(Configuration configuration) {

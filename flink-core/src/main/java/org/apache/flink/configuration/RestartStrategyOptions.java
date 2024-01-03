@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
@@ -26,6 +27,7 @@ import org.apache.flink.configuration.description.Description;
 
 import java.time.Duration;
 
+import static org.apache.flink.configuration.RestartStrategyOptions.RESTART_STRATEGY_CONFIG_PREFIX;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
@@ -41,21 +43,23 @@ import static org.apache.flink.configuration.description.TextElement.text;
         groups = {
             @ConfigGroup(
                     name = "ExponentialDelayRestartStrategy",
-                    keyPrefix = "restart-strategy.exponential-delay"),
+                    keyPrefix = RESTART_STRATEGY_CONFIG_PREFIX + ".exponential-delay"),
             @ConfigGroup(
                     name = "FixedDelayRestartStrategy",
-                    keyPrefix = "restart-strategy.fixed-delay"),
+                    keyPrefix = RESTART_STRATEGY_CONFIG_PREFIX + ".fixed-delay"),
             @ConfigGroup(
                     name = "FailureRateRestartStrategy",
-                    keyPrefix = "restart-strategy.failure-rate")
+                    keyPrefix = RESTART_STRATEGY_CONFIG_PREFIX + ".failure-rate")
         })
 public class RestartStrategyOptions {
 
+    @Internal public static final String RESTART_STRATEGY_CONFIG_PREFIX = "restart-strategy";
+
     public static final ConfigOption<String> RESTART_STRATEGY =
-            ConfigOptions.key("restart-strategy.type")
+            ConfigOptions.key(RESTART_STRATEGY_CONFIG_PREFIX + ".type")
                     .stringType()
                     .noDefaultValue()
-                    .withDeprecatedKeys("restart-strategy")
+                    .withDeprecatedKeys(RESTART_STRATEGY_CONFIG_PREFIX)
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -96,7 +100,7 @@ public class RestartStrategyOptions {
                                     .build());
 
     public static final ConfigOption<Integer> RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS =
-            ConfigOptions.key("restart-strategy.fixed-delay.attempts")
+            ConfigOptions.key(RESTART_STRATEGY_CONFIG_PREFIX + ".fixed-delay.attempts")
                     .intType()
                     .defaultValue(1)
                     .withDescription(
@@ -107,7 +111,7 @@ public class RestartStrategyOptions {
                                     .build());
 
     public static final ConfigOption<Duration> RESTART_STRATEGY_FIXED_DELAY_DELAY =
-            ConfigOptions.key("restart-strategy.fixed-delay.delay")
+            ConfigOptions.key(RESTART_STRATEGY_CONFIG_PREFIX + ".fixed-delay.delay")
                     .durationType()
                     .defaultValue(Duration.ofSeconds(1))
                     .withDescription(
@@ -122,7 +126,9 @@ public class RestartStrategyOptions {
 
     public static final ConfigOption<Integer>
             RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL =
-                    ConfigOptions.key("restart-strategy.failure-rate.max-failures-per-interval")
+                    ConfigOptions.key(
+                                    RESTART_STRATEGY_CONFIG_PREFIX
+                                            + ".failure-rate.max-failures-per-interval")
                             .intType()
                             .defaultValue(1)
                             .withDescription(
@@ -134,7 +140,8 @@ public class RestartStrategyOptions {
                                             .build());
 
     public static final ConfigOption<Duration> RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL =
-            ConfigOptions.key("restart-strategy.failure-rate.failure-rate-interval")
+            ConfigOptions.key(
+                            RESTART_STRATEGY_CONFIG_PREFIX + ".failure-rate.failure-rate-interval")
                     .durationType()
                     .defaultValue(Duration.ofMinutes(1))
                     .withDescription(
@@ -146,7 +153,7 @@ public class RestartStrategyOptions {
                                     .build());
 
     public static final ConfigOption<Duration> RESTART_STRATEGY_FAILURE_RATE_DELAY =
-            ConfigOptions.key("restart-strategy.failure-rate.delay")
+            ConfigOptions.key(RESTART_STRATEGY_CONFIG_PREFIX + ".failure-rate.delay")
                     .durationType()
                     .defaultValue(Duration.ofSeconds(1))
                     .withDescription(
@@ -158,7 +165,7 @@ public class RestartStrategyOptions {
                                     .build());
 
     public static final ConfigOption<Duration> RESTART_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF =
-            ConfigOptions.key("restart-strategy.exponential-delay.initial-backoff")
+            ConfigOptions.key(RESTART_STRATEGY_CONFIG_PREFIX + ".exponential-delay.initial-backoff")
                     .durationType()
                     .defaultValue(Duration.ofSeconds(1))
                     .withDescription(
@@ -170,7 +177,7 @@ public class RestartStrategyOptions {
                                     .build());
 
     public static final ConfigOption<Duration> RESTART_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF =
-            ConfigOptions.key("restart-strategy.exponential-delay.max-backoff")
+            ConfigOptions.key(RESTART_STRATEGY_CONFIG_PREFIX + ".exponential-delay.max-backoff")
                     .durationType()
                     .defaultValue(Duration.ofMinutes(1))
                     .withDescription(
@@ -182,7 +189,9 @@ public class RestartStrategyOptions {
                                     .build());
 
     public static final ConfigOption<Double> RESTART_STRATEGY_EXPONENTIAL_DELAY_BACKOFF_MULTIPLIER =
-            ConfigOptions.key("restart-strategy.exponential-delay.backoff-multiplier")
+            ConfigOptions.key(
+                            RESTART_STRATEGY_CONFIG_PREFIX
+                                    + ".exponential-delay.backoff-multiplier")
                     .doubleType()
                     .defaultValue(1.5)
                     .withDescription(
@@ -195,7 +204,9 @@ public class RestartStrategyOptions {
 
     public static final ConfigOption<Duration>
             RESTART_STRATEGY_EXPONENTIAL_DELAY_RESET_BACKOFF_THRESHOLD =
-                    ConfigOptions.key("restart-strategy.exponential-delay.reset-backoff-threshold")
+                    ConfigOptions.key(
+                                    RESTART_STRATEGY_CONFIG_PREFIX
+                                            + ".exponential-delay.reset-backoff-threshold")
                             .durationType()
                             .defaultValue(Duration.ofHours(1))
                             .withDescription(
@@ -210,7 +221,7 @@ public class RestartStrategyOptions {
                                             .build());
 
     public static final ConfigOption<Double> RESTART_STRATEGY_EXPONENTIAL_DELAY_JITTER_FACTOR =
-            ConfigOptions.key("restart-strategy.exponential-delay.jitter-factor")
+            ConfigOptions.key(RESTART_STRATEGY_CONFIG_PREFIX + ".exponential-delay.jitter-factor")
                     .doubleType()
                     .defaultValue(0.1)
                     .withDescription(

@@ -153,6 +153,11 @@ public class CheckpointConfig implements java.io.Serializable {
         configuration = new Configuration();
     }
 
+    @Internal
+    public CheckpointConfig(Configuration configuration) {
+        this.configuration = configuration;
+    }
+
     // ------------------------------------------------------------------------
 
     /** Disables checkpointing. */
@@ -793,6 +798,7 @@ public class CheckpointConfig implements java.io.Serializable {
     @PublicEvolving
     public void setCheckpointStorage(String checkpointDirectory) {
         Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
+        this.configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDirectory);
         this.storage = new FileSystemCheckpointStorage(checkpointDirectory);
     }
 
@@ -821,6 +827,8 @@ public class CheckpointConfig implements java.io.Serializable {
     @PublicEvolving
     public void setCheckpointStorage(URI checkpointDirectory) {
         Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
+        this.configuration.set(
+                CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDirectory.toString());
         this.storage = new FileSystemCheckpointStorage(checkpointDirectory);
     }
 
@@ -849,6 +857,8 @@ public class CheckpointConfig implements java.io.Serializable {
     @PublicEvolving
     public void setCheckpointStorage(Path checkpointDirectory) {
         Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
+        this.configuration.set(
+                CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDirectory.toString());
         this.storage = new FileSystemCheckpointStorage(checkpointDirectory);
     }
 
