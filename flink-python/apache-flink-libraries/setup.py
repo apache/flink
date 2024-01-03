@@ -98,8 +98,17 @@ try:
             print("Temp path for symlink to parent already exists {0}".format(TEMP_PATH),
                   file=sys.stderr)
             sys.exit(-1)
-        flink_version = VERSION.replace(".dev0", "-SNAPSHOT")
-        flink_version = flink_version.replace("+", "-")
+        flink_version = VERSION.replace(
+            ".dev0",
+            "-SNAPSHOT"
+        ).replace(
+            "+",
+            "-"
+        ).replace(
+            ".post", # Necessary after switching to .post for version numbering
+            "-lyft"
+        )
+
 
         FLINK_HOME = os.path.abspath(
             "../../flink-dist/target/flink-%s-bin/flink-%s" % (flink_version, flink_version))
