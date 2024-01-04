@@ -39,6 +39,24 @@
             <td>The lower bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
         </tr>
         <tr>
+            <td><h5>execution.batch.job-recovery.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>A flag to enable or disable the job recovery. If enabled, batch jobs can resume with previously generated intermediate results after job master restarts due to failures, thereby preserving the progress.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.batch.job-recovery.previous-worker.recovery.timeout</h5></td>
+            <td style="word-wrap: break-word;">30 s</td>
+            <td>Duration</td>
+            <td>The timeout for a new job master to wait for the previous worker to reconnect.A reconnected worker will transmit the details of its produced intermediate results to the new job master, enabling the job master to reuse these results.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.batch.job-recovery.snapshot.min-pause</h5></td>
+            <td style="word-wrap: break-word;">3 min</td>
+            <td>Duration</td>
+            <td>The minimal pause between snapshots taken by operator coordinator or other components. It is used to avoid performance degradation due to excessive snapshot frequency.</td>
+        </tr>
+        <tr>
             <td><h5>execution.batch.speculative.block-slow-node-duration</h5></td>
             <td style="word-wrap: break-word;">1 min</td>
             <td>Duration</td>
