@@ -51,6 +51,7 @@ import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.OutputFormatProvider;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
+import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
@@ -1937,7 +1938,10 @@ public final class TestValuesTableFactory
 
     /** Values {@link DynamicTableSink} for testing. */
     private static class TestValuesTableSink
-            implements DynamicTableSink, SupportsWritingMetadata, SupportsPartitioning {
+            implements DynamicTableSink,
+                    SupportsWritingMetadata,
+                    SupportsPartitioning,
+                    SupportsOverwrite {
 
         private DataType consumedDataType;
         private int[] primaryKeyIndices;
@@ -2135,6 +2139,9 @@ public final class TestValuesTableFactory
         public boolean requiresPartitionGrouping(boolean supportsGrouping) {
             return supportsGrouping;
         }
+
+        @Override
+        public void applyOverwrite(boolean overwrite) {}
     }
 
     /** A TableSink used for testing the implementation of {@link SinkFunction.Context}. */
