@@ -35,7 +35,6 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.operators.util.SlotSharingGroupUtils;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -124,6 +123,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -859,7 +859,8 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param numberOfExecutionRetries The number of times the system will try to re-execute failed
      *     tasks.
      * @deprecated This method will be replaced by {@link #setRestartStrategy}. The {@link
-     *     RestartStrategies#fixedDelayRestart(int, Time)} contains the number of execution retries.
+     *     RestartStrategies#fixedDelayRestart(int, Duration)} contains the number of execution
+     *     retries.
      */
     @Deprecated
     @PublicEvolving

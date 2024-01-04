@@ -25,6 +25,8 @@ import org.apache.flink.configuration.RestartStrategyOptions;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -72,10 +74,10 @@ class RestartBackoffTimeStrategyFactoryLoaderTest {
         final RestartBackoffTimeStrategy.Factory factory =
                 RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
                         RestartStrategies.exponentialDelayRestart(
-                                Time.milliseconds(1),
-                                Time.milliseconds(1000),
+                                Duration.ofMillis(1),
+                                Duration.ofMillis(1000),
                                 1.1,
-                                Time.milliseconds(2000),
+                                Duration.ofMillis(2000),
                                 0),
                         conf,
                         false);
@@ -94,7 +96,7 @@ class RestartBackoffTimeStrategyFactoryLoaderTest {
         final RestartBackoffTimeStrategy.Factory factory =
                 RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
                         RestartStrategies.failureRateRestart(
-                                1, Time.milliseconds(1000), Time.milliseconds(1000)),
+                                1, Duration.ofMillis(1000), Duration.ofMillis(1000)),
                         conf,
                         false);
 
