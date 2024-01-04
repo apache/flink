@@ -66,9 +66,9 @@ class CsvFormatStatisticsReportTest extends StatisticsReportTestBase {
         // insert data and get statistics.
         DataType dataType = tEnv.from("sourceTable").getResolvedSchema().toPhysicalRowDataType();
         tEnv.fromValues(dataType, getData()).executeInsert("sourceTable").await();
-        assertThat(folder.listFiles()).isNotNull().hasSize(1);
+        assertThat(folder.listFiles()).hasSize(1);
         File[] files = folder.listFiles();
-        assert files != null;
+        assertThat(files).isNotNull();
         TableStats tableStats =
                 csvBulkDecodingFormat.reportStatistics(
                         Collections.singletonList(new Path(files[0].toURI().toString())), null);
@@ -81,10 +81,10 @@ class CsvFormatStatisticsReportTest extends StatisticsReportTestBase {
         DataType dataType = tEnv.from("sourceTable").getResolvedSchema().toPhysicalRowDataType();
         tEnv.fromValues(dataType, getData()).executeInsert("sourceTable").await();
         tEnv.fromValues(dataType, getData()).executeInsert("sourceTable").await();
-        assertThat(folder.listFiles()).isNotNull().hasSize(2);
+        assertThat(folder.listFiles()).hasSize(2);
         File[] files = folder.listFiles();
         List<Path> paths = new ArrayList<>();
-        assert files != null;
+        assertThat(files).isNotNull();
         paths.add(new Path(files[0].toURI().toString()));
         paths.add(new Path(files[1].toURI().toString()));
         TableStats tableStats = csvBulkDecodingFormat.reportStatistics(paths, null);
