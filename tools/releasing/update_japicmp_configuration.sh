@@ -59,6 +59,10 @@ function set_japicmp_reference_version() {
   perl -pi -e 's#(<japicmp.referenceVersion>).*(</japicmp.referenceVersion>)#${1}'${version}'${2}#' ${POM}
 }
 
+function enable_binary_incompatibility_check() {
+  perl -pi -e 's#<breakBuildOnBinaryIncompatibleModifications>false</breakBuildOnBinaryIncompatibleModifications>#<breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>#' ${POM}
+}
+
 function clear_exclusions() {
   exclusion_start=$(($(sed -n '/<!-- MARKER: start exclusions/=' ${POM}) + 1))
   exclusion_end=$(($(sed -n '/<!-- MARKER: end exclusions/=' ${POM}) - 1))
@@ -87,6 +91,7 @@ elif [[ ${current_branch} =~ ^release- ]]; then
   # snapshot branch
   set_japicmp_reference_version ${NEW_VERSION}
   enable_public_evolving_compatibility_checks
+  enable_binary_incompatibility_check
   clear_exclusions
 else
   echo "Script was called from unexpected branch ${current_branch}; should be rc/snapshot/master branch."
