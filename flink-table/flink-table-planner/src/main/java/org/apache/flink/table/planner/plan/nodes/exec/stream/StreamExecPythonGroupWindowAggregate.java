@@ -93,7 +93,6 @@ import static org.apache.flink.table.planner.plan.utils.AggregateUtil.hasRowInte
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.hasTimeIntervalType;
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.isProctimeAttribute;
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.isRowtimeAttribute;
-import static org.apache.flink.table.planner.plan.utils.AggregateUtil.timeFieldIndex;
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.toDuration;
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.toLong;
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToStreamAggregateInfoList;
@@ -234,11 +233,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
 
         final int inputTimeFieldIndex;
         if (isRowtimeAttribute(window.timeAttribute())) {
-            inputTimeFieldIndex =
-                    timeFieldIndex(
-                            planner.getTypeFactory().buildRelNodeRowType(inputRowType),
-                            planner.createRelBuilder(),
-                            window.timeAttribute());
+            inputTimeFieldIndex = window.timeAttribute().getFieldIndex();
             if (inputTimeFieldIndex < 0) {
                 throw new TableException(
                         "Group window must defined on a time attribute, "
