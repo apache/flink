@@ -21,6 +21,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -30,8 +31,8 @@ public final class TestingCheckpointIDCounter implements CheckpointIDCounter {
 
     private final Runnable startRunnable;
     private final Function<JobStatus, CompletableFuture<Void>> shutdownFunction;
-    private final Supplier<Integer> getAndIncrementSupplier;
-    private final Supplier<Integer> getSupplier;
+    private final Supplier<Long> getAndIncrementSupplier;
+    private final Supplier<Long> getSupplier;
     private final Consumer<Long> setCountConsumer;
 
     public static TestingCheckpointIDCounter createStoreWithShutdownCheckAndNoStartAction(
@@ -49,8 +50,8 @@ public final class TestingCheckpointIDCounter implements CheckpointIDCounter {
     private TestingCheckpointIDCounter(
             Runnable startRunnable,
             Function<JobStatus, CompletableFuture<Void>> shutdownFunction,
-            Supplier<Integer> getAndIncrementSupplier,
-            Supplier<Integer> getSupplier,
+            Supplier<Long> getAndIncrementSupplier,
+            Supplier<Long> getSupplier,
             Consumer<Long> setCountConsumer) {
         this.startRunnable = startRunnable;
         this.shutdownFunction = shutdownFunction;
@@ -91,11 +92,14 @@ public final class TestingCheckpointIDCounter implements CheckpointIDCounter {
     /** {@code Builder} for creating {@code TestingCheckpointIDCounter} instances. */
     public static class Builder {
 
-        private Runnable startRunnable;
-        private Function<JobStatus, CompletableFuture<Void>> shutdownFunction;
-        private Supplier<Integer> getAndIncrementSupplier;
-        private Supplier<Integer> getSupplier;
-        private Consumer<Long> setCountConsumer;
+        private final AtomicLong defaultCheckpointIdStore = new AtomicLong();
+
+        private Runnable startRunnable = () -> {};
+        private Function<JobStatus, CompletableFuture<Void>> shutdownFunction =
+                i -> FutureUtils.completedVoidFuture();
+        private Supplier<Long> getAndIncrementSupplier = defaultCheckpointIdStore::getAndIncrement;
+        private Supplier<Long> getSupplier = defaultCheckpointIdStore::get;
+        private Consumer<Long> setCountConsumer = defaultCheckpointIdStore::set;
 
         public Builder withStartRunnable(Runnable startRunnable) {
             this.startRunnable = startRunnable;
@@ -108,12 +112,12 @@ public final class TestingCheckpointIDCounter implements CheckpointIDCounter {
             return this;
         }
 
-        public Builder withGetAndIncrementSupplier(Supplier<Integer> getAndIncrementSupplier) {
+        public Builder withGetAndIncrementSupplier(Supplier<Long> getAndIncrementSupplier) {
             this.getAndIncrementSupplier = getAndIncrementSupplier;
             return this;
         }
 
-        public Builder withGetSupplier(Supplier<Integer> getSupplier) {
+        public Builder withGetSupplier(Supplier<Long> getSupplier) {
             this.getSupplier = getSupplier;
             return this;
         }
