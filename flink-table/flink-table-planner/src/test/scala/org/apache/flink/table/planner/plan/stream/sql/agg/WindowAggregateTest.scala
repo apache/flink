@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{ExplainDetail, TableException}
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMerge}
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
@@ -66,6 +66,22 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
                                 |)
                                 |""".stripMargin)
 
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE MyCDCTable (
+                                |  a INT,
+                                |  b BIGINT,
+                                |  c STRING NOT NULL,
+                                |  d DECIMAL(10, 3),
+                                |  e BIGINT,
+                                |  rowtime TIMESTAMP(3),
+                                |  proctime as PROCTIME(),
+                                |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
+                                |) with (
+                                |  'connector' = 'values',
+                                |  'changelog-mode' = 'I,UA,UB,D'
+                                |)
+                                |""".stripMargin)
+
     util.tableEnv.executeSql(
       """
         |CREATE VIEW proctime_win AS
@@ -108,6 +124,25 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
   }
 
   @TestTemplate
+  def testTumble_OnRowtimeWithCDCSource(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyCDCTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @TestTemplate
   def testTumble_OnProctime(): Unit = {
     assumeThat(isTwoPhase).isTrue
     val sql =
@@ -125,6 +160,26 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
         |GROUP BY a, window_start, window_end
       """.stripMargin
     util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testTumble_OnProctimeWithCDCSource(): Unit = {
+    assumeThat(isTwoPhase).isTrue
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyCDCTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @TestTemplate
@@ -442,6 +497,26 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
   }
 
   @TestTemplate
+  def testCumulate_OnRowtimeWithCDCSource(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  CUMULATE(TABLE MyCDCTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @TestTemplate
   def testCumulate_OnProctime(): Unit = {
     assumeThat(isTwoPhase).isTrue
     val sql =
@@ -460,6 +535,27 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
         |GROUP BY a, window_start, window_end
       """.stripMargin
     util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testCumulate_OnProctimeWithCDCSource(): Unit = {
+    assumeThat(isTwoPhase).isTrue
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  CUMULATE(TABLE MyCDCTable, DESCRIPTOR(proctime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @TestTemplate
@@ -504,6 +600,26 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
   }
 
   @TestTemplate
+  def testHop_OnRowtimeWithCDCSource(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |   HOP(TABLE MyCDCTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @TestTemplate
   def testHop_OnProctime(): Unit = {
     assumeThat(isTwoPhase).isTrue
     val sql =
@@ -522,6 +638,27 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
         |GROUP BY a, window_start, window_end
       """.stripMargin
     util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testHop_OnProctimeWithCDCSource(): Unit = {
+    assumeThat(isTwoPhase).isTrue
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |   HOP(TABLE MyCDCTable, DESCRIPTOR(proctime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @TestTemplate
