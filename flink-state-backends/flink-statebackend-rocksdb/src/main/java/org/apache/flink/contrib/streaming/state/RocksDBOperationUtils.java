@@ -44,6 +44,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -119,6 +120,9 @@ public class RocksDBOperationUtils {
      *
      * <p>Creates the column family for the state. Sets TTL compaction filter if {@code
      * ttlCompactFiltersManager} is not {@code null}.
+     *
+     * @param importFilesMetaData if not empty, we import the files specified in the metadata to the
+     *     column family.
      */
     public static RocksDBKeyedStateBackend.RocksDbKvStateInfo createStateInfo(
             RegisteredStateMetaInfoBase metaInfoBase,
@@ -126,7 +130,7 @@ public class RocksDBOperationUtils {
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             @Nullable RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             @Nullable Long writeBufferManagerCapacity,
-            List<ExportImportFilesMetaData> cfMetaDataList) {
+            List<ExportImportFilesMetaData> importFilesMetaData) {
 
         ColumnFamilyDescriptor columnFamilyDescriptor =
                 createColumnFamilyDescriptor(
@@ -135,10 +139,15 @@ public class RocksDBOperationUtils {
                         ttlCompactFiltersManager,
                         writeBufferManagerCapacity);
 
-        ColumnFamilyHandle columnFamilyHandle =
-                cfMetaDataList == null
-                        ? createColumnFamily(columnFamilyDescriptor, db)
-                        : createColumnFamilyWithImport(columnFamilyDescriptor, db, cfMetaDataList);
+        final ColumnFamilyHandle columnFamilyHandle;
+        try {
+            columnFamilyHandle =
+                    createColumnFamily(columnFamilyDescriptor, db, importFilesMetaData);
+        } catch (Exception ex) {
+            IOUtils.closeQuietly(columnFamilyDescriptor.getOptions());
+            throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", ex);
+        }
+
         return new RocksDBKeyedStateBackend.RocksDbKvStateInfo(columnFamilyHandle, metaInfoBase);
     }
 
@@ -154,7 +163,7 @@ public class RocksDBOperationUtils {
                 columnFamilyOptionsFactory,
                 ttlCompactFiltersManager,
                 writeBufferManagerCapacity,
-                null);
+                Collections.emptyList());
     }
 
     /**
@@ -168,15 +177,17 @@ public class RocksDBOperationUtils {
             @Nullable RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             @Nullable Long writeBufferManagerCapacity) {
 
-        ColumnFamilyOptions options =
-                createColumnFamilyOptions(columnFamilyOptionsFactory, metaInfoBase.getName());
-        if (ttlCompactFiltersManager != null) {
-            ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(metaInfoBase, options);
-        }
         byte[] nameBytes = metaInfoBase.getName().getBytes(ConfigConstants.DEFAULT_CHARSET);
         Preconditions.checkState(
                 !Arrays.equals(RocksDB.DEFAULT_COLUMN_FAMILY, nameBytes),
                 "The chosen state name 'default' collides with the name of the default column family!");
+
+        ColumnFamilyOptions options =
+                createColumnFamilyOptions(columnFamilyOptionsFactory, metaInfoBase.getName());
+
+        if (ttlCompactFiltersManager != null) {
+            ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(metaInfoBase, options);
+        }
 
         if (writeBufferManagerCapacity != null) {
             // It'd be great to perform the check earlier, e.g. when creating write buffer manager.
@@ -203,8 +214,7 @@ public class RocksDBOperationUtils {
      * @return true if sanity check passes, false otherwise
      */
     static boolean sanityCheckArenaBlockSize(
-            long writeBufferSize, long arenaBlockSizeConfigured, long writeBufferManagerCapacity)
-            throws IllegalStateException {
+            long writeBufferSize, long arenaBlockSizeConfigured, long writeBufferManagerCapacity) {
 
         long defaultArenaBlockSize =
                 RocksDBMemoryControllerUtils.calculateRocksDBDefaultArenaBlockSize(writeBufferSize);
@@ -243,25 +253,19 @@ public class RocksDBOperationUtils {
     }
 
     private static ColumnFamilyHandle createColumnFamily(
-            ColumnFamilyDescriptor columnDescriptor, RocksDB db) {
-        try {
-            return db.createColumnFamily(columnDescriptor);
-        } catch (RocksDBException e) {
-            IOUtils.closeQuietly(columnDescriptor.getOptions());
-            throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", e);
-        }
-    }
-
-    private static ColumnFamilyHandle createColumnFamilyWithImport(
             ColumnFamilyDescriptor columnDescriptor,
             RocksDB db,
-            List<ExportImportFilesMetaData> metaDataList) {
-        try {
-            return db.createColumnFamilyWithImport(
-                    columnDescriptor, new ImportColumnFamilyOptions(), metaDataList);
-        } catch (RocksDBException e) {
-            IOUtils.closeQuietly(columnDescriptor.getOptions());
-            throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", e);
+            List<ExportImportFilesMetaData> importFilesMetaData)
+            throws RocksDBException {
+
+        if (importFilesMetaData.isEmpty()) {
+            return db.createColumnFamily(columnDescriptor);
+        } else {
+            try (ImportColumnFamilyOptions importColumnFamilyOptions =
+                    new ImportColumnFamilyOptions().setMoveFiles(true)) {
+                return db.createColumnFamilyWithImport(
+                        columnDescriptor, importColumnFamilyOptions, importFilesMetaData);
+            }
         }
     }
 

@@ -80,6 +80,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -88,8 +89,10 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RunnableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -259,6 +262,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     private final RocksDbTtlCompactFiltersManager ttlCompactFiltersManager;
 
+    @Nullable private final CompletableFuture<Void> asyncCompactAfterRestoreFuture;
+
     public RocksDBKeyedStateBackend(
             ClassLoader userCodeClassLoader,
             File instanceBasePath,
@@ -284,7 +289,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             PriorityQueueSetFactory priorityQueueFactory,
             RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             InternalKeyContext<K> keyContext,
-            @Nonnegative long writeBatchSize) {
+            @Nonnegative long writeBatchSize,
+            @Nullable CompletableFuture<Void> asyncCompactFuture) {
 
         super(
                 kvStateRegistry,
@@ -321,6 +327,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         this.nativeMetricMonitor = nativeMetricMonitor;
         this.sharedRocksKeyBuilder = sharedRocksKeyBuilder;
         this.priorityQueueFactory = priorityQueueFactory;
+        this.asyncCompactAfterRestoreFuture = asyncCompactFuture;
         if (priorityQueueFactory instanceof HeapPriorityQueueSetFactory) {
             this.heapPriorityQueuesManager =
                     new HeapPriorityQueuesManager(
@@ -993,5 +1000,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     @Nonnegative
     long getWriteBatchSize() {
         return writeBatchSize;
+    }
+
+    public Optional<CompletableFuture<Void>> getAsyncCompactAfterRestoreFuture() {
+        return Optional.ofNullable(asyncCompactAfterRestoreFuture);
     }
 }

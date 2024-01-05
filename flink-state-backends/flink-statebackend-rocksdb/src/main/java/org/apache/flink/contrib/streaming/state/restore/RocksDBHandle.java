@@ -187,18 +187,19 @@ class RocksDBHandle implements AutoCloseable {
         return registeredStateMetaInfoEntry;
     }
 
-    RocksDbKvStateInfo registerStateColumnFamilyHandleWithImport(
+    /**
+     * Registers a new column family and imports data from the given export.
+     *
+     * @param stateMetaInfo info about the state to create.
+     * @param cfMetaDataList the data to import.
+     */
+    void registerStateColumnFamilyHandleWithImport(
             RegisteredStateMetaInfoBase stateMetaInfo,
             List<ExportImportFilesMetaData> cfMetaDataList) {
 
-        RocksDbKvStateInfo registeredStateMetaInfoEntry =
-                kvStateInformation.get(stateMetaInfo.getName());
-        if (registeredStateMetaInfoEntry != null) {
-            System.out.println("test");
-        }
-        Preconditions.checkState(registeredStateMetaInfoEntry == null);
+        Preconditions.checkState(!kvStateInformation.containsKey(stateMetaInfo.getName()));
 
-        registeredStateMetaInfoEntry =
+        RocksDbKvStateInfo stateInfo =
                 RocksDBOperationUtils.createStateInfo(
                         stateMetaInfo,
                         db,
@@ -208,12 +209,9 @@ class RocksDBHandle implements AutoCloseable {
                         cfMetaDataList);
 
         RocksDBOperationUtils.registerKvStateInformation(
-                kvStateInformation,
-                nativeMetricMonitor,
-                stateMetaInfo.getName(),
-                registeredStateMetaInfoEntry);
+                kvStateInformation, nativeMetricMonitor, stateMetaInfo.getName(), stateInfo);
 
-        return registeredStateMetaInfoEntry;
+        columnFamilyHandles.add(stateInfo.columnFamilyHandle);
     }
 
     /**
