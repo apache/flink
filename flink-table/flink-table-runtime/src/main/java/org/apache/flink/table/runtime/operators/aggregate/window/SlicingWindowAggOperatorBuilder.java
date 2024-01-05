@@ -162,6 +162,7 @@ public class SlicingWindowAggOperatorBuilder {
                             bufferFactory,
                             (SliceUnsharedAssigner) assigner,
                             accSerializer,
+                            indexOfCountStart,
                             shiftTimeZone);
         } else {
             throw new IllegalArgumentException(
