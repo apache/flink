@@ -101,6 +101,9 @@ class ParquetRowDataWriterTest {
                             new VarCharType(VarCharType.MAX_LENGTH)),
                     RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType()));
 
+    private static final RowType NESTED_ARRAY_ROW_TYPE =
+            RowType.of(new IntType(), new ArrayType(true, RowType.of(new IntType())));
+
     @SuppressWarnings("unchecked")
     private static final DataFormatConverters.DataFormatConverter<RowData, Row> CONVERTER_COMPLEX =
             DataFormatConverters.getConverterForDataType(
@@ -111,6 +114,12 @@ class ParquetRowDataWriterTest {
             DataFormatConverters.getConverterForDataType(
                     TypeConversions.fromLogicalToDataType(ROW_TYPE));
 
+    @SuppressWarnings("unchecked")
+    private static final DataFormatConverters.DataFormatConverter<RowData, Row>
+            NESTED_ARRAY_ROW_CONVERTER =
+                    DataFormatConverters.getConverterForDataType(
+                            TypeConversions.fromLogicalToDataType(NESTED_ARRAY_ROW_TYPE));
+
     @Test
     void testTypes(@TempDir java.nio.file.Path folder) throws Exception {
         Configuration conf = new Configuration();
@@ -118,6 +127,8 @@ class ParquetRowDataWriterTest {
         innerTest(folder, conf, false);
         complexTypeTest(folder, conf, true);
         complexTypeTest(folder, conf, false);
+        nestedArrayAndRowTest(folder, conf, true);
+        nestedArrayAndRowTest(folder, conf, false);
     }
 
     @Test
@@ -128,6 +139,8 @@ class ParquetRowDataWriterTest {
         innerTest(folder, conf, false);
         complexTypeTest(folder, conf, true);
         complexTypeTest(folder, conf, false);
+        nestedArrayAndRowTest(folder, conf, true);
+        nestedArrayAndRowTest(folder, conf, false);
     }
 
     @Test
@@ -230,6 +243,34 @@ class ParquetRowDataWriterTest {
         assertThat(fileContent).isEqualTo(rows);
     }
 
+    public void nestedArrayAndRowTest(
+            java.nio.file.Path folder, Configuration conf, boolean utcTimestamp) throws Exception {
+        Path path = new Path(folder.toString(), UUID.randomUUID().toString());
+        int number = 1000;
+        List<Row> rows = new ArrayList<>(number);
+
+        for (int i = 0; i < number; i++) {
+            Integer v = i;
+            Integer v1 = i + number + 1;
+            rows.add(Row.of(v, new Row[] {Row.of(v1)}));
+        }
+
+        ParquetWriterFactory<RowData> factory =
+                ParquetRowDataBuilder.createWriterFactory(
+                        NESTED_ARRAY_ROW_TYPE, conf, utcTimestamp);
+        BulkWriter<RowData> writer =
+                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
+        for (int i = 0; i < number; i++) {
+            writer.addElement(NESTED_ARRAY_ROW_CONVERTER.toInternal(rows.get(i)));
+        }
+        writer.flush();
+        writer.finish();
+
+        File file = new File(path.getPath());
+        final List<Row> fileContent = readNestedArrayAndRowParquetFile(file);
+        assertThat(fileContent).isEqualTo(rows);
+    }
+
     private static List<Row> readParquetFile(File file) throws IOException {
         InputFile inFile =
                 HadoopInputFile.fromPath(
@@ -253,6 +294,31 @@ class ParquetRowDataWriterTest {
                 }
 
                 Row row = Row.of(new Integer[] {c0}, c1, Row.of(c21, c22));
+                results.add(row);
+            }
+        }
+
+        return results;
+    }
+
+    private static List<Row> readNestedArrayAndRowParquetFile(File file) throws IOException {
+        InputFile inFile =
+                HadoopInputFile.fromPath(
+                        new org.apache.hadoop.fs.Path(file.toURI()), new Configuration());
+
+        ArrayList<Row> results = new ArrayList<>();
+        try (ParquetReader<GenericRecord> reader =
+                AvroParquetReader.<GenericRecord>builder(inFile).build()) {
+            GenericRecord next;
+            while ((next = reader.read()) != null) {
+                Integer c0 = (Integer) next.get(0);
+                List<Row> nestedArray = new ArrayList<>();
+                ArrayList<GenericData.Record> recordList =
+                        (ArrayList<GenericData.Record>) next.get(1);
+                for (GenericData.Record record : recordList) {
+                    nestedArray.add(Row.of(((GenericData.Record) record.get(0)).get(0)));
+                }
+                Row row = Row.of(c0, nestedArray.toArray(new Row[0]));
                 results.add(row);
             }
         }

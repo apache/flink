@@ -500,7 +500,12 @@ public class ParquetRowDataWriter {
         }
 
         @Override
-        public void write(ArrayData arrayData, int ordinal) {}
+        public void write(ArrayData arrayData, int ordinal) {
+            recordConsumer.startGroup();
+            RowData rowData = arrayData.getRow(ordinal, fieldWriters.length);
+            write(rowData);
+            recordConsumer.endGroup();
+        }
     }
 
     private void writeTimestamp(RecordConsumer recordConsumer, TimestampData timestampData) {
