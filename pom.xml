@@ -202,6 +202,10 @@ under the License.
 		     of entries in the form '[-]{2}add-[opens|exports]=<module>/<package>=ALL-UNNAMED'.-->
 		<surefire.module.config/>
 
+		<surefire.excludedGroups.github-actions/>
+		<surefire.excludedGroups.adaptive-scheduler/>
+		<surefire.excludedGroups.jdk/>
+
 		<!-- Can be set to any value to reproduce a specific build. -->
 		<test.randomization.seed/>
 		<test.unit.pattern>**/*Test.*</test.unit.pattern>
@@ -1000,6 +1004,9 @@ under the License.
 
 		<profile>
 			<id>enable-adaptive-scheduler</id>
+			<properties>
+				<surefire.excludedGroups.adaptive-scheduler>org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler</surefire.excludedGroups.adaptive-scheduler>
+			</properties>
 			<build>
 				<plugins>
 					<plugin>
@@ -1009,7 +1016,11 @@ under the License.
 							<systemProperties>
 								<flink.tests.enable-adaptive-scheduler>true</flink.tests.enable-adaptive-scheduler>
 							</systemProperties>
-							<excludedGroups>org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler</excludedGroups>
+							<excludedGroups>
+								${surefire.excludedGroups.github-actions},
+								${surefire.excludedGroups.adaptive-scheduler},
+								${surefire.excludedGroups.jdk,
+							</excludedGroups>
 						</configuration>
 					</plugin>
 				</plugins>
@@ -1018,7 +1029,9 @@ under the License.
 
 		<profile>
 			<id>github-actions</id>
-
+			<properties>
+				<surefire.excludedGroups.github-actions>org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser</surefire.excludedGroups.github-actions>
+			</properties>
 			<build>
 				<pluginManagement>
 					<plugins>
@@ -1026,7 +1039,11 @@ under the License.
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-surefire-plugin</artifactId>
 							<configuration>
-								<excludedGroups>org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser</excludedGroups>
+								<excludedGroups>
+									${surefire.excludedGroups.github-actions},
+									${surefire.excludedGroups.adaptive-scheduler},
+									${surefire.excludedGroups.jdk},
+								</excludedGroups>
 							</configuration>
 						</plugin>
 					</plugins>
@@ -1040,6 +1057,10 @@ under the License.
 				<jdk>[11,)</jdk>
 			</activation>
 
+			<properties>
+				<surefire.excludedGroups.jdk>org.apache.flink.testutils.junit.FailsOnJava11</surefire.excludedGroups.jdk>
+			</properties>
+
 			<build>
 				<pluginManagement>
 					<plugins>
@@ -1052,7 +1073,11 @@ under the License.
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-surefire-plugin</artifactId>
 							<configuration>
-								<excludedGroups>org.apache.flink.testutils.junit.FailsOnJava11</excludedGroups>
+								<excludedGroups>
+									${surefire.excludedGroups.github-actions},
+									${surefire.excludedGroups.adaptive-scheduler},
+									${surefire.excludedGroups.jdk},
+								</excludedGroups>
 							</configuration>
 						</plugin>
 						<plugin>
@@ -1101,6 +1126,7 @@ under the License.
 			<properties>
 				<!-- Bump Scala because 2.12.7 doesn't compile on Java 17. -->
 				<scala.version>2.12.15</scala.version>
+				<surefire.excludedGroups.jdk>org.apache.flink.testutils.junit.FailsOnJava17</surefire.excludedGroups.jdk>
 			</properties>
 
 			<build>
@@ -1110,7 +1136,11 @@ under the License.
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-surefire-plugin</artifactId>
 							<configuration>
-								<excludedGroups>org.apache.flink.testutils.junit.FailsOnJava17</excludedGroups>
+								<excludedGroups>
+									${surefire.excludedGroups.github-actions},
+									${surefire.excludedGroups.adaptive-scheduler},
+									${surefire.excludedGroups.jdk},
+								</excludedGroups>
 							</configuration>
 						</plugin>
 					</plugins>
