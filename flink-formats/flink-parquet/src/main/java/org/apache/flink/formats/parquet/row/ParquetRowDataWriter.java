@@ -381,9 +381,16 @@ public class ParquetRowDataWriter {
 
         @Override
         public void write(RowData row, int ordinal) {
-            recordConsumer.startGroup();
+            writeMapData(row.getMap(ordinal));
+        }
 
-            MapData mapData = row.getMap(ordinal);
+        @Override
+        public void write(ArrayData arrayData, int ordinal) {
+            writeMapData(arrayData.getMap(ordinal));
+        }
+
+        private void writeMapData(MapData mapData) {
+            recordConsumer.startGroup();
 
             if (mapData != null && mapData.size() > 0) {
                 recordConsumer.startField(repeatedGroupName, 0);
@@ -412,9 +419,6 @@ public class ParquetRowDataWriter {
             }
             recordConsumer.endGroup();
         }
-
-        @Override
-        public void write(ArrayData arrayData, int ordinal) {}
     }
 
     /** It writes an array type field to parquet. */
@@ -438,8 +442,16 @@ public class ParquetRowDataWriter {
 
         @Override
         public void write(RowData row, int ordinal) {
+            writeArrayData(row.getArray(ordinal));
+        }
+
+        @Override
+        public void write(ArrayData arrayData, int ordinal) {
+            writeArrayData(arrayData.getArray(ordinal));
+        }
+
+        private void writeArrayData(ArrayData arrayData) {
             recordConsumer.startGroup();
-            ArrayData arrayData = row.getArray(ordinal);
             int listLength = arrayData.size();
 
             if (listLength > 0) {
@@ -458,9 +470,6 @@ public class ParquetRowDataWriter {
             }
             recordConsumer.endGroup();
         }
-
-        @Override
-        public void write(ArrayData arrayData, int ordinal) {}
     }
 
     /** It writes a row type field to parquet. */
@@ -500,7 +509,12 @@ public class ParquetRowDataWriter {
         }
 
         @Override
-        public void write(ArrayData arrayData, int ordinal) {}
+        public void write(ArrayData arrayData, int ordinal) {
+            recordConsumer.startGroup();
+            RowData rowData = arrayData.getRow(ordinal, fieldWriters.length);
+            write(rowData);
+            recordConsumer.endGroup();
+        }
     }
 
     private void writeTimestamp(RecordConsumer recordConsumer, TimestampData timestampData) {
