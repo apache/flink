@@ -303,6 +303,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
         // gate and the consumed views as the local input channels.
 
         BufferAndAvailability next = null;
+        int nextSubpartitionId = -1;
         try {
             while (true) {
                 NetworkSequenceViewReader reader = pollAvailableReader();
@@ -313,6 +314,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
                     return;
                 }
 
+                nextSubpartitionId = reader.peekNextBufferSubpartitionId();
                 next = reader.getNextBuffer();
                 if (next == null) {
                     if (!reader.isReleased()) {
@@ -337,6 +339,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
                                     next.buffer(),
                                     next.getSequenceNumber(),
                                     reader.getReceiverId(),
+                                    nextSubpartitionId,
                                     next.buffersInBacklog());
 
                     // Write and flush and wait until this is done before

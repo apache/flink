@@ -994,6 +994,7 @@ public class UnalignedCheckpointsTest {
                     .onBuffer(
                             bufferOrEvent.getBuffer(),
                             sequenceNumbers[bufferOrEvent.getChannelInfo().getInputChannelIdx()]++,
+                            0,
                             0);
 
             while (inputGate.pollNext().map(output::add).isPresent()) {}

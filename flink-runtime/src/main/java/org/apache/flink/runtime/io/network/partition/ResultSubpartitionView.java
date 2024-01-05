@@ -90,6 +90,12 @@ public interface ResultSubpartitionView {
     default void notifyRequiredSegmentId(int subpartitionId, int segmentId) {}
 
     /**
+     * Returns the index of the subpartition where the next buffer locates, or -1 if there is no
+     * buffer available and the subpartition to be consumed is not determined.
+     */
+    int peekNextBufferSubpartitionId() throws IOException;
+
+    /**
      * Availability of the {@link ResultSubpartitionView} and the backlog in the corresponding
      * {@link ResultSubpartition}.
      */

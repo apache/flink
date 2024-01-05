@@ -232,6 +232,21 @@ public class RemoteInputChannel extends InputChannel {
     }
 
     @Override
+    protected int peekNextBufferSubpartitionIdInternal() throws IOException {
+        checkPartitionRequestQueueInitialized();
+
+        synchronized (receivedBuffers) {
+            final SequenceBuffer next = receivedBuffers.peek();
+
+            if (next != null) {
+                return next.subpartitionId;
+            } else {
+                return -1;
+            }
+        }
+    }
+
+    @Override
     public Optional<BufferAndAvailability> getNextBuffer() throws IOException {
         checkPartitionRequestQueueInitialized();
 
@@ -542,7 +557,8 @@ public class RemoteInputChannel extends InputChannel {
      * Handles the input buffer. This method is taking over the ownership of the buffer and is fully
      * responsible for cleaning it up both on the happy path and in case of an error.
      */
-    public void onBuffer(Buffer buffer, int sequenceNumber, int backlog) throws IOException {
+    public void onBuffer(Buffer buffer, int sequenceNumber, int backlog, int subpartitionId)
+            throws IOException {
         boolean recycleBuffer = true;
 
         try {
@@ -575,7 +591,8 @@ public class RemoteInputChannel extends InputChannel {
 
                 wasEmpty = receivedBuffers.isEmpty();
 
-                SequenceBuffer sequenceBuffer = new SequenceBuffer(buffer, sequenceNumber);
+                SequenceBuffer sequenceBuffer =
+                        new SequenceBuffer(buffer, sequenceNumber, subpartitionId);
                 DataType dataType = buffer.getDataType();
                 if (dataType.hasPriority()) {
                     firstPriorityEvent = addPriorityBuffer(sequenceBuffer);
@@ -640,7 +657,8 @@ public class RemoteInputChannel extends InputChannel {
         return new SequenceBuffer(
                 EventSerializer.toBuffer(
                         new EventAnnouncement(barrier, sequenceBuffer.sequenceNumber), true),
-                sequenceBuffer.sequenceNumber);
+                sequenceBuffer.sequenceNumber,
+                sequenceBuffer.subpartitionId);
     }
 
     private void checkAnnouncedOnlyOnce(SequenceBuffer sequenceBuffer) {
@@ -725,7 +743,9 @@ public class RemoteInputChannel extends InputChannel {
             toPrioritize.buffer.setReaderIndex(0);
             toPrioritize =
                     new SequenceBuffer(
-                            EventSerializer.toBuffer(e, true), toPrioritize.sequenceNumber);
+                            EventSerializer.toBuffer(e, true),
+                            toPrioritize.sequenceNumber,
+                            toPrioritize.subpartitionId);
             firstPriorityEvent =
                     addPriorityBuffer(
                             toPrioritize); // note that only position of the element is changed
@@ -869,9 +889,12 @@ public class RemoteInputChannel extends InputChannel {
         final Buffer buffer;
         final int sequenceNumber;
 
-        private SequenceBuffer(Buffer buffer, int sequenceNumber) {
+        final int subpartitionId;
+
+        private SequenceBuffer(Buffer buffer, int sequenceNumber, int subpartitionId) {
             this.buffer = buffer;
             this.sequenceNumber = sequenceNumber;
+            this.subpartitionId = subpartitionId;
         }
 
         @Override

@@ -149,6 +149,7 @@ class RemoteInputChannelTest {
                                             Integer.MAX_VALUE)),
                             false),
                     sequenceNumber,
+                    0,
                     0);
             inputGate.pollNext(); // process announcement to allow the gate remember the SQN
 
@@ -168,10 +169,10 @@ class RemoteInputChannelTest {
         final Buffer buffer = createBuffer(TestBufferFactory.BUFFER_SIZE);
 
         // The test
-        inputChannel.onBuffer(buffer.retainBuffer(), 0, -1);
+        inputChannel.onBuffer(buffer.retainBuffer(), 0, -1, 0);
 
         // This does not yet throw the exception, but sets the error at the channel.
-        inputChannel.onBuffer(buffer, 29, -1);
+        inputChannel.onBuffer(buffer, 29, -1, 0);
 
         assertThatThrownBy(inputChannel::getNextBuffer)
                 .withFailMessage(
@@ -216,7 +217,7 @@ class RemoteInputChannelTest {
         final Buffer buffer = createBuffer(TestBufferFactory.BUFFER_SIZE);
 
         assertThat(buffer.isRecycled()).isFalse();
-        assertThatThrownBy(() -> inputChannel.onBuffer(buffer, 0, -1))
+        assertThatThrownBy(() -> inputChannel.onBuffer(buffer, 0, -1, 0))
                 .isInstanceOf(ExpectedTestException.class);
 
         // This check is not strictly speaking necessary. Generally speaking if exception happens
@@ -243,7 +244,7 @@ class RemoteInputChannelTest {
         testConcurrentReleaseAndSomething(
                 8192,
                 (inputChannel, buffer, j) -> {
-                    inputChannel.onBuffer(buffer, j, -1);
+                    inputChannel.onBuffer(buffer, j, -1, 0);
                     return true;
                 });
     }
@@ -1266,7 +1267,7 @@ class RemoteInputChannelTest {
 
             for (int i = 0; i < numTotalBuffers; i++) {
                 Buffer buffer = inputChannel.requestBuffer();
-                inputChannel.onBuffer(buffer, i, 0);
+                inputChannel.onBuffer(buffer, i, 0, 0);
             }
 
             final Callable<Void> getNextBufferTask =
@@ -1390,8 +1391,8 @@ class RemoteInputChannelTest {
                                         getDefault(),
                                         Integer.MAX_VALUE)),
                         false);
-        remoteChannel1.onBuffer(barrier, 0, 0);
-        remoteChannel2.onBuffer(barrier, 0, 0);
+        remoteChannel1.onBuffer(barrier, 0, 0, 0);
+        remoteChannel2.onBuffer(barrier, 0, 0, 0);
 
         assertThat(remoteChannel1.getNumberOfAvailableBuffers()).isEqualTo(4);
         assertThat(remoteChannel2.getNumberOfAvailableBuffers()).isZero();
@@ -1633,7 +1634,7 @@ class RemoteInputChannelTest {
 
     private void send(RemoteInputChannel channel, int sequenceNumber, Buffer buffer)
             throws IOException {
-        channel.onBuffer(buffer, sequenceNumber, 0);
+        channel.onBuffer(buffer, sequenceNumber, 0, 0);
         channel.checkError();
     }
 
@@ -1819,6 +1820,7 @@ class RemoteInputChannelTest {
                                                     new CheckpointBarrier(1L, 123L, options),
                                                     false),
                                             0,
+                                            0,
                                             0);
                                 }));
         assertPriorityAvailability(
@@ -1835,6 +1837,7 @@ class RemoteInputChannelTest {
                                             toBuffer(
                                                     new CheckpointBarrier(2L, 123L, options), true),
                                             1,
+                                            0,
                                             0);
                                 }));
     }
@@ -1847,11 +1850,11 @@ class RemoteInputChannelTest {
         final Buffer buffer = createBuffer(TestBufferFactory.BUFFER_SIZE);
 
         // Receiving the buffer with backlog.
-        remoteInputChannel.onBuffer(buffer.retainBuffer(), 0, 1);
+        remoteInputChannel.onBuffer(buffer.retainBuffer(), 0, 1, 0);
         // 1 buffer + 1 backlog.
         assertThat(remoteInputChannel.getBuffersInUseCount()).isEqualTo(2);
 
-        remoteInputChannel.onBuffer(buffer.retainBuffer(), 1, 3);
+        remoteInputChannel.onBuffer(buffer.retainBuffer(), 1, 3, 0);
         // 2 buffer + 3 backlog.
         assertThat(remoteInputChannel.getBuffersInUseCount()).isEqualTo(5);
 

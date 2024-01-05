@@ -77,6 +77,12 @@ public abstract class InputChannel {
 
     protected final Counter numBuffersIn;
 
+    /**
+     * The index of the subpartition if {@link #consumedSubpartitionIndexSet} contains only one
+     * subpartition, or -1.
+     */
+    private final int subpartitionId;
+
     /** The current backoff (in ms). */
     protected int currentBackoff;
 
@@ -102,6 +108,10 @@ public abstract class InputChannel {
         this.partitionId = checkNotNull(partitionId);
 
         this.consumedSubpartitionIndexSet = consumedSubpartitionIndexSet;
+        this.subpartitionId =
+                consumedSubpartitionIndexSet.size() > 1
+                        ? -1
+                        : consumedSubpartitionIndexSet.values().iterator().next();
 
         this.initialBackoff = initial;
         this.maxBackoff = max;
@@ -179,6 +189,23 @@ public abstract class InputChannel {
      * #consumedSubpartitionIndexSet}.
      */
     abstract void requestSubpartitions() throws IOException, InterruptedException;
+
+    /**
+     * Returns the index of the subpartition where the next buffer locates, or -1 if there is no
+     * buffer available and the subpartition to be consumed is not determined.
+     */
+    public int peekNextBufferSubpartitionId() throws IOException {
+        if (subpartitionId >= 0) {
+            return subpartitionId;
+        }
+        return peekNextBufferSubpartitionIdInternal();
+    }
+
+    /**
+     * Returns the index of the subpartition where the next buffer locates, or -1 if there is no
+     * buffer available and the subpartition to be consumed is not determined.
+     */
+    protected abstract int peekNextBufferSubpartitionIdInternal() throws IOException;
 
     /**
      * Returns the next buffer from the consumed subpartitions or {@code Optional.empty()} if there

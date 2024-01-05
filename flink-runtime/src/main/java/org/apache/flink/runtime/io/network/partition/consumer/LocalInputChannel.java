@@ -194,6 +194,35 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     }
 
     @Override
+    protected int peekNextBufferSubpartitionIdInternal() throws IOException {
+        checkError();
+
+        ResultSubpartitionView subpartitionView = this.subpartitionView;
+        if (subpartitionView == null) {
+            // There is a possible race condition between writing a EndOfPartitionEvent (1) and
+            // flushing (3) the Local
+            // channel on the sender side, and reading EndOfPartitionEvent (2) and processing flush
+            // notification (4). When
+            // they happen in that order (1 - 2 - 3 - 4), flush notification can re-enqueue
+            // LocalInputChannel after (or
+            // during) it was released during reading the EndOfPartitionEvent (2).
+            if (isReleased) {
+                return -1;
+            }
+
+            // this can happen if the request for the partition was triggered asynchronously
+            // by the time trigger
+            // would be good to avoid that, by guaranteeing that the requestPartition() and
+            // getNextBuffer() always come from the same thread
+            // we could do that by letting the timer insert a special "requesting channel" into the
+            // input gate's queue
+            subpartitionView = checkAndWaitForSubpartitionView();
+        }
+
+        return subpartitionView.peekNextBufferSubpartitionId();
+    }
+
+    @Override
     public Optional<BufferAndAvailability> getNextBuffer() throws IOException {
         checkError();
 

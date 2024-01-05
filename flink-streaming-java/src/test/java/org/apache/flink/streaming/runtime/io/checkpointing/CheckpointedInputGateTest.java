@@ -312,7 +312,7 @@ public class CheckpointedInputGateTest {
                         channelIndex,
                         (key, oldSequence) -> oldSequence == null ? 0 : oldSequence + 1);
         ((RemoteInputChannel) checkpointedInputGate.getChannel(channelIndex))
-                .onBuffer(buffer, sequenceNumber, 0);
+                .onBuffer(buffer, sequenceNumber, 0, 0);
     }
 
     private CheckpointedInputGate setupInputGate(

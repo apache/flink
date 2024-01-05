@@ -93,6 +93,9 @@ public class RemoteTierFactory implements TierFactory {
                 SegmentPartitionFile.createPartitionFileReader(remoteStoragePath);
         RemoteStorageScanner remoteStorageScanner = new RemoteStorageScanner(remoteStoragePath);
         return new RemoteTierConsumerAgent(
-                remoteStorageScanner, partitionFileReader, bufferSizeBytes);
+                tieredStorageConsumerSpecs,
+                remoteStorageScanner,
+                partitionFileReader,
+                bufferSizeBytes);
     }
 }

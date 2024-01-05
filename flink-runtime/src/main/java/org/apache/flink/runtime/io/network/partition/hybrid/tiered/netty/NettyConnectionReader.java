@@ -21,10 +21,17 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierConsumerAgent;
 
+import java.io.IOException;
 import java.util.Optional;
 
 /** {@link NettyConnectionReader} is used by {@link TierConsumerAgent} to read buffer from netty. */
 public interface NettyConnectionReader {
+    /**
+     * Returns the index of the subpartition where the next buffer locates, or -1 if there is no
+     * buffer available and the subpartition to be consumed is not determined.
+     */
+    int peekNextBufferSubpartitionId() throws IOException;
+
     /**
      * Read a buffer from netty connection.
      *

@@ -70,6 +70,8 @@ public interface NetworkSequenceViewReader {
             ResultPartition partition, ResultSubpartitionIndexSet subpartitionIndexSet)
             throws IOException;
 
+    int peekNextBufferSubpartitionId() throws IOException;
+
     @Nullable
     BufferAndAvailability getNextBuffer() throws IOException;
 

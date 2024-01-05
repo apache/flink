@@ -1002,7 +1002,7 @@ class SingleInputGateTest extends InputGateTestBase {
             resultPartition.setup();
             setupInputGate(inputGate, inputChannels);
 
-            remoteInputChannel.onBuffer(createBuffer(1), 0, 0);
+            remoteInputChannel.onBuffer(createBuffer(1), 0, 0, 0);
             assertThat(inputGate.getNumberOfQueuedBuffers()).isEqualTo(1);
 
             resultPartition.emitRecord(ByteBuffer.allocate(1), 0);
