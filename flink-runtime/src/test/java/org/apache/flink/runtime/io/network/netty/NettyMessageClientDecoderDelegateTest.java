@@ -231,7 +231,7 @@ class NettyMessageClientDecoderDelegateTest {
             int seqNumber) {
 
         Buffer buffer = createDataBuffer(bufferSize, dataType);
-        messages.add(new BufferResponse(buffer, seqNumber, inputChannelId, 1));
+        messages.add(new BufferResponse(buffer, seqNumber, inputChannelId, 0, 1));
     }
 
     private Buffer createDataBuffer(int size, Buffer.DataType dataType) {

@@ -56,6 +56,11 @@ public class TestingSubpartitionCreatedViewReader implements NetworkSequenceView
     }
 
     @Override
+    public int peekNextBufferSubpartitionId() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void requestSubpartitionViewOrRegisterListener(
             ResultPartitionProvider partitionProvider,
             ResultPartitionID resultPartitionId,

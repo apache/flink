@@ -116,6 +116,11 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
     }
 
     @Override
+    protected int peekNextBufferSubpartitionIdInternal() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public Optional<BufferAndAvailability> getNextBuffer() throws IOException {
         // Nothing to do here
         throw new UnsupportedOperationException(

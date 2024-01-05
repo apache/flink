@@ -193,6 +193,11 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
     }
 
     @Override
+    public int peekNextBufferSubpartitionId() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public String toString() {
         return String.format(
                 "Blocking Subpartition Reader: ID=%s, index=%d",

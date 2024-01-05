@@ -58,6 +58,12 @@ class CreditBasedSequenceNumberingViewReader
 
     private final int initialCredit;
 
+    /**
+     * Cache of the index of the only subpartition if the underlining {@link ResultSubpartitionView}
+     * only consumes one subpartition, or -1 otherwise.
+     */
+    private int subpartitionId;
+
     private volatile ResultSubpartitionView subpartitionView;
 
     private volatile PartitionRequestListener partitionRequestListener;
@@ -82,6 +88,7 @@ class CreditBasedSequenceNumberingViewReader
         this.initialCredit = initialCredit;
         this.numCreditsAvailable = initialCredit;
         this.requestQueue = requestQueue;
+        this.subpartitionId = -1;
     }
 
     @Override
@@ -108,6 +115,9 @@ class CreditBasedSequenceNumberingViewReader
                             partitionRequestListener);
             if (subpartitionViewOptional.isPresent()) {
                 this.subpartitionView = subpartitionViewOptional.get();
+                if (subpartitionIndexSet.size() == 1) {
+                    subpartitionId = subpartitionIndexSet.values().iterator().next();
+                }
             } else {
                 // If the subpartitionView is not exist, it means that the requested partition is
                 // not registered.
@@ -126,6 +136,9 @@ class CreditBasedSequenceNumberingViewReader
         synchronized (requestLock) {
             checkState(subpartitionView == null, "Subpartitions already requested");
             subpartitionView = partition.createSubpartitionView(subpartitionIndexSet, this);
+            if (subpartitionIndexSet.size() == 1) {
+                subpartitionId = subpartitionIndexSet.values().iterator().next();
+            }
         }
 
         notifyDataAvailable();
@@ -227,6 +240,14 @@ class CreditBasedSequenceNumberingViewReader
     @VisibleForTesting
     ResultSubpartitionView.AvailabilityWithBacklog hasBuffersAvailable() {
         return subpartitionView.getAvailabilityAndBacklog(Integer.MAX_VALUE);
+    }
+
+    @Override
+    public int peekNextBufferSubpartitionId() throws IOException {
+        if (subpartitionId >= 0) {
+            return subpartitionId;
+        }
+        return subpartitionView.peekNextBufferSubpartitionId();
     }
 
     @Nullable

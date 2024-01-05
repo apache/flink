@@ -219,6 +219,11 @@ public class HsSubpartitionConsumer
         throw new UnsupportedOperationException("Method should never be called.");
     }
 
+    @Override
+    public int peekNextBufferSubpartitionId() {
+        throw new UnsupportedOperationException();
+    }
+
     // -------------------------------
     //       Internal Methods
     // -------------------------------

@@ -163,8 +163,8 @@ class CreditBasedPartitionRequestClientHandlerTest {
     }
 
     /**
-     * Verifies that {@link RemoteInputChannel#onBuffer(Buffer, int, int)} is called when a {@link
-     * BufferResponse} is received.
+     * Verifies that {@link RemoteInputChannel#onBuffer(Buffer, int, int, int)} is called when a
+     * {@link BufferResponse} is received.
      */
     @Test
     void testReceiveBuffer() throws Exception {
@@ -795,7 +795,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
             throws IOException {
         // Mock buffer to serialize
         BufferResponse resp =
-                new BufferResponse(buffer, sequenceNumber, receivingChannelId, backlog);
+                new BufferResponse(buffer, sequenceNumber, receivingChannelId, 0, backlog);
 
         ByteBuf serialized = resp.write(UnpooledByteBufAllocator.DEFAULT);
 
@@ -808,7 +808,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
 
     /**
      * The test remote input channel to throw expected exception while calling {@link
-     * RemoteInputChannel#onBuffer(Buffer, int, int)}.
+     * RemoteInputChannel#onBuffer(Buffer, int, int, int)}.
      */
     private static class TestRemoteInputChannelForError extends RemoteInputChannel {
         private final String expectedMessage;
@@ -832,7 +832,8 @@ class CreditBasedPartitionRequestClientHandlerTest {
         }
 
         @Override
-        public void onBuffer(Buffer buffer, int sequenceNumber, int backlog) throws IOException {
+        public void onBuffer(Buffer buffer, int sequenceNumber, int backlog, int subpartitionId)
+                throws IOException {
             buffer.recycleBuffer();
             throw new IOException(expectedMessage);
         }

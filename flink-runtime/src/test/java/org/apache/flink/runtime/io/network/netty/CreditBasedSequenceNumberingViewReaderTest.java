@@ -74,6 +74,13 @@ class CreditBasedSequenceNumberingViewReaderTest {
         assertThat(reader2.needAnnounceBacklog()).isTrue();
     }
 
+    @Test
+    void testPeekNextBufferSubpartitionId() throws Exception {
+        int numCredits = 2;
+        CreditBasedSequenceNumberingViewReader reader = createNetworkSequenceViewReader(numCredits);
+        assertThat(reader.peekNextBufferSubpartitionId()).isZero();
+    }
+
     private static CreditBasedSequenceNumberingViewReader createNetworkSequenceViewReader(
             int initialCredit) throws Exception {
         PartitionRequestQueue queue = new PartitionRequestQueue();

@@ -19,10 +19,13 @@
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.AvailabilityNotifier;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierConsumerAgent;
+
+import javax.activation.UnsupportedDataTypeException;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -53,6 +56,13 @@ public class TestingTierConsumerAgent implements TierConsumerAgent {
     @Override
     public void start() {
         startNotifier.run();
+    }
+
+    @Override
+    public int peekNextBufferSubpartitionId(
+            TieredStoragePartitionId partitionId, ResultSubpartitionIndexSet indexSet)
+            throws IOException {
+        throw new UnsupportedDataTypeException();
     }
 
     @Override

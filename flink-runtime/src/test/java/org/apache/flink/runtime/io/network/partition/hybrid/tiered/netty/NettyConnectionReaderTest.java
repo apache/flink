@@ -87,6 +87,15 @@ class NettyConnectionReaderTest {
         assertThat(requiredSegmentIdFuture.get()).isEqualTo(1);
     }
 
+    @Test
+    void testPeekNextBufferSubpartitionId() throws IOException {
+        int bufferNumber = 0;
+        Supplier<InputChannel> inputChannelSupplier =
+                createInputChannelSupplier(bufferNumber, requiredSegmentIdFuture);
+        NettyConnectionReader reader = createNettyConnectionReader(inputChannelSupplier);
+        assertThat(reader.peekNextBufferSubpartitionId()).isZero();
+    }
+
     private static Supplier<InputChannel> createInputChannelSupplier(
             int bufferNumber, CompletableFuture<Integer> requiredSegmentIdFuture) {
         TestInputChannel inputChannel =

@@ -116,6 +116,11 @@ public class TieredStorageResultSubpartitionView implements ResultSubpartitionVi
     }
 
     @Override
+    public int peekNextBufferSubpartitionId() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void releaseAllResources() throws IOException {
         if (isReleased) {
             return;

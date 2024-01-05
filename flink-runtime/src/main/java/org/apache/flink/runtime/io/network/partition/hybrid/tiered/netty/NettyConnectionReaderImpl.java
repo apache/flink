@@ -42,6 +42,11 @@ public class NettyConnectionReaderImpl implements NettyConnectionReader {
     }
 
     @Override
+    public int peekNextBufferSubpartitionId() throws IOException {
+        return inputChannelProvider.get().peekNextBufferSubpartitionId();
+    }
+
+    @Override
     public Optional<Buffer> readBuffer(int subpartitionId, int segmentId) {
         if (segmentId > 0L
                 && (segmentId != lastRequiredSegmentIds.getOrDefault(subpartitionId, 0))) {
@@ -54,6 +59,9 @@ public class NettyConnectionReaderImpl implements NettyConnectionReader {
         }
         Optional<InputChannel.BufferAndAvailability> bufferAndAvailability = Optional.empty();
         try {
+            if (inputChannelProvider.get().peekNextBufferSubpartitionId() != subpartitionId) {
+                return Optional.empty();
+            }
             bufferAndAvailability = inputChannelProvider.get().getNextBuffer();
         } catch (IOException | InterruptedException e) {
             ExceptionUtils.rethrow(e, "Failed to read buffer.");
