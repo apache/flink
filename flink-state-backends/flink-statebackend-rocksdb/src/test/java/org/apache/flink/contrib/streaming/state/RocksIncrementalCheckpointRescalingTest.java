@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -63,7 +64,7 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 
     private final int maxParallelism = 10;
 
-    private KeySelector<String, String> keySelector = new TestKeySelector();
+    private final KeySelector<String, String> keySelector = new TestKeySelector();
 
     private String[] records;
 

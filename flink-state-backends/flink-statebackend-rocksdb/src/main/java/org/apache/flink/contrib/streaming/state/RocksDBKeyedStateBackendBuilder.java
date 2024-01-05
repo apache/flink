@@ -74,8 +74,10 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -125,6 +127,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             RocksDBConfigurableOptions.WRITE_BATCH_SIZE.defaultValue().getBytes();
 
     private RocksDB injectedTestDB; // for testing
+    private boolean incrementalRestoreAsyncCompactAfterRescale =
+            INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE.defaultValue();
     private double overlapFractionThreshold = RESTORE_OVERLAP_FRACTION_THRESHOLD.defaultValue();
     private boolean useIngestDbRestoreMode = USE_INGEST_DB_RESTORE_MODE.defaultValue();
     private ColumnFamilyHandle injectedDefaultColumnFamilyHandle; // for testing
@@ -271,6 +275,13 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
         return this;
     }
 
+    RocksDBKeyedStateBackendBuilder<K> setIncrementalRestoreAsyncCompactAfterRescale(
+            boolean incrementalRestoreAsyncCompactAfterRescale) {
+        this.incrementalRestoreAsyncCompactAfterRescale =
+                incrementalRestoreAsyncCompactAfterRescale;
+        return this;
+    }
+
     RocksDBKeyedStateBackendBuilder<K> setUseIngestDbRestoreMode(boolean useIngestDbRestoreMode) {
         this.useIngestDbRestoreMode = useIngestDbRestoreMode;
         return this;
@@ -303,6 +314,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 new LinkedHashMap<>();
         RocksDB db = null;
         RocksDBRestoreOperation restoreOperation = null;
+        CompletableFuture<Void> asyncCompactAfterRestoreFuture = null;
         RocksDbTtlCompactFiltersManager ttlCompactFiltersManager =
                 new RocksDbTtlCompactFiltersManager(ttlTimeProvider);
 
@@ -341,6 +353,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 db = restoreResult.getDb();
                 defaultColumnFamilyHandle = restoreResult.getDefaultColumnFamilyHandle();
                 nativeMetricMonitor = restoreResult.getNativeMetricMonitor();
+                asyncCompactAfterRestoreFuture =
+                        restoreResult.getAsyncCompactAfterRestoreFuture().orElse(null);
                 if (restoreOperation instanceof RocksDBIncrementalRestoreOperation) {
                     backendUID = restoreResult.getBackendUID();
                     materializedSstFiles = restoreResult.getRestoredSstFiles();
@@ -446,7 +460,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 priorityQueueFactory,
                 ttlCompactFiltersManager,
                 keyContext,
-                writeBatchSize);
+                writeBatchSize,
+                asyncCompactAfterRestoreFuture);
     }
 
     private RocksDBRestoreOperation getRocksDBRestoreOperation(
@@ -490,7 +505,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                     writeBatchSize,
                     optionsContainer.getWriteBufferManagerCapacity(),
                     overlapFractionThreshold,
-                    useIngestDbRestoreMode);
+                    useIngestDbRestoreMode,
+                    incrementalRestoreAsyncCompactAfterRescale);
         } else if (priorityQueueConfig.getPriorityQueueStateType()
                 == EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP) {
             return new RocksDBHeapTimersFullRestoreOperation<>(

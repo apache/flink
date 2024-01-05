@@ -138,6 +138,7 @@ public class RocksDBHeapTimersFullRestoreOperation<K> implements RocksDBRestoreO
                 this.rocksHandle.getNativeMetricMonitor(),
                 -1,
                 null,
+                null,
                 null);
     }
 

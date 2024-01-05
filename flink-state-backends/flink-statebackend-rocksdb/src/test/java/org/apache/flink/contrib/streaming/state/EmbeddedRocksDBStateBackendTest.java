@@ -86,6 +86,7 @@ import java.util.Queue;
 import java.util.concurrent.RunnableFuture;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Matchers.any;
@@ -116,7 +117,14 @@ public class EmbeddedRocksDBStateBackendTest
                     {
                         true,
                         (SupplierWithException<CheckpointStorage, IOException>)
-                                JobManagerCheckpointStorage::new
+                                JobManagerCheckpointStorage::new,
+                        false
+                    },
+                    {
+                        true,
+                        (SupplierWithException<CheckpointStorage, IOException>)
+                                JobManagerCheckpointStorage::new,
+                        true
                     },
                     {
                         false,
@@ -126,7 +134,8 @@ public class EmbeddedRocksDBStateBackendTest
                                             TempDirUtils.newFolder(tempFolder).toURI().toString();
                                     return new FileSystemCheckpointStorage(
                                             new Path(checkpointPath), 0, -1);
-                                }
+                                },
+                        false
                     }
                 });
     }
@@ -136,6 +145,9 @@ public class EmbeddedRocksDBStateBackendTest
 
     @Parameter(value = 1)
     public SupplierWithException<CheckpointStorage, IOException> storageSupplier;
+
+    @Parameter(value = 2)
+    public boolean useIngestDB;
 
     // Store it because we need it for the cleanup test.
     private String dbPath;
@@ -168,6 +180,7 @@ public class EmbeddedRocksDBStateBackendTest
         EmbeddedRocksDBStateBackend backend =
                 new EmbeddedRocksDBStateBackend(enableIncrementalCheckpointing);
         Configuration configuration = new Configuration();
+        configuration.setBoolean(USE_INGEST_DB_RESTORE_MODE, useIngestDB);
         configuration.set(
                 RocksDBOptions.TIMER_SERVICE_FACTORY,
                 EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
@@ -234,7 +247,8 @@ public class EmbeddedRocksDBStateBackendTest
                                 spy(db),
                                 defaultCFHandle,
                                 optionsContainer.getColumnOptions())
-                        .setEnableIncrementalCheckpointing(enableIncrementalCheckpointing);
+                        .setEnableIncrementalCheckpointing(enableIncrementalCheckpointing)
+                        .setUseIngestDbRestoreMode(useIngestDB);
 
         if (enableIncrementalCheckpointing) {
             rocksDBStateUploader =
@@ -315,19 +329,18 @@ public class EmbeddedRocksDBStateBackendTest
     @TestTemplate
     public void testCorrectMergeOperatorSet() throws Exception {
         prepareRocksDB();
-        final ColumnFamilyOptions columnFamilyOptions = spy(new ColumnFamilyOptions());
-        RocksDBKeyedStateBackend<Integer> test = null;
 
-        try {
-            test =
-                    RocksDBTestUtils.builderForTestDB(
-                                    TempDirUtils.newFolder(tempFolder),
-                                    IntSerializer.INSTANCE,
-                                    db,
-                                    defaultCFHandle,
-                                    columnFamilyOptions)
-                            .setEnableIncrementalCheckpointing(enableIncrementalCheckpointing)
-                            .build();
+        try (ColumnFamilyOptions columnFamilyOptions = spy(new ColumnFamilyOptions());
+                RocksDBKeyedStateBackend<Integer> test =
+                        RocksDBTestUtils.builderForTestDB(
+                                        TempDirUtils.newFolder(tempFolder),
+                                        IntSerializer.INSTANCE,
+                                        db,
+                                        defaultCFHandle,
+                                        columnFamilyOptions)
+                                .setEnableIncrementalCheckpointing(enableIncrementalCheckpointing)
+                                .setUseIngestDbRestoreMode(useIngestDB)
+                                .build()) {
 
             ValueStateDescriptor<String> stubState1 =
                     new ValueStateDescriptor<>("StubState-1", StringSerializer.INSTANCE);
@@ -339,12 +352,6 @@ public class EmbeddedRocksDBStateBackendTest
             // The default CF is pre-created so sum up to 2 times (once for each stub state)
             verify(columnFamilyOptions, Mockito.times(2))
                     .setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);
-        } finally {
-            if (test != null) {
-                IOUtils.closeQuietly(test);
-                test.dispose();
-            }
-            columnFamilyOptions.close();
         }
     }
 
