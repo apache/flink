@@ -149,9 +149,12 @@ Format Options
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
       <td>
-          This option only works if the generated class's version is proto2. If this value is set to true, the format will read empty values as the default values defined in the proto file.
+          If this value is set to true, the format will read empty values as the default values defined in the proto file.
           If the value is set to false, the format will generate null values if the data element does not exist in the binary protobuf message.
-          If the proto syntax is proto3, this value will forcibly be set to true, because proto3's standard is to use default values.
+          If proto syntax is proto3, users need to set this to true when using protobuf versions lower than 3.15 as older versions do not support 
+          checking for field presence which can cause runtime compilation issues. Additionally, primtive types will be set to default values 
+          instead of null as field presence cannot be checked for them. Please be aware that setting this to true will cause the deserialization 
+          performance to be much slower depending on schema complexity and message size.
       </td>
     </tr>
     <tr>
