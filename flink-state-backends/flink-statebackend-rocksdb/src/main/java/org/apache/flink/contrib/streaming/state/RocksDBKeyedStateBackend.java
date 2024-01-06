@@ -856,7 +856,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                 (TypeSerializer<UK>) newMapStateSerializer.getKeySerializer();
 
         TypeSerializerSchemaCompatibility<UK> keyCompatibility =
-                previousKeySerializerSnapshot.resolveSchemaCompatibility(newUserKeySerializer);
+                newUserKeySerializer
+                        .snapshotConfiguration()
+                        .resolveSchemaCompatibility(previousKeySerializerSnapshot);
         return keyCompatibility.isCompatibleAsIs();
     }
 
