@@ -68,18 +68,15 @@ public class ProtoToRowConverter {
                             true,
                             Thread.currentThread().getContextClassLoader());
             String fullMessageClassName = PbFormatUtils.getFullJavaName(descriptor);
+            boolean readDefaultValuesForPrimitiveTypes = formatConfig.isReadDefaultValues();
             if (descriptor.getFile().getSyntax() == Syntax.PROTO3) {
-                // pb3 always read default values
-                formatConfig =
-                        new PbFormatConfig(
-                                formatConfig.getMessageClassName(),
-                                formatConfig.isIgnoreParseErrors(),
-                                true,
-                                formatConfig.getWriteNullStringLiterals());
+                // pb3 always read default values for primitive types
+                readDefaultValuesForPrimitiveTypes = true;
             }
             PbCodegenAppender codegenAppender = new PbCodegenAppender();
-            PbFormatContext pbFormatContext = new PbFormatContext(formatConfig);
-            String uuid = UUID.randomUUID().toString().replaceAll("\\-", "");
+            PbFormatContext pbFormatContext =
+                    new PbFormatContext(formatConfig, readDefaultValuesForPrimitiveTypes);
+            String uuid = UUID.randomUUID().toString().replace("-", "");
             String generatedClassName = "GeneratedProtoToRow_" + uuid;
             String generatedPackageName = ProtoToRowConverter.class.getPackage().getName();
             codegenAppender.appendLine("package " + generatedPackageName);
