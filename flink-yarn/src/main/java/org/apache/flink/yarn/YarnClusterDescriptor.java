@@ -136,6 +136,8 @@ import static org.apache.flink.client.deployment.application.ApplicationConfigur
 import static org.apache.flink.configuration.ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_LIB_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_OPT_DIR;
+import static org.apache.flink.configuration.ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX;
+import static org.apache.flink.configuration.ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX;
 import static org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever.JOB_GRAPH_FILE_PATH;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -204,6 +206,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         this.flinkConfiguration = Preconditions.checkNotNull(flinkConfiguration);
         this.userJarInclusion = getUserJarInclusionMode(flinkConfiguration);
 
+        adaptEnvSetting(flinkConfiguration, CoreOptions.FLINK_LOG_LEVEL, "ROOT_LOG_LEVEL");
+
         getLocalFlinkDistPath(flinkConfiguration).ifPresent(this::setLocalJarPath);
         decodeFilesToShipToCluster(flinkConfiguration, YarnConfigOptions.SHIP_FILES)
                 .ifPresent(this::addShipFiles);
@@ -214,6 +218,21 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         this.customName = flinkConfiguration.getString(YarnConfigOptions.APPLICATION_NAME);
         this.applicationType = flinkConfiguration.getString(YarnConfigOptions.APPLICATION_TYPE);
         this.nodeLabel = flinkConfiguration.getString(YarnConfigOptions.NODE_LABEL);
+    }
+
+    /** Adapt flink env setting. */
+    private static <T> void adaptEnvSetting(
+            Configuration config, ConfigOption<T> configOption, String envKey) {
+        config.getOptional(configOption)
+                .ifPresent(
+                        value -> {
+                            config.setString(
+                                    CONTAINERIZED_MASTER_ENV_PREFIX + envKey,
+                                    String.valueOf(value));
+                            config.setString(
+                                    CONTAINERIZED_TASK_MANAGER_ENV_PREFIX + envKey,
+                                    String.valueOf(value));
+                        });
     }
 
     private Optional<List<Path>> decodeFilesToShipToCluster(
