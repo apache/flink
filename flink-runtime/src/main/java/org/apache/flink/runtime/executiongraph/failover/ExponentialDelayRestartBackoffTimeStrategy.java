@@ -124,6 +124,36 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
         currentRestartAttempt++;
     }
 
+    @VisibleForTesting
+    long getInitialBackoffMS() {
+        return initialBackoffMS;
+    }
+
+    @VisibleForTesting
+    long getMaxBackoffMS() {
+        return maxBackoffMS;
+    }
+
+    @VisibleForTesting
+    double getBackoffMultiplier() {
+        return backoffMultiplier;
+    }
+
+    @VisibleForTesting
+    long getResetBackoffThresholdMS() {
+        return resetBackoffThresholdMS;
+    }
+
+    @VisibleForTesting
+    double getJitterFactor() {
+        return jitterFactor;
+    }
+
+    @VisibleForTesting
+    int getAttemptsBeforeResetBackoff() {
+        return attemptsBeforeResetBackoff;
+    }
+
     @Override
     public String toString() {
         return "ExponentialDelayRestartBackoffTimeStrategy(initialBackoffMS="
