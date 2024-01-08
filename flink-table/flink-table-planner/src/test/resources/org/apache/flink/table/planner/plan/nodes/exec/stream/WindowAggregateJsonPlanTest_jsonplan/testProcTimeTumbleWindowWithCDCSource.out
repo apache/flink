@@ -5,7 +5,7 @@
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
-        "identifier" : "`default_catalog`.`default_database`.`MyTable`",
+        "identifier" : "`default_catalog`.`default_database`.`MyCDCTable`",
         "resolvedTable" : {
           "schema" : {
             "columns" : [ {
@@ -75,13 +75,23 @@
           },
           "partitionKeys" : [ ],
           "options" : {
+            "changelog-mode" : "I,UA,UB,D",
             "connector" : "values"
           }
         }
-      }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 1 ], [ 2 ] ],
+        "producedType" : "ROW<`b` BIGINT, `c` VARCHAR(2147483647)> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`b` BIGINT, `c` VARCHAR(2147483647)> NOT NULL"
+      } ]
     },
-    "outputType" : "ROW<`a` INT, `b` BIGINT, `c` VARCHAR(2147483647)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
+    "outputType" : "ROW<`b` BIGINT, `c` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyCDCTable, project=[b, c], metadata=[]]], fields=[b, c])",
     "inputProperties" : [ ]
   }, {
     "id" : 2,
@@ -89,21 +99,23 @@
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
-      "type" : "INT"
-    }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 1,
       "type" : "BIGINT"
     }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 2,
-      "type" : "VARCHAR(2147483647)"
+      "kind" : "CALL",
+      "internalName" : "$PROCTIME$1",
+      "operands" : [ ],
+      "type" : {
+        "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+        "nullable" : false,
+        "precision" : 3,
+        "kind" : "PROCTIME"
+      }
     }, {
       "kind" : "CALL",
       "internalName" : "$TO_TIMESTAMP$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
-        "inputIndex" : 2,
+        "inputIndex" : 1,
         "type" : "VARCHAR(2147483647)"
       } ],
       "type" : "TIMESTAMP(3)"
@@ -116,8 +128,25 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` INT, `b` BIGINT, `c` VARCHAR(2147483647), `rowtime` TIMESTAMP(3)>",
-    "description" : "Calc(select=[a, b, c, TO_TIMESTAMP(c) AS rowtime])"
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "b",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "proctime",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "PROCTIME"
+        }
+      }, {
+        "name" : "rowtime",
+        "fieldType" : "TIMESTAMP(3)"
+      } ]
+    },
+    "description" : "Calc(select=[b, PROCTIME() AS proctime, TO_TIMESTAMP(c) AS rowtime])"
   }, {
     "id" : 3,
     "type" : "stream-exec-watermark-assigner_1",
@@ -127,7 +156,7 @@
       "internalName" : "$-$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
-        "inputIndex" : 3,
+        "inputIndex" : 2,
         "type" : "TIMESTAMP(3)"
       }, {
         "kind" : "LITERAL",
@@ -136,7 +165,7 @@
       } ],
       "type" : "TIMESTAMP(3)"
     },
-    "rowtimeFieldIndex" : 3,
+    "rowtimeFieldIndex" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -147,14 +176,16 @@
     "outputType" : {
       "type" : "ROW",
       "fields" : [ {
-        "name" : "a",
-        "fieldType" : "INT"
-      }, {
         "name" : "b",
         "fieldType" : "BIGINT"
       }, {
-        "name" : "c",
-        "fieldType" : "VARCHAR(2147483647)"
+        "name" : "proctime",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "PROCTIME"
+        }
       }, {
         "name" : "rowtime",
         "fieldType" : {
@@ -170,23 +201,16 @@
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
-      "inputIndex" : 1,
+      "inputIndex" : 0,
       "type" : "BIGINT"
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 2,
-      "type" : "VARCHAR(2147483647)"
-    }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 0,
-      "type" : "INT"
-    }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 3,
+      "inputIndex" : 1,
       "type" : {
-        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+        "nullable" : false,
         "precision" : 3,
-        "kind" : "ROWTIME"
+        "kind" : "PROCTIME"
       }
     } ],
     "condition" : null,
@@ -203,76 +227,18 @@
         "name" : "b",
         "fieldType" : "BIGINT"
       }, {
-        "name" : "c",
-        "fieldType" : "VARCHAR(2147483647)"
-      }, {
-        "name" : "a",
-        "fieldType" : "INT"
-      }, {
-        "name" : "rowtime",
+        "name" : "proctime",
         "fieldType" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "nullable" : false,
           "precision" : 3,
-          "kind" : "ROWTIME"
+          "kind" : "PROCTIME"
         }
       } ]
     },
-    "description" : "Calc(select=[b, c, a, rowtime])"
+    "description" : "Calc(select=[b, proctime])"
   }, {
     "id" : 5,
-    "type" : "stream-exec-local-window-aggregate_1",
-    "configuration" : {
-      "table.local-time-zone" : "default"
-    },
-    "grouping" : [ 0 ],
-    "aggCalls" : [ {
-      "name" : "EXPR$2",
-      "syntax" : "FUNCTION_STAR",
-      "internalName" : "$COUNT$1",
-      "argList" : [ 1 ],
-      "filterArg" : -1,
-      "distinct" : false,
-      "approximate" : false,
-      "ignoreNulls" : false,
-      "type" : "BIGINT NOT NULL"
-    }, {
-      "name" : "EXPR$3",
-      "internalName" : "$SUM$1",
-      "argList" : [ 2 ],
-      "filterArg" : -1,
-      "distinct" : false,
-      "approximate" : false,
-      "ignoreNulls" : false,
-      "type" : "INT"
-    } ],
-    "windowing" : {
-      "strategy" : "TimeAttribute",
-      "window" : {
-        "type" : "CumulativeWindow",
-        "maxSize" : "PT15S",
-        "step" : "PT5S",
-        "offset" : "PT15S"
-      },
-      "timeAttributeType" : {
-        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-        "precision" : 3,
-        "kind" : "ROWTIME"
-      },
-      "timeAttributeIndex" : 3,
-      "isRowtime" : true
-    },
-    "needRetraction" : false,
-    "inputProperties" : [ {
-      "requiredDistribution" : {
-        "type" : "UNKNOWN"
-      },
-      "damBehavior" : "PIPELINED",
-      "priority" : 0
-    } ],
-    "outputType" : "ROW<`b` BIGINT, `count$0` BIGINT, `sum$1` INT, `$slice_end` BIGINT>",
-    "description" : "LocalWindowAggregate(groupBy=[b], window=[CUMULATE(time_col=[rowtime], max_size=[15 s], step=[5 s], offset=[15 s])], select=[b, COUNT(c) AS count$0, SUM(a) AS sum$1, slice_end('w$) AS $slice_end])"
-  }, {
-    "id" : 6,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -282,11 +248,25 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `count$0` BIGINT, `sum$1` INT, `$slice_end` BIGINT>",
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "b",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "proctime",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "PROCTIME"
+        }
+      } ]
+    },
     "description" : "Exchange(distribution=[hash[b]])"
   }, {
-    "id" : 7,
-    "type" : "stream-exec-global-window-aggregate_1",
+    "id" : 6,
+    "type" : "stream-exec-window-aggregate_1",
     "configuration" : {
       "table.local-time-zone" : "default"
     },
@@ -295,37 +275,27 @@
       "name" : "EXPR$2",
       "syntax" : "FUNCTION_STAR",
       "internalName" : "$COUNT$1",
-      "argList" : [ 1 ],
+      "argList" : [ ],
       "filterArg" : -1,
       "distinct" : false,
       "approximate" : false,
       "ignoreNulls" : false,
       "type" : "BIGINT NOT NULL"
-    }, {
-      "name" : "EXPR$3",
-      "internalName" : "$SUM$1",
-      "argList" : [ 2 ],
-      "filterArg" : -1,
-      "distinct" : false,
-      "approximate" : false,
-      "ignoreNulls" : false,
-      "type" : "INT"
     } ],
     "windowing" : {
-      "strategy" : "SliceAttached",
+      "strategy" : "TimeAttribute",
       "window" : {
-        "type" : "CumulativeWindow",
-        "maxSize" : "PT15S",
-        "step" : "PT5S",
-        "offset" : "PT15S"
+        "type" : "TumblingWindow",
+        "size" : "PT15M"
       },
       "timeAttributeType" : {
-        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+        "nullable" : false,
         "precision" : 3,
-        "kind" : "ROWTIME"
+        "kind" : "PROCTIME"
       },
-      "sliceEnd" : 3,
-      "isRowtime" : true
+      "timeAttributeIndex" : 1,
+      "isRowtime" : false
     },
     "namedWindowProperties" : [ {
       "name" : "window_start",
@@ -334,9 +304,10 @@
         "reference" : {
           "name" : "w$",
           "type" : {
-            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+            "nullable" : false,
             "precision" : 3,
-            "kind" : "ROWTIME"
+            "kind" : "PROCTIME"
           }
         }
       }
@@ -347,14 +318,15 @@
         "reference" : {
           "name" : "w$",
           "type" : {
-            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+            "nullable" : false,
             "precision" : 3,
-            "kind" : "ROWTIME"
+            "kind" : "PROCTIME"
           }
         }
       }
     } ],
-    "needRetraction" : false,
+    "needRetraction" : true,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -362,30 +334,10 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "localAggInputRowType" : {
-      "type" : "ROW",
-      "fields" : [ {
-        "name" : "b",
-        "fieldType" : "BIGINT"
-      }, {
-        "name" : "c",
-        "fieldType" : "VARCHAR(2147483647)"
-      }, {
-        "name" : "a",
-        "fieldType" : "INT"
-      }, {
-        "name" : "rowtime",
-        "fieldType" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "precision" : 3,
-          "kind" : "ROWTIME"
-        }
-      } ]
-    },
-    "outputType" : "ROW<`b` BIGINT, `EXPR$2` BIGINT NOT NULL, `EXPR$3` INT, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL>",
-    "description" : "GlobalWindowAggregate(groupBy=[b], window=[CUMULATE(slice_end=[$slice_end], max_size=[15 s], step=[5 s], offset=[15 s])], select=[b, COUNT(count$0) AS EXPR$2, SUM(sum$1) AS EXPR$3, start('w$) AS window_start, end('w$) AS window_end])"
+    "outputType" : "ROW<`b` BIGINT, `EXPR$2` BIGINT NOT NULL, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL>",
+    "description" : "WindowAggregate(groupBy=[b], window=[TUMBLE(time_col=[proctime], size=[15 min])], select=[b, COUNT_RETRACT(*) AS EXPR$2, start('w$) AS window_start, end('w$) AS window_end])"
   }, {
-    "id" : 8,
+    "id" : 7,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
@@ -393,16 +345,12 @@
       "type" : "BIGINT"
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 4,
+      "inputIndex" : 3,
       "type" : "TIMESTAMP(3) NOT NULL"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
       "type" : "BIGINT NOT NULL"
-    }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 2,
-      "type" : "INT"
     } ],
     "condition" : null,
     "inputProperties" : [ {
@@ -412,10 +360,10 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `window_end` TIMESTAMP(3) NOT NULL, `EXPR$2` BIGINT NOT NULL, `EXPR$3` INT>",
-    "description" : "Calc(select=[b, window_end, EXPR$2, EXPR$3])"
+    "outputType" : "ROW<`b` BIGINT, `window_end` TIMESTAMP(3) NOT NULL, `EXPR$2` BIGINT NOT NULL>",
+    "description" : "Calc(select=[b, window_end, EXPR$2])"
   }, {
-    "id" : 9,
+    "id" : 8,
     "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -438,9 +386,6 @@
             }, {
               "name" : "cnt",
               "dataType" : "BIGINT"
-            }, {
-              "name" : "sum_a",
-              "dataType" : "INT"
             } ],
             "watermarkSpecs" : [ ]
           },
@@ -459,8 +404,8 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `window_end` TIMESTAMP(3) NOT NULL, `EXPR$2` BIGINT NOT NULL, `EXPR$3` INT>",
-    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, window_end, EXPR$2, EXPR$3])"
+    "outputType" : "ROW<`b` BIGINT, `window_end` TIMESTAMP(3) NOT NULL, `EXPR$2` BIGINT NOT NULL>",
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, window_end, EXPR$2])"
   } ],
   "edges" : [ {
     "source" : 1,
@@ -507,13 +452,6 @@
   }, {
     "source" : 7,
     "target" : 8,
-    "shuffle" : {
-      "type" : "FORWARD"
-    },
-    "shuffleMode" : "PIPELINED"
-  }, {
-    "source" : 8,
-    "target" : 9,
     "shuffle" : {
       "type" : "FORWARD"
     },

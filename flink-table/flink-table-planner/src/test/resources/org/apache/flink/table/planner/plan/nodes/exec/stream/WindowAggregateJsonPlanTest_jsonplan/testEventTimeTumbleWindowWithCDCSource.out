@@ -5,7 +5,7 @@
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
-        "identifier" : "`default_catalog`.`default_database`.`MyTable`",
+        "identifier" : "`default_catalog`.`default_database`.`MyCDCTable`",
         "resolvedTable" : {
           "schema" : {
             "columns" : [ {
@@ -75,13 +75,14 @@
           },
           "partitionKeys" : [ ],
           "options" : {
+            "changelog-mode" : "I,UA,UB,D",
             "connector" : "values"
           }
         }
       }
     },
     "outputType" : "ROW<`a` INT, `b` BIGINT, `c` VARCHAR(2147483647)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyCDCTable]], fields=[a, b, c])",
     "inputProperties" : [ ]
   }, {
     "id" : 2,
@@ -174,12 +175,12 @@
       "type" : "BIGINT"
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 2,
-      "type" : "VARCHAR(2147483647)"
-    }, {
-      "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 3,
@@ -203,11 +204,11 @@
         "name" : "b",
         "fieldType" : "BIGINT"
       }, {
-        "name" : "c",
-        "fieldType" : "VARCHAR(2147483647)"
-      }, {
         "name" : "a",
         "fieldType" : "INT"
+      }, {
+        "name" : "c",
+        "fieldType" : "VARCHAR(2147483647)"
       }, {
         "name" : "rowtime",
         "fieldType" : {
@@ -217,7 +218,7 @@
         }
       } ]
     },
-    "description" : "Calc(select=[b, c, a, rowtime])"
+    "description" : "Calc(select=[b, a, c, rowtime])"
   }, {
     "id" : 5,
     "type" : "stream-exec-local-window-aggregate_1",
@@ -226,32 +227,50 @@
     },
     "grouping" : [ 0 ],
     "aggCalls" : [ {
-      "name" : "EXPR$2",
+      "name" : "EXPR$3",
       "syntax" : "FUNCTION_STAR",
       "internalName" : "$COUNT$1",
-      "argList" : [ 1 ],
+      "argList" : [ ],
       "filterArg" : -1,
       "distinct" : false,
       "approximate" : false,
       "ignoreNulls" : false,
       "type" : "BIGINT NOT NULL"
     }, {
-      "name" : "EXPR$3",
+      "name" : "EXPR$4",
       "internalName" : "$SUM$1",
-      "argList" : [ 2 ],
+      "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : false,
       "approximate" : false,
       "ignoreNulls" : false,
       "type" : "INT"
+    }, {
+      "name" : "EXPR$5",
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
+      "argList" : [ 2 ],
+      "filterArg" : -1,
+      "distinct" : true,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "BIGINT NOT NULL"
+    }, {
+      "name" : "EXPR$6",
+      "catalogName" : "`default_catalog`.`default_database`.`concat_distinct_agg`",
+      "class" : "org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$ConcatDistinctAggFunction",
+      "argList" : [ 2 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "VARCHAR(2147483647)"
     } ],
     "windowing" : {
       "strategy" : "TimeAttribute",
       "window" : {
-        "type" : "CumulativeWindow",
-        "maxSize" : "PT15S",
-        "step" : "PT5S",
-        "offset" : "PT15S"
+        "type" : "TumblingWindow",
+        "size" : "PT5S"
       },
       "timeAttributeType" : {
         "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
@@ -261,7 +280,7 @@
       "timeAttributeIndex" : 3,
       "isRowtime" : true
     },
-    "needRetraction" : false,
+    "needRetraction" : true,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -269,8 +288,92 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `count$0` BIGINT, `sum$1` INT, `$slice_end` BIGINT>",
-    "description" : "LocalWindowAggregate(groupBy=[b], window=[CUMULATE(time_col=[rowtime], max_size=[15 s], step=[5 s], offset=[15 s])], select=[b, COUNT(c) AS count$0, SUM(a) AS sum$1, slice_end('w$) AS $slice_end])"
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "b",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "count1$0",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "sum$1",
+        "fieldType" : "INT"
+      }, {
+        "name" : "count$2",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "count$3",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "concat_distinct_agg$4",
+        "fieldType" : {
+          "type" : "STRUCTURED_TYPE",
+          "implementationClass" : "org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$ConcatAcc",
+          "attributes" : [ {
+            "name" : "list",
+            "attributeType" : {
+              "type" : "RAW",
+              "class" : "org.apache.flink.table.api.dataview.ListView",
+              "externalDataType" : {
+                "logicalType" : {
+                  "type" : "STRUCTURED_TYPE",
+                  "implementationClass" : "org.apache.flink.table.api.dataview.ListView",
+                  "attributes" : [ {
+                    "name" : "list",
+                    "attributeType" : "ARRAY<VARCHAR(2147483647)>"
+                  } ]
+                },
+                "fields" : [ {
+                  "name" : "list",
+                  "conversionClass" : "java.util.List"
+                } ]
+              }
+            }
+          }, {
+            "name" : "map",
+            "attributeType" : {
+              "type" : "RAW",
+              "class" : "org.apache.flink.table.api.dataview.MapView",
+              "externalDataType" : {
+                "type" : "STRUCTURED_TYPE",
+                "implementationClass" : "org.apache.flink.table.api.dataview.MapView",
+                "attributes" : [ {
+                  "name" : "map",
+                  "attributeType" : "MAP<VARCHAR(2147483647), BOOLEAN>"
+                } ]
+              }
+            }
+          } ]
+        }
+      }, {
+        "name" : "distinct$0",
+        "fieldType" : {
+          "type" : "RAW",
+          "class" : "org.apache.flink.table.api.dataview.MapView",
+          "externalDataType" : {
+            "logicalType" : {
+              "type" : "STRUCTURED_TYPE",
+              "implementationClass" : "org.apache.flink.table.api.dataview.MapView",
+              "attributes" : [ {
+                "name" : "map",
+                "attributeType" : "MAP<VARCHAR(2147483647), BIGINT NOT NULL>"
+              } ]
+            },
+            "fields" : [ {
+              "name" : "map",
+              "keyClass" : {
+                "conversionClass" : "org.apache.flink.table.data.StringData"
+              }
+            } ]
+          }
+        }
+      }, {
+        "name" : "$slice_end",
+        "fieldType" : "BIGINT"
+      } ]
+    },
+    "description" : "LocalWindowAggregate(groupBy=[b], window=[TUMBLE(time_col=[rowtime], size=[5 s])], select=[b, COUNT_RETRACT(*) AS count1$0, SUM_RETRACT(a) AS (sum$1, count$2), COUNT_RETRACT(distinct$0 c) AS count$3, concat_distinct_agg_RETRACT(c) AS concat_distinct_agg$4, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])"
   }, {
     "id" : 6,
     "type" : "stream-exec-exchange_1",
@@ -282,7 +385,91 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `count$0` BIGINT, `sum$1` INT, `$slice_end` BIGINT>",
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "b",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "count1$0",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "sum$1",
+        "fieldType" : "INT"
+      }, {
+        "name" : "count$2",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "count$3",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "concat_distinct_agg$4",
+        "fieldType" : {
+          "type" : "STRUCTURED_TYPE",
+          "implementationClass" : "org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$ConcatAcc",
+          "attributes" : [ {
+            "name" : "list",
+            "attributeType" : {
+              "type" : "RAW",
+              "class" : "org.apache.flink.table.api.dataview.ListView",
+              "externalDataType" : {
+                "logicalType" : {
+                  "type" : "STRUCTURED_TYPE",
+                  "implementationClass" : "org.apache.flink.table.api.dataview.ListView",
+                  "attributes" : [ {
+                    "name" : "list",
+                    "attributeType" : "ARRAY<VARCHAR(2147483647)>"
+                  } ]
+                },
+                "fields" : [ {
+                  "name" : "list",
+                  "conversionClass" : "java.util.List"
+                } ]
+              }
+            }
+          }, {
+            "name" : "map",
+            "attributeType" : {
+              "type" : "RAW",
+              "class" : "org.apache.flink.table.api.dataview.MapView",
+              "externalDataType" : {
+                "type" : "STRUCTURED_TYPE",
+                "implementationClass" : "org.apache.flink.table.api.dataview.MapView",
+                "attributes" : [ {
+                  "name" : "map",
+                  "attributeType" : "MAP<VARCHAR(2147483647), BOOLEAN>"
+                } ]
+              }
+            }
+          } ]
+        }
+      }, {
+        "name" : "distinct$0",
+        "fieldType" : {
+          "type" : "RAW",
+          "class" : "org.apache.flink.table.api.dataview.MapView",
+          "externalDataType" : {
+            "logicalType" : {
+              "type" : "STRUCTURED_TYPE",
+              "implementationClass" : "org.apache.flink.table.api.dataview.MapView",
+              "attributes" : [ {
+                "name" : "map",
+                "attributeType" : "MAP<VARCHAR(2147483647), BIGINT NOT NULL>"
+              } ]
+            },
+            "fields" : [ {
+              "name" : "map",
+              "keyClass" : {
+                "conversionClass" : "org.apache.flink.table.data.StringData"
+              }
+            } ]
+          }
+        }
+      }, {
+        "name" : "$slice_end",
+        "fieldType" : "BIGINT"
+      } ]
+    },
     "description" : "Exchange(distribution=[hash[b]])"
   }, {
     "id" : 7,
@@ -292,39 +479,57 @@
     },
     "grouping" : [ 0 ],
     "aggCalls" : [ {
-      "name" : "EXPR$2",
+      "name" : "EXPR$3",
       "syntax" : "FUNCTION_STAR",
       "internalName" : "$COUNT$1",
-      "argList" : [ 1 ],
+      "argList" : [ ],
       "filterArg" : -1,
       "distinct" : false,
       "approximate" : false,
       "ignoreNulls" : false,
       "type" : "BIGINT NOT NULL"
     }, {
-      "name" : "EXPR$3",
+      "name" : "EXPR$4",
       "internalName" : "$SUM$1",
-      "argList" : [ 2 ],
+      "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : false,
       "approximate" : false,
       "ignoreNulls" : false,
       "type" : "INT"
+    }, {
+      "name" : "EXPR$5",
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
+      "argList" : [ 2 ],
+      "filterArg" : -1,
+      "distinct" : true,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "BIGINT NOT NULL"
+    }, {
+      "name" : "EXPR$6",
+      "catalogName" : "`default_catalog`.`default_database`.`concat_distinct_agg`",
+      "class" : "org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$ConcatDistinctAggFunction",
+      "argList" : [ 2 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "VARCHAR(2147483647)"
     } ],
     "windowing" : {
       "strategy" : "SliceAttached",
       "window" : {
-        "type" : "CumulativeWindow",
-        "maxSize" : "PT15S",
-        "step" : "PT5S",
-        "offset" : "PT15S"
+        "type" : "TumblingWindow",
+        "size" : "PT5S"
       },
       "timeAttributeType" : {
         "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
         "precision" : 3,
         "kind" : "ROWTIME"
       },
-      "sliceEnd" : 3,
+      "sliceEnd" : 7,
       "isRowtime" : true
     },
     "namedWindowProperties" : [ {
@@ -354,7 +559,7 @@
         }
       }
     } ],
-    "needRetraction" : false,
+    "needRetraction" : true,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -368,11 +573,11 @@
         "name" : "b",
         "fieldType" : "BIGINT"
       }, {
-        "name" : "c",
-        "fieldType" : "VARCHAR(2147483647)"
-      }, {
         "name" : "a",
         "fieldType" : "INT"
+      }, {
+        "name" : "c",
+        "fieldType" : "VARCHAR(2147483647)"
       }, {
         "name" : "rowtime",
         "fieldType" : {
@@ -382,8 +587,8 @@
         }
       } ]
     },
-    "outputType" : "ROW<`b` BIGINT, `EXPR$2` BIGINT NOT NULL, `EXPR$3` INT, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL>",
-    "description" : "GlobalWindowAggregate(groupBy=[b], window=[CUMULATE(slice_end=[$slice_end], max_size=[15 s], step=[5 s], offset=[15 s])], select=[b, COUNT(count$0) AS EXPR$2, SUM(sum$1) AS EXPR$3, start('w$) AS window_start, end('w$) AS window_end])"
+    "outputType" : "ROW<`b` BIGINT, `EXPR$3` BIGINT NOT NULL, `EXPR$4` INT, `EXPR$5` BIGINT NOT NULL, `EXPR$6` VARCHAR(2147483647), `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL>",
+    "description" : "GlobalWindowAggregate(groupBy=[b], window=[TUMBLE(slice_end=[$slice_end], size=[5 s])], select=[b, COUNT_RETRACT(count1$0) AS EXPR$3, SUM_RETRACT((sum$1, count$2)) AS EXPR$4, COUNT_RETRACT(distinct$0 count$3) AS EXPR$5, concat_distinct_agg_RETRACT(concat_distinct_agg$4) AS EXPR$6, start('w$) AS window_start, end('w$) AS window_end])"
   }, {
     "id" : 8,
     "type" : "stream-exec-calc_1",
@@ -393,7 +598,11 @@
       "type" : "BIGINT"
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 4,
+      "inputIndex" : 5,
+      "type" : "TIMESTAMP(3) NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 6,
       "type" : "TIMESTAMP(3) NOT NULL"
     }, {
       "kind" : "INPUT_REF",
@@ -403,6 +612,14 @@
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
       "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "BIGINT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : "VARCHAR(2147483647)"
     } ],
     "condition" : null,
     "inputProperties" : [ {
@@ -412,8 +629,8 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `window_end` TIMESTAMP(3) NOT NULL, `EXPR$2` BIGINT NOT NULL, `EXPR$3` INT>",
-    "description" : "Calc(select=[b, window_end, EXPR$2, EXPR$3])"
+    "outputType" : "ROW<`b` BIGINT, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL, `EXPR$3` BIGINT NOT NULL, `EXPR$4` INT, `EXPR$5` BIGINT NOT NULL, `EXPR$6` VARCHAR(2147483647)>",
+    "description" : "Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4, EXPR$5, EXPR$6])"
   }, {
     "id" : 9,
     "type" : "stream-exec-sink_1",
@@ -433,6 +650,9 @@
               "name" : "b",
               "dataType" : "BIGINT"
             }, {
+              "name" : "window_start",
+              "dataType" : "TIMESTAMP(3)"
+            }, {
               "name" : "window_end",
               "dataType" : "TIMESTAMP(3)"
             }, {
@@ -441,6 +661,12 @@
             }, {
               "name" : "sum_a",
               "dataType" : "INT"
+            }, {
+              "name" : "distinct_cnt",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "concat_distinct",
+              "dataType" : "VARCHAR(2147483647)"
             } ],
             "watermarkSpecs" : [ ]
           },
@@ -459,8 +685,8 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `window_end` TIMESTAMP(3) NOT NULL, `EXPR$2` BIGINT NOT NULL, `EXPR$3` INT>",
-    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, window_end, EXPR$2, EXPR$3])"
+    "outputType" : "ROW<`b` BIGINT, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL, `EXPR$3` BIGINT NOT NULL, `EXPR$4` INT, `EXPR$5` BIGINT NOT NULL, `EXPR$6` VARCHAR(2147483647)>",
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, window_start, window_end, EXPR$3, EXPR$4, EXPR$5, EXPR$6])"
   } ],
   "edges" : [ {
     "source" : 1,

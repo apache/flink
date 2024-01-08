@@ -5,7 +5,7 @@
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
-        "identifier" : "`default_catalog`.`default_database`.`MyTable`",
+        "identifier" : "`default_catalog`.`default_database`.`MyCDCTable`",
         "resolvedTable" : {
           "schema" : {
             "columns" : [ {
@@ -75,13 +75,14 @@
           },
           "partitionKeys" : [ ],
           "options" : {
+            "changelog-mode" : "I,UA,UB,D",
             "connector" : "values"
           }
         }
       }
     },
     "outputType" : "ROW<`a` INT, `b` BIGINT, `c` VARCHAR(2147483647)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyCDCTable]], fields=[a, b, c])",
     "inputProperties" : [ ]
   }, {
     "id" : 2,
@@ -250,8 +251,7 @@
       "window" : {
         "type" : "CumulativeWindow",
         "maxSize" : "PT15S",
-        "step" : "PT5S",
-        "offset" : "PT15S"
+        "step" : "PT5S"
       },
       "timeAttributeType" : {
         "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
@@ -261,7 +261,7 @@
       "timeAttributeIndex" : 3,
       "isRowtime" : true
     },
-    "needRetraction" : false,
+    "needRetraction" : true,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -269,8 +269,8 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `count$0` BIGINT, `sum$1` INT, `$slice_end` BIGINT>",
-    "description" : "LocalWindowAggregate(groupBy=[b], window=[CUMULATE(time_col=[rowtime], max_size=[15 s], step=[5 s], offset=[15 s])], select=[b, COUNT(c) AS count$0, SUM(a) AS sum$1, slice_end('w$) AS $slice_end])"
+    "outputType" : "ROW<`b` BIGINT, `count$0` BIGINT, `sum$1` INT, `count$2` BIGINT, `count1$3` BIGINT, `$slice_end` BIGINT>",
+    "description" : "LocalWindowAggregate(groupBy=[b], window=[CUMULATE(time_col=[rowtime], max_size=[15 s], step=[5 s])], select=[b, COUNT_RETRACT(c) AS count$0, SUM_RETRACT(a) AS (sum$1, count$2), COUNT_RETRACT(*) AS count1$3, slice_end('w$) AS $slice_end])"
   }, {
     "id" : 6,
     "type" : "stream-exec-exchange_1",
@@ -282,7 +282,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `count$0` BIGINT, `sum$1` INT, `$slice_end` BIGINT>",
+    "outputType" : "ROW<`b` BIGINT, `count$0` BIGINT, `sum$1` INT, `count$2` BIGINT, `count1$3` BIGINT, `$slice_end` BIGINT>",
     "description" : "Exchange(distribution=[hash[b]])"
   }, {
     "id" : 7,
@@ -316,15 +316,14 @@
       "window" : {
         "type" : "CumulativeWindow",
         "maxSize" : "PT15S",
-        "step" : "PT5S",
-        "offset" : "PT15S"
+        "step" : "PT5S"
       },
       "timeAttributeType" : {
         "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
         "precision" : 3,
         "kind" : "ROWTIME"
       },
-      "sliceEnd" : 3,
+      "sliceEnd" : 5,
       "isRowtime" : true
     },
     "namedWindowProperties" : [ {
@@ -354,7 +353,7 @@
         }
       }
     } ],
-    "needRetraction" : false,
+    "needRetraction" : true,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -383,7 +382,7 @@
       } ]
     },
     "outputType" : "ROW<`b` BIGINT, `EXPR$2` BIGINT NOT NULL, `EXPR$3` INT, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL>",
-    "description" : "GlobalWindowAggregate(groupBy=[b], window=[CUMULATE(slice_end=[$slice_end], max_size=[15 s], step=[5 s], offset=[15 s])], select=[b, COUNT(count$0) AS EXPR$2, SUM(sum$1) AS EXPR$3, start('w$) AS window_start, end('w$) AS window_end])"
+    "description" : "GlobalWindowAggregate(groupBy=[b], window=[CUMULATE(slice_end=[$slice_end], max_size=[15 s], step=[5 s])], select=[b, COUNT_RETRACT(count$0) AS EXPR$2, SUM_RETRACT((sum$1, count$2)) AS EXPR$3, COUNT_RETRACT(count1$3) AS window_start, start('w$) AS window_end])"
   }, {
     "id" : 8,
     "type" : "stream-exec-calc_1",
