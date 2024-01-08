@@ -1291,14 +1291,27 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<TransientBlobKey> requestFileUploadByName(
-            String fileName, Time timeout) {
+            String fileName, Duration timeout) {
+        return requestFileUploadByNameAndType(fileName, FileType.LOG, timeout);
+    }
+
+    @Override
+    public CompletableFuture<TransientBlobKey> requestFileUploadByNameAndType(
+            String fileName, FileType fileType, Duration timeout) {
         final String filePath;
-        final String logDir = taskManagerConfiguration.getTaskManagerLogDir();
-        if (StringUtils.isNullOrWhitespaceOnly(logDir)
+        final String baseDir;
+        switch (fileType) {
+            case LOG:
+                baseDir = taskManagerConfiguration.getTaskManagerLogDir();
+                break;
+            default:
+                baseDir = null;
+        }
+        if (StringUtils.isNullOrWhitespaceOnly(baseDir)
                 || StringUtils.isNullOrWhitespaceOnly(fileName)) {
             filePath = null;
         } else {
-            filePath = new File(logDir, new File(fileName).getName()).getPath();
+            filePath = new File(baseDir, new File(fileName).getName()).getPath();
         }
         return requestFileUploadByFilePath(filePath, fileName);
     }
