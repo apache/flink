@@ -82,7 +82,7 @@ public interface CatalogTable extends CatalogBaseTable {
             List<String> partitionKeys,
             Map<String, String> options,
             @Nullable Long snapshot) {
-        return new DefaultCatalogTable(schema, comment, partitionKeys, options, snapshot);
+        return new DefaultCatalogTable(schema, comment, partitionKeys, options, snapshot, Optional.empty());
     }
 
     /**
@@ -143,5 +143,58 @@ public interface CatalogTable extends CatalogBaseTable {
     /** Return the snapshot specified for the table. Return Optional.empty() if not specified. */
     default Optional<Long> getSnapshot() {
         return Optional.empty();
+    }
+
+    /** Returns the distribution of the table if the {@code DISTRIBUTED} clause is defined. */
+    default Optional<TableDistribution> getDistribution() {
+        return Optional.empty();
+    }
+
+    /** Distribution specification. */
+    public class TableDistribution {
+
+        private final Kind kind;
+        private final @Nullable Integer bucketCount;
+        private final List<String> bucketKeys;
+
+        public TableDistribution(
+                Kind kind, @Nullable Integer bucketCount, List<String> bucketKeys) {
+            this.kind = kind;
+            this.bucketCount = bucketCount;
+            this.bucketKeys = bucketKeys;
+        }
+
+        /** Connector-dependent distribution with a declared number of buckets. */
+        public static TableDistribution ofUnknown(int bucketCount) {
+            return new TableDistribution(Kind.UNKNOWN, bucketCount, Collections.emptyList());
+        }
+
+        /** Hash distribution over on the given keys among the declared number of buckets. */
+        public static TableDistribution ofHash(List<String> bucketKeys, @Nullable Integer bucketCount) {
+            return new TableDistribution(Kind.HASH, bucketCount, bucketKeys);
+        }
+
+        /** Range distribution over on the given keys among the declared number of buckets. */
+        public static TableDistribution ofRange(List<String> bucketKeys, @Nullable Integer bucketCount) {
+            return new TableDistribution(Kind.RANGE, bucketCount, bucketKeys);
+        }
+
+        public enum Kind {
+            UNKNOWN,
+            HASH,
+            RANGE
+        }
+
+        public Kind getKind() {
+            return kind;
+        }
+
+        public List<String> getBucketKeys() {
+            return bucketKeys;
+        }
+
+        public Optional<Integer> getBucketCount() {
+            return Optional.ofNullable(bucketCount);
+        }
     }
 }

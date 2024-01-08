@@ -40,6 +40,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.connector.RowLevelModificationScanContext;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.abilities.SupportsBucketing;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
@@ -954,6 +955,9 @@ public final class DynamicSinkUtils {
             DynamicTableSink sink,
             ResolvedCatalogTable table,
             List<SinkAbilitySpec> sinkAbilitySpecs) {
+        table.getDistribution()
+                .ifPresent(tableDistribution -> validateBucketing(tableDebugName, sink));
+
         validatePartitioning(tableDebugName, staticPartitions, sink, table.getPartitionKeys());
 
         validateAndApplyOverwrite(tableDebugName, isOverwrite, sink, sinkAbilitySpecs);
@@ -1027,6 +1031,19 @@ public final class DynamicSinkUtils {
                 TypeTransformations.legacyRawToTypeInfoRaw(),
                 TypeTransformations.legacyToNonLegacy(),
                 TypeTransformations.toNullable());
+    }
+
+    private static void validateBucketing(String tableDebugName, DynamicTableSink sink) {
+        if (!(sink instanceof SupportsBucketing)) {
+            throw new TableException(
+                    String.format(
+                            "Table '%s' is a bucketed table, but the underlying %s doesn't "
+                                    + "implement the %s interface.",
+                            tableDebugName,
+                            DynamicTableSink.class.getSimpleName(),
+                            SupportsBucketing.class.getSimpleName()));
+        }
+        // TODO Verify Anything about the keys relative to the tableDistribution?
     }
 
     private static void validatePartitioning(
