@@ -508,7 +508,7 @@ It performs a regular inner join with different state TTL for left and right sid
       ]
     ```
     The `"index"` indicates the current state is the i-th input the operator, and the index starts from zero.
-The current TTL value for both left and right side is `"0 ms"`, which means the state retention is not enabled. 
+The current TTL value for both left and right side is `"0 ms"`, which means the state never expires.
 Now change the value of left state to `"3000 ms"` and right state to `"9000 ms"`.
     ```json
     "state": [
