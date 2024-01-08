@@ -88,6 +88,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -811,22 +812,33 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     @Override
     public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByName(
             ResourceID taskManagerId, String fileName, Time timeout) {
+        return requestTaskManagerFileUploadByNameAndType(
+                taskManagerId, fileName, FileType.LOG, Duration.ofMillis(timeout.toMilliseconds()));
+    }
+
+    @Override
+    public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByNameAndType(
+            ResourceID taskManagerId, String fileName, FileType fileType, Duration timeout) {
         log.debug(
-                "Request upload of file {} from TaskExecutor {}.",
+                "Request upload of file {} (type: {}) from TaskExecutor {}.",
                 fileName,
+                fileType,
                 taskManagerId.getStringWithMetadata());
 
         final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
 
         if (taskExecutor == null) {
             log.debug(
-                    "Request upload of file {} from unregistered TaskExecutor {}.",
+                    "Request upload of file {} (type: {}) from unregistered TaskExecutor {}.",
                     fileName,
+                    fileType,
                     taskManagerId.getStringWithMetadata());
             return FutureUtils.completedExceptionally(
                     new UnknownTaskExecutorException(taskManagerId));
         } else {
-            return taskExecutor.getTaskExecutorGateway().requestFileUploadByName(fileName, timeout);
+            return taskExecutor
+                    .getTaskExecutorGateway()
+                    .requestFileUploadByNameAndType(fileName, fileType, timeout);
         }
     }
 

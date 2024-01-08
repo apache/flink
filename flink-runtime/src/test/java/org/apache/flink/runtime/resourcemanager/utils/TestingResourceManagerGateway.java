@@ -59,6 +59,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.QuadFunction;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -94,6 +95,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
     private volatile Function<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>>
             requestTaskManagerFileUploadByNameFunction;
+
+    private volatile Function<
+                    Tuple3<ResourceID, String, FileType>, CompletableFuture<TransientBlobKey>>
+            requestTaskManagerFileUploadByNameAndTypeFunction;
 
     private volatile Consumer<Tuple2<ResourceID, Throwable>> disconnectTaskExecutorConsumer;
 
@@ -185,6 +190,13 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
                     requestTaskManagerFileUploadByNameFunction) {
         this.requestTaskManagerFileUploadByNameFunction =
                 requestTaskManagerFileUploadByNameFunction;
+    }
+
+    public void setRequestTaskManagerFileUploadByNameAndTypeFunction(
+            Function<Tuple3<ResourceID, String, FileType>, CompletableFuture<TransientBlobKey>>
+                    requestTaskManagerFileUploadByNameAndTypeFunction) {
+        this.requestTaskManagerFileUploadByNameAndTypeFunction =
+                requestTaskManagerFileUploadByNameAndTypeFunction;
     }
 
     public void setRequestTaskManagerLogListFunction(
@@ -436,6 +448,19 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
         if (function != null) {
             return function.apply(Tuple2.of(taskManagerId, fileName));
+        } else {
+            return CompletableFuture.completedFuture(new TransientBlobKey());
+        }
+    }
+
+    @Override
+    public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByNameAndType(
+            ResourceID taskManagerId, String fileName, FileType fileType, Duration timeout) {
+        final Function<Tuple3<ResourceID, String, FileType>, CompletableFuture<TransientBlobKey>>
+                function = requestTaskManagerFileUploadByNameAndTypeFunction;
+
+        if (function != null) {
+            return function.apply(Tuple3.of(taskManagerId, fileName, fileType));
         } else {
             return CompletableFuture.completedFuture(new TransientBlobKey());
         }

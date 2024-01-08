@@ -44,6 +44,7 @@ import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.SerializedValue;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -201,8 +202,14 @@ public class TaskExecutorGatewayDecoratorBase implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<TransientBlobKey> requestFileUploadByName(
-            String fileName, Time timeout) {
+            String fileName, Duration timeout) {
         return originalGateway.requestFileUploadByName(fileName, timeout);
+    }
+
+    @Override
+    public CompletableFuture<TransientBlobKey> requestFileUploadByNameAndType(
+            String fileName, FileType fileType, Duration timeout) {
+        return originalGateway.requestFileUploadByNameAndType(fileName, fileType, timeout);
     }
 
     @Override

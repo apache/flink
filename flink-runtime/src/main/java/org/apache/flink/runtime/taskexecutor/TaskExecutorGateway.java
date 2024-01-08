@@ -46,6 +46,7 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.SerializedValue;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -255,7 +256,19 @@ public interface TaskExecutorGateway
      * @return Future which is completed with the {@link TransientBlobKey} of the uploaded file.
      */
     CompletableFuture<TransientBlobKey> requestFileUploadByName(
-            String fileName, @RpcTimeout Time timeout);
+            String fileName, @RpcTimeout Duration timeout);
+
+    /**
+     * Requests the file upload of the specified name and file type to the cluster's {@link
+     * BlobServer}.
+     *
+     * @param fileName to upload
+     * @param fileType to upload
+     * @param timeout for the asynchronous operation
+     * @return Future which is completed with the {@link TransientBlobKey} of the uploaded file.
+     */
+    CompletableFuture<TransientBlobKey> requestFileUploadByNameAndType(
+            String fileName, FileType fileType, @RpcTimeout Duration timeout);
 
     /**
      * Returns the gateway of Metric Query Service on the TaskManager.
