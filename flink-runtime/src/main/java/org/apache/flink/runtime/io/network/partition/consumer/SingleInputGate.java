@@ -813,12 +813,7 @@ public class SingleInputGate extends IndexedInputGate {
                 }
 
                 final InputChannel inputChannel = inputChannelOpt.get();
-                Optional<Buffer> buffer;
-                if (enabledTieredStorage()) {
-                    buffer = readBufferFromTieredStore(inputChannel);
-                } else {
-                    buffer = readBufferFromInputChannel(inputChannel);
-                }
+                Optional<Buffer> buffer = readRecoveredOrNormalBuffer(inputChannel);
                 if (!buffer.isPresent()) {
                     checkUnavailability();
                     continue;
@@ -840,6 +835,22 @@ public class SingleInputGate extends IndexedInputGate {
                                 morePriorityEvents));
             }
         }
+    }
+
+    private Optional<Buffer> readRecoveredOrNormalBuffer(InputChannel inputChannel)
+            throws IOException, InterruptedException {
+        // Firstly, read the buffers from the recovered channel
+        if (inputChannel instanceof RecoveredInputChannel) {
+            Optional<Buffer> buffer = readBufferFromInputChannel(inputChannel);
+            if (!((RecoveredInputChannel) inputChannel).getStateConsumedFuture().isDone()) {
+                return buffer;
+            }
+        }
+
+        //  After the recovered buffers are read, read the normal buffers
+        return enabledTieredStorage()
+                ? readBufferFromTieredStore(inputChannel)
+                : readBufferFromInputChannel(inputChannel);
     }
 
     private Optional<Buffer> readBufferFromInputChannel(InputChannel inputChannel)
