@@ -89,11 +89,10 @@ public class RestartStrategyOptions {
                                                             "here")))
                                     .text(
                                             "If checkpointing is disabled, the default value is %s. "
-                                                    + "If checkpointing is enabled, the default value is %s with %s restart attempts and '%s' delay.",
+                                                    + "If checkpointing is enabled, the default value is %s, and the default values of %s related config options will be used.",
                                             code("none"),
-                                            code("fixed-delay"),
-                                            code("Integer.MAX_VALUE"),
-                                            code("1 s"))
+                                            code("exponential-delay"),
+                                            code("exponential-delay"))
                                     .build());
 
     public static final ConfigOption<Integer> RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS =
