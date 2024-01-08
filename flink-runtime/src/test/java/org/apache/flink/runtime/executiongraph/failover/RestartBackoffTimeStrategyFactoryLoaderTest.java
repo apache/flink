@@ -186,14 +186,39 @@ class RestartBackoffTimeStrategyFactoryLoaderTest {
                         DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION, new Configuration(), true);
 
         RestartBackoffTimeStrategy strategy = factory.create();
-        assertThat(strategy).isInstanceOf(FixedDelayRestartBackoffTimeStrategy.class);
+        assertThat(strategy).isInstanceOf(ExponentialDelayRestartBackoffTimeStrategy.class);
 
-        FixedDelayRestartBackoffTimeStrategy fixedDelayStrategy =
-                (FixedDelayRestartBackoffTimeStrategy) strategy;
-        assertThat(RestartBackoffTimeStrategyFactoryLoader.DEFAULT_RESTART_DELAY)
-                .isEqualTo(fixedDelayStrategy.getBackoffTime());
-        assertThat(RestartBackoffTimeStrategyFactoryLoader.DEFAULT_RESTART_ATTEMPTS)
-                .isEqualTo(fixedDelayStrategy.getMaxNumberRestartAttempts());
+        ExponentialDelayRestartBackoffTimeStrategy exponentialDelayStrategy =
+                (ExponentialDelayRestartBackoffTimeStrategy) strategy;
+
+        assertThat(exponentialDelayStrategy.getInitialBackoffMS())
+                .isEqualTo(
+                        RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF
+                                .defaultValue()
+                                .toMillis());
+        assertThat(exponentialDelayStrategy.getMaxBackoffMS())
+                .isEqualTo(
+                        RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF
+                                .defaultValue()
+                                .toMillis());
+        assertThat(exponentialDelayStrategy.getBackoffMultiplier())
+                .isEqualTo(
+                        RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_BACKOFF_MULTIPLIER
+                                .defaultValue());
+        assertThat(exponentialDelayStrategy.getResetBackoffThresholdMS())
+                .isEqualTo(
+                        RestartStrategyOptions
+                                .RESTART_STRATEGY_EXPONENTIAL_DELAY_RESET_BACKOFF_THRESHOLD
+                                .defaultValue()
+                                .toMillis());
+        assertThat(exponentialDelayStrategy.getJitterFactor())
+                .isEqualTo(
+                        RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_JITTER_FACTOR
+                                .defaultValue());
+        assertThat(exponentialDelayStrategy.getAttemptsBeforeResetBackoff())
+                .isEqualTo(
+                        RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_ATTEMPTS
+                                .defaultValue());
     }
 
     @Test
