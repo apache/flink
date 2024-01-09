@@ -653,9 +653,13 @@ class BootstrapToolsTest {
     }
 
     @Test
-    void testWriteConfigurationAndReload() throws Exception {
-        testWriteConfigurationAndReloadInternal(false);
+    void testWriteConfigurationAndReloadWithStandardYaml() throws Exception {
         testWriteConfigurationAndReloadInternal(true);
+    }
+
+    @Test
+    void testWriteConfigurationAndReloadWithLegacyYaml() throws Exception {
+        testWriteConfigurationAndReloadInternal(false);
     }
 
     private void testWriteConfigurationAndReloadInternal(boolean standardYaml) throws IOException {
@@ -731,5 +735,8 @@ class BootstrapToolsTest {
                 .containsExactlyInAnyOrderElementsOf(durationList);
         assertThat(loadedFlinkConfig.get(mapConfigOption)).containsAllEntriesOf(map);
         assertThat(loadedFlinkConfig.get(durationConfigOption)).isEqualTo(duration);
+
+        // clean the standard yaml flag to avoid impact to other cases.
+        GlobalConfiguration.setStandardYaml(true);
     }
 }

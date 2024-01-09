@@ -821,6 +821,9 @@ public abstract class YarnTestBase {
 
             File flinkConfDirPath =
                     TestUtils.findFile(
+                            // NOTE: Before we change the default conf file in the flink-dist to
+                            // 'config.yaml', we need to use the legacy flink conf file
+                            // 'flink-conf.yaml' here.
                             flinkDistRootDir, new ContainsName(new String[] {"flink-conf.yaml"}));
             assertThat(flinkConfDirPath).isNotNull();
 
