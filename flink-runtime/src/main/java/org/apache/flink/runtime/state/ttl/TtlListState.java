@@ -109,14 +109,32 @@ class TtlListState<K, N, T>
         }
 
         long currentTimestamp = timeProvider.currentTimestamp();
-        List<TtlValue<T>> unexpired = new ArrayList<>(ttlValues.size());
         TypeSerializer<TtlValue<T>> elementSerializer =
                 ((ListSerializer<TtlValue<T>>) original.getValueSerializer())
                         .getElementSerializer();
-        for (TtlValue<T> ttlValue : ttlValues) {
-            if (!TtlUtils.expired(ttlValue, ttl, currentTimestamp)) {
+        int firstExpireElementIndex = -1;
+        for (int i = 0; i < ttlValues.size(); i++) {
+            TtlValue<T> ttlValue = ttlValues.get(i);
+            if (TtlUtils.expired(ttlValue, ttl, currentTimestamp)) {
+                firstExpireElementIndex = i;
+                break;
+            }
+        }
+        if (firstExpireElementIndex == -1) {
+            return ttlValues;
+        }
+
+        List<TtlValue<T>> unexpired = new ArrayList<>(ttlValues.size());
+        for (int i = 0; i < ttlValues.size(); i++) {
+            TtlValue<T> ttlValue = ttlValues.get(i);
+            if (i < firstExpireElementIndex) {
                 // we have to do the defensive copy to update the value
                 unexpired.add(elementSerializer.copy(ttlValue));
+            } else if (i > firstExpireElementIndex) {
+                if (!TtlUtils.expired(ttlValue, ttl, currentTimestamp)) {
+                    // we have to do the defensive copy to update the value
+                    unexpired.add(elementSerializer.copy(ttlValue));
+                }
             }
         }
         if (!unexpired.isEmpty()) {
