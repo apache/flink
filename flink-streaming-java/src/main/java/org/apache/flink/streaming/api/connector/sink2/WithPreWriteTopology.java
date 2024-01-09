@@ -22,7 +22,11 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 
-/** Allows expert users to implement a custom topology before {@link SinkWriter}. */
+/**
+ * Allows expert users to implement a custom topology before {@link SinkWriter}.
+ *
+ * @deprecated Please implement {@link Sink} and {@link SupportsPreWriteTopology} instead.
+ */
 @Experimental
 @Deprecated
 public interface WithPreWriteTopology<InputT>

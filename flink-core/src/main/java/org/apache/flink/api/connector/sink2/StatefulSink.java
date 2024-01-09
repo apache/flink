@@ -32,6 +32,7 @@ import java.util.Collection;
  *
  * @param <InputT> The type of the sink's input
  * @param <WriterStateT> The type of the sink writer's state
+ * @deprecated Please implement {@link Sink} and {@link SupportsWriterState} instead.
  */
 @PublicEvolving
 @Deprecated

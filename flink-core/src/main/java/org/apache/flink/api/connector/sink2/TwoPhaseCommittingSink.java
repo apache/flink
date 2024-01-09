@@ -35,6 +35,7 @@ import java.util.Collection;
  *
  * @param <InputT> The type of the sink's input
  * @param <CommT> The type of the committables.
+ * @deprecated Please implement {@link Sink} {@link SupportsCommitter} instead.
  */
 @PublicEvolving
 @Deprecated

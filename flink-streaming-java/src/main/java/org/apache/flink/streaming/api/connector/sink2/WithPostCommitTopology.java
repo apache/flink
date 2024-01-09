@@ -27,6 +27,10 @@ import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
  *
  * <p>It is recommended to use immutable committables because mutating committables can have
  * unexpected side-effects.
+ *
+ * @deprecated Please implement {@link org.apache.flink.api.connector.sink2.Sink}, {@link
+ *     org.apache.flink.api.connector.sink2.SupportsCommitter} and {@link
+ *     SupportsPostCommitTopology} instead.
  */
 @Experimental
 @Deprecated

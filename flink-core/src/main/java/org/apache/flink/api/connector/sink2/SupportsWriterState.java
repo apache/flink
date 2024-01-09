@@ -41,6 +41,7 @@ public interface SupportsWriterState<InputT, WriterStateT> {
      * Create a {@link StatefulSinkWriter} from a recovered state.
      *
      * @param context the runtime context.
+     * @param recoveredState the state to recover from.
      * @return A sink writer.
      * @throws IOException for any failure during creation.
      */
@@ -63,9 +64,9 @@ public interface SupportsWriterState<InputT, WriterStateT> {
     @PublicEvolving
     interface WithCompatibleState {
         /**
-         * A list of state names of sinks from which the state can be restored. For example, the new
-         * {@code FileSink} can resume from the state of an old {@code StreamingFileSink} as a
-         * drop-in replacement when resuming from a checkpoint/savepoint.
+         * A collection of state names of sinks from which the state can be restored. For example,
+         * the new {@code FileSink} can resume from the state of an old {@code StreamingFileSink} as
+         * a drop-in replacement when resuming from a checkpoint/savepoint.
          */
         Collection<String> getCompatibleWriterStateNames();
     }
