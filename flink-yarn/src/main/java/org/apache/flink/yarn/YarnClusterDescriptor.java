@@ -143,6 +143,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.yarn.Utils.getPathFromLocalFile;
 import static org.apache.flink.yarn.Utils.getPathFromLocalFilePathStr;
+import static org.apache.flink.yarn.Utils.getStartCommand;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 import static org.apache.flink.yarn.YarnConfigKeys.LOCAL_RESOURCE_DESCRIPTOR_SEPARATOR;
 
@@ -1897,8 +1898,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                 flinkConfiguration.getString(
                         ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
                         ConfigConstants.DEFAULT_YARN_CONTAINER_START_COMMAND_TEMPLATE);
-        final String amCommand =
-                BootstrapTools.getStartCommand(commandTemplate, startCommandValues);
+        final String amCommand = getStartCommand(commandTemplate, startCommandValues);
 
         amContainer.setCommands(Collections.singletonList(amCommand));
 
