@@ -34,6 +34,8 @@ import java.util.concurrent.ThreadLocalRandom;
 @Internal
 public class DecimalDataRandomGenerator implements DataGenerator<DecimalData> {
 
+    private static final long serialVersionUID = 1L;
+
     private final int precision;
 
     private final int scale;

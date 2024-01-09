@@ -854,6 +854,7 @@ public class StreamConfig implements Serializable {
 
     /** A representation of a Network {@link InputConfig}. */
     public static class NetworkInputConfig implements InputConfig {
+        private static final long serialVersionUID = 1L;
         private final TypeSerializer<?> typeSerializer;
         private final InputRequirement inputRequirement;
 
@@ -887,6 +888,7 @@ public class StreamConfig implements Serializable {
 
     /** A serialized representation of an input. */
     public static class SourceInputConfig implements InputConfig {
+        private static final long serialVersionUID = 1L;
         private final StreamEdge inputEdge;
 
         public SourceInputConfig(StreamEdge inputEdge) {

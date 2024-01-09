@@ -46,6 +46,8 @@ import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
 @PublicEvolving
 public final class ObjectIdentifier implements Serializable {
 
+    private static final long serialVersionUID = 1L;
+
     static final String UNKNOWN = "<UNKNOWN>";
 
     private final @Nullable String catalogName;

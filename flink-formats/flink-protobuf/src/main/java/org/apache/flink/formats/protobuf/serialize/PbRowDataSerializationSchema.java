@@ -37,7 +37,7 @@ import com.google.protobuf.Descriptors;
  * <p>Failures during deserialization are forwarded as wrapped {@link FlinkRuntimeException}.
  */
 public class PbRowDataSerializationSchema implements SerializationSchema<RowData> {
-    public static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
     private final RowType rowType;
     private final PbFormatConfig pbFormatConfig;

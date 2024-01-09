@@ -34,6 +34,8 @@ import java.util.Objects;
 @Internal
 public class CompactorRequestTypeInfo extends TypeInformation<CompactorRequest> {
 
+    private static final long serialVersionUID = 1L;
+
     private final SerializableSupplierWithException<
                     SimpleVersionedSerializer<FileSinkCommittable>, IOException>
             committableSerializerSupplier;

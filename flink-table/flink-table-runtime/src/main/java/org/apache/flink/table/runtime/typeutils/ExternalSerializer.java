@@ -286,7 +286,7 @@ public final class ExternalSerializer<I, E> extends TypeSerializer<E> {
         @Override
         protected TypeSerializer<?>[] getNestedSerializers(
                 ExternalSerializer<I, E> outerSerializer) {
-            return new TypeSerializer[] {outerSerializer.internalSerializer};
+            return new TypeSerializer[] { outerSerializer.internalSerializer };
         }
 
         @Override
@@ -297,4 +297,6 @@ public final class ExternalSerializer<I, E> extends TypeSerializer<E> {
                     dataType, (TypeSerializer<I>) nestedSerializers[0], isInternalInput);
         }
     }
+    
+    private static final long serialVersionUID = 1L;
 }

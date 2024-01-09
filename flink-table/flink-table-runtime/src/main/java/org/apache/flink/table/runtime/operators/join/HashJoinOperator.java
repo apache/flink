@@ -423,6 +423,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
             this.keyType = keyType;
             this.sortMergeJoinFunction = sortMergeJoinFunction;
         }
+
+        private static final long serialVersionUID = 1L;
     }
 
     /**
@@ -443,6 +445,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
                 }
             }
         }
+
+        private static final long serialVersionUID = 1L;
     }
 
     /**
@@ -466,6 +470,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
                 }
             }
         }
+
+        private static final long serialVersionUID = 1L;
     }
 
     /**
@@ -489,6 +495,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
                 collect(buildSideNullRow, probeRow);
             }
         }
+
+        private static final long serialVersionUID = 1L;
     }
 
     /**
@@ -514,6 +522,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
                 collect(buildSideNullRow, probeRow);
             }
         }
+
+        private static final long serialVersionUID = 1L;
     }
 
     /** Semi join. Output probe side row when probe side row matched build side row. */
@@ -530,6 +540,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
                 collector.collect(probeRow);
             }
         }
+
+        private static final long serialVersionUID = 1L;
     }
 
     /** Anti join. Output probe side row when probe side row not matched build side row. */
@@ -546,6 +558,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
                 collector.collect(probeRow);
             }
         }
+
+        private static final long serialVersionUID = 1L;
     }
 
     /**
@@ -565,7 +579,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
                 if (probeRow != null) { // Probe phase
                     // we must iterator to set probedSet.
                     //noinspection StatementWithEmptyBody
-                    while (buildIter.advanceNext()) {}
+                    while (buildIter.advanceNext()) {
+                    }
                 } else { // End Probe phase, iterator build side elements.
                     collector.collect(buildIter.getRow());
                     while (buildIter.advanceNext()) {
@@ -574,5 +589,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
                 }
             }
         }
+        
+        private static final long serialVersionUID = 1L;
     }
 }

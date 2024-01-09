@@ -61,6 +61,8 @@ public class InputFormatBasedReader<T> implements RecordWiseFileCompactor.Reader
 
     /** Factory for {@link InputFormatBasedReader}. */
     public static class Factory<T> implements RecordWiseFileCompactor.Reader.Factory<T> {
+        private static final long serialVersionUID = 1L;
+        
         private final SerializableSupplierWithException<FileInputFormat<T>, IOException>
                 inputFormatFactory;
 

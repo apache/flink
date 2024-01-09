@@ -42,6 +42,8 @@ import java.util.Objects;
  * </pre>
  */
 final class KeyAndValueSerializer<IN> extends TypeSerializer<Tuple2<byte[], StreamRecord<IN>>> {
+    private static final long serialVersionUID = 1L;
+    
     private static final int TIMESTAMP_LENGTH = 8;
     private final TypeSerializer<IN> valueSerializer;
 

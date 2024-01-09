@@ -55,6 +55,8 @@ public class PythonConnectorUtils {
     /** The serializable {@link InvocationHandler} as the proxy for first column selector. */
     public static class FirstColumnTopicSelectorInvocationHandler
             implements InvocationHandler, Serializable {
+        
+        private static final long serialVersionUID = 1L;
 
         @Override
         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {

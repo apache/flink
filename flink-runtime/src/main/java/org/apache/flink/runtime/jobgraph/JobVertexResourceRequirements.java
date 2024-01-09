@@ -34,6 +34,7 @@ public class JobVertexResourceRequirements implements Serializable {
     private static final String FIELD_NAME_PARALLELISM = "parallelism";
 
     public static class Parallelism implements Serializable {
+        private static final long serialVersionUID = 2L;
 
         private static final String FIELD_NAME_LOWER_BOUND = "lowerBound";
         private static final String FIELD_NAME_UPPER_BOUND = "upperBound";

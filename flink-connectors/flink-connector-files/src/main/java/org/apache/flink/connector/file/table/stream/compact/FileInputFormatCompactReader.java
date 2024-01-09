@@ -53,6 +53,7 @@ public class FileInputFormatCompactReader<T> implements CompactReader<T> {
 
     /** Factory to create {@link FileInputFormatCompactReader}. */
     private static class Factory<T> implements CompactReader.Factory<T> {
+        private static final long serialVersionUID = 1L;
 
         private final FileInputFormat<T> format;
 

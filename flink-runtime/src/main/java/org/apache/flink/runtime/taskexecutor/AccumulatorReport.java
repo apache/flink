@@ -26,6 +26,8 @@ import java.util.List;
 
 /** A report about the current values of all accumulators of the TaskExecutor for a given job. */
 public class AccumulatorReport implements Serializable {
+    private static final long serialVersionUID = 1L;
+    
     private final Collection<AccumulatorSnapshot> accumulatorSnapshots;
 
     public AccumulatorReport(List<AccumulatorSnapshot> accumulatorSnapshots) {

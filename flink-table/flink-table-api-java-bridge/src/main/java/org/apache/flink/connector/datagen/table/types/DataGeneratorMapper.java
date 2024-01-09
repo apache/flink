@@ -30,6 +30,8 @@ import java.util.concurrent.ThreadLocalRandom;
 @Internal
 public class DataGeneratorMapper<A, B> implements DataGenerator<B> {
 
+    private static final long serialVersionUID = 1L;
+
     private final DataGenerator<A> generator;
 
     private final SerializableFunction<A, B> mapper;

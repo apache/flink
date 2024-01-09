@@ -34,6 +34,8 @@ import java.io.InputStreamReader;
 @PublicEvolving
 public class SimpleStringDecoder implements Decoder<String> {
 
+    private static final long serialVersionUID = 1L;
+
     private BufferedReader reader;
 
     @Override

@@ -57,6 +57,8 @@ public class CompactBucketWriter<T> implements CompactWriter<T> {
     /** Factory to create {@link CompactBucketWriter}. */
     private static class Factory<T> implements CompactWriter.Factory<T> {
 
+        private static final long serialVersionUID = 1L;
+
         private final SupplierWithException<BucketWriter<T, String>, IOException> factory;
 
         private BucketWriter<T, String> bucketWriter;

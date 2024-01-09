@@ -34,6 +34,8 @@ import java.util.Optional;
 /** Identifies an operator, either based on a {@code uid} or {@code uidHash}. */
 @PublicEvolving
 public final class OperatorIdentifier implements Serializable {
+    private static final long serialVersionUID = 1L;
+    
     // this is only used for logging purposes
     @Nullable private final String uid;
     // this is the runtime representation of a uid hash

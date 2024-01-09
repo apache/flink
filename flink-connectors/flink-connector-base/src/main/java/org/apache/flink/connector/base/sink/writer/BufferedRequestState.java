@@ -36,6 +36,7 @@ import java.util.List;
  */
 @PublicEvolving
 public class BufferedRequestState<RequestEntryT extends Serializable> implements Serializable {
+    private static final long serialVersionUID = 1L;
     private final List<RequestEntryWrapper<RequestEntryT>> bufferedRequestEntries;
     private final long stateSize;
 

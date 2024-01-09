@@ -204,6 +204,7 @@ public class HybridSource<T> implements Source<T, HybridSourceSplit, HybridSourc
 
     /** Entry for list of underlying sources. */
     static class SourceListEntry implements Serializable {
+        private static final long serialVersionUID = 1L;
         protected final SourceFactory factory;
         protected final Boundedness boundedness;
 
@@ -221,6 +222,7 @@ public class HybridSource<T> implements Source<T, HybridSourceSplit, HybridSourc
     @PublicEvolving
     public static class HybridSourceBuilder<T, EnumT extends SplitEnumerator>
             implements Serializable {
+        private static final long serialVersionUID = 1L;
         private final List<SourceListEntry> sources;
 
         public HybridSourceBuilder() {

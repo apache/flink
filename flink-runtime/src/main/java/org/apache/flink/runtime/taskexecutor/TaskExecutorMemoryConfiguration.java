@@ -43,6 +43,8 @@ import static org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils.ca
 
 /** TaskExecutorConfiguration collects the configuration of a TaskExecutor instance. */
 public class TaskExecutorMemoryConfiguration implements Serializable {
+    private static final long serialVersionUID = 1L;
+    
     public static final String FIELD_NAME_FRAMEWORK_HEAP = "frameworkHeap";
     public static final String FIELD_NAME_TASK_HEAP = "taskHeap";
 

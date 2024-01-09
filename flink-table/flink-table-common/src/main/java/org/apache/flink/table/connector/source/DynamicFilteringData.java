@@ -47,6 +47,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @PublicEvolving
 public class DynamicFilteringData implements Serializable {
 
+    private static final long serialVersionUID = 1L;
+
     private final TypeInformation<RowData> typeInfo;
     private final RowType rowType;
 

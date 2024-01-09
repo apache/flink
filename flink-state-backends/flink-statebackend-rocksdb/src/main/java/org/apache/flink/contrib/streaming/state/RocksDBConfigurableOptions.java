@@ -53,7 +53,7 @@ public class RocksDBConfigurableOptions implements Serializable {
     // --------------------------------------------------------------------------
     // Provided configurable DBOptions within Flink
     // --------------------------------------------------------------------------
-
+    private static final long serialVersionUID = 1L;     
     public static final ConfigOption<Integer> MAX_BACKGROUND_THREADS =
             key("state.backend.rocksdb.thread.num")
                     .intType()

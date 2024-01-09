@@ -292,14 +292,10 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
                 throws IOException {
             try {
                 DataInputViewStream inStream = new DataInputViewStream(in);
-                this.previousKeyType =
-                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
-                this.previousValueType =
-                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
-                this.previousKeySerializer =
-                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
-                this.previousValueSerializer =
-                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
+                this.previousKeyType = InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
+                this.previousValueType = InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
+                this.previousKeySerializer = InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
+                this.previousValueSerializer = InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
             } catch (ClassNotFoundException e) {
                 throw new IOException(e);
             }
@@ -332,4 +328,6 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
             }
         }
     }
+    
+    private static final long serialVersionUID = 1L;
 }

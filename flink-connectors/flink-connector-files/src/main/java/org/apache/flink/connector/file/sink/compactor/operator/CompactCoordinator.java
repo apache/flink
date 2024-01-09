@@ -63,6 +63,8 @@ public class CompactCoordinator extends AbstractStreamOperator<CompactorRequest>
         implements OneInputStreamOperator<
                         CommittableMessage<FileSinkCommittable>, CompactorRequest>,
                 BoundedOneInput {
+    
+    private static final long serialVersionUID = 1L;
 
     static final ListStateDescriptor<byte[]> REMAINING_COMMITTABLE_RAW_STATES_DESC =
             new ListStateDescriptor<>(

@@ -26,7 +26,9 @@ public class TSetClientInfoResp
         implements org.apache.thrift.TBase<TSetClientInfoResp, TSetClientInfoResp._Fields>,
                 java.io.Serializable,
                 Cloneable,
-                Comparable<TSetClientInfoResp> {
+        Comparable<TSetClientInfoResp> {
+    private static final long serialVersionUID = 1L;
+    
     private static final org.apache.thrift.protocol.TStruct STRUCT_DESC =
             new org.apache.thrift.protocol.TStruct("TSetClientInfoResp");
 

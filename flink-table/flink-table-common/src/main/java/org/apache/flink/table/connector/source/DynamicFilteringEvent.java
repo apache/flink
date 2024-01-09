@@ -30,6 +30,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @PublicEvolving
 public class DynamicFilteringEvent implements SourceEvent {
+    private static final long serialVersionUID = 1L;
     private final DynamicFilteringData data;
 
     public DynamicFilteringEvent(DynamicFilteringData data) {

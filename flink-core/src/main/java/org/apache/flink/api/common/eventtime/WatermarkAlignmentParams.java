@@ -25,6 +25,7 @@ import java.io.Serializable;
 /** Configuration parameters for watermark alignment. */
 @PublicEvolving
 public final class WatermarkAlignmentParams implements Serializable {
+    private static final long serialVersionUID = 1L;
     public static final WatermarkAlignmentParams WATERMARK_ALIGNMENT_DISABLED =
             new WatermarkAlignmentParams(Long.MAX_VALUE, "", 0);
     private final long maxAllowedWatermarkDrift;

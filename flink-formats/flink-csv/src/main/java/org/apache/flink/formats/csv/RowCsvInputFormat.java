@@ -148,6 +148,8 @@ public class RowCsvInputFormat extends AbstractCsvInputFormat<Row> {
     /** A builder for creating a {@link RowCsvInputFormat}. */
     public static class Builder implements Serializable {
 
+        private static final long serialVersionUID = 1L;
+
         private final Path[] filePaths;
         private final TypeInformation[] fieldTypes;
         private CsvSchema csvSchema;

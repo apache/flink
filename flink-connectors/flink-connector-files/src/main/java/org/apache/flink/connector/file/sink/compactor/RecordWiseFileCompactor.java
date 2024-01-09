@@ -31,6 +31,8 @@ import java.util.List;
  */
 @PublicEvolving
 public class RecordWiseFileCompactor<IN> implements FileCompactor {
+    private static final long serialVersionUID = 1L;
+    
     private final Reader.Factory<IN> readerFactory;
 
     public RecordWiseFileCompactor(Reader.Factory<IN> readerFactory) {

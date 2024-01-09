@@ -42,7 +42,7 @@ import static org.apache.hadoop.hive.ql.exec.SerializationUtilities.releaseKryo;
 @Internal
 public class HiveFunctionWrapper<UDFType> implements Serializable {
 
-    public static final long serialVersionUID = 393313529306818205L;
+    private static final long serialVersionUID = 393313529306818205L;
 
     private final Class<UDFType> functionClz;
     // a field to hold the bytes serialized for the UDF.

@@ -40,6 +40,8 @@ public class CompactCoordinatorStateHandlerFactory
                 CommittableMessage<FileSinkCommittable>,
                 Either<CommittableMessage<FileSinkCommittable>, CompactorRequest>> {
 
+    private static final long serialVersionUID = 1L;                    
+
     private final SerializableSupplierWithException<
                     SimpleVersionedSerializer<FileSinkCommittable>, IOException>
             committableSerializerSupplier;

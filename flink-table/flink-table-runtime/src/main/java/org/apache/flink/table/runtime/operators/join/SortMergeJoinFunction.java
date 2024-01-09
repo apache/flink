@@ -55,6 +55,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** This function is used to process the main logic of sort merge join. */
 public class SortMergeJoinFunction implements Serializable {
 
+    private static final long serialVersionUID = 1L;
+
     private final double externalBufferMemRatio;
     private final FlinkJoinType type;
     private final boolean leftIsSmaller;

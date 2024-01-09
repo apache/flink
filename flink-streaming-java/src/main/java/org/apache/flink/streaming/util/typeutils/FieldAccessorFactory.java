@@ -43,6 +43,8 @@ import java.util.regex.Pattern;
 @Internal
 public class FieldAccessorFactory implements Serializable {
 
+    private static final long serialVersionUID = 1L;
+
     private static final Logger LOG = LoggerFactory.getLogger(FieldAccessorFactory.class);
 
     @Nullable

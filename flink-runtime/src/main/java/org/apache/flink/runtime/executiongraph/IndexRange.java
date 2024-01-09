@@ -25,6 +25,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /** This class represents the range of index. The range is inclusive. */
 public class IndexRange implements Serializable {
 
+    private static final long serialVersionUID = 1L;
+
     private final int startIndex;
     private final int endIndex;
 

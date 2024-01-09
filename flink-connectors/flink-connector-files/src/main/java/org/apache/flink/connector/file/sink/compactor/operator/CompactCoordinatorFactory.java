@@ -37,6 +37,8 @@ public class CompactCoordinatorFactory extends AbstractStreamOperatorFactory<Com
         implements OneInputStreamOperatorFactory<
                 CommittableMessage<FileSinkCommittable>, CompactorRequest> {
 
+    private static final long serialVersionUID = 1L;
+
     private final FileCompactStrategy strategy;
     private final SerializableSupplierWithException<
                     SimpleVersionedSerializer<FileSinkCommittable>, IOException>

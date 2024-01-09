@@ -36,6 +36,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class FileSinkCommittable implements Serializable {
 
+    private static final long serialVersionUID = 1L;
+
     private final String bucketId;
 
     @Nullable private final InProgressFileWriter.PendingFileRecoverable pendingFile;

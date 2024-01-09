@@ -30,6 +30,8 @@ import java.util.concurrent.TimeoutException;
 @Experimental
 public class SinkUtils implements Serializable {
 
+    private static final long serialVersionUID = 1L;
+
     /**
      * Acquire permits on the given semaphore within a given allowed timeout and deal with errors.
      *

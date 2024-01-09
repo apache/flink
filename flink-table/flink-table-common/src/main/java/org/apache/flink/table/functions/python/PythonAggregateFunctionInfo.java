@@ -28,6 +28,8 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public class PythonAggregateFunctionInfo extends PythonFunctionInfo {
 
+    private static final long serialVersionUID = 1L;
+
     private final int filterArg;
     private final boolean distinct;
 

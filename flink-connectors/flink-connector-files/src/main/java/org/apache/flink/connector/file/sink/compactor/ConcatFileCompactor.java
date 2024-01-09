@@ -37,6 +37,8 @@ import java.util.List;
 @PublicEvolving
 public class ConcatFileCompactor extends OutputStreamBasedFileCompactor {
 
+    private static final long serialVersionUID = 1L;     
+
     private static final int CHUNK_SIZE = 4 * 1024 * 1024;
 
     private final byte[] fileDelimiter;

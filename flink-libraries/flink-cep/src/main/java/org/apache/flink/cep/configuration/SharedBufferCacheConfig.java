@@ -25,6 +25,7 @@ import java.time.Duration;
 
 /** Configuration immutable class. */
 public final class SharedBufferCacheConfig implements Serializable {
+    private static final long serialVersionUID = 1L;
     private final int eventsBufferCacheSlots;
     private final int entryCacheSlots;
     private final Duration cacheStatisticsInterval;

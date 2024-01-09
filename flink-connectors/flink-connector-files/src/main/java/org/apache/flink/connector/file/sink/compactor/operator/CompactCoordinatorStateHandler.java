@@ -47,6 +47,8 @@ public class CompactCoordinatorStateHandler
                 BoundedOneInput,
                 CheckpointListener {
 
+    private static final long serialVersionUID = 1L;
+
     private final SimpleVersionedSerializer<FileSinkCommittable> committableSerializer;
 
     public CompactCoordinatorStateHandler(

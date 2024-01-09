@@ -80,6 +80,8 @@ public class CompactorOperator
                 BoundedOneInput,
                 CheckpointListener {
 
+    private static final long serialVersionUID = 1L;
+
     private static final long SUBMITTED_ID = -1L;
 
     static final ListStateDescriptor<byte[]> REMAINING_REQUESTS_RAW_STATES_DESC =

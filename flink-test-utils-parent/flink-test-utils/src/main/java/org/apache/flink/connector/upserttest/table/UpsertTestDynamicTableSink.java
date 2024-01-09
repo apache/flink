@@ -152,6 +152,8 @@ class UpsertTestDynamicTableSink implements DynamicTableSink {
      */
     private static class UpsertKeySerializationSchema implements SerializationSchema<RowData> {
 
+        private static final long serialVersionUID = 1L;
+        
         private final SerializationSchema<RowData> serializationSchema;
 
         private final int[] primaryKeyIndexes;

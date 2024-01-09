@@ -24,6 +24,8 @@ import org.apache.flink.api.common.JobStatus;
 /** A simple message that holds the state of a job execution. */
 public class JobStatusMessage implements java.io.Serializable {
 
+    private static final long serialVersionUID = 1L;
+
     private final JobID jobId;
 
     private final String jobName;

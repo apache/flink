@@ -39,6 +39,8 @@ public class CompactorOperatorFactory
         extends AbstractStreamOperatorFactory<CommittableMessage<FileSinkCommittable>>
         implements OneInputStreamOperatorFactory<
                 CompactorRequest, CommittableMessage<FileSinkCommittable>> {
+                        
+    private static final long serialVersionUID = 1L;
 
     private final FileCompactStrategy strategy;
     private final FileCompactor fileCompactor;

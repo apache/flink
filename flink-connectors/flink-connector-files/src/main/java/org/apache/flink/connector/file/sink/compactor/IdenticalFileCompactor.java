@@ -33,6 +33,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class IdenticalFileCompactor extends ConcatFileCompactor {
 
+    private static final long serialVersionUID = 1L;
+
     public IdenticalFileCompactor() {
         super();
     }

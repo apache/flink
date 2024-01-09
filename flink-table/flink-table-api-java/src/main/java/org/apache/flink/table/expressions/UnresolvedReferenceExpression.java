@@ -35,6 +35,8 @@ import java.util.Objects;
 @PublicEvolving
 public final class UnresolvedReferenceExpression implements Expression, Serializable {
 
+    private static final long serialVersionUID = 1L;
+
     private final String name;
 
     UnresolvedReferenceExpression(String name) {

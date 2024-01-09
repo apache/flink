@@ -40,6 +40,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class SimpleVersionedSerializerTypeSerializerProxy<T> extends TypeSerializer<T> {
 
+    private static final long serialVersionUID = 1L;
+
     private final SerializableSupplier<SimpleVersionedSerializer<T>> serializerSupplier;
     private transient SimpleVersionedSerializer<T> cachedSerializer;
 

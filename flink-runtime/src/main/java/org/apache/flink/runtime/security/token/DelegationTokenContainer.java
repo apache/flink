@@ -27,6 +27,8 @@ import java.util.Map;
 /** Container for delegation tokens. */
 @Experimental
 public class DelegationTokenContainer implements Serializable {
+    private static final long serialVersionUID = 1L;
+    
     private Map<String, byte[]> tokens = new HashMap<>();
 
     public Map<String, byte[]> getTokens() {

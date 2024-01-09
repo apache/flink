@@ -42,6 +42,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class JsonParserRowDataDeserializationSchema extends AbstractJsonDeserializationSchema {
 
+    private static final long serialVersionUID = 1L;
+
     /**
      * Runtime converter that converts {@link JsonParser}s into objects of Flink SQL internal data
      * structures.

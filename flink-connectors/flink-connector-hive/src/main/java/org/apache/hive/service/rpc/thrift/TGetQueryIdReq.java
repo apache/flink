@@ -26,7 +26,9 @@ public class TGetQueryIdReq
         implements org.apache.thrift.TBase<TGetQueryIdReq, TGetQueryIdReq._Fields>,
                 java.io.Serializable,
                 Cloneable,
-                Comparable<TGetQueryIdReq> {
+        Comparable<TGetQueryIdReq> {
+    private static final long serialVersionUID = 1L;
+    
     private static final org.apache.thrift.protocol.TStruct STRUCT_DESC =
             new org.apache.thrift.protocol.TStruct("TGetQueryIdReq");
 

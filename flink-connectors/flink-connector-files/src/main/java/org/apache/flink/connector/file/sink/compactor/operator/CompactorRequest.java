@@ -31,6 +31,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /** Request of file compacting for {@link FileSink}. */
 @Internal
 public class CompactorRequest implements Serializable {
+    private static final long serialVersionUID = 1L;
     private final String bucketId;
     private final List<FileSinkCommittable> committableToCompact;
     private final List<FileSinkCommittable> committableToPassthrough;

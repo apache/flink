@@ -29,6 +29,7 @@ import java.io.IOException;
 /** A factory returning {@link FileWriter writer}. */
 @Internal
 public class DefaultFileWriterBucketFactory<IN> implements FileWriterBucketFactory<IN> {
+    private static final long serialVersionUID = 1L;
 
     @Override
     public FileWriterBucket<IN> getNewBucket(

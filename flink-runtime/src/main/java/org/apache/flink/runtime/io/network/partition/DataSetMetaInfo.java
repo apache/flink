@@ -31,6 +31,7 @@ import java.util.function.ToIntFunction;
 
 /** Container for meta-data of a data set. */
 public final class DataSetMetaInfo implements Serializable {
+    private static final long serialVersionUID = 1L;
     private static final int UNKNOWN = -1;
 
     private final int numRegisteredPartitions;

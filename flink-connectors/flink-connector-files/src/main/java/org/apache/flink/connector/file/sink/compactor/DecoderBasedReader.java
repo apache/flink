@@ -82,6 +82,8 @@ public class DecoderBasedReader<T> implements RecordWiseFileCompactor.Reader<T> 
 
     /** Factory for {@link DecoderBasedReader}. */
     public static class Factory<T> implements RecordWiseFileCompactor.Reader.Factory<T> {
+        private static final long serialVersionUID = 1L;
+        
         private final Decoder.Factory<T> decoderFactory;
 
         public Factory(Decoder.Factory<T> decoderFactory) {

@@ -360,6 +360,8 @@ public class JobDetails implements Serializable {
      * reached terminal state.
      */
     public static final class CurrentAttempts implements Serializable {
+        private static final long serialVersionUID = 1L;
+        
         private final int representativeAttempt;
 
         private final Set<Integer> currentAttempts;

@@ -85,6 +85,9 @@ import java.util.TimeZone;
 @PublicEvolving
 @Deprecated
 public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<Row> {
+
+    private static final long serialVersionUID = 1L;
+    
     /** Used for time conversions into SQL types. */
     private static final TimeZone LOCAL_TZ = TimeZone.getDefault();
 

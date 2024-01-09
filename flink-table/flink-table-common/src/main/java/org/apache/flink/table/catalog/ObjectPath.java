@@ -29,6 +29,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /** A database name and object (table/view/function) name combo in a catalog. */
 @PublicEvolving
 public class ObjectPath implements Serializable {
+    private static final long serialVersionUID = 1L;
     private final String databaseName;
     private final String objectName;
 

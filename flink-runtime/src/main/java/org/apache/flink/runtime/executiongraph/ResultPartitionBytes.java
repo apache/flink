@@ -25,6 +25,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** This class represents a snapshot of the result partition bytes metrics. */
 public class ResultPartitionBytes implements Serializable {
 
+    private static final long serialVersionUID = 1L;
+
     private final long[] subpartitionBytes;
 
     public ResultPartitionBytes(long[] subpartitionBytes) {
