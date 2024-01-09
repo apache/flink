@@ -20,10 +20,14 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.View;
 
 import org.rocksdb.ColumnFamilyHandle;
+import org.rocksdb.HistogramData;
+import org.rocksdb.HistogramType;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.Statistics;
@@ -82,6 +86,11 @@ public class RocksDBNativeMetricMonitor implements Closeable {
                         String.format("rocksdb.%s", tickerType.name().toLowerCase()),
                         new RocksDBNativeStatisticsMetricView(tickerType));
             }
+            for (HistogramType histogramType : options.getMonitorHistogramTypes()) {
+                metricGroup.histogram(
+                        String.format("rocksdb.%s", histogramType.name().toLowerCase()),
+                        new RocksDBNativeHistogramStatisticsMetricView(histogramType));
+            }
         }
     }
 
@@ -131,6 +140,18 @@ public class RocksDBNativeMetricMonitor implements Closeable {
         if (statistics != null) {
             synchronized (lock) {
                 metricView.setValue(statistics.getTickerCount(metricView.tickerType));
+            }
+        }
+    }
+
+    private void setHistogramStatistics(RocksDBNativeHistogramStatisticsMetricView metricView) {
+        if (metricView.isClosed()) {
+            return;
+        }
+        if (statistics != null) {
+            synchronized (lock) {
+                HistogramData histogramData = statistics.getHistogramData(metricView.histogramType);
+                metricView.setValue(histogramData);
             }
         }
     }
@@ -229,6 +250,90 @@ public class RocksDBNativeMetricMonitor implements Closeable {
         @Override
         public void update() {
             setStatistics(this);
+        }
+    }
+
+    /**
+     * A gauge which periodically pulls a RocksDB statistics-based native statistic metric for the database.
+     */
+    class RocksDBNativeHistogramStatisticsMetricView extends RocksDBNativeView implements Histogram {
+        private final HistogramType histogramType;
+
+        private HistogramData histogramData;
+
+        private RocksDBNativeHistogramStatisticsMetricView(HistogramType histogramType) {
+            this.histogramType = histogramType;
+        }
+
+        void setValue(HistogramData histogramData) {
+            this.histogramData = histogramData;
+        }
+
+        @Override
+        public void update() {
+            setHistogramStatistics(this);
+        }
+
+        @Override
+        public void update(long value) {
+        }
+
+        @Override
+        public long getCount() {
+            return histogramData == null ? 0 : histogramData.getCount();
+        }
+
+        @Override
+        public HistogramStatistics getStatistics() {
+            return new RocksDBNativeHistogram();
+        }
+
+        class RocksDBNativeHistogram extends HistogramStatistics {
+
+            @Override
+            public double getQuantile(double quantile) {
+                if (histogramData == null) {
+                    return 0;
+                } else if (quantile == 0.5) {
+                    return histogramData.getMedian();
+                } else if (quantile == 0.95) {
+                    return histogramData.getPercentile95();
+                } else if (quantile == 0.99) {
+                    return histogramData.getPercentile99();
+                } else {
+                    return 0;
+                }
+            }
+
+            @Override
+            public long[] getValues() {
+                return new long[0];
+            }
+
+            @Override
+            public int size() {
+                return 0;
+            }
+
+            @Override
+            public double getMean() {
+                return histogramData == null ? 0 : histogramData.getAverage();
+            }
+
+            @Override
+            public double getStdDev() {
+                return histogramData == null ? 0 : histogramData.getStandardDeviation();
+            }
+
+            @Override
+            public long getMax() {
+                return histogramData == null ? 0 : (long) histogramData.getMax();
+            }
+
+            @Override
+            public long getMin() {
+                return histogramData == null ? 0 : (long) histogramData.getMin();
+            }
         }
     }
 }

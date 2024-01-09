@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 
+import org.rocksdb.HistogramType;
 import org.rocksdb.TickerType;
 
 import java.io.Serializable;
@@ -302,6 +303,20 @@ public class RocksDBNativeMetricOptions implements Serializable {
                     .withDescription(
                             "Monitor the duration of writer requiring to wait for compaction or flush to finish in RocksDB.");
 
+    public static final ConfigOption<Boolean> MONITOR_DB_GET =
+            ConfigOptions.key("state.backend.rocksdb.metrics.db_get")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Monitor the metric that measures the time taken for a RocksDB database to perform a read operation in microseconds");
+
+    public static final ConfigOption<Boolean> MONITOR_DB_WRITE =
+            ConfigOptions.key("state.backend.rocksdb.metrics.db_write")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Monitor the metric that measures the time taken for a RocksDB database to perform a write operation in microseconds");
+
     /** Creates a {@link RocksDBNativeMetricOptions} based on an external configuration. */
     public static RocksDBNativeMetricOptions fromConfig(ReadableConfig config) {
         RocksDBNativeMetricOptions options = new RocksDBNativeMetricOptions();
@@ -426,6 +441,11 @@ public class RocksDBNativeMetricOptions implements Serializable {
                 options.monitorTickerTypes.add(entry.getValue());
             }
         }
+        for (Map.Entry<ConfigOption<Boolean>, HistogramType> entry : histogramTypeMapping.entrySet()) {
+            if (config.get(entry.getKey())) {
+                options.monitorHistoGramTypes.add(entry.getValue());
+            }
+        }
     }
 
     private static final Map<ConfigOption<Boolean>, TickerType> tickerTypeMapping =
@@ -444,13 +464,25 @@ public class RocksDBNativeMetricOptions implements Serializable {
                 }
             };
 
+    private static final Map<ConfigOption<Boolean>, HistogramType> histogramTypeMapping =
+            new HashMap<ConfigOption<Boolean>, HistogramType>() {
+                private static final long serialVersionUID = 1L;
+
+                {
+                    put(MONITOR_DB_GET, HistogramType.DB_GET);
+                    put(MONITOR_DB_WRITE, HistogramType.DB_WRITE);
+                }
+            };
+
     private final Set<String> properties;
     private final Set<TickerType> monitorTickerTypes;
+    private final Set<HistogramType> monitorHistoGramTypes;
     private boolean columnFamilyAsVariable = COLUMN_FAMILY_AS_VARIABLE.defaultValue();
 
     public RocksDBNativeMetricOptions() {
         this.properties = new HashSet<>();
         this.monitorTickerTypes = new HashSet<>();
+        this.monitorHistoGramTypes = new HashSet<>();
     }
 
     @VisibleForTesting
@@ -461,6 +493,18 @@ public class RocksDBNativeMetricOptions implements Serializable {
         } else {
             throw new IllegalArgumentException(
                     "Unknown configurable native statistics option " + nativeStatisticsOption);
+        }
+    }
+
+    @VisibleForTesting
+    public void enableNativeHistogramStatistics(ConfigOption<Boolean> nativeStatisticsOption) {
+        HistogramType histogramType = histogramTypeMapping.get(nativeStatisticsOption);
+        if (histogramType != null) {
+            monitorHistoGramTypes.add(histogramType);
+        } else {
+            throw new IllegalArgumentException(
+                    "Unknown configurable native histogram statistics option "
+                            + nativeStatisticsOption);
         }
     }
 
@@ -622,9 +666,14 @@ public class RocksDBNativeMetricOptions implements Serializable {
         return Collections.unmodifiableCollection(properties);
     }
 
-    /** @return the enabled RocksDB statistics metrics. */
+    /** @return the enabled RocksDB ticker statistics metrics. */
     public Collection<TickerType> getMonitorTickerTypes() {
         return Collections.unmodifiableCollection(monitorTickerTypes);
+    }
+
+    /** @return the enabled RocksDB histogram statistics metrics. */
+    public Collection<HistogramType> getMonitorHistogramTypes() {
+        return Collections.unmodifiableCollection(monitorHistoGramTypes);
     }
 
     /**
@@ -638,7 +687,7 @@ public class RocksDBNativeMetricOptions implements Serializable {
 
     /** @return true if RocksDB statistics metrics are enabled, false otherwise. */
     public boolean isStatisticsEnabled() {
-        return !monitorTickerTypes.isEmpty();
+        return !monitorTickerTypes.isEmpty() && !monitorHistoGramTypes.isEmpty();
     }
 
     /**
