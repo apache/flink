@@ -47,6 +47,7 @@ class PeriodicMaterializationManagerTest {
                         MaterializationTarget.NO_OP,
                         new ChangelogMaterializationMetricGroup(
                                 UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup()),
+                        true,
                         periodicMaterializeDelay,
                         0,
                         "subtask-0",

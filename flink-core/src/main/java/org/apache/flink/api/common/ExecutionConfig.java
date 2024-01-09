@@ -287,6 +287,16 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     }
 
     @Internal
+    public boolean isPeriodicMaterializeEnabled() {
+        return configuration.get(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED);
+    }
+
+    @Internal
+    public void enablePeriodicMaterialize(boolean enabled) {
+        configuration.setBoolean(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED, enabled);
+    }
+
+    @Internal
     public long getPeriodicMaterializeIntervalMillis() {
         return configuration
                 .get(StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL)
@@ -1179,6 +1189,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 .getOptional(MetricOptions.LATENCY_INTERVAL)
                 .ifPresent(this::setLatencyTrackingInterval);
 
+        configuration
+                .getOptional(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED)
+                .ifPresent(this::enablePeriodicMaterialize);
         configuration
                 .getOptional(StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL)
                 .ifPresent(this::setPeriodicMaterializeIntervalMillis);

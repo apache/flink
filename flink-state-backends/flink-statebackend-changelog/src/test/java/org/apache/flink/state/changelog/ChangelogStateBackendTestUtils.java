@@ -399,6 +399,7 @@ public class ChangelogStateBackendTestUtils {
                 (message, exception) -> asyncComplete.completeExceptionally(exception),
                 keyedBackend,
                 new ChangelogMaterializationMetricGroup(metricGroup),
+                true,
                 10,
                 1,
                 "testTask");
