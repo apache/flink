@@ -163,7 +163,7 @@ class YarnEntrypointUtilsTest {
                 Files.createTempDirectory(tempBaseDir, UUID.randomUUID().toString()).toFile();
         env.put(ApplicationConstants.Environment.NM_HOST.key(), "foobar");
         BootstrapTools.writeConfiguration(
-                initialConfiguration, new File(workingDirectory, "flink-conf.yaml"));
+                initialConfiguration, new File(workingDirectory, "config.yaml"));
         return YarnEntrypointUtils.loadConfiguration(
                 workingDirectory.getAbsolutePath(), dynamicParameters, env);
     }

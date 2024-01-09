@@ -83,8 +83,8 @@ set;
 |        execution.shutdown-on-attached-exit |     false |
 |                           execution.target |    remote |
 |                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
-|                        pipeline.classpaths |           |
-|                              pipeline.jars |           |
+|                        pipeline.classpaths |        [] |
+|                              pipeline.jars |        [] |
 |                                  rest.port |     $VAR_REST_PORT |
 |         sql-client.display.print-time-cost |     false |
 |           sql-client.execution.result-mode |   tableau |
@@ -108,8 +108,8 @@ set;
 |        execution.shutdown-on-attached-exit |     false |
 |                           execution.target |    remote |
 |                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
-|                        pipeline.classpaths |           |
-|                              pipeline.jars |           |
+|                        pipeline.classpaths |        [] |
+|                              pipeline.jars |        [] |
 |                                  rest.port |     $VAR_REST_PORT |
 +--------------------------------------------+-----------+
 9 rows in set
@@ -149,8 +149,8 @@ set;
 |        execution.shutdown-on-attached-exit |     false |
 |                           execution.target |    remote |
 |                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
-|                        pipeline.classpaths |           |
-|                              pipeline.jars |           |
+|                        pipeline.classpaths |        [] |
+|                              pipeline.jars |        [] |
 |                                  rest.port |     $VAR_REST_PORT |
 |                         sql-client.verbose |      true |
 +--------------------------------------------+-----------+
@@ -175,8 +175,8 @@ set;
 |        execution.shutdown-on-attached-exit |     false |
 |                           execution.target |    remote |
 |                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
-|                        pipeline.classpaths |           |
-|                              pipeline.jars |           |
+|                        pipeline.classpaths |        [] |
+|                              pipeline.jars |        [] |
 |                                  rest.port |     $VAR_REST_PORT |
 |                         sql-client.verbose |      true |
 +--------------------------------------------+-----------+
@@ -207,8 +207,8 @@ set;
 |        execution.shutdown-on-attached-exit |     false |
 |                           execution.target |    remote |
 |                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
-|                        pipeline.classpaths |           |
-|                              pipeline.jars |           |
+|                        pipeline.classpaths |        [] |
+|                              pipeline.jars |        [] |
 |                                  rest.port |     $VAR_REST_PORT |
 |                         sql-client.verbose |      true |
 +--------------------------------------------+-----------+

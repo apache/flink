@@ -69,7 +69,7 @@ public final class GlobalConfiguration {
     // the hidden content to be displayed
     public static final String HIDDEN_CONTENT = "******";
 
-    private static boolean standardYaml = false;
+    private static boolean standardYaml = true;
 
     // --------------------------------------------------------------------------------------------
 

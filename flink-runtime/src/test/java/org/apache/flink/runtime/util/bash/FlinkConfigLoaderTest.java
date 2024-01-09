@@ -77,7 +77,7 @@ public class FlinkConfigLoaderTest {
 
     @AfterAll
     static void after() {
-        // clean the standard yaml flag to avoid has impact to other cases.
+        // clean the standard yaml flag to avoid impact to other cases.
         GlobalConfiguration.setStandardYaml(true);
     }
 

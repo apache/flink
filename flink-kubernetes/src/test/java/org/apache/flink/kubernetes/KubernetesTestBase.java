@@ -105,8 +105,7 @@ public class KubernetesTestBase {
     }
 
     protected void writeFlinkConfiguration() throws IOException {
-        BootstrapTools.writeConfiguration(
-                this.flinkConfig, new File(flinkConfDir, "flink-conf.yaml"));
+        BootstrapTools.writeConfiguration(this.flinkConfig, new File(flinkConfDir, "config.yaml"));
     }
 
     protected Map<String, String> getCommonLabels() {
