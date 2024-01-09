@@ -21,9 +21,12 @@ package org.apache.flink.yarn;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigUtils;
-import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.util.HadoopUtils;
+import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
@@ -113,6 +116,9 @@ public final class Utils {
     @VisibleForTesting
     static final String YARN_RM_INCREMENT_ALLOCATION_VCORES_LEGACY_KEY =
             "yarn.scheduler.increment-allocation-vcores";
+
+    @VisibleForTesting
+    static final String IGNORE_UNRECOGNIZED_VM_OPTIONS = "-XX:+IgnoreUnrecognizedVMOptions";
 
     private static final int DEFAULT_YARN_RM_INCREMENT_ALLOCATION_VCORES = 1;
 
@@ -386,7 +392,7 @@ public final class Utils {
         boolean hasLog4j = new File(workingDirectory, "log4j.properties").exists();
 
         String launchCommand =
-                BootstrapTools.getTaskManagerShellCommand(
+                getTaskManagerShellCommand(
                         flinkConfig,
                         tmParams,
                         ".",
@@ -469,6 +475,123 @@ public final class Utils {
         }
 
         return ctx;
+    }
+
+    /**
+     * Generates the shell command to start a task manager.
+     *
+     * @param flinkConfig The Flink configuration.
+     * @param tmParams Parameters for the task manager.
+     * @param configDirectory The configuration directory for the flink-conf.yaml
+     * @param logDirectory The log directory.
+     * @param hasLogback Uses logback?
+     * @param hasLog4j Uses log4j?
+     * @param mainClass The main class to start with.
+     * @return A String containing the task manager startup command.
+     */
+    public static String getTaskManagerShellCommand(
+            org.apache.flink.configuration.Configuration flinkConfig,
+            ContaineredTaskManagerParameters tmParams,
+            String configDirectory,
+            String logDirectory,
+            boolean hasLogback,
+            boolean hasLog4j,
+            boolean hasKrb5,
+            Class<?> mainClass,
+            String mainArgs) {
+
+        final Map<String, String> startCommandValues = new HashMap<>();
+        startCommandValues.put("java", "$JAVA_HOME/bin/java");
+
+        final TaskExecutorProcessSpec taskExecutorProcessSpec =
+                tmParams.getTaskExecutorProcessSpec();
+        startCommandValues.put(
+                "jvmmem", ProcessMemoryUtils.generateJvmParametersStr(taskExecutorProcessSpec));
+
+        String javaOpts = flinkConfig.getString(CoreOptions.FLINK_JVM_OPTIONS);
+        if (flinkConfig.getString(CoreOptions.FLINK_TM_JVM_OPTIONS).length() > 0) {
+            javaOpts += " " + flinkConfig.getString(CoreOptions.FLINK_TM_JVM_OPTIONS);
+        }
+        javaOpts += " " + IGNORE_UNRECOGNIZED_VM_OPTIONS;
+
+        // krb5.conf file will be available as local resource in JM/TM container
+        if (hasKrb5) {
+            javaOpts += " -Djava.security.krb5.conf=krb5.conf";
+        }
+        startCommandValues.put("jvmopts", javaOpts);
+
+        String logging = "";
+        if (hasLogback || hasLog4j) {
+            logging = "-Dlog.file=" + logDirectory + "/taskmanager.log";
+            if (hasLogback) {
+                logging += " -Dlogback.configurationFile=file:" + configDirectory + "/logback.xml";
+            }
+            if (hasLog4j) {
+                logging += " -Dlog4j.configuration=file:" + configDirectory + "/log4j.properties";
+                logging +=
+                        " -Dlog4j.configurationFile=file:" + configDirectory + "/log4j.properties";
+            }
+        }
+
+        startCommandValues.put("logging", logging);
+        startCommandValues.put("class", mainClass.getName());
+        startCommandValues.put(
+                "redirects",
+                "1> "
+                        + logDirectory
+                        + "/taskmanager.out "
+                        + "2> "
+                        + logDirectory
+                        + "/taskmanager.err");
+
+        String argsStr =
+                TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec)
+                        + " --configDir "
+                        + configDirectory;
+        if (!mainArgs.isEmpty()) {
+            argsStr += " " + mainArgs;
+        }
+        startCommandValues.put("args", argsStr);
+
+        final String commandTemplate =
+                flinkConfig.getString(
+                        ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
+                        ConfigConstants.DEFAULT_YARN_CONTAINER_START_COMMAND_TEMPLATE);
+        String startCommand = getStartCommand(commandTemplate, startCommandValues);
+        LOG.debug("TaskManager start command: " + startCommand);
+
+        return startCommand;
+    }
+
+    /**
+     * Replaces placeholders in the template start command with values from startCommandValues.
+     *
+     * <p>If the default template {@link
+     * ConfigConstants#DEFAULT_YARN_CONTAINER_START_COMMAND_TEMPLATE} is used, the following keys
+     * must be present in the map or the resulting command will still contain placeholders:
+     *
+     * <ul>
+     *   <li><tt>java</tt> = path to the Java executable
+     *   <li><tt>jvmmem</tt> = JVM memory limits and tweaks
+     *   <li><tt>jvmopts</tt> = misc options for the Java VM
+     *   <li><tt>logging</tt> = logging-related configuration settings
+     *   <li><tt>class</tt> = main class to execute
+     *   <li><tt>args</tt> = arguments for the main class
+     *   <li><tt>redirects</tt> = output redirects
+     * </ul>
+     *
+     * @param template a template start command with placeholders
+     * @param startCommandValues a replacement map <tt>placeholder -&gt; value</tt>
+     * @return the start command with placeholders filled in
+     */
+    public static String getStartCommand(String template, Map<String, String> startCommandValues) {
+        for (Map.Entry<String, String> variable : startCommandValues.entrySet()) {
+            template =
+                    template.replace("%" + variable.getKey() + "%", variable.getValue())
+                            .replace("  ", " ")
+                            .trim();
+        }
+        return template;
     }
 
     static boolean isRemotePath(String path) throws IOException {
