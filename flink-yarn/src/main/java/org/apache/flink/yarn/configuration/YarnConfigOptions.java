@@ -421,6 +421,25 @@ public class YarnConfigOptions {
                                                     "yarn-default.xml"))
                                     .build());
 
+    public static final ConfigOption<String> YARN_CONTAINER_START_COMMAND_TEMPLATE =
+            key("yarn.container-start-command-template")
+                    .stringType()
+                    .defaultValue("%java% %jvmmem% %jvmopts% %logging% %class% %args% %redirects%")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "This configuration parameter allows users to pass custom settings (such as JVM paths, arguments etc.) to start the YARN. The following placeholders will be replaced: ")
+                                    .list(
+                                            text("%java%: Path to the Java executable"),
+                                            text("%jvmmem%: JVM memory limits and tweaks"),
+                                            text("%jvmopts%: Options for the Java VM"),
+                                            text(
+                                                    "%logging%: Logging-related configuration settings"),
+                                            text("%class%: Main class to execute"),
+                                            text("%args%: Arguments for the main class"),
+                                            text("%redirects%: Output redirects"))
+                                    .build());
+
     /**
      * Defines the configuration key of that external resource in Yarn. This is used as a suffix in
      * an actual config.

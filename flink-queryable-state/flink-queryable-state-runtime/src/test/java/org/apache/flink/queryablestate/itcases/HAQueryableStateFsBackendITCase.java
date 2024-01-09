@@ -19,7 +19,6 @@
 package org.apache.flink.queryablestate.itcases;
 
 import org.apache.flink.client.program.rest.RestClusterClient;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.MemorySize;
@@ -46,7 +45,6 @@ import java.nio.file.Path;
 /** Several integration tests for queryable state using the {@link FsStateBackend}. */
 class HAQueryableStateFsBackendITCase extends AbstractQueryableStateTestBase {
 
-    private static final int NUM_JMS = 2;
     // NUM_TMS * NUM_SLOTS_PER_TM must match the parallelism of the pipelines so that
     // we always use all TaskManagers so that the JM oracle is always properly re-registered
     private static final int NUM_TMS = 2;
@@ -104,8 +102,7 @@ class HAQueryableStateFsBackendITCase extends AbstractQueryableStateTestBase {
         Configuration config = new Configuration();
         config.setBoolean(QueryableStateOptions.ENABLE_QUERYABLE_STATE_PROXY_SERVER, true);
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
-        config.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, NUM_JMS);
-        config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
+        config.set(TaskManagerOptions.MINI_CLUSTER_NUM_TASK_MANAGERS, NUM_TMS);
         config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
         config.setInteger(QueryableStateOptions.CLIENT_NETWORK_THREADS, 2);
         config.setInteger(QueryableStateOptions.PROXY_NETWORK_THREADS, 2);

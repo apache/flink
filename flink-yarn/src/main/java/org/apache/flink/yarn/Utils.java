@@ -73,6 +73,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 import static org.apache.flink.yarn.YarnConfigKeys.LOCAL_RESOURCE_DESCRIPTOR_SEPARATOR;
+import static org.apache.flink.yarn.configuration.YarnConfigOptions.YARN_CONTAINER_START_COMMAND_TEMPLATE;
 
 /** Utility class that provides helper methods to work with Apache Hadoop YARN. */
 public final class Utils {
@@ -553,10 +554,7 @@ public final class Utils {
         }
         startCommandValues.put("args", argsStr);
 
-        final String commandTemplate =
-                flinkConfig.getString(
-                        ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
-                        ConfigConstants.DEFAULT_YARN_CONTAINER_START_COMMAND_TEMPLATE);
+        final String commandTemplate = flinkConfig.get(YARN_CONTAINER_START_COMMAND_TEMPLATE);
         String startCommand = getStartCommand(commandTemplate, startCommandValues);
         LOG.debug("TaskManager start command: " + startCommand);
 

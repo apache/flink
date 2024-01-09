@@ -25,7 +25,6 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.MemorySize;
@@ -233,7 +232,7 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
         // Flink configuration
         final Configuration config = new Configuration();
 
-        config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
+        config.set(TaskManagerOptions.MINI_CLUSTER_NUM_TASK_MANAGERS, 1);
         config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, DEFAULT_PARALLELISM);
 
         UUID id = UUID.randomUUID();

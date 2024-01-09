@@ -808,6 +808,31 @@ public class TaskManagerOptions {
                                                     code(TaskManagerLoadBalanceMode.NONE.name())))
                                     .build());
 
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    @Documentation.OverrideDefault("System.getProperty(\"log.file\")")
+    public static final ConfigOption<String> TASK_MANAGER_LOG_PATH =
+            ConfigOptions.key("taskmanager.log.path")
+                    .stringType()
+                    .defaultValue(System.getProperty("log.file"))
+                    .withDescription("The path to the log file of the task manager.");
+
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<Duration> FS_STREAM_OPENING_TIME_OUT =
+            ConfigOptions.key("taskmanager.runtime.fs-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ZERO)
+                    .withDeprecatedKeys("taskmanager.runtime.fs_timeout")
+                    .withDescription(
+                            "The timeout for filesystem stream opening. A value of 0 indicates infinite waiting.");
+
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<Integer> MINI_CLUSTER_NUM_TASK_MANAGERS =
+            ConfigOptions.key("minicluster.number-of-taskmanagers")
+                    .intType()
+                    .defaultValue(1)
+                    .withDeprecatedKeys("local.number-taskmanager")
+                    .withDescription("The number of task managers of MiniCluster.");
+
     /** Type of redirection of {@link System#out} and {@link System#err}. */
     public enum SystemOutMode {
 
