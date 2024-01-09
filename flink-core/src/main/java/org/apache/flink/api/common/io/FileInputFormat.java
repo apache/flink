@@ -1140,5 +1140,6 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
     private static final String FILE_PARAMETER_KEY = "input.file.path";
 
     /** The config parameter which defines whether input directories are recursively traversed. */
+    @Deprecated
     public static final String ENUMERATE_NESTED_FILES_FLAG = "recursive.file.enumeration";
 }
