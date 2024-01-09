@@ -149,7 +149,6 @@ public class OperatorCoordinatorHolder
 
         this.globalFailureHandler = globalFailureHandler;
         this.mainThreadExecutor = mainThreadExecutor;
-        context.lazyInitialize(globalFailureHandler, mainThreadExecutor, checkpointCoordinator);
 
         context.lazyInitialize(globalFailureHandler, mainThreadExecutor, checkpointCoordinator);
         setupAllSubtaskGateways();
