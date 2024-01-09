@@ -23,8 +23,6 @@ import org.apache.flink.table.data.utils.CastExecutor;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import javax.annotation.Nullable;
-
 import java.time.ZoneId;
 
 /**
@@ -70,7 +68,8 @@ public interface CastRule<IN, OUT> {
                 boolean isPrinting,
                 boolean legacyBehaviour,
                 ZoneId zoneId,
-                ClassLoader classLoader) {
+                ClassLoader classLoader,
+                CodeGeneratorContext codeGeneratorContext) {
             return new Context() {
                 @Override
                 public boolean isPrinting() {
@@ -93,14 +92,12 @@ public interface CastRule<IN, OUT> {
                 }
 
                 @Override
-                @Nullable
                 public CodeGeneratorContext getCodeGeneratorContext() {
-                    return null;
+                    return codeGeneratorContext;
                 }
             };
         }
 
-        @Nullable
         CodeGeneratorContext getCodeGeneratorContext();
     }
 }
