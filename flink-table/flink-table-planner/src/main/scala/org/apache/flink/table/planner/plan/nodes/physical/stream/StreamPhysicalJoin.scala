@@ -17,16 +17,15 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.table.planner.{JInt, JList, JLong}
+import org.apache.flink.table.planner.JList
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.hint.{FlinkHints, StateTtlHint}
+import org.apache.flink.table.planner.hint.StateTtlHint
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecJoin
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
 import org.apache.flink.table.planner.plan.utils.JoinUtil
 import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapClassLoader, unwrapTableConfig}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
-import org.apache.flink.util.TimeUtils
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.{RelNode, RelWriter}
@@ -34,8 +33,6 @@ import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
-
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -123,19 +120,6 @@ class StreamPhysicalJoin(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
-    val stateTtlFromHint = new util.HashMap[JInt, JLong]
-    getHints
-      .filter(hint => StateTtlHint.isStateTtlHint(hint.hintName))
-      .forEach {
-        hint =>
-          hint.kvOptions.forEach(
-            (input, ttl) =>
-              stateTtlFromHint
-                .put(
-                  if (input == FlinkHints.LEFT_INPUT) 0 else 1,
-                  TimeUtils.parseDuration(ttl).toMillis))
-      }
-
     new StreamExecJoin(
       unwrapTableConfig(this),
       joinSpec,
@@ -143,7 +127,7 @@ class StreamPhysicalJoin(
       getUpsertKeys(right, joinSpec.getRightKeys),
       InputProperty.DEFAULT,
       InputProperty.DEFAULT,
-      stateTtlFromHint,
+      StateTtlHint.getStateTtlFromHint(getHints),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

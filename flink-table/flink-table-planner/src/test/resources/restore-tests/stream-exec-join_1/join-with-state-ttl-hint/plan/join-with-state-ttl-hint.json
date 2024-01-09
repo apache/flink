@@ -197,7 +197,7 @@
       "name" : "leftState"
     }, {
       "index" : 1,
-      "ttl" : "8 d",
+      "ttl" : "4 d",
       "name" : "rightState"
     } ],
     "inputProperties" : [ {

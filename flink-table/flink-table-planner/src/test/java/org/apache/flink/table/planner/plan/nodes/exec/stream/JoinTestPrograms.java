@@ -462,7 +462,7 @@ public class JoinTestPrograms {
                                         .build())
                         .runSql(
                                 String.format(
-                                        "INSERT INTO MySink SELECT /*+ STATE_TTL('v1' = '1d', 'v2' = '8d') */deptno, department_num FROM (%s) v1 JOIN (%s) v2 ON deptno = department_num",
+                                        "INSERT INTO MySink SELECT /*+ STATE_TTL('v1' = '1d', 'v2' = '4d'), STATE_TTL('v2' = '8d') */deptno, department_num FROM (%s) v1 JOIN (%s) v2 ON deptno = department_num",
                                         query1, query2))
                         .build();
     }

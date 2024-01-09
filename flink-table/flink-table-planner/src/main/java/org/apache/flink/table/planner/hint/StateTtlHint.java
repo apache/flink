@@ -18,7 +18,13 @@
 
 package org.apache.flink.table.planner.hint;
 
+import org.apache.flink.util.TimeUtils;
+
+import org.apache.calcite.rel.hint.RelHint;
+
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Hint strategy to configure different {@link
@@ -52,5 +58,36 @@ public enum StateTtlHint {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /**
+     * Merge the state ttl from hints, and the first ttl with same input side will finally be
+     * chosen.
+     *
+     * @return The key of the map is the side of the join (0 represents the left, and 1 represents
+     *     the right). The value of the map is the state ttl in milliseconds.
+     */
+    public static Map<Integer, Long> getStateTtlFromHint(List<RelHint> hints) {
+        Map<Integer, Long> stateTtlFromHint = new java.util.HashMap<>();
+        hints.stream()
+                .filter(hint -> StateTtlHint.isStateTtlHint(hint.hintName))
+                .forEach(
+                        hint ->
+                                hint.kvOptions.forEach(
+                                        (input, ttl) -> {
+                                            int side;
+                                            if (FlinkHints.LEFT_INPUT.equals(input)) {
+                                                side = 0;
+                                            } else {
+                                                side = 1;
+                                            }
+
+                                            // choose the first hint to take effect
+                                            stateTtlFromHint.computeIfAbsent(
+                                                    side,
+                                                    key -> TimeUtils.parseDuration(ttl).toMillis());
+                                        }));
+
+        return stateTtlFromHint;
     }
 }
