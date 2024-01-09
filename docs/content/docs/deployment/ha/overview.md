@@ -53,7 +53,7 @@ As an example, consider the following setup with three JobManager instances:
 {{< img src="/fig/jobmanager_ha_overview.png" class="center" >}}
 
 Flink's [high availability services](#high-availability-services) encapsulate the required services to make everything work:
-* **Leader election**: Selecting a single leader out of a pool of `n` candidates
+* **Leader selection**: Selecting a single leader out of a pool of `n` candidates
 * **Service discovery**: Retrieving the address of the current leader
 * **State persistence**: Persisting state which is required for the successor to resume the job execution (JobGraphs, user code jars, completed checkpoints)
 
