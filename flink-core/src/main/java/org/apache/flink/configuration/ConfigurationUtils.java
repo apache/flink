@@ -349,28 +349,39 @@ public class ConfigurationUtils {
         if (rawValue instanceof List) {
             return (T) rawValue;
         } else if (standardYaml) {
-            List<Object> data = YamlParserUtils.convertToObject(rawValue.toString(), List.class);
-            // The Yaml parser conversion results in data of type List<Map<Object, Object>>, such as
-            // List<Map<Object, Boolean>>. However, ConfigOption currently requires that the data
-            // for Map type be strictly of the type Map<String, String>. Therefore, we convert each
-            // map in the list to Map<String, String>.
-            if (atomicClass == Map.class) {
+            try {
+                List<Object> data =
+                        YamlParserUtils.convertToObject(rawValue.toString(), List.class);
+                // The Yaml parser conversion results in data of type List<Map<Object, Object>>,
+                // such as List<Map<Object, Boolean>>. However, ConfigOption currently requires that
+                // the data for Map type be strictly of the type Map<String, String>. Therefore, we
+                // convert each map in the list to Map<String, String>.
+                if (atomicClass == Map.class) {
+                    return (T)
+                            data.stream()
+                                    .map(map -> convertToStringMap((Map<Object, Object>) map, true))
+                                    .collect(Collectors.toList());
+                }
+
                 return (T)
                         data.stream()
-                                .map(map -> convertToStringMap((Map<Object, Object>) map, true))
+                                .map(s -> convertValue(s, atomicClass, true))
                                 .collect(Collectors.toList());
+            } catch (Exception e) {
+                // Fallback to legacy pattern
+                return convertToListWithLegacyProperties(rawValue, atomicClass);
             }
-
-            return (T)
-                    data.stream()
-                            .map(s -> convertValue(s, atomicClass, true))
-                            .collect(Collectors.toList());
         } else {
-            return (T)
-                    StructuredOptionsSplitter.splitEscaped(rawValue.toString(), ';').stream()
-                            .map(s -> convertValue(s, atomicClass, false))
-                            .collect(Collectors.toList());
+            return convertToListWithLegacyProperties(rawValue, atomicClass);
         }
+    }
+
+    @Nonnull
+    private static <T> T convertToListWithLegacyProperties(Object rawValue, Class<?> atomicClass) {
+        return (T)
+                StructuredOptionsSplitter.splitEscaped(rawValue.toString(), ';').stream()
+                        .map(s -> convertValue(s, atomicClass, false))
+                        .collect(Collectors.toList());
     }
 
     @SuppressWarnings("unchecked")
@@ -378,22 +389,32 @@ public class ConfigurationUtils {
         if (o instanceof Map) {
             return (Map<String, String>) o;
         } else if (standardYaml) {
-            Map<Object, Object> map = YamlParserUtils.convertToObject(o.toString(), Map.class);
-            return convertToStringMap(map, true);
+            try {
+                Map<Object, Object> map = YamlParserUtils.convertToObject(o.toString(), Map.class);
+                return convertToStringMap(map, true);
+            } catch (Exception e) {
+                // Fallback to legacy pattern
+                return convertToPropertiesWithLegacyPattern(o);
+            }
         } else {
-            List<String> listOfRawProperties =
-                    StructuredOptionsSplitter.splitEscaped(o.toString(), ',');
-            return listOfRawProperties.stream()
-                    .map(s -> StructuredOptionsSplitter.splitEscaped(s, ':'))
-                    .peek(
-                            pair -> {
-                                if (pair.size() != 2) {
-                                    throw new IllegalArgumentException(
-                                            "Map item is not a key-value pair (missing ':'?)");
-                                }
-                            })
-                    .collect(Collectors.toMap(a -> a.get(0), a -> a.get(1)));
+            return convertToPropertiesWithLegacyPattern(o);
         }
+    }
+
+    @Nonnull
+    private static Map<String, String> convertToPropertiesWithLegacyPattern(Object o) {
+        List<String> listOfRawProperties =
+                StructuredOptionsSplitter.splitEscaped(o.toString(), ',');
+        return listOfRawProperties.stream()
+                .map(s -> StructuredOptionsSplitter.splitEscaped(s, ':'))
+                .peek(
+                        pair -> {
+                            if (pair.size() != 2) {
+                                throw new IllegalArgumentException(
+                                        "Map item is not a key-value pair (missing ':'?)");
+                            }
+                        })
+                .collect(Collectors.toMap(a -> a.get(0), a -> a.get(1)));
     }
 
     private static Map<String, String> convertToStringMap(
