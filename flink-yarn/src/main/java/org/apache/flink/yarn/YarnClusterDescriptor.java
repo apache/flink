@@ -146,6 +146,7 @@ import static org.apache.flink.yarn.Utils.getPathFromLocalFilePathStr;
 import static org.apache.flink.yarn.Utils.getStartCommand;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 import static org.apache.flink.yarn.YarnConfigKeys.LOCAL_RESOURCE_DESCRIPTOR_SEPARATOR;
+import static org.apache.flink.yarn.configuration.YarnConfigOptions.YARN_CONTAINER_START_COMMAND_TEMPLATE;
 
 /** The descriptor with deployment information for deploying a Flink cluster on Yarn. */
 public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
@@ -1895,9 +1896,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         startCommandValues.put("args", dynamicParameterListStr);
 
         final String commandTemplate =
-                flinkConfiguration.getString(
-                        ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
-                        ConfigConstants.DEFAULT_YARN_CONTAINER_START_COMMAND_TEMPLATE);
+                flinkConfiguration.get(YARN_CONTAINER_START_COMMAND_TEMPLATE);
         final String amCommand = getStartCommand(commandTemplate, startCommandValues);
 
         amContainer.setCommands(Collections.singletonList(amCommand));

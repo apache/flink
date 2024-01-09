@@ -18,7 +18,6 @@
 
 package org.apache.flink.client.program;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.RestOptions;
@@ -124,10 +123,7 @@ public final class PerJobMiniClusterFactory {
             configuration.setString(RestOptions.BIND_PORT, "0");
         }
 
-        int numTaskManagers =
-                configuration.getInteger(
-                        ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
-                        ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER);
+        int numTaskManagers = configuration.get(TaskManagerOptions.MINI_CLUSTER_NUM_TASK_MANAGERS);
 
         Map<String, String> overwriteParallelisms =
                 configuration.get(PipelineOptions.PARALLELISM_OVERRIDES);

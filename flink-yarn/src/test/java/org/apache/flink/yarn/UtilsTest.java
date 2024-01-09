@@ -44,6 +44,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Stream;
 
+import static org.apache.flink.yarn.configuration.YarnConfigOptions.YARN_CONTAINER_START_COMMAND_TEMPLATE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -561,8 +562,8 @@ class UtilsTest {
 
         // now try some configurations with different yarn.container-start-command-template
 
-        cfg.setString(
-                ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
+        cfg.set(
+                YARN_CONTAINER_START_COMMAND_TEMPLATE,
                 "%java% 1 %jvmmem% 2 %jvmopts% 3 %logging% 4 %class% 5 %args% 6 %redirects%");
         assertThat(
                         Utils.getTaskManagerShellCommand(
@@ -597,8 +598,8 @@ class UtilsTest {
                                 "6",
                                 redirects));
 
-        cfg.setString(
-                ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
+        cfg.set(
+                YARN_CONTAINER_START_COMMAND_TEMPLATE,
                 "%java% %logging% %jvmopts% %jvmmem% %class% %args% %redirects%");
         assertThat(
                         Utils.getTaskManagerShellCommand(

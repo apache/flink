@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>minicluster.number-of-taskmanagers</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The number of task managers of MiniCluster.</td>
+        </tr>
+        <tr>
             <td><h5>task.cancellation.interval</h5></td>
             <td style="word-wrap: break-word;">30000</td>
             <td>Long</td>
@@ -87,6 +93,12 @@
             <td>Mode for the load-balance allocation strategy across all available <code class="highlighter-rouge">TaskManagers</code>.<ul><li>The <code class="highlighter-rouge">SLOTS</code> mode tries to spread out the slots evenly across all available <code class="highlighter-rouge">TaskManagers</code>.</li><li>The <code class="highlighter-rouge">NONE</code> mode is the default mode without any specified strategy.</li></ul><br /><br />Possible values:<ul><li>"NONE"</li><li>"SLOTS"</li></ul></td>
         </tr>
         <tr>
+            <td><h5>taskmanager.log.path</h5></td>
+            <td style="word-wrap: break-word;">System.getProperty("log.file")</td>
+            <td>String</td>
+            <td>The path to the log file of the task manager.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.memory.min-segment-size</h5></td>
             <td style="word-wrap: break-word;">256 bytes</td>
             <td>MemorySize</td>
@@ -134,6 +146,12 @@
             <td style="word-wrap: break-word;">"0"</td>
             <td>String</td>
             <td>The external RPC port where the TaskManager is exposed. Accepts a list of ports (“50100,50101”), ranges (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid collisions when multiple TaskManagers are running on the same machine.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.runtime.fs-timeout</h5></td>
+            <td style="word-wrap: break-word;">0 ms</td>
+            <td>Duration</td>
+            <td>The timeout for filesystem stream opening. A value of 0 indicates infinite waiting.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.slot.timeout</h5></td>

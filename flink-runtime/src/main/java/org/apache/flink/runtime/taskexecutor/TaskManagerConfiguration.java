@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -214,8 +213,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
                 configuration.getBoolean(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY);
 
         final String taskManagerLogPath =
-                configuration.getString(
-                        ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, System.getProperty("log.file"));
+                configuration.get(TaskManagerOptions.TASK_MANAGER_LOG_PATH);
         final String taskManagerStdoutPath;
         final String taskManagerLogDir;
 

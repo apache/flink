@@ -187,7 +187,7 @@ class ExecutorImplITCase {
     private static Configuration getConfig() {
         Configuration config = new Configuration();
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
-        config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
+        config.set(TaskManagerOptions.MINI_CLUSTER_NUM_TASK_MANAGERS, NUM_TMS);
         config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
         config.setBoolean(WebOptions.SUBMIT_ENABLE, false);
         config.set(StateBackendOptions.STATE_BACKEND, "hashmap");

@@ -215,8 +215,12 @@ public final class ConfigConstants {
      */
     @Deprecated public static final String TASK_MANAGER_TMP_DIR_KEY = "taskmanager.tmp.dirs";
 
-    /** The config parameter defining the taskmanager log file location. */
-    public static final String TASK_MANAGER_LOG_PATH_KEY = "taskmanager.log.path";
+    /**
+     * The config parameter defining the taskmanager log file location.
+     *
+     * @deprecated Use {@link TaskManagerOptions#TASK_MANAGER_LOG_PATH} instead.
+     */
+    @Deprecated public static final String TASK_MANAGER_LOG_PATH_KEY = "taskmanager.log.path";
 
     /** @deprecated Use {@link TaskManagerOptions#MANAGED_MEMORY_SIZE} instead */
     @Deprecated public static final String TASK_MANAGER_MEMORY_SIZE_KEY = "taskmanager.memory.size";
@@ -350,7 +354,10 @@ public final class ConfigConstants {
     /**
      * The config parameter defining the timeout for filesystem stream opening. A value of 0
      * indicates infinite waiting.
+     *
+     * @deprecated use {@link TaskManagerOptions#FS_STREAM_OPENING_TIME_OUT} instead.
      */
+    @Deprecated
     public static final String FS_STREAM_OPENING_TIMEOUT_KEY = "taskmanager.runtime.fs_timeout";
 
     /**
@@ -496,7 +503,12 @@ public final class ConfigConstants {
      */
     @Deprecated public static final String YARN_TASK_MANAGER_ENV_PREFIX = "yarn.taskmanager.env.";
 
-    /** Template for the YARN container start invocation. */
+    /**
+     * Template for the YARN container start invocation.
+     *
+     * @deprecated in favor of {@code YarnConfigOptions#YARN_CONTAINER_START_COMMAND_TEMPLATE}.
+     */
+    @Deprecated
     public static final String YARN_CONTAINER_START_COMMAND_TEMPLATE =
             "yarn.container-start-command-template";
 
@@ -929,7 +941,7 @@ public final class ConfigConstants {
     @PublicEvolving @Deprecated public static final String HA_MODE = "high-availability";
 
     /** Ports used by the job manager if not in 'none' recovery mode. */
-    @PublicEvolving
+    @Deprecated
     public static final String HA_JOB_MANAGER_PORT = "high-availability.jobmanager.port";
 
     /** @deprecated Deprecated in favour of {@link #HA_MODE}. */
@@ -1203,7 +1215,7 @@ public final class ConfigConstants {
     @Deprecated public static final int DEFAULT_PARALLELISM = 1;
 
     /** The default number of execution retries. */
-    public static final int DEFAULT_EXECUTION_RETRIES = 0;
+    @Deprecated public static final int DEFAULT_EXECUTION_RETRIES = 0;
 
     // ------------------------------ Runtime ---------------------------------
 
@@ -1350,7 +1362,7 @@ public final class ConfigConstants {
     /**
      * The default timeout for filesystem stream opening: infinite (means max long milliseconds).
      */
-    public static final int DEFAULT_FS_STREAM_OPENING_TIMEOUT = 0;
+    @Deprecated public static final int DEFAULT_FS_STREAM_OPENING_TIMEOUT = 0;
 
     /**
      * Whether to use the LargeRecordHandler when spilling.
@@ -1416,10 +1428,10 @@ public final class ConfigConstants {
      * The default filesystem to be used, if no other scheme is specified in the user-provided URI
      * (= local filesystem).
      */
-    public static final String DEFAULT_FILESYSTEM_SCHEME = "file:///";
+    @Deprecated public static final String DEFAULT_FILESYSTEM_SCHEME = "file:///";
 
     /** The default behavior with respect to overwriting existing files (= not overwrite). */
-    public static final boolean DEFAULT_FILESYSTEM_OVERWRITE = false;
+    @Deprecated public static final boolean DEFAULT_FILESYSTEM_OVERWRITE = false;
 
     /**
      * The default behavior for output directory creating (create only directory when parallelism
@@ -1585,18 +1597,22 @@ public final class ConfigConstants {
 
     // ----------------------------- Streaming Values --------------------------
 
-    public static final String DEFAULT_STATE_BACKEND = "jobmanager";
+    @Deprecated public static final String DEFAULT_STATE_BACKEND = "jobmanager";
 
     // ----------------------------- LocalExecution ----------------------------
 
-    /** Sets the number of local task managers. */
-    public static final String LOCAL_NUMBER_TASK_MANAGER = "local.number-taskmanager";
+    /**
+     * Sets the number of local task managers.
+     *
+     * @deprecated use {@link TaskManagerOptions#MINI_CLUSTER_NUM_TASK_MANAGERS} instead
+     */
+    @Deprecated public static final String LOCAL_NUMBER_TASK_MANAGER = "local.number-taskmanager";
 
     public static final int DEFAULT_LOCAL_NUMBER_TASK_MANAGER = 1;
 
-    public static final String LOCAL_NUMBER_JOB_MANAGER = "local.number-jobmanager";
+    @Deprecated public static final String LOCAL_NUMBER_JOB_MANAGER = "local.number-jobmanager";
 
-    public static final int DEFAULT_LOCAL_NUMBER_JOB_MANAGER = 1;
+    @Deprecated public static final int DEFAULT_LOCAL_NUMBER_JOB_MANAGER = 1;
 
     /** @deprecated Use {@link ResourceManagerOptions#LOCAL_NUMBER_RESOURCE_MANAGER} instead. */
     @Deprecated
@@ -1753,7 +1769,7 @@ public final class ConfigConstants {
     public static final String DEFAULT_FLINK_PLUGINS_DIRS = "plugins";
 
     /** The environment variable name which contains the location of the bin directory. */
-    public static final String ENV_FLINK_BIN_DIR = "FLINK_BIN_DIR";
+    @Deprecated public static final String ENV_FLINK_BIN_DIR = "FLINK_BIN_DIR";
 
     /** The environment variable name which contains the Flink installation root directory. */
     public static final String ENV_FLINK_HOME_DIR = "FLINK_HOME";

@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.program.PerJobMiniClusterFactory;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -97,7 +96,7 @@ public class LocalExecutor implements PipelineExecutor {
                     configuration.getInteger(
                             TaskManagerOptions.NUM_TASK_SLOTS, plan.getMaximumParallelism());
             final int numTaskManagers =
-                    configuration.getInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
+                    configuration.get(TaskManagerOptions.MINI_CLUSTER_NUM_TASK_MANAGERS);
 
             plan.setDefaultParallelism(slotsPerTaskManager * numTaskManagers);
         }
