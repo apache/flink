@@ -114,8 +114,6 @@ public class ProfilingService implements Closeable {
                     profilingInfo.fail("Start profiler failed. " + e));
         }
 
-        scheduledExecutor.schedule(() -> stopProfiling(resourceID), duration, TimeUnit.SECONDS);
-
         this.profilingFuture = new ProfilingFuture(duration, () -> stopProfiling(resourceID));
         return CompletableFuture.completedFuture(profilingInfo);
     }
