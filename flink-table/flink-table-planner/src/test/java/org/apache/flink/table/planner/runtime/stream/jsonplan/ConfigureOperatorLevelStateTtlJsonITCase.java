@@ -121,8 +121,26 @@ class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
                 "`ord_cnt` BIGINT",
                 "`quantity_cnt` BIGINT",
                 "`total_amount` DOUBLE");
-
         compileSqlAndExecutePlan(sql, jsonPlanTransformer).await();
+
+        // with deduplicate state's TTL as 6s, record (+I,2,Jerry,2,99.9) will duplicate itself
+        // +-------------------+--------------------------------------+------------------+
+        // |        data       | diff(last_arriving, first_arriving) | within_time_range |
+        // +-------------------+-------------------------------------+-------------------+
+        // | 1,Tom,1,199.9     |                 4s                  |         Y         |
+        // +-------------------+-------------------------------------+-------------------+
+        // | 2,Jerry,2,99.9    |                 10s                  |        N         |
+        // +-------------------+-------------------------------------+-------------------+
+        // | 3,Tom,1,29.9      |                 0s                  |         Y         |
+        // +-------------------+-------------------------------------+-------------------+
+        // | 4,Olivia,1,100    |                 2s                  |         Y         |
+        // +-------------------+-------------------------------------+-------------------+
+        // | 5,Michael,3,599.9 |                 0s                  |         Y         |
+        // +-------------------+-------------------------------------+-------------------+
+        // | 6,Olivia,3,1000   |                 0s                  |         Y         |
+        // +-------------------+-------------------------------------+-------------------+
+
+        // with group-aggregate state's TTL as 9s, record (+I,2,Jerry,2,99.9) will be counted twice
         List<String> expected =
                 Arrays.asList(
                         "+I[Tom, 2, 2, 229.8]",

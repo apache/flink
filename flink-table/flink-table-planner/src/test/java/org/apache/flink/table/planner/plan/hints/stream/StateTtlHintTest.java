@@ -86,14 +86,14 @@ class StateTtlHintTest extends TableTestBase {
     }
 
     @Test
-    void testJoinStateTtlHintWithContinuousJoin() {
+    void testJoinStateTtlHintWithCascadeJoin() {
         String sql =
                 "select /*+ STATE_TTL('T2' = '2d', 'T3' = '3d', 'T1' = '1d') */* from T1, T2, T3 where T1.a1 = T2.a2 and T2.b2 = T3.b3";
         verify(sql);
     }
 
     @Test
-    void testJoinStateTtlHintWithMultiLevelJoin() {
+    void testJoinStateTtlHintWithSubQueryContainsJoin() {
         String sql =
                 "select /*+ STATE_TTL('T2' = '2d', 'T3' = '3d', 'T1' = '1d') */* from T1 "
                         + "join (select T2.* from T2 join T3 on T2.b2 = T3.b3) TMP on T1.a1 = TMP.b2";
@@ -147,7 +147,7 @@ class StateTtlHintTest extends TableTestBase {
     }
 
     @Test
-    void testMultiJoinStateTtlHint() {
+    void testDuplicateJoinStateTtlHint() {
         String sql =
                 "select /*+ STATE_TTL('T2' = '2d', 'T3' = '3d'), STATE_TTL('T1' = '1d', 'T2' = '8d') */* from T1, T2, T3 where T1.a1 = T2.a2 and T2.b2 = T3.b3";
         verify(sql);
@@ -181,7 +181,7 @@ class StateTtlHintTest extends TableTestBase {
     }
 
     @Test
-    void testJoinStateTtlHintWithCommonJoinHint() {
+    void testStateTtlHintWithJoinHint() {
         String sql =
                 "select /*+ STATE_TTL('T1' = '1d', 'T2' = '2d'), BROADCAST(T1) */T1.b1, sum(T1.a1) from T1 join T2 on T1.b1 = T2.b2 group by T1.b1";
         verify(sql);

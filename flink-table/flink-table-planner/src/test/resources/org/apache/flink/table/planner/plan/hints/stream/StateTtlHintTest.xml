@@ -128,7 +128,7 @@ GroupAggregate(groupBy=[b1], select=[b1, SUM(a1) AS EXPR$1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinStateTtlHintWithCommonJoinHint">
+  <TestCase name="testStateTtlHintWithJoinHint">
     <Resource name="sql">
       <![CDATA[select /*+ STATE_TTL('T1' = '1d', 'T2' = '2d'), BROADCAST(T1) */T1.b1, sum(T1.a1) from T1 join T2 on T1.b1 = T2.b2 group by T1.b1]]>
     </Resource>
@@ -154,7 +154,7 @@ GroupAggregate(groupBy=[b1], select=[b1, SUM(a1) AS EXPR$1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinStateTtlHintWithContinuousJoin">
+  <TestCase name="testJoinStateTtlHintWithCascadeJoin">
     <Resource name="sql">
       <![CDATA[select /*+ STATE_TTL('T2' = '2d', 'T3' = '3d', 'T1' = '1d') */* from T1, T2, T3 where T1.a1 = T2.a2 and T2.b2 = T3.b3]]>
     </Resource>
@@ -250,7 +250,7 @@ Join(joinType=[InnerJoin], where=[=(a1, a3)], select=[a1, b1, a3, b3], leftInput
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultiJoinStateTtlHint">
+  <TestCase name="testDuplicateJoinStateTtlHint">
     <Resource name="sql">
       <![CDATA[select /*+ STATE_TTL('T2' = '2d', 'T3' = '3d'), STATE_TTL('T1' = '1d', 'T2' = '8d') */* from T1, T2, T3 where T1.a1 = T2.a2 and T2.b2 = T3.b3]]>
     </Resource>
