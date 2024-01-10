@@ -390,8 +390,7 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     public void initializeJobVertex(
             ExecutionJobVertex ejv,
             long createTimestamp,
-            Map<IntermediateDataSetID, JobVertexInputInfo> jobVertexInputInfos,
-            JobManagerJobMetricGroup jobManagerJobMetricGroup)
+            Map<IntermediateDataSetID, JobVertexInputInfo> jobVertexInputInfos)
             throws JobException {
         throw new UnsupportedOperationException();
     }

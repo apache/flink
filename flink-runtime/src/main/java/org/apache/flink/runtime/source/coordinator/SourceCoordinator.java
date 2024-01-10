@@ -20,8 +20,11 @@ package org.apache.flink.runtime.source.coordinator;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
+import org.apache.flink.api.connector.source.DynamicFilteringInfo;
+import org.apache.flink.api.connector.source.DynamicParallelismInference;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceSplit;
@@ -651,6 +654,60 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         if (!started) {
             throw new IllegalStateException("The coordinator has not started yet.");
         }
+    }
+
+    private Optional<DynamicFilteringInfo> getSourceDynamicFilteringInfo() {
+        if (coordinatorListeningID != null
+                && coordinatorStore.containsKey(coordinatorListeningID)) {
+            Object event = coordinatorStore.get(coordinatorListeningID);
+            if (event instanceof SourceEventWrapper) {
+                SourceEvent sourceEvent = ((SourceEventWrapper) event).getSourceEvent();
+                if (sourceEvent instanceof DynamicFilteringInfo) {
+                    return Optional.of((DynamicFilteringInfo) sourceEvent);
+                }
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    public CompletableFuture<Integer> inferSourceParallelismAsync(
+            int parallelismInferenceUpperBound, long dataVolumePerTask) {
+        return context.supplyAsync(
+                        () -> {
+                            if (!(source instanceof DynamicParallelismInference)) {
+                                return ExecutionConfig.PARALLELISM_DEFAULT;
+                            }
+
+                            DynamicParallelismInference parallelismInference =
+                                    (DynamicParallelismInference) source;
+                            try {
+                                return parallelismInference.inferParallelism(
+                                        new DynamicParallelismInference.Context() {
+                                            @Override
+                                            public Optional<DynamicFilteringInfo>
+                                                    getDynamicFilteringInfo() {
+                                                return getSourceDynamicFilteringInfo();
+                                            }
+
+                                            @Override
+                                            public int getParallelismInferenceUpperBound() {
+                                                return parallelismInferenceUpperBound;
+                                            }
+
+                                            @Override
+                                            public long getDataVolumePerTask() {
+                                                return dataVolumePerTask;
+                                            }
+                                        });
+                            } catch (Throwable e) {
+                                LOG.error(
+                                        "Unexpected error occurred when dynamically inferring source parallelism.",
+                                        e);
+                                return ExecutionConfig.PARALLELISM_DEFAULT;
+                            }
+                        })
+                .thenApply(future -> (Integer) future);
     }
 
     /** The watermark element for {@link HeapPriorityQueue}. */
