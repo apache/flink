@@ -29,7 +29,29 @@ function prepare_debug_files {
 
 	export DEBUG_FILES_OUTPUT_DIR="${parent_directory}/debug_files"
 	export DEBUG_FILES_NAME="$(echo "${module}" | tr -c '[:alnum:]\n\r' '_')-$(date +%s)"
-	echo "##vso[task.setvariable variable=DEBUG_FILES_OUTPUT_DIR]$DEBUG_FILES_OUTPUT_DIR"
-	echo "##vso[task.setvariable variable=DEBUG_FILES_NAME]$DEBUG_FILES_NAME"
+
+  if [ -n "${TF_BUILD+x}" ]; then
+    echo "[INFO] Azure Pipelines environment detected: $0 will export the variables in the Azure-specific way."
+
+    echo "##vso[task.setvariable variable=DEBUG_FILES_OUTPUT_DIR]$DEBUG_FILES_OUTPUT_DIR"
+    echo "##vso[task.setvariable variable=DEBUG_FILES_NAME]$DEBUG_FILES_NAME"
+  elif [ -n "${GITHUB_ACTIONS+x}" ]; then
+    echo "[INFO] GitHub Actions environment detected: $0 will export the variables in the GHA-specific way."
+
+    if [ -z "${GITHUB_OUTPUT+x}" ]; then
+      echo "[ERROR] The GITHUB_OUTPUT variable is not set."
+      exit 1
+    elif [ ! -f "$GITHUB_OUTPUT" ]; then
+      echo "[ERROR] The GITHUB_OUTPUT variable doesn't refer to a file: $GITHUB_OUTPUT"
+      exit 1
+    fi
+
+    echo "debug-files-output-dir=${DEBUG_FILES_OUTPUT_DIR}" >> "$GITHUB_OUTPUT"
+    echo "debug-files-name=${DEBUG_FILES_NAME}" >> "$GITHUB_OUTPUT"
+  else
+    echo "[ERROR] No CI environment detected. Debug artifact-related variables couldn't be exported."
+    exit 1
+  fi
+
 	mkdir -p $DEBUG_FILES_OUTPUT_DIR || { echo "FAILURE: cannot create debug files directory '${DEBUG_FILES_OUTPUT_DIR}'." ; exit 1; }
 }
