@@ -20,6 +20,7 @@ package org.apache.flink.runtime.source.coordinator;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.connector.source.ReaderInfo;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceSplit;
@@ -60,6 +61,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
@@ -70,6 +72,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.operators.coordination.ComponentClosingUtils.shutdownExecutorForcefully;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -109,10 +112,10 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     private final SplitAssignmentTracker<SplitT> assignmentTracker;
     private final SourceCoordinatorProvider.CoordinatorExecutorThreadFactory
             coordinatorThreadFactory;
-    private final SubtaskGateways subtaskGateways;
+    private SubtaskGateways subtaskGateways;
     private final String coordinatorThreadName;
     private final boolean supportsConcurrentExecutionAttempts;
-    private final boolean[] subtaskHasNoMoreSplits;
+    private boolean[] subtaskHasNoMoreSplits;
     private volatile boolean closed;
     private volatile TernaryBoolean backlog = TernaryBoolean.UNDEFINED;
 
@@ -155,11 +158,6 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
         this.coordinatorThreadName = coordinatorThreadFactory.getCoordinatorThreadName();
         this.supportsConcurrentExecutionAttempts = supportsConcurrentExecutionAttempts;
 
-        final int parallelism = operatorCoordinatorContext.currentParallelism();
-        this.subtaskGateways = new SubtaskGateways(parallelism);
-        this.subtaskHasNoMoreSplits = new boolean[parallelism];
-        Arrays.fill(subtaskHasNoMoreSplits, false);
-
         final Executor errorHandlingCoordinatorExecutor =
                 (runnable) ->
                         coordinatorExecutor.execute(
@@ -180,6 +178,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 
     @Override
     public void sendEventToSourceReader(int subtaskId, SourceEvent event) {
+        checkAndLazyInitialize();
         checkState(
                 !supportsConcurrentExecutionAttempts,
                 "The split enumerator must invoke SplitEnumeratorContext"
@@ -201,6 +200,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 
     @Override
     public void sendEventToSourceReader(int subtaskId, int attemptNumber, SourceEvent event) {
+        checkAndLazyInitialize();
         checkSubtaskIndex(subtaskId);
 
         callInCoordinatorThread(
@@ -216,6 +216,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     }
 
     void sendEventToSourceOperator(int subtaskId, OperatorEvent event) {
+        checkAndLazyInitialize();
         checkSubtaskIndex(subtaskId);
 
         callInCoordinatorThread(
@@ -229,6 +230,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     }
 
     void sendEventToSourceOperatorIfTaskReady(int subtaskId, OperatorEvent event) {
+        checkAndLazyInitialize();
         checkSubtaskIndex(subtaskId);
 
         callInCoordinatorThread(
@@ -389,18 +391,21 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     // --------- Package private additional methods for the SourceCoordinator ------------
 
     void attemptReady(OperatorCoordinator.SubtaskGateway gateway) {
+        checkAndLazyInitialize();
         checkState(coordinatorThreadFactory.isCurrentThreadCoordinatorThread());
 
         subtaskGateways.registerSubtaskGateway(gateway);
     }
 
     void attemptFailed(int subtaskIndex, int attemptNumber) {
+        checkAndLazyInitialize();
         checkState(coordinatorThreadFactory.isCurrentThreadCoordinatorThread());
 
         subtaskGateways.unregisterSubtaskGateway(subtaskIndex, attemptNumber);
     }
 
     void subtaskReset(int subtaskIndex) {
+        checkAndLazyInitialize();
         checkState(coordinatorThreadFactory.isCurrentThreadCoordinatorThread());
 
         subtaskGateways.reset(subtaskIndex);
@@ -409,6 +414,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     }
 
     boolean hasNoMoreSplits(int subtaskIndex) {
+        checkAndLazyInitialize();
         return subtaskHasNoMoreSplits[subtaskIndex];
     }
 
@@ -527,6 +533,10 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                 unit);
     }
 
+    CompletableFuture<?> supplyAsync(Supplier<?> task) {
+        return CompletableFuture.supplyAsync(task, coordinatorExecutor);
+    }
+
     // ---------------- private helper methods -----------------
 
     private void checkSubtaskIndex(int subtaskIndex) {
@@ -535,6 +545,16 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                     String.format(
                             "Subtask index %d is out of bounds [0, %s)",
                             subtaskIndex, getCoordinatorContext().currentParallelism()));
+        }
+    }
+
+    private void checkAndLazyInitialize() {
+        if (subtaskGateways == null) {
+            final int parallelism = operatorCoordinatorContext.currentParallelism();
+            checkState(parallelism != ExecutionConfig.PARALLELISM_DEFAULT);
+            this.subtaskGateways = new SubtaskGateways(parallelism);
+            this.subtaskHasNoMoreSplits = new boolean[parallelism];
+            Arrays.fill(subtaskHasNoMoreSplits, false);
         }
     }
 
@@ -583,6 +603,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     }
 
     private void assignSplitsToAttempt(int subtaskIndex, int attemptNumber, List<SplitT> splits) {
+        checkAndLazyInitialize();
         if (splits.isEmpty()) {
             return;
         }
@@ -607,6 +628,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     }
 
     private void signalNoMoreSplitsToAttempt(int subtaskIndex, int attemptNumber) {
+        checkAndLazyInitialize();
         checkAttemptReaderReady(subtaskIndex, attemptNumber);
 
         final OperatorCoordinator.SubtaskGateway gateway =

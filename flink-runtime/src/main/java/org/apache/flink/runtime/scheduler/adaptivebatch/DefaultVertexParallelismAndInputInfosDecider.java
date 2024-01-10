@@ -117,7 +117,7 @@ public class DefaultVertexParallelismAndInputInfosDecider
             int parallelism =
                     vertexInitialParallelism > 0
                             ? vertexInitialParallelism
-                            : computeSourceParallelism(jobVertexId, vertexMaxParallelism);
+                            : computeSourceParallelismUpperBound(jobVertexId, vertexMaxParallelism);
             return new ParallelismAndInputInfos(parallelism, Collections.emptyMap());
         } else {
             int minParallelism = globalMinParallelism;
@@ -167,11 +167,12 @@ public class DefaultVertexParallelismAndInputInfosDecider
         }
     }
 
-    private int computeSourceParallelism(JobVertexID jobVertexId, int maxParallelism) {
+    @Override
+    public int computeSourceParallelismUpperBound(JobVertexID jobVertexId, int maxParallelism) {
         if (globalDefaultSourceParallelism > maxParallelism) {
             LOG.info(
                     "The global default source parallelism {} is larger than the maximum parallelism {}. "
-                            + "Use {} as the parallelism of source job vertex {}.",
+                            + "Use {} as the upper bound parallelism of source job vertex {}.",
                     globalDefaultSourceParallelism,
                     maxParallelism,
                     maxParallelism,
@@ -180,6 +181,11 @@ public class DefaultVertexParallelismAndInputInfosDecider
         } else {
             return globalDefaultSourceParallelism;
         }
+    }
+
+    @Override
+    public long getDataVolumePerTask() {
+        return dataVolumePerTask;
     }
 
     private static boolean areAllInputsAllToAll(List<BlockingResultInfo> consumedResults) {

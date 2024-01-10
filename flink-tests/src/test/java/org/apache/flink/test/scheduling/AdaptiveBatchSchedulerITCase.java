@@ -19,8 +19,11 @@
 package org.apache.flink.test.scheduling;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
+import org.apache.flink.api.connector.source.DynamicParallelismInference;
+import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
@@ -70,12 +73,17 @@ class AdaptiveBatchSchedulerITCase {
 
     @Test
     void testSchedulingWithUnknownResource() throws Exception {
-        testScheduling(false);
+        testScheduling(false, false);
     }
 
     @Test
     void testSchedulingWithFineGrainedResource() throws Exception {
-        testScheduling(true);
+        testScheduling(true, false);
+    }
+
+    @Test
+    void testSchedulingWithDynamicSourceParallelismInference() throws Exception {
+        testScheduling(false, true);
     }
 
     @Test
@@ -127,8 +135,9 @@ class AdaptiveBatchSchedulerITCase {
         env.execute();
     }
 
-    private void testScheduling(Boolean isFineGrained) throws Exception {
-        executeJob(isFineGrained);
+    private void testScheduling(Boolean isFineGrained, Boolean useSourceParallelismInference)
+            throws Exception {
+        executeJob(isFineGrained, useSourceParallelismInference);
 
         Map<Long, Long> numberCountResultMap =
                 numberCountResults.stream()
@@ -147,7 +156,8 @@ class AdaptiveBatchSchedulerITCase {
         assertThat(numberCountResultMap).isEqualTo(expectedResult);
     }
 
-    private void executeJob(Boolean isFineGrained) throws Exception {
+    private void executeJob(Boolean isFineGrained, Boolean useSourceParallelismInference)
+            throws Exception {
         final Configuration configuration = createConfiguration();
         if (isFineGrained) {
             configuration.set(ClusterOptions.ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT, true);
@@ -174,17 +184,36 @@ class AdaptiveBatchSchedulerITCase {
             slotSharingGroups.add(group);
         }
 
-        final DataStream<Long> source1 =
-                env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
-                        .setParallelism(SOURCE_PARALLELISM_1)
-                        .name("source1")
-                        .slotSharingGroup(slotSharingGroups.get(0));
+        DataStream<Long> source1;
+        DataStream<Long> source2;
 
-        final DataStream<Long> source2 =
-                env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
-                        .setParallelism(SOURCE_PARALLELISM_2)
-                        .name("source2")
-                        .slotSharingGroup(slotSharingGroups.get(1));
+        if (useSourceParallelismInference) {
+            source1 =
+                    env.fromSource(
+                                    new TestingParallelismInferenceNumberSequenceSource(
+                                            0, NUMBERS_TO_PRODUCE - 1, SOURCE_PARALLELISM_1),
+                                    WatermarkStrategy.noWatermarks(),
+                                    "source1")
+                            .slotSharingGroup(slotSharingGroups.get(0));
+            source2 =
+                    env.fromSource(
+                                    new TestingParallelismInferenceNumberSequenceSource(
+                                            0, NUMBERS_TO_PRODUCE - 1, SOURCE_PARALLELISM_2),
+                                    WatermarkStrategy.noWatermarks(),
+                                    "source2")
+                            .slotSharingGroup(slotSharingGroups.get(1));
+        } else {
+            source1 =
+                    env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
+                            .setParallelism(SOURCE_PARALLELISM_1)
+                            .name("source1")
+                            .slotSharingGroup(slotSharingGroups.get(0));
+            source2 =
+                    env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
+                            .setParallelism(SOURCE_PARALLELISM_2)
+                            .name("source2")
+                            .slotSharingGroup(slotSharingGroups.get(1));
+        }
 
         source1.union(source2)
                 .rescale()
@@ -225,6 +254,23 @@ class AdaptiveBatchSchedulerITCase {
         @Override
         public void close() throws Exception {
             numberCountResults.add(numberCountResult);
+        }
+    }
+
+    private static class TestingParallelismInferenceNumberSequenceSource
+            extends NumberSequenceSource implements DynamicParallelismInference {
+        private static final long serialVersionUID = 1L;
+        private final int expectedParallelism;
+
+        public TestingParallelismInferenceNumberSequenceSource(
+                long from, long to, int expectedParallelism) {
+            super(from, to);
+            this.expectedParallelism = expectedParallelism;
+        }
+
+        @Override
+        public int inferParallelism(Context context) {
+            return expectedParallelism;
         }
     }
 }

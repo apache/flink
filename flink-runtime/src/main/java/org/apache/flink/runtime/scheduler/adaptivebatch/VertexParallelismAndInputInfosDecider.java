@@ -49,4 +49,20 @@ public interface VertexParallelismAndInputInfosDecider {
             List<BlockingResultInfo> consumedResults,
             int vertexInitialParallelism,
             int vertexMaxParallelism);
+
+    /**
+     * Compute source parallelism upper bound for the source vertex.
+     *
+     * @param jobVertexId The job vertex id
+     * @param maxParallelism The max parallelism of the job vertex.
+     * @return the upper bound parallelism for the source vertex.
+     */
+    int computeSourceParallelismUpperBound(JobVertexID jobVertexId, int maxParallelism);
+
+    /**
+     * Get the average size of data volume to expect each task instance to process.
+     *
+     * @return the data volume.
+     */
+    long getDataVolumePerTask();
 }

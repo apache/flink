@@ -69,7 +69,8 @@ class TestingOperatorCoordinatorHandler implements OperatorCoordinatorHandler {
     @Override
     public void registerAndStartNewCoordinators(
             Collection<OperatorCoordinatorHolder> coordinators,
-            ComponentMainThreadExecutor mainThreadExecutor) {
+            ComponentMainThreadExecutor mainThreadExecutor,
+            final int parallelism) {
         throw new UnsupportedOperationException();
     }
 }

@@ -830,9 +830,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 tasks.size(),
                 intermediateResults.size());
 
-        attachJobVertices(verticesToAttach);
+        attachJobVertices(verticesToAttach, jobManagerJobMetricGroup);
         if (!isDynamic) {
-            initializeJobVertices(verticesToAttach, jobManagerJobMetricGroup);
+            initializeJobVertices(verticesToAttach);
         }
 
         // the topology assigning should happen before notifying new vertices to failoverStrategy
@@ -843,7 +843,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     /** Attach job vertices without initializing them. */
-    private void attachJobVertices(List<JobVertex> topologicallySorted) throws JobException {
+    private void attachJobVertices(
+            List<JobVertex> topologicallySorted, JobManagerJobMetricGroup jobManagerJobMetricGroup)
+            throws JobException {
         for (JobVertex jobVertex : topologicallySorted) {
 
             if (jobVertex.isInputVertex() && !jobVertex.isStoppable()) {
@@ -856,7 +858,11 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             // create the execution job vertex and attach it to the graph
             ExecutionJobVertex ejv =
                     executionJobVertexFactory.createExecutionJobVertex(
-                            this, jobVertex, parallelismInfo);
+                            this,
+                            jobVertex,
+                            parallelismInfo,
+                            coordinatorStore,
+                            jobManagerJobMetricGroup);
 
             ExecutionJobVertex previousTask = this.tasks.putIfAbsent(jobVertex.getID(), ejv);
             if (previousTask != null) {
@@ -871,14 +877,12 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         }
     }
 
-    private void initializeJobVertices(
-            List<JobVertex> topologicallySorted, JobManagerJobMetricGroup jobManagerJobMetricGroup)
-            throws JobException {
+    private void initializeJobVertices(List<JobVertex> topologicallySorted) throws JobException {
         final long createTimestamp = System.currentTimeMillis();
 
         for (JobVertex jobVertex : topologicallySorted) {
             final ExecutionJobVertex ejv = tasks.get(jobVertex.getID());
-            initializeJobVertex(ejv, createTimestamp, jobManagerJobMetricGroup);
+            initializeJobVertex(ejv, createTimestamp);
         }
     }
 
@@ -886,8 +890,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     public void initializeJobVertex(
             ExecutionJobVertex ejv,
             long createTimestamp,
-            Map<IntermediateDataSetID, JobVertexInputInfo> jobVertexInputInfos,
-            JobManagerJobMetricGroup jobManagerJobMetricGroup)
+            Map<IntermediateDataSetID, JobVertexInputInfo> jobVertexInputInfos)
             throws JobException {
 
         checkNotNull(ejv);
@@ -901,9 +904,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 executionHistorySizeLimit,
                 rpcTimeout,
                 createTimestamp,
-                this.initialAttemptCounts.getAttemptCounts(ejv.getJobVertexId()),
-                coordinatorStore,
-                jobManagerJobMetricGroup);
+                this.initialAttemptCounts.getAttemptCounts(ejv.getJobVertexId()));
 
         ejv.connectToPredecessors(this.intermediateResults);
 

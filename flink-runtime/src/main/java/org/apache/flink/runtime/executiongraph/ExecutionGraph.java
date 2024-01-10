@@ -219,17 +219,13 @@ public interface ExecutionGraph extends AccessExecutionGraph {
     @Nonnull
     ComponentMainThreadExecutor getJobMasterMainThreadExecutor();
 
-    default void initializeJobVertex(
-            ExecutionJobVertex ejv,
-            long createTimestamp,
-            JobManagerJobMetricGroup jobManagerJobMetricGroup)
+    default void initializeJobVertex(ExecutionJobVertex ejv, long createTimestamp)
             throws JobException {
         initializeJobVertex(
                 ejv,
                 createTimestamp,
                 VertexInputInfoComputationUtils.computeVertexInputInfos(
-                        ejv, getAllIntermediateResults()::get),
-                jobManagerJobMetricGroup);
+                        ejv, getAllIntermediateResults()::get));
     }
 
     /**
@@ -244,8 +240,7 @@ public interface ExecutionGraph extends AccessExecutionGraph {
     void initializeJobVertex(
             ExecutionJobVertex ejv,
             long createTimestamp,
-            Map<IntermediateDataSetID, JobVertexInputInfo> jobVertexInputInfos,
-            JobManagerJobMetricGroup jobManagerJobMetricGroup)
+            Map<IntermediateDataSetID, JobVertexInputInfo> jobVertexInputInfos)
             throws JobException;
 
     /**

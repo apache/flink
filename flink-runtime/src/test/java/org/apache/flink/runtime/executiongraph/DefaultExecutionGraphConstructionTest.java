@@ -430,7 +430,7 @@ class DefaultExecutionGraphConstructionTest {
         eg.attachJobGraph(ordered, JOB_MANAGER_JOB_METRIC_GROUP);
 
         ExecutionJobVertex ejv1 = eg.getJobVertex(v1.getID());
-        eg.initializeJobVertex(ejv1, 0L, JOB_MANAGER_JOB_METRIC_GROUP);
+        eg.initializeJobVertex(ejv1, 0L);
 
         IntermediateResult result =
                 Objects.requireNonNull(eg.getJobVertex(v1.getID())).getProducedDataSets()[0];
@@ -444,7 +444,7 @@ class DefaultExecutionGraphConstructionTest {
         assertThat(partition1.getConsumedPartitionGroups()).isEmpty();
 
         ExecutionJobVertex ejv2 = eg.getJobVertex(v2.getID());
-        eg.initializeJobVertex(ejv2, 0L, JOB_MANAGER_JOB_METRIC_GROUP);
+        eg.initializeJobVertex(ejv2, 0L);
 
         ConsumedPartitionGroup consumedPartitionGroup =
                 partition1.getConsumedPartitionGroups().get(0);
@@ -468,7 +468,7 @@ class DefaultExecutionGraphConstructionTest {
         eg.attachJobGraph(ordered, JOB_MANAGER_JOB_METRIC_GROUP);
 
         ExecutionJobVertex ejv1 = eg.getJobVertex(v1.getID());
-        eg.initializeJobVertex(ejv1, 0L, JOB_MANAGER_JOB_METRIC_GROUP);
+        eg.initializeJobVertex(ejv1, 0L);
 
         IntermediateResult result =
                 Objects.requireNonNull(eg.getJobVertex(v1.getID())).getProducedDataSets()[0];
@@ -487,7 +487,7 @@ class DefaultExecutionGraphConstructionTest {
         assertThat(partition4.getConsumedPartitionGroups()).isEmpty();
 
         ExecutionJobVertex ejv2 = eg.getJobVertex(v2.getID());
-        eg.initializeJobVertex(ejv2, 0L, JOB_MANAGER_JOB_METRIC_GROUP);
+        eg.initializeJobVertex(ejv2, 0L);
 
         ConsumedPartitionGroup consumedPartitionGroup1 =
                 partition1.getConsumedPartitionGroups().get(0);
