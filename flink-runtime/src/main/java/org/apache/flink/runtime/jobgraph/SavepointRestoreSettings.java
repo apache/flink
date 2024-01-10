@@ -105,12 +105,14 @@ public class SavepointRestoreSettings implements Serializable {
 
         SavepointRestoreSettings that = (SavepointRestoreSettings) o;
         return allowNonRestoredState == that.allowNonRestoredState
-                && (Objects.equals(restorePath, that.restorePath));
+                && Objects.equals(restorePath, that.restorePath)
+                && Objects.equals(restoreMode, that.restoreMode);
     }
 
     @Override
     public int hashCode() {
         int result = restorePath != null ? restorePath.hashCode() : 0;
+        result = 31 * result + (restoreMode != null ? restoreMode.hashCode() : 0);
         result = 31 * result + (allowNonRestoredState ? 1 : 0);
         return result;
     }
@@ -124,6 +126,8 @@ public class SavepointRestoreSettings implements Serializable {
                     + '\''
                     + ", allowNonRestoredState="
                     + allowNonRestoredState
+                    + ", restoreMode="
+                    + restoreMode
                     + ')';
         } else {
             return "SavepointRestoreSettings.none()";
