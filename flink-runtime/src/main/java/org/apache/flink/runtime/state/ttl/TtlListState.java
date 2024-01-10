@@ -127,14 +127,11 @@ class TtlListState<K, N, T>
         List<TtlValue<T>> unexpired = new ArrayList<>(ttlValues.size());
         for (int i = 0; i < ttlValues.size(); i++) {
             TtlValue<T> ttlValue = ttlValues.get(i);
-            if (i < firstExpireElementIndex) {
+            if (i < firstExpireElementIndex
+                    || (i > firstExpireElementIndex
+                            && !TtlUtils.expired(ttlValue, ttl, currentTimestamp))) {
                 // we have to do the defensive copy to update the value
                 unexpired.add(elementSerializer.copy(ttlValue));
-            } else if (i > firstExpireElementIndex) {
-                if (!TtlUtils.expired(ttlValue, ttl, currentTimestamp)) {
-                    // we have to do the defensive copy to update the value
-                    unexpired.add(elementSerializer.copy(ttlValue));
-                }
             }
         }
         if (!unexpired.isEmpty()) {
