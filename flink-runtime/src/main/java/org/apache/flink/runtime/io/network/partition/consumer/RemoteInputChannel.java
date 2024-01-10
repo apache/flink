@@ -838,10 +838,10 @@ public class RemoteInputChannel extends InputChannel {
     }
 
     @Override
-    public void notifyRequiredSegmentId(int segmentId) throws IOException {
+    public void notifyRequiredSegmentId(int subpartitionId, int segmentId) throws IOException {
         checkState(!isReleased.get(), "Channel released.");
         checkPartitionRequestQueueInitialized();
-        partitionRequestClient.notifyRequiredSegmentId(this, segmentId);
+        partitionRequestClient.notifyRequiredSegmentId(this, subpartitionId, segmentId);
     }
 
     private static class BufferReorderingException extends IOException {

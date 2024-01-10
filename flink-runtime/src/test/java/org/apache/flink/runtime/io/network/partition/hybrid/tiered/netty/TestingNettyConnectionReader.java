@@ -33,7 +33,7 @@ public class TestingNettyConnectionReader implements NettyConnectionReader {
     }
 
     @Override
-    public Optional<Buffer> readBuffer(int segmentId) {
+    public Optional<Buffer> readBuffer(int subpartitionId, int segmentId) {
         return Optional.of(readBufferFunction.apply(segmentId));
     }
 

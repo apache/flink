@@ -28,9 +28,10 @@ public interface NettyConnectionReader {
     /**
      * Read a buffer from netty connection.
      *
+     * @param subpartitionId the subpartition where the buffer locates.
      * @param segmentId segment id indicates the id of segment.
      * @return {@link Optional#empty()} will be returned if there is no buffer sent from netty
      *     connection otherwise a buffer will be returned.
      */
-    Optional<Buffer> readBuffer(int segmentId);
+    Optional<Buffer> readBuffer(int subpartitionId, int segmentId);
 }

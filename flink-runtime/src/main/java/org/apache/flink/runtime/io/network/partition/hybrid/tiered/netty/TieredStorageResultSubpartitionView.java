@@ -107,7 +107,7 @@ public class TieredStorageResultSubpartitionView implements ResultSubpartitionVi
     }
 
     @Override
-    public void notifyRequiredSegmentId(int segmentId) {
+    public void notifyRequiredSegmentId(int subpartitionId, int segmentId) {
         if (segmentId > requiredSegmentId) {
             requiredSegmentId = segmentId;
             stopSendingData = false;

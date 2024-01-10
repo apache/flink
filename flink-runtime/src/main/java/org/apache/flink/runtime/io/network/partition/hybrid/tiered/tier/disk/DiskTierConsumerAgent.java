@@ -77,7 +77,7 @@ public class DiskTierConsumerAgent implements TierConsumerAgent {
                     .get(partitionId)
                     .get(subpartitionId)
                     .get()
-                    .readBuffer(segmentId);
+                    .readBuffer(subpartitionId.getSubpartitionId(), segmentId);
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException("Failed to get next buffer.", e);
         }

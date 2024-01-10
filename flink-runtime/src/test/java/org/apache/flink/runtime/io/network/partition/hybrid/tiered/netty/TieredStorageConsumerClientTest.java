@@ -65,7 +65,7 @@ class TieredStorageConsumerClientTest {
     }
 
     @Test
-    void testGetNextBuffer() {
+    void testGetNextBuffer() throws IOException {
         Buffer buffer = BufferBuilderTestUtils.buildSomeBuffer(0);
         TestingTierConsumerAgent tierConsumerAgent =
                 new TestingTierConsumerAgent.Builder().setBufferSupplier(() -> buffer).build();

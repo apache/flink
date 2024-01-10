@@ -62,9 +62,11 @@ public interface PartitionRequestClient {
      * Notifies the id of segment required from one remote input channel.
      *
      * @param inputChannel The remote input channel who requires segment.
+     * @param subpartitionIndex The id of the corresponding subpartition.
      * @param segmentId The id of segment.
      */
-    void notifyRequiredSegmentId(RemoteInputChannel inputChannel, int segmentId);
+    void notifyRequiredSegmentId(
+            RemoteInputChannel inputChannel, int subpartitionIndex, int segmentId);
 
     /**
      * Requests to resume data consumption from one remote input channel.

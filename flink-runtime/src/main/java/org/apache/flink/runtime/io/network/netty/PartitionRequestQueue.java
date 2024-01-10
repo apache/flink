@@ -201,15 +201,16 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
      * Notify the id of required segment from the consumer.
      *
      * @param receiverId The input channel id to identify the consumer.
+     * @param subpartitionId The id of the corresponding subpartition.
      * @param segmentId The id of required segment.
      */
-    void notifyRequiredSegmentId(InputChannelID receiverId, int segmentId) {
+    void notifyRequiredSegmentId(InputChannelID receiverId, int subpartitionId, int segmentId) {
         if (fatalError) {
             return;
         }
         NetworkSequenceViewReader reader = allReaders.get(receiverId);
         if (reader != null) {
-            reader.notifyRequiredSegmentId(segmentId);
+            reader.notifyRequiredSegmentId(subpartitionId, segmentId);
         }
     }
 
