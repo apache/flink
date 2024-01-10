@@ -266,4 +266,12 @@ public abstract class FlinkHints {
     public static boolean isQueryHint(String hintName) {
         return JoinStrategy.isJoinStrategy(hintName) || StateTtlHint.isStateTtlHint(hintName);
     }
+
+    /**
+     * Currently, lookup join hints and state ttl hints are KV hints. And regular join hints are
+     * LIST hints.
+     */
+    public static boolean isKVQueryHint(String hintName) {
+        return JoinStrategy.isLookupHint(hintName) || StateTtlHint.isStateTtlHint(hintName);
+    }
 }

@@ -61,11 +61,10 @@ public enum StateTtlHint {
     }
 
     /**
-     * Merge the state ttl from hints, and the first ttl with same input side will finally be
-     * chosen.
+     * Get the state ttl from hints.
      *
-     * @return The key of the map is the side of the join (0 represents the left, and 1 represents
-     *     the right). The value of the map is the state ttl in milliseconds.
+     * @return The key of the map is the input side. The value of the map is the state ttl in
+     *     milliseconds.
      */
     public static Map<Integer, Long> getStateTtlFromHint(List<RelHint> hints) {
         Map<Integer, Long> stateTtlFromHint = new java.util.HashMap<>();
@@ -82,10 +81,8 @@ public enum StateTtlHint {
                                                 side = 1;
                                             }
 
-                                            // choose the first hint to take effect
-                                            stateTtlFromHint.computeIfAbsent(
-                                                    side,
-                                                    key -> TimeUtils.parseDuration(ttl).toMillis());
+                                            stateTtlFromHint.put(
+                                                    side, TimeUtils.parseDuration(ttl).toMillis());
                                         }));
 
         return stateTtlFromHint;

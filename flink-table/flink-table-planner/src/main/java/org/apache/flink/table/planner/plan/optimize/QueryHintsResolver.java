@@ -50,6 +50,11 @@ import static org.apache.flink.table.planner.hint.LookupJoinHintOptions.LOOKUP_T
  * Resolve and validate the query hints.
  *
  * <p>Note: duplicate query hints are not checked here.
+ *
+ * <p>For KV hints such as state ttl hints and lookup join hints, they will be merged. If the keys
+ * with same hint name conflict, only the first value is chosen.
+ *
+ * <p>For LIST hints such as regular join hints, they will all be retained.
  */
 public class QueryHintsResolver extends QueryHintsRelShuttle {
     private final Set<RelHint> allHints = new HashSet<>();
@@ -153,6 +158,8 @@ public class QueryHintsResolver extends QueryHintsRelShuttle {
         }
 
         RelNode newNode = super.visitChildren(biRel);
+
+        newHints = mergeQueryHintsIfNecessary(newHints);
         // replace new query hints
         return ((Hintable) newNode).withHints(newHints);
     }
@@ -373,5 +380,41 @@ public class QueryHintsResolver extends QueryHintsRelShuttle {
                 }
             }
         }
+    }
+
+    /**
+     * For KV hint like state ttl hint or lookup join hint, we need to merge the hints if there are
+     * multiple hints and choose the first value with same key.
+     */
+    private List<RelHint> mergeQueryHintsIfNecessary(List<RelHint> hints) {
+        List<RelHint> result = new ArrayList<>();
+        Map<String, Map<String, String>> kvHintsMap = new HashMap<>();
+
+        for (RelHint hint : hints) {
+            String hintName = hint.hintName;
+
+            // if the hint is not KV hint, add it directly
+            if (!FlinkHints.isKVQueryHint(hintName)) {
+                result.add(hint);
+                continue;
+            }
+
+            // if the hint is KV hint, merge it with the existing hints
+            Map<String, String> kvOptions = new HashMap<>(hint.kvOptions);
+            if (kvHintsMap.containsKey(hintName)) {
+                Map<String, String> existingOptions = kvHintsMap.get(hintName);
+                for (String key : kvOptions.keySet()) {
+                    // if the key is same, choose the first hint to take effect
+                    existingOptions.computeIfAbsent(key, k -> kvOptions.get(key));
+                }
+            } else {
+                kvHintsMap.put(hintName, kvOptions);
+            }
+        }
+
+        for (String kvHintName : kvHintsMap.keySet()) {
+            result.add(RelHint.builder(kvHintName).hintOptions(kvHintsMap.get(kvHintName)).build());
+        }
+        return result;
     }
 }

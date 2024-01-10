@@ -269,7 +269,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5])
       <![CDATA[
 Join(joinType=[InnerJoin], where=[=(b2, b3)], select=[a1, b1, a2, b2, a3, b3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{RIGHT=3d}]]])
 :- Exchange(distribution=[hash[b2]])
-:  +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{RIGHT=2d}][STATE_TTL options:{LEFT=1d, RIGHT=8d}]]])
+:  +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{LEFT=1d, RIGHT=2d}]]])
 :     :- Exchange(distribution=[hash[a1]])
 :     :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
 :     +- Exchange(distribution=[hash[a2]])
