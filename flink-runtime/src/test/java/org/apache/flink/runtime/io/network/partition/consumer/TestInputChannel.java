@@ -250,7 +250,7 @@ public class TestInputChannel extends InputChannel {
     }
 
     @Override
-    public void notifyRequiredSegmentId(int segmentId) {
+    public void notifyRequiredSegmentId(int subpartitionId, int segmentId) {
         requiredSegmentIdFuture.complete(segmentId);
     }
 

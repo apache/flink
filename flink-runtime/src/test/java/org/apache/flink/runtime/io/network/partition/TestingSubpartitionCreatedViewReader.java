@@ -81,7 +81,7 @@ public class TestingSubpartitionCreatedViewReader implements NetworkSequenceView
     }
 
     @Override
-    public void notifyRequiredSegmentId(int segmentId) {
+    public void notifyRequiredSegmentId(int subpartitionId, int segmentId) {
         throw new UnsupportedOperationException();
     }
 

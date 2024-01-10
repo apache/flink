@@ -69,7 +69,7 @@ public class TieredStorageResultSubpartitionViewTest {
     @Test
     void testGetNextBuffer() throws IOException {
         checkBufferAndBacklog(tieredStorageResultSubpartitionView.getNextBuffer(), 0);
-        tieredStorageResultSubpartitionView.notifyRequiredSegmentId(1);
+        tieredStorageResultSubpartitionView.notifyRequiredSegmentId(0, 1);
         assertThat(availabilityListener).isDone();
         checkBufferAndBacklog(tieredStorageResultSubpartitionView.getNextBuffer(), 0);
         assertThat(tieredStorageResultSubpartitionView.getNextBuffer()).isNull();
@@ -104,7 +104,7 @@ public class TieredStorageResultSubpartitionViewTest {
 
     @Test
     void testNotifyRequiredSegmentId() {
-        tieredStorageResultSubpartitionView.notifyRequiredSegmentId(1);
+        tieredStorageResultSubpartitionView.notifyRequiredSegmentId(0, 1);
         assertThat(availabilityListener).isDone();
     }
 

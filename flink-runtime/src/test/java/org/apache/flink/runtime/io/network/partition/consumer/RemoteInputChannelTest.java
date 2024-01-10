@@ -1875,7 +1875,7 @@ class RemoteInputChannelTest {
         RemoteInputChannel remoteChannel = createRemoteInputChannel(inputGate);
 
         remoteChannel.releaseAllResources();
-        assertThatThrownBy(() -> remoteChannel.notifyRequiredSegmentId(0))
+        assertThatThrownBy(() -> remoteChannel.notifyRequiredSegmentId(0, 0))
                 .isInstanceOf(IllegalStateException.class);
     }
 

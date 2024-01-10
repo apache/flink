@@ -905,11 +905,14 @@ public abstract class NettyMessage {
 
         private static final byte ID = 11;
 
+        final int subpartitionId;
+
         final int segmentId;
 
         final InputChannelID receiverId;
 
-        SegmentId(int segmentId, InputChannelID receiverId) {
+        SegmentId(int subpartitionId, int segmentId, InputChannelID receiverId) {
+            this.subpartitionId = subpartitionId;
             checkArgument(segmentId > 0L, "The segmentId should be greater than 0");
             this.segmentId = segmentId;
             this.receiverId = receiverId;
@@ -923,7 +926,10 @@ public abstract class NettyMessage {
             try {
                 result =
                         allocateBuffer(
-                                allocator, ID, Integer.BYTES + InputChannelID.getByteBufLength());
+                                allocator,
+                                ID,
+                                Integer.BYTES + Integer.BYTES + InputChannelID.getByteBufLength());
+                result.writeInt(subpartitionId);
                 result.writeInt(segmentId);
                 receiverId.writeTo(result);
 
@@ -934,10 +940,11 @@ public abstract class NettyMessage {
         }
 
         static SegmentId readFrom(ByteBuf buffer) {
+            int subpartitionId = buffer.readInt();
             int segmentId = buffer.readInt();
             InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
 
-            return new SegmentId(segmentId, receiverId);
+            return new SegmentId(subpartitionId, segmentId, receiverId);
         }
 
         @Override

@@ -314,9 +314,10 @@ public abstract class InputChannel {
     /**
      * Notify the upstream the id of required segment that should be sent to netty connection.
      *
-     * @param segmentId segment id indicates the id of segment.
+     * @param subpartitionId The id of the corresponding subpartition.
+     * @param segmentId The id of required segment.
      */
-    public void notifyRequiredSegmentId(int segmentId) throws IOException {}
+    public void notifyRequiredSegmentId(int subpartitionId, int segmentId) throws IOException {}
 
     // ------------------------------------------------------------------------
 

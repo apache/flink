@@ -86,9 +86,10 @@ public interface NetworkSequenceViewReader {
     /**
      * Notify the id of required segment from consumer.
      *
+     * @param subpartitionId The id of the corresponding subpartition.
      * @param segmentId The id of required segment.
      */
-    void notifyRequiredSegmentId(int segmentId);
+    void notifyRequiredSegmentId(int subpartitionId, int segmentId);
 
     /** Resumes data consumption after an exactly once checkpoint. */
     void resumeConsumption();

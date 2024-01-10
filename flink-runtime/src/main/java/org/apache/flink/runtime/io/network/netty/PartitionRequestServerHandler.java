@@ -129,7 +129,8 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
                 outboundQueue.notifyNewBufferSize(request.receiverId, request.bufferSize);
             } else if (msgClazz == SegmentId.class) {
                 SegmentId request = (SegmentId) msg;
-                outboundQueue.notifyRequiredSegmentId(request.receiverId, request.segmentId);
+                outboundQueue.notifyRequiredSegmentId(
+                        request.receiverId, request.subpartitionId, request.segmentId);
             } else {
                 LOG.warn("Received unexpected client request: {}", msg);
             }
