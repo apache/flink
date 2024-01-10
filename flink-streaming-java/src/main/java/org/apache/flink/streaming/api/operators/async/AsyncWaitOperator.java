@@ -95,6 +95,9 @@ public class AsyncWaitOperator<IN, OUT>
     private static final long serialVersionUID = 1L;
 
     private static final String STATE_NAME = "_async_wait_operator_state_";
+    private static final String ASYNC_RETRY_COUNTER = "async_retry_counter";
+    private static final String ASYNC_SUCCESS_COUNTER = "async_success_counter";
+    private static final String ASYNC_DROPPED_RECORDS_COUNTER = "async_dropped_records_counter";
 
     /** Capacity of the stream element queue. */
     private final int capacity;
@@ -110,6 +113,15 @@ public class AsyncWaitOperator<IN, OUT>
 
     /** If the retry strategy is not no_retry. */
     private final boolean retryEnabled;
+
+    /** Counter for the number of async operations being retried */
+    private transient Counter retryCounter;
+
+    /** Counter for the number of async operations processed successfully */
+    private transient Counter successCounter;
+
+    /** Counter for the number of async operations dropped after max retries */
+    private transient Counter droppedCounter;
 
     /** {@link TypeSerializer} for inputs while making snapshots. */
     private transient StreamElementSerializer<IN> inStreamElementSerializer;
@@ -215,9 +227,14 @@ public class AsyncWaitOperator<IN, OUT>
         super.open();
 
         this.isObjectReuseEnabled = getExecutionConfig().isObjectReuseEnabled();
+        OperatorMetricGroup metricGroup = getRuntimeContext().getMetricGroup();
         if (retryEnabled) {
             this.inFlightDelayRetryHandlers = new HashSet<>();
             this.retryDisabledOnFinish = new AtomicBoolean(false);
+
+            this.retryCounter = metricGroup.counter(ASYNC_RETRY_COUNTER);
+            this.successCounter = metricGroup.counter(ASYNC_SUCCESS_COUNTER);
+            this.droppedCounter = metricGroup.counter(ASYNC_DROPPED_RECORDS_COUNTER);
         }
 
         if (recoveredStreamElements != null) {
@@ -536,6 +553,7 @@ public class AsyncWaitOperator<IN, OUT>
                 if (currentAttempts == 1) {
                     inFlightDelayRetryHandlers.add(this);
                 }
+                retryCounter.inc();
             } else {
                 // remove handle that has been tried from incomplete retry handlers, and ignore the
                 // retryAwaiting flag due to no more retry will happen.
@@ -544,8 +562,10 @@ public class AsyncWaitOperator<IN, OUT>
                 }
                 // retry unsatisfied, complete it
                 if (null != results) {
+                    successCounter.inc();
                     resultHandler.complete(results);
                 } else {
+                    droppedCounter.inc();
                     resultHandler.completeExceptionally(error);
                 }
             }
