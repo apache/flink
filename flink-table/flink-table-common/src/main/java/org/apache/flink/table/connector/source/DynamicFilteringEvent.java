@@ -19,6 +19,7 @@
 package org.apache.flink.table.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.connector.source.DynamicFilteringInfo;
 import org.apache.flink.api.connector.source.SourceEvent;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -29,7 +30,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * dynamic filtering, via DynamicFilteringDataCollectorCoordinator and SourceCoordinator.
  */
 @PublicEvolving
-public class DynamicFilteringEvent implements SourceEvent {
+public class DynamicFilteringEvent implements SourceEvent, DynamicFilteringInfo {
     private final DynamicFilteringData data;
 
     public DynamicFilteringEvent(DynamicFilteringData data) {

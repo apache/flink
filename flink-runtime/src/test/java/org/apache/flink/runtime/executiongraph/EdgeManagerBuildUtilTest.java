@@ -100,17 +100,12 @@ class EdgeManagerBuildUtilTest {
         final ExecutionJobVertex consumer = vertexIterator.next();
 
         // initialize producer and consumer
-        eg.initializeJobVertex(
-                producer,
-                1L,
-                Collections.emptyMap(),
-                UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
+        eg.initializeJobVertex(producer, 1L, Collections.emptyMap());
         eg.initializeJobVertex(
                 consumer,
                 1L,
                 Collections.singletonMap(
-                        producer.getProducedDataSets()[0].getId(), jobVertexInputInfo),
-                UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
+                        producer.getProducedDataSets()[0].getId(), jobVertexInputInfo));
 
         IntermediateResult result =
                 Objects.requireNonNull(eg.getJobVertex(producer.getJobVertexId()))
@@ -175,17 +170,12 @@ class EdgeManagerBuildUtilTest {
         final ExecutionJobVertex consumer = vertexIterator.next();
 
         // initialize producer and consumer
-        eg.initializeJobVertex(
-                producer,
-                1L,
-                Collections.emptyMap(),
-                UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
+        eg.initializeJobVertex(producer, 1L, Collections.emptyMap());
         eg.initializeJobVertex(
                 consumer,
                 1L,
                 Collections.singletonMap(
-                        producer.getProducedDataSets()[0].getId(), jobVertexInputInfo),
-                UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
+                        producer.getProducedDataSets()[0].getId(), jobVertexInputInfo));
 
         IntermediateResult result =
                 Objects.requireNonNull(eg.getJobVertex(producer.getJobVertexId()))

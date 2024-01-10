@@ -48,6 +48,7 @@ import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
+import org.apache.flink.runtime.scheduler.adaptivebatch.BlockingResultInfo;
 import org.apache.flink.runtime.scheduler.adaptivebatch.SpeculativeScheduler;
 import org.apache.flink.runtime.scheduler.adaptivebatch.VertexParallelismAndInputInfosDecider;
 import org.apache.flink.runtime.scheduler.strategy.AllFinishedInputConsumableDecider;
@@ -66,6 +67,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
@@ -415,17 +417,36 @@ public class DefaultSchedulerBuilder {
 
     public static VertexParallelismAndInputInfosDecider createCustomParallelismDecider(
             Function<JobVertexID, Integer> parallelismFunction) {
-        return (jobVertexId, consumedResults, vertexInitialParallelism, ignored) -> {
-            int parallelism =
-                    vertexInitialParallelism > 0
-                            ? vertexInitialParallelism
-                            : parallelismFunction.apply(jobVertexId);
-            return new ParallelismAndInputInfos(
-                    parallelism,
-                    consumedResults.isEmpty()
-                            ? Collections.emptyMap()
-                            : VertexInputInfoComputationUtils.computeVertexInputInfos(
-                                    parallelism, consumedResults, true));
+        return new VertexParallelismAndInputInfosDecider() {
+            @Override
+            public ParallelismAndInputInfos decideParallelismAndInputInfosForVertex(
+                    JobVertexID jobVertexId,
+                    List<BlockingResultInfo> consumedResults,
+                    int vertexInitialParallelism,
+                    int vertexMinParallelism,
+                    int vertexMaxParallelism) {
+                int parallelism =
+                        vertexInitialParallelism > 0
+                                ? vertexInitialParallelism
+                                : parallelismFunction.apply(jobVertexId);
+                return new ParallelismAndInputInfos(
+                        parallelism,
+                        consumedResults.isEmpty()
+                                ? Collections.emptyMap()
+                                : VertexInputInfoComputationUtils.computeVertexInputInfos(
+                                        parallelism, consumedResults, true));
+            }
+
+            @Override
+            public int computeSourceParallelismUpperBound(
+                    JobVertexID jobVertexId, int maxParallelism) {
+                return parallelismFunction.apply(jobVertexId);
+            }
+
+            @Override
+            public long getDataVolumePerTask() {
+                return 1;
+            }
         };
     }
 }
