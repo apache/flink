@@ -87,7 +87,7 @@ public class FailureHandlingResult {
             @Nullable Throwable cause,
             long timestamp,
             CompletableFuture<Map<String, String>> failureLabels,
-            @Nullable Set<ExecutionVertexID> verticesToRestart,
+            Set<ExecutionVertexID> verticesToRestart,
             long restartDelayMS,
             boolean globalFailure,
             boolean isRootCause) {
@@ -247,7 +247,7 @@ public class FailureHandlingResult {
             @Nullable Throwable cause,
             long timestamp,
             CompletableFuture<Map<String, String>> failureLabels,
-            @Nullable Set<ExecutionVertexID> verticesToRestart,
+            Set<ExecutionVertexID> verticesToRestart,
             long restartDelayMS,
             boolean globalFailure,
             boolean isRootCause) {
