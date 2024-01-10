@@ -187,10 +187,11 @@ public class HybridSourceSplitEnumerator
         currentEnumeratorReadWriteLock.readLock().lock();
         Object enumState = currentEnumerator.snapshotState(checkpointId);
         byte[] enumStateBytes = currentEnumeratorCheckpointSerializer.serialize(enumState);
-        HybridSourceEnumeratorState hybridSourceSplitEnumeratorState = new HybridSourceEnumeratorState(
-                currentSourceIndex,
-                enumStateBytes,
-                currentEnumeratorCheckpointSerializer.getVersion());
+        HybridSourceEnumeratorState hybridSourceSplitEnumeratorState =
+                new HybridSourceEnumeratorState(
+                        currentSourceIndex,
+                        enumStateBytes,
+                        currentEnumeratorCheckpointSerializer.getVersion());
         currentEnumeratorReadWriteLock.readLock().unlock();
         return hybridSourceSplitEnumeratorState;
     }
