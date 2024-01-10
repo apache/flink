@@ -38,7 +38,7 @@ final class StandaloneApplicationClusterConfiguration extends EntrypointClusterC
 
     @Nullable private final String jobClassName;
 
-    @Nullable private final String jarFile;
+    @Nullable private final String[] jars;
 
     StandaloneApplicationClusterConfiguration(
             @Nonnull String configDir,
@@ -49,13 +49,17 @@ final class StandaloneApplicationClusterConfiguration extends EntrypointClusterC
             @Nonnull SavepointRestoreSettings savepointRestoreSettings,
             @Nullable JobID jobId,
             @Nullable String jobClassName,
-            @Nullable String jarFile) {
+            @Nullable String[] jars) {
         super(configDir, dynamicProperties, args, hostname, restPort);
         this.savepointRestoreSettings =
                 requireNonNull(savepointRestoreSettings, "savepointRestoreSettings");
         this.jobId = jobId;
         this.jobClassName = jobClassName;
-        this.jarFile = jarFile;
+        this.jars = jars;
+    }
+
+    boolean hasJars() {
+        return jars != null && jars.length > 0;
     }
 
     @Nonnull
@@ -74,7 +78,7 @@ final class StandaloneApplicationClusterConfiguration extends EntrypointClusterC
     }
 
     @Nullable
-    String getJarFile() {
-        return jarFile;
+    String[] getJars() {
+        return jars;
     }
 }

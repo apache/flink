@@ -21,14 +21,12 @@ package org.apache.flink.container.entrypoint;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.cli.ArtifactFetchOptions;
 import org.apache.flink.client.deployment.application.ApplicationClusterEntryPoint;
 import org.apache.flink.client.program.DefaultPackagedProgramRetriever;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
-import org.apache.flink.client.program.artifact.ArtifactUtils;
+import org.apache.flink.client.program.artifact.ArtifactFetchManager;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginManager;
@@ -42,13 +40,9 @@ import org.apache.flink.runtime.security.contexts.SecurityContext;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
-import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.function.FunctionUtils;
 
 import java.io.File;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Collection;
 
 /** An {@link ApplicationClusterEntryPoint} which is started with a job in a predefined location. */
 @Internal
@@ -122,7 +116,6 @@ public final class StandaloneApplicationClusterEntryPoint extends ApplicationClu
             StandaloneApplicationClusterConfiguration clusterConfiguration) {
         Configuration configuration = loadConfiguration(clusterConfiguration);
         setStaticJobId(clusterConfiguration, configuration);
-        setJobJarFile(clusterConfiguration, configuration);
         SavepointRestoreSettings.toConfiguration(
                 clusterConfiguration.getSavepointRestoreSettings(), configuration);
         return configuration;
@@ -131,16 +124,25 @@ public final class StandaloneApplicationClusterEntryPoint extends ApplicationClu
     private static PackagedProgram getPackagedProgram(
             final StandaloneApplicationClusterConfiguration clusterConfiguration,
             Configuration flinkConfiguration)
-            throws FlinkException {
+            throws Exception {
         final File userLibDir = ClusterEntrypointUtils.tryFindUserLibDirectory().orElse(null);
-        File jarFile =
-                clusterConfiguration.getJarFile() == null
-                        ? null
-                        : fetchJarFileForApplicationMode(flinkConfiguration).get(0);
+
+        File jobJar = null;
+        Collection<File> artifacts = null;
+        if (clusterConfiguration.hasJars()) {
+            ArtifactFetchManager fetchMgr = new ArtifactFetchManager(flinkConfiguration);
+            ArtifactFetchManager.Result res =
+                    fetchMgr.fetchArtifacts(clusterConfiguration.getJars());
+
+            jobJar = res.getJobJar();
+            artifacts = res.getArtifacts();
+        }
+
         final PackagedProgramRetriever programRetriever =
                 DefaultPackagedProgramRetriever.create(
                         userLibDir,
-                        jarFile,
+                        jobJar,
+                        artifacts,
                         clusterConfiguration.getJobClassName(),
                         clusterConfiguration.getArgs(),
                         flinkConfiguration);
@@ -154,27 +156,5 @@ public final class StandaloneApplicationClusterEntryPoint extends ApplicationClu
         if (jobId != null) {
             configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
         }
-    }
-
-    private static void setJobJarFile(
-            StandaloneApplicationClusterConfiguration clusterConfiguration,
-            Configuration configuration) {
-        final String jarFile = clusterConfiguration.getJarFile();
-        if (jarFile != null) {
-            configuration.set(PipelineOptions.JARS, Collections.singletonList(jarFile));
-        }
-    }
-
-    private static List<File> fetchJarFileForApplicationMode(Configuration configuration) {
-        String targetDir = generateJarDir(configuration);
-        return configuration.get(PipelineOptions.JARS).stream()
-                .map(
-                        FunctionUtils.uncheckedFunction(
-                                uri -> ArtifactUtils.fetch(uri, configuration, targetDir)))
-                .collect(Collectors.toList());
-    }
-
-    public static String generateJarDir(Configuration configuration) {
-        return configuration.get(ArtifactFetchOptions.USER_ARTIFACTS_BASE_DIR);
     }
 }

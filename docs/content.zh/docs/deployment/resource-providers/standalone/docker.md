@@ -121,7 +121,7 @@ The *job artifacts* are included into the class path of Flink's JVM process with
 * all other necessary dependencies or resources, not included into Flink.
 
 To deploy a cluster for a single job with Docker, you need to
-* make *job artifacts* available locally in all containers under `/opt/flink/usrlib` or pass jar path by *jar-file* argument. 
+* make *job artifacts* available locally in all containers under `/opt/flink/usrlib`, or pass a list of jars via the `--jars` argument
 * start a JobManager container in the *Application cluster* mode
 * start the required number of TaskManager containers.
 
@@ -156,7 +156,6 @@ To make the **job artifacts available** locally in the container, you can
 
 * **or extend the Flink image** by writing a custom `Dockerfile`, build it and use it for starting the JobManager and TaskManagers:
 
-
     ```dockerfile
     FROM flink
     ADD /host/path/to/job/artifacts/1 /opt/flink/usrlib/artifacts/1
@@ -175,8 +174,7 @@ To make the **job artifacts available** locally in the container, you can
     $ docker run flink_with_job_artifacts taskmanager
     ```
 
-* **or pass jar path by jar-file argument**  when you start the JobManager:
-
+* **or pass jar path by `jars` argument**  when you start the JobManager:
 
     ```sh
     $ FLINK_PROPERTIES="jobmanager.rpc.address: jobmanager"
@@ -184,27 +182,31 @@ To make the **job artifacts available** locally in the container, you can
 
     $ docker run \
         --env FLINK_PROPERTIES="${FLINK_PROPERTIES}" \
-        --env ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-1.17-SNAPSHOT.jar \
+        --env ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{< version >}}.jar \
         --name=jobmanager \
         --network flink-network \
         flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}} standalone-job \
         --job-classname com.job.ClassName \
-        --jar-file s3://my-bucket/my-flink-job.jar
+        --jars s3://my-bucket/my-flink-job.jar,s3://my-bucket/my-flink-udf.jar \
         [--job-id <job id>] \
         [--fromSavepoint /path/to/savepoint [--allowNonRestoredState]] \
         [job arguments]
-  
+    ```
+
 The `standalone-job` argument starts a JobManager container in the Application Mode.
 
 #### JobManager additional command line arguments
 
 You can provide the following additional command line arguments to the cluster entrypoint:
 
-* `--job-classname <job class name>`: Class name of the job to run.
+* `--job-classname <job class name>` (optional): Class name of the job to run.
 
   By default, Flink scans its class path for a JAR with a Main-Class or program-class manifest entry and chooses it as the job class.
   Use this command line argument to manually set the job class.
+
+  {{< hint warning >}}
   This argument is required in case that no or more than one JAR with such a manifest entry is available on the class path.
+  {{< /hint >}}
 
 * `--job-id <job id>` (optional): Manually set a Flink job ID for the job (default: 00000000000000000000000000000000)
 
@@ -216,12 +218,12 @@ You can provide the following additional command line arguments to the cluster e
 
 * `--allowNonRestoredState` (optional): Skip broken savepoint state
 
-  Additionally you can specify this argument to allow that savepoint state is skipped which cannot be restored.
+  Additionally, you can specify this argument to allow that savepoint state is skipped which cannot be restored.
 
-* `--jar-file` (optional): the path of jar artifact 
+* `--jars` (optional): the paths of the job jar and any additional artifact(s) separated by commas 
 
-  You can specify this argument to point the job artifacts stored in [flink filesystem]({{< ref "docs/deployment/filesystems/overview" >}}) or Http/Https. Flink will fetch it when deploy the job.
-  (e.g., s3://my-bucket/my-flink-job.jar).
+  You can specify this argument to point the job artifacts stored in [flink filesystem]({{< ref "docs/deployment/filesystems/overview" >}}) or download via HTTP(S).
+  Flink will fetch these during the job deployment. (e.g. `--jars s3://my-bucket/my-flink-job.jar`, `--jars s3://my-bucket/my-flink-job.jar,s3://my-bucket/my-flink-udf.jar` ).
 
 If the main function of the user job main class accepts arguments, you can also pass them at the end of the `docker run` command.
 
@@ -326,7 +328,7 @@ services:
     image: flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
     ports:
       - "8081:8081"
-    command: standalone-job --job-classname com.job.ClassName [--job-id <job id>] [--fromSavepoint /path/to/savepoint] [--allowNonRestoredState] ["--jar-file" "/path/to/user-artifact"] [job arguments]
+    command: standalone-job --job-classname com.job.ClassName [--jars /path/to/artifact1,/path/to/artifact2] [--job-id <job id>] [--fromSavepoint /path/to/savepoint] [--allowNonRestoredState] [job arguments]
     volumes:
       - /host/path/to/job/artifacts:/opt/flink/usrlib
     environment:

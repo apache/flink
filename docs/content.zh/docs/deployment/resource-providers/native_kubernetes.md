@@ -107,26 +107,24 @@ $ ./bin/flink run-application \
 # FileSystem
 $ ./bin/flink run-application \
     --target kubernetes-application \
-    -Dcontainerized.master.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-1.17-SNAPSHOT.jar \
     -Dkubernetes.cluster-id=my-first-application-cluster \
     -Dkubernetes.container.image=custom-image-name \
     s3://my-bucket/my-flink-job.jar
 
-# Http/Https Schema
+# HTTP(S)
 $ ./bin/flink run-application \
     --target kubernetes-application \
     -Dkubernetes.cluster-id=my-first-application-cluster \
     -Dkubernetes.container.image=custom-image-name \
-    http://ip:port/my-flink-job.jar
+    https://ip:port/my-flink-job.jar
 ```
 {{< hint info >}}
-Now, The jar artifact supports downloading from the [flink filesystem]({{< ref "docs/deployment/filesystems/overview" >}}) or Http/Https in Application Mode.  
-The jar package will be downloaded from filesystem to
-[user.artifacts.base.dir]({{< ref "docs/deployment/config" >}}#user-artifacts-base-dir)/[kubernetes.namespace]({{< ref "docs/deployment/config" >}}#kubernetes-namespace)/[kubernetes.cluster-id]({{< ref "docs/deployment/config" >}}#kubernetes-cluster-id) path in image.
+JAR fetching supports downloading from [filesystems]({{< ref "docs/deployment/filesystems/overview" >}}) or HTTP(S) in Application Mode.  
+The JAR will be downloaded to
+[user.artifacts.base-dir]({{< ref "docs/deployment/config" >}}#user-artifacts-base-dir)/[kubernetes.namespace]({{< ref "docs/deployment/config" >}}#kubernetes-namespace)/[kubernetes.cluster-id]({{< ref "docs/deployment/config" >}}#kubernetes-cluster-id) path in image.
 {{< /hint >}}
 
-<span class="label label-info">Note</span> `local` schema is still supported. If you use `local` schema,  the jar must be provided in the image or download by a init container like [Example]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}#example-of-pod-template).
-
+<span class="label label-info">Note</span> `local` schema is still supported. If you use `local` schema, the JAR must be provided in the image or downloaded by an init container as described in [this example](#example-of-pod-template).
 
 The `kubernetes.cluster-id` option specifies the cluster name and must be unique.
 If you do not specify this option, then Flink will generate a random name.
@@ -348,7 +346,7 @@ $ kubectl create clusterrolebinding flink-role-binding-default --clusterrole=edi
 ```
 
 If you do not want to use the `default` service account, use the following command to create a new `flink-service-account` service account and set the role binding.
-Then use the config option `-Dkubernetes.service-account=flink-service-account` to make the JobManager pod use the `flink-service-account` service account to create/delete TaskManager pods and leader ConfigMaps.
+Then use the config option `-Dkubernetes.service-account=flink-service-account` to configure the JobManager pod's service account used to create and delete TaskManager pods and leader ConfigMaps.
 Also this will allow the TaskManager to watch leader ConfigMaps to retrieve the address of JobManager and ResourceManager.
 
 ```bash

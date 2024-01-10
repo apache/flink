@@ -26,25 +26,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Map;
 
-/** Download the jar from the http resource. */
-public class HttpArtifactFetcher implements ArtifactFetcher {
+/** Downloads artifact from an HTTP resource. */
+class HttpArtifactFetcher extends ArtifactFetcher {
 
     public static final Logger LOG = LoggerFactory.getLogger(HttpArtifactFetcher.class);
-    public static final HttpArtifactFetcher INSTANCE = new HttpArtifactFetcher();
 
     @Override
-    public File fetch(String uri, Configuration flinkConfiguration, File targetDir)
-            throws Exception {
+    File fetch(String uri, Configuration flinkConf, File targetDir) throws IOException {
         long start = System.currentTimeMillis();
         URL url = new URL(uri);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        Map<String, String> headers =
-                flinkConfiguration.get(ArtifactFetchOptions.USER_ARTIFACT_HTTP_HEADER);
+        Map<String, String> headers = flinkConf.get(ArtifactFetchOptions.HTTP_HEADERS);
 
         if (headers != null) {
             headers.forEach(conn::setRequestProperty);

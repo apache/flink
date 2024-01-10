@@ -63,7 +63,8 @@ public final class GlobalConfiguration {
                 "service-key",
                 "token",
                 "basic-auth",
-                "jaas.config"
+                "jaas.config",
+                "http-headers"
             };
 
     // the hidden content to be displayed

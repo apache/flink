@@ -93,6 +93,26 @@ under the License.
 							<shadedClassifierName>job-lib-jar</shadedClassifierName>
 						</configuration>
 					</execution>
+					<execution>
+						<id>test-user-classloader-no-main-jar</id>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<filters>
+								<filter>
+									<artifact>*</artifact>
+									<includes>
+										<include>**/TestUserClassLoaderAdditionalArtifact.*</include>
+										<include>META-INF/**</include>
+									</includes>
+								</filter>
+							</filters>
+							<finalName>test-user-classloader-additional-artifact-jar</finalName>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>additional-artifact-jar</shadedClassifierName>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 		</plugins>

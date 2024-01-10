@@ -491,7 +491,7 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
 
     @Test
     public void testArtifactsEmptyDirVolume() throws IOException {
-        flinkConfig.set(ArtifactFetchOptions.USER_ARTIFACTS_BASE_DIR, "/opt/artifacts");
+        flinkConfig.set(ArtifactFetchOptions.BASE_DIR, "/opt/artifacts");
         kubernetesJobManagerSpecification =
                 KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
                         flinkPod, kubernetesJobManagerParameters);
@@ -502,28 +502,6 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
         final Container container = podSpec.getContainers().get(0);
         assertThat(container.getVolumeMounts())
                 .anyMatch(
-                        resource ->
-                                resource.getName().equals(Constants.USER_ARTIFACTS_VOLUME)
-                                        && resource.getMountPath()
-                                                .equals(
-                                                        kubernetesJobManagerParameters
-                                                                .getUserArtifactsBaseDir()));
-    }
-
-    @Test
-    public void testTurnOffArtifactsEmptyDirVolume() throws IOException {
-        flinkConfig.set(KubernetesConfigOptions.KUBERNETES_USER_ARTIFACTS_EMPTYDIR_ENABLE, false);
-        flinkConfig.set(ArtifactFetchOptions.USER_ARTIFACTS_BASE_DIR, "/opt/artifacts");
-        kubernetesJobManagerSpecification =
-                KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
-                        flinkPod, kubernetesJobManagerParameters);
-        final PodSpec podSpec =
-                kubernetesJobManagerSpecification.getDeployment().getSpec().getTemplate().getSpec();
-        assertThat(podSpec.getVolumes())
-                .noneMatch(resource -> resource.getName().equals(Constants.USER_ARTIFACTS_VOLUME));
-        final Container container = podSpec.getContainers().get(0);
-        assertThat(container.getVolumeMounts())
-                .noneMatch(
                         resource ->
                                 resource.getName().equals(Constants.USER_ARTIFACTS_VOLUME)
                                         && resource.getMountPath()

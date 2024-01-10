@@ -318,10 +318,13 @@ See the [History Server Docs]({{< ref "docs/deployment/advanced/historyserver" >
 ----
 ----
 
-# Artifact Fetch
+# Artifact Fetching
 
-*Artifact Fetch* is a features that Flink will fetch user artifact stored in DFS or download by HTTP/HTTPS.
-Note that it is only supported in StandAlone Application Mode and Native Kubernetes Application Mode.
+Flink can fetch user artifacts stored locally, on remote DFS, or accessible via an HTTP(S) endpoint.
+{{< hint info >}}
+**Note:** This is only supported in Standalone Application Mode and Native Kubernetes Application Mode.
+{{< /hint >}}
+
 {{< generated/artifact_fetch_configuration >}}
 
 ----

@@ -16,24 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.program.artifact;
+package org.apache.flink.client.testjar;
 
-import org.apache.flink.configuration.Configuration;
+/** This class is used to test classloading from additional user artifacts. */
+public class TestUserClassLoaderAdditionalArtifact {
 
-import java.io.File;
-
-/** Abstract artifact fetcher. */
-abstract class ArtifactFetcher {
-
-    /**
-     * Fetch the resource from the uri to the targetDir.
-     *
-     * @param uri The artifact to be fetched.
-     * @param flinkConfiguration Flink configuration.
-     * @param targetDir The target dir to put the artifact.
-     * @return The path of the fetched artifact.
-     * @throws Exception Error during fetching the artifact.
-     */
-    abstract File fetch(String uri, Configuration flinkConfiguration, File targetDir)
-            throws Exception;
+    int getNum() {
+        return 1;
+    }
 }
