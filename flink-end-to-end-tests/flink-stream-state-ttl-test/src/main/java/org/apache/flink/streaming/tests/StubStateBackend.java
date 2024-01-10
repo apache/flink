@@ -86,6 +86,11 @@ final class StubStateBackend implements StateBackend {
     }
 
     @Override
+    public boolean useManagedMemory() {
+        return backend.useManagedMemory();
+    }
+
+    @Override
     public OperatorStateBackend createOperatorStateBackend(
             Environment env,
             String operatorIdentifier,

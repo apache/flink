@@ -71,6 +71,11 @@ public class StateBackendTestUtils {
         }
 
         @Override
+        public boolean useManagedMemory() {
+            return delegatedStataBackend.useManagedMemory();
+        }
+
+        @Override
         public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
                 Environment env,
                 JobID jobID,
