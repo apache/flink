@@ -195,7 +195,7 @@ class ExecutionFailureHandlerTest {
     }
 
     @Test
-    void testNewAttempt() throws Exception {
+    void testNewAttemptAndNumberOfRestarts() throws Exception {
         final Set<ExecutionVertexID> tasksToRestart =
                 Collections.singleton(new ExecutionVertexID(new JobVertexID(), 0));
         failoverStrategy.setTasksToRestart(tasksToRestart);
@@ -220,6 +220,7 @@ class ExecutionFailureHandlerTest {
     }
 
     private void testHandlingRootException(Execution execution, Throwable error) {
+        final long originalNumberOfRestarts = executionFailureHandler.getNumberOfRestarts();
         FailureHandlingResult result =
                 executionFailureHandler.getFailureHandlingResult(
                         execution, error, System.currentTimeMillis());
@@ -227,9 +228,13 @@ class ExecutionFailureHandlerTest {
                 .as(
                         "The FailureHandlingResult should be the root cause if exception is new attempt.")
                 .isTrue();
+        assertThat(executionFailureHandler.getNumberOfRestarts())
+                .as("The numberOfRestarts should be increased when it's a root exception.")
+                .isEqualTo(originalNumberOfRestarts + 1);
     }
 
     private void testHandlingConcurrentException(Execution execution, Throwable error) {
+        final long originalNumberOfRestarts = executionFailureHandler.getNumberOfRestarts();
         FailureHandlingResult result =
                 executionFailureHandler.getFailureHandlingResult(
                         execution, error, System.currentTimeMillis());
@@ -237,6 +242,9 @@ class ExecutionFailureHandlerTest {
                 .as(
                         "The FailureHandlingResult shouldn't be the root cause if exception isn't new attempt.")
                 .isFalse();
+        assertThat(executionFailureHandler.getNumberOfRestarts())
+                .as("The numberOfRestarts shouldn't be increased when it isn't a root exception.")
+                .isEqualTo(originalNumberOfRestarts);
     }
 
     /** Tests the check for unrecoverable error. */

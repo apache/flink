@@ -163,7 +163,9 @@ public class ExecutionFailureHandler {
 
         boolean isNewAttempt = restartBackoffTimeStrategy.notifyFailure(cause);
         if (restartBackoffTimeStrategy.canRestart()) {
-            numberOfRestarts++;
+            if (isNewAttempt) {
+                numberOfRestarts++;
+            }
 
             return FailureHandlingResult.restartable(
                     failedExecution,
