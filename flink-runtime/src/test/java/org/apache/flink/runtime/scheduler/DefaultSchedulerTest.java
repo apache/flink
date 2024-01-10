@@ -101,7 +101,6 @@ import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
@@ -111,6 +110,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -145,7 +145,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link DefaultScheduler}. */
-public class DefaultSchedulerTest extends TestLogger {
+public class DefaultSchedulerTest {
+
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultSchedulerTest.class);
 
     private static final int TIMEOUT_MS = 1000;
 
@@ -1785,7 +1787,7 @@ public class DefaultSchedulerTest extends TestLogger {
                         }
                     },
                     executorService,
-                    log);
+                    LOG);
         } finally {
             executorService.shutdownNow();
         }
@@ -2115,7 +2117,7 @@ public class DefaultSchedulerTest extends TestLogger {
                         executor,
                         scheduledExecutorService,
                         taskRestartExecutor)
-                .setLogger(log)
+                .setLogger(LOG)
                 .setJobMasterConfiguration(configuration)
                 .setSchedulingStrategyFactory(new PipelinedRegionSchedulingStrategy.Factory())
                 .setFailoverStrategyFactory(new RestartPipelinedRegionFailoverStrategy.Factory())
