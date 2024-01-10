@@ -20,6 +20,7 @@ package org.apache.flink.client.program.artifact;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
@@ -27,17 +28,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 
-/** Leverage the flink filesystem plugin to fetch the artifact. */
-public class FileSystemBasedArtifactFetcher implements ArtifactFetcher {
+/** Copies artifact via the Flink filesystem plugin. */
+class FsArtifactFetcher extends ArtifactFetcher {
 
-    public static final Logger LOG = LoggerFactory.getLogger(FileSystemBasedArtifactFetcher.class);
-    public static final FileSystemBasedArtifactFetcher INSTANCE =
-            new FileSystemBasedArtifactFetcher();
+    private static final Logger LOG = LoggerFactory.getLogger(FsArtifactFetcher.class);
 
     @Override
-    public File fetch(String uri, Configuration flinkConfiguration, File targetDir)
-            throws Exception {
-        org.apache.flink.core.fs.Path source = new org.apache.flink.core.fs.Path(uri);
+    File fetch(String uri, Configuration flinkConf, File targetDir) throws Exception {
+        Path source = new Path(uri);
         long start = System.currentTimeMillis();
         FileSystem fileSystem = source.getFileSystem();
         String fileName = source.getName();

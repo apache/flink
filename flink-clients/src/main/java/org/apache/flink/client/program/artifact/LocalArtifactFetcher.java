@@ -17,23 +17,26 @@
 
 package org.apache.flink.client.program.artifact;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.apache.flink.client.program.PackagedProgramUtils;
+import org.apache.flink.configuration.Configuration;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.nio.file.Path;
+import java.net.URI;
 
-import static org.assertj.core.api.Assertions.assertThat;
+/** Retrieves a local artifact as a valid {@link File}. */
+class LocalArtifactFetcher extends ArtifactFetcher {
 
-/** Tests for {@link ArtifactUtils}. */
-class ArtifactUtilsTest {
+    private static final Logger LOG = LoggerFactory.getLogger(FsArtifactFetcher.class);
 
-    @Test
-    void testCreateMissingParents(@TempDir Path tempDir) {
-        File targetDir = tempDir.resolve("p1").resolve("p2").resolve("base-dir").toFile();
-        assertThat(targetDir.getParentFile().getParentFile()).doesNotExist();
+    @Override
+    File fetch(String uri, Configuration flinkConf, File targetDir) throws Exception {
+        URI resolvedUri = PackagedProgramUtils.resolveURI(uri);
+        File targetFile = new File(resolvedUri.getPath());
+        LOG.debug("Retrieved local file from {} as {}", uri, targetFile);
 
-        ArtifactUtils.createMissingParents(targetDir);
-        assertThat(targetDir.getParentFile()).isDirectory();
+        return targetFile;
     }
 }

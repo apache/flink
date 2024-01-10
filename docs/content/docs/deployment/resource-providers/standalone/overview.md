@@ -96,13 +96,25 @@ Then, we can launch the JobManager:
 $ ./bin/standalone-job.sh start --job-classname org.apache.flink.streaming.examples.windowing.TopSpeedWindowing
 ```
 
-The web interface is now available at [localhost:8081](http://localhost:8081). However, the application won't be able to start, because there are no TaskManagers running yet:
+The web interface is now available at [localhost:8081](http://localhost:8081).
+
+{{< hint info >}}
+Another approach would be to use the artifact fetching mechanism via the `--jars` option:
+
+```bash
+$ ./bin/standalone-job.sh start -D user.artifacts.base-dir=/tmp/flink-artifacts --jars local:///path/to/TopSpeedWindowing.jar
+```
+
+Read more about this CLI option [here]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#jobmanager-additional-command-line-arguments).
+{{< /hint >}}
+
+However, the application won't be able to start, because there are no TaskManagers running yet:
 
 ```bash
 $ ./bin/taskmanager.sh start
 ```
 
-Note: You can start multiple TaskManagers, if your application needs more resources.
+<span class="label label-info">Note</span> You can start multiple TaskManagers, if your application needs more resources.
 
 Stopping the services is also supported via the scripts. Call them multiple times if you want to stop multiple instances, or use `stop-all`:
 

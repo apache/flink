@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
@@ -63,7 +62,10 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
                             new StandaloneApplicationClusterConfigurationParserFactory());
     private static final String JOB_CLASS_NAME = "foobar";
 
-    private static final String JOB_JAR_FILE = "local:///opt/flink/artifacts/my-flink-job.jar";
+    private static final String[] JOB_JARS = {
+        "local:///opt/flink/artifacts/my-flink-job.jar",
+        "local:///opt/flink/artifacts/my-additional-dep.jar"
+    };
 
     @Test
     void testEntrypointClusterConfigurationToConfigurationParsing() throws FlinkParseException {
@@ -87,9 +89,9 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
             String.valueOf(restPort),
             "--job-classname",
             JOB_CLASS_NAME,
+            "--jars",
+            String.join(",", JOB_JARS),
             String.format("-D%s=%s", key, value),
-            "--jar-file",
-            JOB_JAR_FILE,
             arg1,
             arg2
         };
@@ -97,6 +99,7 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
         final StandaloneApplicationClusterConfiguration clusterConfiguration =
                 commandLineParser.parse(args);
         assertThat(clusterConfiguration.getJobClassName()).isEqualTo(JOB_CLASS_NAME);
+        assertThat(clusterConfiguration.getJars()).isEqualTo(JOB_JARS);
         assertThat(clusterConfiguration.getArgs()).contains(arg1, arg2);
 
         final Configuration configuration =
@@ -110,7 +113,6 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
 
         assertThat(configuration.get(RestOptions.PORT)).isEqualTo(restPort);
         assertThat(configuration.get(DeploymentOptions.TARGET)).isEqualTo(value);
-        assertThat(configuration.get(PipelineOptions.JARS).get(0)).isEqualTo(JOB_JAR_FILE);
     }
 
     @Test
@@ -244,7 +246,7 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
         final String jobClassName = JOB_CLASS_NAME;
         final JobID jobId = new JobID();
         final String savepointRestorePath = "s3://foo/bar";
-        final String jobJarFile = JOB_JAR_FILE;
+        final String jars = String.join(",", JOB_JARS);
         final String[] args = {
             "-c",
             confDirPath,
@@ -254,8 +256,8 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
             jobId.toString(),
             "-s",
             savepointRestorePath,
-            "-jarfile",
-            jobJarFile,
+            "-jars",
+            jars,
             "-n"
         };
 
@@ -265,6 +267,7 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
         assertThat(clusterConfiguration.getConfigDir()).isEqualTo(confDirPath);
         assertThat(clusterConfiguration.getJobClassName()).isEqualTo(jobClassName);
         assertThat(clusterConfiguration.getJobId()).isEqualTo(jobId);
+        assertThat(clusterConfiguration.getJars()).isEqualTo(JOB_JARS);
 
         final SavepointRestoreSettings savepointRestoreSettings =
                 clusterConfiguration.getSavepointRestoreSettings();
@@ -285,12 +288,17 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
     }
 
     @Test
-    void testJarFileOption() throws FlinkParseException {
+    void testJarsOption() throws FlinkParseException {
         final String[] args = {
-            "--configDir", confDirPath, "--job-classname", "foobar", "--jar-file", JOB_JAR_FILE
+            "--configDir",
+            confDirPath,
+            "--job-classname",
+            "foobar",
+            "--jars",
+            String.join(",", JOB_JARS)
         };
         final StandaloneApplicationClusterConfiguration applicationClusterConfiguration =
                 commandLineParser.parse(args);
-        assertThat(applicationClusterConfiguration.getJarFile()).isEqualTo(JOB_JAR_FILE);
+        assertThat(applicationClusterConfiguration.getJars()).containsExactlyInAnyOrder(JOB_JARS);
     }
 }

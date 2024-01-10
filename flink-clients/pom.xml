@@ -118,6 +118,14 @@ under the License.
 			<scope>test</scope>
 			<classifier>job-lib-jar</classifier>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-clients-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<classifier>additional-artifact-jar</classifier>
+		</dependency>
 	</dependencies>
 
 	<!-- More information on this:

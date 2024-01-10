@@ -17,55 +17,43 @@
 
 package org.apache.flink.client.program.artifact;
 
-import org.apache.flink.client.program.PackagedProgramUtils;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.net.URI;
 
-/** Manage the user artifacts. */
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+/** Artifact fetch related utils. */
 public class ArtifactUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(ArtifactUtils.class);
 
-    private static synchronized void createIfNotExists(File targetDir) {
-        if (!targetDir.exists()) {
+    /**
+     * Creates missing parent directories for the given {@link File} if there are any. Does nothing
+     * otherwise.
+     *
+     * @param baseDir base dir to create parents for
+     */
+    public static synchronized void createMissingParents(File baseDir) {
+        checkNotNull(baseDir, "Base dir has to be provided.");
+
+        if (!baseDir.exists()) {
             try {
-                FileUtils.forceMkdirParent(targetDir);
-                LOG.info("Created dir: {}", targetDir);
+                FileUtils.forceMkdirParent(baseDir);
+                LOG.info("Created parents for base dir: {}", baseDir);
             } catch (Exception e) {
                 throw new FlinkRuntimeException(
-                        String.format("Failed to create the dir: %s", targetDir), e);
+                        String.format("Failed to create parent(s) for given base dir: %s", baseDir),
+                        e);
             }
         }
     }
 
-    public static File fetch(String jarURI, Configuration flinkConfiguration, String targetDirStr)
-            throws Exception {
-        URI uri = PackagedProgramUtils.resolveURI(jarURI);
-        if ("local".equals(uri.getScheme()) && uri.isAbsolute()) {
-            return new File(uri.getPath());
-        } else {
-            File targetDir = new File(targetDirStr);
-            File targetFile = new File(targetDir, FilenameUtils.getName(uri.getPath()));
-            // user artifacts will be kept if enable emptyDir
-            if (!targetFile.exists()) {
-                createIfNotExists(targetDir);
-                if ("http".equals(uri.getScheme()) || "https".equals(uri.getScheme())) {
-                    return HttpArtifactFetcher.INSTANCE.fetch(
-                            jarURI, flinkConfiguration, targetDir);
-                } else {
-                    return FileSystemBasedArtifactFetcher.INSTANCE.fetch(
-                            jarURI, flinkConfiguration, targetDir);
-                }
-            }
-            return targetFile;
-        }
+    private ArtifactUtils() {
+        throw new UnsupportedOperationException("This class should never be instantiated.");
     }
 }
