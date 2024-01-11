@@ -82,7 +82,8 @@ public interface CatalogTable extends CatalogBaseTable {
             List<String> partitionKeys,
             Map<String, String> options,
             @Nullable Long snapshot) {
-        return new DefaultCatalogTable(schema, comment, partitionKeys, options, snapshot, Optional.empty());
+        return new DefaultCatalogTable(
+                schema, comment, partitionKeys, options, snapshot, Optional.empty());
     }
 
     /**
@@ -151,12 +152,14 @@ public interface CatalogTable extends CatalogBaseTable {
     }
 
     /** Distribution specification. */
-    public class TableDistribution {
+    @PublicEvolving
+    class TableDistribution {
 
         private final Kind kind;
         private final @Nullable Integer bucketCount;
         private final List<String> bucketKeys;
 
+        @PublicEvolving
         public TableDistribution(
                 Kind kind, @Nullable Integer bucketCount, List<String> bucketKeys) {
             this.kind = kind;
@@ -170,15 +173,18 @@ public interface CatalogTable extends CatalogBaseTable {
         }
 
         /** Hash distribution over on the given keys among the declared number of buckets. */
-        public static TableDistribution ofHash(List<String> bucketKeys, @Nullable Integer bucketCount) {
+        public static TableDistribution ofHash(
+                List<String> bucketKeys, @Nullable Integer bucketCount) {
             return new TableDistribution(Kind.HASH, bucketCount, bucketKeys);
         }
 
         /** Range distribution over on the given keys among the declared number of buckets. */
-        public static TableDistribution ofRange(List<String> bucketKeys, @Nullable Integer bucketCount) {
+        public static TableDistribution ofRange(
+                List<String> bucketKeys, @Nullable Integer bucketCount) {
             return new TableDistribution(Kind.RANGE, bucketCount, bucketKeys);
         }
 
+        @PublicEvolving
         public enum Kind {
             UNKNOWN,
             HASH,

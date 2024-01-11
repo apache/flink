@@ -1353,29 +1353,27 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
         comment = SqlLiteral.createCharString(p, getPos());
     }]
     [
-        <DISTRIBUTED> <BY>
-                (
-                <HASH> {
-                    distributionKind = "HASH";
-                    }
-                |
-                <RANGE> {
-                    distributionKind = "RANGE";
-                    }
-                | {
-                    distributionKind = null;
-                    }
+        <DISTRIBUTED>
+        (
+            <INTO> { bucketCount = Literal(); } <BUCKETS>
+            |
+            (
+                <BY> (
+                    <HASH> { distributionKind = "HASH"; }
+                    | <RANGE> { distributionKind = "RANGE"; }
+                    | { distributionKind = null; }
                 )
-                    {
-        bucketColumns = ParenthesizedSimpleIdentifierList();
+                {
+                    bucketColumns = ParenthesizedSimpleIdentifierList();
                 }
-        <INTO>
-            {
-        bucketCount = Literal();
-            }
-        <BUCKETS> {
-        distribution = new SqlDistribution(getPos(), distributionKind, bucketColumns, bucketCount);
-            }
+                [
+                    <INTO> { bucketCount = Literal(); } <BUCKETS>
+                ]
+            )
+        )
+        {
+            distribution = new SqlDistribution(getPos(), distributionKind, bucketColumns, bucketCount);
+        }
     ]
     [
         <PARTITIONED> <BY>

@@ -33,8 +33,8 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 /**
- * Distribution statement in CREATE TABLE DDL, e.g.
- * {@code DISTRIBUTED BY HASH(column1, column2) BUCKETS 10}.
+ * Distribution statement in CREATE TABLE DDL, e.g. {@code DISTRIBUTED BY HASH(column1, column2)
+ * BUCKETS 10}.
  */
 public class SqlDistribution extends SqlCall {
     // TODO: Can there be a space in the name?
@@ -47,7 +47,10 @@ public class SqlDistribution extends SqlCall {
     private final SqlNode bucketCount;
 
     public SqlDistribution(
-            SqlParserPos pos, @Nullable String distributionKind, @Nullable SqlNodeList bucketColumns, @Nullable SqlNode bucketCount) {
+            SqlParserPos pos,
+            @Nullable String distributionKind,
+            @Nullable SqlNodeList bucketColumns,
+            @Nullable SqlNode bucketCount) {
         super(pos);
         this.distributionKind = distributionKind;
         this.bucketColumns = bucketColumns;
@@ -67,6 +70,15 @@ public class SqlDistribution extends SqlCall {
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         writer.newlineAndIndent();
+
+        if (bucketColumns.size() == 0 && bucketCount != null) {
+            writer.keyword("DISTRIBUTED INTO");
+            bucketCount.unparse(writer, leftPrec, rightPrec);
+            writer.keyword("BUCKETS");
+            writer.newlineAndIndent();
+            return;
+        }
+
         writer.keyword("DISTRIBUTED BY");
         if (distributionKind != null) {
             writer.print(distributionKind);
@@ -74,9 +86,12 @@ public class SqlDistribution extends SqlCall {
         SqlWriter.Frame bucketFrame = writer.startList("(", ")");
         bucketColumns.unparse(writer, leftPrec, rightPrec);
         writer.endList(bucketFrame);
-        writer.keyword("INTO");
-        bucketCount.unparse(writer, leftPrec, rightPrec);
-        writer.keyword("BUCKETS");
+
+        if (bucketCount != null) {
+            writer.keyword("INTO");
+            bucketCount.unparse(writer, leftPrec, rightPrec);
+            writer.keyword("BUCKETS");
+        }
         writer.newlineAndIndent();
     }
 

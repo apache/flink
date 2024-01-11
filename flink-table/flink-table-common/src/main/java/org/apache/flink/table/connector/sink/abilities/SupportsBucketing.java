@@ -19,16 +19,12 @@
 package org.apache.flink.table.connector.sink.abilities;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.catalog.CatalogTable.TableDistribution;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 
 import java.util.Set;
 
-/**
- * Enables to write bucketed data into a {@link DynamicTableSink}.
- *
- **/
-
+/** Enables to write bucketed data into a {@link DynamicTableSink}. */
 @PublicEvolving
 public interface SupportsBucketing {
     Set<TableDistribution.Kind> listAlgorithms();

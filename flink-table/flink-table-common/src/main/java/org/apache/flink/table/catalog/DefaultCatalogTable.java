@@ -100,12 +100,14 @@ public class DefaultCatalogTable implements CatalogTable {
 
     @Override
     public CatalogBaseTable copy() {
-        return new DefaultCatalogTable(schema, comment, partitionKeys, options, snapshot, tableDistribution);
+        return new DefaultCatalogTable(
+                schema, comment, partitionKeys, options, snapshot, tableDistribution);
     }
 
     @Override
     public CatalogTable copy(Map<String, String> options) {
-        return new DefaultCatalogTable(schema, comment, partitionKeys, options, snapshot, tableDistribution);
+        return new DefaultCatalogTable(
+                schema, comment, partitionKeys, options, snapshot, tableDistribution);
     }
 
     @Override
