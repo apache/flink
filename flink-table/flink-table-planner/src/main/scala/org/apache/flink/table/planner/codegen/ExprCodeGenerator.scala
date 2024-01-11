@@ -805,7 +805,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
           case BuiltInFunctionDefinitions.JSON_STRING =>
             new JsonStringCallGen(call).generate(ctx, operands, resultType)
 
-          case BuiltInFunctionDefinitions.HASHCODE =>
+          case BuiltInFunctionDefinitions.INTERNAL_HASHCODE =>
             new HashCodeCallGen().generate(ctx, operands, resultType)
 
           case BuiltInFunctionDefinitions.AGG_DECIMAL_PLUS |
