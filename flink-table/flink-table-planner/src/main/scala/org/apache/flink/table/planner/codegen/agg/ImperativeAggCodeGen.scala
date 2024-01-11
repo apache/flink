@@ -88,7 +88,7 @@ class ImperativeAggCodeGen(
     mergedAccOnHeap: Boolean,
     mergedAccExternalType: DataType,
     inputFieldCopy: Boolean,
-    val isIncrementalUpdateNeeded: Boolean)
+    isIncrementalUpdateNeeded: Boolean)
   extends AggCodeGen {
 
   private val SINGLE_ITERABLE = className[SingleElementIterator[_]]

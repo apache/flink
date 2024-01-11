@@ -21,7 +21,7 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.planner.runtime.utils.{JavaUserDefinedTableFunctions, StreamingWithStateTestBase, TestingRetractSink}
+import org.apache.flink.table.planner.runtime.utils.{JavaUserDefinedTableAggregateFunctions, StreamingWithStateTestBase, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverloadedDoubleMaxFunction
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData.tupleData3
@@ -61,10 +61,10 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
     )
 
     // Register the table aggregate function
-    tEnv.createTemporarySystemFunction("top2", new JavaUserDefinedTableFunctions.Top2)
+    tEnv.createTemporarySystemFunction("top2", new JavaUserDefinedTableAggregateFunctions.Top2)
     tEnv.createTemporarySystemFunction(
       "incrementalTop2",
-      new JavaUserDefinedTableFunctions.IncrementalTop2)
+      new JavaUserDefinedTableAggregateFunctions.IncrementalTop2)
 
     checkRank(
       "top2",
