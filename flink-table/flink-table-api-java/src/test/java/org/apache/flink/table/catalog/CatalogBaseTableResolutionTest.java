@@ -201,6 +201,31 @@ class CatalogBaseTableResolutionTest {
         }
     }
 
+    // TODO: JNH!
+    @Test
+    void testInvalidDistributionKeys() {
+        // TODO: Update to use new distribution keys constructor.
+        final CatalogTable catalogTable =
+                CatalogTable.of(
+                        TABLE_SCHEMA,
+                        null,
+                        Arrays.asList("region", "countyINVALID"),
+                        Collections.emptyMap());
+
+        try {
+            resolveCatalogBaseTable(ResolvedCatalogTable.class, catalogTable);
+            fail("Invalid partition keys expected.");
+        } catch (Exception e) {
+            assertThat(e)
+                    .satisfies(
+                            matching(
+                                    containsMessage(
+                                            "Invalid partition key 'countyINVALID'. A partition key must "
+                                                    + "reference a physical column in the schema. Available "
+                                                    + "columns are: [id, region, county]")));
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
     // Utilities
     // --------------------------------------------------------------------------------------------

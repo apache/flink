@@ -93,6 +93,24 @@ class TableSinkTest extends TableTestBase {
     util.verifyExecPlan(stmtSet)
   }
 
+  // TODO Add distribution test?
+  @Test
+  def testDistribution(): Unit = {
+    util.addTable(s"""
+                     |CREATE TABLE sink (
+                     |  `a` INT,
+                     |  `b` BIGINT
+                     |) DISTRIBUTED BY (
+                     |  `b`
+                     |) WITH (
+                     |  'connector' = 'values'
+                     |)
+                     |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sink SELECT a,b FROM MyTable ORDER BY a")
+    util.verifyExecPlan(stmtSet)
+  }
+
   @Test
   def testTableHints(): Unit = {
     util.tableEnv.executeSql(s"""

@@ -62,6 +62,7 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+// TODO: Update relative to FLIP-376.
 /** Tests for {@link MergeTableLikeUtil}. */
 class MergeTableLikeUtilTest {
 

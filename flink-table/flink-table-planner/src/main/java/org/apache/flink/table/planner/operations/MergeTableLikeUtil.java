@@ -77,6 +77,7 @@ class MergeTableLikeUtil {
         defaultMergingStrategies.put(FeatureOption.METADATA, MergingStrategy.INCLUDING);
         defaultMergingStrategies.put(FeatureOption.CONSTRAINTS, MergingStrategy.INCLUDING);
         defaultMergingStrategies.put(FeatureOption.PARTITIONS, MergingStrategy.INCLUDING);
+        // TODO: Update relative to FLIP-376.
     }
 
     private final SqlValidator validator;
