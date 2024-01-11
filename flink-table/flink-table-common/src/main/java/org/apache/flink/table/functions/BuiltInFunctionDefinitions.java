@@ -381,6 +381,16 @@ public final class BuiltInFunctionDefinitions {
                     .internal()
                     .build();
 
+    public static final BuiltInFunctionDefinition INTERNAL_HASHCODE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("$HASHCODE$1")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(ANY))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.INT().notNull())))
+                    .runtimeProvided()
+                    .internal()
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Logic functions
     // --------------------------------------------------------------------------------------------
@@ -2290,16 +2300,6 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(sequence(JSON_ARGUMENT))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
                     .runtimeProvided()
-                    .build();
-
-    public static final BuiltInFunctionDefinition HASHCODE =
-            BuiltInFunctionDefinition.newBuilder()
-                    .name("$HASHCODE$1")
-                    .kind(SCALAR)
-                    .inputTypeStrategy(sequence(ANY))
-                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.INT().notNull())))
-                    .runtimeProvided()
-                    .internal()
                     .build();
 
     public static final BuiltInFunctionDefinition JSON_OBJECT =
