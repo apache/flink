@@ -94,6 +94,7 @@ public class SqlCreateTableLike extends SqlCreateTable {
                 columnList,
                 tableConstraints,
                 propertyList,
+                null,
                 partitionKeyList,
                 watermark,
                 comment,

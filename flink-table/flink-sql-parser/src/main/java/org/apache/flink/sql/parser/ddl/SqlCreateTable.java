@@ -63,6 +63,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
     private final List<SqlTableConstraint> tableConstraints;
 
+    private final SqlDistribution sqlDistribution;
     private final SqlNodeList partitionKeyList;
 
     private final SqlWatermark watermark;
@@ -77,6 +78,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             SqlNodeList columnList,
             List<SqlTableConstraint> tableConstraints,
             SqlNodeList propertyList,
+            SqlDistribution sqlDistribution,
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
             @Nullable SqlCharStringLiteral comment,
@@ -89,6 +91,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
                 columnList,
                 tableConstraints,
                 propertyList,
+                sqlDistribution,
                 partitionKeyList,
                 watermark,
                 comment,
@@ -103,6 +106,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             SqlNodeList columnList,
             List<SqlTableConstraint> tableConstraints,
             SqlNodeList propertyList,
+            SqlDistribution sqlDistribution,
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
             @Nullable SqlCharStringLiteral comment,
@@ -114,6 +118,9 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
         this.tableConstraints =
                 requireNonNull(tableConstraints, "table constraints should not be null");
         this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
+        this.sqlDistribution =
+                sqlDistribution; // requireNonNull(bucketColumnList, "bucketColumns should not be
+        // null");
         this.partitionKeyList =
                 requireNonNull(partitionKeyList, "partitionKeyList should not be null");
         this.watermark = watermark;
@@ -254,6 +261,19 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             writer.newlineAndIndent();
             writer.keyword("COMMENT");
             comment.unparse(writer, leftPrec, rightPrec);
+        }
+
+        if (this.sqlDistribution != null) {
+            writer.newlineAndIndent();
+            writer.keyword("DISTRIBUTED BY");
+            writer.print(sqlDistribution.getDistributionKind());
+            SqlWriter.Frame bucketFrame = writer.startList("(", ")");
+            this.sqlDistribution.getBucketColumns().unparse(writer, leftPrec, rightPrec);
+            writer.endList(bucketFrame);
+            writer.keyword("INTO");
+            this.sqlDistribution.getBucketCount().unparse(writer, leftPrec, rightPrec);
+            writer.keyword("BUCKETS");
+            writer.newlineAndIndent();
         }
 
         if (this.partitionKeyList.size() > 0) {

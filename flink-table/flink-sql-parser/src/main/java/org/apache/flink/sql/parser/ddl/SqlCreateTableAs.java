@@ -92,6 +92,7 @@ public class SqlCreateTableAs extends SqlCreateTable {
                 columnList,
                 tableConstraints,
                 propertyList,
+                null, // TODO
                 partitionKeyList,
                 watermark,
                 comment,
