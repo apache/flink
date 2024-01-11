@@ -60,16 +60,16 @@ import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.operators.window.assigners.CountSlidingWindowAssigner;
-import org.apache.flink.table.runtime.operators.window.assigners.CountTumblingWindowAssigner;
-import org.apache.flink.table.runtime.operators.window.assigners.SessionWindowAssigner;
-import org.apache.flink.table.runtime.operators.window.assigners.SlidingWindowAssigner;
-import org.apache.flink.table.runtime.operators.window.assigners.TumblingWindowAssigner;
-import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
-import org.apache.flink.table.runtime.operators.window.triggers.ElementTriggers;
-import org.apache.flink.table.runtime.operators.window.triggers.EventTimeTriggers;
-import org.apache.flink.table.runtime.operators.window.triggers.ProcessingTimeTriggers;
-import org.apache.flink.table.runtime.operators.window.triggers.Trigger;
+import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.CountSlidingWindowAssigner;
+import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.CountTumblingWindowAssigner;
+import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.GroupWindowAssigner;
+import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.SessionWindowAssigner;
+import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.SlidingWindowAssigner;
+import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.TumblingWindowAssigner;
+import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.ElementTriggers;
+import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.EventTimeTriggers;
+import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.ProcessingTimeTriggers;
+import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.Trigger;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.RowType;
@@ -248,9 +248,9 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                 TimeWindowUtil.getShiftTimeZone(
                         window.timeAttribute().getOutputDataType().getLogicalType(),
                         TableConfigUtils.getLocalTimeZone(config));
-        Tuple2<WindowAssigner<?>, Trigger<?>> windowAssignerAndTrigger =
+        Tuple2<GroupWindowAssigner<?>, Trigger<?>> windowAssignerAndTrigger =
                 generateWindowAssignerAndTrigger();
-        WindowAssigner<?> windowAssigner = windowAssignerAndTrigger.f0;
+        GroupWindowAssigner<?> windowAssigner = windowAssignerAndTrigger.f0;
         Trigger<?> trigger = windowAssignerAndTrigger.f1;
         final Configuration pythonConfig =
                 CommonPythonUtil.extractPythonConfiguration(
@@ -318,8 +318,8 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
         return transform;
     }
 
-    private Tuple2<WindowAssigner<?>, Trigger<?>> generateWindowAssignerAndTrigger() {
-        WindowAssigner<?> windowAssiger;
+    private Tuple2<GroupWindowAssigner<?>, Trigger<?>> generateWindowAssignerAndTrigger() {
+        GroupWindowAssigner<?> windowAssiger;
         Trigger<?> trigger;
         if (window instanceof TumblingGroupWindow) {
             TumblingGroupWindow tumblingWindow = (TumblingGroupWindow) window;
@@ -389,7 +389,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                     RowType inputRowType,
                     RowType outputRowType,
                     int inputTimeFieldIndex,
-                    WindowAssigner<?> windowAssigner,
+                    GroupWindowAssigner<?> windowAssigner,
                     Trigger<?> trigger,
                     long allowance,
                     Configuration pythonConfig,
@@ -430,7 +430,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                     RowType inputRowType,
                     RowType outputRowType,
                     int inputTimeFieldIndex,
-                    WindowAssigner<?> windowAssigner,
+                    GroupWindowAssigner<?> windowAssigner,
                     AggregateInfoList aggInfoList,
                     long allowance,
                     Configuration pythonConfig,
@@ -477,7 +477,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                     Configuration pythonConfig,
                     RowType inputRowType,
                     RowType outputRowType,
-                    WindowAssigner<?> windowAssigner,
+                    GroupWindowAssigner<?> windowAssigner,
                     Trigger<?> trigger,
                     long allowance,
                     int inputTimeFieldIndex,
@@ -507,7 +507,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                             RowType.class,
                             RowType.class,
                             int.class,
-                            WindowAssigner.class,
+                            GroupWindowAssigner.class,
                             Trigger.class,
                             long.class,
                             NamedWindowProperty[].class,
@@ -548,7 +548,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                     ClassLoader classLoader,
                     RowType inputType,
                     RowType outputType,
-                    WindowAssigner<?> windowAssigner,
+                    GroupWindowAssigner<?> windowAssigner,
                     PythonAggregateFunctionInfo[] aggregateFunctions,
                     DataViewSpec[][] dataViewSpecs,
                     int inputTimeFieldIndex,
@@ -581,7 +581,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                                 boolean.class,
                                 boolean.class,
                                 int.class,
-                                WindowAssigner.class,
+                                GroupWindowAssigner.class,
                                 boolean.class,
                                 boolean.class,
                                 long.class,
@@ -625,7 +625,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                                 boolean.class,
                                 boolean.class,
                                 int.class,
-                                WindowAssigner.class,
+                                GroupWindowAssigner.class,
                                 boolean.class,
                                 boolean.class,
                                 long.class,
@@ -670,7 +670,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                                 boolean.class,
                                 boolean.class,
                                 int.class,
-                                WindowAssigner.class,
+                                GroupWindowAssigner.class,
                                 boolean.class,
                                 long.class,
                                 long.class,

@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceUnsharedAssigner;
+import org.apache.flink.table.runtime.operators.window.windowtvf.slicing.SliceUnsharedAssigner;
 
 import java.time.ZoneId;
 
@@ -30,7 +30,7 @@ import java.time.ZoneId;
  * An window aggregate processor implementation which works for {@link SliceUnsharedAssigner}, e.g.
  * tumbling windows.
  */
-public final class SliceUnsharedWindowAggProcessor extends AbstractWindowAggProcessor {
+public final class SliceUnsharedWindowAggProcessor extends AbstractSliceWindowAggProcessor {
     private static final long serialVersionUID = 1L;
 
     public SliceUnsharedWindowAggProcessor(

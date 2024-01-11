@@ -45,8 +45,8 @@ import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunc
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.runtime.groupwindow.WindowProperty;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.operators.aggregate.window.SlicingWindowAggOperatorBuilder;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
+import org.apache.flink.table.runtime.operators.aggregate.window.builder.SlicingWindowAggOperatorBuilder;
+import org.apache.flink.table.runtime.operators.window.windowtvf.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
@@ -247,7 +247,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
                         .keySerializer(
                                 (PagedTypeSerializer<RowData>)
                                         selector.getProducedType().toSerializer())
-                        .assigner(sliceAssigner)
+                        .sliceAssigner(sliceAssigner)
                         .countStarIndex(globalAggInfoList.getIndexOfCountStar())
                         .globalAggregate(
                                 localAggsHandler,
@@ -303,6 +303,9 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
                 aggInfoList,
                 JavaScalaConversionUtil.toScala(windowProperties),
                 sliceAssigner,
+                // we use window end timestamp to indicate a slicing window, see SliceAssigner
+                // TODO support unslicing window and using class Window here
+                Long.class,
                 shifTimeZone);
     }
 }

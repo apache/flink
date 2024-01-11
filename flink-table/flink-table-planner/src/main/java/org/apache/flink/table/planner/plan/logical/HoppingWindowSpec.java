@@ -120,4 +120,9 @@ public class HoppingWindowSpec implements WindowSpec {
                     formatWithHighestUnit(offset));
         }
     }
+
+    @Override
+    public boolean isAlignedWindow() {
+        return true;
+    }
 }

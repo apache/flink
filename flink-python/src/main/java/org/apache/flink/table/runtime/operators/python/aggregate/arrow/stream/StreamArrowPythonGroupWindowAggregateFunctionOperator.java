@@ -51,9 +51,10 @@ import org.apache.flink.table.runtime.groupwindow.WindowStart;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.Window;
-import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
-import org.apache.flink.table.runtime.operators.window.internal.InternalWindowProcessFunction;
-import org.apache.flink.table.runtime.operators.window.triggers.Trigger;
+import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.GroupWindowAssigner;
+import org.apache.flink.table.runtime.operators.window.groupwindow.context.TriggerContext;
+import org.apache.flink.table.runtime.operators.window.groupwindow.context.WindowContext;
+import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.Trigger;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
@@ -81,8 +82,8 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
     /** The row time index of the input data. */
     private final int inputTimeFieldIndex;
 
-    /** A {@link WindowAssigner} assigns zero or more {@link Window Windows} to an element. */
-    private final WindowAssigner<W> windowAssigner;
+    /** A {@link GroupWindowAssigner} assigns zero or more {@link Window Windows} to an element. */
+    private final GroupWindowAssigner<W> windowAssigner;
 
     /**
      * A {@link Trigger} determines when a pane of a window should be evaluated to emit the results
@@ -117,7 +118,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
     /** Stores retract message data(DELETE/UPDATE_BEFORE) in window. */
     private transient InternalListState<K, W, RowData> windowRetractData;
 
-    private transient TriggerContext triggerContext;
+    private transient TriggerContextImpl triggerContext;
 
     /** For serializing the window in checkpoints. */
     private transient TypeSerializer<W> windowSerializer;
@@ -148,7 +149,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
             RowType udfInputType,
             RowType udfOutputType,
             int inputTimeFieldIndex,
-            WindowAssigner<W> windowAssigner,
+            GroupWindowAssigner<W> windowAssigner,
             Trigger<W> trigger,
             long allowedLateness,
             NamedWindowProperty[] namedProperties,
@@ -176,7 +177,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 
         internalTimerService = getInternalTimerService("window-timers", windowSerializer, this);
 
-        triggerContext = new TriggerContext();
+        triggerContext = new TriggerContextImpl();
         triggerContext.open();
 
         StateDescriptor<ListState<RowData>, List<RowData>> windowStateDescriptor =
@@ -193,7 +194,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
         windowProperty = new GenericRowData(namedProperties.length);
         windowAggResult = new JoinedRowData();
 
-        WindowContext windowContext = new WindowContext();
+        PhthonWindowContext windowContext = new PhthonWindowContext();
         windowAssigner.open(windowContext);
     }
 
@@ -453,7 +454,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
      * reused by setting the {@code key} and {@code window} fields. No internal state must be kept
      * in the {@code TriggerContext}.
      */
-    private class TriggerContext implements Trigger.TriggerContext {
+    private class TriggerContextImpl implements TriggerContext {
 
         private W window;
 
@@ -528,7 +529,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
         }
     }
 
-    private class WindowContext implements InternalWindowProcessFunction.Context<K, W> {
+    private class PhthonWindowContext implements WindowContext<K, W> {
         @Override
         public <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor)
                 throws Exception {

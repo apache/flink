@@ -25,11 +25,11 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.PerWindowStateDataViewStore;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
-import org.apache.flink.table.runtime.operators.window.combines.RecordsCombiner;
-import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
-import org.apache.flink.table.runtime.operators.window.state.StateKeyContext;
-import org.apache.flink.table.runtime.operators.window.state.WindowState;
-import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
+import org.apache.flink.table.runtime.operators.window.windowtvf.combines.RecordsCombiner;
+import org.apache.flink.table.runtime.operators.window.windowtvf.common.WindowTimerService;
+import org.apache.flink.table.runtime.operators.window.windowtvf.state.StateKeyContext;
+import org.apache.flink.table.runtime.operators.window.windowtvf.state.WindowState;
+import org.apache.flink.table.runtime.operators.window.windowtvf.state.WindowValueState;
 import org.apache.flink.table.runtime.util.WindowKey;
 
 import java.time.ZoneId;

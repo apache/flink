@@ -26,11 +26,11 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.rank.TopNBuffer;
-import org.apache.flink.table.runtime.operators.window.combines.RecordsCombiner;
-import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
-import org.apache.flink.table.runtime.operators.window.state.StateKeyContext;
-import org.apache.flink.table.runtime.operators.window.state.WindowMapState;
-import org.apache.flink.table.runtime.operators.window.state.WindowState;
+import org.apache.flink.table.runtime.operators.window.windowtvf.combines.RecordsCombiner;
+import org.apache.flink.table.runtime.operators.window.windowtvf.common.WindowTimerService;
+import org.apache.flink.table.runtime.operators.window.windowtvf.state.StateKeyContext;
+import org.apache.flink.table.runtime.operators.window.windowtvf.state.WindowMapState;
+import org.apache.flink.table.runtime.operators.window.windowtvf.state.WindowState;
 import org.apache.flink.table.runtime.util.WindowKey;
 
 import java.util.ArrayList;

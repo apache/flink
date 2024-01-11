@@ -30,10 +30,10 @@ import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.rank.TopNBuffer;
-import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProcessor;
-import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
-import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerServiceImpl;
-import org.apache.flink.table.runtime.operators.window.state.WindowMapState;
+import org.apache.flink.table.runtime.operators.window.windowtvf.common.WindowTimerService;
+import org.apache.flink.table.runtime.operators.window.windowtvf.slicing.SlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.windowtvf.slicing.SlicingWindowTimerServiceImpl;
+import org.apache.flink.table.runtime.operators.window.windowtvf.state.WindowMapState;
 import org.apache.flink.types.RowKind;
 
 import java.time.ZoneId;
@@ -119,7 +119,8 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
                 ctx.getKeyedStateBackend()
                         .getOrCreateKeyedState(namespaceSerializer, mapStateDescriptor);
 
-        this.windowTimerService = new WindowTimerServiceImpl(ctx.getTimerService(), shiftTimeZone);
+        this.windowTimerService =
+                new SlicingWindowTimerServiceImpl(ctx.getTimerService(), shiftTimeZone);
         this.windowState =
                 new WindowMapState<>(
                         (InternalMapState<RowData, Long, RowData, List<RowData>>) state);
