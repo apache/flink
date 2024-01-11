@@ -24,6 +24,7 @@ import org.apache.flink.configuration.description.Description;
 import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.CompactionStyle;
+import org.rocksdb.CompressionType;
 import org.rocksdb.InfoLogLevel;
 
 import java.io.File;
@@ -39,6 +40,15 @@ import static org.rocksdb.CompactionStyle.FIFO;
 import static org.rocksdb.CompactionStyle.LEVEL;
 import static org.rocksdb.CompactionStyle.NONE;
 import static org.rocksdb.CompactionStyle.UNIVERSAL;
+import static org.rocksdb.CompressionType.BZLIB2_COMPRESSION;
+import static org.rocksdb.CompressionType.DISABLE_COMPRESSION_OPTION;
+import static org.rocksdb.CompressionType.LZ4HC_COMPRESSION;
+import static org.rocksdb.CompressionType.LZ4_COMPRESSION;
+import static org.rocksdb.CompressionType.NO_COMPRESSION;
+import static org.rocksdb.CompressionType.SNAPPY_COMPRESSION;
+import static org.rocksdb.CompressionType.XPRESS_COMPRESSION;
+import static org.rocksdb.CompressionType.ZLIB_COMPRESSION;
+import static org.rocksdb.CompressionType.ZSTD_COMPRESSION;
 import static org.rocksdb.InfoLogLevel.INFO_LEVEL;
 
 /**
@@ -138,6 +148,15 @@ public class RocksDBConfigurableOptions implements Serializable {
                                     UNIVERSAL.name(),
                                     NONE.name(),
                                     LEVEL.name()));
+
+    public static final ConfigOption<CompressionType> COMPRESSION_TYPE =
+            key("state.backend.rocksdb.compression.type")
+                    .enumType(CompressionType.class)
+                    .defaultValue(SNAPPY_COMPRESSION)
+                    .withDescription(String.format("The specified compression type for DB. Candidate compression type is %s, %s, %s, %s, %s, " +
+                                    "%s, %s, %s or %s, and RocksDB choose '%s' as default style.", NO_COMPRESSION.name(), SNAPPY_COMPRESSION.name(),
+                            ZLIB_COMPRESSION.name(), BZLIB2_COMPRESSION.name(), LZ4_COMPRESSION.name(), LZ4HC_COMPRESSION.name(), XPRESS_COMPRESSION.name(),
+                            ZSTD_COMPRESSION.name(), DISABLE_COMPRESSION_OPTION.name(), SNAPPY_COMPRESSION.name()));
 
     public static final ConfigOption<Boolean> USE_DYNAMIC_LEVEL_SIZE =
             key("state.backend.rocksdb.compaction.level.use-dynamic-size")
@@ -278,6 +297,7 @@ public class RocksDBConfigurableOptions implements Serializable {
 
                 // configurable ColumnFamilyOptions
                 COMPACTION_STYLE,
+                COMPRESSION_TYPE,
                 USE_DYNAMIC_LEVEL_SIZE,
                 TARGET_FILE_SIZE_BASE,
                 MAX_SIZE_LEVEL_BASE,

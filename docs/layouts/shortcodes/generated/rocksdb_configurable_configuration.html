@@ -63,6 +63,12 @@
             <td>The specified compaction style for DB. Candidate compaction style is LEVEL, FIFO, UNIVERSAL or NONE, and Flink chooses 'LEVEL' as default style.<br /><br />Possible values:<ul><li>"LEVEL"</li><li>"UNIVERSAL"</li><li>"FIFO"</li><li>"NONE"</li></ul></td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.compression.type</h5></td>
+            <td style="word-wrap: break-word;">SNAPPY_COMPRESSION</td>
+            <td><p>Enum</p></td>
+            <td>The specified compression type for DB. Candidate compression type is NO_COMPRESSION, SNAPPY_COMPRESSION, ZLIB_COMPRESSION, BZLIB2_COMPRESSION, LZ4_COMPRESSION, LZ4HC_COMPRESSION, XPRESS_COMPRESSION, ZSTD_COMPRESSION or DISABLE_COMPRESSION_OPTION, and Flink chooses 'SNAPPY_COMPRESSION' as default style.<br /><br />Possible values:<ul><li>"NO_COMPRESSION"</li><li>"SNAPPY_COMPRESSION"</li><li>"ZLIB_COMPRESSION"</li><li>"BZLIB2_COMPRESSION"</li><li>"LZ4_COMPRESSION"</li><li>"LZ4HC_COMPRESSION"</li><li>"XPRESS_COMPRESSION"</li><li>"ZSTD_COMPRESSION"</li><li>"DISABLE_COMPRESSION_OPTION"</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.files.open</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>Integer</td>
