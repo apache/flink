@@ -222,6 +222,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       case window: StreamPhysicalWindowAggregate =>
         // WindowAggregate and WindowTableAggregate support all changes in input
         val children = visitChildren(window, ModifyKindSetTrait.ALL_CHANGES)
+        // TODO support early / late fire and then this node may produce update records
         val providedTrait = new ModifyKindSetTrait(ModifyKindSet.INSERT_ONLY)
         createNewNode(window, children, providedTrait, requiredTrait, requester)
 

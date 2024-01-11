@@ -282,7 +282,7 @@ object AggregateUtil extends Enumeration {
       needRetraction: Boolean,
       windowSpec: WindowSpec,
       isStateBackendDataViews: Boolean): AggregateInfoList = {
-    // Hopping window always requires additional COUNT(*) to determine  whether to register next
+    // Hopping window always requires additional COUNT(*) to determine whether to register next
     // timer through whether the current fired window is empty, see SliceSharedWindowAggProcessor.
     val needInputCount = windowSpec.isInstanceOf[HoppingWindowSpec] || needRetraction
     val aggSize = if (needInputCount) {
