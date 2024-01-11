@@ -324,6 +324,16 @@ FROM Orders AS o
 
 在上面的示例中，Orders 表由保存在 MySQL 数据库中的 Customers 表数据来丰富。带有后续 process time 属性的 `FOR SYSTEM_TIME AS OF` 子句确保在联接运算符处理 `Orders` 行时，`Orders` 的每一行都与 join 条件匹配的 Customer 行连接。它还防止连接的 `Customer` 表在未来发生更新时变更连接结果。lookup join 还需要一个强制的相等连接条件，在上面的示例中是 `o.customer_id = c.id`。
 
+### Hash Shuffle Lookup Join
+一些Lookup join source使用缓存来减少访问维表的次数。为了提高这些连接器的缓存命中率，用户可以使用一个SQL Hint来启用预分区能力，这会强制在Lookup Join之前，按Join key进行一次hash。
+```sql
+-- 使用shuffle hash hint开启 partitioned lookup join
+SELECT /*+ SHUFFLE_HASH('c') */ o.order_id, o.total, c.country, c.zip
+FROM Orders AS o
+  JOIN Customers FOR SYSTEM_TIME AS OF o.proc_time AS c ON o.customer_id = c.id
+  JOIN Customers1 FOR SYSTEM_TIME AS OF o.proc_time AS d ON o.customer_id = d.id;
+```
+
 数组展开
 --------------
 

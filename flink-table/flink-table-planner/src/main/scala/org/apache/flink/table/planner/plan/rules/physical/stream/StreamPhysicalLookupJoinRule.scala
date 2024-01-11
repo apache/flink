@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.hint.JoinStrategy
+import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
@@ -76,8 +77,15 @@ object StreamPhysicalLookupJoinRule {
     val cluster = join.getCluster
 
     val providedTrait = join.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    val requiredTrait = input.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-
+    var requiredTrait = input.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
+    val partitionJoinHint = join.getHints
+      .stream()
+      .filter(hint => JoinStrategy.isShuffleHashHint(hint.hintName))
+      .findFirst()
+    // if partitioning enabled, use the join key as partition key
+    if (partitionJoinHint.isPresent && !joinInfo.pairs().isEmpty) {
+      requiredTrait = requiredTrait.plus(FlinkRelDistribution.hash(joinInfo.leftKeys))
+    }
     val convInput = RelOptRule.convert(input, requiredTrait)
 
     val lookupRelHint = join.getHints

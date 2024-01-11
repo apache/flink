@@ -40,8 +40,9 @@ import org.junit.jupiter.api.extension.ExtendWith
  * [[org.apache.flink.table.connector.source.LookupTableSource]] should be identical.
  */
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
+class LookupJoinTest(legacyTableSource: Boolean, partitionedJoin: Boolean) extends TableTestBase {
   private val testUtil = batchTestUtil()
+  private var tableDHashShuffleHint: String = _
 
   @BeforeEach
   def before(): Unit = {
@@ -76,13 +77,19 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
                           |)
                           |""".stripMargin)
     }
+
+    if (partitionedJoin) {
+      tableDHashShuffleHint = " /*+ SHUFFLE_HASH('D') */"
+    } else {
+      tableDHashShuffleHint = ""
+    }
   }
 
   @TestTemplate
   def testJoinInvalidJoinTemporalTable(): Unit = {
     // must follow a period specification
     expectExceptionThrown(
-      "SELECT * FROM MyTable AS T JOIN LookupTable T.proc AS D ON T.a = D.id",
+      s"SELECT$tableDHashShuffleHint * FROM MyTable AS T JOIN LookupTable T.proc AS D ON T.a = D.id",
       "SQL parse failed",
       classOf[SqlParserException])
 
@@ -99,7 +106,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
     //    at SqlToRelConverter.convertQuery(SqlToRelConverter.java:563)
     //    at org.apache.flink.table.planner.calcite.FlinkPlannerImpl.rel(FlinkPlannerImpl.scala:125)
     expectExceptionThrown(
-      "SELECT * FROM MyTable AS T RIGHT JOIN LookupTable " +
+      s"SELECT$tableDHashShuffleHint * FROM MyTable AS T RIGHT JOIN LookupTable " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id",
       null,
       classOf[AssertionError]
@@ -107,7 +114,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
 
     // only support join on raw key of right table
     expectExceptionThrown(
-      "SELECT * FROM MyTable AS T LEFT JOIN LookupTable " +
+      s"SELECT$tableDHashShuffleHint * FROM MyTable AS T LEFT JOIN LookupTable " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a + 1 = D.id + 1",
       "Temporal table join requires an equality condition on fields of table " +
         "[default_catalog.default_database.LookupTable].",
@@ -120,7 +127,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
 
     // does not support join condition contains `IS NOT DISTINCT`
     expectExceptionThrown(
-      "SELECT * FROM MyTable AS T LEFT JOIN LookupTable " +
+      s"SELECT$tableDHashShuffleHint * FROM MyTable AS T LEFT JOIN LookupTable " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a IS NOT  DISTINCT FROM D.id",
       "LookupJoin doesn't support join condition contains 'a IS NOT DISTINCT FROM b' (or " +
         "alternative '(a = b) or (a IS NULL AND b IS NULL)')",
@@ -129,7 +136,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
 
     // does not support join condition contains `IS NOT  DISTINCT` and similar syntax
     expectExceptionThrown(
-      "SELECT * FROM MyTable AS T LEFT JOIN LookupTable " +
+      s"SELECT$tableDHashShuffleHint * FROM MyTable AS T LEFT JOIN LookupTable " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id OR (T.a IS NULL AND D.id IS NULL)",
       "LookupJoin doesn't support join condition contains 'a IS NOT DISTINCT FROM b' (or " +
         "alternative '(a = b) or (a IS NULL AND b IS NULL)')",
@@ -141,10 +148,10 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
   def testPythonUDFInJoinCondition(): Unit = {
     testUtil.addTemporarySystemFunction("pyFunc", new PythonScalarFunction("pyFunc"))
     val sql =
-      """
-        |SELECT * FROM MyTable AS T
-        |LEFT OUTER JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
-        |ON T.a = D.id AND D.age = 10 AND pyFunc(D.age, T.a) > 100
+      s"""
+         |SELECT$tableDHashShuffleHint * FROM MyTable AS T
+         |LEFT OUTER JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+         |ON T.a = D.id AND D.age = 10 AND pyFunc(D.age, T.a) > 100
       """.stripMargin
 
     assertThatThrownBy(() => testUtil.verifyExecPlan(sql))
@@ -165,7 +172,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
 
     val sql2 =
       s"""
-         |SELECT T.* FROM ($sql1) AS T
+         |SELECT$tableDHashShuffleHint T.* FROM ($sql1) AS T
          |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
          |ON T.a = D.id
          |WHERE D.age > 10
@@ -192,7 +199,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
     assertThatThrownBy(
       () =>
         testUtil.verifyRelPlan(
-          "SELECT * FROM MyTable AS T JOIN LookupTable "
+          s"SELECT$tableDHashShuffleHint * FROM MyTable AS T JOIN LookupTable "
             + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.b = D.id"))
       .hasMessageContaining("implicit type conversion between VARCHAR(2147483647) and INTEGER " +
         "is not supported on join's condition now")
@@ -201,21 +208,21 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
 
   @TestTemplate
   def testJoinTemporalTable(): Unit = {
-    val sql = "SELECT * FROM MyTable AS T JOIN LookupTable " +
+    val sql = s"SELECT$tableDHashShuffleHint * FROM MyTable AS T JOIN LookupTable " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
     testUtil.verifyExecPlan(sql)
   }
 
   @TestTemplate
   def testLeftJoinTemporalTable(): Unit = {
-    val sql = "SELECT * FROM MyTable AS T LEFT JOIN LookupTable " +
+    val sql = s"SELECT$tableDHashShuffleHint * FROM MyTable AS T LEFT JOIN LookupTable " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
     testUtil.verifyExecPlan(sql)
   }
 
   @TestTemplate
   def testJoinTemporalTableWithNestedQuery(): Unit = {
-    val sql = "SELECT * FROM " +
+    val sql = s"SELECT$tableDHashShuffleHint * FROM " +
       "(SELECT a, b, proctime FROM MyTable WHERE c > 1000) AS T " +
       "JOIN LookupTable " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
@@ -225,11 +232,11 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
   @TestTemplate
   def testJoinTemporalTableWithProjectionPushDown(): Unit = {
     val sql =
-      """
-        |SELECT T.*, D.id
-        |FROM MyTable AS T
-        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
-        |ON T.a = D.id
+      s"""
+         |SELECT$tableDHashShuffleHint T.*, D.id
+         |FROM MyTable AS T
+         |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+         |ON T.a = D.id
       """.stripMargin
     testUtil.verifyExecPlan(sql)
   }
@@ -237,11 +244,11 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
   @TestTemplate
   def testJoinTemporalTableWithFilterPushDown(): Unit = {
     val sql =
-      """
-        |SELECT * FROM MyTable AS T
-        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
-        |ON T.a = D.id AND D.age = 10
-        |WHERE T.c > 1000
+      s"""
+         |SELECT$tableDHashShuffleHint * FROM MyTable AS T
+         |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+         |ON T.a = D.id AND D.age = 10
+         |WHERE T.c > 1000
       """.stripMargin
     testUtil.verifyExecPlan(sql)
   }
@@ -257,7 +264,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
 
     val sql2 =
       s"""
-         |SELECT T.* FROM ($sql1) AS T
+         |SELECT$tableDHashShuffleHint T.* FROM ($sql1) AS T
          |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
          |ON T.a = D.id
          |WHERE D.age > 10
@@ -275,11 +282,11 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
   @TestTemplate
   def testJoinTemporalTableWithTrueCondition(): Unit = {
     val sql =
-      """
-        |SELECT * FROM MyTable AS T
-        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
-        |ON true
-        |WHERE T.c > 1000
+      s"""
+         |SELECT$tableDHashShuffleHint * FROM MyTable AS T
+         |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+         |ON true
+         |WHERE T.c > 1000
       """.stripMargin
 
     assertThatThrownBy(() => testUtil.verifyExplain(sql))
@@ -293,12 +300,12 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
     // Computed column do not support in legacyTableSource.
     assumeThat(legacyTableSource).isFalse
     val sql =
-      """
-        |SELECT
-        |  T.a, T.b, T.c, D.name, D.age, D.nominal_age
-        |FROM
-        |  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
-        |  ON T.a = D.id
+      s"""
+         |SELECT$tableDHashShuffleHint
+         |  T.a, T.b, T.c, D.name, D.age, D.nominal_age
+         |FROM
+         |  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
+         |  ON T.a = D.id
       """.stripMargin
     testUtil.verifyExecPlan(sql)
   }
@@ -308,12 +315,12 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
     // Computed column do not support in legacyTableSource.
     assumeThat(legacyTableSource).isFalse
     val sql =
-      """
-        |SELECT
-        |  T.a, T.b, T.c, D.name, D.age, D.nominal_age
-        |FROM
-        |  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
-        |  ON T.a = D.id and D.nominal_age > 12
+      s"""
+         |SELECT$tableDHashShuffleHint
+         |  T.a, T.b, T.c, D.name, D.age, D.nominal_age
+         |FROM
+         |  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
+         |  ON T.a = D.id and D.nominal_age > 12
       """.stripMargin
     testUtil.verifyExecPlan(sql)
   }
@@ -331,7 +338,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
 
     val sql2 =
       s"""
-         |SELECT * FROM ($sql1) AS T
+         |SELECT$tableDHashShuffleHint * FROM ($sql1) AS T
          |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
          |ON T.a = D.id
          |WHERE D.age > 10
@@ -372,8 +379,12 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
 }
 
 object LookupJoinTest {
-  @Parameters(name = "LegacyTableSource={0}")
+  @Parameters(name = "LegacyTableSource={0}, partitionedJoin={1}")
   def parameters(): JCollection[Array[Object]] = {
-    Seq[Array[AnyRef]](Array(JBoolean.TRUE), Array(JBoolean.FALSE))
+    Seq[Array[AnyRef]](
+      Array(JBoolean.FALSE, JBoolean.TRUE),
+      Array(JBoolean.TRUE, JBoolean.TRUE),
+      Array(JBoolean.TRUE, JBoolean.FALSE),
+      Array(JBoolean.FALSE, JBoolean.FALSE))
   }
 }
