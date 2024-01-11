@@ -106,7 +106,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             SqlNodeList columnList,
             List<SqlTableConstraint> tableConstraints,
             SqlNodeList propertyList,
-            SqlDistribution sqlDistribution,
+            @Nullable SqlDistribution sqlDistribution,
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
             @Nullable SqlCharStringLiteral comment,
@@ -264,16 +264,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
         }
 
         if (this.sqlDistribution != null) {
-            writer.newlineAndIndent();
-            writer.keyword("DISTRIBUTED BY");
-            writer.print(sqlDistribution.getDistributionKind());
-            SqlWriter.Frame bucketFrame = writer.startList("(", ")");
-            this.sqlDistribution.getBucketColumns().unparse(writer, leftPrec, rightPrec);
-            writer.endList(bucketFrame);
-            writer.keyword("INTO");
-            this.sqlDistribution.getBucketCount().unparse(writer, leftPrec, rightPrec);
-            writer.keyword("BUCKETS");
-            writer.newlineAndIndent();
+            sqlDistribution.unparse(writer, leftPrec, rightPrec);
         }
 
         if (this.partitionKeyList.size() > 0) {

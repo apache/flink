@@ -1321,8 +1321,8 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
     SqlNode asQuery = null;
 
     SqlNodeList propertyList = SqlNodeList.EMPTY;
-                String distributionKind = null;
-                SqlNode bucketCount = null;
+    String distributionKind = null;
+    SqlNode bucketCount = null;
     SqlNodeList bucketColumns = SqlNodeList.EMPTY;
     SqlDistribution distribution = null;
     SqlNodeList partitionColumns = SqlNodeList.EMPTY;
@@ -1361,6 +1361,9 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
                 |
                 <RANGE> {
                     distributionKind = "RANGE";
+                    }
+                | {
+                    distributionKind = null;
                     }
                 )
                     {

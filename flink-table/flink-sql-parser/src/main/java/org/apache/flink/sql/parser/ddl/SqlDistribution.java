@@ -66,16 +66,18 @@ public class SqlDistribution extends SqlCall {
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        // This should handle the case where all three are specified!
-        writer.keyword("DISTRIBUTED");
-        writer.keyword("BY");
-        writer.keyword(distributionKind);
-        writer.keyword("(");
+        writer.newlineAndIndent();
+        writer.keyword("DISTRIBUTED BY");
+        if (distributionKind != null) {
+            writer.print(distributionKind);
+        }
+        SqlWriter.Frame bucketFrame = writer.startList("(", ")");
         bucketColumns.unparse(writer, leftPrec, rightPrec);
-        writer.keyword(")");
+        writer.endList(bucketFrame);
         writer.keyword("INTO");
         bucketCount.unparse(writer, leftPrec, rightPrec);
         writer.keyword("BUCKETS");
+        writer.newlineAndIndent();
     }
 
     public String getDistributionKind() {
