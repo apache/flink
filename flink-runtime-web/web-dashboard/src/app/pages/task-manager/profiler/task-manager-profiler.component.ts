@@ -31,11 +31,13 @@ import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
 import { NzMessageModule, NzMessageService } from 'ng-zorro-antd/message';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzSpaceModule } from 'ng-zorro-antd/space';
 import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 
 @Component({
   selector: 'flink-task-manager-profiler',
@@ -55,7 +57,9 @@ import { NzTableModule } from 'ng-zorro-antd/table';
     CommonModule,
     NzSpaceModule,
     HumanizeWatermarkToDatetimePipe,
-    NzSelectModule
+    NzSelectModule,
+    NzToolTipModule,
+    NzIconModule
   ],
   standalone: true
 })
@@ -65,7 +69,7 @@ export class TaskManagerProfilerComponent implements OnInit, OnDestroy {
   isLoading = true;
   isCreating = false;
   duration = 30;
-  selectMode = 'CPU';
+  selectMode = 'ITIMER';
   isEnabled = false;
   formatterDuration = (value: number): string => `${value} s`;
   parserDuration = (value: string): string => value.replace(' s', '');
