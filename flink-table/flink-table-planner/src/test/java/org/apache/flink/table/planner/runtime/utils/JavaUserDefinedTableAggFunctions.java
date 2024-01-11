@@ -23,7 +23,7 @@ import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.util.Collector;
 
 /** Test table aggregate table functions. */
-public class JavaUserDefinedTableAggregateFunctions {
+public class JavaUserDefinedTableAggFunctions {
 
     /** Mutable accumulator of structured type for the table aggregate function. */
     public static class Top2Accumulator {
