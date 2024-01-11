@@ -59,11 +59,13 @@ import org.rocksdb.BlockBasedTableConfig;
 import org.rocksdb.BloomFilter;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompactionStyle;
+import org.rocksdb.CompressionType;
 import org.rocksdb.DBOptions;
 import org.rocksdb.InfoLogLevel;
 import org.rocksdb.util.SizeUnit;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -564,6 +566,7 @@ public class RocksDBStateBackendConfigTest {
             verifyIllegalArgument(RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE, "1");
 
             verifyIllegalArgument(RocksDBConfigurableOptions.COMPACTION_STYLE, "LEV");
+            verifyIllegalArgument(RocksDBConfigurableOptions.COMPRESSION_PER_LEVEL, "SNAP");
             verifyIllegalArgument(RocksDBConfigurableOptions.USE_BLOOM_FILTER, "NO");
             verifyIllegalArgument(RocksDBConfigurableOptions.BLOOM_FILTER_BLOCK_BASED_MODE, "YES");
             verifyIllegalArgument(
@@ -577,6 +580,9 @@ public class RocksDBStateBackendConfigTest {
             configuration.setString(RocksDBConfigurableOptions.LOG_FILE_NUM.key(), "10");
             configuration.setString(RocksDBConfigurableOptions.LOG_MAX_FILE_SIZE.key(), "2MB");
             configuration.setString(RocksDBConfigurableOptions.COMPACTION_STYLE.key(), "level");
+            configuration.setString(
+                    RocksDBConfigurableOptions.COMPRESSION_PER_LEVEL.key(),
+                    "no_compression;snappy_compression;lz4_compression");
             configuration.setString(
                     RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE.key(), "TRUE");
             configuration.setString(RocksDBConfigurableOptions.TARGET_FILE_SIZE_BASE.key(), "8 mb");
@@ -612,6 +618,12 @@ public class RocksDBStateBackendConfigTest {
                 assertEquals(4, columnOptions.maxWriteBufferNumber());
                 assertEquals(2, columnOptions.minWriteBufferNumberToMerge());
                 assertEquals(64 * SizeUnit.MB, columnOptions.writeBufferSize());
+                assertEquals(
+                        Arrays.asList(
+                                CompressionType.NO_COMPRESSION,
+                                CompressionType.SNAPPY_COMPRESSION,
+                                CompressionType.LZ4_COMPRESSION),
+                        columnOptions.compressionPerLevel());
 
                 BlockBasedTableConfig tableConfig =
                         (BlockBasedTableConfig) columnOptions.tableFormatConfig();
