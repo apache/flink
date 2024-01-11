@@ -33,12 +33,13 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
@@ -113,12 +114,19 @@ public class StateMetadata {
     }
 
     public static List<StateMetadata> getMultiInputOperatorDefaultMeta(
-            ReadableConfig tableConfig, String... stateNameList) {
-        Duration stateRetentionTime = tableConfig.get(ExecutionConfigOptions.IDLE_STATE_RETENTION);
-        return IntStream.range(0, stateNameList.length)
-                .boxed()
-                .map(i -> new StateMetadata(i, stateRetentionTime, stateNameList[i]))
-                .collect(Collectors.toList());
+            Map<Integer, Long> stateTtlFromHint,
+            ReadableConfig tableConfig,
+            String... stateNameList) {
+        Duration ttlFromTableConf = tableConfig.get(ExecutionConfigOptions.IDLE_STATE_RETENTION);
+        List<StateMetadata> stateMetadataList = new ArrayList<>(stateNameList.length);
+        for (int i = 0; i < stateNameList.length; i++) {
+            Duration stateTtl =
+                    stateTtlFromHint.containsKey(i)
+                            ? Duration.ofMillis(stateTtlFromHint.get(i))
+                            : ttlFromTableConf;
+            stateMetadataList.add(new StateMetadata(i, stateTtl, stateNameList[i]));
+        }
+        return stateMetadataList;
     }
 
     public static long getStateTtlForOneInputOperator(

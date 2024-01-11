@@ -29,8 +29,8 @@ import org.apache.calcite.rel.logical.LogicalProject;
 import static org.apache.flink.table.planner.hint.FlinkHints.resolveSubQuery;
 import static org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil.containsSubQuery;
 
-/** An abstract shuttle for each shuttle used for join hint. */
-public abstract class JoinHintsRelShuttle extends RelShuttleImpl {
+/** An abstract shuttle for each shuttle used for query hint. */
+public abstract class QueryHintsRelShuttle extends RelShuttleImpl {
 
     @Override
     public RelNode visit(LogicalJoin join) {

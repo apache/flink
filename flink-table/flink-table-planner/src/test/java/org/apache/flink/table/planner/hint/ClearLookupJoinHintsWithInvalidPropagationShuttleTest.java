@@ -44,7 +44,7 @@ import java.util.Collections;
 
 /** Tests clearing lookup join hint with invalid propagation in stream. */
 class ClearLookupJoinHintsWithInvalidPropagationShuttleTest
-        extends ClearJoinHintsWithInvalidPropagationShuttleTestBase {
+        extends ClearQueryHintsWithInvalidPropagationShuttleTestBase {
     @Override
     TableTestUtil getTableTestUtil() {
         return streamTestUtil(TableConfig.getDefault());

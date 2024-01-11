@@ -32,10 +32,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/** A test class for {@link JoinHintsResolver}. */
-public class JoinHintResolverTest extends JoinHintTestBase {
+/** A test class for {@link QueryHintsResolver}. */
+public class QueryHintsResolverTest extends JoinHintTestBase {
 
-    // use any join hint for test
+    // use any query hint for test
     @Override
     protected String getTestSingleJoinHint() {
         return JoinStrategy.BROADCAST.getJoinHintName();
@@ -80,7 +80,7 @@ public class JoinHintResolverTest extends JoinHintTestBase {
      * <p>Currently, mainly copy from {@link TableTestBase} and customize it.
      */
     private void verifyRelPlanAfterResolverWithSql(String sql, List<RelNode> relNodes) {
-        relNodes = resolveJoinHint(relNodes);
+        relNodes = resolveQueryHints(relNodes);
         String astPlan = buildAstPlanWithQueryBlockAlias(relNodes);
 
         util.assertEqualsOrExpand("sql", sql, true);
@@ -88,14 +88,14 @@ public class JoinHintResolverTest extends JoinHintTestBase {
     }
 
     private void verifyRelPlanAfterResolverWithStatementSet(List<RelNode> relNodes) {
-        relNodes = resolveJoinHint(relNodes);
+        relNodes = resolveQueryHints(relNodes);
         String astPlan = buildAstPlanWithQueryBlockAlias(relNodes);
 
         util.assertEqualsOrExpand("ast", astPlan, false);
     }
 
-    private List<RelNode> resolveJoinHint(List<RelNode> relNodes) {
-        JoinHintsResolver joinHintResolver = new JoinHintsResolver();
-        return joinHintResolver.resolve(relNodes);
+    private List<RelNode> resolveQueryHints(List<RelNode> relNodes) {
+        QueryHintsResolver resolver = new QueryHintsResolver();
+        return resolver.resolve(relNodes);
     }
 }

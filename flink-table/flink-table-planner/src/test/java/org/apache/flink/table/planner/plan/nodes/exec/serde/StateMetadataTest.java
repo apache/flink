@@ -37,6 +37,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -108,12 +109,15 @@ public class StateMetadataTest {
     @ParameterizedTest
     public void testGetMultiInputOperatorDefaultMeta(
             Consumer<TableConfig> configModifier,
+            Map<Integer, Long> stateTtlFromHint,
             List<String> expectedStateNameList,
             List<Long> expectedTtlMillisList) {
         configModifier.accept(tableConfig);
         List<StateMetadata> stateMetadataList =
                 StateMetadata.getMultiInputOperatorDefaultMeta(
-                        tableConfig, expectedStateNameList.toArray(new String[0]));
+                        stateTtlFromHint,
+                        tableConfig,
+                        expectedStateNameList.toArray(new String[0]));
         assertThat(stateMetadataList).hasSameSizeAs(expectedStateNameList);
         IntStream.range(0, stateMetadataList.size())
                 .forEach(
@@ -181,13 +185,28 @@ public class StateMetadataTest {
         return Stream.of(
                 Arguments.of(
                         (Consumer<TableConfig>) config -> {},
+                        Collections.emptyMap(),
                         Arrays.asList("fooState", "barState"),
                         Stream.generate(() -> 0L).limit(2).collect(Collectors.toList())),
                 Arguments.of(
                         (Consumer<TableConfig>)
                                 config -> config.set(IDLE_STATE_RETENTION, Duration.ofDays(1)),
+                        Collections.emptyMap(),
                         Arrays.asList("firstState", "secondState", "thirdState", "fourthState"),
-                        Stream.generate(() -> 86400000L).limit(4).collect(Collectors.toList())));
+                        Stream.generate(() -> 86400000L).limit(4).collect(Collectors.toList())),
+                // state ttl from the hint gets a higher priority over job-level
+                // table.exec.state.ttl
+                Arguments.of(
+                        (Consumer<TableConfig>)
+                                config -> config.set(IDLE_STATE_RETENTION, Duration.ofDays(1)),
+                        Collections.singletonMap(0, 18000000L),
+                        Arrays.asList("meowState", "purrState"),
+                        Arrays.asList(18000000L, 86400000L)),
+                Arguments.of(
+                        (Consumer<TableConfig>) config -> {},
+                        Collections.singletonMap(1, 172800000L),
+                        Arrays.asList("leftState", "rightState"),
+                        Arrays.asList(0L, 172800000L)));
     }
 
     public static Stream<Arguments> provideStateMetaForOneInput() {

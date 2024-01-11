@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkRelFactories}
-import org.apache.flink.table.planner.hint.{ClearJoinHintsWithInvalidPropagationShuttle, FlinkHints}
+import org.apache.flink.table.planner.hint.{ClearQueryHintsWithInvalidPropagationShuttle, FlinkHints}
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand, RelOptUtil}
@@ -98,9 +98,9 @@ class FlinkSubQueryRemoveRule(
         // so hints in it should also be resolved with the same logic in SqlToRelConverter
         val newNode = relBuilder.build
         val nodeWithHint = RelOptUtil.propagateRelHints(newNode, false)
-        val nodeWithCapitalizedJoinHints = FlinkHints.capitalizeJoinHints(nodeWithHint)
+        val nodeWithCapitalizedQueryHints = FlinkHints.capitalizeQueryHints(nodeWithHint)
         val finalNode =
-          nodeWithCapitalizedJoinHints.accept(new ClearJoinHintsWithInvalidPropagationShuttle)
+          nodeWithCapitalizedQueryHints.accept(new ClearQueryHintsWithInvalidPropagationShuttle)
         call.transformTo(finalNode)
       case _ => // do nothing
     }
