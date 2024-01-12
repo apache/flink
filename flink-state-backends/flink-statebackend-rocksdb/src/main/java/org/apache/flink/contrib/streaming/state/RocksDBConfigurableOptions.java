@@ -153,10 +153,20 @@ public class RocksDBConfigurableOptions implements Serializable {
             key("state.backend.rocksdb.compression.type")
                     .enumType(CompressionType.class)
                     .defaultValue(SNAPPY_COMPRESSION)
-                    .withDescription(String.format("The specified compression type for DB. Candidate compression type is %s, %s, %s, %s, %s, " +
-                                    "%s, %s, %s or %s, and RocksDB choose '%s' as default style.", NO_COMPRESSION.name(), SNAPPY_COMPRESSION.name(),
-                            ZLIB_COMPRESSION.name(), BZLIB2_COMPRESSION.name(), LZ4_COMPRESSION.name(), LZ4HC_COMPRESSION.name(), XPRESS_COMPRESSION.name(),
-                            ZSTD_COMPRESSION.name(), DISABLE_COMPRESSION_OPTION.name(), SNAPPY_COMPRESSION.name()));
+                    .withDescription(
+                            String.format(
+                                    "The specified compression type for DB. Candidate compression type is %s, %s, %s, %s, %s, "
+                                            + "%s, %s, %s or %s, and RocksDB choose '%s' as default style.",
+                                    NO_COMPRESSION.name(),
+                                    SNAPPY_COMPRESSION.name(),
+                                    ZLIB_COMPRESSION.name(),
+                                    BZLIB2_COMPRESSION.name(),
+                                    LZ4_COMPRESSION.name(),
+                                    LZ4HC_COMPRESSION.name(),
+                                    XPRESS_COMPRESSION.name(),
+                                    ZSTD_COMPRESSION.name(),
+                                    DISABLE_COMPRESSION_OPTION.name(),
+                                    SNAPPY_COMPRESSION.name()));
 
     public static final ConfigOption<Boolean> USE_DYNAMIC_LEVEL_SIZE =
             key("state.backend.rocksdb.compaction.level.use-dynamic-size")

@@ -559,7 +559,8 @@ public class RocksDBStateBackendConfigTest {
             configuration.setString(RocksDBConfigurableOptions.LOG_FILE_NUM.key(), "10");
             configuration.setString(RocksDBConfigurableOptions.LOG_MAX_FILE_SIZE.key(), "2MB");
             configuration.setString(RocksDBConfigurableOptions.COMPACTION_STYLE.key(), "level");
-            configuration.setString(RocksDBConfigurableOptions.COMPRESSION_TYPE.key(), "no_compression");
+            configuration.setString(
+                    RocksDBConfigurableOptions.COMPRESSION_TYPE.key(), "no_compression");
 
             configuration.setString(
                     RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE.key(), "TRUE");
