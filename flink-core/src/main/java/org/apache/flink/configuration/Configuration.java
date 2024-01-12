@@ -737,6 +737,20 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
         return getOptional(option).orElseGet(option::defaultValue);
     }
 
+    /**
+     * Returns the value associated with the given config option as a T. If no value is mapped under
+     * any key of the option, it returns the specified default instead of the option's default
+     * value.
+     *
+     * @param configOption The configuration option
+     * @param overrideDefault The value to return if no value was mapper for any key of the option
+     * @return the configured value associated with the given config option, or the overrideDefault
+     */
+    @PublicEvolving
+    public <T> T get(ConfigOption<T> configOption, T overrideDefault) {
+        return getOptional(configOption).orElse(overrideDefault);
+    }
+
     @Override
     public <T> Optional<T> getOptional(ConfigOption<T> option) {
         Optional<Object> rawValue = getRawValueFromOption(option);

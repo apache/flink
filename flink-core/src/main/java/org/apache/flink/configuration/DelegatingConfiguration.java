@@ -363,6 +363,11 @@ public final class DelegatingConfiguration extends Configuration {
     }
 
     @Override
+    public <T> T get(ConfigOption<T> configOption, T overrideDefault) {
+        return backingConfig.get(prefixOption(configOption, prefix), overrideDefault);
+    }
+
+    @Override
     public <T> Optional<T> getOptional(ConfigOption<T> option) {
         return backingConfig.getOptional(prefixOption(option, prefix));
     }
