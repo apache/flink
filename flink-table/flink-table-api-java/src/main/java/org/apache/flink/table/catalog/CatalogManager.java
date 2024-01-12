@@ -1325,14 +1325,31 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
 
         final ResolvedSchema resolvedSchema = table.getUnresolvedSchema().resolve(schemaResolver);
 
-        // TODO Validate bucket keys are in physical column
-
         // Validate partition keys are included in physical columns
         final List<String> physicalColumns =
                 resolvedSchema.getColumns().stream()
                         .filter(Column::isPhysical)
                         .map(Column::getName)
                         .collect(Collectors.toList());
+
+        table.getDistribution()
+                .ifPresent(
+                        distribution ->
+                                distribution
+                                        .getBucketKeys()
+                                        .forEach(
+                                                bucketKey -> {
+                                                    if (!physicalColumns.contains(bucketKey)) {
+                                                        throw new ValidationException(
+                                                                String.format(
+                                                                        "Invalid bucket key '%s'. A bucket key must "
+                                                                                + "reference a physical column in the schema. "
+                                                                                + "Available columns are: %s",
+                                                                        bucketKey,
+                                                                        physicalColumns));
+                                                    }
+                                                }));
+
         table.getPartitionKeys()
                 .forEach(
                         partitionKey -> {

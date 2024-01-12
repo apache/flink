@@ -94,6 +94,11 @@ public class DefaultCatalogTable implements CatalogTable {
     }
 
     @Override
+    public Optional<TableDistribution> getDistribution() {
+        return tableDistribution;
+    }
+
+    @Override
     public Map<String, String> getOptions() {
         return options;
     }
