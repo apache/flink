@@ -20,7 +20,7 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableMap;
 
 import org.junit.jupiter.api.Test;
 

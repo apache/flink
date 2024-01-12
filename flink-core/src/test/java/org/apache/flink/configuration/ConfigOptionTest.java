@@ -18,7 +18,7 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
 
 import org.junit.jupiter.api.Test;
 

@@ -95,7 +95,7 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_ENABLED;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getLatestCompletedCheckpointPath;
-import static org.apache.flink.shaded.guava31.com.google.common.collect.Iterables.get;
+import static org.apache.flink.shaded.guava32.com.google.common.collect.Iterables.get;
 import static org.apache.flink.test.util.TestUtils.loadCheckpointMetadata;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;

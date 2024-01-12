@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

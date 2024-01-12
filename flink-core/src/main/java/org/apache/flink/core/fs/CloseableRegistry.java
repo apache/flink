@@ -31,7 +31,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.shaded.guava31.com.google.common.collect.Lists.reverse;
+import static org.apache.flink.shaded.guava32.com.google.common.collect.Lists.reverse;
 
 /** {@link ICloseableRegistry} implementation. */
 @Internal

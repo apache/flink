@@ -51,7 +51,7 @@ import java.util.Collections;
 import java.util.stream.Stream;
 
 import static org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks;
-import static org.apache.flink.shaded.guava31.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.flink.shaded.guava32.com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.flink.test.checkpointing.UnalignedCheckpointTestBase.ChannelType.LOCAL;
 import static org.apache.flink.test.checkpointing.UnalignedCheckpointTestBase.ChannelType.MIXED;
 import static org.apache.flink.test.checkpointing.UnalignedCheckpointTestBase.ChannelType.REMOTE;

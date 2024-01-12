@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonOve
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil.ExecNodeNameVersion;
 
-import org.apache.flink.shaded.guava31.com.google.common.reflect.ClassPath;
+import org.apache.flink.shaded.guava32.com.google.common.reflect.ClassPath;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;

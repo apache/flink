@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.types.extraction;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableList;
 
 import org.junit.jupiter.api.Test;
 
