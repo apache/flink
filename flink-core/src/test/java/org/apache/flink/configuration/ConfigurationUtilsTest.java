@@ -21,6 +21,7 @@ package org.apache.flink.configuration;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.util.TimeUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestTemplate;
@@ -94,6 +95,92 @@ public class ConfigurationUtilsTest {
                 .isEqualTo(expectedList);
         assertThat(configuration.get(ConfigOptions.key("mapKey").mapType().noDefaultValue()))
                 .isEqualTo(expectedMap);
+    }
+
+    @TestTemplate
+    void testConvertConfigToWritableLinesAndFlattenYaml() {
+        testConvertConfigToWritableLines(true);
+    }
+
+    @TestTemplate
+    void testConvertConfigToWritableLinesAndNoFlattenYaml() {
+        testConvertConfigToWritableLines(false);
+    }
+
+    private void testConvertConfigToWritableLines(boolean flattenYaml) {
+        final Configuration configuration = new Configuration(standardYaml);
+        ConfigOption<List<String>> nestedListOption =
+                ConfigOptions.key("nested.test-list-key").stringType().asList().noDefaultValue();
+        final String listValues = "value1;value2;value3";
+        final String yamlListValues = "[value1, value2, value3]";
+        configuration.set(nestedListOption, Arrays.asList(listValues.split(";")));
+
+        ConfigOption<Map<String, String>> nestedMapOption =
+                ConfigOptions.key("nested.test-map-key").mapType().noDefaultValue();
+        final String mapValues = "key1:value1,key2:value2";
+        final String yamlMapValues = "{key1: value1, key2: value2}";
+        configuration.set(
+                nestedMapOption,
+                Arrays.stream(mapValues.split(","))
+                        .collect(Collectors.toMap(e -> e.split(":")[0], e -> e.split(":")[1])));
+
+        ConfigOption<Duration> nestedDurationOption =
+                ConfigOptions.key("nested.test-duration-key").durationType().noDefaultValue();
+        final Duration duration = Duration.ofMillis(3000);
+        configuration.set(nestedDurationOption, duration);
+
+        ConfigOption<String> nestedStringOption =
+                ConfigOptions.key("nested.test-string-key").stringType().noDefaultValue();
+        final String strValues = "*";
+        final String yamlStrValues = "'*'";
+        configuration.set(nestedStringOption, strValues);
+
+        ConfigOption<Integer> intOption =
+                ConfigOptions.key("test-int-key").intType().noDefaultValue();
+        final int intValue = 1;
+        configuration.set(intOption, intValue);
+
+        List<String> actualData =
+                ConfigurationUtils.convertConfigToWritableLines(configuration, flattenYaml);
+        List<String> expected;
+        if (standardYaml) {
+            if (flattenYaml) {
+                expected =
+                        Arrays.asList(
+                                nestedListOption.key() + ": " + yamlListValues,
+                                nestedMapOption.key() + ": " + yamlMapValues,
+                                nestedDurationOption.key()
+                                        + ": "
+                                        + TimeUtils.formatWithHighestUnit(duration),
+                                nestedStringOption.key() + ": " + yamlStrValues,
+                                intOption.key() + ": " + intValue);
+            } else {
+                expected =
+                        Arrays.asList(
+                                "nested:",
+                                "  test-list-key:",
+                                "  - value1",
+                                "  - value2",
+                                "  - value3",
+                                "  test-map-key:",
+                                "    key1: value1",
+                                "    key2: value2",
+                                "  test-duration-key: 3 s",
+                                "  test-string-key: '*'",
+                                "test-int-key: 1");
+            }
+        } else {
+            expected =
+                    Arrays.asList(
+                            nestedListOption.key() + ": " + listValues,
+                            nestedMapOption.key() + ": " + mapValues,
+                            nestedDurationOption.key()
+                                    + ": "
+                                    + TimeUtils.formatWithHighestUnit(duration),
+                            nestedStringOption.key() + ": " + strValues,
+                            intOption.key() + ": " + intValue);
+        }
+        assertThat(expected).containsExactlyInAnyOrderElementsOf(actualData);
     }
 
     @TestTemplate

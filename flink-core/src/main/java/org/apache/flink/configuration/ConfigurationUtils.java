@@ -28,6 +28,7 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -198,6 +199,62 @@ public class ConfigurationUtils {
         return separatedPaths.length() > 0
                 ? separatedPaths.split(",|" + File.pathSeparator)
                 : EMPTY;
+    }
+
+    /**
+     * Converts the provided configuration data into a format suitable for writing to a file, based
+     * on the {@code flattenYaml} flag and the {@code standardYaml} attribute of the configuration
+     * object.
+     *
+     * <p>Only when {@code flattenYaml} is set to {@code false} and the configuration object is
+     * standard yaml, a nested YAML format is used. Otherwise, a flat key-value pair format is
+     * output.
+     *
+     * <p>Each entry in the returned list represents a single line that can be written directly to a
+     * file.
+     *
+     * <p>Example input (flat map configuration data):
+     *
+     * <pre>{@code
+     * {
+     *      "parent.child": "value1",
+     *      "parent.child2": "value2"
+     * }
+     * }</pre>
+     *
+     * <p>Example output when {@code flattenYaml} is {@code false} and the configuration object is
+     * standard yaml:
+     *
+     * <pre>{@code
+     * parent:
+     *   child: value1
+     *   child2: value2
+     * }</pre>
+     *
+     * <p>Otherwise, the Example output is:
+     *
+     * <pre>{@code
+     * parent.child: value1
+     * parent.child2: value2
+     * }</pre>
+     *
+     * @param configuration The configuration to be converted.
+     * @param flattenYaml A boolean flag indicating if the configuration data should be output in a
+     *     flattened format.
+     * @return A list of strings, where each string represents a line of the file-writable data in
+     *     the chosen format.
+     */
+    public static List<String> convertConfigToWritableLines(
+            Configuration configuration, boolean flattenYaml) {
+        if (configuration.standardYaml && !flattenYaml) {
+            return YamlParserUtils.convertAndDumpYamlFromFlatMap(
+                    Collections.unmodifiableMap(configuration.confData));
+        } else {
+            Map<String, String> fileWritableMap = configuration.toFileWritableMap();
+            return fileWritableMap.entrySet().stream()
+                    .map(entry -> entry.getKey() + ": " + entry.getValue())
+                    .collect(Collectors.toList());
+        }
     }
 
     /**

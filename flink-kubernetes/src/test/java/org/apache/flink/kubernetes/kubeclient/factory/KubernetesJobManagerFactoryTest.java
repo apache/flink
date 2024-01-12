@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes.kubeclient.factory;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.SecurityOptions;
@@ -367,11 +368,11 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
         assertThat(resultDatas).hasSize(3);
         assertThat(resultDatas.get(CONFIG_FILE_LOG4J_NAME)).isEqualTo("some data");
         assertThat(resultDatas.get(CONFIG_FILE_LOGBACK_NAME)).isEqualTo("some data");
-        assertThat(resultDatas.get(FLINK_CONF_FILENAME))
-                .contains(
-                        KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS.key()
-                                + ": "
-                                + ENTRY_POINT_CLASS);
+        final Configuration resultFlinkConfig =
+                KubernetesTestUtils.loadConfigurationFromString(
+                        resultDatas.get(FLINK_CONF_FILENAME));
+        assertThat(resultFlinkConfig.get(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS))
+                .isEqualTo(ENTRY_POINT_CLASS);
     }
 
     @Test

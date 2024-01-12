@@ -30,6 +30,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -148,6 +149,63 @@ class YamlParserUtilsTest {
         map.put("k2", "v2");
 
         assertThat(YamlParserUtils.convertToObject(s4, Map.class)).isEqualTo(map);
+    }
+
+    @Test
+    void testDumpNestedYamlFromFlatMap() {
+        Map<String, Object> flattenMap = new HashMap<>();
+        flattenMap.put("string", "stringValue");
+        flattenMap.put("integer", 42);
+        flattenMap.put("double", 3.14);
+        flattenMap.put("boolean", true);
+        flattenMap.put("enum", TestEnum.ENUM);
+        flattenMap.put("list1", Arrays.asList("item1", "item2", "item3"));
+        flattenMap.put("list2", "{item1, item2, item3}");
+        flattenMap.put("map1", Collections.singletonMap("k1", "v1"));
+        flattenMap.put("map2", "{k2: v2}");
+        flattenMap.put(
+                "listMap1",
+                Arrays.asList(
+                        Collections.singletonMap("k3", "v3"),
+                        Collections.singletonMap("k4", "v4")));
+        flattenMap.put("listMap2", "[{k5: v5}, {k6: v6}]");
+        flattenMap.put("nested.key1.subKey1", "value1");
+        flattenMap.put("nested.key2.subKey1", "value2");
+        flattenMap.put("nested.key3", "value3");
+        flattenMap.put("escaped1", "*");
+        flattenMap.put("escaped2", "1");
+        flattenMap.put("escaped3", "true");
+
+        List<String> values = YamlParserUtils.convertAndDumpYamlFromFlatMap(flattenMap);
+
+        assertThat(values)
+                .containsExactlyInAnyOrder(
+                        "string: stringValue",
+                        "integer: 42",
+                        "double: 3.14",
+                        "boolean: true",
+                        "enum: ENUM",
+                        "list1:",
+                        "- item1",
+                        "- item2",
+                        "- item3",
+                        "list2: '{item1, item2, item3}'",
+                        "map1:",
+                        "  k1: v1",
+                        "map2: '{k2: v2}'",
+                        "listMap1:",
+                        "- k3: v3",
+                        "- k4: v4",
+                        "listMap2: '[{k5: v5}, {k6: v6}]'",
+                        "nested:",
+                        "  key1:",
+                        "    subKey1: value1",
+                        "  key2:",
+                        "    subKey1: value2",
+                        "  key3: value3",
+                        "escaped1: '*'",
+                        "escaped2: '1'",
+                        "escaped3: 'true'");
     }
 
     private enum TestEnum {
