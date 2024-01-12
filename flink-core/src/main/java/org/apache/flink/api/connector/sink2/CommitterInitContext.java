@@ -16,18 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.connector.sink2;
+package org.apache.flink.api.connector.sink2;
 
-import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 
-/**
- * Allows expert users to implement a custom topology before {@link SinkWriter}.
- *
- * @deprecated Please implement {@link Sink} and {@link SupportsPreWriteTopology} instead.
- */
-@Experimental
-@Deprecated
-public interface WithPreWriteTopology<InputT>
-        extends Sink<InputT>, SupportsPreWriteTopology<InputT> {}
+/** The interface exposes some runtime info for creating a {@link Committer}. */
+@PublicEvolving
+public interface CommitterInitContext extends InitContext {
+    /** @return The metric group this committer belongs to. */
+    SinkCommitterMetricGroup metricGroup();
+}
