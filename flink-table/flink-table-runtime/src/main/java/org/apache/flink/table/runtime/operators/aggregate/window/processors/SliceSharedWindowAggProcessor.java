@@ -22,8 +22,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigners;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceSharedAssigner;
 
 import javax.annotation.Nullable;
@@ -31,9 +29,6 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.time.ZoneId;
 import java.util.Optional;
-import java.util.function.Supplier;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * An window aggregate processor implementation which works for {@link SliceSharedAssigner}, e.g.
@@ -44,7 +39,6 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
     private static final long serialVersionUID = 1L;
 
     private final SliceSharedAssigner sliceSharedAssigner;
-    private final WindowIsEmptySupplier emptySupplier;
     private final SliceMergeTargetHelper mergeTargetHelper;
 
     public SliceSharedWindowAggProcessor(
@@ -54,10 +48,15 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
             TypeSerializer<RowData> accSerializer,
             int indexOfCountStar,
             ZoneId shiftTimeZone) {
-        super(genAggsHandler, bufferFactory, sliceAssigner, accSerializer, shiftTimeZone);
+        super(
+                genAggsHandler,
+                bufferFactory,
+                sliceAssigner,
+                accSerializer,
+                indexOfCountStar,
+                shiftTimeZone);
         this.sliceSharedAssigner = sliceAssigner;
         this.mergeTargetHelper = new SliceMergeTargetHelper();
-        this.emptySupplier = new WindowIsEmptySupplier(indexOfCountStar, sliceAssigner);
     }
 
     @Override
@@ -65,9 +64,8 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
         sliceSharedAssigner.mergeSlices(windowEnd, this);
         // we have set accumulator in the merge() method
         RowData aggResult = aggregator.getValue(windowEnd);
-        if (!isWindowEmpty()) {
-            // for hopping windows, the triggered window may be an empty window
-            // (see register next window below), for such window, we shouldn't emit it
+        if (!emptySupplier.get()) {
+            // the triggered window is an empty window, we shouldn't emit it
             collect(aggResult);
         }
 
@@ -130,44 +128,7 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
         }
     }
 
-    private boolean isWindowEmpty() {
-        if (emptySupplier.indexOfCountStar < 0) {
-            // for non-hopping windows, the window is never empty
-            return false;
-        } else {
-            return emptySupplier.get();
-        }
-    }
-
     // ------------------------------------------------------------------------------------------
-
-    private final class WindowIsEmptySupplier implements Supplier<Boolean>, Serializable {
-        private static final long serialVersionUID = 1L;
-
-        private final int indexOfCountStar;
-
-        private WindowIsEmptySupplier(int indexOfCountStar, SliceAssigner assigner) {
-            if (assigner instanceof SliceAssigners.HoppingSliceAssigner) {
-                checkArgument(
-                        indexOfCountStar >= 0,
-                        "Hopping window requires a COUNT(*) in the aggregate functions.");
-            }
-            this.indexOfCountStar = indexOfCountStar;
-        }
-
-        @Override
-        public Boolean get() {
-            if (indexOfCountStar < 0) {
-                return false;
-            }
-            try {
-                RowData acc = aggregator.getAccumulators();
-                return acc == null || acc.getLong(indexOfCountStar) == 0;
-            } catch (Exception e) {
-                throw new RuntimeException(e.getMessage(), e);
-            }
-        }
-    }
 
     private static final class SliceMergeTargetHelper
             implements SliceSharedAssigner.MergeCallback, Serializable {

@@ -31,17 +31,21 @@ import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.window.slicing.ClockService;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
+import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigners;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceSharedAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
 import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerServiceImpl;
 import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
 
+import java.io.Serializable;
 import java.time.ZoneId;
 import java.util.TimeZone;
+import java.util.function.Supplier;
 
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.getNextTriggerWatermark;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** A base implementation of {@link SlicingWindowProcessor} for window aggregate. */
 public abstract class AbstractWindowAggProcessor implements SlicingWindowProcessor<Long> {
@@ -57,6 +61,8 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
 
     /** The shift timezone is using DayLightSaving time or not. */
     protected final boolean useDayLightSaving;
+
+    protected final WindowIsEmptySupplier emptySupplier;
 
     // ----------------------------------------------------------------------------------------
 
@@ -85,6 +91,7 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
             WindowBuffer.Factory bufferFactory,
             SliceAssigner sliceAssigner,
             TypeSerializer<RowData> accSerializer,
+            int indexOfCountStar,
             ZoneId shiftTimeZone) {
         this.genAggsHandler = genAggsHandler;
         this.windowBufferFactory = bufferFactory;
@@ -94,6 +101,7 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
         this.windowInterval = sliceAssigner.getSliceEndInterval();
         this.shiftTimeZone = shiftTimeZone;
         this.useDayLightSaving = TimeZone.getTimeZone(shiftTimeZone).useDaylightTime();
+        this.emptySupplier = new WindowIsEmptySupplier(indexOfCountStar, sliceAssigner);
     }
 
     @Override
@@ -230,5 +238,34 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
     protected void collect(RowData aggResult) {
         reuseOutput.replace(ctx.getKeyedStateBackend().getCurrentKey(), aggResult);
         ctx.output(reuseOutput);
+    }
+
+    /** A supplier that returns whether the window is empty. */
+    protected final class WindowIsEmptySupplier implements Supplier<Boolean>, Serializable {
+        private static final long serialVersionUID = 1L;
+
+        private final int indexOfCountStar;
+
+        private WindowIsEmptySupplier(int indexOfCountStar, SliceAssigner assigner) {
+            if (assigner instanceof SliceAssigners.HoppingSliceAssigner) {
+                checkArgument(
+                        indexOfCountStar >= 0,
+                        "Hopping window requires a COUNT(*) in the aggregate functions.");
+            }
+            this.indexOfCountStar = indexOfCountStar;
+        }
+
+        @Override
+        public Boolean get() {
+            if (indexOfCountStar < 0) {
+                return false;
+            }
+            try {
+                RowData acc = aggregator.getAccumulators();
+                return acc == null || acc.getLong(indexOfCountStar) == 0;
+            } catch (Exception e) {
+                throw new RuntimeException(e.getMessage(), e);
+            }
+        }
     }
 }

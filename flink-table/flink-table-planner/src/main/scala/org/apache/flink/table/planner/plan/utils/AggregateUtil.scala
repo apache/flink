@@ -279,19 +279,19 @@ object AggregateUtil extends Enumeration {
       typeFactory: FlinkTypeFactory,
       inputRowType: RowType,
       aggCalls: Seq[AggregateCall],
+      needRetraction: Boolean,
       windowSpec: WindowSpec,
       isStateBackendDataViews: Boolean): AggregateInfoList = {
-    // Hopping window requires additional COUNT(*) to determine  whether to register next timer
-    // through whether the current fired window is empty, see SliceSharedWindowAggProcessor.
-    val needInputCount = windowSpec.isInstanceOf[HoppingWindowSpec]
+    // Hopping window always requires additional COUNT(*) to determine whether to register next
+    // timer through whether the current fired window is empty, see SliceSharedWindowAggProcessor.
+    val needInputCount = windowSpec.isInstanceOf[HoppingWindowSpec] || needRetraction
     val aggSize = if (needInputCount) {
       // we may insert a count(*) when need input count
       aggCalls.length + 1
     } else {
       aggCalls.length
     }
-    // TODO: derive retraction flags from ChangelogMode trait when we support retraction for window
-    val aggCallNeedRetractions = new Array[Boolean](aggSize)
+    val aggCallNeedRetractions = Array.fill(aggSize)(needRetraction)
     transformToAggregateInfoList(
       typeFactory,
       inputRowType,

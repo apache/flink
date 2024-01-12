@@ -31,8 +31,6 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalW
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistributionTraitDef;
-import org.apache.flink.table.planner.plan.trait.ModifyKindSetTrait;
-import org.apache.flink.table.planner.plan.trait.UpdateKindTrait;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy;
 
@@ -109,11 +107,7 @@ public class TwoStageOptimizedWindowAggregateRule extends RelOptRule {
         final RelNode realInput = call.rel(2);
         final WindowingStrategy windowing = windowAgg.windowing();
 
-        RelTraitSet localTraitSet =
-                realInput
-                        .getTraitSet()
-                        .plus(ModifyKindSetTrait.INSERT_ONLY())
-                        .plus(UpdateKindTrait.NONE());
+        RelTraitSet localTraitSet = realInput.getTraitSet();
         StreamPhysicalLocalWindowAggregate localAgg =
                 new StreamPhysicalLocalWindowAggregate(
                         windowAgg.getCluster(),
