@@ -1941,14 +1941,15 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
     val sql =
       s"""
          |select
-         |  LAG(len, 1, cast(null as int)) OVER w AS prev_quantity,
+         |  LAG(len, 1, cast(null as int)) OVER w AS nullable_prev_quantity,
+         |  LAG(len, 1, 1) OVER w AS prev_quantity,
          |  LAG(len) OVER w AS prev_quantity
          |from src
          |WINDOW w AS (ORDER BY proctime)
          |""".stripMargin
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
-    val expected = List("null,null", "15,15", "11,11")
+    val expected = List("null,1,null", "15,15,15", "11,11,11")
     assertThat(sink.getRetractResults).isEqualTo(expected)
   }
 
