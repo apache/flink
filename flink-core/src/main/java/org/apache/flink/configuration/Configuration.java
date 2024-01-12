@@ -160,16 +160,17 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
     }
 
     /**
-     * Returns the value associated with the given key as a string.
+     * Returns the value associated with the given key as a string. We encourage users and
+     * developers to always use ConfigOption for getting the configurations if possible, for its
+     * rich description, type, default-value and other supports. The string-key-based getter should
+     * only be used when ConfigOption is not applicable, e.g., the key is programmatically generated
+     * in runtime.
      *
      * @param key the key pointing to the associated value
      * @param defaultValue the default value which is returned in case there is no value associated
      *     with the given key
      * @return the (default) value associated with the given key
-     * @deprecated use {@link #getString(ConfigOption, String)} or {@link
-     *     #getOptional(ConfigOption)}
      */
-    @Deprecated
     public String getString(String key, String defaultValue) {
         return getRawValue(key)
                 .map(o -> ConfigurationUtils.convertToString(o, standardYaml))
@@ -205,7 +206,11 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
     }
 
     /**
-     * Adds the given key/value pair to the configuration object.
+     * Adds the given key/value pair to the configuration object. We encourage users and developers
+     * to always use ConfigOption for setting the configurations if possible, for its rich
+     * description, type, default-value and other supports. The string-key-based setter should only
+     * be used when ConfigOption is not applicable, e.g., the key is programmatically generated in
+     * runtime.
      *
      * @param key the key of the key/value pair to be added
      * @param value the value of the key/value pair to be added
