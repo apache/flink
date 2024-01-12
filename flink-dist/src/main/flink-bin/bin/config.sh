@@ -47,25 +47,6 @@ constructFlinkClassPath() {
     echo "$FLINK_CLASSPATH""$FLINK_DIST"
 }
 
-findFlinkDistJar() {
-    local FLINK_DIST
-    FLINK_DIST="$(find "$FLINK_LIB_DIR" -name 'flink-dist*.jar')"
-    local FLINK_DIST_COUNT
-    FLINK_DIST_COUNT="$(echo "$FLINK_DIST" | wc -l)"
-
-    # If flink-dist*.jar cannot be resolved write error messages to stderr since stdout is stored
-    # as the classpath and exit function with empty classpath to force process failure
-    if [[ "$FLINK_DIST" == "" ]]; then
-        (>&2 echo "[ERROR] Flink distribution jar not found in $FLINK_LIB_DIR.")
-        exit 1
-    elif [[ "$FLINK_DIST_COUNT" -gt 1 ]]; then
-        (>&2 echo "[ERROR] Multiple flink-dist*.jar found in $FLINK_LIB_DIR. Please resolve.")
-        exit 1
-    fi
-
-    echo "$FLINK_DIST"
-}
-
 findSqlGatewayJar() {
     local SQL_GATEWAY
     SQL_GATEWAY="$(find "$FLINK_OPT_DIR" -name 'flink-sql-gateway*.jar')"
@@ -116,16 +97,6 @@ manglePath() {
     fi
 }
 
-manglePathList() {
-    UNAME=$(uname -s)
-    # a path list, for example a java classpath
-    if [ "${UNAME:0:6}" == "CYGWIN" ]; then
-        echo `cygpath -wp "$1"`
-    else
-        echo $1
-    fi
-}
-
 # Looks up a config value by key from a simple YAML-style key-value map.
 # $1: key to look up
 # $2: default value to return if key does not exist
@@ -133,11 +104,9 @@ manglePathList() {
 readFromConfig() {
     local key=$1
     local defaultValue=$2
-    local configFile=$3
+    local configuration=$3
 
-    # first extract the value with the given key (1st sed), then trim the result (2nd sed)
-    # if a key exists multiple times, take the "last" one (tail)
-    local value=`sed -n "s/^[ ]*${key}[ ]*: \([^#]*\).*$/\1/p" "${configFile}" | sed "s/^ *//;s/ *$//" | tail -n 1`
+    local value=$(echo "$configuration" | grep "^[ ]*${key}[ ]*:" | cut -d ':' -f2- | sed "s/^ *//;s/ *$//" | tail -n 1)
 
     [ -z "$value" ] && echo "$defaultValue" || echo "$value"
 }
@@ -146,7 +115,6 @@ readFromConfig() {
 # DEFAULT CONFIG VALUES: These values will be used when nothing has been specified in conf/flink-conf.yaml
 # -or- the respective environment variables are not set.
 ########################################################################################################################
-
 
 # WARNING !!! , these values are only used if there is nothing else is specified in
 # conf/flink-conf.yaml
@@ -231,8 +199,6 @@ FLINK_HOME_DIR_MANGLED=`manglePath "$FLINK_HOME"`
 if [ -z "$FLINK_CONF_DIR" ]; then FLINK_CONF_DIR=$FLINK_HOME_DIR_MANGLED/conf; fi
 FLINK_BIN_DIR=$FLINK_HOME_DIR_MANGLED/bin
 DEFAULT_FLINK_LOG_DIR=$FLINK_HOME_DIR_MANGLED/log
-FLINK_CONF_FILE="flink-conf.yaml"
-YAML_CONF=${FLINK_CONF_DIR}/${FLINK_CONF_FILE}
 
 ### Exported environment variables ###
 export FLINK_CONF_DIR
@@ -243,35 +209,12 @@ export FLINK_LIB_DIR
 # export /opt dir to access it for the SQL client
 export FLINK_OPT_DIR
 
+source "${FLINK_BIN_DIR}/bash-java-utils.sh"
+YAML_CONF=$(updateAndGetFlinkConfiguration "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}" ${FLINK_LIB_DIR} -flatten)
+
 ########################################################################################################################
 # ENVIRONMENT VARIABLES
 ########################################################################################################################
-
-# read JAVA_HOME from config with no default value
-MY_JAVA_HOME=$(readFromConfig ${KEY_ENV_JAVA_HOME} "" "${YAML_CONF}")
-# check if config specified JAVA_HOME
-if [ -z "${MY_JAVA_HOME}" ]; then
-    # config did not specify JAVA_HOME. Use system JAVA_HOME
-    MY_JAVA_HOME="${JAVA_HOME}"
-fi
-# check if we have a valid JAVA_HOME and if java is not available
-if [ -z "${MY_JAVA_HOME}" ] && ! type java > /dev/null 2> /dev/null; then
-    echo "Please specify JAVA_HOME. Either in Flink config ./conf/flink-conf.yaml or as system-wide JAVA_HOME."
-    exit 1
-else
-    JAVA_HOME="${MY_JAVA_HOME}"
-fi
-
-UNAME=$(uname -s)
-if [ "${UNAME:0:6}" == "CYGWIN" ]; then
-    JAVA_RUN=java
-else
-    if [[ -d "$JAVA_HOME" ]]; then
-        JAVA_RUN="$JAVA_HOME"/bin/java
-    else
-        JAVA_RUN=java
-    fi
-fi
 
 # Define HOSTNAME if it is not already set
 if [ -z "${HOSTNAME}" ]; then
@@ -550,82 +493,6 @@ TMWorkers() {
                 "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" \"${CMD}\""
         fi
     fi
-}
-
-runBashJavaUtilsCmd() {
-    local cmd=$1
-    local conf_dir=$2
-    local class_path=$3
-    local dynamic_args=${@:4}
-    class_path=`manglePathList "${class_path}"`
-
-    local output=`"${JAVA_RUN}" -classpath "${class_path}" org.apache.flink.runtime.util.bash.BashJavaUtils ${cmd} --configDir "${conf_dir}" $dynamic_args 2>&1 | tail -n 1000`
-    if [[ $? -ne 0 ]]; then
-        echo "[ERROR] Cannot run BashJavaUtils to execute command ${cmd}." 1>&2
-        # Print the output in case the user redirect the log to console.
-        echo "$output" 1>&2
-        exit 1
-    fi
-
-    echo "$output"
-}
-
-extractExecutionResults() {
-    local output="$1"
-    local expected_lines="$2"
-    local EXECUTION_PREFIX="BASH_JAVA_UTILS_EXEC_RESULT:"
-    local execution_results
-    local num_lines
-
-    execution_results=$(echo "${output}" | grep ${EXECUTION_PREFIX})
-    num_lines=$(echo "${execution_results}" | wc -l)
-    # explicit check for empty result, because if execution_results is empty, then wc returns 1
-    if [[ -z ${execution_results} ]]; then
-        echo "[ERROR] The execution result is empty." 1>&2
-        exit 1
-    fi
-    if [[ ${num_lines} -ne ${expected_lines} ]]; then
-        echo "[ERROR] The execution results has unexpected number of lines, expected: ${expected_lines}, actual: ${num_lines}." 1>&2
-        echo "[ERROR] An execution result line is expected following the prefix '${EXECUTION_PREFIX}'" 1>&2
-        echo "$output" 1>&2
-        exit 1
-    fi
-
-    echo "${execution_results//${EXECUTION_PREFIX}/}"
-}
-
-extractLoggingOutputs() {
-    local output="$1"
-    local EXECUTION_PREFIX="BASH_JAVA_UTILS_EXEC_RESULT:"
-
-    echo "${output}" | grep -v ${EXECUTION_PREFIX}
-}
-
-parseResourceParamsAndExportLogs() {
-  local cmd=$1
-  java_utils_output=$(runBashJavaUtilsCmd ${cmd} "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}/bash-java-utils.jar:$(findFlinkDistJar)" "${@:2}")
-  logging_output=$(extractLoggingOutputs "${java_utils_output}")
-  params_output=$(extractExecutionResults "${java_utils_output}" 2)
-
-  if [[ $? -ne 0 ]]; then
-    echo "[ERROR] Could not get JVM parameters and dynamic configurations properly."
-    echo "[ERROR] Raw output from BashJavaUtils:"
-    echo "$java_utils_output"
-    exit 1
-  fi
-
-  jvm_params=$(echo "${params_output}" | head -n1)
-  export JVM_ARGS="${JVM_ARGS} ${jvm_params}"
-  export DYNAMIC_PARAMETERS=$(IFS=" " echo "${params_output}" | tail -n1)
-
-  export FLINK_INHERITED_LOGS="
-$FLINK_INHERITED_LOGS
-
-RESOURCE_PARAMS extraction logs:
-jvm_params: $jvm_params
-dynamic_configs: $DYNAMIC_PARAMETERS
-logs: $logging_output
-"
 }
 
 parseJmArgsAndExportLogs() {
