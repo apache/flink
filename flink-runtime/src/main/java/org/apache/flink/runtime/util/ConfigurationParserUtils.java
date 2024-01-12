@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -26,12 +28,18 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.entrypoint.ClusterConfiguration;
 import org.apache.flink.runtime.entrypoint.ClusterConfigurationParserFactory;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
+import org.apache.flink.runtime.entrypoint.YamlConfiguration;
+import org.apache.flink.runtime.entrypoint.YamlConfigurationParserFactory;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.util.MathUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.Properties;
+import java.util.Set;
 
 import static org.apache.flink.util.MathUtils.checkedDownCast;
 
@@ -143,5 +151,64 @@ public class ConfigurationParserUtils {
                 ConfigurationUtils.createConfiguration(clusterConfiguration.getDynamicProperties());
         return GlobalConfiguration.loadConfiguration(
                 clusterConfiguration.getConfigDir(), dynamicProperties);
+    }
+
+    public static List<String> loadAndModifyConfiguration(String[] args, String cmdLineSyntax)
+            throws FlinkParseException {
+        final CommandLineParser<YamlConfiguration> commandLineParser =
+                new CommandLineParser<>(new YamlConfigurationParserFactory());
+
+        final YamlConfiguration yamlConfiguration;
+        try {
+            yamlConfiguration = commandLineParser.parse(args);
+        } catch (FlinkParseException e) {
+            LOG.error("Could not parse the command line options.", e);
+            commandLineParser.printHelp(cmdLineSyntax);
+            throw e;
+        }
+
+        final Configuration dynamicProperties =
+                ConfigurationUtils.createConfiguration(yamlConfiguration.getDynamicProperties());
+        // 1. Load configuration and append dynamic properties to configuration.
+        Configuration configuration =
+                GlobalConfiguration.loadConfiguration(
+                        yamlConfiguration.getConfigDir(), dynamicProperties);
+
+        // 2. Replace the specified key's value with a new one if it matches the old value.
+        List<Tuple3<String, String, String>> replaceKeyValues =
+                yamlConfiguration.getReplaceKeyValues();
+        replaceKeyValues.forEach(
+                tuple3 -> {
+                    String key = tuple3.f0;
+                    String oldValue = tuple3.f1;
+                    String newValue = tuple3.f2;
+                    if (oldValue.equals(
+                            configuration.get(
+                                    ConfigOptions.key(key).stringType().noDefaultValue()))) {
+                        configuration.setString(key, newValue);
+                    }
+                });
+
+        // 3. Remove the specified key value pairs if the value matches.
+        Properties removeKeyValues = yamlConfiguration.getRemoveKeyValues();
+        final Set<String> propertyNames = removeKeyValues.stringPropertyNames();
+
+        for (String propertyName : propertyNames) {
+            if (removeKeyValues
+                    .getProperty(propertyName)
+                    .equals(
+                            configuration.getString(
+                                    ConfigOptions.key(propertyName)
+                                            .stringType()
+                                            .noDefaultValue()))) {
+                configuration.removeKey(propertyName);
+            }
+        }
+
+        // 4. Remove the specified key value pairs.
+        List<String> removeKeys = yamlConfiguration.getRemoveKeys();
+        removeKeys.forEach(configuration::removeKey);
+        return ConfigurationUtils.convertConfigToWritableLines(
+                configuration, yamlConfiguration.flattenConfig());
     }
 }
