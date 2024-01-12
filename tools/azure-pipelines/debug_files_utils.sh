@@ -18,9 +18,17 @@
 ################################################################################
 
 function prepare_debug_files {
-	MODULE=$@
-	export DEBUG_FILES_OUTPUT_DIR="$AGENT_TEMPDIRECTORY/debug_files"
-	export DEBUG_FILES_NAME="$(echo $MODULE | tr -c '[:alnum:]\n\r' '_')-$(date +%s)"
+	if [ "$#" != "2" ]; then
+		echo "[ERROR] Invalid number of parameters passed. Expected parameters for $0: <parent-directory> <module-label>"
+		exit 1
+	fi
+
+	local parent_directory module
+	parent_directory="$1"
+	module="$2"
+
+	export DEBUG_FILES_OUTPUT_DIR="${parent_directory}/debug_files"
+	export DEBUG_FILES_NAME="$(echo "${module}" | tr -c '[:alnum:]\n\r' '_')-$(date +%s)"
 	echo "##vso[task.setvariable variable=DEBUG_FILES_OUTPUT_DIR]$DEBUG_FILES_OUTPUT_DIR"
 	echo "##vso[task.setvariable variable=DEBUG_FILES_NAME]$DEBUG_FILES_NAME"
 	mkdir -p $DEBUG_FILES_OUTPUT_DIR || { echo "FAILURE: cannot create debug files directory '${DEBUG_FILES_OUTPUT_DIR}'." ; exit 1; }
