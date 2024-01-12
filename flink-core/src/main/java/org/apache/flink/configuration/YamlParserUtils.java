@@ -42,7 +42,10 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -126,6 +129,39 @@ public class YamlParserUtils {
                 output = output.substring(0, output.length() - linebreak.length());
             }
             return output;
+        } catch (MarkedYAMLException exception) {
+            throw wrapExceptionToHiddenSensitiveData(exception);
+        }
+    }
+
+    /**
+     * Converts a flat map into a nested map structure and outputs the result as a list of
+     * YAML-formatted strings. Each item in the list represents a single line of the YAML data. The
+     * method is synchronized and thus thread-safe.
+     *
+     * @param flattenMap A map containing flattened keys (e.g., "parent.child.key") associated with
+     *     their values.
+     * @return A list of strings that represents the YAML data, where each item corresponds to a
+     *     line of the data.
+     */
+    @SuppressWarnings("unchecked")
+    public static synchronized List<String> convertAndDumpYamlFromFlatMap(
+            Map<String, Object> flattenMap) {
+        try {
+            Map<String, Object> nestedMap = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> entry : flattenMap.entrySet()) {
+                String[] keys = entry.getKey().split("\\.");
+                Map<String, Object> currentMap = nestedMap;
+                for (int i = 0; i < keys.length - 1; i++) {
+                    currentMap =
+                            (Map<String, Object>)
+                                    currentMap.computeIfAbsent(keys[i], k -> new LinkedHashMap<>());
+                }
+                currentMap.put(keys[keys.length - 1], entry.getValue());
+            }
+            String data = yaml.dumpAsMap(nestedMap);
+            String linebreak = dumperOptions.getLineBreak().getString();
+            return Arrays.asList(data.split(linebreak));
         } catch (MarkedYAMLException exception) {
             throw wrapExceptionToHiddenSensitiveData(exception);
         }

@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.DeploymentOptionsInternal;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -136,9 +137,9 @@ public class FlinkConfMountDecorator extends AbstractKubernetesStepDecorator {
             data.put(file.getName(), Files.toString(file, StandardCharsets.UTF_8));
         }
 
-        final Map<String, String> propertiesMap =
-                getClusterSidePropertiesMap(kubernetesComponentConf.getFlinkConfiguration());
-        data.put(GlobalConfiguration.getFlinkConfFilename(), getFlinkConfData(propertiesMap));
+        final List<String> confData =
+                getClusterSideConfData(kubernetesComponentConf.getFlinkConfiguration());
+        data.put(GlobalConfiguration.getFlinkConfFilename(), getFlinkConfData(confData));
 
         final ConfigMap flinkConfConfigMap =
                 new ConfigMapBuilder()
@@ -154,7 +155,7 @@ public class FlinkConfMountDecorator extends AbstractKubernetesStepDecorator {
     }
 
     /** Get properties map for the cluster-side after removal of some keys. */
-    private Map<String, String> getClusterSidePropertiesMap(Configuration flinkConfig) {
+    private List<String> getClusterSideConfData(Configuration flinkConfig) {
         final Configuration clusterSideConfig = flinkConfig.clone();
         // Remove some configuration options that should not be taken to cluster side.
         clusterSideConfig.removeConfig(KubernetesConfigOptions.KUBE_CONFIG_FILE);
@@ -163,19 +164,14 @@ public class FlinkConfMountDecorator extends AbstractKubernetesStepDecorator {
         clusterSideConfig.removeConfig(JobManagerOptions.BIND_HOST);
         clusterSideConfig.removeConfig(TaskManagerOptions.BIND_HOST);
         clusterSideConfig.removeConfig(TaskManagerOptions.HOST);
-        return clusterSideConfig.toFileWritableMap();
+        return ConfigurationUtils.convertConfigToWritableLines(clusterSideConfig, false);
     }
 
     @VisibleForTesting
-    String getFlinkConfData(Map<String, String> propertiesMap) throws IOException {
+    String getFlinkConfData(List<String> confData) throws IOException {
         try (StringWriter sw = new StringWriter();
                 PrintWriter out = new PrintWriter(sw)) {
-            propertiesMap.forEach(
-                    (k, v) -> {
-                        out.print(k);
-                        out.print(": ");
-                        out.println(v);
-                    });
+            confData.forEach(out::println);
 
             return sw.toString();
         }
