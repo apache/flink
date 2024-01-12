@@ -33,7 +33,7 @@ public class CompressibleFSDataOutputStream extends FSDataOutputStream {
     private final OutputStream compressingDelegate;
 
     public CompressibleFSDataOutputStream(
-            CheckpointStateOutputStream delegate, StreamCompressionDecorator compressionDecorator)
+            FSDataOutputStream delegate, StreamCompressionDecorator compressionDecorator)
             throws IOException {
         this.delegate = delegate;
         this.compressingDelegate = compressionDecorator.decorateWithCompression(delegate);
