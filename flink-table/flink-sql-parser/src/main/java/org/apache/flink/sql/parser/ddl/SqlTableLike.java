@@ -108,7 +108,6 @@ public class SqlTableLike extends SqlCall implements ExtendedSqlNode {
         OVERWRITING
     }
 
-    // TODO: Update relative to DISTRIBUTED BY?
     /**
      * A feature of a table descriptor that will be merged into the new table. The way how a certain
      * feature will be merged into the final descriptor is controlled with {@link MergingStrategy}.

@@ -525,9 +525,12 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                 .watermark("f1", "`f1` - interval '1' second")
                                 .build(),
                         null,
-                        Optional.of(CatalogTable.TableDistribution.ofHash(Collections.singletonList("f0"), 3)),
+                        Optional.of(
+                                CatalogTable.TableDistribution.ofHash(
+                                        Collections.singletonList("f0"), 3)),
                         Arrays.asList("f0", "f1"),
-                        sourceProperties, null);
+                        sourceProperties,
+                        null);
 
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
@@ -554,8 +557,11 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                 .is(
                         new HamcrestCondition<>(
                                 isCreateTableOperation(
-                                        withDistribution(new CatalogTable.TableDistribution(
-                                                CatalogTable.TableDistribution.Kind.UNKNOWN, null, Arrays.asList("a", "f0"))),
+                                        withDistribution(
+                                                new CatalogTable.TableDistribution(
+                                                        CatalogTable.TableDistribution.Kind.UNKNOWN,
+                                                        null,
+                                                        Arrays.asList("a", "f0"))),
                                         withSchema(
                                                 Schema.newBuilder()
                                                         .column("f0", DataTypes.INT().notNull())
@@ -578,8 +584,11 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                 .is(
                         new HamcrestCondition<>(
                                 isCreateTableOperation(
-                                        withDistribution(new CatalogTable.TableDistribution(
-                                                CatalogTable.TableDistribution.Kind.UNKNOWN, null, Collections.singletonList("a"))))));
+                                        withDistribution(
+                                                new CatalogTable.TableDistribution(
+                                                        CatalogTable.TableDistribution.Kind.UNKNOWN,
+                                                        null,
+                                                        Collections.singletonList("a"))))));
     }
 
     @Test
