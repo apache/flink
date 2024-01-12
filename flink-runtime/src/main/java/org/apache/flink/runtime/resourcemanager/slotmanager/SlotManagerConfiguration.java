@@ -248,8 +248,7 @@ public class SlotManagerConfiguration {
                 Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
 
         final Time taskManagerTimeout =
-                Time.milliseconds(
-                        configuration.getLong(ResourceManagerOptions.TASK_MANAGER_TIMEOUT));
+                Time.milliseconds(configuration.get(ResourceManagerOptions.TASK_MANAGER_TIMEOUT));
 
         final Duration requirementCheckDelay =
                 configuration.get(ResourceManagerOptions.REQUIREMENTS_CHECK_DELAY);
@@ -258,8 +257,7 @@ public class SlotManagerConfiguration {
                 configuration.get(ResourceManagerOptions.DECLARE_NEEDED_RESOURCE_DELAY);
 
         boolean waitResultConsumedBeforeRelease =
-                configuration.getBoolean(
-                        ResourceManagerOptions.TASK_MANAGER_RELEASE_WHEN_RESULT_CONSUMED);
+                configuration.get(ResourceManagerOptions.TASK_MANAGER_RELEASE_WHEN_RESULT_CONSUMED);
 
         TaskManagerLoadBalanceMode taskManagerLoadBalanceMode =
                 TaskManagerLoadBalanceMode.loadFromConfiguration(configuration);
@@ -268,13 +266,13 @@ public class SlotManagerConfiguration {
                         ? LeastUtilizationSlotMatchingStrategy.INSTANCE
                         : AnyMatchingSlotMatchingStrategy.INSTANCE;
 
-        int numSlotsPerWorker = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
+        int numSlotsPerWorker = configuration.get(TaskManagerOptions.NUM_TASK_SLOTS);
 
-        int minSlotNum = configuration.getInteger(ResourceManagerOptions.MIN_SLOT_NUM);
-        int maxSlotNum = configuration.getInteger(ResourceManagerOptions.MAX_SLOT_NUM);
+        int minSlotNum = configuration.get(ResourceManagerOptions.MIN_SLOT_NUM);
+        int maxSlotNum = configuration.get(ResourceManagerOptions.MAX_SLOT_NUM);
 
         int redundantTaskManagerNum =
-                configuration.getInteger(ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM);
+                configuration.get(ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM);
 
         return new SlotManagerConfiguration(
                 rpcTimeout,

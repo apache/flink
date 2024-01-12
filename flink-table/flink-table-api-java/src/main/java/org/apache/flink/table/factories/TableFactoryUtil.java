@@ -217,7 +217,7 @@ public class TableFactoryUtil {
      */
     public static CatalogStoreFactory findAndCreateCatalogStoreFactory(
             Configuration configuration, ClassLoader classLoader) {
-        String identifier = configuration.getString(CommonCatalogOptions.TABLE_CATALOG_STORE_KIND);
+        String identifier = configuration.get(CommonCatalogOptions.TABLE_CATALOG_STORE_KIND);
 
         CatalogStoreFactory catalogStoreFactory =
                 FactoryUtil.discoverFactory(classLoader, CatalogStoreFactory.class, identifier);
@@ -238,7 +238,7 @@ public class TableFactoryUtil {
      */
     public static CatalogStoreFactory.Context buildCatalogStoreFactoryContext(
             Configuration configuration, ClassLoader classLoader) {
-        String identifier = configuration.getString(CommonCatalogOptions.TABLE_CATALOG_STORE_KIND);
+        String identifier = configuration.get(CommonCatalogOptions.TABLE_CATALOG_STORE_KIND);
         String catalogStoreOptionPrefix =
                 CommonCatalogOptions.TABLE_CATALOG_STORE_OPTION_PREFIX + identifier + ".";
         Map<String, String> options =

@@ -140,10 +140,9 @@ class JobManagerHAProcessFailureRecoveryITCase {
             String zkQuorum, final File coordinateDir, final File zookeeperStoragePath)
             throws Exception {
         Configuration config = new Configuration();
-        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-        config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkQuorum);
-        config.setString(
-                HighAvailabilityOptions.HA_STORAGE_PATH, zookeeperStoragePath.getAbsolutePath());
+        config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.set(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkQuorum);
+        config.set(HighAvailabilityOptions.HA_STORAGE_PATH, zookeeperStoragePath.getAbsolutePath());
 
         ExecutionEnvironment env =
                 ExecutionEnvironment.createRemoteEnvironment("leader", 1, config);
@@ -260,7 +259,7 @@ class JobManagerHAProcessFailureRecoveryITCase {
         config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("3200k"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("3200k"));
         config.set(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS, 16);
-        config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
+        config.set(TaskManagerOptions.NUM_TASK_SLOTS, 2);
         config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
         config.set(TaskManagerOptions.CPU_CORES, 1.0);
         TaskExecutorResourceUtils.adjustForLocalExecution(config);

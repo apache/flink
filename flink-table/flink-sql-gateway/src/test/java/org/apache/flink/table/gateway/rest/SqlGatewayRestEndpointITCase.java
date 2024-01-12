@@ -236,7 +236,7 @@ class SqlGatewayRestEndpointITCase {
      */
     @Test
     void testDefaultVersionRouting() throws Exception {
-        assertThat(config.getBoolean(SecurityOptions.SSL_REST_ENABLED)).isFalse();
+        assertThat(config.get(SecurityOptions.SSL_REST_ENABLED)).isFalse();
 
         OkHttpClient client = new OkHttpClient();
         final Request request =

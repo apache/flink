@@ -99,7 +99,7 @@ class ClientTest {
         plan = env.createProgramPlan();
 
         config = new Configuration();
-        config.setString(JobManagerOptions.ADDRESS, "localhost");
+        config.set(JobManagerOptions.ADDRESS, "localhost");
 
         config.set(
                 AkkaOptions.ASK_TIMEOUT_DURATION, AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue());
@@ -108,7 +108,7 @@ class ClientTest {
     private Configuration fromPackagedProgram(
             final PackagedProgram program, final int parallelism, final boolean detached) {
         final Configuration configuration = new Configuration();
-        configuration.setString(DeploymentOptions.TARGET, TEST_EXECUTOR_NAME);
+        configuration.set(DeploymentOptions.TARGET, TEST_EXECUTOR_NAME);
         configuration.set(CoreOptions.DEFAULT_PARALLELISM, parallelism);
         configuration.set(DeploymentOptions.ATTACHED, !detached);
         ConfigUtils.encodeCollectionToConfig(
@@ -490,13 +490,13 @@ class ClientTest {
                 @Override
                 public boolean isCompatibleWith(@Nonnull Configuration configuration) {
                     return TEST_EXECUTOR_NAME.equalsIgnoreCase(
-                            configuration.getString(DeploymentOptions.TARGET));
+                            configuration.get(DeploymentOptions.TARGET));
                 }
 
                 @Override
                 public PipelineExecutor getExecutor(@Nonnull Configuration configuration) {
                     return (pipeline, config, classLoader) -> {
-                        final int parallelism = config.getInteger(CoreOptions.DEFAULT_PARALLELISM);
+                        final int parallelism = config.get(CoreOptions.DEFAULT_PARALLELISM);
                         final JobGraph jobGraph =
                                 FlinkPipelineTranslationUtil.getJobGraph(
                                         classLoader, plan, config, parallelism);

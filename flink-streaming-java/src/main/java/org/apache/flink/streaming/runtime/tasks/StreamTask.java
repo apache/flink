@@ -890,7 +890,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 || !environment
                         .getTaskManagerInfo()
                         .getConfiguration()
-                        .getBoolean(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
+                        .get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
             return;
         }
         systemTimerService.registerTimer(
@@ -1531,7 +1531,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 getEnvironment()
                         .getTaskManagerInfo()
                         .getConfiguration()
-                        .getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT_TIMERS);
+                        .get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT_TIMERS);
         tryShutdownTimerService(timeoutMs, timerService);
         tryShutdownTimerService(timeoutMs, systemTimerService);
     }

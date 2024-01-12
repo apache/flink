@@ -248,7 +248,7 @@ public class StreamConfig implements Serializable {
                         "%s should be in range [0.0, 1.0], but was: %s",
                         configOption.key(), fraction));
 
-        config.setDouble(configOption, fraction);
+        config.set(configOption, fraction);
     }
 
     /**
@@ -262,7 +262,7 @@ public class StreamConfig implements Serializable {
             ClassLoader cl) {
         return ManagedMemoryUtils.convertToFractionOfSlot(
                 managedMemoryUseCase,
-                config.getDouble(getManagedMemoryFractionConfigOption(managedMemoryUseCase)),
+                config.get(getManagedMemoryFractionConfigOption(managedMemoryUseCase)),
                 getAllManagedMemoryUseCases(),
                 jobConfig,
                 taskManagerConfig,
@@ -526,11 +526,11 @@ public class StreamConfig implements Serializable {
     }
 
     public void setUnalignedCheckpointsEnabled(boolean enabled) {
-        config.setBoolean(ExecutionCheckpointingOptions.ENABLE_UNALIGNED, enabled);
+        config.set(ExecutionCheckpointingOptions.ENABLE_UNALIGNED, enabled);
     }
 
     public boolean isUnalignedCheckpointsEnabled() {
-        return config.getBoolean(ExecutionCheckpointingOptions.ENABLE_UNALIGNED, false);
+        return config.get(ExecutionCheckpointingOptions.ENABLE_UNALIGNED, false);
     }
 
     public boolean isExactlyOnceCheckpointMode() {
@@ -547,12 +547,12 @@ public class StreamConfig implements Serializable {
     }
 
     public void setMaxConcurrentCheckpoints(int maxConcurrentCheckpoints) {
-        config.setInteger(
+        config.set(
                 ExecutionCheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS, maxConcurrentCheckpoints);
     }
 
     public int getMaxConcurrentCheckpoints() {
-        return config.getInteger(
+        return config.get(
                 ExecutionCheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS,
                 ExecutionCheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS.defaultValue());
     }
@@ -656,7 +656,7 @@ public class StreamConfig implements Serializable {
 
     @VisibleForTesting
     public void setStateBackendUsesManagedMemory(boolean usesManagedMemory) {
-        this.config.setBoolean(STATE_BACKEND_USE_MANAGED_MEMORY, usesManagedMemory);
+        this.config.set(STATE_BACKEND_USE_MANAGED_MEMORY, usesManagedMemory);
     }
 
     public StateBackend getStateBackend(ClassLoader cl) {

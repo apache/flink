@@ -45,7 +45,7 @@ public class ExecutionEnvironmentITCase extends TestLogger {
     @Test
     public void testLocalEnvironmentWithConfig() throws Exception {
         Configuration conf = new Configuration();
-        conf.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, PARALLELISM);
+        conf.set(TaskManagerOptions.NUM_TASK_SLOTS, PARALLELISM);
 
         final ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(conf);
 

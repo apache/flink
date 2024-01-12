@@ -293,9 +293,8 @@ public final class TestingBlobHelpers {
     public static void testBlobServerRecovery(
             final Configuration config, final BlobStore blobStore, final File blobStorage)
             throws Exception {
-        final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
-        String storagePath =
-                config.getString(HighAvailabilityOptions.HA_STORAGE_PATH) + "/" + clusterId;
+        final String clusterId = config.get(HighAvailabilityOptions.HA_CLUSTER_ID);
+        String storagePath = config.get(HighAvailabilityOptions.HA_STORAGE_PATH) + "/" + clusterId;
         Random rand = new Random();
 
         try (BlobServer server0 =
@@ -378,9 +377,8 @@ public final class TestingBlobHelpers {
             final Configuration config, final BlobStore blobStore, final File blobStorage)
             throws IOException {
 
-        final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
-        String storagePath =
-                config.getString(HighAvailabilityOptions.HA_STORAGE_PATH) + "/" + clusterId;
+        final String clusterId = config.get(HighAvailabilityOptions.HA_CLUSTER_ID);
+        String storagePath = config.get(HighAvailabilityOptions.HA_STORAGE_PATH) + "/" + clusterId;
         Random rand = new Random();
 
         try (BlobServer server0 =

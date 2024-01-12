@@ -76,7 +76,7 @@ public class TaskExecutorResourceUtils {
             throw new IllegalConfigurationException("Failed to create TaskExecutorResourceSpec", e);
         }
         return new TaskExecutorResourceSpec(
-                new CPUResource(config.getDouble(TaskManagerOptions.CPU_CORES)),
+                new CPUResource(config.get(TaskManagerOptions.CPU_CORES)),
                 config.get(TaskManagerOptions.TASK_HEAP_MEMORY),
                 config.get(TaskManagerOptions.TASK_OFF_HEAP_MEMORY),
                 config.get(TaskManagerOptions.NETWORK_MEMORY_MIN),

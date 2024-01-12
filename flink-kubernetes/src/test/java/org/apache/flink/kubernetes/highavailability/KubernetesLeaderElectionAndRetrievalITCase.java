@@ -71,7 +71,7 @@ class KubernetesLeaderElectionAndRetrievalITCase {
         final FlinkKubeClient flinkKubeClient = KUBERNETES_EXTENSION.getFlinkKubeClient();
         final Configuration configuration = KUBERNETES_EXTENSION.getConfiguration();
 
-        final String clusterId = configuration.getString(KubernetesConfigOptions.CLUSTER_ID);
+        final String clusterId = configuration.get(KubernetesConfigOptions.CLUSTER_ID);
 
         // This will make the leader election retrieval time out if we won't process already
         // existing leader information when starting it up.

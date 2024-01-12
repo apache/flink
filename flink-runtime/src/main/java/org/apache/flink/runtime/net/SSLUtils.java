@@ -110,8 +110,8 @@ public class SSLUtils {
 
         return new SSLHandlerFactory(
                 sslContext,
-                config.getInteger(SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT),
-                config.getInteger(SecurityOptions.SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT));
+                config.get(SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT),
+                config.get(SecurityOptions.SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT));
     }
 
     /** Creates a SSLEngineFactory to be used by internal communication client endpoints. */
@@ -125,8 +125,8 @@ public class SSLUtils {
 
         return new SSLHandlerFactory(
                 sslContext,
-                config.getInteger(SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT),
-                config.getInteger(SecurityOptions.SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT));
+                config.get(SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT),
+                config.get(SecurityOptions.SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT));
     }
 
     /**
@@ -169,18 +169,18 @@ public class SSLUtils {
 
     private static String[] getEnabledProtocols(final Configuration config) {
         checkNotNull(config, "config must not be null");
-        return config.getString(SecurityOptions.SSL_PROTOCOL).split(",");
+        return config.get(SecurityOptions.SSL_PROTOCOL).split(",");
     }
 
     private static String[] getEnabledCipherSuites(final Configuration config) {
         checkNotNull(config, "config must not be null");
-        return config.getString(SecurityOptions.SSL_ALGORITHMS).split(",");
+        return config.get(SecurityOptions.SSL_ALGORITHMS).split(",");
     }
 
     @VisibleForTesting
     static SslProvider getSSLProvider(final Configuration config) {
         checkNotNull(config, "config must not be null");
-        String providerString = config.getString(SecurityOptions.SSL_PROVIDER);
+        String providerString = config.get(SecurityOptions.SSL_PROVIDER);
         if (providerString.equalsIgnoreCase("OPENSSL")) {
             if (OpenSsl.isAvailable()) {
                 return OPENSSL;
@@ -200,18 +200,18 @@ public class SSLUtils {
             throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException {
 
         String trustStoreFilePath =
-                config.getString(
+                config.get(
                         internal
                                 ? SecurityOptions.SSL_INTERNAL_TRUSTSTORE
                                 : SecurityOptions.SSL_REST_TRUSTSTORE,
-                        config.getString(SecurityOptions.SSL_TRUSTSTORE));
+                        config.get(SecurityOptions.SSL_TRUSTSTORE));
 
         String trustStorePassword =
-                config.getString(
+                config.get(
                         internal
                                 ? SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD
                                 : SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD,
-                        config.getString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD));
+                        config.get(SecurityOptions.SSL_TRUSTSTORE_PASSWORD));
 
         // Support for the REST client connecting to external HTTPS URLs to fall back to the
         // default trust store of the provider (JDK).
@@ -240,7 +240,7 @@ public class SSLUtils {
         }
 
         String certFingerprint =
-                config.getString(
+                config.get(
                         internal
                                 ? SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT
                                 : SecurityOptions.SSL_REST_CERT_FINGERPRINT);
@@ -338,8 +338,8 @@ public class SSLUtils {
 
         String[] sslProtocols = getEnabledProtocols(config);
         List<String> ciphers = Arrays.asList(getEnabledCipherSuites(config));
-        int sessionCacheSize = config.getInteger(SecurityOptions.SSL_INTERNAL_SESSION_CACHE_SIZE);
-        int sessionTimeoutMs = config.getInteger(SecurityOptions.SSL_INTERNAL_SESSION_TIMEOUT);
+        int sessionCacheSize = config.get(SecurityOptions.SSL_INTERNAL_SESSION_CACHE_SIZE);
+        int sessionTimeoutMs = config.get(SecurityOptions.SSL_INTERNAL_SESSION_TIMEOUT);
 
         KeyManagerFactory kmf = getKeyManagerFactory(config, true, provider);
         ClientAuth clientAuth = ClientAuth.REQUIRE;
@@ -441,7 +441,7 @@ public class SSLUtils {
             Configuration config,
             ConfigOption<String> primaryOption,
             ConfigOption<String> fallbackOption) {
-        String value = config.getString(primaryOption, config.getString(fallbackOption));
+        String value = config.get(primaryOption, config.get(fallbackOption));
         if (value != null) {
             return value;
         } else {

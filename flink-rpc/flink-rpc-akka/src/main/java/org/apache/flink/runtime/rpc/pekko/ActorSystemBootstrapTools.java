@@ -264,11 +264,11 @@ public class ActorSystemBootstrapTools {
     public static RpcSystem.ForkJoinExecutorConfiguration getForkJoinExecutorConfiguration(
             final Configuration configuration) {
         final double parallelismFactor =
-                configuration.getDouble(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_FACTOR);
+                configuration.get(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_FACTOR);
         final int minParallelism =
-                configuration.getInteger(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MIN);
+                configuration.get(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MIN);
         final int maxParallelism =
-                configuration.getInteger(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MAX);
+                configuration.get(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MAX);
 
         return new RpcSystem.ForkJoinExecutorConfiguration(
                 parallelismFactor, minParallelism, maxParallelism);
@@ -277,11 +277,11 @@ public class ActorSystemBootstrapTools {
     public static RpcSystem.ForkJoinExecutorConfiguration getRemoteForkJoinExecutorConfiguration(
             final Configuration configuration) {
         final double parallelismFactor =
-                configuration.getDouble(AkkaOptions.REMOTE_FORK_JOIN_EXECUTOR_PARALLELISM_FACTOR);
+                configuration.get(AkkaOptions.REMOTE_FORK_JOIN_EXECUTOR_PARALLELISM_FACTOR);
         final int minParallelism =
-                configuration.getInteger(AkkaOptions.REMOTE_FORK_JOIN_EXECUTOR_PARALLELISM_MIN);
+                configuration.get(AkkaOptions.REMOTE_FORK_JOIN_EXECUTOR_PARALLELISM_MIN);
         final int maxParallelism =
-                configuration.getInteger(AkkaOptions.REMOTE_FORK_JOIN_EXECUTOR_PARALLELISM_MAX);
+                configuration.get(AkkaOptions.REMOTE_FORK_JOIN_EXECUTOR_PARALLELISM_MAX);
 
         return new RpcSystem.ForkJoinExecutorConfiguration(
                 parallelismFactor, minParallelism, maxParallelism);

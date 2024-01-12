@@ -541,8 +541,7 @@ public class DefaultVertexParallelismAndInputInfosDecider
             int maxParallelism, Configuration configuration) {
         return new DefaultVertexParallelismAndInputInfosDecider(
                 maxParallelism,
-                configuration.getInteger(
-                        BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MIN_PARALLELISM),
+                configuration.get(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MIN_PARALLELISM),
                 configuration.get(
                         BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK),
                 configuration.get(

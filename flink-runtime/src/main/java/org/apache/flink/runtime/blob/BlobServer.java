@@ -164,7 +164,7 @@ public class BlobServer extends Thread
         LOG.info("Created BLOB server storage directory {}", storageDir);
 
         // configure the maximum number of concurrent connections
-        final int maxConnections = config.getInteger(BlobServerOptions.FETCH_CONCURRENT);
+        final int maxConnections = config.get(BlobServerOptions.FETCH_CONCURRENT);
         if (maxConnections >= 1) {
             this.maxConnections = maxConnections;
         } else {
@@ -176,7 +176,7 @@ public class BlobServer extends Thread
         }
 
         // configure the backlog of connections
-        int backlog = config.getInteger(BlobServerOptions.FETCH_BACKLOG);
+        int backlog = config.get(BlobServerOptions.FETCH_BACKLOG);
         if (backlog < 1) {
             LOG.warn(
                     "Invalid value for BLOB connection backlog: {}. Using default value of {}",
@@ -188,7 +188,7 @@ public class BlobServer extends Thread
         // Initializing the clean up task
         this.cleanupTimer = new Timer(true);
 
-        this.cleanupInterval = config.getLong(BlobServerOptions.CLEANUP_INTERVAL) * 1000;
+        this.cleanupInterval = config.get(BlobServerOptions.CLEANUP_INTERVAL) * 1000;
         this.cleanupTimer.schedule(
                 new TransientBlobCleanupTask(blobExpiryTimes, this::deleteInternal, LOG),
                 cleanupInterval,
@@ -198,12 +198,12 @@ public class BlobServer extends Thread
 
         //  ----------------------- start the server -------------------
 
-        final String serverPortRange = config.getString(BlobServerOptions.PORT);
+        final String serverPortRange = config.get(BlobServerOptions.PORT);
         final Iterator<Integer> ports = NetUtils.getPortRangeFromString(serverPortRange);
 
         final ServerSocketFactory socketFactory;
         if (SecurityOptions.isInternalSSLEnabled(config)
-                && config.getBoolean(BlobServerOptions.SSL_ENABLED)) {
+                && config.get(BlobServerOptions.SSL_ENABLED)) {
             try {
                 socketFactory = SSLUtils.createSSLServerSocketFactory(config);
             } catch (Exception e) {
@@ -989,7 +989,7 @@ public class BlobServer extends Thread
      */
     @Override
     public final int getMinOffloadingSize() {
-        return blobServiceConfiguration.getInteger(BlobServerOptions.OFFLOAD_MINSIZE);
+        return blobServiceConfiguration.get(BlobServerOptions.OFFLOAD_MINSIZE);
     }
 
     /**

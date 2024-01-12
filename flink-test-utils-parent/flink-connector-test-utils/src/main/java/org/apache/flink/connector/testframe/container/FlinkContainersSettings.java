@@ -496,7 +496,7 @@ public class FlinkContainersSettings {
      * @return The job manager hostname.
      */
     public String getJobManagerHostname() {
-        return flinkConfig.getString(JobManagerOptions.ADDRESS);
+        return flinkConfig.get(JobManagerOptions.ADDRESS);
     }
 
     /**

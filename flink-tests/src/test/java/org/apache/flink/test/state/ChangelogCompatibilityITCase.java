@@ -288,8 +288,8 @@ public class ChangelogCompatibilityITCase {
         checkpointDir = TEMPORARY_FOLDER.newFolder();
         savepointDir = TEMPORARY_FOLDER.newFolder();
         Configuration config = new Configuration();
-        config.setString(CHECKPOINTS_DIRECTORY, pathToString(checkpointDir));
-        config.setString(SAVEPOINT_DIRECTORY, pathToString(savepointDir));
+        config.set(CHECKPOINTS_DIRECTORY, pathToString(checkpointDir));
+        config.set(SAVEPOINT_DIRECTORY, pathToString(savepointDir));
         FsStateChangelogStorageFactory.configure(
                 config, TEMPORARY_FOLDER.newFolder(), Duration.ofMinutes(1), 10);
         miniClusterResource =

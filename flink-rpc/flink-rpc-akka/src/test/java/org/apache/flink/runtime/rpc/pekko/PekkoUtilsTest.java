@@ -236,7 +236,7 @@ class PekkoUtilsTest {
     @Test
     void getConfigSslEngineProviderWithoutCertFingerprint() {
         final Configuration configuration = new Configuration();
-        configuration.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        configuration.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
 
         final Config config =
                 PekkoUtils.getConfig(configuration, new HostAndPort("localhost", 31337));
@@ -250,10 +250,10 @@ class PekkoUtilsTest {
     @Test
     void getConfigSslEngineProviderWithCertFingerprint() {
         final Configuration configuration = new Configuration();
-        configuration.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        configuration.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
 
         final String fingerprint = "A8:98:5D:3A:65:E5:E5:C4:B2:D7:D6:6D:40:C6:DD:2F:B1:9C:54:36";
-        configuration.setString(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT, fingerprint);
+        configuration.set(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT, fingerprint);
 
         final Config config =
                 PekkoUtils.getConfig(configuration, new HostAndPort("localhost", 31337));

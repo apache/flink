@@ -246,8 +246,7 @@ public class ChangelogStateBackendLoadingTest {
 
     private Configuration config(String stateBackend, boolean enableChangelogStateBackend) {
         final Configuration config = new Configuration();
-        config.setBoolean(
-                StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, enableChangelogStateBackend);
+        config.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, enableChangelogStateBackend);
         config.setString(backendKey, stateBackend);
 
         return config;
@@ -255,8 +254,7 @@ public class ChangelogStateBackendLoadingTest {
 
     private Configuration config(boolean enableChangelogStateBackend) {
         final Configuration config = new Configuration();
-        config.setBoolean(
-                StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, enableChangelogStateBackend);
+        config.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, enableChangelogStateBackend);
 
         return config;
     }

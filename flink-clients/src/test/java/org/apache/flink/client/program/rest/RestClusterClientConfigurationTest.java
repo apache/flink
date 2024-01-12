@@ -34,9 +34,9 @@ class RestClusterClientConfigurationTest {
     @BeforeEach
     void setUp() throws Exception {
         final Configuration config = new Configuration();
-        config.setLong(RestOptions.AWAIT_LEADER_TIMEOUT, 1);
-        config.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 2);
-        config.setLong(RestOptions.RETRY_DELAY, 3);
+        config.set(RestOptions.AWAIT_LEADER_TIMEOUT, 1L);
+        config.set(RestOptions.RETRY_MAX_ATTEMPTS, 2);
+        config.set(RestOptions.RETRY_DELAY, 3L);
         restClusterClientConfiguration = RestClusterClientConfiguration.fromConfiguration(config);
     }
 

@@ -200,7 +200,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
                             rpcSystem,
                             this);
 
-            JMXService.startInstance(configuration.getString(JMXServerOptions.JMX_SERVER_PORT));
+            JMXService.startInstance(configuration.get(JMXServerOptions.JMX_SERVER_PORT));
 
             rpcService = createRpcService(configuration, highAvailabilityServices, rpcSystem);
 
@@ -229,7 +229,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
                     MetricUtils.startRemoteMetricsRpcService(
                             configuration,
                             rpcService.getAddress(),
-                            configuration.getString(TaskManagerOptions.BIND_HOST),
+                            configuration.get(TaskManagerOptions.BIND_HOST),
                             rpcSystem);
             metricRegistry.startQueryService(metricQueryServiceRpcService, resourceId.unwrap());
 
@@ -695,8 +695,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
                 rpcSystem,
                 configuration,
                 determineTaskManagerBindAddress(configuration, haServices, rpcSystem),
-                configuration.getString(TaskManagerOptions.RPC_PORT),
-                configuration.getString(TaskManagerOptions.BIND_HOST),
+                configuration.get(TaskManagerOptions.RPC_PORT),
+                configuration.get(TaskManagerOptions.BIND_HOST),
                 configuration.getOptional(TaskManagerOptions.RPC_BIND_PORT));
     }
 
@@ -706,8 +706,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
             RpcSystemUtils rpcSystemUtils)
             throws Exception {
 
-        final String configuredTaskManagerHostname =
-                configuration.getString(TaskManagerOptions.HOST);
+        final String configuredTaskManagerHostname = configuration.get(TaskManagerOptions.HOST);
 
         if (configuredTaskManagerHostname != null) {
             LOG.info(
@@ -740,8 +739,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
                 taskManagerAddress.getHostAddress());
 
         HostBindPolicy bindPolicy =
-                HostBindPolicy.fromString(
-                        configuration.getString(TaskManagerOptions.HOST_BIND_POLICY));
+                HostBindPolicy.fromString(configuration.get(TaskManagerOptions.HOST_BIND_POLICY));
         return bindPolicy == HostBindPolicy.IP
                 ? taskManagerAddress.getHostAddress()
                 : taskManagerAddress.getHostName();
@@ -752,7 +750,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
             Configuration config, String rpcAddress, int rpcPort) {
 
         final String metadata =
-                config.getString(TaskManagerOptionsInternal.TASK_MANAGER_RESOURCE_ID_METADATA, "");
+                config.get(TaskManagerOptionsInternal.TASK_MANAGER_RESOURCE_ID_METADATA, "");
         return config.getOptional(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID)
                 .map(
                         value ->

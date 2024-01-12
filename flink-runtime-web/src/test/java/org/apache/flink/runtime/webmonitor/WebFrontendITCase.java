@@ -106,7 +106,7 @@ class WebFrontendITCase {
             Files.createFile(logFile);
             Files.createFile(outFile);
 
-            config.setString(WebOptions.LOG_PATH, logFile.toAbsolutePath().toString());
+            config.set(WebOptions.LOG_PATH, logFile.toAbsolutePath().toString());
             config.set(
                     TaskManagerOptions.TASK_MANAGER_LOG_PATH, logFile.toAbsolutePath().toString());
         } catch (Exception e) {

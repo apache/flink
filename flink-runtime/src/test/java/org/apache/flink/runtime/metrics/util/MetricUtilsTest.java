@@ -79,8 +79,7 @@ class MetricUtilsTest {
     void testStartMetricActorSystemRespectsThreadPriority() throws Exception {
         final Configuration configuration = new Configuration();
         final int expectedThreadPriority = 3;
-        configuration.setInteger(
-                MetricOptions.QUERY_SERVICE_THREAD_PRIORITY, expectedThreadPriority);
+        configuration.set(MetricOptions.QUERY_SERVICE_THREAD_PRIORITY, expectedThreadPriority);
 
         final RpcService rpcService =
                 MetricUtils.startRemoteMetricsRpcService(

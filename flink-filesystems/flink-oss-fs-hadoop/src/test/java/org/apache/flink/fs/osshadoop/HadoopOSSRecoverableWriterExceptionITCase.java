@@ -56,10 +56,10 @@ public class HadoopOSSRecoverableWriterExceptionITCase
         conf.setString("fs.oss.accessKeyId", OSSTestCredentials.getOSSAccessKey());
         conf.setString("fs.oss.accessKeySecret", OSSTestCredentials.getOSSSecretKey());
 
-        conf.setInteger(MAX_CONCURRENT_UPLOADS, MAX_CONCURRENT_UPLOADS_VALUE);
+        conf.set(MAX_CONCURRENT_UPLOADS, MAX_CONCURRENT_UPLOADS_VALUE);
 
         final String defaultTmpDir = TEMP_FOLDER.getRoot().getAbsolutePath() + "/oss_tmp_dir";
-        conf.setString(CoreOptions.TMP_DIRS, defaultTmpDir);
+        conf.set(CoreOptions.TMP_DIRS, defaultTmpDir);
 
         FileSystem.initialize(conf);
 

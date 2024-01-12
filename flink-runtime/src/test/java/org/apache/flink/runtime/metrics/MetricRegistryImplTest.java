@@ -287,10 +287,10 @@ class MetricRegistryImplTest {
     void testScopeConfig() {
         Configuration config = new Configuration();
 
-        config.setString(MetricOptions.SCOPE_NAMING_TM, "A");
-        config.setString(MetricOptions.SCOPE_NAMING_TM_JOB, "B");
-        config.setString(MetricOptions.SCOPE_NAMING_TASK, "C");
-        config.setString(MetricOptions.SCOPE_NAMING_OPERATOR, "D");
+        config.set(MetricOptions.SCOPE_NAMING_TM, "A");
+        config.set(MetricOptions.SCOPE_NAMING_TM_JOB, "B");
+        config.set(MetricOptions.SCOPE_NAMING_TASK, "C");
+        config.set(MetricOptions.SCOPE_NAMING_OPERATOR, "D");
 
         ScopeFormats scopeConfig = ScopeFormats.fromConfig(config);
 
@@ -303,8 +303,8 @@ class MetricRegistryImplTest {
     @Test
     void testConfigurableDelimiter() throws Exception {
         Configuration config = new Configuration();
-        config.setString(MetricOptions.SCOPE_DELIMITER, "_");
-        config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D.E");
+        config.set(MetricOptions.SCOPE_DELIMITER, "_");
+        config.set(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D.E");
 
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
@@ -361,7 +361,7 @@ class MetricRegistryImplTest {
         config3.setProperty(MetricOptions.REPORTER_SCOPE_DELIMITER.key(), "AA");
 
         Configuration config = new Configuration();
-        config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B");
+        config.set(MetricOptions.SCOPE_NAMING_TM, "A.B");
 
         List<ReporterSetup> reporterConfigurations =
                 Arrays.asList(

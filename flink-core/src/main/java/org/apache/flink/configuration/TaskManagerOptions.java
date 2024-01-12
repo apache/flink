@@ -864,7 +864,7 @@ public class TaskManagerOptions {
                 return taskManagerLoadBalanceModeOptional.get();
             }
             boolean evenlySpreadOutSlots =
-                    configuration.getBoolean(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
+                    configuration.get(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
 
             return evenlySpreadOutSlots
                     ? TaskManagerLoadBalanceMode.SLOTS

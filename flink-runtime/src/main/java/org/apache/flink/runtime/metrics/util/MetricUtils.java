@@ -189,7 +189,7 @@ public class MetricUtils {
             @Nullable String bindAddress,
             RpcSystem rpcSystem)
             throws Exception {
-        final String portRange = configuration.getString(MetricOptions.QUERY_SERVICE_PORT);
+        final String portRange = configuration.get(MetricOptions.QUERY_SERVICE_PORT);
 
         final RpcSystem.RpcServiceBuilder rpcServiceBuilder =
                 rpcSystem.remoteServiceBuilder(configuration, externalAddress, portRange);
@@ -208,8 +208,7 @@ public class MetricUtils {
     private static RpcService startMetricRpcService(
             Configuration configuration, RpcSystem.RpcServiceBuilder rpcServiceBuilder)
             throws Exception {
-        final int threadPriority =
-                configuration.getInteger(MetricOptions.QUERY_SERVICE_THREAD_PRIORITY);
+        final int threadPriority = configuration.get(MetricOptions.QUERY_SERVICE_THREAD_PRIORITY);
 
         return rpcServiceBuilder
                 .withComponentName(METRICS_ACTOR_SYSTEM_NAME)

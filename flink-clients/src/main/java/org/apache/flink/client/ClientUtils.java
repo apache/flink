@@ -88,7 +88,7 @@ public enum ClientUtils {
 
             LOG.info(
                     "Starting program (detached: {})",
-                    !configuration.getBoolean(DeploymentOptions.ATTACHED));
+                    !configuration.get(DeploymentOptions.ATTACHED));
 
             ContextEnvironment.setAsContext(
                     executorServiceLoader,

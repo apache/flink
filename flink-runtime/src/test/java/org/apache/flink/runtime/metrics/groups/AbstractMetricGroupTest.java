@@ -136,7 +136,7 @@ class AbstractMetricGroupTest {
     void testScopeCachingForMultipleReporters() throws Exception {
         String counterName = "1";
         Configuration config = new Configuration();
-        config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D");
+        config.set(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D");
 
         MetricConfig metricConfig1 = new MetricConfig();
         metricConfig1.setProperty(MetricOptions.REPORTER_SCOPE_DELIMITER.key(), "-");
@@ -269,7 +269,7 @@ class AbstractMetricGroupTest {
     @Test
     void testScopeGenerationWithoutReporters() throws Exception {
         Configuration config = new Configuration();
-        config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D");
+        config.set(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D");
         MetricRegistryImpl testRegistry =
                 new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(config));
 

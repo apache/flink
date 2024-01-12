@@ -272,8 +272,8 @@ class TaskManagerRunnerTest {
 
     private static Configuration createConfiguration() {
         final Configuration configuration = new Configuration();
-        configuration.setString(JobManagerOptions.ADDRESS, "localhost");
-        configuration.setString(TaskManagerOptions.HOST, "localhost");
+        configuration.set(JobManagerOptions.ADDRESS, "localhost");
+        configuration.set(TaskManagerOptions.HOST, "localhost");
         return TaskExecutorResourceUtils.adjustForLocalExecution(configuration);
     }
 

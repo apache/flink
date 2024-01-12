@@ -187,7 +187,7 @@ class DefaultPackagedProgramRetrieverITCase {
         final JobID jobId = new JobID();
 
         final Configuration configuration = new Configuration();
-        configuration.setInteger(CoreOptions.DEFAULT_PARALLELISM, parallelism);
+        configuration.set(CoreOptions.DEFAULT_PARALLELISM, parallelism);
         configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
 
         final String expectedSuffix = "suffix";
@@ -259,7 +259,7 @@ class DefaultPackagedProgramRetrieverITCase {
                 SavepointRestoreSettings.forPath("foobar", true);
         final JobID jobId = new JobID();
 
-        configuration.setString(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
+        configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
         SavepointRestoreSettings.toConfiguration(savepointRestoreSettings, configuration);
 
         final String expectedSuffix = "suffix";
@@ -525,7 +525,7 @@ class DefaultPackagedProgramRetrieverITCase {
             throws FlinkException, ProgramInvocationException, MalformedURLException {
         final PackagedProgram packagedProgram = retrieverUnderTest.getPackagedProgram();
 
-        final int defaultParallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
+        final int defaultParallelism = configuration.get(CoreOptions.DEFAULT_PARALLELISM);
         ConfigUtils.encodeCollectionToConfig(
                 configuration,
                 PipelineOptions.JARS,

@@ -70,11 +70,11 @@ class PekkoUtils {
      * @return Flink's basic Pekko config
      */
     private static Config getBasicConfig(Configuration configuration) {
-        final int throughput = configuration.getInteger(AkkaOptions.DISPATCHER_THROUGHPUT);
+        final int throughput = configuration.get(AkkaOptions.DISPATCHER_THROUGHPUT);
         final String jvmExitOnFatalError =
-                booleanToOnOrOff(configuration.getBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR));
+                booleanToOnOrOff(configuration.get(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR));
         final String logLifecycleEvents =
-                booleanToOnOrOff(configuration.getBoolean(AkkaOptions.LOG_LIFECYCLE_EVENTS));
+                booleanToOnOrOff(configuration.get(AkkaOptions.LOG_LIFECYCLE_EVENTS));
         final String supervisorStrategy = EscalatingSupervisorStrategy.class.getCanonicalName();
 
         return new ConfigBuilder()
@@ -211,16 +211,16 @@ class PekkoUtils {
         final String startupTimeout =
                 TimeUtils.getStringInMillis(
                         TimeUtils.parseDuration(
-                                configuration.getString(
+                                configuration.get(
                                         AkkaOptions.STARTUP_TIMEOUT,
                                         TimeUtils.getStringInMillis(
                                                 askTimeout.multipliedBy(10L)))));
 
         final String tcpTimeout =
                 TimeUtils.getStringInMillis(
-                        TimeUtils.parseDuration(configuration.getString(AkkaOptions.TCP_TIMEOUT)));
+                        TimeUtils.parseDuration(configuration.get(AkkaOptions.TCP_TIMEOUT)));
 
-        final String framesize = configuration.getString(AkkaOptions.FRAMESIZE);
+        final String framesize = configuration.get(AkkaOptions.FRAMESIZE);
 
         final int clientSocketWorkerPoolPoolSizeMin =
                 configuration.get(AkkaOptions.CLIENT_SOCKET_WORKER_POOL_SIZE_MIN);
@@ -236,9 +236,9 @@ class PekkoUtils {
                 configuration.get(AkkaOptions.SERVER_SOCKET_WORKER_POOL_SIZE_FACTOR);
 
         final String logLifecycleEvents =
-                booleanToOnOrOff(configuration.getBoolean(AkkaOptions.LOG_LIFECYCLE_EVENTS));
+                booleanToOnOrOff(configuration.get(AkkaOptions.LOG_LIFECYCLE_EVENTS));
 
-        final long retryGateClosedFor = configuration.getLong(AkkaOptions.RETRY_GATE_CLOSED_FOR);
+        final long retryGateClosedFor = configuration.get(AkkaOptions.RETRY_GATE_CLOSED_FOR);
 
         configBuilder
                 .add("pekko {")
@@ -312,38 +312,38 @@ class PekkoUtils {
             ConfigBuilder configBuilder, Configuration configuration) {
 
         final boolean enableSSLConfig =
-                configuration.getBoolean(AkkaOptions.SSL_ENABLED)
+                configuration.get(AkkaOptions.SSL_ENABLED)
                         && SecurityOptions.isInternalSSLEnabled(configuration);
 
         final String enableSSL = booleanToOnOrOff(enableSSLConfig);
 
         final String sslKeyStore =
-                configuration.getString(
+                configuration.get(
                         SecurityOptions.SSL_INTERNAL_KEYSTORE,
-                        configuration.getString(SecurityOptions.SSL_KEYSTORE));
+                        configuration.get(SecurityOptions.SSL_KEYSTORE));
 
         final String sslKeyStorePassword =
-                configuration.getString(
+                configuration.get(
                         SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD,
-                        configuration.getString(SecurityOptions.SSL_KEYSTORE_PASSWORD));
+                        configuration.get(SecurityOptions.SSL_KEYSTORE_PASSWORD));
 
         final String sslKeyPassword =
-                configuration.getString(
+                configuration.get(
                         SecurityOptions.SSL_INTERNAL_KEY_PASSWORD,
-                        configuration.getString(SecurityOptions.SSL_KEY_PASSWORD));
+                        configuration.get(SecurityOptions.SSL_KEY_PASSWORD));
 
         final String sslTrustStore =
-                configuration.getString(
+                configuration.get(
                         SecurityOptions.SSL_INTERNAL_TRUSTSTORE,
-                        configuration.getString(SecurityOptions.SSL_TRUSTSTORE));
+                        configuration.get(SecurityOptions.SSL_TRUSTSTORE));
 
         final String sslTrustStorePassword =
-                configuration.getString(
+                configuration.get(
                         SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD,
-                        configuration.getString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD));
+                        configuration.get(SecurityOptions.SSL_TRUSTSTORE_PASSWORD));
 
         final String sslCertFingerprintString =
-                configuration.getString(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT);
+                configuration.get(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT);
 
         final String sslCertFingerprints =
                 sslCertFingerprintString != null
@@ -351,9 +351,9 @@ class PekkoUtils {
                                 .collect(Collectors.joining("\",\"", "[\"", "\"]"))
                         : "[]";
 
-        final String sslProtocol = configuration.getString(SecurityOptions.SSL_PROTOCOL);
+        final String sslProtocol = configuration.get(SecurityOptions.SSL_PROTOCOL);
 
-        final String sslAlgorithmsString = configuration.getString(SecurityOptions.SSL_ALGORITHMS);
+        final String sslAlgorithmsString = configuration.get(SecurityOptions.SSL_ALGORITHMS);
         final String sslAlgorithms =
                 Arrays.stream(sslAlgorithmsString.split(","))
                         .collect(Collectors.joining(",", "[", "]"));

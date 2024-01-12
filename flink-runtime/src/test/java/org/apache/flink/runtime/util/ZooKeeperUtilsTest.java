@@ -111,7 +111,7 @@ class ZooKeeperUtilsTest {
     }
 
     private Configuration setQuorum(Configuration conf, String quorum) {
-        conf.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, quorum);
+        conf.set(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, quorum);
         return conf;
     }
 }

@@ -154,16 +154,16 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 
         // these should be set in the end to overwrite any values from the client config provided in
         // the constructor.
-        effectiveConfiguration.setString(DeploymentOptions.TARGET, "remote");
-        effectiveConfiguration.setBoolean(DeploymentOptions.ATTACHED, true);
+        effectiveConfiguration.set(DeploymentOptions.TARGET, "remote");
+        effectiveConfiguration.set(DeploymentOptions.ATTACHED, true);
 
         return effectiveConfiguration;
     }
 
     @Override
     public String toString() {
-        final String host = getConfiguration().getString(JobManagerOptions.ADDRESS);
-        final int port = getConfiguration().getInteger(JobManagerOptions.PORT);
+        final String host = getConfiguration().get(JobManagerOptions.ADDRESS);
+        final int port = getConfiguration().get(JobManagerOptions.PORT);
         final String parallelism = (getParallelism() == -1 ? "default" : "" + getParallelism());
 
         return "Remote Environment ("

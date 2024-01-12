@@ -45,7 +45,7 @@ public class Prio0OutboundChannelHandlerFactory implements OutboundChannelHandle
     @Override
     public Optional<ChannelHandler> createHandler(Configuration configuration)
             throws ConfigurationException {
-        String redirectToUrl = configuration.getString(REDIRECT_TO_URL);
+        String redirectToUrl = configuration.get(REDIRECT_TO_URL);
         if (!redirectToUrl.isEmpty()) {
             return Optional.of(
                     new ChannelDuplexHandler() {

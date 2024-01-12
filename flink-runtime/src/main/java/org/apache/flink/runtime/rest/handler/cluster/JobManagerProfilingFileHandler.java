@@ -47,7 +47,7 @@ public class JobManagerProfilingFileHandler
             Configuration configs) {
         super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 
-        this.profilingResultDir = configs.getString(RestOptions.PROFILING_RESULT_DIR);
+        this.profilingResultDir = configs.get(RestOptions.PROFILING_RESULT_DIR);
     }
 
     @Override

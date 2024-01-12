@@ -35,7 +35,7 @@ public class RestOptionsTest extends TestLogger {
         final String expectedAddress = "foobar";
         configuration.setString("web.address", expectedAddress);
 
-        final String actualAddress = configuration.getString(RestOptions.BIND_ADDRESS);
+        final String actualAddress = configuration.get(RestOptions.BIND_ADDRESS);
 
         assertThat(actualAddress, is(equalTo(expectedAddress)));
     }
@@ -46,7 +46,7 @@ public class RestOptionsTest extends TestLogger {
         final String expectedAddress = "foobar";
         configuration.setString("jobmanager.web.address", expectedAddress);
 
-        final String actualAddress = configuration.getString(RestOptions.BIND_ADDRESS);
+        final String actualAddress = configuration.get(RestOptions.BIND_ADDRESS);
 
         assertThat(actualAddress, is(equalTo(expectedAddress)));
     }

@@ -86,8 +86,8 @@ class BlobServerCleanupTest {
             String storageDirectoryPath, long cleanupInterval, BlobStore blobStore)
             throws IOException {
         final Configuration config = new Configuration();
-        config.setString(BlobServerOptions.STORAGE_DIRECTORY, storageDirectoryPath);
-        config.setLong(BlobServerOptions.CLEANUP_INTERVAL, cleanupInterval);
+        config.set(BlobServerOptions.STORAGE_DIRECTORY, storageDirectoryPath);
+        config.set(BlobServerOptions.CLEANUP_INTERVAL, cleanupInterval);
 
         return new BlobServer(config, new File(storageDirectoryPath), blobStore);
     }

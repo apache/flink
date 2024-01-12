@@ -92,7 +92,7 @@ class HistoryServerTest {
         this.hsDirectory = hsDirectory;
 
         Configuration clusterConfig = new Configuration();
-        clusterConfig.setString(JobManagerOptions.ARCHIVE_DIR, jmDirectory.toURI().toString());
+        clusterConfig.set(JobManagerOptions.ARCHIVE_DIR, jmDirectory.toURI().toString());
 
         cluster =
                 new MiniClusterWithClientResource(
@@ -255,8 +255,7 @@ class HistoryServerTest {
         Configuration historyServerConfig =
                 createTestConfiguration(
                         HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS.defaultValue());
-        historyServerConfig.setInteger(
-                HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS, maxHistorySize);
+        historyServerConfig.set(HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS, maxHistorySize);
         new HistoryServer(historyServerConfig).start();
     }
 
@@ -385,17 +384,16 @@ class HistoryServerTest {
 
     private Configuration createTestConfiguration(boolean cleanupExpiredJobs) {
         Configuration historyServerConfig = new Configuration();
-        historyServerConfig.setString(
+        historyServerConfig.set(
                 HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS, jmDirectory.toURI().toString());
-        historyServerConfig.setString(
+        historyServerConfig.set(
                 HistoryServerOptions.HISTORY_SERVER_WEB_DIR, hsDirectory.getAbsolutePath());
-        historyServerConfig.setLong(
-                HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL, 100L);
+        historyServerConfig.set(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL, 100L);
 
-        historyServerConfig.setBoolean(
+        historyServerConfig.set(
                 HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS, cleanupExpiredJobs);
 
-        historyServerConfig.setInteger(HistoryServerOptions.HISTORY_SERVER_WEB_PORT, 0);
+        historyServerConfig.set(HistoryServerOptions.HISTORY_SERVER_WEB_PORT, 0);
         return historyServerConfig;
     }
 

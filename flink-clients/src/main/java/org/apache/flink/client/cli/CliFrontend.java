@@ -1413,10 +1413,10 @@ public class CliFrontend {
      * @param config The configuration to write to
      */
     static void setJobManagerAddressInConfig(Configuration config, InetSocketAddress address) {
-        config.setString(JobManagerOptions.ADDRESS, address.getHostString());
-        config.setInteger(JobManagerOptions.PORT, address.getPort());
-        config.setString(RestOptions.ADDRESS, address.getHostString());
-        config.setInteger(RestOptions.PORT, address.getPort());
+        config.set(JobManagerOptions.ADDRESS, address.getHostString());
+        config.set(JobManagerOptions.PORT, address.getPort());
+        config.set(RestOptions.ADDRESS, address.getHostString());
+        config.set(RestOptions.PORT, address.getPort());
     }
 
     public static List<CustomCommandLine> loadCustomCommandLines(

@@ -136,7 +136,7 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
             throws Exception;
 
     public static ThresholdMeter createStartWorkerFailureRater(Configuration configuration) {
-        double rate = configuration.getDouble(ResourceManagerOptions.START_WORKER_MAX_FAILURE_RATE);
+        double rate = configuration.get(ResourceManagerOptions.START_WORKER_MAX_FAILURE_RATE);
         if (rate <= 0) {
             throw new IllegalConfigurationException(
                     String.format(

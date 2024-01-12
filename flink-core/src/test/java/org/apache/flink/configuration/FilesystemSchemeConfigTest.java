@@ -61,8 +61,7 @@ public class FilesystemSchemeConfigTest extends TestLogger {
     @Test
     public void testExplicitlySetToLocal() throws Exception {
         final Configuration conf = new Configuration();
-        conf.setString(
-                CoreOptions.DEFAULT_FILESYSTEM_SCHEME, LocalFileSystem.getLocalFsURI().toString());
+        conf.set(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, LocalFileSystem.getLocalFsURI().toString());
         FileSystem.initialize(conf);
 
         URI justPath = new URI(tempFolder.newFile().toURI().getPath());
@@ -75,7 +74,7 @@ public class FilesystemSchemeConfigTest extends TestLogger {
     @Test
     public void testExplicitlySetToOther() throws Exception {
         final Configuration conf = new Configuration();
-        conf.setString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, "otherFS://localhost:1234/");
+        conf.set(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, "otherFS://localhost:1234/");
         FileSystem.initialize(conf);
 
         URI justPath = new URI(tempFolder.newFile().toURI().getPath());
@@ -92,7 +91,7 @@ public class FilesystemSchemeConfigTest extends TestLogger {
     @Test
     public void testExplicitlyPathTakesPrecedence() throws Exception {
         final Configuration conf = new Configuration();
-        conf.setString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, "otherFS://localhost:1234/");
+        conf.set(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, "otherFS://localhost:1234/");
         FileSystem.initialize(conf);
 
         URI pathAndScheme = tempFolder.newFile().toURI();

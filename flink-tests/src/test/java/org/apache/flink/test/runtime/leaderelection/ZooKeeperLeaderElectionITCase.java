@@ -98,7 +98,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
                         zkServer.getConnectString(), tempFolder.newFolder().getAbsolutePath());
 
         // speed up refused registration retries
-        configuration.setLong(ClusterOptions.REFUSED_REGISTRATION_DELAY, 50L);
+        configuration.set(ClusterOptions.REFUSED_REGISTRATION_DELAY, 50L);
 
         final TestingMiniClusterConfiguration miniClusterConfiguration =
                 TestingMiniClusterConfiguration.newBuilder()

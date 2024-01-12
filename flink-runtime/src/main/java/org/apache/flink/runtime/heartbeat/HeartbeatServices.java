@@ -75,9 +75,9 @@ public interface HeartbeatServices {
      * @return An HeartbeatServices instance created from the given configuration
      */
     static HeartbeatServices fromConfiguration(Configuration configuration) {
-        long heartbeatInterval = configuration.getLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL);
+        long heartbeatInterval = configuration.get(HeartbeatManagerOptions.HEARTBEAT_INTERVAL);
 
-        long heartbeatTimeout = configuration.getLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT);
+        long heartbeatTimeout = configuration.get(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT);
 
         int failedRpcRequestsUntilUnreachable =
                 configuration.get(HeartbeatManagerOptions.HEARTBEAT_RPC_FAILURE_THRESHOLD);

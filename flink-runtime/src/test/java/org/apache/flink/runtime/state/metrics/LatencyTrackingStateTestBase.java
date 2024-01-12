@@ -58,12 +58,11 @@ abstract class LatencyTrackingStateTestBase<K> {
         KeyGroupRange keyGroupRange = new KeyGroupRange(0, 127);
         int numberOfKeyGroups = keyGroupRange.getNumberOfKeyGroups();
         Configuration configuration = new Configuration();
-        configuration.setBoolean(StateBackendOptions.LATENCY_TRACK_ENABLED, true);
-        configuration.setInteger(
-                StateBackendOptions.LATENCY_TRACK_SAMPLE_INTERVAL, SAMPLE_INTERVAL);
+        configuration.set(StateBackendOptions.LATENCY_TRACK_ENABLED, true);
+        configuration.set(StateBackendOptions.LATENCY_TRACK_SAMPLE_INTERVAL, SAMPLE_INTERVAL);
         // use a very large value to not let metrics data overridden.
         int historySize = 1000_000;
-        configuration.setInteger(StateBackendOptions.LATENCY_TRACK_HISTORY_SIZE, historySize);
+        configuration.set(StateBackendOptions.LATENCY_TRACK_HISTORY_SIZE, historySize);
         HashMapStateBackend stateBackend =
                 new HashMapStateBackend()
                         .configure(configuration, Thread.currentThread().getContextClassLoader());

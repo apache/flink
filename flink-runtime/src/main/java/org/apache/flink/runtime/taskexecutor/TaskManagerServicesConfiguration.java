@@ -283,7 +283,7 @@ public class TaskManagerServicesConfiguration {
             localStateDirs = Reference.owned(createdLocalStateDirs);
         }
 
-        boolean localRecoveryMode = configuration.getBoolean(CheckpointingOptions.LOCAL_RECOVERY);
+        boolean localRecoveryMode = configuration.get(CheckpointingOptions.LOCAL_RECOVERY);
 
         final QueryableStateConfiguration queryableStateConfig =
                 QueryableStateConfiguration.fromConfiguration(configuration);
@@ -294,16 +294,14 @@ public class TaskManagerServicesConfiguration {
         final RetryingRegistrationConfiguration retryingRegistrationConfiguration =
                 RetryingRegistrationConfiguration.fromConfiguration(configuration);
 
-        final int externalDataPort =
-                configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT);
+        final int externalDataPort = configuration.get(NettyShuffleEnvironmentOptions.DATA_PORT);
 
         String bindAddr =
-                configuration.getString(
-                        TaskManagerOptions.BIND_HOST, NetUtils.getWildcardIPAddress());
+                configuration.get(TaskManagerOptions.BIND_HOST, NetUtils.getWildcardIPAddress());
         InetAddress bindAddress = InetAddress.getByName(bindAddr);
 
         final String classLoaderResolveOrder =
-                configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
+                configuration.get(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
 
         final String[] alwaysParentFirstLoaderPatterns =
                 CoreOptions.getParentFirstLoaderPatterns(configuration);

@@ -180,9 +180,9 @@ class AdaptiveBatchSchedulerITCase {
 
     private static Configuration createConfiguration() {
         final Configuration configuration = new Configuration();
-        configuration.setString(RestOptions.BIND_PORT, "0");
-        configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 5000L);
-        configuration.setInteger(
+        configuration.set(RestOptions.BIND_PORT, "0");
+        configuration.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 5000L);
+        configuration.set(
                 BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM,
                 DEFAULT_MAX_PARALLELISM);
         configuration.set(

@@ -572,7 +572,7 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
     @Test
     void testCheckAndUpdateConfigMapWhenGetConfigMapFailed() throws Exception {
         final int configuredRetries =
-                flinkConfig.getInteger(
+                flinkConfig.get(
                         KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES);
         final KubernetesConfigMap configMap = buildTestingConfigMap();
         this.flinkKubeClient.createConfigMap(configMap).get();
@@ -609,7 +609,7 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
     @Test
     void testCheckAndUpdateConfigMapWhenReplaceConfigMapFailed() throws Exception {
         final int configuredRetries =
-                flinkConfig.getInteger(
+                flinkConfig.get(
                         KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES);
         final KubernetesConfigMap configMap = buildTestingConfigMap();
         this.flinkKubeClient.createConfigMap(configMap).get();

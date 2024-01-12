@@ -2278,7 +2278,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         try {
             final JobExecutionResult jobExecutionResult;
 
-            if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
+            if (configuration.get(DeploymentOptions.ATTACHED)) {
                 jobExecutionResult = jobClient.getJobExecutionResult().get();
             } else {
                 jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
@@ -2679,7 +2679,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
 
         if (!conf.contains(RestOptions.PORT)) {
             // explicitly set this option so that it's not set to 0 later
-            conf.setInteger(RestOptions.PORT, RestOptions.PORT.defaultValue());
+            conf.set(RestOptions.PORT, RestOptions.PORT.defaultValue());
         }
 
         return createLocalEnvironment(conf);

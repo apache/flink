@@ -342,8 +342,8 @@ public class HybridSourceReaderTest {
                     new FutureCompletingBlockingQueue<>();
 
             Configuration config = new Configuration();
-            config.setInteger(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 2);
-            config.setLong(SourceReaderOptions.SOURCE_READER_CLOSE_TIMEOUT, 30000L);
+            config.set(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 2);
+            config.set(SourceReaderOptions.SOURCE_READER_CLOSE_TIMEOUT, 30000L);
             MockSplitReader.Builder builder =
                     MockSplitReader.newBuilder()
                             .setNumRecordsPerSplitPerFetch(2)

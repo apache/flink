@@ -88,12 +88,12 @@ public class BlobsCleanupITCase extends TestLogger {
         blobBaseDir = TEMPORARY_FOLDER.newFolder();
 
         Configuration cfg = new Configuration();
-        cfg.setString(BlobServerOptions.STORAGE_DIRECTORY, blobBaseDir.getAbsolutePath());
-        cfg.setString(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
-        cfg.setInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+        cfg.set(BlobServerOptions.STORAGE_DIRECTORY, blobBaseDir.getAbsolutePath());
+        cfg.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        cfg.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
         // BLOBs are deleted from BlobCache between 1s and 2s after last reference
         // -> the BlobCache may still have the BLOB or not (let's test both cases randomly)
-        cfg.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
+        cfg.set(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
         configuration = new UnmodifiableConfiguration(cfg);
 

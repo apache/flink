@@ -418,7 +418,7 @@ public class SqlGatewayServiceITCase {
             @TempDir File tmpDir)
             throws Exception {
         Configuration configuration = new Configuration(MINI_CLUSTER.getClientConfiguration());
-        configuration.setBoolean(TableConfigOptions.TABLE_DML_SYNC, false);
+        configuration.set(TableConfigOptions.TABLE_DML_SYNC, false);
         File savepointDir = new File(tmpDir, "savepoints");
         configuration.set(
                 CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
@@ -471,7 +471,7 @@ public class SqlGatewayServiceITCase {
         Configuration configuration = new Configuration(MINI_CLUSTER.getClientConfiguration());
 
         String pipelineName = "test-job";
-        configuration.setString(PipelineOptions.NAME, pipelineName);
+        configuration.set(PipelineOptions.NAME, pipelineName);
 
         // running jobs
         String sourceDdl = "CREATE TABLE source (a STRING) WITH ('connector'='datagen');";

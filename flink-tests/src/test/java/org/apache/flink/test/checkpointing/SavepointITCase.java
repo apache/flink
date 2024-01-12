@@ -730,7 +730,7 @@ public class SavepointITCase extends TestLogger {
         final int numSlotsPerTaskManager = 1;
 
         final Configuration config = new Configuration();
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 
         final MiniClusterWithClientResource cluster =
                 new MiniClusterWithClientResource(
@@ -957,7 +957,7 @@ public class SavepointITCase extends TestLogger {
         int parallelism = numTaskManagers * numSlotsPerTaskManager;
 
         final Configuration config = new Configuration();
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 
         MiniClusterWithClientResource cluster =
                 new MiniClusterWithClientResource(
@@ -1238,7 +1238,7 @@ public class SavepointITCase extends TestLogger {
 
         // Flink configuration
         final Configuration config = new Configuration();
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 
         String savepointPath;
 
@@ -1766,11 +1766,10 @@ public class SavepointITCase extends TestLogger {
 
     private Configuration getFileBasedCheckpointsConfig(final String savepointDir) {
         final Configuration config = new Configuration();
-        config.setString(StateBackendOptions.STATE_BACKEND, "filesystem");
-        config.setString(
-                CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
+        config.set(StateBackendOptions.STATE_BACKEND, "filesystem");
+        config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
         config.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, MemorySize.ZERO);
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
         return config;
     }
 

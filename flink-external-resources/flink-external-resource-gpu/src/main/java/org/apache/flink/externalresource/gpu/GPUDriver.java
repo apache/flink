@@ -75,7 +75,7 @@ class GPUDriver implements ExternalResourceDriver {
     private final String args;
 
     GPUDriver(Configuration config) throws Exception {
-        final String discoveryScriptPathStr = config.getString(DISCOVERY_SCRIPT_PATH);
+        final String discoveryScriptPathStr = config.get(DISCOVERY_SCRIPT_PATH);
         if (StringUtils.isNullOrWhitespaceOnly(discoveryScriptPathStr)) {
             throw new IllegalConfigurationException(
                     String.format(
@@ -106,7 +106,7 @@ class GPUDriver implements ExternalResourceDriver {
                             discoveryScriptFile.getAbsolutePath()));
         }
 
-        args = config.getString(DISCOVERY_SCRIPT_ARG);
+        args = config.get(DISCOVERY_SCRIPT_ARG);
     }
 
     @Override

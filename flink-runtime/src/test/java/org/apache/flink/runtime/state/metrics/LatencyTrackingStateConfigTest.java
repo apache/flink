@@ -72,9 +72,9 @@ class LatencyTrackingStateConfigTest {
     void testConfigureFromReadableConfig() {
         LatencyTrackingStateConfig.Builder builder = LatencyTrackingStateConfig.newBuilder();
         Configuration configuration = new Configuration();
-        configuration.setBoolean(StateBackendOptions.LATENCY_TRACK_ENABLED, true);
-        configuration.setInteger(StateBackendOptions.LATENCY_TRACK_SAMPLE_INTERVAL, 10);
-        configuration.setInteger(StateBackendOptions.LATENCY_TRACK_HISTORY_SIZE, 500);
+        configuration.set(StateBackendOptions.LATENCY_TRACK_ENABLED, true);
+        configuration.set(StateBackendOptions.LATENCY_TRACK_SAMPLE_INTERVAL, 10);
+        configuration.set(StateBackendOptions.LATENCY_TRACK_HISTORY_SIZE, 500);
         LatencyTrackingStateConfig latencyTrackingStateConfig =
                 builder.configure(configuration)
                         .setMetricGroup(new UnregisteredMetricsGroup())

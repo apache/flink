@@ -122,7 +122,7 @@ class JobManagerOperatorGroupTest {
     @Test
     void testGenerateScopeCustom() {
         Configuration cfg = new Configuration();
-        cfg.setString(
+        cfg.set(
                 MetricOptions.SCOPE_NAMING_JM_OPERATOR,
                 "constant.<host>.foo.<host>.<job_id>.<job_name>.<task_id>.<task_name>.<operator_id>.<operator_name>");
         MetricRegistry registry =
@@ -160,9 +160,9 @@ class JobManagerOperatorGroupTest {
     @Test
     void testGenerateScopeCustomWildcard() {
         Configuration cfg = new Configuration();
-        cfg.setString(MetricOptions.SCOPE_NAMING_JM, "peter");
-        cfg.setString(MetricOptions.SCOPE_NAMING_JM_JOB, "*.some-constant.<job_id>");
-        cfg.setString(MetricOptions.SCOPE_NAMING_JM_OPERATOR, "*.other-constant.<operator_id>");
+        cfg.set(MetricOptions.SCOPE_NAMING_JM, "peter");
+        cfg.set(MetricOptions.SCOPE_NAMING_JM_JOB, "*.some-constant.<job_id>");
+        cfg.set(MetricOptions.SCOPE_NAMING_JM_OPERATOR, "*.other-constant.<operator_id>");
         MetricRegistry registry =
                 TestingMetricRegistry.builder()
                         .setScopeFormats(ScopeFormats.fromConfig(cfg))

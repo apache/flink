@@ -187,23 +187,21 @@ public class ZooKeeperUtils {
                             + "'.");
         }
 
-        int sessionTimeout =
-                configuration.getInteger(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT);
+        int sessionTimeout = configuration.get(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT);
 
         int connectionTimeout =
-                configuration.getInteger(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_TIMEOUT);
+                configuration.get(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_TIMEOUT);
 
-        int retryWait = configuration.getInteger(HighAvailabilityOptions.ZOOKEEPER_RETRY_WAIT);
+        int retryWait = configuration.get(HighAvailabilityOptions.ZOOKEEPER_RETRY_WAIT);
 
         int maxRetryAttempts =
-                configuration.getInteger(HighAvailabilityOptions.ZOOKEEPER_MAX_RETRY_ATTEMPTS);
+                configuration.get(HighAvailabilityOptions.ZOOKEEPER_MAX_RETRY_ATTEMPTS);
 
         String root = configuration.getValue(HighAvailabilityOptions.HA_ZOOKEEPER_ROOT);
 
         String namespace = configuration.getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
 
-        boolean disableSaslClient =
-                configuration.getBoolean(SecurityOptions.ZOOKEEPER_SASL_DISABLE);
+        boolean disableSaslClient = configuration.get(SecurityOptions.ZOOKEEPER_SASL_DISABLE);
 
         ACLProvider aclProvider;
 
@@ -234,7 +232,7 @@ public class ZooKeeperUtils {
         LOG.info("Using '{}' as Zookeeper namespace.", rootWithNamespace);
 
         boolean ensembleTracking =
-                configuration.getBoolean(HighAvailabilityOptions.ZOOKEEPER_ENSEMBLE_TRACKING);
+                configuration.get(HighAvailabilityOptions.ZOOKEEPER_ENSEMBLE_TRACKING);
 
         final CuratorFrameworkFactory.Builder curatorFrameworkBuilder =
                 CuratorFrameworkFactory.builder()
@@ -485,7 +483,7 @@ public class ZooKeeperUtils {
 
         // ZooKeeper submitted jobs root dir
         String zooKeeperJobsPath =
-                configuration.getString(HighAvailabilityOptions.HA_ZOOKEEPER_JOBGRAPHS_PATH);
+                configuration.get(HighAvailabilityOptions.HA_ZOOKEEPER_JOBGRAPHS_PATH);
 
         // Ensure that the job graphs path exists
         client.newNamespaceAwareEnsurePath(zooKeeperJobsPath).ensure(client.getZookeeperClient());
@@ -772,7 +770,7 @@ public class ZooKeeperUtils {
          *     HighAvailabilityOptions#ZOOKEEPER_CLIENT_ACL} if not configured.
          */
         public static ZkClientACLMode fromConfig(Configuration config) {
-            String aclMode = config.getString(HighAvailabilityOptions.ZOOKEEPER_CLIENT_ACL);
+            String aclMode = config.get(HighAvailabilityOptions.ZOOKEEPER_CLIENT_ACL);
             if (aclMode == null || aclMode.equalsIgnoreCase(OPEN.name())) {
                 return OPEN;
             } else if (aclMode.equalsIgnoreCase(CREATOR.name())) {

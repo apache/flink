@@ -70,7 +70,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
           new MemoryStateBackend("file://" + baseCheckpointPath, null).configure(conf, classLoader))
       case ROCKSDB_BACKEND =>
         val conf = new Configuration()
-        conf.setBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true)
+        conf.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, Boolean.box(true))
         env.setStateBackend(
           new RocksDBStateBackend("file://" + baseCheckpointPath).configure(conf, classLoader))
     }

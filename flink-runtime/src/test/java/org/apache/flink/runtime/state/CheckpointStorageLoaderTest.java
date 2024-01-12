@@ -320,7 +320,7 @@ class CheckpointStorageLoaderTest {
         config1.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
         config1.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
         config1.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, threshold);
-        config1.setInteger(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, minWriteBufferSize);
+        config1.set(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, minWriteBufferSize);
 
         CheckpointStorage storage1 = CheckpointStorageLoader.fromConfig(config1, cl, null).get();
 
@@ -365,7 +365,7 @@ class CheckpointStorageLoaderTest {
         config.set(
                 CheckpointingOptions.FS_SMALL_FILE_THRESHOLD,
                 MemorySize.parse("20")); // this should not be picked up
-        config.setInteger(
+        config.set(
                 CheckpointingOptions.FS_WRITE_BUFFER_SIZE, 3000000); // this should not be picked up
 
         final CheckpointStorage loadedStorage1 =

@@ -114,8 +114,8 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
     @Before
     public void setup() throws Exception {
         Configuration configuration = new Configuration();
-        configuration.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, true);
-        configuration.setString(HighAvailabilityOptions.HA_MODE, TestingHAFactory.class.getName());
+        configuration.set(CheckpointingOptions.LOCAL_RECOVERY, true);
+        configuration.set(HighAvailabilityOptions.HA_MODE, TestingHAFactory.class.getName());
 
         checkpointPath = new Path(TEMPORARY_FOLDER.newFolder().toURI());
         cluster =

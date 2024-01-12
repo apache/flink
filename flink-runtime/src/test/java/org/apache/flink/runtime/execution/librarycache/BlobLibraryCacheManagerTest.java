@@ -94,7 +94,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
         try {
             Configuration config = new Configuration();
-            config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
+            config.set(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
             server = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
             server.start();
@@ -227,7 +227,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
         try {
             Configuration config = new Configuration();
-            config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
+            config.set(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
             server = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
             server.start();
@@ -337,7 +337,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
         try {
             // create the blob transfer services
             Configuration config = new Configuration();
-            config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1_000_000L);
+            config.set(BlobServerOptions.CLEANUP_INTERVAL, 1_000_000L);
 
             server = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
             server.start();

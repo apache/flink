@@ -57,7 +57,7 @@ public class ChangelogRecoverySwitchStateBackendITCase extends ChangelogRecovery
     @Override
     public void setup() throws Exception {
         Configuration configuration = new Configuration();
-        configuration.setInteger(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 1);
+        configuration.set(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 1);
         // reduce file threshold to reproduce FLINK-28843
         configuration.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, MemorySize.parse("20b"));
         FsStateChangelogStorageFactory.configure(

@@ -65,10 +65,10 @@ public class BinaryExternalSorterTest {
         ioManager = new IOManagerAsync();
         conf = new Configuration();
         if (!spillCompress) {
-            conf.setBoolean(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED, false);
+            conf.set(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED, false);
         }
         if (asyncMerge) {
-            conf.setBoolean(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED, true);
+            conf.set(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED, true);
         }
     }
 
@@ -94,7 +94,7 @@ public class BinaryExternalSorterTest {
     public void beforeTest() {
         this.memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
         this.serializer = new BinaryRowDataSerializer(2);
-        this.conf.setInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES, 128);
+        this.conf.set(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES, 128);
     }
 
     @After
@@ -374,7 +374,7 @@ public class BinaryExternalSorterTest {
 
         long minMemorySize =
                 memoryManager.computeNumberOfPages(0.01) * MemoryManager.DEFAULT_PAGE_SIZE;
-        conf.setInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES, 8);
+        conf.set(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES, 8);
 
         BinaryExternalSorter sorter =
                 new BinaryExternalSorter(

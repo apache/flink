@@ -68,7 +68,7 @@ public class SchedulerUtilsTest extends TestLogger {
 
         final int maxNumberOfCheckpointsToRetain = 10;
         final Configuration jobManagerConfig = new Configuration();
-        jobManagerConfig.setInteger(
+        jobManagerConfig.set(
                 CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, maxNumberOfCheckpointsToRetain);
 
         final CompletedCheckpointStore completedCheckpointStore =

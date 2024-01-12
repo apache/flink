@@ -253,9 +253,9 @@ public class RestClusterClient<T> implements ClusterClient<T> {
         jobmanagerUrl =
                 new URL(
                         SecurityOptions.isRestSSLEnabled(configuration) ? "https" : "http",
-                        configuration.getString(JobManagerOptions.ADDRESS),
-                        configuration.getInteger(JobManagerOptions.PORT),
-                        configuration.getString(RestOptions.PATH));
+                        configuration.get(JobManagerOptions.ADDRESS),
+                        configuration.get(JobManagerOptions.PORT),
+                        configuration.get(RestOptions.PATH));
 
         if (restClient != null) {
             this.restClient = restClient;

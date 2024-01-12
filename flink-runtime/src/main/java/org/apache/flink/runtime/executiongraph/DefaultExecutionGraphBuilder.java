@@ -114,7 +114,7 @@ public class DefaultExecutionGraphBuilder {
                         jobGraph.getClasspaths());
 
         final int executionHistorySizeLimit =
-                jobManagerConfig.getInteger(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE);
+                jobManagerConfig.get(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE);
 
         final PartitionGroupReleaseStrategy.Factory partitionGroupReleaseStrategyFactory =
                 PartitionGroupReleaseStrategyFactoryLoader.loadPartitionGroupReleaseStrategyFactory(
@@ -340,7 +340,7 @@ public class DefaultExecutionGraphBuilder {
                     rootStorage,
                     checkpointStatsTrackerFactory.get(),
                     checkpointsCleaner,
-                    jobManagerConfig.getString(STATE_CHANGE_LOG_STORAGE));
+                    jobManagerConfig.get(STATE_CHANGE_LOG_STORAGE));
         }
 
         return executionGraph;

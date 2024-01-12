@@ -33,22 +33,22 @@ public class SecurityOptionsTest extends TestLogger {
     public void checkEnableSSL() {
         // backwards compatibility
         Configuration oldConf = new Configuration();
-        oldConf.setBoolean(SecurityOptions.SSL_ENABLED, true);
+        oldConf.set(SecurityOptions.SSL_ENABLED, true);
         assertTrue(SecurityOptions.isInternalSSLEnabled(oldConf));
         assertTrue(SecurityOptions.isRestSSLEnabled(oldConf));
 
         // new options take precedence
         Configuration newOptions = new Configuration();
-        newOptions.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
-        newOptions.setBoolean(SecurityOptions.SSL_REST_ENABLED, false);
+        newOptions.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        newOptions.set(SecurityOptions.SSL_REST_ENABLED, false);
         assertTrue(SecurityOptions.isInternalSSLEnabled(newOptions));
         assertFalse(SecurityOptions.isRestSSLEnabled(newOptions));
 
         // new options take precedence
         Configuration precedence = new Configuration();
-        precedence.setBoolean(SecurityOptions.SSL_ENABLED, true);
-        precedence.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, false);
-        precedence.setBoolean(SecurityOptions.SSL_REST_ENABLED, false);
+        precedence.set(SecurityOptions.SSL_ENABLED, true);
+        precedence.set(SecurityOptions.SSL_INTERNAL_ENABLED, false);
+        precedence.set(SecurityOptions.SSL_REST_ENABLED, false);
         assertFalse(SecurityOptions.isInternalSSLEnabled(precedence));
         assertFalse(SecurityOptions.isRestSSLEnabled(precedence));
     }
@@ -61,18 +61,18 @@ public class SecurityOptionsTest extends TestLogger {
     public void checkEnableRestSSLAuthentication() {
         // SSL has to be enabled
         Configuration noSSLOptions = new Configuration();
-        noSSLOptions.setBoolean(SecurityOptions.SSL_REST_ENABLED, false);
-        noSSLOptions.setBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
+        noSSLOptions.set(SecurityOptions.SSL_REST_ENABLED, false);
+        noSSLOptions.set(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
         assertFalse(SecurityOptions.isRestSSLAuthenticationEnabled(noSSLOptions));
 
         // authentication is disabled by default
         Configuration defaultOptions = new Configuration();
-        defaultOptions.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
+        defaultOptions.set(SecurityOptions.SSL_REST_ENABLED, true);
         assertFalse(SecurityOptions.isRestSSLAuthenticationEnabled(defaultOptions));
 
         Configuration options = new Configuration();
-        options.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
-        options.setBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
+        options.set(SecurityOptions.SSL_REST_ENABLED, true);
+        options.set(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
         assertTrue(SecurityOptions.isRestSSLAuthenticationEnabled(options));
     }
 }

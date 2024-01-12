@@ -395,12 +395,12 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
             int defaultSourceParallelism) {
         Configuration configuration = new Configuration();
 
-        configuration.setInteger(
+        configuration.set(
                 BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MIN_PARALLELISM, minParallelism);
         configuration.set(
                 BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK,
                 new MemorySize(dataVolumePerTask));
-        configuration.setInteger(
+        configuration.set(
                 BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM,
                 defaultSourceParallelism);
 

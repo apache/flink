@@ -54,12 +54,11 @@ public class ConfigurationUtils {
      */
     public static Optional<Time> getSystemResourceMetricsProbingInterval(
             Configuration configuration) {
-        if (!configuration.getBoolean(SYSTEM_RESOURCE_METRICS)) {
+        if (!configuration.get(SYSTEM_RESOURCE_METRICS)) {
             return Optional.empty();
         } else {
             return Optional.of(
-                    Time.milliseconds(
-                            configuration.getLong(SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL)));
+                    Time.milliseconds(configuration.get(SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL)));
         }
     }
 
@@ -72,7 +71,7 @@ public class ConfigurationUtils {
      */
     @Nonnull
     public static String[] parseTempDirectories(Configuration configuration) {
-        return splitPaths(configuration.getString(CoreOptions.TMP_DIRS));
+        return splitPaths(configuration.get(CoreOptions.TMP_DIRS));
     }
 
     /**
@@ -106,7 +105,7 @@ public class ConfigurationUtils {
     @Nonnull
     public static String[] parseLocalStateDirectories(Configuration configuration) {
         String configValue =
-                configuration.getString(
+                configuration.get(
                         CheckpointingOptions.LOCAL_RECOVERY_TASK_MANAGER_STATE_ROOT_DIRS, "");
         return splitPaths(configValue);
     }
@@ -141,14 +140,11 @@ public class ConfigurationUtils {
     public static Time getStandaloneClusterStartupPeriodTime(Configuration configuration) {
         final Time timeout;
         long standaloneClusterStartupPeriodTime =
-                configuration.getLong(
-                        ResourceManagerOptions.STANDALONE_CLUSTER_STARTUP_PERIOD_TIME);
+                configuration.get(ResourceManagerOptions.STANDALONE_CLUSTER_STARTUP_PERIOD_TIME);
         if (standaloneClusterStartupPeriodTime >= 0) {
             timeout = Time.milliseconds(standaloneClusterStartupPeriodTime);
         } else {
-            timeout =
-                    Time.milliseconds(
-                            configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
+            timeout = Time.milliseconds(configuration.get(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
         }
         return timeout;
     }

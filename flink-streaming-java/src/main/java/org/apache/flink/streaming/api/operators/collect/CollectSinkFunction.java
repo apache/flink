@@ -494,7 +494,7 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN>
             return getStreamingRuntimeContext()
                     .getTaskManagerRuntimeInfo()
                     .getConfiguration()
-                    .getInteger(TaskManagerOptions.COLLECT_PORT);
+                    .get(TaskManagerOptions.COLLECT_PORT);
         }
 
         private StreamingRuntimeContext getStreamingRuntimeContext() {

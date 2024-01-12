@@ -287,7 +287,7 @@ public class ProcessMemoryUtils<FM extends FlinkMemory> {
             MemorySize maxSize,
             ConfigOption<Float> fractionOption,
             Configuration config) {
-        double fraction = config.getFloat(fractionOption);
+        double fraction = config.get(fractionOption);
         try {
             return new RangeFraction(minSize, maxSize, fraction);
         } catch (IllegalArgumentException e) {

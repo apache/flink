@@ -362,10 +362,8 @@ public class Task
         this.serializedExecutionConfig = jobInformation.getSerializedExecutionConfig();
 
         Configuration tmConfig = taskManagerConfig.getConfiguration();
-        this.taskCancellationInterval =
-                tmConfig.getLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL);
-        this.taskCancellationTimeout =
-                tmConfig.getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT);
+        this.taskCancellationInterval = tmConfig.get(TaskManagerOptions.TASK_CANCELLATION_INTERVAL);
+        this.taskCancellationTimeout = tmConfig.get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT);
 
         this.memoryManager = Preconditions.checkNotNull(memManager);
         this.sharedResources = Preconditions.checkNotNull(sharedResources);

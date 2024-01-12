@@ -73,14 +73,14 @@ class NettyClientServerSslTest {
     @TestTemplate
     void testValidSslConnectionAdvanced() throws Exception {
         Configuration sslConfig = createSslConfig();
-        sslConfig.setInteger(SSL_INTERNAL_SESSION_CACHE_SIZE, 1);
+        sslConfig.set(SSL_INTERNAL_SESSION_CACHE_SIZE, 1);
 
         // using different timeouts for each of the configuration parameters ensures that the right
         // config value is used in the right place
         final int timeoutInMillisBase = (int) Duration.ofHours(1).toMillis();
-        sslConfig.setInteger(SSL_INTERNAL_SESSION_TIMEOUT, timeoutInMillisBase + 1);
-        sslConfig.setInteger(SSL_INTERNAL_HANDSHAKE_TIMEOUT, timeoutInMillisBase + 2);
-        sslConfig.setInteger(SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT, timeoutInMillisBase + 3);
+        sslConfig.set(SSL_INTERNAL_SESSION_TIMEOUT, timeoutInMillisBase + 1);
+        sslConfig.set(SSL_INTERNAL_HANDSHAKE_TIMEOUT, timeoutInMillisBase + 2);
+        sslConfig.set(SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT, timeoutInMillisBase + 3);
 
         testValidSslConnection(sslConfig);
     }
@@ -152,7 +152,7 @@ class NettyClientServerSslTest {
         // our own channel initializer)
         assertEqualsOrDefault(
                 sslConfig, SSL_INTERNAL_SESSION_CACHE_SIZE, sessionContext.getSessionCacheSize());
-        int sessionTimeout = sslConfig.getInteger(SSL_INTERNAL_SESSION_TIMEOUT);
+        int sessionTimeout = sslConfig.get(SSL_INTERNAL_SESSION_TIMEOUT);
         if (sessionTimeout != -1) {
             // session timeout config is in milliseconds but the context returns it in seconds
             assertThat(sessionContext.getSessionTimeout()).isEqualTo(sessionTimeout / 1000);
@@ -167,7 +167,7 @@ class NettyClientServerSslTest {
 
     private static void assertEqualsOrDefault(
             Configuration sslConfig, ConfigOption<Integer> option, long actual) {
-        long expected = sslConfig.getInteger(option);
+        long expected = sslConfig.get(option);
         if (expected != option.defaultValue()) {
             assertThat(actual).isEqualTo(expected);
         } else {
@@ -185,7 +185,7 @@ class NettyClientServerSslTest {
 
         Configuration config = createSslConfig();
         // Modify the keystore password to an incorrect one
-        config.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "invalidpassword");
+        config.set(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "invalidpassword");
 
         try (NetUtils.Port port = NetUtils.getAvailablePort()) {
             NettyConfig nettyConfig = createNettyConfig(config, port);
@@ -204,8 +204,7 @@ class NettyClientServerSslTest {
         Configuration config = createSslConfig();
 
         // Use a server certificate which is not present in the truststore
-        config.setString(
-                SecurityOptions.SSL_INTERNAL_KEYSTORE, "src/test/resources/untrusted.keystore");
+        config.set(SecurityOptions.SSL_INTERNAL_KEYSTORE, "src/test/resources/untrusted.keystore");
 
         NettyTestUtil.NettyServerAndClient serverAndClient;
         try (NetUtils.Port port = NetUtils.getAvailablePort()) {
@@ -231,7 +230,7 @@ class NettyClientServerSslTest {
         final Configuration clientConfig = createSslConfig();
 
         // give the client a different keystore / certificate
-        clientConfig.setString(
+        clientConfig.set(
                 SecurityOptions.SSL_INTERNAL_KEYSTORE, "src/test/resources/untrusted.keystore");
 
         NettyServerAndClient serverAndClient;
@@ -269,7 +268,7 @@ class NettyClientServerSslTest {
         Configuration config = createSslConfig();
 
         // pin the certificate based on internal cert
-        config.setString(
+        config.set(
                 SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT,
                 SSLUtilsTest.getCertificateFingerprint(config, "flink.test"));
         NettyTestUtil.NettyServerAndClient serverAndClient;
@@ -297,7 +296,7 @@ class NettyClientServerSslTest {
         Configuration config = createSslConfig();
 
         // pin the certificate based on internal cert
-        config.setString(
+        config.set(
                 SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT,
                 SSLUtilsTest.getCertificateFingerprint(config, "flink.test")
                         .replaceAll("[0-9A-Z]", "0"));

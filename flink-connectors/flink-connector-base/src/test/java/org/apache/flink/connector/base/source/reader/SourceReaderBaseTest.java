@@ -434,8 +434,8 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 
     private Configuration getConfig() {
         Configuration config = new Configuration();
-        config.setInteger(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 1);
-        config.setLong(SourceReaderOptions.SOURCE_READER_CLOSE_TIMEOUT, 30000L);
+        config.set(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 1);
+        config.set(SourceReaderOptions.SOURCE_READER_CLOSE_TIMEOUT, 30000L);
         return config;
     }
 

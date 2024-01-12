@@ -97,7 +97,7 @@ class BatchShuffleITCaseBase {
             boolean deletePartitionFile,
             Configuration configuration,
             boolean enableAdaptiveAutoParallelism) {
-        configuration.setBoolean(
+        configuration.set(
                 BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED,
                 enableAdaptiveAutoParallelism);
         StreamExecutionEnvironment env =

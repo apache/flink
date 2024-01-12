@@ -89,7 +89,7 @@ public class MiniClusterTestEnvironment implements TestEnvironment, ClusterContr
             TestEnvironmentSettings envOptions) {
         Configuration configuration = new Configuration();
         if (envOptions.getSavepointRestorePath() != null) {
-            configuration.setString(SAVEPOINT_PATH, envOptions.getSavepointRestorePath());
+            configuration.set(SAVEPOINT_PATH, envOptions.getSavepointRestorePath());
         }
         return new TestStreamEnvironment(
                 this.miniCluster.getMiniCluster(),

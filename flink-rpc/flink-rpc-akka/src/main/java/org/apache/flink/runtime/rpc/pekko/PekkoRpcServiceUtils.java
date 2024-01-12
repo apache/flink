@@ -130,8 +130,7 @@ public class PekkoRpcServiceUtils {
         checkNotNull(config, "config is null");
 
         final boolean sslEnabled =
-                config.getBoolean(AkkaOptions.SSL_ENABLED)
-                        && SecurityOptions.isInternalSSLEnabled(config);
+                config.get(AkkaOptions.SSL_ENABLED) && SecurityOptions.isInternalSSLEnabled(config);
 
         return getRpcUrl(
                 hostname,
@@ -233,7 +232,7 @@ public class PekkoRpcServiceUtils {
     // ------------------------------------------------------------------------
 
     public static long extractMaximumFramesize(Configuration configuration) {
-        String maxFrameSizeStr = configuration.getString(AkkaOptions.FRAMESIZE);
+        String maxFrameSizeStr = configuration.get(AkkaOptions.FRAMESIZE);
         String configStr = String.format(SIMPLE_CONFIG_TEMPLATE, maxFrameSizeStr);
         Config config = ConfigFactory.parseString(configStr);
         return config.getBytes(MAXIMUM_FRAME_SIZE_PATH);

@@ -176,7 +176,7 @@ public class SavepointRestoreSettings implements Serializable {
                 SavepointConfigOptions.RESTORE_MODE, savepointRestoreSettings.getRestoreMode());
         final String savepointPath = savepointRestoreSettings.getRestorePath();
         if (savepointPath != null) {
-            configuration.setString(SavepointConfigOptions.SAVEPOINT_PATH, savepointPath);
+            configuration.set(SavepointConfigOptions.SAVEPOINT_PATH, savepointPath);
         }
     }
 

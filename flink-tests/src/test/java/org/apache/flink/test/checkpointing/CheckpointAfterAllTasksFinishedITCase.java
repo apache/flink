@@ -154,7 +154,7 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
     @Test
     public void testFailoverAfterSomeTasksFinished() throws Exception {
         final Configuration config = new Configuration();
-        config.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
+        config.set(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()

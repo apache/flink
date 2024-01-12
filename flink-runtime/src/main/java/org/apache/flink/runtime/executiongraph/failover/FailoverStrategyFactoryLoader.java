@@ -44,8 +44,7 @@ public final class FailoverStrategyFactoryLoader {
     public static FailoverStrategy.Factory loadFailoverStrategyFactory(final Configuration config) {
         checkNotNull(config);
 
-        final String strategyParam =
-                config.getString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY);
+        final String strategyParam = config.get(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY);
 
         switch (strategyParam.toLowerCase()) {
             case FULL_RESTART_STRATEGY_NAME:

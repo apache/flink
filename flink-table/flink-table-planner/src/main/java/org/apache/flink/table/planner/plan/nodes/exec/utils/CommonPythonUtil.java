@@ -161,7 +161,7 @@ public class CommonPythonUtil {
             Configuration config, ClassLoader classLoader) {
         Class<?> clazz = loadClass(PYTHON_OPTIONS_CLASS, classLoader);
         try {
-            return config.getBoolean(
+            return config.get(
                     (ConfigOption<Boolean>) (clazz.getField("USE_MANAGED_MEMORY").get(null)));
         } catch (IllegalAccessException | NoSuchFieldException e) {
             throw new TableException("Field USE_MANAGED_MEMORY accessed failed.", e);
@@ -173,7 +173,7 @@ public class CommonPythonUtil {
             Configuration config, ClassLoader classLoader) {
         Class<?> clazz = loadClass(PYTHON_OPTIONS_CLASS, classLoader);
         try {
-            return config.getString(
+            return config.get(
                             (ConfigOption<String>)
                                     (clazz.getField("PYTHON_EXECUTION_MODE").get(null)))
                     .equalsIgnoreCase("process");

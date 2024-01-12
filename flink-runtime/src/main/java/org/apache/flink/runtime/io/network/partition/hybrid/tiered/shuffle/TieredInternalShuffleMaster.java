@@ -42,7 +42,7 @@ public class TieredInternalShuffleMaster {
     public TieredInternalShuffleMaster(Configuration conf) {
         TieredStorageConfiguration tieredStorageConfiguration =
                 TieredStorageConfiguration.builder(
-                                conf.getString(NETWORK_HYBRID_SHUFFLE_REMOTE_STORAGE_BASE_PATH))
+                                conf.get(NETWORK_HYBRID_SHUFFLE_REMOTE_STORAGE_BASE_PATH))
                         .build();
         TieredStorageResourceRegistry resourceRegistry = new TieredStorageResourceRegistry();
         List<TierMasterAgent> tierFactories =

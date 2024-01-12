@@ -85,8 +85,8 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
     @Before
     public void setup() throws Exception {
         Configuration config = new Configuration();
-        config.setString(StateBackendOptions.STATE_BACKEND, "rocksdb");
-        config.setBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
+        config.set(StateBackendOptions.STATE_BACKEND, "rocksdb");
+        config.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
 
         cluster =
                 new MiniClusterWithClientResource(

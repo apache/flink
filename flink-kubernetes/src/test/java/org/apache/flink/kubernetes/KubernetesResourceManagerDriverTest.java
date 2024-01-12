@@ -424,8 +424,8 @@ class KubernetesResourceManagerDriverTest
 
         @Override
         protected void prepareRunTest() {
-            flinkConfig.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
-            flinkConfig.setString(
+            flinkConfig.set(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
+            flinkConfig.set(
                     TaskManagerOptions.RPC_PORT, String.valueOf(Constants.TASK_MANAGER_RPC_PORT));
 
             flinkKubeClient = flinkKubeClientBuilder.build();

@@ -188,10 +188,10 @@ class RestClusterClientTest {
 
     static {
         final Configuration config = new Configuration();
-        config.setString(JobManagerOptions.ADDRESS, "localhost");
-        config.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 10);
-        config.setLong(RestOptions.RETRY_DELAY, 0);
-        config.setInteger(RestOptions.PORT, 0);
+        config.set(JobManagerOptions.ADDRESS, "localhost");
+        config.set(RestOptions.RETRY_MAX_ATTEMPTS, 10);
+        config.set(RestOptions.RETRY_DELAY, 0L);
+        config.set(RestOptions.PORT, 0);
 
         restConfig = config;
     }
@@ -222,7 +222,7 @@ class RestClusterClientTest {
 
     private RestClusterClient<StandaloneClusterId> createRestClusterClient(
             int port, Configuration clientConfig) throws Exception {
-        clientConfig.setInteger(RestOptions.PORT, port);
+        clientConfig.set(RestOptions.PORT, port);
         return new RestClusterClient<>(
                 clientConfig,
                 createRestClient(),

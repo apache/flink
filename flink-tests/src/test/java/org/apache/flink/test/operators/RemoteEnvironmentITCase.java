@@ -60,7 +60,7 @@ public class RemoteEnvironmentITCase extends TestLogger {
     @Test
     public void testUserSpecificParallelism() throws Exception {
         Configuration config = new Configuration();
-        config.setString(AkkaOptions.STARTUP_TIMEOUT, VALID_STARTUP_TIMEOUT);
+        config.set(AkkaOptions.STARTUP_TIMEOUT, VALID_STARTUP_TIMEOUT);
 
         final URI restAddress = MINI_CLUSTER_RESOURCE.getRestAddress();
         final String hostname = restAddress.getHost();

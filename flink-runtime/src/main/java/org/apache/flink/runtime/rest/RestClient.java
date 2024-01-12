@@ -154,7 +154,7 @@ public class RestClient implements AutoCloseableAsync {
         Preconditions.checkNotNull(rootUrl);
         if ("https".equals(rootUrl.getProtocol())) {
             configuration = configuration.clone();
-            configuration.setBoolean(SSL_REST_ENABLED, true);
+            configuration.set(SSL_REST_ENABLED, true);
         }
         return new RestClient(configuration, executor, rootUrl.getHost(), rootUrl.getPort());
     }

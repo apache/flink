@@ -244,10 +244,10 @@ class RocksDBNativeMetricMonitorTest {
         public ScopeFormats getScopeFormats() {
             Configuration config = new Configuration();
 
-            config.setString(MetricOptions.SCOPE_NAMING_TM, "A");
-            config.setString(MetricOptions.SCOPE_NAMING_TM_JOB, "B");
-            config.setString(MetricOptions.SCOPE_NAMING_TASK, "C");
-            config.setString(MetricOptions.SCOPE_NAMING_OPERATOR, "D");
+            config.set(MetricOptions.SCOPE_NAMING_TM, "A");
+            config.set(MetricOptions.SCOPE_NAMING_TM_JOB, "B");
+            config.set(MetricOptions.SCOPE_NAMING_TASK, "C");
+            config.set(MetricOptions.SCOPE_NAMING_OPERATOR, "D");
 
             return ScopeFormats.fromConfig(config);
         }

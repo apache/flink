@@ -190,7 +190,7 @@ public final class ReporterSetup {
 
     public static List<ReporterSetup> fromConfiguration(
             final Configuration configuration, @Nullable final PluginManager pluginManager) {
-        String includedReportersString = configuration.getString(MetricOptions.REPORTERS_LIST, "");
+        String includedReportersString = configuration.get(MetricOptions.REPORTERS_LIST, "");
 
         Set<String> namedReporters =
                 findEnabledTraceReportersInConfiguration(

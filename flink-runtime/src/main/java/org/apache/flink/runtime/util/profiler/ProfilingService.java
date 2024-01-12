@@ -64,13 +64,13 @@ public class ProfilingService implements Closeable {
 
     private ProfilingService(Configuration configs) {
         this.profilingMap = new HashMap<>();
-        this.historySizeLimit = configs.getInteger(RestOptions.MAX_PROFILING_HISTORY_SIZE);
+        this.historySizeLimit = configs.get(RestOptions.MAX_PROFILING_HISTORY_SIZE);
         Preconditions.checkArgument(
                 historySizeLimit > 0,
                 String.format(
                         "Configured %s must be positive.",
                         RestOptions.MAX_PROFILING_HISTORY_SIZE.key()));
-        this.profilingResultDir = configs.getString(RestOptions.PROFILING_RESULT_DIR);
+        this.profilingResultDir = configs.get(RestOptions.PROFILING_RESULT_DIR);
         this.scheduledExecutor =
                 Executors.newSingleThreadScheduledExecutor(
                         new ExecutorThreadFactory.Builder()
