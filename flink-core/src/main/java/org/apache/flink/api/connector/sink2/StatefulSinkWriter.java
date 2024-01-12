@@ -16,23 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.connector.sink2;
+package org.apache.flink.api.connector.sink2;
 
-import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.connector.sink2.Committer;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.annotation.PublicEvolving;
+
+import java.io.IOException;
+import java.util.List;
 
 /**
- * Allows expert users to implement a custom topology after {@link Committer}.
+ * A {@link SinkWriter} whose state needs to be checkpointed.
  *
- * <p>It is recommended to use immutable committables because mutating committables can have
- * unexpected side-effects.
- *
- * @deprecated Please implement {@link org.apache.flink.api.connector.sink2.Sink}, {@link
- *     org.apache.flink.api.connector.sink2.SupportsCommitter} and {@link
- *     SupportsPostCommitTopology} instead.
+ * @param <InputT> The type of the sink writer's input
+ * @param <WriterStateT> The type of the writer's state
  */
-@Experimental
-@Deprecated
-public interface WithPostCommitTopology<InputT, CommT>
-        extends TwoPhaseCommittingSink<InputT, CommT>, SupportsPostCommitTopology<CommT> {}
+@PublicEvolving
+public interface StatefulSinkWriter<InputT, WriterStateT> extends SinkWriter<InputT> {
+    /**
+     * @return The writer's state.
+     * @throws IOException if fail to snapshot writer's state.
+     */
+    List<WriterStateT> snapshotState(long checkpointId) throws IOException;
+}

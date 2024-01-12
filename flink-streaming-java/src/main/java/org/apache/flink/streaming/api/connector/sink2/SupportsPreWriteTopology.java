@@ -19,20 +19,19 @@
 package org.apache.flink.streaming.api.connector.sink2;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.connector.sink2.Committer;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.streaming.api.datastream.DataStream;
 
-/**
- * Allows expert users to implement a custom topology after {@link Committer}.
- *
- * <p>It is recommended to use immutable committables because mutating committables can have
- * unexpected side-effects.
- *
- * @deprecated Please implement {@link org.apache.flink.api.connector.sink2.Sink}, {@link
- *     org.apache.flink.api.connector.sink2.SupportsCommitter} and {@link
- *     SupportsPostCommitTopology} instead.
- */
+/** Allows expert users to implement a custom topology before {@link SinkWriter}. */
 @Experimental
-@Deprecated
-public interface WithPostCommitTopology<InputT, CommT>
-        extends TwoPhaseCommittingSink<InputT, CommT>, SupportsPostCommitTopology<CommT> {}
+public interface SupportsPreWriteTopology<InputT> {
+
+    /**
+     * Adds an arbitrary topology before the writer. The topology may be used to repartition the
+     * data.
+     *
+     * @param inputDataStream the stream of input records.
+     * @return the custom topology before {@link SinkWriter}.
+     */
+    DataStream<InputT> addPreWriteTopology(DataStream<InputT> inputDataStream);
+}
