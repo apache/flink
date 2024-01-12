@@ -20,6 +20,9 @@ package org.apache.flink.api.connector.sink2;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.common.serialization.SerializationSchema;
@@ -30,12 +33,13 @@ import org.apache.flink.util.UserCodeClassLoader;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.function.Consumer;
 
 /**
  * Base interface for developing a sink. A basic {@link Sink} is a stateless sink that can flush
  * data on checkpoint to achieve at-least-once consistency. Sinks with additional requirements
- * should implement {@link StatefulSink} or {@link TwoPhaseCommittingSink}.
+ * should implement {@link SupportsWriterState} or {@link SupportsCommitter}.
  *
  * <p>The {@link Sink} needs to be serializable. All configuration should be validated eagerly. The
  * respective sink writers are transient and will only be created in the subtasks on the
@@ -52,11 +56,30 @@ public interface Sink<InputT> extends Serializable {
      * @param context the runtime context.
      * @return A sink writer.
      * @throws IOException for any failure during creation.
+     * @deprecated Please implement {@link #createWriter(WriterInitContext)}. For backward
+     *     compatibility reasons - to keep {@link Sink} a functional interface - Flink did not
+     *     provide a default implementation. New {@link Sink} implementations should implement this
+     *     method, but it will not be used, and it will be removed in 1.20.0 release. Do not use
+     *     {@link Override} annotation when implementing this method, to prevent compilation errors
+     *     when migrating to 1.20.x release.
      */
+    @Deprecated
     SinkWriter<InputT> createWriter(InitContext context) throws IOException;
+
+    /**
+     * Creates a {@link SinkWriter}.
+     *
+     * @param context the runtime context.
+     * @return A sink writer.
+     * @throws IOException for any failure during creation.
+     */
+    default SinkWriter<InputT> createWriter(WriterInitContext context) throws IOException {
+        return createWriter(new InitContextWrapper(context));
+    }
 
     /** The interface exposes some runtime info for creating a {@link SinkWriter}. */
     @PublicEvolving
+    @Deprecated
     interface InitContext extends org.apache.flink.api.connector.sink2.InitContext {
         /**
          * Gets the {@link UserCodeClassLoader} to load classes that are not in system's classpath,
@@ -108,6 +131,92 @@ public interface Sink<InputT> extends Serializable {
         @Experimental
         default <MetaT> Optional<Consumer<MetaT>> metadataConsumer() {
             return Optional.empty();
+        }
+    }
+
+    /**
+     * Class for wrapping a new {@link WriterInitContext} to an old {@link InitContext} until
+     * deprecation.
+     *
+     * @deprecated Internal, do not use it.
+     */
+    @Deprecated
+    class InitContextWrapper implements InitContext {
+        private final WriterInitContext wrapped;
+
+        InitContextWrapper(WriterInitContext wrapped) {
+            this.wrapped = wrapped;
+        }
+
+        @Override
+        public int getSubtaskId() {
+            return wrapped.getSubtaskId();
+        }
+
+        @Override
+        public int getNumberOfParallelSubtasks() {
+            return wrapped.getNumberOfParallelSubtasks();
+        }
+
+        @Override
+        public int getAttemptNumber() {
+            return wrapped.getAttemptNumber();
+        }
+
+        @Override
+        public OptionalLong getRestoredCheckpointId() {
+            return wrapped.getRestoredCheckpointId();
+        }
+
+        @Override
+        public JobID getJobId() {
+            return wrapped.getJobId();
+        }
+
+        @Override
+        public JobInfo getJobInfo() {
+            return wrapped.getJobInfo();
+        }
+
+        @Override
+        public TaskInfo getTaskInfo() {
+            return wrapped.getTaskInfo();
+        }
+
+        @Override
+        public UserCodeClassLoader getUserCodeClassLoader() {
+            return wrapped.getUserCodeClassLoader();
+        }
+
+        @Override
+        public MailboxExecutor getMailboxExecutor() {
+            return wrapped.getMailboxExecutor();
+        }
+
+        @Override
+        public ProcessingTimeService getProcessingTimeService() {
+            return wrapped.getProcessingTimeService();
+        }
+
+        @Override
+        public SinkWriterMetricGroup metricGroup() {
+            return wrapped.metricGroup();
+        }
+
+        @Override
+        public SerializationSchema.InitializationContext
+                asSerializationSchemaInitializationContext() {
+            return wrapped.asSerializationSchemaInitializationContext();
+        }
+
+        @Override
+        public boolean isObjectReuseEnabled() {
+            return wrapped.isObjectReuseEnabled();
+        }
+
+        @Override
+        public <IN> TypeSerializer<IN> createInputSerializer() {
+            return wrapped.createInputSerializer();
         }
     }
 }

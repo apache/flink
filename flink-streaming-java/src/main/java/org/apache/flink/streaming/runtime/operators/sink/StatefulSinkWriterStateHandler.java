@@ -22,15 +22,18 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
-import org.apache.flink.api.connector.sink2.Sink.InitContext;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.StatefulSink;
-import org.apache.flink.api.connector.sink2.StatefulSink.StatefulSinkWriter;
-import org.apache.flink.api.connector.sink2.StatefulSink.WithCompatibleState;
+import org.apache.flink.api.connector.sink2.StatefulSinkWriter;
+import org.apache.flink.api.connector.sink2.SupportsWriterState;
+import org.apache.flink.api.connector.sink2.SupportsWriterState.WithCompatibleState;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
 
@@ -59,7 +62,7 @@ final class StatefulSinkWriterStateHandler<InputT, WriterStateT>
      */
     private final Collection<String> previousSinkStateNames;
 
-    private final StatefulSink<InputT, WriterStateT> sink;
+    private final Sink<InputT> sink;
 
     // ------------------------------- runtime fields ---------------------------------------
 
@@ -88,7 +91,7 @@ final class StatefulSinkWriterStateHandler<InputT, WriterStateT>
 
     @Override
     public SinkWriter<InputT> createWriter(
-            InitContext initContext, StateInitializationContext context) throws Exception {
+            WriterInitContext initContext, StateInitializationContext context) throws Exception {
         final ListState<byte[]> rawState =
                 context.getOperatorStateStore().getListState(WRITER_RAW_STATES_DESC);
         writerState =
@@ -112,9 +115,14 @@ final class StatefulSinkWriterStateHandler<InputT, WriterStateT>
                 previousSinkStates.add(previousSinkState);
                 Iterables.addAll(states, previousSinkState.get());
             }
-            sinkWriter = sink.restoreWriter(initContext, states);
+
+            if (!(sink instanceof SupportsWriterState)) {
+                throw new IllegalArgumentException("Sink should implement SupportsWriterState");
+            }
+
+            sinkWriter = ((SupportsWriterState) sink).restoreWriter(initContext, states);
         } else {
-            sinkWriter = sink.createWriter(initContext);
+            sinkWriter = cast(sink.createWriter(initContext));
         }
         return sinkWriter;
     }
@@ -123,5 +131,12 @@ final class StatefulSinkWriterStateHandler<InputT, WriterStateT>
     public void snapshotState(long checkpointId) throws Exception {
         writerState.update(sinkWriter.snapshotState(checkpointId));
         previousSinkStates.forEach(ListState::clear);
+    }
+
+    private static StatefulSinkWriter cast(SinkWriter writer) {
+        Preconditions.checkArgument(
+                writer instanceof StatefulSinkWriter,
+                "The writer should implement StatefulSinkWriter");
+        return (StatefulSinkWriter) writer;
     }
 }

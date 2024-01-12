@@ -16,18 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.connector.sink2;
+package org.apache.flink.api.connector.sink2;
 
-import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.annotation.PublicEvolving;
 
-/**
- * Allows expert users to implement a custom topology before {@link SinkWriter}.
- *
- * @deprecated Please implement {@link Sink} and {@link SupportsPreWriteTopology} instead.
- */
-@Experimental
-@Deprecated
-public interface WithPreWriteTopology<InputT>
-        extends Sink<InputT>, SupportsPreWriteTopology<InputT> {}
+import java.io.IOException;
+import java.util.Collection;
+
+/** A {@link SinkWriter} that performs the first part of a two-phase commit protocol. */
+@PublicEvolving
+public interface CommittingSinkWriter<InputT, CommittableT> extends SinkWriter<InputT> {
+    /**
+     * Prepares for a commit.
+     *
+     * <p>This method will be called after {@link #flush(boolean)} and before {@link
+     * StatefulSinkWriter#snapshotState(long)}.
+     *
+     * @return The data to commit as the second step of the two-phase commit protocol.
+     * @throws IOException if fail to prepare for a commit.
+     */
+    Collection<CommittableT> prepareCommit() throws IOException, InterruptedException;
+}
