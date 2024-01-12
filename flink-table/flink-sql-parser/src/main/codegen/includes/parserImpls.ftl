@@ -728,6 +728,7 @@ SqlAlterTable SqlAlterTable() :
     |
         <ADD>
         (
+            LOOKAHEAD(2)
             AlterTableAddPartition(addPartitionCtx)
             {
                 return new SqlAddPartitions(startPos.plus(getPos()),
@@ -782,6 +783,7 @@ SqlAlterTable SqlAlterTable() :
     |
      <DROP>
         (
+            LOOKAHEAD(2)
             AlterTableDropPartitions(dropPartitionsCtx) {
                 return new SqlDropPartitions(
                         startPos.plus(getPos()),
