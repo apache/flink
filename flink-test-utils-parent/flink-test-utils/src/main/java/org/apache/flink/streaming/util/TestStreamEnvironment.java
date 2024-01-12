@@ -20,6 +20,7 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.fs.Path;
@@ -120,6 +121,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                     Duration.ofMillis(100),
                     Duration.ofSeconds(2));
             randomize(conf, CheckpointingOptions.CLEANER_PARALLEL_MODE, true, false);
+            randomize(conf, ExecutionOptions.SNAPSHOT_COMPRESSION, true, false);
         }
 
         // randomize ITTests for enabling state change log
