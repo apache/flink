@@ -20,7 +20,7 @@ package org.apache.flink.formats.parquet.vector.type;
 
 import org.apache.flink.table.types.logical.LogicalType;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableList;
 
 import java.util.List;
 

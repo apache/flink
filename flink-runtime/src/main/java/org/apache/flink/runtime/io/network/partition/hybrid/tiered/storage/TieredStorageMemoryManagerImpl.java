@@ -28,7 +28,7 @@ import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
 
-import org.apache.flink.shaded.guava31.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.flink.shaded.guava32.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;

@@ -27,8 +27,8 @@ import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableCollection;
-import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableCollection;
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableList;
 
 import java.io.Serializable;
 import java.net.URL;
