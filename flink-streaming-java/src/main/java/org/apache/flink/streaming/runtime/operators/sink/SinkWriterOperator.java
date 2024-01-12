@@ -30,7 +30,6 @@ import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink.PrecommittingSinkWriter;
-import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
@@ -133,7 +132,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
     @Override
     public void initializeState(StateInitializationContext context) throws Exception {
         super.initializeState(context);
-        WriterInitContext initContext = createInitContext(context.getRestoredCheckpointId());
+        InitContext initContext = createInitContext(context.getRestoredCheckpointId());
         if (context.isRestored()) {
             if (committableSerializer != null) {
                 final ListState<List<CommT>> legacyCommitterState =
@@ -240,7 +239,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         }
     }
 
-    private WriterInitContext createInitContext(OptionalLong restoredCheckpointId) {
+    private InitContext createInitContext(OptionalLong restoredCheckpointId) {
         return new InitContextImpl(
                 getRuntimeContext(),
                 processingTimeService,
@@ -269,7 +268,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         }
     }
 
-    private static class InitContextImpl extends InitContextBase implements WriterInitContext {
+    private static class InitContextImpl extends InitContextBase implements InitContext {
 
         private final ProcessingTimeService processingTimeService;
 
