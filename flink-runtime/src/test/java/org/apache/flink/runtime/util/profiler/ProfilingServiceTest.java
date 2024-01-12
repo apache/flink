@@ -113,7 +113,7 @@ public class ProfilingServiceTest extends TestLogger {
                     ProfilingInfo.ProfilingMode.ITIMER, DEFAULT_PROFILING_DURATION, true);
         }
         // Due to the configuration of MAX_PROFILING_HISTORY_SIZE=2,
-        // the profiling result directory should container no more than 2 files.
+        // the profiling result directory shouldn't contain more than 2 files.
         verifyRollingDeletionWorks();
     }
 
@@ -162,7 +162,15 @@ public class ProfilingServiceTest extends TestLogger {
         Set<String> resultFileNames = new HashSet<>();
         File configuredDir = new File(profilingService.getProfilingResultDir());
         for (File f : Objects.requireNonNull(configuredDir.listFiles())) {
-            resultFileNames.add(f.getName());
+            if (f.getName().startsWith(RESOURCE_ID)) {
+                resultFileNames.add(f.getName());
+            }
+        }
+        if (profilingList.size() != resultFileNames.size()) {
+            log.error(
+                    "Found unexpected profiling file size: profilingList={},resultFileNames={}",
+                    profilingList,
+                    resultFileNames);
         }
         Assertions.assertEquals(profilingList.size(), resultFileNames.size());
         for (ProfilingInfo profilingInfo : profilingList) {

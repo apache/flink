@@ -168,9 +168,10 @@ public class ProfilingService implements Closeable {
             if (!scheduledExecutor.isShutdown()) {
                 scheduledExecutor.shutdownNow();
             }
-            instance = null;
         } catch (Exception e) {
             LOG.error("Exception thrown during stopping profiling service. ", e);
+        } finally {
+            instance = null;
         }
     }
 
