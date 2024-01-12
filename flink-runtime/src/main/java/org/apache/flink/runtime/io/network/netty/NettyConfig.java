@@ -102,43 +102,41 @@ public class NettyConfig {
     // ------------------------------------------------------------------------
 
     public int getServerConnectBacklog() {
-        return config.getInteger(NettyShuffleEnvironmentOptions.CONNECT_BACKLOG);
+        return config.get(NettyShuffleEnvironmentOptions.CONNECT_BACKLOG);
     }
 
     public int getNumberOfArenas() {
         // default: number of slots
-        final int configValue = config.getInteger(NettyShuffleEnvironmentOptions.NUM_ARENAS);
+        final int configValue = config.get(NettyShuffleEnvironmentOptions.NUM_ARENAS);
         return configValue == -1 ? numberOfSlots : configValue;
     }
 
     public int getServerNumThreads() {
         // default: number of task slots
-        final int configValue =
-                config.getInteger(NettyShuffleEnvironmentOptions.NUM_THREADS_SERVER);
+        final int configValue = config.get(NettyShuffleEnvironmentOptions.NUM_THREADS_SERVER);
         return configValue == -1 ? numberOfSlots : configValue;
     }
 
     public int getClientNumThreads() {
         // default: number of task slots
-        final int configValue =
-                config.getInteger(NettyShuffleEnvironmentOptions.NUM_THREADS_CLIENT);
+        final int configValue = config.get(NettyShuffleEnvironmentOptions.NUM_THREADS_CLIENT);
         return configValue == -1 ? numberOfSlots : configValue;
     }
 
     public int getClientConnectTimeoutSeconds() {
-        return config.getInteger(NettyShuffleEnvironmentOptions.CLIENT_CONNECT_TIMEOUT_SECONDS);
+        return config.get(NettyShuffleEnvironmentOptions.CLIENT_CONNECT_TIMEOUT_SECONDS);
     }
 
     public int getNetworkRetries() {
-        return config.getInteger(NettyShuffleEnvironmentOptions.NETWORK_RETRIES);
+        return config.get(NettyShuffleEnvironmentOptions.NETWORK_RETRIES);
     }
 
     public int getSendAndReceiveBufferSize() {
-        return config.getInteger(NettyShuffleEnvironmentOptions.SEND_RECEIVE_BUFFER_SIZE);
+        return config.get(NettyShuffleEnvironmentOptions.SEND_RECEIVE_BUFFER_SIZE);
     }
 
     public TransportType getTransportType() {
-        String transport = config.getString(NettyShuffleEnvironmentOptions.TRANSPORT_TYPE);
+        String transport = config.get(NettyShuffleEnvironmentOptions.TRANSPORT_TYPE);
 
         switch (transport) {
             case "nio":
@@ -173,7 +171,7 @@ public class NettyConfig {
     }
 
     public boolean getSSLEnabled() {
-        return config.getBoolean(NettyShuffleEnvironmentOptions.DATA_SSL_ENABLED)
+        return config.get(NettyShuffleEnvironmentOptions.DATA_SSL_ENABLED)
                 && SecurityOptions.isInternalSSLEnabled(config);
     }
 

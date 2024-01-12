@@ -56,7 +56,7 @@ public enum JobDispatcherFactory implements DispatcherFactory {
 
         final Configuration configuration =
                 partialDispatcherServicesWithJobPersistenceComponents.getConfiguration();
-        final String executionModeValue = configuration.getString(INTERNAL_CLUSTER_EXECUTION_MODE);
+        final String executionModeValue = configuration.get(INTERNAL_CLUSTER_EXECUTION_MODE);
         final ClusterEntrypoint.ExecutionMode executionMode =
                 ClusterEntrypoint.ExecutionMode.valueOf(executionModeValue);
 

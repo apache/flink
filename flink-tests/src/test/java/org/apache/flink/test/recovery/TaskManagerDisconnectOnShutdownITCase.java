@@ -80,20 +80,20 @@ public class TaskManagerDisconnectOnShutdownITCase {
     @Test
     public void testTaskManagerProcessFailure() {
         Configuration config = new Configuration();
-        config.setString(JobManagerOptions.ADDRESS, "localhost");
+        config.set(JobManagerOptions.ADDRESS, "localhost");
         config.set(JobManagerOptions.PORT, 0);
         config.set(RestOptions.BIND_PORT, "0");
 
         // disable heartbeats
         config.set(HeartbeatManagerOptions.HEARTBEAT_RPC_FAILURE_THRESHOLD, -1);
-        config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
+        config.set(TaskManagerOptions.NUM_TASK_SLOTS, 2);
 
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("3200k"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("3200k"));
         config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
         config.set(TaskManagerOptions.CPU_CORES, 1.0);
-        config.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
+        config.set(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
         config.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofSeconds(30L));
 
         // check that we run this test only if the java command

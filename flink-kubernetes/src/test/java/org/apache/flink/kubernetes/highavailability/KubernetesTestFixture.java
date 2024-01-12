@@ -69,7 +69,7 @@ class KubernetesTestFixture {
         this.leaderConfigmapName = leaderConfigmapName;
         this.lockIdentity = lockIdentity;
         configuration = new Configuration();
-        configuration.setString(KubernetesConfigOptions.CLUSTER_ID, clusterId);
+        configuration.set(KubernetesConfigOptions.CLUSTER_ID, clusterId);
 
         flinkKubeClient = createFlinkKubeClient();
         configMapSharedWatcher = flinkKubeClient.createConfigMapSharedWatcher(leaderConfigmapName);

@@ -233,7 +233,7 @@ class JobMasterTest {
         rmLeaderRetrievalService = new SettableLeaderRetrievalService(null, null);
         haServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
 
-        configuration.setString(
+        configuration.set(
                 BlobServerOptions.STORAGE_DIRECTORY,
                 Files.createTempDirectory(temporaryFolder, UUID.randomUUID().toString())
                         .toString());
@@ -1021,7 +1021,7 @@ class JobMasterTest {
     @Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler") // FLINK-21450
     void testRequestNextInputSplitWithLocalFailover() throws Exception {
 
-        configuration.setString(
+        configuration.set(
                 JobManagerOptions.EXECUTION_FAILOVER_STRATEGY,
                 FailoverStrategyFactoryLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME);
 
@@ -1033,10 +1033,10 @@ class JobMasterTest {
 
     @Test
     void testRequestNextInputSplitWithGlobalFailover() throws Exception {
-        configuration.setInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
         configuration.set(
                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofSeconds(0));
-        configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
+        configuration.set(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
 
         final Function<List<List<InputSplit>>, Collection<InputSplit>>
                 expectAllRemainingInputSplits = this::flattenCollection;

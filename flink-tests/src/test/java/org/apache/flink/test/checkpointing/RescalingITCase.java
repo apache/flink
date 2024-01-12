@@ -145,12 +145,11 @@ public class RescalingITCase extends TestLogger {
             final File checkpointDir = temporaryFolder.newFolder();
             final File savepointDir = temporaryFolder.newFolder();
 
-            config.setString(StateBackendOptions.STATE_BACKEND, currentBackend);
-            config.setString(
+            config.set(StateBackendOptions.STATE_BACKEND, currentBackend);
+            config.set(
                     CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
-            config.setString(
-                    CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
-            config.setInteger(
+            config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+            config.set(
                     NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, buffersPerChannel);
 
             cluster =

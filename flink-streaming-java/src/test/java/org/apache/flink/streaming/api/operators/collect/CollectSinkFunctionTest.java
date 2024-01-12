@@ -133,7 +133,7 @@ public class CollectSinkFunctionTest extends TestLogger {
                     .getRuntimeContext()
                     .getTaskManagerRuntimeInfo()
                     .getConfiguration()
-                    .setInteger(TaskManagerOptions.COLLECT_PORT, socket.getLocalPort());
+                    .set(TaskManagerOptions.COLLECT_PORT, socket.getLocalPort());
             assertThatThrownBy(() -> functionWrapper.openFunction())
                     .isInstanceOf(BindException.class)
                     .hasMessageContaining("Address already in use");

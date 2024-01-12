@@ -294,7 +294,7 @@ public class RocksDBStateBackendConfigTest {
         try {
             // set the default file system scheme
             Configuration config = new Configuration();
-            config.setString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, "s3://mydomain.com:8020/flink");
+            config.set(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, "s3://mydomain.com:8020/flink");
             FileSystem.initialize(config);
             testLocalDbPaths(null, tempFolder.getRoot());
         } finally {
@@ -310,7 +310,7 @@ public class RocksDBStateBackendConfigTest {
         try {
             // set the default file system scheme
             Configuration config = new Configuration();
-            config.setString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, "s3://mydomain.com:8020/flink");
+            config.set(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, "s3://mydomain.com:8020/flink");
             FileSystem.initialize(config);
 
             testLocalDbPaths(dbStoragePath, folder);
@@ -524,7 +524,7 @@ public class RocksDBStateBackendConfigTest {
 
         // verify that user could configure predefined options via flink-conf.yaml
         Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 RocksDBOptions.PREDEFINED_OPTIONS, PredefinedOptions.FLASH_SSD_OPTIMIZED.name());
         rocksDbBackend = new RocksDBStateBackend(checkpointPath);
         rocksDbBackend = rocksDbBackend.configure(configuration, getClass().getClassLoader());
@@ -810,7 +810,7 @@ public class RocksDBStateBackendConfigTest {
     @Test
     public void testConfigureManagedMemory() {
         final Configuration config = new Configuration();
-        config.setBoolean(RocksDBOptions.USE_MANAGED_MEMORY, true);
+        config.set(RocksDBOptions.USE_MANAGED_MEMORY, true);
 
         final RocksDBMemoryConfiguration memSettings =
                 RocksDBMemoryConfiguration.fromOtherAndConfiguration(
@@ -854,7 +854,7 @@ public class RocksDBStateBackendConfigTest {
     public void testConfigureRestoreOverlapThreshold() {
         EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend(true);
         Configuration configuration = new Configuration();
-        configuration.setDouble(RocksDBConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD, 0.3);
+        configuration.set(RocksDBConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD, 0.3);
         rocksDBStateBackend =
                 rocksDBStateBackend.configure(configuration, getClass().getClassLoader());
         assertTrue(0.3 == rocksDBStateBackend.getOverlapFractionThreshold());

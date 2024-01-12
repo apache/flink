@@ -57,8 +57,7 @@ class BlobUtilsNonWritableTest {
     @Test
     void testExceptionOnCreateStorageDirectoryFailure() {
         Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, getStorageLocationFile().getAbsolutePath());
+        config.set(BlobServerOptions.STORAGE_DIRECTORY, getStorageLocationFile().getAbsolutePath());
 
         assertThatThrownBy(() -> BlobUtils.createBlobStorageDirectory(config, null))
                 .isInstanceOf(IOException.class);

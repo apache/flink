@@ -153,14 +153,13 @@ public class AutoRescalingITCase extends TestLogger {
             final File checkpointDir = temporaryFolder.newFolder();
             final File savepointDir = temporaryFolder.newFolder();
 
-            config.setString(StateBackendOptions.STATE_BACKEND, currentBackend);
-            config.setBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
-            config.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, true);
-            config.setString(
+            config.set(StateBackendOptions.STATE_BACKEND, currentBackend);
+            config.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
+            config.set(CheckpointingOptions.LOCAL_RECOVERY, true);
+            config.set(
                     CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
-            config.setString(
-                    CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
-            config.setInteger(
+            config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+            config.set(
                     NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, buffersPerChannel);
 
             config.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);

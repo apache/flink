@@ -77,7 +77,7 @@ abstract class PythonTableFunctionOperatorTestBase<IN, OUT> {
     @Test
     void testFinishBundleTriggeredOnCheckpoint() throws Exception {
         Configuration conf = new Configuration();
-        conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
+        conf.set(PythonOptions.MAX_BUNDLE_SIZE, 10);
         OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
                 getTestHarness(conf, FlinkJoinType.INNER);
 
@@ -102,7 +102,7 @@ abstract class PythonTableFunctionOperatorTestBase<IN, OUT> {
     @Test
     void testFinishBundleTriggeredByCount() throws Exception {
         Configuration conf = new Configuration();
-        conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 2);
+        conf.set(PythonOptions.MAX_BUNDLE_SIZE, 2);
         OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
                 getTestHarness(conf, FlinkJoinType.INNER);
 
@@ -129,8 +129,8 @@ abstract class PythonTableFunctionOperatorTestBase<IN, OUT> {
     @Test
     void testFinishBundleTriggeredByTime() throws Exception {
         Configuration conf = new Configuration();
-        conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-        conf.setLong(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
+        conf.set(PythonOptions.MAX_BUNDLE_SIZE, 10);
+        conf.set(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
         OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
                 getTestHarness(conf, FlinkJoinType.INNER);
 

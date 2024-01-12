@@ -50,7 +50,7 @@ public class SlotSelectionStrategyUtils {
                         : LocationPreferenceSlotSelectionStrategy.createDefault();
 
         final boolean isLocalRecoveryEnabled =
-                configuration.getBoolean(CheckpointingOptions.LOCAL_RECOVERY);
+                configuration.get(CheckpointingOptions.LOCAL_RECOVERY);
         if (isLocalRecoveryEnabled) {
             if (jobType == JobType.STREAMING) {
                 return PreviousAllocationSlotSelectionStrategy.create(

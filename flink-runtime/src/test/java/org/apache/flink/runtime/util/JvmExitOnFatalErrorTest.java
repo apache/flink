@@ -153,7 +153,7 @@ class JvmExitOnFatalErrorTest {
             // have a test that exits accidentally due to a programming error
             try {
                 final Configuration taskManagerConfig = new Configuration();
-                taskManagerConfig.setBoolean(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY, true);
+                taskManagerConfig.set(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY, true);
 
                 final JobID jid = new JobID();
                 final AllocationID allocationID = new AllocationID();

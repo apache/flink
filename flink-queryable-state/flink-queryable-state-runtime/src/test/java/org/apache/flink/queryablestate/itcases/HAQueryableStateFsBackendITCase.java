@@ -100,27 +100,27 @@ class HAQueryableStateFsBackendITCase extends AbstractQueryableStateTestBase {
     private static Configuration getConfig() {
 
         Configuration config = new Configuration();
-        config.setBoolean(QueryableStateOptions.ENABLE_QUERYABLE_STATE_PROXY_SERVER, true);
+        config.set(QueryableStateOptions.ENABLE_QUERYABLE_STATE_PROXY_SERVER, true);
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
         config.set(TaskManagerOptions.MINI_CLUSTER_NUM_TASK_MANAGERS, NUM_TMS);
-        config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
-        config.setInteger(QueryableStateOptions.CLIENT_NETWORK_THREADS, 2);
-        config.setInteger(QueryableStateOptions.PROXY_NETWORK_THREADS, 2);
-        config.setInteger(QueryableStateOptions.SERVER_NETWORK_THREADS, 2);
-        config.setString(
+        config.set(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
+        config.set(QueryableStateOptions.CLIENT_NETWORK_THREADS, 2);
+        config.set(QueryableStateOptions.PROXY_NETWORK_THREADS, 2);
+        config.set(QueryableStateOptions.SERVER_NETWORK_THREADS, 2);
+        config.set(
                 QueryableStateOptions.PROXY_PORT_RANGE,
                 QS_PROXY_PORT_RANGE_START + "-" + (QS_PROXY_PORT_RANGE_START + NUM_TMS));
-        config.setString(
+        config.set(
                 QueryableStateOptions.SERVER_PORT_RANGE,
                 QS_SERVER_PORT_RANGE_START + "-" + (QS_SERVER_PORT_RANGE_START + NUM_TMS));
-        config.setBoolean(WebOptions.SUBMIT_ENABLE, false);
+        config.set(WebOptions.SUBMIT_ENABLE, false);
 
-        config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, tmpHaStoragePath.toString());
+        config.set(HighAvailabilityOptions.HA_STORAGE_PATH, tmpHaStoragePath.toString());
 
-        config.setString(
+        config.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
                 ZK_RESOURCE.getCustomExtension().getConnectString());
-        config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+        config.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
 
         return config;
     }

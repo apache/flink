@@ -115,7 +115,7 @@ public class KubernetesUtils {
     public static void checkAndUpdatePortConfigOption(
             Configuration flinkConfig, ConfigOption<String> port, int fallbackPort) {
         if (KubernetesUtils.parsePort(flinkConfig, port) == 0) {
-            flinkConfig.setString(port, String.valueOf(fallbackPort));
+            flinkConfig.set(port, String.valueOf(fallbackPort));
             LOG.info(
                     "Kubernetes deployment requires a fixed port. Configuration {} will be set to {}",
                     port.key(),
@@ -548,7 +548,7 @@ public class KubernetesUtils {
 
     /** Checks if hostNetwork is enabled. */
     public static boolean isHostNetwork(Configuration configuration) {
-        return configuration.getBoolean(KubernetesConfigOptions.KUBERNETES_HOSTNETWORK_ENABLED);
+        return configuration.get(KubernetesConfigOptions.KUBERNETES_HOSTNETWORK_ENABLED);
     }
 
     /**

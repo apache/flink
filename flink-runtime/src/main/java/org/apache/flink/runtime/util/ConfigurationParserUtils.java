@@ -49,7 +49,7 @@ public class ConfigurationParserUtils {
      * @return the number of slots in task manager
      */
     public static int getSlot(Configuration configuration) {
-        int slots = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
+        int slots = configuration.get(TaskManagerOptions.NUM_TASK_SLOTS, 1);
         // we need this because many configs have been written with a "-1" entry
         if (slots == -1) {
             slots = 1;

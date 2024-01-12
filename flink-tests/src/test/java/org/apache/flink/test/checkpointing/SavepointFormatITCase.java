@@ -146,7 +146,7 @@ public class SavepointFormatITCase extends TestLogger {
 
         public Configuration getConfiguration() {
             Configuration stateBackendConfig = new Configuration();
-            stateBackendConfig.setString(StateBackendOptions.STATE_BACKEND, getConfigName());
+            stateBackendConfig.set(StateBackendOptions.STATE_BACKEND, getConfigName());
             stateBackendConfig.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, incremental);
             stateBackendConfig.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, changelogEnabled);
             return stateBackendConfig;

@@ -109,9 +109,8 @@ class FileBufferReaderITCase {
         // Increases the handshake timeout to avoid connection reset/close issues
         // if the netty server thread could not response in time, like when it is
         // busy reading the files.
-        configuration.setInteger(SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT, 100000);
-        configuration.setString(
-                NettyShuffleEnvironmentOptions.NETWORK_BLOCKING_SHUFFLE_TYPE, "file");
+        configuration.set(SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT, 100000);
+        configuration.set(NettyShuffleEnvironmentOptions.NETWORK_BLOCKING_SHUFFLE_TYPE, "file");
         configuration.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
         configuration.set(
                 TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse(bufferSize + "b"));

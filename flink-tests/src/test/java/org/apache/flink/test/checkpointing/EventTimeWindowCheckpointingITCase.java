@@ -168,8 +168,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         }
 
         Configuration config = createClusterConfig();
-        config.setInteger(
-                NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, buffersPerChannel);
+        config.set(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, buffersPerChannel);
 
         switch (stateBackendEnum) {
             case MEM:
@@ -237,13 +236,12 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         final File haDir = temporaryFolder.newFolder();
 
         Configuration config = new Configuration();
-        config.setString(AkkaOptions.FRAMESIZE, String.valueOf(MAX_MEM_STATE_SIZE) + "b");
+        config.set(AkkaOptions.FRAMESIZE, String.valueOf(MAX_MEM_STATE_SIZE) + "b");
 
         if (zkServer != null) {
-            config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-            config.setString(
-                    HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
-            config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haDir.toURI().toString());
+            config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+            config.set(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
+            config.set(HighAvailabilityOptions.HA_STORAGE_PATH, haDir.toURI().toString());
         }
         return config;
     }

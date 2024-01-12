@@ -127,13 +127,13 @@ class StateBackendLoadingTest {
 
         final Configuration config1 = new Configuration();
         config1.setString(backendKey, "jobmanager");
-        config1.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
-        config1.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
+        config1.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
+        config1.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 
         final Configuration config2 = new Configuration();
         config2.setString(backendKey, MemoryStateBackendFactory.class.getName());
-        config2.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
-        config2.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
+        config2.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
+        config2.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 
         MemoryStateBackend backend1 =
                 (MemoryStateBackend)
@@ -168,8 +168,8 @@ class StateBackendLoadingTest {
 
         final Configuration config = new Configuration();
         config.setString(backendKey, "filesystem"); // check that this is not accidentally picked up
-        config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
+        config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 
         StateBackend loadedBackendFromClusterConfig =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
@@ -210,10 +210,10 @@ class StateBackendLoadingTest {
 
         final Configuration config = new Configuration();
         config.setString(backendKey, "filesystem"); // check that this is not accidentally picked up
-        config.setString(
+        config.set(
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY,
                 checkpointDir); // this parameter should not be picked up
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 
         // add parameters from cluster config
         StateBackend loadedBackendFromJobConfig =
@@ -258,17 +258,17 @@ class StateBackendLoadingTest {
         // to guard against config-breaking changes of the name
         final Configuration config1 = new Configuration();
         config1.setString(backendKey, "filesystem");
-        config1.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
-        config1.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
+        config1.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
+        config1.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
         config1.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, threshold);
-        config1.setInteger(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, minWriteBufferSize);
+        config1.set(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, minWriteBufferSize);
 
         final Configuration config2 = new Configuration();
         config2.setString(backendKey, FsStateBackendFactory.class.getName());
-        config2.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
-        config2.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
+        config2.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
+        config2.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
         config2.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, threshold);
-        config1.setInteger(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, minWriteBufferSize);
+        config1.set(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, minWriteBufferSize);
 
         StateBackend backend1 = StateBackendLoader.loadStateBackendFromConfig(config1, cl, null);
         StateBackend backend2 = StateBackendLoader.loadStateBackendFromConfig(config2, cl, null);
@@ -313,14 +313,14 @@ class StateBackendLoadingTest {
 
         final Configuration config = new Configuration();
         config.setString(backendKey, "jobmanager"); // this should not be picked up
-        config.setString(
+        config.set(
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY,
                 checkpointDir); // this should not be picked up
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
         config.set(
                 CheckpointingOptions.FS_SMALL_FILE_THRESHOLD,
                 MemorySize.parse("20")); // this should not be picked up
-        config.setInteger(
+        config.set(
                 CheckpointingOptions.FS_WRITE_BUFFER_SIZE, 3000000); // this should not be picked up
 
         final StateBackend loadedBackend =
@@ -405,20 +405,20 @@ class StateBackendLoadingTest {
     private void testMemoryBackendHighAvailabilityDefault(
             String haPersistenceDir, Path checkpointPath) throws Exception {
         final Configuration config1 = new Configuration();
-        config1.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-        config1.setString(HighAvailabilityOptions.HA_CLUSTER_ID, "myCluster");
-        config1.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haPersistenceDir);
+        config1.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
+        config1.set(HighAvailabilityOptions.HA_CLUSTER_ID, "myCluster");
+        config1.set(HighAvailabilityOptions.HA_STORAGE_PATH, haPersistenceDir);
 
         final Configuration config2 = new Configuration();
         config2.setString(backendKey, "jobmanager");
-        config2.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-        config2.setString(HighAvailabilityOptions.HA_CLUSTER_ID, "myCluster");
-        config2.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haPersistenceDir);
+        config2.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
+        config2.set(HighAvailabilityOptions.HA_CLUSTER_ID, "myCluster");
+        config2.set(HighAvailabilityOptions.HA_STORAGE_PATH, haPersistenceDir);
 
         if (checkpointPath != null) {
-            config1.setString(
+            config1.set(
                     CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointPath.toUri().toString());
-            config2.setString(
+            config2.set(
                     CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointPath.toUri().toString());
         }
 

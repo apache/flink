@@ -155,7 +155,7 @@ class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
     @Test
     void testFinishBundleTriggeredOnCheckpoint() throws Exception {
         Configuration conf = new Configuration();
-        conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
+        conf.set(PythonOptions.MAX_BUNDLE_SIZE, 10);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
 
         long initialTime = 0L;
@@ -244,7 +244,7 @@ class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
     @Test
     void testFinishBundleTriggeredByCount() throws Exception {
         Configuration conf = new Configuration();
-        conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 4);
+        conf.set(PythonOptions.MAX_BUNDLE_SIZE, 4);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
 
         long initialTime = 0L;

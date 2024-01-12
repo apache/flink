@@ -338,10 +338,9 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 
         final File savepointDir = temporaryFolder.newFolder();
 
-        config.setString(
-                CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
-        config.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, localRecovery);
+        config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+        config.set(CheckpointingOptions.LOCAL_RECOVERY, localRecovery);
 
         // Configure DFS DSTL for this test as it might produce too much GC pressure if
         // ChangelogStateBackend is used.
@@ -353,9 +352,9 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
         // ZooKeeper recovery mode?
         if (zooKeeperQuorum != null) {
             final File haDir = temporaryFolder.newFolder();
-            config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-            config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperQuorum);
-            config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haDir.toURI().toString());
+            config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+            config.set(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperQuorum);
+            config.set(HighAvailabilityOptions.HA_STORAGE_PATH, haDir.toURI().toString());
         }
 
         MiniClusterWithClientResource cluster =

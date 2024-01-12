@@ -99,13 +99,13 @@ public class MultipartUploadExtension implements CustomExtension {
     public void before(ExtensionContext context) throws Exception {
         Path tmpDirectory = tmpDirectorySupplier.get();
         Configuration config = new Configuration();
-        config.setString(RestOptions.BIND_PORT, "0");
-        config.setString(RestOptions.ADDRESS, "localhost");
+        config.set(RestOptions.BIND_PORT, "0");
+        config.set(RestOptions.ADDRESS, "localhost");
         // set this to a lower value on purpose to test that files larger than the content limit are
         // still accepted
-        config.setInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH, 1024 * 1024);
+        config.set(RestOptions.SERVER_MAX_CONTENT_LENGTH, 1024 * 1024);
         configuredUploadDir = TempDirUtils.newFolder(tmpDirectory).toPath();
-        config.setString(WebOptions.UPLOAD_DIR, configuredUploadDir.toString());
+        config.set(WebOptions.UPLOAD_DIR, configuredUploadDir.toString());
 
         RestfulGateway mockRestfulGateway = new TestingRestfulGateway();
 

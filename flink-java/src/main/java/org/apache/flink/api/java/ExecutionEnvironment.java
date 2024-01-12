@@ -964,7 +964,7 @@ public class ExecutionEnvironment {
         final JobClient jobClient = executeAsync(jobName);
 
         try {
-            if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
+            if (configuration.get(DeploymentOptions.ATTACHED)) {
                 lastJobExecutionResult = jobClient.getJobExecutionResult().get();
             } else {
                 lastJobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
@@ -1211,7 +1211,7 @@ public class ExecutionEnvironment {
      * @return A job name.
      */
     private String getJobName() {
-        return configuration.getString(
+        return configuration.get(
                 PipelineOptions.NAME, "Flink Java Job at " + Calendar.getInstance().getTime());
     }
 
@@ -1302,7 +1302,7 @@ public class ExecutionEnvironment {
 
         if (!conf.contains(RestOptions.PORT)) {
             // explicitly set this option so that it's not set to 0 later
-            conf.setInteger(RestOptions.PORT, RestOptions.PORT.defaultValue());
+            conf.set(RestOptions.PORT, RestOptions.PORT.defaultValue());
         }
 
         return createLocalEnvironment(conf, -1);

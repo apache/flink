@@ -46,11 +46,11 @@ class BlobServerCorruptionTest {
     void testGetFailsFromCorruptFile() throws IOException {
 
         final Configuration config = new Configuration();
-        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-        config.setString(
+        config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.set(
                 BlobServerOptions.STORAGE_DIRECTORY,
                 TempDirUtils.newFolder(tempDir).getAbsolutePath());
-        config.setString(
+        config.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH, TempDirUtils.newFolder(tempDir).getPath());
 
         BlobStoreService blobStoreService = null;

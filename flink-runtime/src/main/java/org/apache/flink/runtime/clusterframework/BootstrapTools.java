@@ -177,8 +177,8 @@ public class BootstrapTools {
                     configuration.getValue(CoreOptions.TMP_DIRS));
         } else if (defaultDirs != null) {
             LOG.info("Setting directories for temporary files to: {}", defaultDirs);
-            configuration.setString(CoreOptions.TMP_DIRS, defaultDirs);
-            configuration.setBoolean(USE_LOCAL_DEFAULT_TMP_DIRS, true);
+            configuration.set(CoreOptions.TMP_DIRS, defaultDirs);
+            configuration.set(USE_LOCAL_DEFAULT_TMP_DIRS, true);
         }
     }
 
@@ -191,7 +191,7 @@ public class BootstrapTools {
     public static Configuration cloneConfiguration(Configuration configuration) {
         final Configuration clonedConfiguration = new Configuration(configuration);
 
-        if (clonedConfiguration.getBoolean(USE_LOCAL_DEFAULT_TMP_DIRS)) {
+        if (clonedConfiguration.get(USE_LOCAL_DEFAULT_TMP_DIRS)) {
             clonedConfiguration.removeConfig(CoreOptions.TMP_DIRS);
             clonedConfiguration.removeConfig(USE_LOCAL_DEFAULT_TMP_DIRS);
         }
@@ -217,12 +217,12 @@ public class BootstrapTools {
                         .flatMap(
                                 (String key) -> {
                                     final String baseValue =
-                                            baseConfig.getString(
+                                            baseConfig.get(
                                                     ConfigOptions.key(key)
                                                             .stringType()
                                                             .noDefaultValue());
                                     final String targetValue =
-                                            targetConfig.getString(
+                                            targetConfig.get(
                                                     ConfigOptions.key(key)
                                                             .stringType()
                                                             .noDefaultValue());

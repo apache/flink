@@ -90,8 +90,8 @@ public class RemoteStreamEnvironmentTest extends TestLogger {
         JobExecutionResult actualResult = env.execute("fakeJobName");
         TestClusterClient testClient = testExecutorServiceLoader.getCreatedClusterClient();
         assertThat(actualResult.getJobID(), is(jobId));
-        assertThat(testClient.getConfiguration().getString(RestOptions.ADDRESS), is(host));
-        assertThat(testClient.getConfiguration().getInteger(RestOptions.PORT), is(99));
+        assertThat(testClient.getConfiguration().get(RestOptions.ADDRESS), is(host));
+        assertThat(testClient.getConfiguration().get(RestOptions.PORT), is(99));
     }
 
     @Test

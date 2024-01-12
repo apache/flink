@@ -174,12 +174,11 @@ public class ProgramOptions extends CommandLineOptions {
 
     public void applyToConfiguration(Configuration configuration) {
         if (hasParallelismOpt) {
-            configuration.setInteger(CoreOptions.DEFAULT_PARALLELISM, getParallelism());
+            configuration.set(CoreOptions.DEFAULT_PARALLELISM, getParallelism());
         }
 
-        configuration.setBoolean(DeploymentOptions.ATTACHED, !getDetachedMode());
-        configuration.setBoolean(
-                DeploymentOptions.SHUTDOWN_IF_ATTACHED, isShutdownOnAttachedExit());
+        configuration.set(DeploymentOptions.ATTACHED, !getDetachedMode());
+        configuration.set(DeploymentOptions.SHUTDOWN_IF_ATTACHED, isShutdownOnAttachedExit());
         ConfigUtils.encodeCollectionToConfig(
                 configuration, PipelineOptions.CLASSPATHS, getClasspaths(), URL::toString);
         SavepointRestoreSettings.toConfiguration(getSavepointRestoreSettings(), configuration);

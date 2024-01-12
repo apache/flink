@@ -75,7 +75,7 @@ class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
         Configuration config = new Configuration();
         // Always offload the serialized JobInformation, TaskInformation and cached
         // ShuffleDescriptors
-        config.setInteger(BlobServerOptions.OFFLOAD_MINSIZE, 0);
+        config.set(BlobServerOptions.OFFLOAD_MINSIZE, 0);
         blobServer =
                 new BlobServer(
                         config, TempDirUtils.newFolder(temporaryFolder), new VoidBlobStore());

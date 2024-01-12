@@ -51,7 +51,7 @@ class MessageSerializationTest {
     @BeforeAll
     static void setup() throws Exception {
         Configuration configuration = new Configuration();
-        configuration.setString(AkkaOptions.FRAMESIZE, maxFrameSize + "b");
+        configuration.set(AkkaOptions.FRAMESIZE, maxFrameSize + "b");
 
         rpcService1 =
                 PekkoRpcServiceUtils.remoteServiceBuilder(configuration, "localhost", 0)

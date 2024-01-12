@@ -417,9 +417,9 @@ class TaskExecutorSubmissionTest {
             final int dataPort = port.getPort();
 
             Configuration config = new Configuration();
-            config.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, dataPort);
-            config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
-            config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+            config.set(NettyShuffleEnvironmentOptions.DATA_PORT, dataPort);
+            config.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+            config.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
 
             // Remote location (on the same TM though) for the partition
             NettyShuffleDescriptor sdd =
@@ -518,8 +518,8 @@ class TaskExecutorSubmissionTest {
         ExecutionAttemptID eid = tdd.getExecutionAttemptId();
 
         Configuration config = new Configuration();
-        config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
-        config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+        config.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+        config.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
 
         final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
         final CompletableFuture<Void> taskFailedFuture = new CompletableFuture<>();

@@ -78,7 +78,7 @@ class ZooKeeperCompletedCheckpointStoreTest {
     @Test
     void testRecoverFailsIfDownloadFails() {
         final Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
                 zooKeeperExtensionWrapper.getCustomExtension().getConnectString());
         final List<Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String>> checkpointsInZk =
@@ -125,7 +125,7 @@ class ZooKeeperCompletedCheckpointStoreTest {
     void testDiscardingSubsumedCheckpoints() throws Exception {
         final SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         final Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
                 zooKeeperExtensionWrapper.getCustomExtension().getConnectString());
 
@@ -164,7 +164,7 @@ class ZooKeeperCompletedCheckpointStoreTest {
     void testDiscardingCheckpointsAtShutDown() throws Exception {
         final SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         final Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
                 zooKeeperExtensionWrapper.getCustomExtension().getConnectString());
 
@@ -240,7 +240,7 @@ class ZooKeeperCompletedCheckpointStoreTest {
 
         final int numCheckpointsToRetain = 1;
         final Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
                 zooKeeperExtensionWrapper.getCustomExtension().getConnectString());
 

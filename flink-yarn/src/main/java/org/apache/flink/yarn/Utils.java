@@ -708,7 +708,7 @@ public final class Utils {
             org.apache.flink.configuration.Configuration configuration,
             YarnConfiguration yarnConfiguration)
             throws IOException, IllegalArgumentException {
-        String usrlib = configuration.getString(YarnConfigOptions.PROVIDED_USRLIB_DIR);
+        String usrlib = configuration.get(YarnConfigOptions.PROVIDED_USRLIB_DIR);
         if (usrlib == null) {
             return Optional.empty();
         }
@@ -778,8 +778,8 @@ public final class Utils {
             ContainerLaunchContext amContainer,
             org.apache.flink.configuration.Configuration flinkConfig) {
         Map<ApplicationAccessType, String> acls = new HashMap<>();
-        final String viewAcls = flinkConfig.getString(YarnConfigOptions.APPLICATION_VIEW_ACLS);
-        final String modifyAcls = flinkConfig.getString(YarnConfigOptions.APPLICATION_MODIFY_ACLS);
+        final String viewAcls = flinkConfig.get(YarnConfigOptions.APPLICATION_VIEW_ACLS);
+        final String modifyAcls = flinkConfig.get(YarnConfigOptions.APPLICATION_MODIFY_ACLS);
         validateAclString(viewAcls);
         validateAclString(modifyAcls);
 

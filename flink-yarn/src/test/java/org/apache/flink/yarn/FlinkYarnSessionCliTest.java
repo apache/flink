@@ -185,7 +185,7 @@ class FlinkYarnSessionCliTest {
         final File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
 
         final Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
 
         validateYarnCLIisActive(configuration);
@@ -232,7 +232,7 @@ class FlinkYarnSessionCliTest {
         File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
 
         final Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
 
         final FlinkYarnSessionCli flinkYarnSessionCli = createFlinkYarnSessionCli(configuration);
@@ -258,7 +258,7 @@ class FlinkYarnSessionCliTest {
         File directoryPath = writeYarnPropertiesFile(invalidPropertiesFile);
 
         final Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
         assertThatThrownBy(() -> createFlinkYarnSessionCli(configuration))
                 .isInstanceOf(FlinkException.class);
@@ -333,7 +333,7 @@ class FlinkYarnSessionCliTest {
         File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
 
         final Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
 
         final FlinkYarnSessionCli flinkYarnSessionCli = createFlinkYarnSessionCli(configuration);
@@ -364,7 +364,7 @@ class FlinkYarnSessionCliTest {
                 JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(jobManagerMemory));
         configuration.set(
                 TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(taskManagerMemory));
-        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
+        configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
         final String[] args = {
             "-yjm",
@@ -401,7 +401,7 @@ class FlinkYarnSessionCliTest {
         configuration.set(
                 TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(taskManagerMemory));
         final int slotsPerTaskManager = 42;
-        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
+        configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
         final String[] args = {};
         final FlinkYarnSessionCli flinkYarnSessionCli = createFlinkYarnSessionCli(configuration);

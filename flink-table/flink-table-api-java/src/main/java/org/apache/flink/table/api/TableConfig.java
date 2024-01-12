@@ -252,7 +252,7 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      * @see org.apache.flink.table.types.logical.LocalZonedTimestampType
      */
     public ZoneId getLocalTimeZone() {
-        final String zone = configuration.getString(TableConfigOptions.LOCAL_TIME_ZONE);
+        final String zone = configuration.get(TableConfigOptions.LOCAL_TIME_ZONE);
         if (TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)) {
             return ZoneId.systemDefault();
         }
@@ -317,7 +317,7 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
         }
         validateTimeZone(zone);
 
-        configuration.setString(TableConfigOptions.LOCAL_TIME_ZONE, zone);
+        configuration.set(TableConfigOptions.LOCAL_TIME_ZONE, zone);
     }
 
     /** Returns the current configuration of Planner for Table API and SQL queries. */
@@ -342,7 +342,7 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      * more than 8K byte code.
      */
     public Integer getMaxGeneratedCodeLength() {
-        return this.configuration.getInteger(TableConfigOptions.MAX_LENGTH_GENERATED_CODE);
+        return this.configuration.get(TableConfigOptions.MAX_LENGTH_GENERATED_CODE);
     }
 
     /**
@@ -353,7 +353,7 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      * more than 8K byte code.
      */
     public void setMaxGeneratedCodeLength(Integer maxGeneratedCodeLength) {
-        this.configuration.setInteger(
+        this.configuration.set(
                 TableConfigOptions.MAX_LENGTH_GENERATED_CODE, maxGeneratedCodeLength);
     }
 

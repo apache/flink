@@ -179,7 +179,7 @@ public abstract class AbstractStreamOperator<OUT>
 
         try {
             Configuration taskManagerConfig = environment.getTaskManagerInfo().getConfiguration();
-            int historySize = taskManagerConfig.getInteger(MetricOptions.LATENCY_HISTORY_SIZE);
+            int historySize = taskManagerConfig.get(MetricOptions.LATENCY_HISTORY_SIZE);
             if (historySize <= 0) {
                 LOG.warn(
                         "{} has been set to a value equal or below 0: {}. Using default.",
@@ -189,7 +189,7 @@ public abstract class AbstractStreamOperator<OUT>
             }
 
             final String configuredGranularity =
-                    taskManagerConfig.getString(MetricOptions.LATENCY_SOURCE_GRANULARITY);
+                    taskManagerConfig.get(MetricOptions.LATENCY_SOURCE_GRANULARITY);
             LatencyStats.Granularity granularity;
             try {
                 granularity =

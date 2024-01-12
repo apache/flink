@@ -117,33 +117,33 @@ public class MiniClusterConfiguration {
     public String getJobManagerExternalAddress() {
         return commonBindAddress != null
                 ? commonBindAddress
-                : configuration.getString(JobManagerOptions.ADDRESS, "localhost");
+                : configuration.get(JobManagerOptions.ADDRESS, "localhost");
     }
 
     public String getTaskManagerExternalAddress() {
         return commonBindAddress != null
                 ? commonBindAddress
-                : configuration.getString(TaskManagerOptions.HOST, "localhost");
+                : configuration.get(TaskManagerOptions.HOST, "localhost");
     }
 
     public String getJobManagerExternalPortRange() {
-        return String.valueOf(configuration.getInteger(JobManagerOptions.PORT, 0));
+        return String.valueOf(configuration.get(JobManagerOptions.PORT, 0));
     }
 
     public String getTaskManagerExternalPortRange() {
-        return configuration.getString(TaskManagerOptions.RPC_PORT);
+        return configuration.get(TaskManagerOptions.RPC_PORT);
     }
 
     public String getJobManagerBindAddress() {
         return commonBindAddress != null
                 ? commonBindAddress
-                : configuration.getString(JobManagerOptions.BIND_HOST, "localhost");
+                : configuration.get(JobManagerOptions.BIND_HOST, "localhost");
     }
 
     public String getTaskManagerBindAddress() {
         return commonBindAddress != null
                 ? commonBindAddress
-                : configuration.getString(TaskManagerOptions.BIND_HOST, "localhost");
+                : configuration.get(TaskManagerOptions.BIND_HOST, "localhost");
     }
 
     public UnmodifiableConfiguration getConfiguration() {
@@ -230,18 +230,17 @@ public class MiniClusterConfiguration {
 
         public MiniClusterConfiguration build() {
             final Configuration modifiedConfiguration = new Configuration(configuration);
-            modifiedConfiguration.setInteger(
-                    TaskManagerOptions.NUM_TASK_SLOTS, numSlotsPerTaskManager);
-            modifiedConfiguration.setString(
+            modifiedConfiguration.set(TaskManagerOptions.NUM_TASK_SLOTS, numSlotsPerTaskManager);
+            modifiedConfiguration.set(
                     RestOptions.ADDRESS,
-                    modifiedConfiguration.getString(RestOptions.ADDRESS, "localhost"));
+                    modifiedConfiguration.get(RestOptions.ADDRESS, "localhost"));
 
             if (useRandomPorts) {
                 if (!configuration.contains(JobManagerOptions.PORT)) {
                     modifiedConfiguration.set(JobManagerOptions.PORT, 0);
                 }
                 if (!configuration.contains(RestOptions.BIND_PORT)) {
-                    modifiedConfiguration.setString(RestOptions.BIND_PORT, "0");
+                    modifiedConfiguration.set(RestOptions.BIND_PORT, "0");
                 }
             }
 

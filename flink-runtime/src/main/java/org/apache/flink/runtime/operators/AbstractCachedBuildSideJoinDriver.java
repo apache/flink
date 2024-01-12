@@ -93,7 +93,7 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT>
                 taskContext
                         .getTaskManagerInfo()
                         .getConfiguration()
-                        .getBoolean(AlgorithmOptions.HASH_JOIN_BLOOM_FILTERS);
+                        .get(AlgorithmOptions.HASH_JOIN_BLOOM_FILTERS);
 
         ExecutionConfig executionConfig = taskContext.getExecutionConfig();
         objectReuseEnabled = executionConfig.isObjectReuseEnabled();

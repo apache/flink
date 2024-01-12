@@ -244,7 +244,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
         this.exceptionHistory =
                 new BoundedFIFOQueue<>(
-                        jobMasterConfiguration.getInteger(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
+                        jobMasterConfiguration.get(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
 
         this.vertexEndOfDataListener = new VertexEndOfDataListener(executionGraph);
     }

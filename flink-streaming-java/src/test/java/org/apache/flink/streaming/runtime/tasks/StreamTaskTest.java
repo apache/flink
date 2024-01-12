@@ -514,7 +514,7 @@ public class StreamTaskTest {
     @Test
     void testStateBackendLoadingAndClosing() throws Exception {
         Configuration taskManagerConfig = new Configuration();
-        taskManagerConfig.setString(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
+        taskManagerConfig.set(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
 
         StreamConfig cfg = new StreamConfig(new Configuration());
         cfg.setStateKeySerializer(mock(TypeSerializer.class));
@@ -555,7 +555,7 @@ public class StreamTaskTest {
     @Test
     void testStateBackendClosingOnFailure() throws Exception {
         Configuration taskManagerConfig = new Configuration();
-        taskManagerConfig.setString(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
+        taskManagerConfig.set(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
 
         StreamConfig cfg = new StreamConfig(new Configuration());
         cfg.setStateKeySerializer(mock(TypeSerializer.class));
@@ -1527,7 +1527,7 @@ public class StreamTaskTest {
     void testTaskAvoidHangingAfterSnapshotStateThrownException() throws Exception {
         // given: Configured SourceStreamTask with source which fails on checkpoint.
         Configuration taskManagerConfig = new Configuration();
-        taskManagerConfig.setString(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
+        taskManagerConfig.set(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
 
         StreamConfig cfg = new StreamConfig(new Configuration());
         cfg.setStateKeySerializer(mock(TypeSerializer.class));

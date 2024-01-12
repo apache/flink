@@ -153,18 +153,18 @@ public class RestServerEndpointITCase {
         final String keystorePath = getTestResource("local127.keystore").getAbsolutePath();
 
         final Configuration sslConfig = new Configuration(config);
-        sslConfig.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
-        sslConfig.setString(SecurityOptions.SSL_REST_TRUSTSTORE, truststorePath);
-        sslConfig.setString(SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD, "password");
-        sslConfig.setString(SecurityOptions.SSL_REST_KEYSTORE, keystorePath);
-        sslConfig.setString(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD, "password");
-        sslConfig.setString(SecurityOptions.SSL_REST_KEY_PASSWORD, "password");
+        sslConfig.set(SecurityOptions.SSL_REST_ENABLED, true);
+        sslConfig.set(SecurityOptions.SSL_REST_TRUSTSTORE, truststorePath);
+        sslConfig.set(SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD, "password");
+        sslConfig.set(SecurityOptions.SSL_REST_KEYSTORE, keystorePath);
+        sslConfig.set(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD, "password");
+        sslConfig.set(SecurityOptions.SSL_REST_KEY_PASSWORD, "password");
 
         final Configuration sslRestAuthConfig = new Configuration(sslConfig);
-        sslRestAuthConfig.setBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
+        sslRestAuthConfig.set(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
 
         final Configuration sslPinningRestAuthConfig = new Configuration(sslRestAuthConfig);
-        sslPinningRestAuthConfig.setString(
+        sslPinningRestAuthConfig.set(
                 SecurityOptions.SSL_REST_CERT_FINGERPRINT,
                 SSLUtilsTest.getRestCertificateFingerprint(sslPinningRestAuthConfig, "flink.test"));
 
@@ -178,17 +178,17 @@ public class RestServerEndpointITCase {
         final String loopbackAddress = InetAddress.getLoopbackAddress().getHostAddress();
 
         final Configuration config = new Configuration();
-        config.setString(RestOptions.BIND_PORT, "0");
-        config.setString(RestOptions.BIND_ADDRESS, loopbackAddress);
-        config.setString(RestOptions.ADDRESS, loopbackAddress);
-        config.setInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
-        config.setInteger(RestOptions.CLIENT_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
+        config.set(RestOptions.BIND_PORT, "0");
+        config.set(RestOptions.BIND_ADDRESS, loopbackAddress);
+        config.set(RestOptions.ADDRESS, loopbackAddress);
+        config.set(RestOptions.SERVER_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
+        config.set(RestOptions.CLIENT_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
         return config;
     }
 
     @BeforeEach
     void setup() throws Exception {
-        config.setString(WebOptions.UPLOAD_DIR, tempFolder.toUri().getPath());
+        config.set(WebOptions.UPLOAD_DIR, tempFolder.toUri().getPath());
 
         defaultSSLContext = SSLContext.getDefault();
         defaultSSLSocketFactory = HttpsURLConnection.getDefaultSSLSocketFactory();
@@ -514,7 +514,7 @@ public class RestServerEndpointITCase {
 
     @TestTemplate
     void testDefaultVersionRouting() throws Exception {
-        assumeThat(config.getBoolean(SecurityOptions.SSL_REST_ENABLED))
+        assumeThat(config.get(SecurityOptions.SSL_REST_ENABLED))
                 .as("Ignoring SSL-enabled test to keep OkHttp usage simple.")
                 .isFalse();
 
@@ -535,7 +535,7 @@ public class RestServerEndpointITCase {
 
     @TestTemplate
     void testNonSslRedirectForEnabledSsl() throws Exception {
-        assumeThat(config.getBoolean(SecurityOptions.SSL_REST_ENABLED)).isTrue();
+        assumeThat(config.get(SecurityOptions.SSL_REST_ENABLED)).isTrue();
 
         OkHttpClient client = new OkHttpClient.Builder().followRedirects(false).build();
         String httpsUrl = serverEndpoint.getRestBaseUrl() + "/path";
@@ -631,8 +631,8 @@ public class RestServerEndpointITCase {
         final int portRangeStart = 52300;
         final int portRangeEnd = 52400;
         final Configuration config = new Configuration();
-        config.setString(RestOptions.ADDRESS, "localhost");
-        config.setString(RestOptions.BIND_PORT, portRangeStart + "-" + portRangeEnd);
+        config.set(RestOptions.ADDRESS, "localhost");
+        config.set(RestOptions.BIND_PORT, portRangeStart + "-" + portRangeEnd);
 
         try (RestServerEndpoint serverEndpoint1 = TestRestServerEndpoint.builder(config).build();
                 RestServerEndpoint serverEndpoint2 =

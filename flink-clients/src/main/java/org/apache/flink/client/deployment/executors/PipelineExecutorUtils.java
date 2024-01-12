@@ -68,10 +68,10 @@ public class PipelineExecutorUtils {
                 .getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID)
                 .ifPresent(strJobID -> jobGraph.setJobID(JobID.fromHexString(strJobID)));
 
-        if (configuration.getBoolean(DeploymentOptions.ATTACHED)
-                && configuration.getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
+        if (configuration.get(DeploymentOptions.ATTACHED)
+                && configuration.get(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
             jobGraph.setInitialClientHeartbeatTimeout(
-                    configuration.getLong(ClientOptions.CLIENT_HEARTBEAT_TIMEOUT));
+                    configuration.get(ClientOptions.CLIENT_HEARTBEAT_TIMEOUT));
         }
 
         jobGraph.addJars(executionConfigAccessor.getJars());

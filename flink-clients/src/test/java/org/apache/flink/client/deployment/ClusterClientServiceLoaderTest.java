@@ -49,7 +49,7 @@ public class ClusterClientServiceLoaderTest {
     @Test
     public void testStandaloneClusterClientFactoryDiscovery() {
         final Configuration config = new Configuration();
-        config.setString(DeploymentOptions.TARGET, RemoteExecutor.NAME);
+        config.set(DeploymentOptions.TARGET, RemoteExecutor.NAME);
 
         ClusterClientFactory<StandaloneClusterId> factory =
                 serviceLoaderUnderTest.getClusterClientFactory(config);
@@ -59,7 +59,7 @@ public class ClusterClientServiceLoaderTest {
     @Test
     public void testFactoryDiscovery() {
         final Configuration config = new Configuration();
-        config.setString(DeploymentOptions.TARGET, VALID_TARGET);
+        config.set(DeploymentOptions.TARGET, VALID_TARGET);
 
         final ClusterClientFactory<Integer> factory =
                 serviceLoaderUnderTest.getClusterClientFactory(config);
@@ -74,7 +74,7 @@ public class ClusterClientServiceLoaderTest {
         assertThatThrownBy(
                         () -> {
                             final Configuration config = new Configuration();
-                            config.setString(DeploymentOptions.TARGET, AMBIGUOUS_TARGET);
+                            config.set(DeploymentOptions.TARGET, AMBIGUOUS_TARGET);
 
                             serviceLoaderUnderTest.getClusterClientFactory(config);
                         })
@@ -86,7 +86,7 @@ public class ClusterClientServiceLoaderTest {
         assertThatThrownBy(
                         () -> {
                             final Configuration config = new Configuration();
-                            config.setString(DeploymentOptions.TARGET, NON_EXISTING_TARGET);
+                            config.set(DeploymentOptions.TARGET, NON_EXISTING_TARGET);
 
                             final ClusterClientFactory<Integer> factory =
                                     serviceLoaderUnderTest.getClusterClientFactory(config);
@@ -101,7 +101,7 @@ public class ClusterClientServiceLoaderTest {
 
         @Override
         public boolean isCompatibleWith(Configuration configuration) {
-            return configuration.getString(DeploymentOptions.TARGET).equals(VALID_TARGET);
+            return configuration.get(DeploymentOptions.TARGET).equals(VALID_TARGET);
         }
 
         @Nullable
@@ -118,7 +118,7 @@ public class ClusterClientServiceLoaderTest {
 
         @Override
         public boolean isCompatibleWith(Configuration configuration) {
-            return configuration.getString(DeploymentOptions.TARGET).equals(AMBIGUOUS_TARGET);
+            return configuration.get(DeploymentOptions.TARGET).equals(AMBIGUOUS_TARGET);
         }
     }
 
@@ -130,7 +130,7 @@ public class ClusterClientServiceLoaderTest {
 
         @Override
         public boolean isCompatibleWith(Configuration configuration) {
-            return configuration.getString(DeploymentOptions.TARGET).equals(AMBIGUOUS_TARGET);
+            return configuration.get(DeploymentOptions.TARGET).equals(AMBIGUOUS_TARGET);
         }
     }
 

@@ -218,7 +218,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         FileSystemFactory fsFactory = FileSystem::get;
         RowDataPartitionComputer computer = partitionComputer();
 
-        boolean autoCompaction = tableOptions.getBoolean(AUTO_COMPACTION);
+        boolean autoCompaction = tableOptions.get(AUTO_COMPACTION);
         Object writer = createWriter(sinkContext);
         boolean isEncoder = writer instanceof Encoder;
         TableBucketAssigner assigner = new TableBucketAssigner(computer);

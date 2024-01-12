@@ -110,8 +110,8 @@ public class RegionFailoverITCase extends TestLogger {
     @Before
     public void setup() throws Exception {
         Configuration configuration = new Configuration();
-        configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "region");
-        configuration.setString(HighAvailabilityOptions.HA_MODE, TestingHAFactory.class.getName());
+        configuration.set(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "region");
+        configuration.set(HighAvailabilityOptions.HA_MODE, TestingHAFactory.class.getName());
 
         cluster =
                 new MiniClusterWithClientResource(

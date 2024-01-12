@@ -116,7 +116,7 @@ public class LocalRecoveryITCase extends TestLogger {
         protected Configuration createClusterConfig() throws IOException {
             Configuration config = super.createClusterConfig();
 
-            config.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, localRecoveryEnabled);
+            config.set(CheckpointingOptions.LOCAL_RECOVERY, localRecoveryEnabled);
 
             return config;
         }

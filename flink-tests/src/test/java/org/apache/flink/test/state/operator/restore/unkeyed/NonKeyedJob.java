@@ -54,7 +54,7 @@ public class NonKeyedJob {
         String savepointsPath = pt.getRequired("savepoint-path");
 
         Configuration config = new Configuration();
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointsPath);
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointsPath);
 
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(config);

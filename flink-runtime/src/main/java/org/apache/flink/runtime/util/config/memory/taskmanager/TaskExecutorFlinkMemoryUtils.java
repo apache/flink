@@ -252,8 +252,7 @@ public class TaskExecutorFlinkMemoryUtils implements FlinkMemoryUtils<TaskExecut
     private static MemorySize getNetworkMemorySizeWithLegacyConfig(final Configuration config) {
         checkArgument(isUsingLegacyNetworkConfigs(config));
         @SuppressWarnings("deprecation")
-        final long numOfBuffers =
-                config.getInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS);
+        final long numOfBuffers = config.get(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS);
         final long pageSize = ConfigurationParserUtils.getPageSize(config);
         return new MemorySize(numOfBuffers * pageSize);
     }

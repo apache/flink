@@ -81,20 +81,20 @@ public class NonHAQueryableStateRocksDBBackendITCase extends AbstractQueryableSt
 
     private static Configuration getConfig() {
         Configuration config = new Configuration();
-        config.setBoolean(QueryableStateOptions.ENABLE_QUERYABLE_STATE_PROXY_SERVER, true);
+        config.set(QueryableStateOptions.ENABLE_QUERYABLE_STATE_PROXY_SERVER, true);
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
         config.set(TaskManagerOptions.MINI_CLUSTER_NUM_TASK_MANAGERS, NUM_TMS);
-        config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
-        config.setInteger(QueryableStateOptions.CLIENT_NETWORK_THREADS, 1);
-        config.setInteger(QueryableStateOptions.PROXY_NETWORK_THREADS, 1);
-        config.setInteger(QueryableStateOptions.SERVER_NETWORK_THREADS, 1);
-        config.setString(
+        config.set(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
+        config.set(QueryableStateOptions.CLIENT_NETWORK_THREADS, 1);
+        config.set(QueryableStateOptions.PROXY_NETWORK_THREADS, 1);
+        config.set(QueryableStateOptions.SERVER_NETWORK_THREADS, 1);
+        config.set(
                 QueryableStateOptions.PROXY_PORT_RANGE,
                 QS_PROXY_PORT_RANGE_START + "-" + (QS_PROXY_PORT_RANGE_START + NUM_TMS));
-        config.setString(
+        config.set(
                 QueryableStateOptions.SERVER_PORT_RANGE,
                 QS_SERVER_PORT_RANGE_START + "-" + (QS_SERVER_PORT_RANGE_START + NUM_TMS));
-        config.setBoolean(WebOptions.SUBMIT_ENABLE, false);
+        config.set(WebOptions.SUBMIT_ENABLE, false);
         return config;
     }
 }

@@ -33,7 +33,7 @@ class FailoverStrategyFactoryLoaderTest {
     @Test
     void testLoadRestartAllStrategyFactory() {
         final Configuration config = new Configuration();
-        config.setString(
+        config.set(
                 JobManagerOptions.EXECUTION_FAILOVER_STRATEGY,
                 FailoverStrategyFactoryLoader.FULL_RESTART_STRATEGY_NAME);
         assertThat(FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(config))
@@ -43,7 +43,7 @@ class FailoverStrategyFactoryLoaderTest {
     @Test
     void testLoadRestartPipelinedRegionStrategyFactory() {
         final Configuration config = new Configuration();
-        config.setString(
+        config.set(
                 JobManagerOptions.EXECUTION_FAILOVER_STRATEGY,
                 FailoverStrategyFactoryLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME);
         assertThat(FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(config))
@@ -60,7 +60,7 @@ class FailoverStrategyFactoryLoaderTest {
     @Test
     void testLoadFromInvalidConfiguration() {
         final Configuration config = new Configuration();
-        config.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "invalidStrategy");
+        config.set(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "invalidStrategy");
         assertThatThrownBy(() -> FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(config))
                 .isInstanceOf(IllegalConfigurationException.class);
     }

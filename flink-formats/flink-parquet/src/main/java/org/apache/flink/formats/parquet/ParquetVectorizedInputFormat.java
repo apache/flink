@@ -149,7 +149,7 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
     }
 
     protected int numBatchesToCirculate(Configuration config) {
-        return config.getInteger(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY);
+        return config.get(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY);
     }
 
     @Override

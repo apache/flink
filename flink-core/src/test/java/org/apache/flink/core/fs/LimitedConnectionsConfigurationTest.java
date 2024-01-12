@@ -99,7 +99,7 @@ public class LimitedConnectionsConfigurationTest {
         // only total limit set
         {
             Configuration conf = new Configuration();
-            conf.setInteger(CoreOptions.fileSystemConnectionLimit(scheme), 10);
+            conf.set(CoreOptions.fileSystemConnectionLimit(scheme), 10);
 
             ConnectionLimitingSettings settings =
                     ConnectionLimitingSettings.fromConfig(conf, scheme);
@@ -112,7 +112,7 @@ public class LimitedConnectionsConfigurationTest {
         // only input limit set
         {
             Configuration conf = new Configuration();
-            conf.setInteger(CoreOptions.fileSystemConnectionLimitIn(scheme), 10);
+            conf.set(CoreOptions.fileSystemConnectionLimitIn(scheme), 10);
 
             ConnectionLimitingSettings settings =
                     ConnectionLimitingSettings.fromConfig(conf, scheme);
@@ -125,7 +125,7 @@ public class LimitedConnectionsConfigurationTest {
         // only output limit set
         {
             Configuration conf = new Configuration();
-            conf.setInteger(CoreOptions.fileSystemConnectionLimitOut(scheme), 10);
+            conf.set(CoreOptions.fileSystemConnectionLimitOut(scheme), 10);
 
             ConnectionLimitingSettings settings =
                     ConnectionLimitingSettings.fromConfig(conf, scheme);

@@ -689,7 +689,7 @@ class ActiveResourceManagerTest {
     void testStartWorkerIntervalOnWorkerTerminationExceedFailureRate() throws Exception {
         new Context() {
             {
-                flinkConfig.setDouble(ResourceManagerOptions.START_WORKER_MAX_FAILURE_RATE, 1);
+                flinkConfig.set(ResourceManagerOptions.START_WORKER_MAX_FAILURE_RATE, 1d);
                 flinkConfig.set(
                         ResourceManagerOptions.START_WORKER_RETRY_INTERVAL,
                         Duration.ofMillis(TESTING_START_WORKER_INTERVAL.toMilliseconds()));
@@ -769,7 +769,7 @@ class ActiveResourceManagerTest {
     void testStartWorkerIntervalOnRequestWorkerFailure() throws Exception {
         new Context() {
             {
-                flinkConfig.setDouble(ResourceManagerOptions.START_WORKER_MAX_FAILURE_RATE, 1);
+                flinkConfig.set(ResourceManagerOptions.START_WORKER_MAX_FAILURE_RATE, 1d);
                 flinkConfig.set(
                         ResourceManagerOptions.START_WORKER_RETRY_INTERVAL,
                         Duration.ofMillis(TESTING_START_WORKER_INTERVAL.toMilliseconds()));

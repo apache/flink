@@ -111,9 +111,9 @@ class NettyConnectionManagerTest {
 
         // Expected number of threads
         Configuration flinkConfig = new Configuration();
-        flinkConfig.setInteger(NettyShuffleEnvironmentOptions.NUM_ARENAS, numberOfArenas);
-        flinkConfig.setInteger(NettyShuffleEnvironmentOptions.NUM_THREADS_CLIENT, 3);
-        flinkConfig.setInteger(NettyShuffleEnvironmentOptions.NUM_THREADS_SERVER, 4);
+        flinkConfig.set(NettyShuffleEnvironmentOptions.NUM_ARENAS, numberOfArenas);
+        flinkConfig.set(NettyShuffleEnvironmentOptions.NUM_THREADS_CLIENT, 3);
+        flinkConfig.set(NettyShuffleEnvironmentOptions.NUM_THREADS_SERVER, 4);
 
         NettyConnectionManager connectionManager;
         {

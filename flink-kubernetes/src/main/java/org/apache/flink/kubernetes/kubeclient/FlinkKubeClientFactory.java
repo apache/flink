@@ -58,13 +58,12 @@ public class FlinkKubeClientFactory {
     public FlinkKubeClient fromConfiguration(Configuration flinkConfig, String useCase) {
         final Config config;
 
-        final String kubeContext = flinkConfig.getString(KubernetesConfigOptions.CONTEXT);
+        final String kubeContext = flinkConfig.get(KubernetesConfigOptions.CONTEXT);
         if (kubeContext != null) {
             LOG.info("Configuring kubernetes client to use context {}.", kubeContext);
         }
 
-        final String kubeConfigFile =
-                flinkConfig.getString(KubernetesConfigOptions.KUBE_CONFIG_FILE);
+        final String kubeConfigFile = flinkConfig.get(KubernetesConfigOptions.KUBE_CONFIG_FILE);
         if (kubeConfigFile != null) {
             LOG.debug("Trying to load kubernetes config from file: {}.", kubeConfigFile);
             try {
@@ -88,9 +87,9 @@ public class FlinkKubeClientFactory {
             config = Config.autoConfigure(kubeContext);
         }
 
-        final String namespace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
+        final String namespace = flinkConfig.get(KubernetesConfigOptions.NAMESPACE);
         final String userAgent =
-                flinkConfig.getString(KubernetesConfigOptions.KUBERNETES_CLIENT_USER_AGENT);
+                flinkConfig.get(KubernetesConfigOptions.KUBERNETES_CLIENT_USER_AGENT);
         config.setNamespace(namespace);
         config.setUserAgent(userAgent);
         LOG.debug("Setting Kubernetes client namespace: {}, userAgent: {}", namespace, userAgent);

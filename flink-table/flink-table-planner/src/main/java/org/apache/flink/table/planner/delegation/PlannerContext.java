@@ -311,7 +311,7 @@ public class PlannerContext {
                             boolean mergeProjectsDuringSqlToRel =
                                     context.getTableConfig()
                                             .getConfiguration()
-                                            .getBoolean(
+                                            .get(
                                                     OptimizerConfigOptions
                                                             .TABLE_OPTIMIZER_SQL2REL_PROJECT_MERGE_ENABLED);
                             if (!mergeProjectsDuringSqlToRel) {

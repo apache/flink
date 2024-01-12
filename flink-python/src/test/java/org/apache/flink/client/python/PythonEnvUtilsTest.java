@@ -206,7 +206,7 @@ class PythonEnvUtilsTest {
             CommonTestUtils.setEnv(systemEnv);
         }
 
-        config.setString(PYTHON_ARCHIVES, zipFile.getPath());
+        config.set(PYTHON_ARCHIVES, zipFile.getPath());
         systemEnv = new HashMap<>(System.getenv());
         systemEnv.put(PYFLINK_CLIENT_EXECUTABLE, "venv.zip/venv/bin/python");
         CommonTestUtils.setEnv(systemEnv);

@@ -115,8 +115,8 @@ public class DispatcherProcess extends TestJvmProcess {
                 Configuration config = params.getConfiguration();
                 LOG.info("Configuration: {}.", config);
 
-                config.setInteger(JobManagerOptions.PORT, 0);
-                config.setString(RestOptions.BIND_PORT, "0");
+                config.set(JobManagerOptions.PORT, 0);
+                config.set(RestOptions.BIND_PORT, "0");
 
                 final StandaloneSessionClusterEntrypoint clusterEntrypoint =
                         new StandaloneSessionClusterEntrypoint(config);

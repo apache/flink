@@ -63,8 +63,7 @@ class PartialConsumePipelinedResultTest {
     private static Configuration getFlinkConfiguration() {
         final Configuration config = new Configuration();
         config.set(AkkaOptions.ASK_TIMEOUT_DURATION, TestingUtils.DEFAULT_ASK_TIMEOUT);
-        config.setInteger(
-                NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, NUMBER_OF_NETWORK_BUFFERS);
+        config.set(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, NUMBER_OF_NETWORK_BUFFERS);
 
         return config;
     }

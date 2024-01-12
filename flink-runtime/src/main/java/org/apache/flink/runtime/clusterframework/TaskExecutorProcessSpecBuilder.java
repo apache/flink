@@ -43,7 +43,7 @@ public class TaskExecutorProcessSpecBuilder {
     }
 
     public TaskExecutorProcessSpecBuilder withCpuCores(CPUResource cpuCores) {
-        configuration.setDouble(TaskManagerOptions.CPU_CORES, cpuCores.getValue().doubleValue());
+        configuration.set(TaskManagerOptions.CPU_CORES, cpuCores.getValue().doubleValue());
         return this;
     }
 

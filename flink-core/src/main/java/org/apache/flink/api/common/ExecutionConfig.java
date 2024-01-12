@@ -304,7 +304,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
     @Internal
     public void enablePeriodicMaterialize(boolean enabled) {
-        configuration.setBoolean(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED, enabled);
+        configuration.set(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED, enabled);
     }
 
     @Internal

@@ -87,7 +87,7 @@ public class TaskCancelAsyncProducerConsumerITCase {
     private static Configuration getFlinkConfiguration() {
         Configuration config = new Configuration();
         config.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4096"));
-        config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 9);
+        config.set(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 9);
         return config;
     }
 

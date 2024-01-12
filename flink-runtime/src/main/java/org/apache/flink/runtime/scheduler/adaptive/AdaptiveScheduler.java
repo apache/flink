@@ -334,8 +334,7 @@ public class AdaptiveScheduler
         jobStatusListeners = Collections.unmodifiableCollection(tmpJobStatusListeners);
         this.failureEnrichers = failureEnrichers;
         this.exceptionHistory =
-                new BoundedFIFOQueue<>(
-                        configuration.getInteger(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
+                new BoundedFIFOQueue<>(configuration.get(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
         this.jobManagerJobMetricGroup = jobManagerJobMetricGroup;
         this.slotIdleTimeout =
                 Duration.ofMillis(configuration.get(JobManagerOptions.SLOT_IDLE_TIMEOUT));

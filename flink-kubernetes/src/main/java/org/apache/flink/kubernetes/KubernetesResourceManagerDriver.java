@@ -309,13 +309,13 @@ public class KubernetesResourceManagerDriver
                     .updateServiceTargetPort(
                             internalServiceName,
                             Constants.BLOB_SERVER_PORT_NAME,
-                            Integer.parseInt(flinkConfig.getString(BlobServerOptions.PORT)))
+                            Integer.parseInt(flinkConfig.get(BlobServerOptions.PORT)))
                     .get();
             flinkKubeClient
                     .updateServiceTargetPort(
                             internalServiceName,
                             Constants.JOB_MANAGER_RPC_PORT_NAME,
-                            flinkConfig.getInteger(JobManagerOptions.PORT))
+                            flinkConfig.get(JobManagerOptions.PORT))
                     .get();
         }
     }

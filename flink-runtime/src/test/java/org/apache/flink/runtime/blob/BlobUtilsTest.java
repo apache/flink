@@ -60,8 +60,8 @@ class BlobUtilsTest {
     void testDefaultBlobStorageDirectory() throws IOException {
         Configuration config = new Configuration();
         String blobStorageDir = TempDirUtils.newFolder(tempDir).getAbsolutePath();
-        config.setString(BlobServerOptions.STORAGE_DIRECTORY, blobStorageDir);
-        config.setString(CoreOptions.TMP_DIRS, TempDirUtils.newFolder(tempDir).getAbsolutePath());
+        config.set(BlobServerOptions.STORAGE_DIRECTORY, blobStorageDir);
+        config.set(CoreOptions.TMP_DIRS, TempDirUtils.newFolder(tempDir).getAbsolutePath());
 
         File dir = BlobUtils.createBlobStorageDirectory(config, null).deref();
         assertThat(dir.getAbsolutePath()).startsWith(blobStorageDir);

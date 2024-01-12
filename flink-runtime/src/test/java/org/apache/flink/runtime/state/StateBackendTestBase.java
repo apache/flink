@@ -264,7 +264,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
     void testEnableStateLatencyTracking() throws Exception {
         ConfigurableStateBackend stateBackend = getStateBackend();
         Configuration config = new Configuration();
-        config.setBoolean(StateBackendOptions.LATENCY_TRACK_ENABLED, true);
+        config.set(StateBackendOptions.LATENCY_TRACK_ENABLED, true);
         StateBackend configuredBackend =
                 stateBackend.configure(config, Thread.currentThread().getContextClassLoader());
         KeyGroupRange groupRange = new KeyGroupRange(0, 1);
