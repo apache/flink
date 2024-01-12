@@ -108,6 +108,39 @@ hintOption:
     |   stringLiteral
 ```
 
+### 查询提示使用中的冲突
+#### Key-value 类型查询提示的冲突处理
+Key-value 类型的查询提示使用如下语法：
+
+```sql
+hintName '(' optionKey '=' optionVal [, optionKey '=' optionVal ]* ')'
+```
+
+当 Key-value 类型的查询提示发生冲突时，Flink 会按顺序用后定义的查询提示覆盖前面定义的同名查询提示。
+对于下面的例子，包含同相同 key 的查询提示 'max-attempts'：
+
+```sql
+SELECT /*+ LOOKUP('table'='D', 'max-attempts'='3', 'max-attempts'='4') */ * FROM t1 T JOIN t2 AS OF T.proctime AS D ON T.id = D.id;
+```
+
+在这个例子里，Flink 会选择 'max-attempts' = '4' 的查询提示覆盖 'max-attempts' = '3' 的提示，
+所以最后 'max-attempts' 的值为 4。
+
+#### List 类型查询提示的冲突处理
+List 类型的查询提示使用如下语法：
+
+```sql
+hintName '(' hintOption [, hintOption ]* ')'
+```
+
+对于 List 类型的查询提示，Flink 会选择最先被采纳的查询提示。如下面具有相同 BROADCAST 提示的例子：
+
+```sql
+SELECT /*+ BROADCAST(t2, t1), BROADCAST(t1, t2) */ * FROM t1;
+```
+
+Flink 会选择 BROADCAST(t2, t1)，因为它是最先被采纳的。
+
 ### 联接提示
 
 联接提示（`Join Hints`）是查询提示（`Query Hints`）的一种，该提示允许用户手动指定表联接（join）时使用的联接策略，来达到优化执行的目的。Flink 联接提示现在支持 `BROADCAST`，
@@ -514,6 +547,7 @@ ON o.customer_id = c.id AND DATE_FORMAT(o.order_timestamp, 'yyyy-MM-dd HH:mm') =
 #### 联接提示使用中的冲突
 
 当联接提示产生冲突时，Flink 会选择最匹配的执行方式。
+- 首先，联接提示会遵循查询提示处理冲突的逻辑。（详见：[查询提示使用中的冲突](#查询提示使用中的冲突)）
 - 同一种联接提示间产生冲突时，Flink 会为联接选择第一个最匹配的表。
 - 不同联接提示间产生冲突时，Flink 会为联接选择第一个最匹配的联接提示。
 
