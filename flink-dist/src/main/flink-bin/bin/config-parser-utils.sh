@@ -17,22 +17,28 @@
 # limitations under the License.
 ################################################################################
 
-USAGE="Usage: runExtractLoggingOutputs.sh <input>"
+USAGE="Usage: config-parser-utils.sh FLINK_CONF_DIR FLINK_BIN_DIR FLINK_LIB_DIR [dynamic args...]"
 
-INPUT="$1"
+if [ "$#" -lt 3 ]; then
+    echo "$USAGE"
+    exit 1
+fi
 
-if [[ -z "${INPUT}" ]]; then
-  echo "$USAGE"
+source "$2"/bash-java-utils.sh
+
+ARGS=("${@:1}")
+result=$(updateAndGetFlinkConfiguration "${ARGS[@]}")
+
+if [[ $? -ne 0 ]]; then
+  echo "[ERROR] Could not get configurations properly, the result is :"
+  echo "$result"
   exit 1
 fi
 
-bin=`dirname "$0"`
-bin=`cd "$bin"; pwd`
+CONF_FILE="$1/flink-conf.yaml"
+if [ ! -e "$1/flink-conf.yaml" ]; then
+  CONF_FILE="$1/config.yaml"
+fi;
 
-FLINK_CONF_DIR=${bin}/../../main/resources
-FLINK_TARGET_DIR=${bin}/../../../target
-FLINK_DIST_JAR=`find $FLINK_TARGET_DIR -name 'flink-dist*.jar'`
-
-. ${bin}/../../main/flink-bin/bin/bash-java-utils.sh > /dev/null
-
-extractLoggingOutputs "${INPUT}"
+# Output the result
+echo "${result}" > "$CONF_FILE";

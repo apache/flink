@@ -120,6 +120,100 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
         assertThat(Long.valueOf(jvmParams.get("-XX:MaxMetaspaceSize="))).isEqualTo(metaspace);
     }
 
+    @Test
+    void testGetConfiguration() throws Exception {
+        int expectedResultLines = 13;
+        String[] commands = {
+            RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+            BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
+            String.valueOf(expectedResultLines)
+        };
+        List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+        assertThat(lines).hasSize(expectedResultLines);
+    }
+
+    @Test
+    void testGetConfigurationRemoveKey() throws Exception {
+        int expectedResultLines = 12;
+        String[] commands = {
+            RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+            BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
+            String.valueOf(expectedResultLines),
+            "-rmKey",
+            "parallelism.default"
+        };
+        List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+        assertThat(lines).hasSize(expectedResultLines);
+        assertThat(lines).doesNotContain("parallelism.default: 1");
+    }
+
+    @Test
+    void testGetConfigurationRemoveKeyValue() throws Exception {
+        int expectedResultLines = 12;
+        String[] commands = {
+            RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+            BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
+            String.valueOf(expectedResultLines),
+            "-rmKV",
+            "parallelism.default=1"
+        };
+        List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+        assertThat(lines).hasSize(expectedResultLines);
+        assertThat(lines).doesNotContain("parallelism.default: 1");
+    }
+
+    @Test
+    void testGetConfigurationRemoveKeyValueNotMatchingValue() throws Exception {
+        int expectedResultLines = 13;
+        String[] commands = {
+            RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+            BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
+            String.valueOf(expectedResultLines),
+            "-rmKV",
+            "parallelism.default=2"
+        };
+        List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+        assertThat(lines).hasSize(expectedResultLines);
+        assertThat(lines).contains("parallelism.default: 1");
+    }
+
+    @Test
+    void testGetConfigurationReplaceKeyValue() throws Exception {
+        int expectedResultLines = 13;
+        String[] commands = {
+            RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+            BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
+            String.valueOf(expectedResultLines),
+            "-repKV",
+            "parallelism.default,1,2"
+        };
+        List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+        assertThat(lines).hasSize(expectedResultLines);
+        assertThat(lines).doesNotContain("parallelism.default: 1");
+        assertThat(lines).contains("parallelism.default: 2");
+    }
+
+    @Test
+    void testGetConfigurationReplaceKeyValueNotMatchingValue() throws Exception {
+        int expectedResultLines = 13;
+        String[] commands = {
+            RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+            BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
+            String.valueOf(expectedResultLines),
+            "-repKV",
+            "parallelism.default,2,3"
+        };
+        List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+        assertThat(lines).hasSize(expectedResultLines);
+        assertThat(lines).doesNotContain("parallelism.default: 3");
+    }
+
     private static Map<String, String> parseAndAssertDynamicParameters(
             String dynamicParametersStr) {
         Set<String> expectedDynamicParameters =
