@@ -96,6 +96,9 @@ public class SqlDistribution extends SqlCall {
     }
 
     public String getDistributionKind() {
+        if (distributionKind == null) {
+            return "UNKNOWN";
+        }
         return distributionKind;
     }
 

@@ -1182,6 +1182,49 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testCreateTableWithDistributionIfNotExists() {
+        final String sql =
+                "CREATE TABLE if not exists tbl1 (\n"
+                        + "  a bigint,\n"
+                        + "  h varchar, \n"
+                        + "  g as 2 * (a + 1), \n"
+                        + "  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'), \n"
+                        + "  b varchar,\n"
+                        + "  proc as PROCTIME(), \n"
+                        + "  meta STRING METADATA, \n"
+                        + "  my_meta STRING METADATA FROM 'meta', \n"
+                        + "  my_meta STRING METADATA FROM 'meta' VIRTUAL, \n"
+                        + "  meta STRING METADATA VIRTUAL, \n"
+                        + "  PRIMARY KEY (a, b)\n"
+                        + ")\n"
+                        + "DISTRIBUTED BY HASH(a, h) INTO 6 BUCKETS\n"
+                        + "  with (\n"
+                        + "    'connector' = 'kafka', \n"
+                        + "    'kafka.topic' = 'log.test'\n"
+                        + ")\n";
+        final String expected =
+                "CREATE TABLE IF NOT EXISTS `TBL1` (\n"
+                        + "  `A` BIGINT,\n"
+                        + "  `H` VARCHAR,\n"
+                        + "  `G` AS (2 * (`A` + 1)),\n"
+                        + "  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n"
+                        + "  `B` VARCHAR,\n"
+                        + "  `PROC` AS `PROCTIME`(),\n"
+                        + "  `META` STRING METADATA,\n"
+                        + "  `MY_META` STRING METADATA FROM 'meta',\n"
+                        + "  `MY_META` STRING METADATA FROM 'meta' VIRTUAL,\n"
+                        + "  `META` STRING METADATA VIRTUAL,\n"
+                        + "  PRIMARY KEY (`A`, `B`)\n"
+                        + ")\n"
+                        + "DISTRIBUTED BY HASH(`A`, `H`) INTO 6 BUCKETS\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'kafka',\n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")";
+        sql(sql).ok(expected);
+    }
+
+    @Test
     void testCreateTableIfNotExists() {
         final String sql =
                 "CREATE TABLE IF NOT EXISTS tbl1 (\n"
@@ -1956,6 +1999,72 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "  INCLUDING ALL\n"
                         + "  OVERWRITING OPTIONS\n"
                         + "  EXCLUDING PARTITIONS\n"
+                        + "  INCLUDING GENERATED\n"
+                        + "  INCLUDING METADATA\n"
+                        + ")";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testCreateTableWithLikeClauseIncludingDistribution() {
+        final String sql =
+                "create table source_table(\n"
+                        + "  a int,\n"
+                        + "  b bigint,\n"
+                        + "  c string\n"
+                        + ")\n"
+                        + "LIKE parent_table (\n"
+                        + "   INCLUDING ALL\n"
+                        + "   OVERWRITING OPTIONS\n"
+                        + "   INCLUDING DISTRIBUTION\n"
+                        + "   EXCLUDING PARTITIONS\n"
+                        + "   INCLUDING GENERATED\n"
+                        + "   INCLUDING METADATA\n"
+                        + ")";
+        final String expected =
+                "CREATE TABLE `SOURCE_TABLE` (\n"
+                        + "  `A` INTEGER,\n"
+                        + "  `B` BIGINT,\n"
+                        + "  `C` STRING\n"
+                        + ")\n"
+                        + "LIKE `PARENT_TABLE` (\n"
+                        + "  INCLUDING ALL\n"
+                        + "  OVERWRITING OPTIONS\n"
+                        + "  INCLUDING DISTRIBUTION\n"
+                        + "  EXCLUDING PARTITIONS\n"
+                        + "  INCLUDING GENERATED\n"
+                        + "  INCLUDING METADATA\n"
+                        + ")";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testCreateTableWithLikeClauseExcludingDistribution() {
+        final String sql =
+                "create table source_table(\n"
+                        + "  a int,\n"
+                        + "  b bigint,\n"
+                        + "  c string\n"
+                        + ")\n"
+                        + "LIKE parent_table (\n"
+                        + "   INCLUDING ALL\n"
+                        + "   OVERWRITING OPTIONS\n"
+                        + "   EXCLUDING DISTRIBUTION\n"
+                        + "   INCLUDING PARTITIONS\n"
+                        + "   INCLUDING GENERATED\n"
+                        + "   INCLUDING METADATA\n"
+                        + ")";
+        final String expected =
+                "CREATE TABLE `SOURCE_TABLE` (\n"
+                        + "  `A` INTEGER,\n"
+                        + "  `B` BIGINT,\n"
+                        + "  `C` STRING\n"
+                        + ")\n"
+                        + "LIKE `PARENT_TABLE` (\n"
+                        + "  INCLUDING ALL\n"
+                        + "  OVERWRITING OPTIONS\n"
+                        + "  EXCLUDING DISTRIBUTION\n"
+                        + "  INCLUDING PARTITIONS\n"
                         + "  INCLUDING GENERATED\n"
                         + "  INCLUDING METADATA\n"
                         + ")";
@@ -2921,6 +3030,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                         "REPLACE TABLE AS SELECT syntax does not support to create partitioned table yet."));
     }
 
+    // TODO: JNH Add test cases for DISTRIBUTED BY
     @Test
     void testCreateOrReplaceTableAsSelect() {
         // test create or replace table as select without options

@@ -63,7 +63,12 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
     private final List<SqlTableConstraint> tableConstraints;
 
+    public SqlDistribution getSqlDistribution() {
+        return sqlDistribution;
+    }
+
     private final SqlDistribution sqlDistribution;
+
     private final SqlNodeList partitionKeyList;
 
     private final SqlWatermark watermark;

@@ -1392,6 +1392,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
                 columnList,
                 constraints,
                 propertyList,
+                distribution,
                 partitionColumns,
                 watermark,
                 comment,
@@ -1490,6 +1491,8 @@ SqlTableLikeOption SqlTableLikeOption():
         <ALL> { featureOption = FeatureOption.ALL;}
     |
         <CONSTRAINTS> { featureOption = FeatureOption.CONSTRAINTS;}
+    |
+        <DISTRIBUTION> { featureOption = FeatureOption.DISTRIBUTION;}
     |
         <GENERATED> { featureOption = FeatureOption.GENERATED;}
     |

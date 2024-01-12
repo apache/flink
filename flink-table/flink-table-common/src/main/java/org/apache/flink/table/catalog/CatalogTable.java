@@ -27,6 +27,7 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -84,6 +85,27 @@ public interface CatalogTable extends CatalogBaseTable {
             @Nullable Long snapshot) {
         return new DefaultCatalogTable(
                 schema, comment, partitionKeys, options, snapshot, Optional.empty());
+    }
+
+    /**
+     * Creates an instance of {@link CatalogTable} with a specific snapshot.
+     *
+     * @param schema unresolved schema
+     * @param comment optional comment
+     * @param distribution distribution of the table
+     * @param partitionKeys list of partition keys or an empty list if not partitioned
+     * @param options options to configure the connector
+     * @param snapshot table snapshot of the table
+     */
+    static CatalogTable of(
+            Schema schema,
+            @Nullable String comment,
+            Optional<TableDistribution> distribution,
+            List<String> partitionKeys,
+            Map<String, String> options,
+            @Nullable Long snapshot) {
+        return new DefaultCatalogTable(
+                schema, comment, partitionKeys, options, snapshot, distribution);
     }
 
     /**
@@ -182,6 +204,20 @@ public interface CatalogTable extends CatalogBaseTable {
         public static TableDistribution ofRange(
                 List<String> bucketKeys, @Nullable Integer bucketCount) {
             return new TableDistribution(Kind.RANGE, bucketCount, bucketKeys);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            TableDistribution that = (TableDistribution) o;
+            return kind == that.kind && Objects.equals(bucketCount, that.bucketCount)
+                    && Objects.equals(bucketKeys, that.bucketKeys);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(kind, bucketCount, bucketKeys);
         }
 
         @PublicEvolving

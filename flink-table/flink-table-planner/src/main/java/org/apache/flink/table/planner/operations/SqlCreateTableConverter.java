@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.operations;
 
+import org.apache.calcite.sql.SqlNumericLiteral;
+
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlCreateTableAs;
 import org.apache.flink.sql.parser.ddl.SqlCreateTableLike;
@@ -125,18 +127,23 @@ class SqlCreateTableConverter {
     private CatalogTable createCatalogTable(SqlCreateTable sqlCreateTable) {
 
         final Schema sourceTableSchema;
+        final Optional<CatalogTable.TableDistribution> sourceTableDistribution;
         final List<String> sourcePartitionKeys;
         final List<SqlTableLike.SqlTableLikeOption> likeOptions;
         final Map<String, String> sourceProperties;
+
+
         if (sqlCreateTable instanceof SqlCreateTableLike) {
             SqlTableLike sqlTableLike = ((SqlCreateTableLike) sqlCreateTable).getTableLike();
             CatalogTable table = lookupLikeSourceTable(sqlTableLike);
             sourceTableSchema = table.getUnresolvedSchema();
+            sourceTableDistribution = table.getDistribution();
             sourcePartitionKeys = table.getPartitionKeys();
             likeOptions = sqlTableLike.getOptions();
             sourceProperties = table.getOptions();
         } else {
             sourceTableSchema = Schema.newBuilder().build();
+            sourceTableDistribution = Optional.empty();
             sourcePartitionKeys = Collections.emptyList();
             likeOptions = Collections.emptyList();
             sourceProperties = Collections.emptyMap();
@@ -164,6 +171,32 @@ class SqlCreateTableConverter {
                                 .orElseGet(Collections::emptyList),
                         primaryKey.orElse(null));
 
+        // TODO: Extract this as a method?
+        Optional<CatalogTable.TableDistribution> tableDistribution = Optional.empty();
+        if (sqlCreateTable.getSqlDistribution() != null) {
+            CatalogTable.TableDistribution.Kind kind =
+                    CatalogTable.TableDistribution.Kind.valueOf(
+                            sqlCreateTable.getSqlDistribution().getDistributionKind());
+            Integer bucketCount = null;
+            SqlNumericLiteral count = (SqlNumericLiteral) sqlCreateTable.getSqlDistribution().getBucketCount();
+            if (count != null) {
+                bucketCount = (Integer) (count).getValue();
+            }
+
+            List<String> bucketColumns = Collections.emptyList();
+
+            SqlNodeList columns = sqlCreateTable.getSqlDistribution().getBucketColumns();
+            if (columns != null) {
+                bucketColumns =
+                        columns.getList().stream()
+                                .map(p -> ((SqlIdentifier) p).getSimple())
+                                .collect(Collectors.toList());
+            }
+            tableDistribution = Optional.of(new CatalogTable.TableDistribution(kind, bucketCount, bucketColumns));
+        }
+
+        Optional<CatalogTable.TableDistribution> mergedTableDistribution = mergeDistribution(sourceTableDistribution, tableDistribution, mergingStrategies);
+
         List<String> partitionKeys =
                 mergePartitions(
                         sourcePartitionKeys,
@@ -175,7 +208,7 @@ class SqlCreateTableConverter {
 
         return catalogManager.resolveCatalogTable(
                 CatalogTable.of(
-                        mergedSchema, tableComment, partitionKeys, new HashMap<>(mergedOptions)));
+                        mergedSchema, tableComment, mergedTableDistribution, partitionKeys, new HashMap<>(mergedOptions), null));
     }
 
     private CatalogTable lookupLikeSourceTable(SqlTableLike sqlTableLike) {
@@ -218,6 +251,13 @@ class SqlCreateTableConverter {
                                         .collect(Collectors.joining("', '", "'", "'"))));
             }
         }
+    }
+
+    private Optional<CatalogTable.TableDistribution> mergeDistribution(
+            Optional<CatalogTable.TableDistribution> sourceTableDistribution,
+            Optional<CatalogTable.TableDistribution> derivedTabledDistribution,
+            Map<SqlTableLike.FeatureOption, SqlTableLike.MergingStrategy> mergingStrategies) {
+        return mergeTableLikeUtil.mergeDistribution(mergingStrategies.get(SqlTableLike.FeatureOption.DISTRIBUTION), sourceTableDistribution, derivedTabledDistribution);
     }
 
     private List<String> mergePartitions(

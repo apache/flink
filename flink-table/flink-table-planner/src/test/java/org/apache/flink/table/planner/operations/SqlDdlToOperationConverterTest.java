@@ -90,6 +90,7 @@ import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.planner.utils.OperationMatchers.entry;
 import static org.apache.flink.table.planner.utils.OperationMatchers.isCreateTableOperation;
 import static org.apache.flink.table.planner.utils.OperationMatchers.partitionedBy;
+import static org.apache.flink.table.planner.utils.OperationMatchers.withDistribution;
 import static org.apache.flink.table.planner.utils.OperationMatchers.withOptions;
 import static org.apache.flink.table.planner.utils.OperationMatchers.withSchema;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -456,6 +457,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                                 entry("format.type", "json")))));
     }
 
+    // TODO: Look here
     @Test
     public void testMergingCreateTableLike() {
         Map<String, String> sourceProperties = new HashMap<>();
@@ -508,6 +510,87 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                                 entry("connector.type", "kafka"),
                                                 entry("format.type", "json")),
                                         partitionedBy("a", "f0"))));
+    }
+
+    @Test
+    public void testMergingCreateTableLikeExcludingDistribution() {
+        Map<String, String> sourceProperties = new HashMap<>();
+        sourceProperties.put("format.type", "json");
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("f0", DataTypes.INT().notNull())
+                                .column("f1", DataTypes.TIMESTAMP(3))
+                                .columnByExpression("f2", "`f0` + 12345")
+                                .watermark("f1", "`f1` - interval '1' second")
+                                .build(),
+                        null,
+                        Optional.of(CatalogTable.TableDistribution.ofHash(Collections.singletonList("f0"), 3)),
+                        Arrays.asList("f0", "f1"),
+                        sourceProperties, null);
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
+
+        final String sql =
+                "create table derivedTable(\n"
+                        + "  a int,\n"
+                        + "  watermark for f1 as `f1` - interval '5' second\n"
+                        + ")\n"
+                        + "DISTRIBUTED BY (a, f0)\n"
+                        + "with (\n"
+                        + "  'connector.type' = 'kafka'"
+                        + ")\n"
+                        + "like sourceTable (\n"
+                        + "   EXCLUDING GENERATED\n"
+                        + "   EXCLUDING DISTRIBUTION\n"
+                        + "   EXCLUDING PARTITIONS\n"
+                        + "   OVERWRITING OPTIONS\n"
+                        + "   OVERWRITING WATERMARKS"
+                        + ")";
+        Operation operation = parseAndConvert(sql);
+
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withDistribution(new CatalogTable.TableDistribution(
+                                                CatalogTable.TableDistribution.Kind.UNKNOWN, null, Arrays.asList("a", "f0"))),
+                                        withSchema(
+                                                Schema.newBuilder()
+                                                        .column("f0", DataTypes.INT().notNull())
+                                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                                        .column("a", DataTypes.INT())
+                                                        .watermark(
+                                                                "f1", "`f1` - INTERVAL '5' SECOND")
+                                                        .build()),
+                                        withOptions(
+                                                entry("connector.type", "kafka"),
+                                                entry("format.type", "json")))));
+    }
+
+    @Test
+    public void testCreateTableValidDistribution() {
+        final String sql =
+                "create table derivedTable(\n" + "  a int\n" + ")\n" + "DISTRIBUTED BY (a)";
+        Operation operation = parseAndConvert(sql);
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withDistribution(new CatalogTable.TableDistribution(
+                                                CatalogTable.TableDistribution.Kind.UNKNOWN, null, Collections.singletonList("a"))))));
+    }
+
+    @Test
+    public void testCreateTableInvalidDistribution() {
+        final String sql =
+                "create table derivedTable(\n" + "  a int\n" + ")\n" + "DISTRIBUTED BY (f3)";
+
+        assertThatThrownBy(() -> parseAndConvert(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Invalid bucket key 'f3'. A bucket key must reference a physical column in the schema. Available columns are: [a]");
     }
 
     @Test
