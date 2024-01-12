@@ -26,15 +26,18 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SerializableSupplier;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.cfg.JsonNodeFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
 import java.util.Arrays;
 import java.util.Objects;
+
+import static org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN;
 
 /**
  * Serialization schema that serializes an object of Flink Table & SQL internal data structure into
@@ -154,9 +157,12 @@ public final class CsvRowDataSerializationSchema implements SerializationSchema<
                     csvSchema,
                     () -> {
                         final CsvMapper csvMapper = JacksonMapperFactory.createCsvMapper();
+
+                        csvMapper.configure(WRITE_BIGDECIMAL_AS_PLAIN, !isScientificNotation);
                         csvMapper.configure(
-                                JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN,
-                                !isScientificNotation);
+                                DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
+                        csvMapper.configure(
+                                JsonNodeFeature.STRIP_TRAILING_BIGDECIMAL_ZEROES, false);
                         return csvMapper;
                     });
         }

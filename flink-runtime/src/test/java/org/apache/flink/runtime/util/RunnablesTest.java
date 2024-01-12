@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.util;
 
-import org.apache.flink.shaded.guava31.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.flink.shaded.guava32.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import org.junit.jupiter.api.Test;
 
