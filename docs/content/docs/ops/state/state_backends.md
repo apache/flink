@@ -346,10 +346,6 @@ Still not supported in Python API.
 
 ## Enabling Changelog
 
-{{< hint warning >}} This feature is in experimental status. {{< /hint >}}
-
-{{< hint warning >}} Enabling Changelog may have a negative performance impact on your application (see below). {{< /hint >}}
-
 ### Introduction
 
 Changelog is a feature that aims to decrease checkpointing time and, therefore, end-to-end latency in exactly-once mode.
@@ -361,7 +357,7 @@ Most commonly, checkpoint duration is affected by:
    and [Buffer debloating]({{< ref "docs/ops/state/checkpointing_under_backpressure#buffer-debloating" >}})
 2. Snapshot creation time (so-called synchronous phase), addressed by asynchronous snapshots (mentioned [above]({{<
    ref "#the-embeddedrocksdbstatebackend">}}))
-4. Snapshot upload time (asynchronous phase)
+3. Snapshot upload time (asynchronous phase)
 
 Upload time can be decreased by [incremental checkpoints]({{< ref "#incremental-checkpoints" >}}).
 However, most incremental state backends perform some form of compaction periodically, which results in re-uploading the
@@ -373,15 +369,20 @@ part of this changelog needs to be uploaded. The configured state backend is sna
 background periodically. Upon successful upload, the changelog is truncated.
 
 As a result, asynchronous phase duration is reduced, as well as synchronous phase - because no data needs to be flushed
-to disk. In particular, long-tail latency is improved.
+to disk. In particular, long-tail latency is improved. At the same time, some other benefits could be got:
+1. More Stable and Lower End-to-end Latency.
+2. Less Data Replay after Failover.
+3. More Stable Utilization of Resources.
 
 However, resource usage is higher:
 
 - more files are created on DFS
-- more files can be left undeleted DFS (this will be addressed in the future versions in FLINK-25511 and FLINK-25512)
 - more IO bandwidth is used to upload state changes
 - more CPU used to serialize state changes
 - more memory used by Task Managers to buffer state changes
+
+It is worth noting that changelog adds a small amount of daily CPU and network bandwidth resources, 
+but reduces peak CPU and network bandwidth usage.
 
 Recovery time is another thing to consider. Depending on the `state.backend.changelog.periodic-materialize.interval`
 setting, the changelog can become lengthy and replaying it may take more time. However, recovery time combined with
