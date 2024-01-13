@@ -811,7 +811,10 @@ public class DispatcherTest extends AbstractDispatcherTest {
     private URI createTestingSavepoint() throws IOException, URISyntaxException {
         final CheckpointStorage storage =
                 Checkpoints.loadCheckpointStorage(
-                        configuration, Thread.currentThread().getContextClassLoader(), log);
+                        new Configuration(),
+                        configuration,
+                        Thread.currentThread().getContextClassLoader(),
+                        log);
         final CheckpointStorageCoordinatorView checkpointStorage =
                 storage.createCheckpointStorage(jobGraph.getJobID());
         final File savepointFile = temporaryFolder.newFolder();

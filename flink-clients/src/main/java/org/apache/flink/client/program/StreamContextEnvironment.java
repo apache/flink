@@ -299,7 +299,6 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
     private void checkCheckpointStorage(Configuration clusterConfigMap, List<String> errors) {
         CheckpointConfig expectedCheckpointConfig = new CheckpointConfig();
         expectedCheckpointConfig.configure(clusterConfigMap);
-        configureCheckpointStorage(clusterConfigMap, expectedCheckpointConfig);
 
         /**
          * Unfortunately, {@link CheckpointConfig#setCheckpointStorage} is not backed by a {@link

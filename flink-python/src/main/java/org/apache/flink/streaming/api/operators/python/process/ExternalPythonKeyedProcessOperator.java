@@ -169,6 +169,7 @@ public class ExternalPythonKeyedProcessOperator<OUT>
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(
                                 ManagedMemoryUseCase.PYTHON,
+                                getContainingTask().getJobConfiguration(),
                                 getContainingTask()
                                         .getEnvironment()
                                         .getTaskManagerInfo()

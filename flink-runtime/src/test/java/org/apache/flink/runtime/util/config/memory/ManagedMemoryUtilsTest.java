@@ -167,6 +167,7 @@ class ManagedMemoryUtilsTest {
                                 add(ManagedMemoryUseCase.PYTHON);
                             }
                         },
+                        new Configuration(),
                         CONFIG_WITH_ALL_USE_CASES,
                         Optional.of(true),
                         ClassLoader.getSystemClassLoader());
@@ -201,6 +202,7 @@ class ManagedMemoryUtilsTest {
                                 add(ManagedMemoryUseCase.PYTHON);
                             }
                         },
+                        new Configuration(),
                         config,
                         Optional.of(true),
                         ClassLoader.getSystemClassLoader());
@@ -244,6 +246,7 @@ class ManagedMemoryUtilsTest {
                         ManagedMemoryUseCase.OPERATOR,
                         1.0,
                         allUseCases,
+                        new Configuration(),
                         CONFIG_WITH_ALL_USE_CASES,
                         Optional.of(stateBackendUsesManagedMemory),
                         ClassLoader.getSystemClassLoader());
@@ -252,6 +255,7 @@ class ManagedMemoryUtilsTest {
                         ManagedMemoryUseCase.STATE_BACKEND,
                         1.0,
                         allUseCases,
+                        new Configuration(),
                         CONFIG_WITH_ALL_USE_CASES,
                         Optional.of(stateBackendUsesManagedMemory),
                         ClassLoader.getSystemClassLoader());
@@ -260,6 +264,7 @@ class ManagedMemoryUtilsTest {
                         ManagedMemoryUseCase.PYTHON,
                         1.0,
                         allUseCases,
+                        new Configuration(),
                         CONFIG_WITH_ALL_USE_CASES,
                         Optional.of(stateBackendUsesManagedMemory),
                         ClassLoader.getSystemClassLoader());

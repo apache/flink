@@ -68,7 +68,7 @@ class StateBackendLoadingTest {
     void testInstantiateHashMapStateBackendBackendByDefault() throws Exception {
         StateBackend backend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        null, TernaryBoolean.UNDEFINED, new Configuration(), cl, null);
+                        null, new Configuration(), new Configuration(), cl, null);
 
         assertThat(backend).isInstanceOf(HashMapStateBackend.class);
     }
@@ -82,7 +82,7 @@ class StateBackendLoadingTest {
 
         StateBackend backend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        appBackend, TernaryBoolean.UNDEFINED, config, cl, null);
+                        appBackend, config, config, cl, null);
         assertThat(backend).isEqualTo(appBackend);
     }
 
@@ -153,7 +153,7 @@ class StateBackendLoadingTest {
 
     /**
      * Validates taking the application-defined memory state backend and adding additional
-     * parameters from the cluster configuration.
+     * parameters from configuration.
      */
     @Test
     void testConfigureMemoryStateBackend() throws Exception {
@@ -171,21 +171,31 @@ class StateBackendLoadingTest {
         config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
         config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 
-        StateBackend loadedBackend =
+        StateBackend loadedBackendFromClusterConfig =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        backend, TernaryBoolean.UNDEFINED, config, cl, null);
-        assertThat(loadedBackend).isInstanceOf(MemoryStateBackend.class);
+                        backend, new Configuration(), config, cl, null);
+        assertThat(loadedBackendFromClusterConfig).isInstanceOf(MemoryStateBackend.class);
 
-        final MemoryStateBackend memBackend = (MemoryStateBackend) loadedBackend;
-        assertThat(memBackend.getCheckpointPath()).isEqualTo(expectedCheckpointPath);
-        assertThat(memBackend.getSavepointPath()).isEqualTo(expectedSavepointPath);
-        assertThat(memBackend.getMaxStateSize()).isEqualTo(maxSize);
+        final MemoryStateBackend memBackend1 = (MemoryStateBackend) loadedBackendFromClusterConfig;
+        assertThat(memBackend1.getCheckpointPath()).isEqualTo(expectedCheckpointPath);
+        assertThat(memBackend1.getSavepointPath()).isEqualTo(expectedSavepointPath);
+        assertThat(memBackend1.getMaxStateSize()).isEqualTo(maxSize);
+
+        StateBackend loadedBackendFromJobConfig =
+                StateBackendLoader.fromApplicationOrConfigOrDefault(
+                        backend, config, new Configuration(), cl, null);
+        assertThat(loadedBackendFromJobConfig).isInstanceOf(MemoryStateBackend.class);
+
+        final MemoryStateBackend memBackend2 = (MemoryStateBackend) loadedBackendFromJobConfig;
+        assertThat(memBackend2.getCheckpointPath()).isNull();
+        assertThat(memBackend2.getSavepointPath()).isNull();
+        assertThat(memBackend2.getMaxStateSize()).isEqualTo(maxSize);
     }
 
     /**
      * Validates taking the application-defined memory state backend and adding additional
-     * parameters from the cluster configuration, but giving precedence to application-defined
-     * parameters over configuration-defined parameters.
+     * parameters from configuration, but giving precedence to application-defined parameters over
+     * configuration-defined parameters.
      */
     @Test
     void testConfigureMemoryStateBackendMixed() throws Exception {
@@ -205,14 +215,25 @@ class StateBackendLoadingTest {
                 checkpointDir); // this parameter should not be picked up
         config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 
-        StateBackend loadedBackend =
+        // add parameters from cluster config
+        StateBackend loadedBackendFromJobConfig =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        backend, TernaryBoolean.UNDEFINED, config, cl, null);
-        assertThat(loadedBackend).isInstanceOf(MemoryStateBackend.class);
+                        backend, new Configuration(), config, cl, null);
+        assertThat(loadedBackendFromJobConfig).isInstanceOf(MemoryStateBackend.class);
 
-        final MemoryStateBackend memBackend = (MemoryStateBackend) loadedBackend;
-        assertThat(memBackend.getCheckpointPath()).isEqualTo(expectedCheckpointPath);
-        assertThat(memBackend.getSavepointPath()).isEqualTo(expectedSavepointPath);
+        final MemoryStateBackend memBackend1 = (MemoryStateBackend) loadedBackendFromJobConfig;
+        assertThat(memBackend1.getCheckpointPath()).isEqualTo(expectedCheckpointPath);
+        assertThat(memBackend1.getSavepointPath()).isEqualTo(expectedSavepointPath);
+
+        // add parameters from job config
+        StateBackend loadedBackendFromClusterConfig =
+                StateBackendLoader.fromApplicationOrConfigOrDefault(
+                        backend, config, new Configuration(), cl, null);
+        assertThat(loadedBackendFromClusterConfig).isInstanceOf(MemoryStateBackend.class);
+
+        final MemoryStateBackend memBackend2 = (MemoryStateBackend) loadedBackendFromClusterConfig;
+        assertThat(memBackend2.getCheckpointPath()).isEqualTo(expectedCheckpointPath);
+        assertThat(memBackend2.getSavepointPath()).isNull();
     }
 
     // ------------------------------------------------------------------------
@@ -267,8 +288,8 @@ class StateBackendLoadingTest {
 
     /**
      * Validates taking the application-defined file system state backend and adding with additional
-     * parameters from the cluster configuration, but giving precedence to application-defined
-     * parameters over configuration-defined parameters.
+     * parameters from configuration, but giving precedence to application-defined parameters over
+     * configuration-defined parameters.
      */
     @Test
     void testLoadFileSystemStateBackendMixed() throws Exception {
@@ -304,7 +325,7 @@ class StateBackendLoadingTest {
 
         final StateBackend loadedBackend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        backend, TernaryBoolean.UNDEFINED, config, cl, null);
+                        backend, config, config, cl, null);
         assertThat(loadedBackend).isInstanceOf(FsStateBackend.class);
 
         final FsStateBackend fs = (FsStateBackend) loadedBackend;
@@ -331,7 +352,7 @@ class StateBackendLoadingTest {
         assertThatThrownBy(
                         () ->
                                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                                        null, TernaryBoolean.UNDEFINED, config, cl, null))
+                                        null, config, new Configuration(), cl, null))
                 .isInstanceOf(DynamicCodeLoadingException.class);
 
         // try a class that is not a factory
@@ -339,7 +360,7 @@ class StateBackendLoadingTest {
         assertThatThrownBy(
                         () ->
                                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                                        null, TernaryBoolean.UNDEFINED, config, cl, null))
+                                        null, config, new Configuration(), cl, null))
                 .isInstanceOf(DynamicCodeLoadingException.class);
 
         // a factory that fails
@@ -347,7 +368,7 @@ class StateBackendLoadingTest {
         assertThatThrownBy(
                         () ->
                                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                                        null, TernaryBoolean.UNDEFINED, config, cl, null))
+                                        null, config, new Configuration(), cl, null))
                 .isInstanceOf(IOException.class);
     }
 
@@ -405,13 +426,13 @@ class StateBackendLoadingTest {
 
         final StateBackend loaded1 =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        appBackend, TernaryBoolean.UNDEFINED, config1, cl, null);
+                        appBackend, new Configuration(), config1, cl, null);
         final StateBackend loaded2 =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        null, TernaryBoolean.UNDEFINED, config1, cl, null);
+                        null, new Configuration(), config1, cl, null);
         final StateBackend loaded3 =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        null, TernaryBoolean.UNDEFINED, config2, cl, null);
+                        null, new Configuration(), config2, cl, null);
 
         assertThat(loaded1).isInstanceOf(MemoryStateBackend.class);
         assertThat(loaded2).isInstanceOf(HashMapStateBackend.class);

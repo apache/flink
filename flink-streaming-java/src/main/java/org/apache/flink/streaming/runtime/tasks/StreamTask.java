@@ -22,11 +22,9 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.StateChangelogOptionsInternal;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
@@ -114,7 +112,6 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -1573,19 +1570,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private StateBackend createStateBackend() throws Exception {
         final StateBackend fromApplication =
                 configuration.getStateBackend(getUserCodeClassLoader());
-        final Optional<Boolean> isChangelogEnabledOptional =
-                environment
-                        .getJobConfiguration()
-                        .getOptional(
-                                StateChangelogOptionsInternal.ENABLE_CHANGE_LOG_FOR_APPLICATION);
-        final TernaryBoolean isChangelogStateBackendEnableFromApplication =
-                isChangelogEnabledOptional.isPresent()
-                        ? TernaryBoolean.fromBoolean(isChangelogEnabledOptional.get())
-                        : TernaryBoolean.UNDEFINED;
 
         return StateBackendLoader.fromApplicationOrConfigOrDefault(
                 fromApplication,
-                isChangelogStateBackendEnableFromApplication,
+                getJobConfiguration(),
                 getEnvironment().getTaskManagerInfo().getConfiguration(),
                 getUserCodeClassLoader(),
                 LOG);
@@ -1594,12 +1582,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private CheckpointStorage createCheckpointStorage(StateBackend backend) throws Exception {
         final CheckpointStorage fromApplication =
                 configuration.getCheckpointStorage(getUserCodeClassLoader());
-        final Path savepointDir = configuration.getSavepointDir(getUserCodeClassLoader());
-
         return CheckpointStorageLoader.load(
                 fromApplication,
-                savepointDir,
                 backend,
+                getJobConfiguration(),
                 getEnvironment().getTaskManagerInfo().getConfiguration(),
                 getUserCodeClassLoader(),
                 LOG);

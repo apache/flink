@@ -21,16 +21,23 @@ package org.apache.flink.streaming.api.environment;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.RestartStrategyOptions;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.scheduler.DefaultScheduler;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.util.TernaryBoolean;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -45,6 +52,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.concurrent.Executors;
 
 import static org.apache.flink.configuration.StateChangelogOptions.ENABLE_STATE_CHANGE_LOG;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,19 +65,34 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class StreamExecutionEnvironmentComplexConfigurationTest {
     @Test
-    void testLoadingStateBackendFromConfiguration() {
-        StreamExecutionEnvironment envFromConfiguration =
-                StreamExecutionEnvironment.getExecutionEnvironment();
+    void testJobConfigFromEnvToExecutionGraph() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         Configuration configuration = new Configuration();
-        configuration.setString("state.backend", "jobmanager");
+        configuration.set(StateBackendOptions.STATE_BACKEND, "hashmap");
+        String path = "file:///valid";
+        configuration.set(CheckpointingOptions.CHECKPOINT_STORAGE, "jobmanager");
+        configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, path);
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "exponentialdelay");
 
         // mutate config according to configuration
-        envFromConfiguration.configure(
-                configuration, Thread.currentThread().getContextClassLoader());
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
+        env.fromSequence(0, 1).addSink(new DiscardingSink<>());
 
-        StateBackend actualStateBackend = envFromConfiguration.getStateBackend();
-        assertThat(actualStateBackend).isInstanceOf(MemoryStateBackend.class);
+        DefaultScheduler scheduler =
+                new DefaultSchedulerBuilder(
+                                env.getStreamGraph().getJobGraph(),
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                Executors.newSingleThreadScheduledExecutor())
+                        .build();
+        Configuration jobConfiguration = scheduler.getExecutionGraph().getJobConfiguration();
+
+        assertThat(jobConfiguration.get(StateBackendOptions.STATE_BACKEND))
+                .isEqualTo(configuration.get(StateBackendOptions.STATE_BACKEND));
+        assertThat(jobConfiguration.get(CheckpointingOptions.CHECKPOINT_STORAGE))
+                .isEqualTo(configuration.get(CheckpointingOptions.CHECKPOINT_STORAGE));
+        assertThat(jobConfiguration.get(RestartStrategyOptions.RESTART_STRATEGY))
+                .isEqualTo(configuration.get(RestartStrategyOptions.RESTART_STRATEGY));
     }
 
     @Test
@@ -208,7 +231,6 @@ class StreamExecutionEnvironmentComplexConfigurationTest {
     @Test
     void testGettingEnvironmentWithConfiguration() {
         Configuration configuration = new Configuration();
-        configuration.setString("state.backend", "jobmanager");
         configuration.set(CoreOptions.DEFAULT_PARALLELISM, 10);
         configuration.set(PipelineOptions.AUTO_WATERMARK_INTERVAL, Duration.ofMillis(100));
 
@@ -217,13 +239,11 @@ class StreamExecutionEnvironmentComplexConfigurationTest {
 
         assertThat(env.getParallelism()).isEqualTo(10);
         assertThat(env.getConfig().getAutoWatermarkInterval()).isEqualTo(100L);
-        assertThat(env.getStateBackend()).isInstanceOf(MemoryStateBackend.class);
     }
 
     @Test
     void testLocalEnvironmentExplicitParallelism() {
         Configuration configuration = new Configuration();
-        configuration.setString("state.backend", "jobmanager");
         configuration.set(CoreOptions.DEFAULT_PARALLELISM, 10);
         configuration.set(PipelineOptions.AUTO_WATERMARK_INTERVAL, Duration.ofMillis(100));
 
@@ -232,7 +252,6 @@ class StreamExecutionEnvironmentComplexConfigurationTest {
 
         assertThat(env.getParallelism()).isEqualTo(2);
         assertThat(env.getConfig().getAutoWatermarkInterval()).isEqualTo(100L);
-        assertThat(env.getStateBackend()).isInstanceOf(MemoryStateBackend.class);
     }
 
     /** JobSubmitted counter listener for unit test. */

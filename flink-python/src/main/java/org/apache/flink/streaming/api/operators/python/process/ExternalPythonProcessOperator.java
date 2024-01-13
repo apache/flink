@@ -92,6 +92,7 @@ public class ExternalPythonProcessOperator<IN, OUT>
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(
                                 ManagedMemoryUseCase.PYTHON,
+                                getContainingTask().getJobConfiguration(),
                                 getContainingTask()
                                         .getEnvironment()
                                         .getTaskManagerInfo()
