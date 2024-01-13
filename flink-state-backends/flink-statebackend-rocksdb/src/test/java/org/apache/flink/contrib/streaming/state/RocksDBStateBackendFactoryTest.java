@@ -23,7 +23,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
-import org.apache.flink.util.TernaryBoolean;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -135,7 +134,7 @@ public class RocksDBStateBackendFactoryTest {
 
         final StateBackend loadedBackend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        backend, TernaryBoolean.UNDEFINED, config, cl, null);
+                        backend, new Configuration(), config, cl, null);
         assertTrue(loadedBackend instanceof EmbeddedRocksDBStateBackend);
 
         final EmbeddedRocksDBStateBackend loadedRocks = (EmbeddedRocksDBStateBackend) loadedBackend;

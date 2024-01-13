@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateChangelogOptions;
-import org.apache.flink.configuration.StateChangelogOptionsInternal;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.FileUtils;
@@ -171,9 +170,7 @@ public class TaskExecutorLocalStateStoresManager {
 
                 boolean changelogEnabled =
                         jobConfiguration
-                                .getOptional(
-                                        StateChangelogOptionsInternal
-                                                .ENABLE_CHANGE_LOG_FOR_APPLICATION)
+                                .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
                                 .orElse(
                                         clusterConfiguration.getBoolean(
                                                 StateChangelogOptions.ENABLE_STATE_CHANGE_LOG));

@@ -254,7 +254,7 @@ public class DefaultExecutionGraphBuilder {
                 rootBackend =
                         StateBackendLoader.fromApplicationOrConfigOrDefault(
                                 applicationConfiguredBackend,
-                                snapshotSettings.isChangelogStateBackendEnabled(),
+                                jobGraph.getJobConfiguration(),
                                 jobManagerConfig,
                                 classLoader,
                                 log);
@@ -287,8 +287,8 @@ public class DefaultExecutionGraphBuilder {
                 rootStorage =
                         CheckpointStorageLoader.load(
                                 applicationConfiguredStorage,
-                                null,
                                 rootBackend,
+                                jobGraph.getJobConfiguration(),
                                 jobManagerConfig,
                                 classLoader,
                                 log);

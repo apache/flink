@@ -154,6 +154,7 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
                         getOperatorConfig()
                                 .getManagedMemoryFractionOperatorUseCaseOfSlot(
                                         ManagedMemoryUseCase.OPERATOR,
+                                        environment.getJobConfiguration(),
                                         environment.getTaskManagerInfo().getConfiguration(),
                                         environment.getUserCodeClassLoader().asClassLoader()));
     }

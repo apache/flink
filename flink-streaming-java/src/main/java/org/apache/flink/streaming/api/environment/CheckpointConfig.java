@@ -1016,6 +1016,10 @@ public class CheckpointConfig implements java.io.Serializable {
         configuration
                 .getOptional(CheckpointingOptions.CHECKPOINTS_DIRECTORY)
                 .ifPresent(this::setCheckpointStorage);
+        // reset checkpoint storage for backward compatibility
+        configuration
+                .getOptional(CheckpointingOptions.CHECKPOINT_STORAGE)
+                .ifPresent(ignored -> this.storage = null);
     }
 
     /**

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.execution.Environment;
@@ -36,7 +37,6 @@ import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.util.DynamicCodeLoadingException;
-import org.apache.flink.util.TernaryBoolean;
 
 import org.slf4j.Logger;
 
@@ -108,11 +108,14 @@ class StreamOperatorContextBuilder {
 
         StateBackend stateBackend;
         try {
+            Configuration jobConfig = environment.getJobConfiguration();
+            jobConfig.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, false);
+            Configuration clusterConfig = new Configuration(configuration);
             stateBackend =
                     StateBackendLoader.fromApplicationOrConfigOrDefault(
                             applicationStateBackend,
-                            TernaryBoolean.FALSE,
-                            configuration,
+                            jobConfig,
+                            clusterConfig,
                             ctx.getUserCodeClassLoader(),
                             logger);
         } catch (DynamicCodeLoadingException e) {

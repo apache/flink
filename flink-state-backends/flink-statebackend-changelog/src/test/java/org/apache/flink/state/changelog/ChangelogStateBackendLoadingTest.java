@@ -72,9 +72,9 @@ public class ChangelogStateBackendLoadingTest {
     public void testLoadingDefault() throws Exception {
         final StateBackend backend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        null, TernaryBoolean.UNDEFINED, config(), cl, null);
+                        null, config(), config(), cl, null);
         final CheckpointStorage storage =
-                CheckpointStorageLoader.load(null, null, backend, config(), cl, null);
+                CheckpointStorageLoader.load(null, backend, config(), config(), cl, null);
 
         assertTrue(backend instanceof HashMapStateBackend);
     }
@@ -85,9 +85,9 @@ public class ChangelogStateBackendLoadingTest {
         // "rocksdb" should not take effect
         final StateBackend backend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        appBackend, TernaryBoolean.UNDEFINED, config("rocksdb", true), cl, null);
+                        appBackend, config("rocksdb", true), config(), cl, null);
         final CheckpointStorage storage =
-                CheckpointStorageLoader.load(null, null, backend, config(), cl, null);
+                CheckpointStorageLoader.load(null, backend, config(), config(), cl, null);
 
         assertDelegateStateBackend(
                 backend, MockStateBackend.class, storage, MockStateBackend.class);
@@ -102,9 +102,9 @@ public class ChangelogStateBackendLoadingTest {
         // "rocksdb" should not take effect
         final StateBackend backend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        appBackend, TernaryBoolean.TRUE, config("rocksdb", false), cl, null);
+                        appBackend, config("rocksdb", true), config(false), cl, null);
         final CheckpointStorage storage =
-                CheckpointStorageLoader.load(null, null, backend, config(), cl, null);
+                CheckpointStorageLoader.load(null, backend, config(), config(), cl, null);
 
         assertDelegateStateBackend(
                 backend, MockStateBackend.class, storage, MockStateBackend.class);
@@ -117,9 +117,9 @@ public class ChangelogStateBackendLoadingTest {
     public void testApplicationEnableChangelogStateBackend() throws Exception {
         final StateBackend backend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        null, TernaryBoolean.TRUE, config(false), cl, null);
+                        null, config(true), config(false), cl, null);
         final CheckpointStorage storage =
-                CheckpointStorageLoader.load(null, null, backend, config(), cl, null);
+                CheckpointStorageLoader.load(null, backend, config(), config(), cl, null);
 
         assertDelegateStateBackend(
                 backend, HashMapStateBackend.class, storage, JobManagerCheckpointStorage.class);
@@ -129,7 +129,7 @@ public class ChangelogStateBackendLoadingTest {
     public void testApplicationDisableChangelogStateBackend() throws Exception {
         final StateBackend backend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        null, TernaryBoolean.FALSE, config(true), cl, null);
+                        null, config(false), config(true), cl, null);
 
         assertTrue(backend instanceof HashMapStateBackend);
     }
@@ -152,7 +152,7 @@ public class ChangelogStateBackendLoadingTest {
                 new ChangelogStateBackend(new ChangelogStateBackend(new MockStateBackend()));
 
         StateBackendLoader.fromApplicationOrConfigOrDefault(
-                appBackend, TernaryBoolean.UNDEFINED, config("rocksdb", true), cl, null);
+                appBackend, config("rocksdb", true), config(), cl, null);
     }
 
     // ----------------------------------------------------------
@@ -299,15 +299,15 @@ public class ChangelogStateBackendLoadingTest {
         if (configOnly) {
             backend =
                     StateBackendLoader.fromApplicationOrConfigOrDefault(
-                            null, TernaryBoolean.UNDEFINED, config, cl, null);
+                            null, config, config(), cl, null);
         } else {
             backend =
                     StateBackendLoader.fromApplicationOrConfigOrDefault(
-                            appBackend, TernaryBoolean.TRUE, config, cl, null);
+                            appBackend, config, config(), cl, null);
         }
 
         final CheckpointStorage storage =
-                CheckpointStorageLoader.load(null, null, backend, config, cl, null);
+                CheckpointStorageLoader.load(null, backend, config, config(), cl, null);
 
         assertDelegateStateBackend(backend, delegatedStateBackendClass, storage, storageClass);
     }
@@ -353,7 +353,13 @@ public class ChangelogStateBackendLoadingTest {
         }
 
         StreamGraph streamGraph = env.getStreamGraph(false);
-        assertEquals(isChangelogEnabled, streamGraph.isChangelogStateBackendEnabled());
+        assertEquals(
+                isChangelogEnabled,
+                streamGraph
+                        .getJobConfiguration()
+                        .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
+                        .map(TernaryBoolean::fromBoolean)
+                        .orElse(TernaryBoolean.UNDEFINED));
         if (rootStateBackendClass == null) {
             assertNull(streamGraph.getStateBackend());
         } else {

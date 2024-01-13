@@ -68,10 +68,13 @@ public enum ManagedMemoryUtils {
             ManagedMemoryUseCase useCase,
             double fractionOfUseCase,
             Set<ManagedMemoryUseCase> allUseCases,
-            Configuration config,
+            Configuration jobConfig,
+            Configuration clusterConfig,
             Optional<Boolean> stateBackendFromApplicationUsesManagedMemory,
             ClassLoader classLoader) {
 
+        Configuration config = new Configuration(clusterConfig);
+        config.addAll(jobConfig);
         final boolean stateBackendUsesManagedMemory =
                 StateBackendLoader.stateBackendFromApplicationOrConfigOrDefaultUseManagedMemory(
                         config, stateBackendFromApplicationUsesManagedMemory, classLoader);
@@ -81,7 +84,7 @@ public enum ManagedMemoryUtils {
         }
 
         final Map<ManagedMemoryUseCase, Integer> allUseCaseWeights =
-                getManagedMemoryUseCaseWeightsFromConfig(config);
+                getManagedMemoryUseCaseWeightsFromConfig(clusterConfig);
         final int totalWeights =
                 allUseCases.stream()
                         .filter(

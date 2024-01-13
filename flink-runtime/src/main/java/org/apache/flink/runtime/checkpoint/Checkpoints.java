@@ -307,20 +307,29 @@ public class Checkpoints {
         checkNotNull(configuration, "configuration");
         checkNotNull(classLoader, "classLoader");
 
-        CheckpointStorage storage = loadCheckpointStorage(configuration, classLoader, logger);
+        // An empty job configuration is utilized here because `disposeSavepoint` is intended
+        // for cluster-wide operations, which do not require job-specific configuration.
+        CheckpointStorage storage =
+                loadCheckpointStorage(new Configuration(), configuration, classLoader, logger);
 
         disposeSavepoint(pointer, storage, classLoader);
     }
 
     @Nonnull
     public static StateBackend loadStateBackend(
-            Configuration configuration, ClassLoader classLoader, @Nullable Logger logger) {
+            Configuration jobConfig,
+            Configuration clusterConfig,
+            ClassLoader classLoader,
+            @Nullable Logger logger) {
         if (logger != null) {
             logger.info("Attempting to load configured state backend for savepoint disposal");
         }
 
+        // Job level config can override the cluster level config.
+        Configuration mergedConfig = new Configuration(clusterConfig);
+        mergedConfig.addAll(jobConfig);
         try {
-            return StateBackendLoader.loadStateBackendFromConfig(configuration, classLoader, null);
+            return StateBackendLoader.loadStateBackendFromConfig(mergedConfig, classLoader, null);
         } catch (Throwable t) {
             // catches exceptions and errors (like linking errors)
             if (logger != null) {
@@ -333,8 +342,11 @@ public class Checkpoints {
 
     @Nonnull
     public static CheckpointStorage loadCheckpointStorage(
-            Configuration configuration, ClassLoader classLoader, @Nullable Logger logger) {
-        StateBackend backend = loadStateBackend(configuration, classLoader, logger);
+            Configuration jobConfig,
+            Configuration clusterConfig,
+            ClassLoader classLoader,
+            @Nullable Logger logger) {
+        StateBackend backend = loadStateBackend(jobConfig, clusterConfig, classLoader, logger);
 
         if (logger != null) {
             logger.info("Attempting to load configured checkpoint storage for savepoint disposal");
@@ -344,7 +356,7 @@ public class Checkpoints {
         try {
             checkpointStorage =
                     CheckpointStorageLoader.load(
-                            null, null, backend, configuration, classLoader, null);
+                            null, backend, jobConfig, clusterConfig, classLoader, null);
         } catch (Throwable t) {
             // catches exceptions and errors (like linking errors)
             if (logger != null) {

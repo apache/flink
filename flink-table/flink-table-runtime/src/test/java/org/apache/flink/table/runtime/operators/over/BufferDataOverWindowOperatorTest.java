@@ -237,6 +237,7 @@ public class BufferDataOverWindowOperatorTest {
                         when(conf.getManagedMemoryFractionOperatorUseCaseOfSlot(
                                         eq(ManagedMemoryUseCase.OPERATOR),
                                         any(Configuration.class),
+                                        any(Configuration.class),
                                         any(ClassLoader.class)))
                                 .thenReturn(0.99);
                         return conf;
