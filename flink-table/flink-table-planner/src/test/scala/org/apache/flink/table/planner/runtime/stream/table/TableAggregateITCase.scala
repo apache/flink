@@ -21,7 +21,7 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingRetractSink}
+import org.apache.flink.table.planner.runtime.utils.{JavaUserDefinedTableAggFunctions, StreamingWithStateTestBase, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverloadedDoubleMaxFunction
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData.tupleData3
@@ -41,6 +41,84 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
   override def before(): Unit = {
     super.before()
     tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+  }
+
+  @Test
+  def testFlagAggregateWithOrWithoutIncrementalUpdate(): Unit = {
+    // Create a Table from the array of Rows
+    val table = tEnv.fromValues(
+      DataTypes.ROW(
+        DataTypes.FIELD("id", DataTypes.INT),
+        DataTypes.FIELD("name", DataTypes.STRING),
+        DataTypes.FIELD("price", DataTypes.INT)),
+      row(1, "Latte", 6: java.lang.Integer),
+      row(2, "Milk", 3: java.lang.Integer),
+      row(3, "Breve", 5: java.lang.Integer),
+      row(4, "Mocha", 8: java.lang.Integer),
+      row(5, "Tea", 4: java.lang.Integer)
+    )
+
+    // Register the table aggregate function
+    tEnv.createTemporarySystemFunction("top2", new JavaUserDefinedTableAggFunctions.Top2)
+    tEnv.createTemporarySystemFunction(
+      "incrementalTop2",
+      new JavaUserDefinedTableAggFunctions.IncrementalTop2)
+
+    checkRank(
+      "top2",
+      List(
+        // output triggered by (1, "Latte", 6)
+        "(true,6,1)",
+        // output triggered by (2, "Milk", 3)
+        "(false,6,1)",
+        "(true,6,1)",
+        "(true,3,2)",
+        // output triggered by (3, "Breve", 5)
+        "(false,6,1)",
+        "(false,3,2)",
+        "(true,6,1)",
+        "(true,5,2)",
+        // output triggered by (4, "Mocha", 8)
+        "(false,6,1)",
+        "(false,5,2)",
+        "(true,8,1)",
+        "(true,6,2)",
+        // output triggered by (5, "Tea", 4)
+        "(false,8,1)",
+        "(false,6,2)",
+        "(true,8,1)",
+        "(true,6,2)"
+      )
+    )
+    checkRank(
+      "incrementalTop2",
+      List(
+        // output triggered by (1, "Latte", 6)
+        "(true,6,1)",
+        // output triggered by (2, "Milk", 3)
+        "(true,3,2)",
+        // output triggered by (3, "Breve", 5)
+        "(false,3,2)",
+        "(true,5,2)",
+        // output triggered by (4, "Mocha", 8)
+        "(false,6,1)",
+        "(true,8,1)",
+        "(false,5,2)",
+        "(true,6,2)"
+      )
+    )
+
+    def checkRank(func: String, expectedResult: List[String]): Unit = {
+      val resultTable =
+        table
+          .flatAggregate(call(func, $("price")).as("top_price", "rank"))
+          .select($("top_price"), $("rank"))
+
+      val sink = new TestingRetractSink()
+      resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
+      env.execute()
+      assertEquals(expectedResult, sink.getRawResults)
+    }
   }
 
   @Test
