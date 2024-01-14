@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
@@ -125,6 +126,12 @@ public class MemoryStateBackend extends AbstractFileStateBackend
 
     /** The maximal size that the snapshotted memory state may have. */
     private final int maxStateSize;
+
+    /**
+     * Switch to create checkpoint sub-directory with name of jobId. A value of 'undefined' means
+     * not yet configured, in which case the default will be used.
+     */
+    private TernaryBoolean createCheckpointSubDirs = TernaryBoolean.UNDEFINED;
 
     // ------------------------------------------------------------------------
 
@@ -252,6 +259,9 @@ public class MemoryStateBackend extends AbstractFileStateBackend
         // configure latency tracking
         latencyTrackingConfigBuilder =
                 original.latencyTrackingConfigBuilder.configure(configuration);
+        this.createCheckpointSubDirs =
+                original.createCheckpointSubDirs.resolveUndefined(
+                        configuration.get(CheckpointingOptions.CREATE_CHECKPOINT_SUB_DIR));
     }
 
     // ------------------------------------------------------------------------
@@ -311,7 +321,12 @@ public class MemoryStateBackend extends AbstractFileStateBackend
     @Override
     public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
         return new MemoryBackendCheckpointStorageAccess(
-                jobId, getCheckpointPath(), getSavepointPath(), maxStateSize);
+                jobId,
+                getCheckpointPath(),
+                getSavepointPath(),
+                createCheckpointSubDirs.getOrDefault(
+                        CheckpointingOptions.CREATE_CHECKPOINT_SUB_DIR.defaultValue()),
+                maxStateSize);
     }
 
     // ------------------------------------------------------------------------

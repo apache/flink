@@ -289,7 +289,7 @@ public class ChangelogStateDiscardTest {
                 writer,
                 emptyList(),
                 new MemoryBackendCheckpointStorageAccess(
-                        jobId, null, null, 1 /* don't expect any materialization */));
+                        jobId, null, null, true, 1 /* don't expect any materialization */));
     }
 
     private static String randomString() {

@@ -265,7 +265,8 @@ public class StreamTaskTerminationTest extends TestLogger {
 
         @Override
         public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
-            return new MemoryBackendCheckpointStorageAccess(jobId, null, null, Integer.MAX_VALUE);
+            return new MemoryBackendCheckpointStorageAccess(
+                    jobId, null, null, true, Integer.MAX_VALUE);
         }
 
         @Override

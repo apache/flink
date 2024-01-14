@@ -3618,7 +3618,7 @@ class CheckpointCoordinatorTest {
                                     public CheckpointStorageAccess createCheckpointStorage(
                                             JobID jobId) throws IOException {
                                         return new MemoryBackendCheckpointStorageAccess(
-                                                jobId, null, null, 100) {
+                                                jobId, null, null, true, 100) {
                                             @Override
                                             public CheckpointStorageLocation
                                                     initializeLocationForCheckpoint(
@@ -4155,7 +4155,7 @@ class CheckpointCoordinatorTest {
     private static class IOExceptionCheckpointStorage extends JobManagerCheckpointStorage {
         @Override
         public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
-            return new MemoryBackendCheckpointStorageAccess(jobId, null, null, 100) {
+            return new MemoryBackendCheckpointStorageAccess(jobId, null, null, true, 100) {
                 @Override
                 public CheckpointStorageLocation initializeLocationForCheckpoint(long checkpointId)
                         throws IOException {

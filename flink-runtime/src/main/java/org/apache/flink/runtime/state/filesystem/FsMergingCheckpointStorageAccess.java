@@ -53,6 +53,7 @@ public class FsMergingCheckpointStorageAccess extends FsCheckpointStorageAccess 
                 fs,
                 checkpointBaseDirectory,
                 defaultSavepointDirectory,
+                false,
                 jobId,
                 fileSizeThreshold,
                 writeBufferSize);
