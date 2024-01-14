@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>state.checkpoints.create-subdir</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Whether to create sub-directories named by job id under the '<code class="highlighter-rouge">state.checkpoints.dir</code>' to store the data files and meta data of checkpoints. The default value is true to enable user could run several jobs with the same checkpoint directory at the same time. If this value is set to false, pay attention not to run several jobs with the same directory simultaneously. <br />WARNING: This is an advanced configuration. If set to false, users must ensure that no multiple jobs are run with the same checkpoint directory, and that no files exist other than those necessary for the restoration of the current job when starting a new job.</td>
+        </tr>
+        <tr>
             <td><h5>state.storage.fs.memory-threshold</h5></td>
             <td style="word-wrap: break-word;">20 kb</td>
             <td>MemorySize</td>

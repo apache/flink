@@ -131,6 +131,12 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
      */
     private final int writeBufferSize;
 
+    /**
+     * Switch to create checkpoint sub-directory with name of jobId. A value of 'undefined' means
+     * not yet configured, in which case the default will be used.
+     */
+    private boolean createCheckpointSubDirs;
+
     // -----------------------------------------------------------------------
 
     /**
@@ -364,6 +370,8 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 
         this.fileStateThreshold = fileStateSizeThreshold;
         this.writeBufferSize = writeBufferSize;
+        this.createCheckpointSubDirs =
+                CheckpointingOptions.CREATE_CHECKPOINT_SUB_DIR.defaultValue();
     }
 
     /**
@@ -407,6 +415,10 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
                         : configuration.get(CheckpointingOptions.FS_WRITE_BUFFER_SIZE);
 
         this.writeBufferSize = Math.max(bufferSize, this.fileStateThreshold);
+        this.createCheckpointSubDirs =
+                configuration
+                        .getOptional(CheckpointingOptions.CREATE_CHECKPOINT_SUB_DIR)
+                        .orElse(original.createCheckpointSubDirs);
         // configure latency tracking
         latencyTrackingConfigBuilder =
                 original.latencyTrackingConfigBuilder.configure(configuration);
@@ -524,6 +536,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
         return new FsCheckpointStorageAccess(
                 getCheckpointPath(),
                 getSavepointPath(),
+                createCheckpointSubDirs,
                 jobId,
                 getMinFileSizeThreshold(),
                 getWriteBufferSize());

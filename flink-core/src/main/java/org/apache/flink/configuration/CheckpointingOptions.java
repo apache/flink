@@ -229,6 +229,32 @@ public class CheckpointingOptions {
                                     + "(i.e. all TaskManagers and JobManagers).");
 
     /**
+     * Whether to create sub-directories named by job id to store the data files and meta data of
+     * checkpoints. The default value is true to enable user could run several jobs with the same
+     * checkpoint directory at the same time. If this value is set to false, pay attention not to
+     * run several jobs with the same directory simultaneously.
+     */
+    @Documentation.Section(Documentation.Sections.EXPERT_STATE_BACKENDS)
+    public static final ConfigOption<Boolean> CREATE_CHECKPOINT_SUB_DIR =
+            ConfigOptions.key("state.checkpoints.create-subdir")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether to create sub-directories named by job id under the '%s' to store the data files and meta data "
+                                                    + "of checkpoints. The default value is true to enable user could run several jobs with the same "
+                                                    + "checkpoint directory at the same time. If this value is set to false, pay attention not to "
+                                                    + "run several jobs with the same directory simultaneously. ",
+                                            TextElement.code(CHECKPOINTS_DIRECTORY.key()))
+                                    .linebreak()
+                                    .text(
+                                            "WARNING: This is an advanced configuration. If set to false, users must ensure that no multiple jobs are run "
+                                                    + "with the same checkpoint directory, and that no files exist other than those necessary for the "
+                                                    + "restoration of the current job when starting a new job.")
+                                    .build());
+
+    /**
      * The minimum size of state data files. All state chunks smaller than that are stored inline in
      * the root checkpoint metadata file.
      */
