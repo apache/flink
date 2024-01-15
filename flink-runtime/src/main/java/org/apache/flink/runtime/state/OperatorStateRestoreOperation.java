@@ -177,24 +177,20 @@ public class OperatorStateRestoreOperation implements RestoreOperation<Void> {
                 restoredBroadcastMetaInfoSnapshots.forEach(
                         stateName -> toRestore.add(stateName.getName()));
 
-                for (String stateName : toRestore) {
+                final StreamCompressionDecorator compressionDecorator =
+                        backendSerializationProxy.isUsingStateCompression()
+                                ? SnappyStreamCompressionDecorator.INSTANCE
+                                : UncompressedStreamCompressionDecorator.INSTANCE;
 
-                    final OperatorStateHandle.StateMetaInfo offsets =
-                            stateHandle.getStateNameToPartitionOffsets().get(stateName);
-
-                    PartitionableListState<?> listStateForName =
-                            registeredOperatorStates.get(stateName);
-                    final StreamCompressionDecorator compressionDecorator =
-                            backendSerializationProxy.isUsingStateCompression()
-                                    ? SnappyStreamCompressionDecorator.INSTANCE
-                                    : UncompressedStreamCompressionDecorator.INSTANCE;
-                    // create the compressed stream for each state to have the compression header
-                    // for each
-                    try (final CompressibleFSDataInputStream compressedIn =
-                            new CompressibleFSDataInputStream(
-                                    in,
-                                    compressionDecorator)) { // closes only the outer compression
-                        // stream
+                try (final CompressibleFSDataInputStream compressedIn =
+                        new CompressibleFSDataInputStream(
+                                in,
+                                compressionDecorator)) { // closes only the outer compression stream
+                    for (String stateName : toRestore) {
+                        final OperatorStateHandle.StateMetaInfo offsets =
+                                stateHandle.getStateNameToPartitionOffsets().get(stateName);
+                        PartitionableListState<?> listStateForName =
+                                registeredOperatorStates.get(stateName);
                         if (listStateForName == null) {
                             BackendWritableBroadcastState<?, ?> broadcastStateForName =
                                     registeredBroadcastStates.get(stateName);
