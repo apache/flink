@@ -358,10 +358,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             // init snapshot strategy after db is assured to be initialized
             checkpointStrategy =
                     initializeSavepointAndCheckpointStrategies(
-                            cancelStreamRegistryForBackend,
                             rocksDBResourceGuard,
                             kvStateInformation,
-                            registeredPQStates,
                             keyGroupPrefixBytes,
                             db,
                             backendUID,
@@ -523,10 +521,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
     }
 
     private RocksDBSnapshotStrategyBase<K, ?> initializeSavepointAndCheckpointStrategies(
-            CloseableRegistry cancelStreamRegistry,
             ResourceGuard rocksDBResourceGuard,
             LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation,
-            LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             int keyGroupPrefixBytes,
             RocksDB db,
             UUID backendUID,
@@ -547,7 +543,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                             keyGroupRange,
                             keyGroupPrefixBytes,
                             localRecoveryConfig,
-                            cancelStreamRegistry,
                             instanceBasePath,
                             backendUID,
                             materializedSstFiles,

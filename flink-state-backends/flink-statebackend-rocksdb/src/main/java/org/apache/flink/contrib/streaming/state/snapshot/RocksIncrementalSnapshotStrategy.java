@@ -97,7 +97,6 @@ public class RocksIncrementalSnapshotStrategy<K>
             @Nonnull KeyGroupRange keyGroupRange,
             @Nonnegative int keyGroupPrefixBytes,
             @Nonnull LocalRecoveryConfig localRecoveryConfig,
-            @Nonnull CloseableRegistry cancelStreamRegistry,
             @Nonnull File instanceBasePath,
             @Nonnull UUID backendUID,
             @Nonnull SortedMap<Long, Collection<HandleAndLocalPath>> uploadedStateHandles,
@@ -358,7 +357,9 @@ public class RocksIncrementalSnapshotStrategy<K>
                                 snapshotCloseableRegistry,
                                 tmpResourcesRegistry);
                 uploadedSize +=
-                        sstFilesUploadResult.stream().mapToLong(e -> e.getStateSize()).sum();
+                        sstFilesUploadResult.stream()
+                                .mapToLong(HandleAndLocalPath::getStateSize)
+                                .sum();
                 sstFiles.addAll(sstFilesUploadResult);
 
                 List<HandleAndLocalPath> miscFilesUploadResult =
@@ -369,7 +370,9 @@ public class RocksIncrementalSnapshotStrategy<K>
                                 snapshotCloseableRegistry,
                                 tmpResourcesRegistry);
                 uploadedSize +=
-                        miscFilesUploadResult.stream().mapToLong(e -> e.getStateSize()).sum();
+                        miscFilesUploadResult.stream()
+                                .mapToLong(HandleAndLocalPath::getStateSize)
+                                .sum();
                 miscFiles.addAll(miscFilesUploadResult);
 
                 synchronized (uploadedSstFiles) {
