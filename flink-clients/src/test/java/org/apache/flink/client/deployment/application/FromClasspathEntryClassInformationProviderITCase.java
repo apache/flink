@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * {@code FromClasspathEntryClassInformationProviderTest} tests {@link
  * FromClasspathEntryClassInformationProvider}.
  */
-class FromClasspathEntryClassInformationProviderTest {
+class FromClasspathEntryClassInformationProviderITCase {
 
     @RegisterExtension
     ClasspathProviderExtension noEntryClassClasspathProvider =
