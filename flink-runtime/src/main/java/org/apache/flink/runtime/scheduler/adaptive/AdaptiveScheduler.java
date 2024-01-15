@@ -83,7 +83,6 @@ import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
@@ -611,11 +610,6 @@ public class AdaptiveScheduler
     @Override
     public JobStatus requestJobStatus() {
         return state.getJobStatus();
-    }
-
-    @Override
-    public JobDetails requestJobDetails() {
-        return JobDetails.createDetailsForJob(state.getJob());
     }
 
     @Override
