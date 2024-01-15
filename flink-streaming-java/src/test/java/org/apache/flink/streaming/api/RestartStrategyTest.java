@@ -113,7 +113,7 @@ public class RestartStrategyTest extends TestLogger {
         Assert.assertEquals(
                 1337,
                 ((RestartStrategies.FixedDelayRestartStrategyConfiguration) restartStrategy)
-                        .getDelayBetweenAttemptsInterval()
-                        .toMilliseconds());
+                        .getDurationBetweenAttempts()
+                        .toMillis());
     }
 }

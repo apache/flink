@@ -303,7 +303,7 @@ public class IgnoreInFlightDataITCase extends TestLogger {
         @Override
         public Integer map(Integer value) throws Exception {
             // Allow working only one subtask until the checkpoint barrier reaches the sink.
-            if (getRuntimeContext().getIndexOfThisSubtask() > 0) {
+            if (getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() > 0) {
                 checkpointReachSinkLatch.get().await();
             }
 

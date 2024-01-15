@@ -20,7 +20,10 @@ package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
@@ -78,6 +81,8 @@ import static org.assertj.core.api.Assertions.fail;
 /** IMPORTANT! Remember to close environment after usage! */
 public class MockEnvironment implements Environment, AutoCloseable {
 
+    private final JobInfo jobInfo;
+
     private final TaskInfo taskInfo;
 
     private final ExecutionConfig executionConfig;
@@ -101,8 +106,6 @@ public class MockEnvironment implements Environment, AutoCloseable {
     private final List<IndexedInputGate> inputs;
 
     private final List<ResultPartitionWriter> outputs;
-
-    private final JobID jobID;
 
     private final JobVertexID jobVertexID;
 
@@ -165,10 +168,10 @@ public class MockEnvironment implements Environment, AutoCloseable {
             ExternalResourceInfoProvider externalResourceInfoProvider,
             ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory) {
 
-        this.jobID = jobID;
+        this.jobInfo = new JobInfoImpl(jobID, "MockJob");
         this.jobVertexID = jobVertexID;
 
-        this.taskInfo = new TaskInfo(taskName, maxParallelism, subtaskIndex, parallelism, 0);
+        this.taskInfo = new TaskInfoImpl(taskName, maxParallelism, subtaskIndex, parallelism, 0);
         this.jobConfiguration = new Configuration();
         this.taskConfiguration = taskConfiguration;
         this.inputs = new LinkedList<>();
@@ -263,7 +266,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
     @Override
     public JobID getJobID() {
-        return this.jobID;
+        return this.jobInfo.getJobId();
     }
 
     @Override
@@ -456,6 +459,11 @@ public class MockEnvironment implements Environment, AutoCloseable {
     @Override
     public ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory() {
         return channelStateExecutorFactory;
+    }
+
+    @Override
+    public JobInfo getJobInfo() {
+        return jobInfo;
     }
 
     public void setExpectedExternalFailureCause(Class<? extends Throwable> expectedThrowableClass) {

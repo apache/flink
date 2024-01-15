@@ -21,13 +21,15 @@ import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.table.api.{DataTypes, TableException}
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{DeclarativeAggregateFunction, ImperativeAggregateFunction}
+import org.apache.flink.table.functions.{DeclarativeAggregateFunction, ImperativeAggregateFunction, TableAggregateFunction, UserDefinedFunctionHelper}
+import org.apache.flink.table.functions.TableAggregateFunction.RetractableCollector
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
+import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.dataview.{DataViewSpec, ListViewSpec, MapViewSpec, StateListView, StateMapView}
@@ -86,6 +88,7 @@ class AggsHandlerCodeGenerator(
   private var isRetractNeeded = false
   private var isMergeNeeded = false
   private var isWindowSizeNeeded = false
+  private var isIncrementalUpdateNeeded = false
 
   var valueType: RowType = _
 
@@ -167,6 +170,14 @@ class AggsHandlerCodeGenerator(
   }
 
   /**
+   * Whether to update acc result incrementally. The value is true only for TableAggregateFunction
+   * with emitUpdateWithRetract method implemented.
+   */
+  def isIncrementalUpdate: Boolean = {
+    isIncrementalUpdateNeeded
+  }
+
+  /**
    * Tells the generator to generate `merge(..)` method with the merged accumulator information for
    * the [[AggsHandleFunction]] and [[NamespaceAggsHandleFunction]]. Default not generate
    * `merge(..)` method.
@@ -234,6 +245,20 @@ class AggsHandlerCodeGenerator(
               constants,
               relBuilder)
           case _: ImperativeAggregateFunction[_, _] =>
+            aggInfo.function match {
+              case tableAggFunc: TableAggregateFunction[_, _] =>
+                // If the user implements both the emitValue and emitUpdateWithRetract methods,
+                // the emitUpdateWithRetract method will be called with priority.
+                if (
+                  UserDefinedFunctionUtils.ifMethodExistInFunction(
+                    UserDefinedFunctionHelper.TABLE_AGGREGATE_EMIT_RETRACT,
+                    tableAggFunc)
+                ) {
+                  this.isIncrementalUpdateNeeded = true
+                }
+
+              case _ =>
+            }
             new ImperativeAggCodeGen(
               ctx,
               aggInfo,
@@ -247,7 +272,8 @@ class AggsHandlerCodeGenerator(
               hasNamespace,
               mergedAccOnHeap,
               mergedAccExternalTypes(aggBufferOffset),
-              copyInputField)
+              copyInputField,
+              isIncrementalUpdateNeeded)
         }
         aggBufferOffset = aggBufferOffset + aggInfo.externalAccTypes.length
         codegen
@@ -447,6 +473,23 @@ class AggsHandlerCodeGenerator(
     val recordInputName = newName("recordInput")
     val recordToRowDataCode = genRecordToRowData(aggExternalType, recordInputName)
 
+    // for emitUpdateWithRetract, the collector needs to implement RetractableCollector
+    // and override retract method
+    val (collectorClassName, collectorRetractCode) =
+      if (isIncrementalUpdateNeeded)
+        (
+          RETRACTABLE_COLLECTOR,
+          s"""
+             |@Override
+             |public void retract(Object $recordInputName) throws Exception {
+             |  $ROW_DATA tempRowData = convertToRowData($recordInputName);
+             |  result.replace(key, tempRowData);
+             |  result.setRowKind($ROW_KIND.DELETE);
+             |  $COLLECTOR_TERM.collect(result);
+             |}
+             |""".stripMargin)
+      else (COLLECTOR, "")
+
     val functionName = newName(name)
     val functionCode =
       j"""
@@ -527,7 +570,7 @@ class AggsHandlerCodeGenerator(
             ${ctx.reuseCloseCode()}
           }
 
-          private class $CONVERT_COLLECTOR_TYPE_TERM implements $COLLECTOR {
+          private class $CONVERT_COLLECTOR_TYPE_TERM implements $collectorClassName {
             private $COLLECTOR<$ROW_DATA> $COLLECTOR_TERM;
             private $ROW_DATA key;
             private $JOINED_ROW result;
@@ -561,6 +604,8 @@ class AggsHandlerCodeGenerator(
               }
               $COLLECTOR_TERM.collect(result);
             }
+
+            $collectorRetractCode
 
             @Override
             public void close() {
@@ -1255,6 +1300,7 @@ object AggsHandlerCodeGenerator {
   val STORE_TERM = "store"
 
   val COLLECTOR: String = className[Collector[_]]
+  val RETRACTABLE_COLLECTOR: String = className[RetractableCollector[_]]
   val COLLECTOR_TERM = "out"
   val MEMBER_COLLECTOR_TERM = "convertCollector"
   val CONVERT_COLLECTOR_TYPE_TERM = "ConvertCollector"

@@ -99,7 +99,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.concurrent.RunnableFuture;
@@ -304,17 +303,13 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 
         @Override
         public OperatorStateBackend createOperatorStateBackend(
-                Environment env,
-                String operatorIdentifier,
-                @Nonnull Collection<OperatorStateHandle> stateHandles,
-                CloseableRegistry cancelStreamRegistry)
-                throws Exception {
+                OperatorStateBackendParameters parameters) throws Exception {
             return new DefaultOperatorStateBackendBuilder(
-                    env.getUserCodeClassLoader().asClassLoader(),
-                    env.getExecutionConfig(),
+                    parameters.getEnv().getUserCodeClassLoader().asClassLoader(),
+                    parameters.getEnv().getExecutionConfig(),
                     true,
-                    stateHandles,
-                    cancelStreamRegistry) {
+                    parameters.getStateHandles(),
+                    parameters.getCancelStreamRegistry()) {
                 @Override
                 @SuppressWarnings("unchecked")
                 public DefaultOperatorStateBackend build() {
@@ -355,17 +350,13 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 
         @Override
         public OperatorStateBackend createOperatorStateBackend(
-                Environment env,
-                String operatorIdentifier,
-                @Nonnull Collection<OperatorStateHandle> stateHandles,
-                CloseableRegistry cancelStreamRegistry)
-                throws Exception {
+                OperatorStateBackendParameters parameters) throws Exception {
             return new DefaultOperatorStateBackendBuilder(
-                    env.getUserCodeClassLoader().asClassLoader(),
-                    env.getExecutionConfig(),
+                    parameters.getEnv().getUserCodeClassLoader().asClassLoader(),
+                    parameters.getEnv().getExecutionConfig(),
                     true,
-                    stateHandles,
-                    cancelStreamRegistry) {
+                    parameters.getStateHandles(),
+                    parameters.getCancelStreamRegistry()) {
                 @Override
                 public DefaultOperatorStateBackend build() {
                     CloseableRegistry registryForStateBackend = new CloseableRegistry();

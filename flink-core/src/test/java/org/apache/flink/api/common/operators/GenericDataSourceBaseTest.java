@@ -20,6 +20,7 @@ package org.apache.flink.api.common.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.operators.util.TestIOData;
@@ -81,7 +82,7 @@ public class GenericDataSourceBaseTest implements java.io.Serializable {
             final HashMap<String, Accumulator<?, ?>> accumulatorMap =
                     new HashMap<String, Accumulator<?, ?>>();
             final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
-            final TaskInfo taskInfo = new TaskInfo("test_source", 1, 0, 1, 0);
+            final TaskInfo taskInfo = new TaskInfoImpl("test_source", 1, 0, 1, 0);
 
             ExecutionConfig executionConfig = new ExecutionConfig();
             executionConfig.disableObjectReuse();

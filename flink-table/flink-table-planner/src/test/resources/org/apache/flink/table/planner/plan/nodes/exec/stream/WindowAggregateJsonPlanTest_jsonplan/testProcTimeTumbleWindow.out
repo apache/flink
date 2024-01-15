@@ -325,6 +325,7 @@
         }
       }
     } ],
+    "needRetraction" : false,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"

@@ -62,8 +62,8 @@ public class OutputFormatSinkFunction<IN> extends RichSinkFunction<IN>
     public void open(OpenContext openContext) throws Exception {
         RuntimeContext context = getRuntimeContext();
         format.configure(new Configuration());
-        int indexInSubtaskGroup = context.getIndexOfThisSubtask();
-        int currentNumberOfSubtasks = context.getNumberOfParallelSubtasks();
+        int indexInSubtaskGroup = context.getTaskInfo().getIndexOfThisSubtask();
+        int currentNumberOfSubtasks = context.getTaskInfo().getNumberOfParallelSubtasks();
         format.open(
                 new InitializationContext() {
                     @Override
@@ -78,7 +78,7 @@ public class OutputFormatSinkFunction<IN> extends RichSinkFunction<IN>
 
                     @Override
                     public int getAttemptNumber() {
-                        return context.getAttemptNumber();
+                        return context.getTaskInfo().getAttemptNumber();
                     }
                 });
     }

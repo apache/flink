@@ -51,7 +51,7 @@ public class CustomPartitioningITCase extends JavaProgramTestBase {
 
         @Override
         public Long map(Long value) throws Exception {
-            if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
+            if (getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0) {
                 return value;
             } else {
                 throw new Exception("Received data in a partition other than partition 0");

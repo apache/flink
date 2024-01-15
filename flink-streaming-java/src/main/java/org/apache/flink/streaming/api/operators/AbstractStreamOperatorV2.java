@@ -342,7 +342,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
      */
     protected String getOperatorName() {
         if (runtimeContext != null) {
-            return runtimeContext.getTaskNameWithSubtasks();
+            return runtimeContext.getTaskInfo().getTaskNameWithSubtasks();
         } else {
             return getClass().getSimpleName();
         }

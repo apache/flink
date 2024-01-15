@@ -18,17 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
-
-import javax.annotation.Nonnull;
-
-import java.util.Collection;
+import java.io.IOException;
 
 /** Abstract base class for state backends that use managed memory. */
 public abstract class AbstractManagedMemoryStateBackend extends AbstractStateBackend {
@@ -37,19 +27,7 @@ public abstract class AbstractManagedMemoryStateBackend extends AbstractStateBac
 
     @Override
     public abstract <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-            Environment env,
-            JobID jobID,
-            String operatorIdentifier,
-            TypeSerializer<K> keySerializer,
-            int numberOfKeyGroups,
-            KeyGroupRange keyGroupRange,
-            TaskKvStateRegistry kvStateRegistry,
-            TtlTimeProvider ttlTimeProvider,
-            MetricGroup metricGroup,
-            @Nonnull Collection<KeyedStateHandle> stateHandles,
-            CloseableRegistry cancelStreamRegistry,
-            double managedMemoryFraction)
-            throws Exception;
+            KeyedStateBackendParameters<K> parameters) throws IOException;
 
     @Override
     public boolean useManagedMemory() {

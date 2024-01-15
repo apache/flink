@@ -27,6 +27,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
@@ -75,6 +76,7 @@ public final class RocksDBTestUtils {
                 TtlTimeProvider.DEFAULT,
                 LatencyTrackingStateConfig.disabled(),
                 new UnregisteredMetricsGroup(),
+                (key, value) -> {},
                 Collections.emptyList(),
                 UncompressedStreamCompressionDecorator.INSTANCE,
                 new CloseableRegistry());
@@ -121,16 +123,19 @@ public final class RocksDBTestUtils {
 
         return (RocksDBKeyedStateBackend<K>)
                 rocksDbBackend.createKeyedStateBackend(
-                        env,
-                        env.getJobID(),
-                        "test_op",
-                        keySerializer,
-                        1,
-                        new KeyGroupRange(0, 0),
-                        env.getTaskKvStateRegistry(),
-                        TtlTimeProvider.DEFAULT,
-                        new UnregisteredMetricsGroup(),
-                        Collections.emptyList(),
-                        new CloseableRegistry());
+                        new KeyedStateBackendParametersImpl<>(
+                                env,
+                                env.getJobID(),
+                                "test_op",
+                                keySerializer,
+                                1,
+                                new KeyGroupRange(0, 0),
+                                env.getTaskKvStateRegistry(),
+                                TtlTimeProvider.DEFAULT,
+                                new UnregisteredMetricsGroup(),
+                                (name, value) -> {},
+                                Collections.emptyList(),
+                                new CloseableRegistry(),
+                                1.0));
     }
 }

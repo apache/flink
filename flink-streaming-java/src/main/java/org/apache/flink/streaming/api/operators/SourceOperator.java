@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.ListState;
@@ -254,8 +255,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             return;
         }
 
-        final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
-
         final SourceReaderContext context =
                 new SourceReaderContext() {
                     @Override
@@ -271,11 +270,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                     @Override
                     public String getLocalHostName() {
                         return localHostname;
-                    }
-
-                    @Override
-                    public int getIndexOfSubtask() {
-                        return subtaskIndex;
                     }
 
                     @Override
@@ -308,8 +302,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                     }
 
                     @Override
-                    public int currentParallelism() {
-                        return getRuntimeContext().getNumberOfParallelSubtasks();
+                    public TaskInfo getTaskInfo() {
+                        return getRuntimeContext().getTaskInfo();
                     }
                 };
 
@@ -485,7 +479,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                             output::emitLatencyMarker,
                             latencyTrackingInterval,
                             getOperatorID(),
-                            getRuntimeContext().getIndexOfThisSubtask());
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
         }
     }
 
@@ -700,7 +694,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private void registerReader() {
         operatorEventGateway.sendEventToCoordinator(
                 new ReaderRegistrationEvent(
-                        getRuntimeContext().getIndexOfThisSubtask(), localHostname));
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(), localHostname));
     }
 
     // --------------- methods for unit tests ------------

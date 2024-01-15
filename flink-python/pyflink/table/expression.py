@@ -1564,6 +1564,13 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("array_join")(self, delimiter, null_replacement)
 
+    def array_min(self) -> 'Expression':
+        """
+        Returns the minimum value from the array.
+        if array itself is null, the function returns null.
+        """
+        return _unary_op("arrayMin")(self)
+
     @property
     def map_keys(self) -> 'Expression':
         """

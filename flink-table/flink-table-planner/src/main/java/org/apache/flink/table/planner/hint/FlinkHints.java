@@ -52,6 +52,10 @@ public abstract class FlinkHints {
     // ~ Internal alias tag hint
     public static final String HINT_ALIAS = "ALIAS";
 
+    // ~ Option name for hints on join or correlate
+    public static final String LEFT_INPUT = "LEFT";
+    public static final String RIGHT_INPUT = "RIGHT";
+
     /**
      * Internal hint that JSON aggregation function arguments have been wrapped already. See {@link
      * WrapJsonAggFunctionArgumentsRule}.
@@ -163,10 +167,27 @@ public abstract class FlinkHints {
         return sb.toString();
     }
 
+    /** Get all query hints. */
+    public static List<RelHint> getAllQueryHints(List<RelHint> allHints) {
+        return allHints.stream()
+                .filter(
+                        hint ->
+                                JoinStrategy.isJoinStrategy(hint.hintName)
+                                        || StateTtlHint.isStateTtlHint(hint.hintName))
+                .collect(Collectors.toList());
+    }
+
     /** Get all join hints. */
     public static List<RelHint> getAllJoinHints(List<RelHint> allHints) {
         return allHints.stream()
                 .filter(hint -> JoinStrategy.isJoinStrategy(hint.hintName))
+                .collect(Collectors.toList());
+    }
+
+    /** Get all state ttl hints. */
+    public static List<RelHint> getAllStateTtlHints(List<RelHint> allHints) {
+        return allHints.stream()
+                .filter(hint -> StateTtlHint.isStateTtlHint(hint.hintName))
                 .collect(Collectors.toList());
     }
 
@@ -183,8 +204,8 @@ public abstract class FlinkHints {
                 .collect(Collectors.toList());
     }
 
-    public static RelNode capitalizeJoinHints(RelNode root) {
-        return root.accept(new CapitalizeJoinHintsShuttle());
+    public static RelNode capitalizeQueryHints(RelNode root) {
+        return root.accept(new CapitalizeQueryHintsShuttle());
     }
 
     /** Resolve the RelNode of the sub query in the node and return a new node. */
@@ -235,9 +256,22 @@ public abstract class FlinkHints {
                 });
     }
 
-    /** Clear the join hints on some nodes where these hints should not be attached. */
-    public static RelNode clearJoinHintsOnUnmatchedNodes(RelNode root) {
+    /** Clear the query hints on some nodes where these hints should not be attached. */
+    public static RelNode clearQueryHintsOnUnmatchedNodes(RelNode root) {
         return root.accept(
-                new ClearJoinHintsOnUnmatchedNodesShuttle(root.getCluster().getHintStrategies()));
+                new ClearQueryHintsOnUnmatchedNodesShuttle(root.getCluster().getHintStrategies()));
+    }
+
+    /** Check if the hint is a query hint. */
+    public static boolean isQueryHint(String hintName) {
+        return JoinStrategy.isJoinStrategy(hintName) || StateTtlHint.isStateTtlHint(hintName);
+    }
+
+    /**
+     * Currently, lookup join hints and state ttl hints are KV hints. And regular join hints are
+     * LIST hints.
+     */
+    public static boolean isKVQueryHint(String hintName) {
+        return JoinStrategy.isLookupHint(hintName) || StateTtlHint.isStateTtlHint(hintName);
     }
 }

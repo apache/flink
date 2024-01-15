@@ -48,8 +48,8 @@ public class FromSplittableIteratorFunction<T> extends RichParallelSourceFunctio
 
     @Override
     public void open(OpenContext openContext) throws Exception {
-        int numberOfSubTasks = getRuntimeContext().getNumberOfParallelSubtasks();
-        int indexofThisSubTask = getRuntimeContext().getIndexOfThisSubtask();
+        int numberOfSubTasks = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+        int indexofThisSubTask = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
         iterator = fullIterator.split(numberOfSubTasks)[indexofThisSubTask];
         isRunning = true;
     }

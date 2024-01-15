@@ -38,8 +38,15 @@ public final class SliceUnsharedWindowAggProcessor extends AbstractWindowAggProc
             WindowBuffer.Factory windowBufferFactory,
             SliceUnsharedAssigner sliceAssigner,
             TypeSerializer<RowData> accSerializer,
+            int indexOfCountStar,
             ZoneId shiftTimeZone) {
-        super(genAggsHandler, windowBufferFactory, sliceAssigner, accSerializer, shiftTimeZone);
+        super(
+                genAggsHandler,
+                windowBufferFactory,
+                sliceAssigner,
+                accSerializer,
+                indexOfCountStar,
+                shiftTimeZone);
     }
 
     @Override
@@ -49,6 +56,10 @@ public final class SliceUnsharedWindowAggProcessor extends AbstractWindowAggProc
             acc = aggregator.createAccumulators();
         }
         aggregator.setAccumulators(windowEnd, acc);
+        // the triggered window is an empty window, we shouldn't emit it
+        if (emptySupplier.get()) {
+            return;
+        }
         RowData aggResult = aggregator.getValue(windowEnd);
         collect(aggResult);
     }

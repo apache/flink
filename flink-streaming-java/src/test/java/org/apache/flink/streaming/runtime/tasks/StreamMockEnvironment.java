@@ -20,7 +20,10 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
@@ -82,6 +85,8 @@ import static org.mockito.Mockito.mock;
 /** Mock {@link Environment}. */
 public class StreamMockEnvironment implements Environment {
 
+    private final JobInfo jobInfo;
+
     private final TaskInfo taskInfo;
 
     private final MemoryManager memManager;
@@ -99,8 +104,6 @@ public class StreamMockEnvironment implements Environment {
     private final List<IndexedInputGate> inputs;
 
     private List<ResultPartitionWriter> outputs;
-
-    private final JobID jobID;
 
     private final ExecutionAttemptID executionAttemptID;
 
@@ -168,13 +171,12 @@ public class StreamMockEnvironment implements Environment {
             int bufferSize,
             TaskStateManager taskStateManager,
             boolean collectNetworkEvents) {
-
-        this.jobID = jobID;
+        this.jobInfo = new JobInfoImpl(jobID, "mock");
         this.executionAttemptID = executionAttemptID;
 
         int subtaskIndex = executionAttemptID.getExecutionVertexId().getSubtaskIndex();
         this.taskInfo =
-                new TaskInfo(
+                new TaskInfoImpl(
                         "", /* task name */
                         1, /* num key groups / max parallelism */
                         subtaskIndex, /* index of this subtask */
@@ -277,7 +279,7 @@ public class StreamMockEnvironment implements Environment {
 
     @Override
     public JobID getJobID() {
-        return this.jobID;
+        return this.jobInfo.getJobId();
     }
 
     @Override
@@ -390,7 +392,7 @@ public class StreamMockEnvironment implements Environment {
     @Override
     public void declineCheckpoint(long checkpointId, CheckpointException checkpointException) {
         checkpointResponder.declineCheckpoint(
-                jobID, executionAttemptID, checkpointId, checkpointException);
+                jobInfo.getJobId(), executionAttemptID, checkpointId, checkpointException);
     }
 
     @Override
@@ -430,5 +432,10 @@ public class StreamMockEnvironment implements Environment {
     @Override
     public ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory() {
         return channelStateExecutorFactory;
+    }
+
+    @Override
+    public JobInfo getJobInfo() {
+        return jobInfo;
     }
 }

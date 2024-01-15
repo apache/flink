@@ -527,8 +527,8 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichS
         return String.format(
                 "%s %s/%s",
                 this.getClass().getSimpleName(),
-                getRuntimeContext().getIndexOfThisSubtask() + 1,
-                getRuntimeContext().getNumberOfParallelSubtasks());
+                getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() + 1,
+                getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
     }
 
     /** State POJO class coupling pendingTransaction, context and pendingCommitTransactions. */

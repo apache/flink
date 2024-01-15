@@ -90,7 +90,7 @@ public class TaskFailureITCase extends JavaProgramTestBase {
         @Override
         public Long map(Long value) throws Exception {
             throw new RuntimeException(
-                    EXCEPTION_STRING + ":" + getRuntimeContext().getAttemptNumber());
+                    EXCEPTION_STRING + ":" + getRuntimeContext().getTaskInfo().getAttemptNumber());
         }
     }
 }

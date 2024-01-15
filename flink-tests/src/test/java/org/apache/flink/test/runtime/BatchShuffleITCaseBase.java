@@ -158,9 +158,9 @@ class BatchShuffleITCaseBase {
 
         @Override
         public void open(OpenContext openContext) throws Exception {
-            NUM_RECEIVED_RECORDS[getRuntimeContext().getIndexOfThisSubtask()] = 0;
-            if (getRuntimeContext().getAttemptNumber() > 0
-                    || getRuntimeContext().getIndexOfThisSubtask() != 0) {
+            NUM_RECEIVED_RECORDS[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = 0;
+            if (getRuntimeContext().getTaskInfo().getAttemptNumber() > 0
+                    || getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() != 0) {
                 return;
             }
 
@@ -177,7 +177,7 @@ class BatchShuffleITCaseBase {
 
         @Override
         public void invoke(String value, Context context) throws Exception {
-            NUM_RECEIVED_RECORDS[getRuntimeContext().getIndexOfThisSubtask()]++;
+            NUM_RECEIVED_RECORDS[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()]++;
             assertThat(value).isEqualTo(RECORD);
         }
 

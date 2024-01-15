@@ -21,7 +21,9 @@ package org.apache.flink.state.api.runtime;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
@@ -189,13 +191,18 @@ public class SavepointEnvironment implements Environment {
     }
 
     @Override
+    public JobInfo getJobInfo() {
+        return ctx.getJobInfo();
+    }
+
+    @Override
     public TaskInfo getTaskInfo() {
-        return new TaskInfo(
-                ctx.getTaskName(),
+        return new TaskInfoImpl(
+                ctx.getTaskInfo().getTaskName(),
                 maxParallelism,
                 indexOfSubtask,
-                ctx.getNumberOfParallelSubtasks(),
-                ctx.getAttemptNumber());
+                ctx.getTaskInfo().getNumberOfParallelSubtasks(),
+                ctx.getTaskInfo().getAttemptNumber());
     }
 
     @Override
@@ -350,7 +357,7 @@ public class SavepointEnvironment implements Environment {
             this.prioritizedOperatorSubtaskState =
                     PrioritizedOperatorSubtaskState.emptyNotRestored();
             this.configuration = new Configuration();
-            this.indexOfSubtask = ctx.getIndexOfThisSubtask();
+            this.indexOfSubtask = ctx.getTaskInfo().getIndexOfThisSubtask();
         }
 
         public Builder setSubtaskIndex(int indexOfSubtask) {

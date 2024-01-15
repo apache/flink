@@ -32,7 +32,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -85,7 +84,7 @@ public class SessionWindowing {
         // We create sessions for each id with max timeout of 3 time units
         DataStream<Tuple3<String, Long, Integer>> aggregated =
                 source.keyBy(value -> value.f0)
-                        .window(EventTimeSessionWindows.withGap(Time.milliseconds(3L)))
+                        .window(EventTimeSessionWindows.withGap(Duration.ofMillis(3L)))
                         .sum(2);
 
         if (fileOutput) {

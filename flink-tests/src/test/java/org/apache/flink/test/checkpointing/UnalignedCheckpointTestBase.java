@@ -70,7 +70,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -100,7 +100,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.shaded.guava31.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.flink.shaded.guava32.com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -247,7 +247,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         @Override
         public SourceReader<Long, LongSplit> createReader(SourceReaderContext readerContext) {
             return new LongSourceReader(
-                    readerContext.getIndexOfSubtask(),
+                    readerContext.getTaskInfo().getIndexOfThisSubtask(),
                     minCheckpoints,
                     expectedRestarts,
                     checkpointingInterval,
@@ -913,9 +913,9 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         public void initializeState(FunctionInitializationContext context) throws Exception {
             listState =
                     context.getOperatorStateStore().getListState(FAILING_MAPPER_STATE_DESCRIPTOR);
-            if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
+            if (getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0) {
                 state = Iterables.get(listState.get(), 0, new FailingMapperState(0, 0));
-                state.runNumber = getRuntimeContext().getAttemptNumber();
+                state.runNumber = getRuntimeContext().getTaskInfo().getAttemptNumber();
             }
             checkFail(failDuringRecovery, "initializeState");
         }
@@ -1000,8 +1000,8 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             this.state = getOnlyElement(stateList.get(), state);
             LOG.info(
                     "Inducing no backpressure @ {} subtask ({} attempt)",
-                    getRuntimeContext().getIndexOfThisSubtask(),
-                    getRuntimeContext().getAttemptNumber());
+                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                    getRuntimeContext().getTaskInfo().getAttemptNumber());
         }
 
         protected abstract State createState();
@@ -1035,14 +1035,14 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                 LOG.info(
                         "Inducing backpressure until {} @ {} subtask ({} attempt)",
                         backpressureUntil,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber());
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber());
             } else {
                 this.backpressureUntil = null;
                 LOG.info(
                         "Inducing no backpressure @ {} subtask ({} attempt)",
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber());
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber());
             }
         }
 
@@ -1052,14 +1052,14 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             outOfOrderCounter.add(state.numOutOfOrderness);
             duplicatesCounter.add(state.numDuplicates);
             lostCounter.add(state.numLostValues);
-            if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
-                numFailures.add(getRuntimeContext().getAttemptNumber());
+            if (getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0) {
+                numFailures.add(getRuntimeContext().getTaskInfo().getAttemptNumber());
             }
             LOG.info(
                     "Last state {} @ {} subtask ({} attempt)",
                     state,
-                    getRuntimeContext().getIndexOfThisSubtask(),
-                    getRuntimeContext().getAttemptNumber());
+                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                    getRuntimeContext().getTaskInfo().getAttemptNumber());
             super.close();
         }
     }

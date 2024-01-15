@@ -291,6 +291,7 @@
       "timeAttributeIndex" : 4,
       "isRowtime" : true
     },
+    "needRetraction" : false,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -478,6 +479,7 @@
         }
       }
     } ],
+    "needRetraction" : false,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -603,6 +605,7 @@
       "windowEnd" : 2,
       "isRowtime" : true
     },
+    "needRetraction" : false,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -703,6 +706,7 @@
         }
       }
     } ],
+    "needRetraction" : false,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"

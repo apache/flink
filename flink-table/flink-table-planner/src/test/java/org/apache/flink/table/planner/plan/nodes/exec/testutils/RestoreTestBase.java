@@ -38,6 +38,7 @@ import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.SqlTestStep;
+import org.apache.flink.table.test.program.StatementSetTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.table.test.program.TableTestProgramRunner;
 import org.apache.flink.table.test.program.TestStep.TestKind;
@@ -121,7 +122,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
 
     @Override
     public EnumSet<TestKind> supportedRunSteps() {
-        return EnumSet.of(TestKind.SQL);
+        return EnumSet.of(TestKind.SQL, TestKind.STATEMENT_SET);
     }
 
     @AfterEach
@@ -210,9 +211,15 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         program.getSetupFunctionTestSteps().forEach(s -> s.apply(tEnv));
         program.getSetupTemporalFunctionTestSteps().forEach(s -> s.apply(tEnv));
 
-        final SqlTestStep sqlTestStep = program.getRunSqlTestStep();
+        final CompiledPlan compiledPlan;
+        if (program.runSteps.get(0).getKind() == TestKind.STATEMENT_SET) {
+            final StatementSetTestStep statementSetTestStep = program.getRunStatementSetTestStep();
+            compiledPlan = statementSetTestStep.compiledPlan(tEnv);
+        } else {
+            final SqlTestStep sqlTestStep = program.getRunSqlTestStep();
+            compiledPlan = tEnv.compilePlanSql(sqlTestStep.sql);
+        }
 
-        final CompiledPlan compiledPlan = tEnv.compilePlanSql(sqlTestStep.sql);
         compiledPlan.writeToFile(getPlanPath(program, getLatestMetadata()));
 
         final TableResult tableResult = compiledPlan.execute();

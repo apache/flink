@@ -163,8 +163,8 @@ public class ArtificalOperatorStateMapper<IN, OUT> extends RichMapFunction<IN, O
 
     @Override
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
-        final int numSubtasks = getRuntimeContext().getNumberOfParallelSubtasks();
-        final int thisSubtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
+        final int numSubtasks = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+        final int thisSubtaskIndex = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
 
         // store total number of subtasks as broadcast state
         lastNumSubtasksBroadcastState.clear();

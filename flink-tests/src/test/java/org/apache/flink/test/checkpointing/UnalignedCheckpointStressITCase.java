@@ -88,7 +88,7 @@ import static java.util.Objects.requireNonNull;
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DIRECTORY;
 import static org.apache.flink.configuration.CheckpointingOptions.MAX_RETAINED_CHECKPOINTS;
 import static org.apache.flink.shaded.curator5.org.apache.curator.shaded.com.google.common.base.Preconditions.checkState;
-import static org.apache.flink.shaded.guava31.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.flink.shaded.guava32.com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 
 /**
@@ -414,7 +414,8 @@ class UnalignedCheckpointStressITCase {
         public void run(SourceContext<Record> ctx) throws Exception {
             RecordGenerator generator =
                     new RecordGenerator(
-                            getRuntimeContext().getIndexOfThisSubtask() + sourceIdOffset);
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()
+                                    + sourceIdOffset);
             while (running) {
                 Record next = generator.next(nextValue);
                 synchronized (ctx.getCheckpointLock()) {

@@ -35,7 +35,6 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.operators.util.SlotSharingGroupUtils;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -106,6 +105,7 @@ import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
 import org.apache.flink.streaming.api.transformations.CacheTransformation;
+import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.ExceptionUtils;
@@ -124,6 +124,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -859,7 +860,8 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param numberOfExecutionRetries The number of times the system will try to re-execute failed
      *     tasks.
      * @deprecated This method will be replaced by {@link #setRestartStrategy}. The {@link
-     *     RestartStrategies#fixedDelayRestart(int, Time)} contains the number of execution retries.
+     *     RestartStrategies#fixedDelayRestart(int, Duration)} contains the number of execution
+     *     retries.
      */
     @Deprecated
     @PublicEvolving
@@ -979,10 +981,11 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      *     event-time mode. If you need to disable watermarks, please use {@link
      *     ExecutionConfig#setAutoWatermarkInterval(long)}. If you are using {@link
      *     TimeCharacteristic#IngestionTime}, please manually set an appropriate {@link
-     *     WatermarkStrategy}. If you are using generic "time window" operations (for example {@link
-     *     org.apache.flink.streaming.api.datastream.KeyedStream#timeWindow(org.apache.flink.streaming.api.windowing.time.Time)}
-     *     that change behaviour based on the time characteristic, please use equivalent operations
-     *     that explicitly specify processing time or event time.
+     *     WatermarkStrategy}. If you are using generic "time window" operations (for example
+     *     through {@link
+     *     org.apache.flink.streaming.api.datastream.KeyedStream#window(WindowAssigner)} that change
+     *     behaviour based on the time characteristic, please use equivalent operations that
+     *     explicitly specify processing time or event time.
      */
     @PublicEvolving
     @Deprecated

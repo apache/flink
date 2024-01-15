@@ -31,6 +31,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
@@ -388,6 +389,44 @@ class StreamExecutionEnvironmentTest {
         DataStreamSource<Row> source2 = env.addSource(new RowSourceFunction());
         // the source type information should be derived from RowSourceFunction#getProducedType
         assertThat(source2.getType()).isEqualTo(new GenericTypeInfo<>(Row.class));
+    }
+
+    @Test
+    void testPeriodicMaterializeEnabled() {
+        Configuration config = new Configuration();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.configure(config, this.getClass().getClassLoader());
+        assertThat(env.getConfig().isPeriodicMaterializeEnabled())
+                .isEqualTo(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED.defaultValue());
+
+        config.setBoolean(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED.key(), false);
+        env.configure(config, this.getClass().getClassLoader());
+        assertThat(env.getConfig().isPeriodicMaterializeEnabled()).isFalse();
+    }
+
+    @Test
+    void testPeriodicMaterializeInterval() {
+        Configuration config = new Configuration();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.configure(config, this.getClass().getClassLoader());
+        assertThat(env.getConfig().getPeriodicMaterializeIntervalMillis())
+                .isEqualTo(
+                        StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL
+                                .defaultValue()
+                                .toMillis());
+
+        config.setString(StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL.key(), "60s");
+        env.configure(config, this.getClass().getClassLoader());
+        assertThat(env.getConfig().getPeriodicMaterializeIntervalMillis()).isEqualTo(60 * 1000);
+
+        assertThatThrownBy(
+                        () -> {
+                            config.setString(
+                                    StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL.key(),
+                                    "-1ms");
+                            env.configure(config, this.getClass().getClassLoader());
+                        })
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

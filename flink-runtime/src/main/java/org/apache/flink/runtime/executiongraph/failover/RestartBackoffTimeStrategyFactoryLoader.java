@@ -27,17 +27,12 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies.NoRestartSt
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
 
-import java.time.Duration;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A utility class to load {@link RestartBackoffTimeStrategy.Factory} from the configuration. */
 public final class RestartBackoffTimeStrategyFactoryLoader {
-
-    static final int DEFAULT_RESTART_ATTEMPTS = Integer.MAX_VALUE;
-
-    static final long DEFAULT_RESTART_DELAY = Duration.ofSeconds(1L).toMillis();
 
     private RestartBackoffTimeStrategyFactoryLoader() {}
 
@@ -91,7 +86,7 @@ public final class RestartBackoffTimeStrategyFactoryLoader {
                     new FixedDelayRestartBackoffTimeStrategy
                             .FixedDelayRestartBackoffTimeStrategyFactory(
                             fixedDelayConfig.getRestartAttempts(),
-                            fixedDelayConfig.getDelayBetweenAttemptsInterval().toMilliseconds()));
+                            fixedDelayConfig.getDurationBetweenAttempts().toMillis()));
         } else if (restartStrategyConfiguration
                 instanceof FailureRateRestartStrategyConfiguration) {
             final FailureRateRestartStrategyConfiguration failureRateConfig =
@@ -101,8 +96,8 @@ public final class RestartBackoffTimeStrategyFactoryLoader {
                     new FailureRateRestartBackoffTimeStrategy
                             .FailureRateRestartBackoffTimeStrategyFactory(
                             failureRateConfig.getMaxFailureRate(),
-                            failureRateConfig.getFailureInterval().toMilliseconds(),
-                            failureRateConfig.getDelayBetweenAttemptsInterval().toMilliseconds()));
+                            failureRateConfig.getFailureIntervalDuration().toMillis(),
+                            failureRateConfig.getDurationBetweenAttempts().toMillis()));
         } else if (restartStrategyConfiguration instanceof FallbackRestartStrategyConfiguration) {
             return Optional.empty();
         } else if (restartStrategyConfiguration
@@ -112,10 +107,10 @@ public final class RestartBackoffTimeStrategyFactoryLoader {
             return Optional.of(
                     new ExponentialDelayRestartBackoffTimeStrategy
                             .ExponentialDelayRestartBackoffTimeStrategyFactory(
-                            exponentialDelayConfig.getInitialBackoff().toMilliseconds(),
-                            exponentialDelayConfig.getMaxBackoff().toMilliseconds(),
+                            exponentialDelayConfig.getInitialBackoffDuration().toMillis(),
+                            exponentialDelayConfig.getMaxBackoffDuration().toMillis(),
                             exponentialDelayConfig.getBackoffMultiplier(),
-                            exponentialDelayConfig.getResetBackoffThreshold().toMilliseconds(),
+                            exponentialDelayConfig.getResetBackoffDurationThreshold().toMillis(),
                             exponentialDelayConfig.getJitterFactor(),
                             RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_ATTEMPTS
                                     .defaultValue()));
@@ -163,10 +158,25 @@ public final class RestartBackoffTimeStrategyFactoryLoader {
             final boolean isCheckpointingEnabled) {
 
         if (isCheckpointingEnabled) {
-            // fixed delay restart strategy with default params
-            return new FixedDelayRestartBackoffTimeStrategy
-                    .FixedDelayRestartBackoffTimeStrategyFactory(
-                    DEFAULT_RESTART_ATTEMPTS, DEFAULT_RESTART_DELAY);
+            // exponential delay restart strategy with default params
+            return new ExponentialDelayRestartBackoffTimeStrategy
+                    .ExponentialDelayRestartBackoffTimeStrategyFactory(
+                    RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF
+                            .defaultValue()
+                            .toMillis(),
+                    RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF
+                            .defaultValue()
+                            .toMillis(),
+                    RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_BACKOFF_MULTIPLIER
+                            .defaultValue(),
+                    RestartStrategyOptions
+                            .RESTART_STRATEGY_EXPONENTIAL_DELAY_RESET_BACKOFF_THRESHOLD
+                            .defaultValue()
+                            .toMillis(),
+                    RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_JITTER_FACTOR
+                            .defaultValue(),
+                    RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_ATTEMPTS
+                            .defaultValue());
         } else {
             return NoRestartBackoffTimeStrategy.NoRestartBackoffTimeStrategyFactory.INSTANCE;
         }

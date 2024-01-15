@@ -412,14 +412,15 @@ abstract class SinkWriterOperatorTestBase {
         assertThat(initContext.get().getUserCodeClassLoader()).isNotNull();
         assertThat(initContext.get().getMailboxExecutor()).isNotNull();
         assertThat(initContext.get().getProcessingTimeService()).isNotNull();
-        assertThat(initContext.get().getSubtaskId()).isEqualTo(subtaskId);
-        assertThat(initContext.get().getNumberOfParallelSubtasks()).isEqualTo(parallelism);
-        assertThat(initContext.get().getAttemptNumber()).isEqualTo(0);
+        assertThat(initContext.get().getTaskInfo().getIndexOfThisSubtask()).isEqualTo(subtaskId);
+        assertThat(initContext.get().getTaskInfo().getNumberOfParallelSubtasks())
+                .isEqualTo(parallelism);
+        assertThat(initContext.get().getTaskInfo().getAttemptNumber()).isEqualTo(0);
         assertThat(initContext.get().metricGroup()).isNotNull();
         assertThat(initContext.get().getRestoredCheckpointId()).isNotPresent();
         assertThat(initContext.get().isObjectReuseEnabled()).isTrue();
         assertThat(initContext.get().createInputSerializer()).isEqualTo(typeSerializer);
-        assertThat(initContext.get().getJobId()).isEqualTo(jobID);
+        assertThat(initContext.get().getJobInfo().getJobId()).isEqualTo(jobID);
 
         testHarness.close();
     }

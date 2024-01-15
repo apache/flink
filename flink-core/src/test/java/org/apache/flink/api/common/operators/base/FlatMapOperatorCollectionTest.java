@@ -20,6 +20,7 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
@@ -42,6 +43,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Future;
 
+/** The test for flat map operator. */
 @SuppressWarnings("serial")
 public class FlatMapOperatorCollectionTest implements Serializable {
 
@@ -78,7 +80,7 @@ public class FlatMapOperatorCollectionTest implements Serializable {
         } else {
             executionConfig.enableObjectReuse();
         }
-        final TaskInfo taskInfo = new TaskInfo("Test UDF", 4, 0, 4, 0);
+        final TaskInfo taskInfo = new TaskInfoImpl("Test UDF", 4, 0, 4, 0);
         // run on collections
         final List<String> result =
                 getTestFlatMapOperator(udf)
@@ -97,6 +99,7 @@ public class FlatMapOperatorCollectionTest implements Serializable {
         Assert.assertEquals(input, result);
     }
 
+    /** The test flat map function. */
     public class IdRichFlatMap<IN> extends RichFlatMapFunction<IN, IN> {
 
         private boolean isOpened = false;
@@ -107,9 +110,9 @@ public class FlatMapOperatorCollectionTest implements Serializable {
             isOpened = true;
 
             RuntimeContext ctx = getRuntimeContext();
-            Assert.assertEquals("Test UDF", ctx.getTaskName());
-            Assert.assertEquals(4, ctx.getNumberOfParallelSubtasks());
-            Assert.assertEquals(0, ctx.getIndexOfThisSubtask());
+            Assert.assertEquals("Test UDF", ctx.getTaskInfo().getTaskName());
+            Assert.assertEquals(4, ctx.getTaskInfo().getNumberOfParallelSubtasks());
+            Assert.assertEquals(0, ctx.getTaskInfo().getIndexOfThisSubtask());
         }
 
         @Override

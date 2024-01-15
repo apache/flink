@@ -45,7 +45,7 @@ class RelTreeWriterImpl(
     withRowType: Boolean = false,
     withTreeStyle: Boolean = true,
     withUpsertKey: Boolean = false,
-    withJoinHint: Boolean = true,
+    withQueryHint: Boolean = true,
     withQueryBlockAlias: Boolean = false,
     statementNum: Integer = 1,
     withAdvice: Boolean = false)
@@ -138,13 +138,18 @@ class RelTreeWriterImpl(
       case _ => // ignore
     }
 
-    if (withJoinHint) {
+    if (withQueryHint) {
       rel match {
         case _: Join | _: Correlate =>
           val joinHints = FlinkHints.getAllJoinHints(rel.asInstanceOf[Hintable].getHints)
           if (joinHints.nonEmpty) {
             printValues.add(Pair.of("joinHints", RelExplainUtil.hintsToString(joinHints)))
           }
+          val stateTtlHints = FlinkHints.getAllStateTtlHints(rel.asInstanceOf[Hintable].getHints)
+          if (stateTtlHints.nonEmpty) {
+            printValues.add(Pair.of("stateTtlHints", RelExplainUtil.hintsToString(stateTtlHints)))
+          }
+
         case _ => // ignore
       }
     }

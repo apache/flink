@@ -21,6 +21,8 @@ package org.apache.flink.runtime.jobgraph;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 
+import javax.annotation.Nonnull;
+
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -44,7 +46,7 @@ public class SavepointRestoreSettings implements Serializable {
      */
     private final boolean allowNonRestoredState;
 
-    private final RestoreMode restoreMode;
+    private final @Nonnull RestoreMode restoreMode;
 
     /**
      * Creates the restore settings.
@@ -54,7 +56,7 @@ public class SavepointRestoreSettings implements Serializable {
      * @param restoreMode how to restore from the savepoint
      */
     private SavepointRestoreSettings(
-            String restorePath, boolean allowNonRestoredState, RestoreMode restoreMode) {
+            String restorePath, boolean allowNonRestoredState, @Nonnull RestoreMode restoreMode) {
         this.restorePath = restorePath;
         this.allowNonRestoredState = allowNonRestoredState;
         this.restoreMode = restoreMode;
@@ -90,7 +92,7 @@ public class SavepointRestoreSettings implements Serializable {
     }
 
     /** Tells how to restore from the given savepoint. */
-    public RestoreMode getRestoreMode() {
+    public @Nonnull RestoreMode getRestoreMode() {
         return restoreMode;
     }
 
@@ -105,12 +107,14 @@ public class SavepointRestoreSettings implements Serializable {
 
         SavepointRestoreSettings that = (SavepointRestoreSettings) o;
         return allowNonRestoredState == that.allowNonRestoredState
-                && (Objects.equals(restorePath, that.restorePath));
+                && Objects.equals(restorePath, that.restorePath)
+                && Objects.equals(restoreMode, that.restoreMode);
     }
 
     @Override
     public int hashCode() {
         int result = restorePath != null ? restorePath.hashCode() : 0;
+        result = 31 * result + restoreMode.hashCode();
         result = 31 * result + (allowNonRestoredState ? 1 : 0);
         return result;
     }
@@ -124,6 +128,8 @@ public class SavepointRestoreSettings implements Serializable {
                     + '\''
                     + ", allowNonRestoredState="
                     + allowNonRestoredState
+                    + ", restoreMode="
+                    + restoreMode
                     + ')';
         } else {
             return "SavepointRestoreSettings.none()";
@@ -152,7 +158,7 @@ public class SavepointRestoreSettings implements Serializable {
     }
 
     public static SavepointRestoreSettings forPath(
-            String savepointPath, boolean allowNonRestoredState, RestoreMode restoreMode) {
+            String savepointPath, boolean allowNonRestoredState, @Nonnull RestoreMode restoreMode) {
         checkNotNull(savepointPath, "Savepoint restore path.");
         return new SavepointRestoreSettings(savepointPath, allowNonRestoredState, restoreMode);
     }

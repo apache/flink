@@ -570,7 +570,7 @@ public class DataStreamBatchExecutionITCase {
 
         @Override
         public String map(String value) {
-            return value + "-" + suffix + getRuntimeContext().getAttemptNumber();
+            return value + "-" + suffix + getRuntimeContext().getTaskInfo().getAttemptNumber();
         }
     }
 
@@ -588,10 +588,10 @@ public class DataStreamBatchExecutionITCase {
 
         @Override
         public String map(String value) throws Exception {
-            if (getRuntimeContext().getAttemptNumber() <= 0) {
+            if (getRuntimeContext().getTaskInfo().getAttemptNumber() <= 0) {
                 throw new RuntimeException("FAILING");
             }
-            return value + "-" + suffix + getRuntimeContext().getAttemptNumber();
+            return value + "-" + suffix + getRuntimeContext().getTaskInfo().getAttemptNumber();
         }
     }
 

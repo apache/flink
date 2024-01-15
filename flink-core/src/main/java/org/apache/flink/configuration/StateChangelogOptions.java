@@ -28,6 +28,15 @@ import java.time.Duration;
 public class StateChangelogOptions {
 
     @Documentation.Section(Documentation.Sections.STATE_BACKEND_CHANGELOG)
+    public static final ConfigOption<Boolean> PERIODIC_MATERIALIZATION_ENABLED =
+            ConfigOptions.key("state.backend.changelog.periodic-materialize.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Defines whether to enable periodic materialization, "
+                                    + "all changelogs will not be truncated which may increase the space of checkpoint if disabled");
+
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_CHANGELOG)
     public static final ConfigOption<Duration> PERIODIC_MATERIALIZATION_INTERVAL =
             ConfigOptions.key("state.backend.changelog.periodic-materialize.interval")
                     .durationType()
@@ -35,7 +44,9 @@ public class StateChangelogOptions {
                     .withDescription(
                             "Defines the interval in milliseconds to perform "
                                     + "periodic materialization for state backend. "
-                                    + "The periodic materialization will be disabled when the value is negative");
+                                    + "It only takes effect when "
+                                    + PERIODIC_MATERIALIZATION_ENABLED.key()
+                                    + " is true");
 
     @Documentation.Section(Documentation.Sections.STATE_BACKEND_CHANGELOG)
     public static final ConfigOption<Integer> MATERIALIZATION_MAX_FAILURES_ALLOWED =

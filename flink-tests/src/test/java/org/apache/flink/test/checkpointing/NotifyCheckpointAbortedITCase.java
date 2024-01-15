@@ -40,7 +40,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
-import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
@@ -397,15 +396,11 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
 
         @Override
         public OperatorStateBackend createOperatorStateBackend(
-                Environment env,
-                String operatorIdentifier,
-                @Nonnull Collection<OperatorStateHandle> stateHandles,
-                CloseableRegistry cancelStreamRegistry)
-                throws BackendBuildingException {
-            if (operatorIdentifier.contains(DECLINE_SINK_NAME)) {
+                OperatorStateBackendParameters parameters) throws BackendBuildingException {
+            if (parameters.getOperatorIdentifier().contains(DECLINE_SINK_NAME)) {
                 CloseableRegistry registryForBackend = new CloseableRegistry();
                 return new DeclineSinkFailingOperatorStateBackend(
-                        env.getExecutionConfig(),
+                        parameters.getEnv().getExecutionConfig(),
                         registryForBackend,
                         new SnapshotStrategyRunner<>(
                                 "StuckAsyncSnapshotStrategy",
@@ -414,11 +409,11 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
                                 ASYNCHRONOUS));
             } else {
                 return new DefaultOperatorStateBackendBuilder(
-                                env.getUserCodeClassLoader().asClassLoader(),
-                                env.getExecutionConfig(),
+                                parameters.getEnv().getUserCodeClassLoader().asClassLoader(),
+                                parameters.getEnv().getExecutionConfig(),
                                 false,
-                                stateHandles,
-                                cancelStreamRegistry)
+                                parameters.getStateHandles(),
+                                parameters.getCancelStreamRegistry())
                         .build();
             }
         }

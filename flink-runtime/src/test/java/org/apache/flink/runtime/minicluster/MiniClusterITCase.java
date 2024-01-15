@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -123,10 +124,19 @@ class MiniClusterITCase {
 
     private void runHandleJobsWhenNotEnoughSlots(final JobGraph jobGraph) throws Exception {
         final Configuration configuration = new Configuration();
+
+        // the slot timeout needs to be high enough to avoid causing TimeoutException
+        Duration slotRequestTimeout = Duration.ofNanos(Long.MAX_VALUE);
+
         // this triggers the failure for the default scheduler
-        configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 100L);
+        configuration.setLong(
+                JobManagerOptions.SLOT_REQUEST_TIMEOUT, slotRequestTimeout.toMillis());
         // this triggers the failure for the adaptive scheduler
-        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(100));
+        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, slotRequestTimeout);
+
+        // cluster startup relies on SLOT_REQUEST_TIMEOUT as a fallback if the following parameter
+        // is not set which causes the test to take longer
+        configuration.set(ResourceManagerOptions.STANDALONE_CLUSTER_STARTUP_PERIOD_TIME, 1L);
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()

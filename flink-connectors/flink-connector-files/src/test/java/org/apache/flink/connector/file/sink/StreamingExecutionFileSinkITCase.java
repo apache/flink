@@ -149,7 +149,7 @@ class StreamingExecutionFileSinkITCase extends FileSinkITBase {
 
         @Override
         public void run(SourceContext<Integer> ctx) throws Exception {
-            if (isFailoverScenario && getRuntimeContext().getAttemptNumber() == 0) {
+            if (isFailoverScenario && getRuntimeContext().getTaskInfo().getAttemptNumber() == 0) {
                 // In the first execution, we first send a part of record...
                 sendRecordsUntil((int) (numberOfRecords * FAILOVER_RATIO * 0.5), ctx);
 
@@ -162,7 +162,7 @@ class StreamingExecutionFileSinkITCase extends FileSinkITBase {
                 sendRecordsUntil((int) (numberOfRecords * FAILOVER_RATIO), ctx);
 
                 // And then trigger the failover.
-                if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
+                if (getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0) {
                     throw new RuntimeException("Designated Exception");
                 } else {
                     while (true) {

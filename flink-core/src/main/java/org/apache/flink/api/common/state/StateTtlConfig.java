@@ -27,6 +27,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.EnumMap;
 
 import static org.apache.flink.api.common.state.StateTtlConfig.CleanupStrategies.EMPTY_STRATEGY;
@@ -53,13 +54,14 @@ public class StateTtlConfig implements Serializable {
     private static final long serialVersionUID = -7592693245044289793L;
 
     public static final StateTtlConfig DISABLED =
-            newBuilder(Time.milliseconds(Long.MAX_VALUE))
+            newBuilder(Duration.ofMillis(Long.MAX_VALUE))
                     .setUpdateType(UpdateType.Disabled)
                     .build();
 
     /**
      * This option value configures when to update last access timestamp which prolongs state TTL.
      */
+    @PublicEvolving
     public enum UpdateType {
         /** TTL is disabled. State does not expire. */
         Disabled,
@@ -73,6 +75,7 @@ public class StateTtlConfig implements Serializable {
     }
 
     /** This option configures whether expired user value can be returned or not. */
+    @PublicEvolving
     public enum StateVisibility {
         /** Return expired user value if it is not cleaned up yet. */
         ReturnExpiredIfNotCleanedUp,
@@ -81,6 +84,7 @@ public class StateTtlConfig implements Serializable {
     }
 
     /** This option configures time scale to use for ttl. */
+    @PublicEvolving
     public enum TtlTimeCharacteristic {
         /**
          * Processing time, see also <code>
@@ -92,21 +96,21 @@ public class StateTtlConfig implements Serializable {
     private final UpdateType updateType;
     private final StateVisibility stateVisibility;
     private final TtlTimeCharacteristic ttlTimeCharacteristic;
-    private final Time ttl;
+    private final Duration ttl;
     private final CleanupStrategies cleanupStrategies;
 
     private StateTtlConfig(
             UpdateType updateType,
             StateVisibility stateVisibility,
             TtlTimeCharacteristic ttlTimeCharacteristic,
-            Time ttl,
+            Duration ttl,
             CleanupStrategies cleanupStrategies) {
         this.updateType = checkNotNull(updateType);
         this.stateVisibility = checkNotNull(stateVisibility);
         this.ttlTimeCharacteristic = checkNotNull(ttlTimeCharacteristic);
         this.ttl = checkNotNull(ttl);
         this.cleanupStrategies = cleanupStrategies;
-        checkArgument(ttl.toMilliseconds() > 0, "TTL is expected to be positive.");
+        checkArgument(ttl.toMillis() > 0, "TTL is expected to be positive.");
     }
 
     @Nonnull
@@ -119,8 +123,14 @@ public class StateTtlConfig implements Serializable {
         return stateVisibility;
     }
 
+    /** @deprecated Use {@link #getTimeToLive()} */
+    @Deprecated
     @Nonnull
     public Time getTtl() {
+        return Time.fromDuration(getTimeToLive());
+    }
+
+    public Duration getTimeToLive() {
         return ttl;
     }
 
@@ -152,23 +162,36 @@ public class StateTtlConfig implements Serializable {
                 + '}';
     }
 
+    /** @deprecated Use {@link #newBuilder(Duration)} */
+    @Deprecated
     @Nonnull
     public static Builder newBuilder(@Nonnull Time ttl) {
         return new Builder(ttl);
     }
 
+    public static Builder newBuilder(Duration ttl) {
+        return new Builder(ttl);
+    }
+
     /** Builder for the {@link StateTtlConfig}. */
+    @PublicEvolving
     public static class Builder {
 
         private UpdateType updateType = OnCreateAndWrite;
         private StateVisibility stateVisibility = NeverReturnExpired;
         private TtlTimeCharacteristic ttlTimeCharacteristic = ProcessingTime;
-        private Time ttl;
+        private Duration ttl;
         private boolean isCleanupInBackground = true;
         private final EnumMap<CleanupStrategies.Strategies, CleanupStrategies.CleanupStrategy>
                 strategies = new EnumMap<>(CleanupStrategies.Strategies.class);
 
+        /** @deprecated Use {@link #newBuilder(Duration)} */
+        @Deprecated
         public Builder(@Nonnull Time ttl) {
+            this(Time.toDuration(ttl));
+        }
+
+        private Builder(Duration ttl) {
             this.ttl = ttl;
         }
 
@@ -343,10 +366,16 @@ public class StateTtlConfig implements Serializable {
          * Sets the ttl time.
          *
          * @param ttl The ttl time.
+         * @deprecated Use {@link #setTimeToLive(Duration)}
          */
+        @Deprecated
         @Nonnull
         public Builder setTtl(@Nonnull Time ttl) {
-            this.ttl = ttl;
+            return setTimeToLive(Time.toDuration(ttl));
+        }
+
+        public Builder setTimeToLive(Duration ttl) {
+            this.ttl = Preconditions.checkNotNull(ttl);
             return this;
         }
 
@@ -368,6 +397,7 @@ public class StateTtlConfig implements Serializable {
      * cleaned up on explicit read access if found expired. Currently cleanup of state full snapshot
      * can be additionally activated.
      */
+    @PublicEvolving
     public static class CleanupStrategies implements Serializable {
         private static final long serialVersionUID = -1617740467277313524L;
 
@@ -427,6 +457,7 @@ public class StateTtlConfig implements Serializable {
     }
 
     /** Configuration of cleanup strategy while taking the full snapshot. */
+    @PublicEvolving
     public static class IncrementalCleanupStrategy implements CleanupStrategies.CleanupStrategy {
         private static final long serialVersionUID = 3109278696501988780L;
 
@@ -457,6 +488,7 @@ public class StateTtlConfig implements Serializable {
     }
 
     /** Configuration of cleanup strategy using custom compaction filter in RocksDB. */
+    @PublicEvolving
     public static class RocksdbCompactFilterCleanupStrategy
             implements CleanupStrategies.CleanupStrategy {
         private static final long serialVersionUID = 3109278796506988980L;

@@ -235,7 +235,9 @@ public class TimeUtils {
      *
      * @param time time to transform into duration
      * @return duration equal to the given time
+     * @deprecated Use {@link Duration} APIs
      */
+    @Deprecated
     public static Duration toDuration(Time time) {
         return Duration.of(time.getSize(), toChronoUnit(time.getUnit()));
     }

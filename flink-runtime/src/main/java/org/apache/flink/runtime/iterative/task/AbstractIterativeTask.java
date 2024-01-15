@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.iterative.task;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.aggregators.Aggregator;
@@ -187,14 +187,14 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
         Environment env = getEnvironment();
 
         return new IterativeRuntimeUdfContext(
+                env.getJobInfo(),
                 env.getTaskInfo(),
                 env.getUserCodeClassLoader(),
                 getExecutionConfig(),
                 env.getDistributedCacheEntries(),
                 this.accumulatorMap,
                 metrics,
-                env.getExternalResourceInfoProvider(),
-                env.getJobID());
+                env.getExternalResourceInfoProvider());
     }
 
     // --------------------------------------------------------------------------------------------
@@ -395,23 +395,23 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
             implements IterationRuntimeContext {
 
         public IterativeRuntimeUdfContext(
+                JobInfo jobInfo,
                 TaskInfo taskInfo,
                 UserCodeClassLoader userCodeClassLoader,
                 ExecutionConfig executionConfig,
                 Map<String, Future<Path>> cpTasks,
                 Map<String, Accumulator<?, ?>> accumulatorMap,
                 OperatorMetricGroup metrics,
-                ExternalResourceInfoProvider externalResourceInfoProvider,
-                JobID jobID) {
+                ExternalResourceInfoProvider externalResourceInfoProvider) {
             super(
+                    jobInfo,
                     taskInfo,
                     userCodeClassLoader,
                     executionConfig,
                     cpTasks,
                     accumulatorMap,
                     metrics,
-                    externalResourceInfoProvider,
-                    jobID);
+                    externalResourceInfoProvider);
         }
 
         @Override
@@ -428,11 +428,6 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
         @SuppressWarnings("unchecked")
         public <T extends Value> T getPreviousIterationAggregate(String name) {
             return (T) getIterationAggregators().getPreviousGlobalAggregate(name);
-        }
-
-        @Override
-        public JobID getJobId() {
-            return runtimeUdfContext.getJobId();
         }
 
         @Override

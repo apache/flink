@@ -208,7 +208,7 @@ public class ContinuousFileMonitoringFunction<OUT>
             LOG.debug(
                     "Opened {} (taskIdx= {}) for path: {}",
                     getClass().getSimpleName(),
-                    getRuntimeContext().getIndexOfThisSubtask(),
+                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
                     path);
         }
     }

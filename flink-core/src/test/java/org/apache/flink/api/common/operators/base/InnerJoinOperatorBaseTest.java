@@ -20,6 +20,7 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.OpenContext;
@@ -45,6 +46,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/** The test for inner join operator. */
 @SuppressWarnings("serial")
 public class InnerJoinOperatorBaseTest implements Serializable {
 
@@ -106,8 +108,9 @@ public class InnerJoinOperatorBaseTest implements Serializable {
                     @Override
                     public void open(OpenContext openContext) throws Exception {
                         opened.compareAndSet(false, true);
-                        assertEquals(0, getRuntimeContext().getIndexOfThisSubtask());
-                        assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
+                        assertEquals(0, getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
+                        assertEquals(
+                                1, getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
                     }
 
                     @Override
@@ -146,7 +149,7 @@ public class InnerJoinOperatorBaseTest implements Serializable {
         final List<Integer> expected = new ArrayList<Integer>(Arrays.asList(3, 3, 6, 6));
 
         try {
-            final TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
+            final TaskInfo taskInfo = new TaskInfoImpl(taskName, 1, 0, 1, 0);
             final HashMap<String, Accumulator<?, ?>> accumulatorMap =
                     new HashMap<String, Accumulator<?, ?>>();
             final HashMap<String, Future<Path>> cpTasks = new HashMap<>();

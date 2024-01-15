@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
@@ -28,14 +29,17 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
@@ -379,20 +383,25 @@ public class RocksDBStateBackendConfigTest {
         assertNull(rocksDbBackend.getDbStoragePaths());
 
         final MockEnvironment env = getMockEnvironment(dir1);
+        JobID jobID = env.getJobID();
+        KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
+        TaskKvStateRegistry kvStateRegistry = env.getTaskKvStateRegistry();
+        CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         RocksDBKeyedStateBackend<Integer> keyedBackend =
                 (RocksDBKeyedStateBackend<Integer>)
                         rocksDbBackend.createKeyedStateBackend(
-                                env,
-                                env.getJobID(),
-                                "test_op",
-                                IntSerializer.INSTANCE,
-                                1,
-                                new KeyGroupRange(0, 0),
-                                env.getTaskKvStateRegistry(),
-                                TtlTimeProvider.DEFAULT,
-                                new UnregisteredMetricsGroup(),
-                                Collections.emptyList(),
-                                new CloseableRegistry());
+                                new KeyedStateBackendParametersImpl<>(
+                                        (Environment) env,
+                                        jobID,
+                                        "test_op",
+                                        IntSerializer.INSTANCE,
+                                        1,
+                                        keyGroupRange,
+                                        kvStateRegistry,
+                                        TtlTimeProvider.DEFAULT,
+                                        (MetricGroup) new UnregisteredMetricsGroup(),
+                                        Collections.emptyList(),
+                                        cancelStreamRegistry));
 
         try {
             File instanceBasePath = keyedBackend.getInstanceBasePath();
@@ -423,18 +432,24 @@ public class RocksDBStateBackendConfigTest {
 
             boolean hasFailure = false;
             try {
+                JobID jobID = env.getJobID();
+                KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
+                TaskKvStateRegistry kvStateRegistry =
+                        new KvStateRegistry().createTaskRegistry(env.getJobID(), new JobVertexID());
+                CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
                 rocksDbBackend.createKeyedStateBackend(
-                        env,
-                        env.getJobID(),
-                        "foobar",
-                        IntSerializer.INSTANCE,
-                        1,
-                        new KeyGroupRange(0, 0),
-                        new KvStateRegistry().createTaskRegistry(env.getJobID(), new JobVertexID()),
-                        TtlTimeProvider.DEFAULT,
-                        new UnregisteredMetricsGroup(),
-                        Collections.emptyList(),
-                        new CloseableRegistry());
+                        new KeyedStateBackendParametersImpl<>(
+                                (Environment) env,
+                                jobID,
+                                "foobar",
+                                IntSerializer.INSTANCE,
+                                1,
+                                keyGroupRange,
+                                kvStateRegistry,
+                                TtlTimeProvider.DEFAULT,
+                                (MetricGroup) new UnregisteredMetricsGroup(),
+                                Collections.emptyList(),
+                                cancelStreamRegistry));
             } catch (Exception e) {
                 assertTrue(e.getMessage().contains("No local storage directories available"));
                 assertTrue(e.getMessage().contains(targetDir.getAbsolutePath()));
@@ -463,20 +478,25 @@ public class RocksDBStateBackendConfigTest {
                     targetDir1.getAbsolutePath(), targetDir2.getAbsolutePath());
 
             try {
-                AbstractKeyedStateBackend<Integer> keyedStateBackend =
+                JobID jobID = env.getJobID();
+                KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
+                TaskKvStateRegistry kvStateRegistry =
+                        new KvStateRegistry().createTaskRegistry(env.getJobID(), new JobVertexID());
+                CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
+                CheckpointableKeyedStateBackend<Integer> keyedStateBackend =
                         rocksDbBackend.createKeyedStateBackend(
-                                env,
-                                env.getJobID(),
-                                "foobar",
-                                IntSerializer.INSTANCE,
-                                1,
-                                new KeyGroupRange(0, 0),
-                                new KvStateRegistry()
-                                        .createTaskRegistry(env.getJobID(), new JobVertexID()),
-                                TtlTimeProvider.DEFAULT,
-                                new UnregisteredMetricsGroup(),
-                                Collections.emptyList(),
-                                new CloseableRegistry());
+                                new KeyedStateBackendParametersImpl<>(
+                                        (Environment) env,
+                                        jobID,
+                                        "foobar",
+                                        IntSerializer.INSTANCE,
+                                        1,
+                                        keyGroupRange,
+                                        kvStateRegistry,
+                                        TtlTimeProvider.DEFAULT,
+                                        (MetricGroup) new UnregisteredMetricsGroup(),
+                                        Collections.emptyList(),
+                                        cancelStreamRegistry));
 
                 IOUtils.closeQuietly(keyedStateBackend);
                 keyedStateBackend.dispose();

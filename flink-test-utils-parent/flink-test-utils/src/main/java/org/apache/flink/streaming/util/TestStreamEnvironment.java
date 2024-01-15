@@ -133,14 +133,21 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                 boolean enabled =
                         randomize(conf, StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true, false);
                 if (enabled) {
+                    // More situations about enabling periodic materialization should be tested
+                    randomize(
+                            conf,
+                            StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED,
+                            true,
+                            true,
+                            true,
+                            false);
                     randomize(
                             conf,
                             StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL,
                             Duration.ofMillis(100),
                             Duration.ofMillis(500),
                             Duration.ofSeconds(1),
-                            Duration.ofSeconds(5),
-                            Duration.ofSeconds(-1));
+                            Duration.ofSeconds(5));
                     miniCluster.overrideRestoreModeForChangelogStateBackend();
                 }
             }
