@@ -63,7 +63,6 @@ public class OperatorStateRestoreOperationTest {
             throws Exception {
         try (OperatorStateBackend operatorStateBackend =
                 operatorStateBackendFactory.apply(Collections.emptyList())) {
-            final CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(4096);
             for (String stateName : listStates.keySet()) {
                 final ListStateDescriptor<String> descriptor =
                         new ListStateDescriptor<>(stateName, String.class);
@@ -84,7 +83,7 @@ public class OperatorStateRestoreOperationTest {
                             .snapshot(
                                     1,
                                     1,
-                                    streamFactory,
+                                    new MemCheckpointStreamFactory(4096),
                                     CheckpointOptions.forCheckpointWithDefaultLocation())
                             .get();
             return Objects.requireNonNull(result.getJobManagerOwnedSnapshot());
@@ -133,7 +132,7 @@ public class OperatorStateRestoreOperationTest {
     void testRestoringMixedOperatorState(boolean snapshotCompressionEnabled) throws Exception {
         final ExecutionConfig cfg = new ExecutionConfig();
         cfg.setUseSnapshotCompression(snapshotCompressionEnabled);
-        ThrowingFunction<Collection<OperatorStateHandle>, OperatorStateBackend>
+        final ThrowingFunction<Collection<OperatorStateHandle>, OperatorStateBackend>
                 operatorStateBackendFactory =
                         createOperatorStateBackendFactory(
                                 cfg, new CloseableRegistry(), this.getClass().getClassLoader());
@@ -162,7 +161,7 @@ public class OperatorStateRestoreOperationTest {
             throws Exception {
         final ExecutionConfig cfg = new ExecutionConfig();
         cfg.setUseSnapshotCompression(snapshotCompressionEnabled);
-        ThrowingFunction<Collection<OperatorStateHandle>, OperatorStateBackend>
+        final ThrowingFunction<Collection<OperatorStateHandle>, OperatorStateBackend>
                 operatorStateBackendFactory =
                         createOperatorStateBackendFactory(
                                 cfg, new CloseableRegistry(), this.getClass().getClassLoader());
@@ -197,6 +196,31 @@ public class OperatorStateRestoreOperationTest {
                 operatorStateBackendFactory,
                 Arrays.asList(firstStateHandle, secondStateHandle),
                 mergedListStates,
+                Collections.emptyMap());
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testEmptyPartitionedOperatorState(boolean snapshotCompressionEnabled) throws Exception {
+        final ExecutionConfig cfg = new ExecutionConfig();
+        cfg.setUseSnapshotCompression(snapshotCompressionEnabled);
+        final ThrowingFunction<Collection<OperatorStateHandle>, OperatorStateBackend>
+                operatorStateBackendFactory =
+                        createOperatorStateBackendFactory(
+                                cfg, new CloseableRegistry(), this.getClass().getClassLoader());
+
+        final Map<String, List<String>> listStates = new HashMap<>();
+        listStates.put("bufferState", Collections.emptyList());
+        listStates.put("offsetState", Collections.singletonList("foo"));
+
+        final OperatorStateHandle stateHandle =
+                createOperatorStateHandle(
+                        operatorStateBackendFactory, listStates, Collections.emptyMap());
+
+        verifyOperatorStateHandle(
+                operatorStateBackendFactory,
+                Collections.singletonList(stateHandle),
+                listStates,
                 Collections.emptyMap());
     }
 }
