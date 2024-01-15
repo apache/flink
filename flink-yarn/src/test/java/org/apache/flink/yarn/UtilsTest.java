@@ -20,6 +20,7 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.MemorySize;
@@ -39,6 +40,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -225,7 +227,9 @@ class UtilsTest {
         final String java = "$JAVA_HOME/bin/java";
         final String jvmmem =
                 "-Xmx111 -Xms111 -XX:MaxDirectMemorySize=222 -XX:MaxMetaspaceSize=333";
+        final String defaultJvmOpts = "-DdefaultJvm"; // if set
         final String jvmOpts = "-Djvm"; // if set
+        final String defaultTmJvmOpts = "-DdefaultTmJvm"; // if set
         final String tmJvmOpts = "-DtmJvm"; // if set
         final String logfile = "-Dlog.file=./logs/taskmanager.log"; // if set
         final String logback = "-Dlogback.configurationFile=file:./conf/logback.xml"; // if set
@@ -453,7 +457,8 @@ class UtilsTest {
                                 redirects));
 
         // logback + log4j, with/out krb5, different JVM opts
-        cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
+        cfg.set(CoreOptions.FLINK_DEFAULT_JVM_OPTIONS, defaultJvmOpts);
+        cfg.set(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
         assertThat(
                         Utils.getTaskManagerShellCommand(
                                 cfg,
@@ -470,6 +475,7 @@ class UtilsTest {
                                 " ",
                                 java,
                                 jvmmem,
+                                defaultJvmOpts,
                                 jvmOpts,
                                 Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                 logfile,
@@ -495,6 +501,7 @@ class UtilsTest {
                                 " ",
                                 java,
                                 jvmmem,
+                                defaultJvmOpts,
                                 jvmOpts,
                                 Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                 krb5,
@@ -506,7 +513,8 @@ class UtilsTest {
                                 redirects));
 
         // logback + log4j, with/out krb5, different JVM opts
-        cfg.setString(CoreOptions.FLINK_TM_JVM_OPTIONS, tmJvmOpts);
+        cfg.set(CoreOptions.FLINK_DEFAULT_TM_JVM_OPTIONS, defaultTmJvmOpts);
+        cfg.set(CoreOptions.FLINK_TM_JVM_OPTIONS, tmJvmOpts);
         assertThat(
                         Utils.getTaskManagerShellCommand(
                                 cfg,
@@ -523,7 +531,9 @@ class UtilsTest {
                                 " ",
                                 java,
                                 jvmmem,
+                                defaultJvmOpts,
                                 jvmOpts,
+                                defaultTmJvmOpts,
                                 tmJvmOpts,
                                 Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                 logfile,
@@ -549,7 +559,9 @@ class UtilsTest {
                                 " ",
                                 java,
                                 jvmmem,
+                                defaultJvmOpts,
                                 jvmOpts,
+                                defaultTmJvmOpts,
                                 tmJvmOpts,
                                 Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                 krb5,
@@ -583,7 +595,9 @@ class UtilsTest {
                                 "1",
                                 jvmmem,
                                 "2",
+                                defaultJvmOpts,
                                 jvmOpts,
+                                defaultTmJvmOpts,
                                 tmJvmOpts,
                                 Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                 krb5,
@@ -619,7 +633,9 @@ class UtilsTest {
                                 logfile,
                                 logback,
                                 log4j,
+                                defaultJvmOpts,
                                 jvmOpts,
+                                defaultTmJvmOpts,
                                 tmJvmOpts,
                                 Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                 krb5,
@@ -627,6 +643,35 @@ class UtilsTest {
                                 mainClass,
                                 args,
                                 redirects));
+    }
+
+    @Test
+    void testGenerateJvmOptsString() {
+        final String defaultJvmOpts = "-DdefaultJvm";
+        final String jvmOpts = "-Djvm";
+        final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
+        final Configuration conf = new Configuration();
+        conf.set(CoreOptions.FLINK_DEFAULT_JVM_OPTIONS, defaultJvmOpts);
+        conf.set(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
+        final List<ConfigOption<String>> jvmOptions =
+                Arrays.asList(CoreOptions.FLINK_DEFAULT_JVM_OPTIONS, CoreOptions.FLINK_JVM_OPTIONS);
+        // With Krb5
+        assertThat(Utils.generateJvmOptsString(conf, jvmOptions, true))
+                .isEqualTo(
+                        String.join(
+                                " ",
+                                defaultJvmOpts,
+                                jvmOpts,
+                                Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
+                                krb5));
+        // Without Krb5
+        assertThat(Utils.generateJvmOptsString(conf, jvmOptions, false))
+                .isEqualTo(
+                        String.join(
+                                " ",
+                                defaultJvmOpts,
+                                jvmOpts,
+                                Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS));
     }
 
     private static void verifyUnitResourceVariousSchedulers(

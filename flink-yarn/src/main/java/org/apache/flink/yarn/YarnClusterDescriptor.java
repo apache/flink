@@ -121,6 +121,7 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -1856,17 +1857,13 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         // ------------------ Prepare Application Master Container  ------------------------------
 
         // respect custom JVM options in the YAML file
-        String javaOpts = flinkConfiguration.getString(CoreOptions.FLINK_JVM_OPTIONS);
-        if (flinkConfiguration.getString(CoreOptions.FLINK_JM_JVM_OPTIONS).length() > 0) {
-            javaOpts += " " + flinkConfiguration.getString(CoreOptions.FLINK_JM_JVM_OPTIONS);
-        }
-
-        javaOpts += " " + IGNORE_UNRECOGNIZED_VM_OPTIONS;
-
-        // krb5.conf file will be available as local resource in JM/TM container
-        if (hasKrb5) {
-            javaOpts += " -Djava.security.krb5.conf=krb5.conf";
-        }
+        List<ConfigOption<String>> jvmOptions =
+                Arrays.asList(
+                        CoreOptions.FLINK_DEFAULT_JVM_OPTIONS,
+                        CoreOptions.FLINK_JVM_OPTIONS,
+                        CoreOptions.FLINK_DEFAULT_JM_JVM_OPTIONS,
+                        CoreOptions.FLINK_JM_JVM_OPTIONS);
+        String javaOpts = Utils.generateJvmOptsString(flinkConfiguration, jvmOptions, hasKrb5);
 
         // Set up the container launch context for the application master
         ContainerLaunchContext amContainer = Records.newRecord(ContainerLaunchContext.class);

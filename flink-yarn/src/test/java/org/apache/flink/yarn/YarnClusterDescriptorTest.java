@@ -174,7 +174,9 @@ class YarnClusterDescriptorTest {
                 JobManagerProcessUtils.generateJvmParametersStr(jobManagerProcessSpec, cfg);
         final String dynamicParameters =
                 JobManagerProcessUtils.generateDynamicConfigsStr(jobManagerProcessSpec);
+        final String defaultJvmOpts = "-DdefaultJvm"; // if set
         final String jvmOpts = "-Djvm"; // if set
+        final String defaultJmJvmOpts = "-DdefaultJmJvm"; // if set
         final String jmJvmOpts = "-DjmJvm"; // if set
         final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
         final String logfile =
@@ -370,6 +372,7 @@ class YarnClusterDescriptorTest {
             // YarnClusterDescriptor,
             // because we have a reference to the ClusterDescriptor's configuration which we modify
             // continuously
+            cfg.setString(CoreOptions.FLINK_DEFAULT_JVM_OPTIONS, defaultJvmOpts);
             cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
             cfg.set(
                     YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE,
@@ -385,6 +388,7 @@ class YarnClusterDescriptorTest {
                                     " ",
                                     java,
                                     jvmmem,
+                                    defaultJvmOpts,
                                     jvmOpts,
                                     YarnClusterDescriptor.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                     logfile,
@@ -407,6 +411,7 @@ class YarnClusterDescriptorTest {
                                     " ",
                                     java,
                                     jvmmem,
+                                    defaultJvmOpts,
                                     jvmOpts,
                                     YarnClusterDescriptor.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                     krb5,
@@ -419,6 +424,7 @@ class YarnClusterDescriptorTest {
             // log4j, with/out krb5, different JVM opts
             // IMPORTANT: Be aware that we are using side effects here to modify the created
             // YarnClusterDescriptor
+            cfg.setString(CoreOptions.FLINK_DEFAULT_JM_JVM_OPTIONS, defaultJmJvmOpts);
             cfg.setString(CoreOptions.FLINK_JM_JVM_OPTIONS, jmJvmOpts);
             cfg.set(
                     YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE,
@@ -434,7 +440,9 @@ class YarnClusterDescriptorTest {
                                     " ",
                                     java,
                                     jvmmem,
+                                    defaultJvmOpts,
                                     jvmOpts,
+                                    defaultJmJvmOpts,
                                     jmJvmOpts,
                                     YarnClusterDescriptor.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                     logfile,
@@ -457,7 +465,9 @@ class YarnClusterDescriptorTest {
                                     " ",
                                     java,
                                     jvmmem,
+                                    defaultJvmOpts,
                                     jvmOpts,
+                                    defaultJmJvmOpts,
                                     jmJvmOpts,
                                     YarnClusterDescriptor.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                     krb5,
@@ -489,7 +499,9 @@ class YarnClusterDescriptorTest {
                                     "1",
                                     jvmmem,
                                     "2",
+                                    defaultJvmOpts,
                                     jvmOpts,
+                                    defaultJmJvmOpts,
                                     jmJvmOpts,
                                     YarnClusterDescriptor.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                     krb5,
@@ -523,7 +535,9 @@ class YarnClusterDescriptorTest {
                                     java,
                                     logfile,
                                     logback,
+                                    defaultJvmOpts,
                                     jvmOpts,
+                                    defaultJmJvmOpts,
                                     jmJvmOpts,
                                     YarnClusterDescriptor.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                     krb5,

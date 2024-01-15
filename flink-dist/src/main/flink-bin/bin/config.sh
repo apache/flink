@@ -186,6 +186,9 @@ KEY_ENV_JAVA_OPTS_TM="env.java.opts.taskmanager"
 KEY_ENV_JAVA_OPTS_HS="env.java.opts.historyserver"
 KEY_ENV_JAVA_OPTS_CLI="env.java.opts.client"
 KEY_ENV_JAVA_OPTS_SQL_GATEWAY="env.java.opts.sql-gateway"
+KEY_ENV_JAVA_DEFAULT_OPTS="env.java.default-opts.all"
+KEY_ENV_JAVA_DEFAULT_OPTS_JM="env.java.default-opts.jobmanager"
+KEY_ENV_JAVA_DEFAULT_OPTS_TM="env.java.default-opts.taskmanager"
 KEY_ENV_SSH_OPTS="env.ssh.opts"
 KEY_HIGH_AVAILABILITY="high-availability.type"
 KEY_ZK_HEAP_MB="zookeeper.heap.mb"
@@ -326,11 +329,13 @@ if [ -z "${FLINK_PID_DIR}" ]; then
 fi
 
 if [ -z "${FLINK_ENV_JAVA_OPTS}" ]; then
+    FLINK_ENV_JAVA_DEFAULT_OPTS=$(readFromConfig ${KEY_ENV_JAVA_DEFAULT_OPTS} "" "${YAML_CONF}")
     FLINK_ENV_JAVA_OPTS=$(readFromConfig ${KEY_ENV_JAVA_OPTS} "" "${YAML_CONF}")
     if [ -z "${FLINK_ENV_JAVA_OPTS}" ]; then
       # try deprecated key
       FLINK_ENV_JAVA_OPTS=$(readFromConfig "env.java.opts" "${DEFAULT_ENV_JAVA_OPTS}" "${YAML_CONF}")
     fi
+    FLINK_ENV_JAVA_OPTS="${FLINK_ENV_JAVA_DEFAULT_OPTS} ${FLINK_ENV_JAVA_OPTS}"
 
     # Remove leading and ending double quotes (if present) of value
     FLINK_ENV_JAVA_OPTS="-XX:+IgnoreUnrecognizedVMOptions $( echo "${FLINK_ENV_JAVA_OPTS}" | sed -e 's/^"//'  -e 's/"$//' )"
@@ -343,13 +348,17 @@ if [ -z "${FLINK_ENV_JAVA_OPTS}" ]; then
 fi
 
 if [ -z "${FLINK_ENV_JAVA_OPTS_JM}" ]; then
+    FLINK_ENV_JAVA_DEFAULT_OPTS_JM=$(readFromConfig ${KEY_ENV_JAVA_DEFAULT_OPTS_JM} "" "${YAML_CONF}")
     FLINK_ENV_JAVA_OPTS_JM=$(readFromConfig ${KEY_ENV_JAVA_OPTS_JM} "${DEFAULT_ENV_JAVA_OPTS_JM}" "${YAML_CONF}")
+    FLINK_ENV_JAVA_OPTS_JM="${FLINK_ENV_JAVA_DEFAULT_OPTS_JM} ${FLINK_ENV_JAVA_OPTS_JM}"
     # Remove leading and ending double quotes (if present) of value
     FLINK_ENV_JAVA_OPTS_JM="$( echo "${FLINK_ENV_JAVA_OPTS_JM}" | sed -e 's/^"//'  -e 's/"$//' )"
 fi
 
 if [ -z "${FLINK_ENV_JAVA_OPTS_TM}" ]; then
+    FLINK_ENV_JAVA_DEFAULT_OPTS_TM=$(readFromConfig ${KEY_ENV_JAVA_DEFAULT_OPTS_TM} "" "${YAML_CONF}")
     FLINK_ENV_JAVA_OPTS_TM=$(readFromConfig ${KEY_ENV_JAVA_OPTS_TM} "${DEFAULT_ENV_JAVA_OPTS_TM}" "${YAML_CONF}")
+    FLINK_ENV_JAVA_OPTS_TM="${FLINK_ENV_JAVA_DEFAULT_OPTS_TM} ${FLINK_ENV_JAVA_OPTS_TM}"
     # Remove leading and ending double quotes (if present) of value
     FLINK_ENV_JAVA_OPTS_TM="$( echo "${FLINK_ENV_JAVA_OPTS_TM}" | sed -e 's/^"//'  -e 's/"$//' )"
 fi
