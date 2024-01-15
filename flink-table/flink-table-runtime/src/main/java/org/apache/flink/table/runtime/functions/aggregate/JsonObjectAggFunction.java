@@ -124,7 +124,7 @@ public class JsonObjectAggFunction
 
     public void retract(Accumulator acc, StringData keyData, @Nullable StringData valueData)
             throws Exception {
-        if (acc.map.contains(keyData)) {
+        if (acc.map.contains(keyData) && acc.map.get(keyData).equals(valueData)) {
             acc.map.remove(keyData);
         } else {
             acc.retractMap.put(keyData, valueData);
@@ -133,17 +133,20 @@ public class JsonObjectAggFunction
 
     public void merge(Accumulator acc, Iterable<Accumulator> others) throws Exception {
         for (final Accumulator other : others) {
-            for (final StringData key : other.map.keys()) {
-                assertKeyNotPresent(acc, key);
-                acc.map.put(key, other.map.get(key));
-            }
             for (final StringData key : other.retractMap.keys()) {
-                if (acc.map.contains(key)) {
-                    if (acc.map.get(key).equals(other.retractMap.get(key))) {
-                        acc.map.remove(key);
-                    }
+                if (acc.map.contains(key) && acc.map.get(key).equals(other.retractMap.get(key))) {
+                    acc.map.remove(key);
                 } else {
                     acc.retractMap.put(key, other.retractMap.get(key));
+                }
+            }
+            for (final StringData key : other.map.keys()) {
+                if (acc.retractMap.contains(key)
+                        && acc.retractMap.get(key).equals(other.map.get(key))) {
+                    acc.retractMap.remove(key);
+                } else {
+                    assertKeyNotPresent(acc, key);
+                    acc.map.put(key, other.map.get(key));
                 }
             }
         }
