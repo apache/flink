@@ -34,10 +34,8 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /** Implementation of operator state restore operation. */
 public class OperatorStateRestoreOperation implements RestoreOperation<Void> {
@@ -171,34 +169,18 @@ public class OperatorStateRestoreOperation implements RestoreOperation<Void> {
                     }
                 }
 
-                List<Map.Entry<String, OperatorStateHandle.StateMetaInfo>> entries =
-                        new ArrayList<>(stateHandle.getStateNameToPartitionOffsets().entrySet());
+                // Restore states in the order in which they were written. Operator states come
+                // before Broadcast states.
+                final List<String> toRestore = new ArrayList<>();
+                restoredOperatorMetaInfoSnapshots.forEach(
+                        stateName -> toRestore.add(stateName.getName()));
+                restoredBroadcastMetaInfoSnapshots.forEach(
+                        stateName -> toRestore.add(stateName.getName()));
 
-                if (backendSerializationProxy.isUsingStateCompression()) {
-                    // sort state handles by offsets to avoid building SnappyFramedInputStream with
-                    // EOF stream.
-                    entries =
-                            entries.stream()
-                                    .sorted(
-                                            Comparator.comparingLong(
-                                                    entry -> {
-                                                        OperatorStateHandle.StateMetaInfo
-                                                                stateMetaInfo = entry.getValue();
-                                                        long[] offsets = stateMetaInfo.getOffsets();
-                                                        if (offsets == null
-                                                                || offsets.length == 0) {
-                                                            return Long.MIN_VALUE;
-                                                        } else {
-                                                            return offsets[0];
-                                                        }
-                                                    }))
-                                    .collect(Collectors.toList());
-                }
+                for (String stateName : toRestore) {
 
-                // Restore all the states
-                for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> nameToOffsets : entries) {
-
-                    final String stateName = nameToOffsets.getKey();
+                    final OperatorStateHandle.StateMetaInfo offsets =
+                            stateHandle.getStateNameToPartitionOffsets().get(stateName);
 
                     PartitionableListState<?> listStateForName =
                             registeredOperatorStates.get(stateName);
@@ -222,10 +204,9 @@ public class OperatorStateRestoreOperation implements RestoreOperation<Void> {
                                             + "corresponding meta info: "
                                             + stateName);
                             deserializeBroadcastStateValues(
-                                    broadcastStateForName, compressedIn, nameToOffsets.getValue());
+                                    broadcastStateForName, compressedIn, offsets);
                         } else {
-                            deserializeOperatorStateValues(
-                                    listStateForName, compressedIn, nameToOffsets.getValue());
+                            deserializeOperatorStateValues(listStateForName, compressedIn, offsets);
                         }
                     }
                 }
