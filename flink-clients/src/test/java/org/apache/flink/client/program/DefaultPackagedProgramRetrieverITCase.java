@@ -52,7 +52,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** {@code PackagedProgramRetrieverImplTest} tests {@link DefaultPackagedProgramRetriever}. */
-class DefaultPackagedProgramRetrieverTest {
+class DefaultPackagedProgramRetrieverITCase {
 
     @RegisterExtension
     ClasspathProviderExtension noEntryClassClasspathProvider =

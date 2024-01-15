@@ -157,7 +157,7 @@ under the License.
 				<executions>
 					<execution>
 						<id>copy-dependencies</id>
-						<phase>package</phase>
+						<phase>pre-integration-test</phase>
 						<goals>
 							<goal>copy-dependencies</goal>
 						</goals>
