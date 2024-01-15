@@ -33,6 +33,7 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -153,13 +154,14 @@ public class RocksDBIncrementalCheckpointUtils {
             byte[] beginKeyBytes,
             byte[] endKeyBytes)
             throws RocksDBException {
-
+        List<byte[]> deletedRange = Arrays.asList(beginKeyBytes, endKeyBytes);
         for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
             // Using RocksDB's deleteRange will take advantage of delete
             // tombstones, which mark the range as deleted.
             //
             // https://github.com/ververica/frocksdb/blob/FRocksDB-6.20.3/include/rocksdb/db.h#L363-L377
             db.deleteRange(columnFamilyHandle, beginKeyBytes, endKeyBytes);
+            db.deleteFilesInRanges(columnFamilyHandle, deletedRange, false);
         }
     }
 
