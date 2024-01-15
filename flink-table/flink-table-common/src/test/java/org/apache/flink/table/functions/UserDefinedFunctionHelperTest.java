@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
@@ -133,6 +134,33 @@ class UserDefinedFunctionHelperTest {
                                 "Method 'eval' of function class '"
                                         + PrivateMethodScalarFunction.class.getName()
                                         + "' is not public."),
+                TestSpec.forClass(ValidAsyncScalarFunction.class).expectSuccess(),
+                TestSpec.forInstance(new ValidAsyncScalarFunction()).expectSuccess(),
+                TestSpec.forClass(PrivateAsyncScalarFunction.class)
+                        .expectErrorMessage(
+                                "Function class '"
+                                        + PrivateAsyncScalarFunction.class.getName()
+                                        + "' is not public."),
+                TestSpec.forClass(MissingImplementationAsyncScalarFunction.class)
+                        .expectErrorMessage(
+                                "Function class '"
+                                        + MissingImplementationAsyncScalarFunction.class.getName()
+                                        + "' does not implement a method named 'eval'."),
+                TestSpec.forClass(PrivateMethodAsyncScalarFunction.class)
+                        .expectErrorMessage(
+                                "Method 'eval' of function class '"
+                                        + PrivateMethodAsyncScalarFunction.class.getName()
+                                        + "' is not public."),
+                TestSpec.forClass(NonVoidAsyncScalarFunction.class)
+                        .expectErrorMessage(
+                                "Method 'eval' of function class '"
+                                        + NonVoidAsyncScalarFunction.class.getName()
+                                        + "' must be void."),
+                TestSpec.forClass(NoFutureAsyncScalarFunction.class)
+                        .expectErrorMessage(
+                                "Method 'eval' of function class '"
+                                        + NoFutureAsyncScalarFunction.class.getName()
+                                        + "' must have a first argument of type java.util.concurrent.CompletableFuture."),
                 TestSpec.forInstance(new ValidTableAggregateFunction()).expectSuccess(),
                 TestSpec.forInstance(new MissingEmitTableAggregateFunction())
                         .expectErrorMessage(
@@ -265,6 +293,37 @@ class UserDefinedFunctionHelperTest {
         private String eval(int i) {
             return null;
         }
+    }
+
+    /** Valid scalar function. */
+    public static class ValidAsyncScalarFunction extends AsyncScalarFunction {
+        public void eval(CompletableFuture<Integer> future, int i) {}
+    }
+
+    private static class PrivateAsyncScalarFunction extends AsyncScalarFunction {
+        public void eval(CompletableFuture<Integer> future, int i) {}
+    }
+
+    /** No implementation method. */
+    public static class MissingImplementationAsyncScalarFunction extends AsyncScalarFunction {
+        // nothing to do
+    }
+
+    /** Implementation method is private. */
+    public static class PrivateMethodAsyncScalarFunction extends AsyncScalarFunction {
+        private void eval(CompletableFuture<Integer> future, int i) {}
+    }
+
+    /** Implementation method isn't void. */
+    public static class NonVoidAsyncScalarFunction extends AsyncScalarFunction {
+        public String eval(CompletableFuture<Integer> future, int i) {
+            return "";
+        }
+    }
+
+    /** Implementation method isn't void. */
+    public static class NoFutureAsyncScalarFunction extends AsyncScalarFunction {
+        public void eval(int i) {}
     }
 
     /** Valid table aggregate function. */

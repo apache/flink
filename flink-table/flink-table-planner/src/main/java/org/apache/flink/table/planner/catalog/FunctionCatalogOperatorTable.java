@@ -193,6 +193,7 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
         if (kind == FunctionKind.TABLE) {
             return true;
         } else if (kind == FunctionKind.SCALAR
+                || kind == FunctionKind.ASYNC_SCALAR
                 || kind == FunctionKind.AGGREGATE
                 || kind == FunctionKind.TABLE_AGGREGATE) {
             if (category != null && category.isTableFunction()) {

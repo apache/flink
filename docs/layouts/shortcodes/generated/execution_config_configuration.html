@@ -27,6 +27,36 @@
             <td>The async timeout for the asynchronous operation to complete.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.async-scalar.buffer-capacity</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">10</td>
+            <td>Integer</td>
+            <td>The max number of async i/o operation that the async lookup join can trigger.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-scalar.max-attempts</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">3</td>
+            <td>Integer</td>
+            <td>The max number of async retry attempts to make before task execution is failed.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-scalar.retry-delay</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">100 ms</td>
+            <td>Duration</td>
+            <td>The delay to wait before trying again.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-scalar.retry-strategy</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">FIXED_DELAY</td>
+            <td><p>Enum</p></td>
+            <td>Restart strategy which will be used, FIXED_DELAY by default.<br /><br />Possible values:<ul><li>"NO_RETRY"</li><li>"FIXED_DELAY"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-scalar.timeout</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">3 min</td>
+            <td>Duration</td>
+            <td>The async timeout for the asynchronous operation to complete.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.deduplicate.insert-update-after-sensitive-enabled</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>

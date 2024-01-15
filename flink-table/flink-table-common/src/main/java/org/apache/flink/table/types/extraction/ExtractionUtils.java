@@ -37,9 +37,11 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
@@ -346,6 +348,53 @@ public final class ExtractionUtils {
         } catch (Exception unused) {
             return Optional.empty();
         }
+    }
+
+    /** Resolves a variable type while accepting a context for resolution. */
+    public static Type resolveVariableWithClassContext(@Nullable Type contextType, Type type) {
+        final List<Type> typeHierarchy;
+        if (contextType != null) {
+            typeHierarchy = collectTypeHierarchy(contextType);
+        } else {
+            typeHierarchy = Collections.emptyList();
+        }
+        if (!containsTypeVariable(type)) {
+            return type;
+        }
+        if (type instanceof TypeVariable) {
+            return resolveVariable(typeHierarchy, (TypeVariable<?>) type);
+        } else if (type instanceof ParameterizedType) {
+            ParameterizedType parameterizedType = (ParameterizedType) type;
+            List<Type> paramTypes = new ArrayList<>();
+            for (Type paramType : parameterizedType.getActualTypeArguments()) {
+                paramType = resolveVariableWithClassContext(contextType, paramType);
+                paramTypes.add(paramType);
+            }
+            return new ParameterizedTypeImpl(
+                    paramTypes.toArray(paramTypes.toArray(new Type[0])),
+                    parameterizedType.getRawType(),
+                    parameterizedType.getOwnerType());
+        } else if (type instanceof GenericArrayType) {
+            Type componentType =
+                    resolveVariableWithClassContext(
+                            contextType, ((GenericArrayType) type).getGenericComponentType());
+            return new GenericArrayTypeImpl(componentType);
+        } else {
+            return type;
+        }
+    }
+
+    /** Gets the associated class type from a Type parameter. */
+    public static Class<?> getClassFromType(Type type) {
+        if (type instanceof ParameterizedType) {
+            return (Class<?>) ((ParameterizedType) type).getRawType();
+        } else if (type instanceof GenericArrayType) {
+            return Array.newInstance(
+                            (Class<?>) ((GenericArrayType) type).getGenericComponentType(), 0)
+                    .getClass();
+        }
+        // Otherwise assume it's a basic type that can be cast.
+        return (Class<?>) type;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -1000,6 +1049,85 @@ public final class ExtractionUtils {
             return primitiveNameMap.get(name);
         }
         return Class.forName(name, initialize, classLoader);
+    }
+
+    /** Utility to know if the type contains a type variable that needs to be resolved. */
+    private static boolean containsTypeVariable(Type type) {
+        if (type instanceof TypeVariable) {
+            return true;
+        } else if (type instanceof ParameterizedType) {
+            return Arrays.stream(((ParameterizedType) type).getActualTypeArguments())
+                    .anyMatch(ExtractionUtils::containsTypeVariable);
+        } else if (type instanceof GenericArrayType) {
+            return containsTypeVariable(((GenericArrayType) type).getGenericComponentType());
+        }
+        // WildcardType does not contain a type variable, and we don't consider it resolvable.
+        return false;
+    }
+
+    /**
+     * {@link ParameterizedType} we use for resolving types, so that if you resolve the type
+     * CompletableFuture&lt;T&gt;, we can create resolve the parameter and return
+     * CompletableFuture&lt;Long&gt;.
+     */
+    private static class ParameterizedTypeImpl implements ParameterizedType {
+
+        private final Type[] actualTypeArguments;
+        private final Type rawType;
+        private final Type ownerType;
+
+        public ParameterizedTypeImpl(Type[] actualTypeArguments, Type rawType, Type ownerType) {
+            this.actualTypeArguments = actualTypeArguments;
+            this.rawType = rawType;
+            this.ownerType = ownerType;
+        }
+
+        @Override
+        public Type[] getActualTypeArguments() {
+            return actualTypeArguments;
+        }
+
+        @Override
+        public Type getRawType() {
+            return rawType;
+        }
+
+        @Override
+        public Type getOwnerType() {
+            return ownerType;
+        }
+
+        @Override
+        public String toString() {
+            List<String> actualTypes =
+                    Arrays.stream(getActualTypeArguments())
+                            .map(Type::getTypeName)
+                            .collect(Collectors.toList());
+            return getRawType().getTypeName() + "<" + String.join(", ", actualTypes) + ">";
+        }
+    }
+
+    /**
+     * {@link GenericArrayType} we use for resolving types, so that if you resolve the type
+     * List&lt;T[]&gt;, we can create resolve the parameter and return List&lt;Long[]&gt;.
+     */
+    private static class GenericArrayTypeImpl implements GenericArrayType {
+
+        private final Type genericComponentType;
+
+        public GenericArrayTypeImpl(Type genericComponentType) {
+            this.genericComponentType = genericComponentType;
+        }
+
+        @Override
+        public Type getGenericComponentType() {
+            return genericComponentType;
+        }
+
+        @Override
+        public String getTypeName() {
+            return getGenericComponentType().getTypeName() + "[]";
+        }
     }
 
     // --------------------------------------------------------------------------------------------

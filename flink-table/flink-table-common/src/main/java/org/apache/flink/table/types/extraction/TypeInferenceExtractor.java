@@ -23,6 +23,7 @@ import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
@@ -49,7 +50,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
+import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createGenericParameterWithArgumentAndReturnTypeVerification;
 import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createGenericResultExtraction;
+import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createGenericResultExtractionFromMethod;
 import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createParameterAndReturnTypeVerification;
 import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createParameterSignatureExtraction;
 import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createParameterVerification;
@@ -82,6 +85,22 @@ public final class TypeInferenceExtractor {
                         null,
                         createReturnTypeResultExtraction(),
                         createParameterAndReturnTypeVerification());
+        return extractTypeInference(mappingExtractor);
+    }
+
+    /** Extracts a type inference from a {@link AsyncScalarFunction}. */
+    public static TypeInference forAsyncScalarFunction(
+            DataTypeFactory typeFactory, Class<? extends AsyncScalarFunction> function) {
+        final FunctionMappingExtractor mappingExtractor =
+                new FunctionMappingExtractor(
+                        typeFactory,
+                        function,
+                        UserDefinedFunctionHelper.ASYNC_SCALAR_EVAL,
+                        createParameterSignatureExtraction(1),
+                        null,
+                        createGenericResultExtractionFromMethod(0, 0, true),
+                        createGenericParameterWithArgumentAndReturnTypeVerification(
+                                function, CompletableFuture.class, 0, 0));
         return extractTypeInference(mappingExtractor);
     }
 

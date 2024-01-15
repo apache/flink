@@ -27,6 +27,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
@@ -51,6 +52,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -165,8 +167,32 @@ class TypeInferenceExtractorTest {
                                         new String[0], new ArgumentTypeStrategy[0]),
                                 TypeStrategies.explicit(DataTypes.INT())),
 
+                // no arguments async
+                TestSpec.forAsyncScalarFunction(ZeroArgFunctionAsync.class)
+                        .expectNamedArguments()
+                        .expectTypedArguments()
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[0], new ArgumentTypeStrategy[0]),
+                                TypeStrategies.explicit(DataTypes.INT())),
+
                 // test primitive arguments extraction
                 TestSpec.forScalarFunction(MixedArgFunction.class)
+                        .expectNamedArguments("i", "d")
+                        .expectTypedArguments(
+                                DataTypes.INT().notNull().bridgedTo(int.class), DataTypes.DOUBLE())
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"i", "d"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(
+                                                    DataTypes.INT().notNull().bridgedTo(int.class)),
+                                            InputTypeStrategies.explicit(DataTypes.DOUBLE())
+                                        }),
+                                TypeStrategies.explicit(DataTypes.INT())),
+
+                // test primitive arguments extraction async
+                TestSpec.forAsyncScalarFunction(MixedArgFunctionAsync.class)
                         .expectNamedArguments("i", "d")
                         .expectTypedArguments(
                                 DataTypes.INT().notNull().bridgedTo(int.class), DataTypes.DOUBLE())
@@ -200,8 +226,40 @@ class TypeInferenceExtractorTest {
                                 TypeStrategies.explicit(
                                         DataTypes.BIGINT().notNull().bridgedTo(long.class))),
 
+                // test overloaded arguments extraction async
+                TestSpec.forAsyncScalarFunction(OverloadedFunctionAsync.class)
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"i", "d"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(
+                                                    DataTypes.INT().notNull().bridgedTo(int.class)),
+                                            InputTypeStrategies.explicit(DataTypes.DOUBLE())
+                                        }),
+                                TypeStrategies.explicit(DataTypes.INT()))
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"s"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(DataTypes.STRING())
+                                        }),
+                                TypeStrategies.explicit(DataTypes.BIGINT())),
+
                 // test varying arguments extraction
                 TestSpec.forScalarFunction(VarArgFunction.class)
+                        .expectOutputMapping(
+                                InputTypeStrategies.varyingSequence(
+                                        new String[] {"i", "more"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(
+                                                    DataTypes.INT().notNull().bridgedTo(int.class)),
+                                            InputTypeStrategies.explicit(
+                                                    DataTypes.INT().notNull().bridgedTo(int.class))
+                                        }),
+                                TypeStrategies.explicit(DataTypes.STRING())),
+
+                // test varying arguments extraction async
+                TestSpec.forAsyncScalarFunction(VarArgFunctionAsync.class)
                         .expectOutputMapping(
                                 InputTypeStrategies.varyingSequence(
                                         new String[] {"i", "more"},
@@ -226,8 +284,33 @@ class TypeInferenceExtractorTest {
                                         }),
                                 TypeStrategies.explicit(DataTypes.STRING())),
 
+                // test varying arguments extraction with byte async
+                TestSpec.forAsyncScalarFunction(VarArgWithByteFunctionAsync.class)
+                        .expectOutputMapping(
+                                InputTypeStrategies.varyingSequence(
+                                        new String[] {"bytes"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(
+                                                    DataTypes.TINYINT()
+                                                            .notNull()
+                                                            .bridgedTo(byte.class))
+                                        }),
+                                TypeStrategies.explicit(DataTypes.STRING())),
+
                 // output hint with input extraction
                 TestSpec.forScalarFunction(ExtractWithOutputHintFunction.class)
+                        .expectNamedArguments("i")
+                        .expectTypedArguments(DataTypes.INT())
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"i"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(DataTypes.INT())
+                                        }),
+                                TypeStrategies.explicit(DataTypes.INT())),
+
+                // output hint with input extraction
+                TestSpec.forAsyncScalarFunction(ExtractWithOutputHintFunctionAsync.class)
                         .expectNamedArguments("i")
                         .expectTypedArguments(DataTypes.INT())
                         .expectOutputMapping(
@@ -325,6 +408,12 @@ class TypeInferenceExtractorTest {
                         .expectErrorMessage(
                                 "Considering all hints, the method should comply with the signature:\n"
                                         + "java.lang.String eval(int[])"),
+
+                // mismatch between hints and implementation regarding return type
+                TestSpec.forAsyncScalarFunction(InvalidMethodScalarFunctionAsync.class)
+                        .expectErrorMessage(
+                                "Considering all hints, the method should comply with the signature:\n"
+                                        + "eval(java.util.concurrent.CompletableFuture, int[])"),
 
                 // mismatch between hints and implementation regarding accumulator
                 TestSpec.forAggregateFunction(InvalidMethodAggregateFunction.class)
@@ -428,6 +517,17 @@ class TypeInferenceExtractorTest {
                 TestSpec.forScalarFunction(
                                 "A data type hint on the method is used for enriching (not a function output hint)",
                                 DataTypeHintOnScalarFunction.class)
+                        .expectNamedArguments()
+                        .expectTypedArguments()
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {}, new ArgumentTypeStrategy[] {}),
+                                TypeStrategies.explicit(
+                                        DataTypes.ROW(DataTypes.FIELD("i", DataTypes.INT()))
+                                                .bridgedTo(RowData.class))),
+                TestSpec.forAsyncScalarFunction(
+                                "A data type hint on the method is used for enriching (not a function output hint)",
+                                DataTypeHintOnScalarFunctionAsync.class)
                         .expectNamedArguments()
                         .expectTypedArguments()
                         .expectOutputMapping(
@@ -806,6 +906,19 @@ class TypeInferenceExtractorTest {
                     description == null ? function.getSimpleName() : description,
                     () ->
                             TypeInferenceExtractor.forScalarFunction(
+                                    new DataTypeFactoryMock(), function));
+        }
+
+        static TestSpec forAsyncScalarFunction(Class<? extends AsyncScalarFunction> function) {
+            return forAsyncScalarFunction(null, function);
+        }
+
+        static TestSpec forAsyncScalarFunction(
+                String description, Class<? extends AsyncScalarFunction> function) {
+            return new TestSpec(
+                    description == null ? function.getSimpleName() : description,
+                    () ->
+                            TypeInferenceExtractor.forAsyncScalarFunction(
                                     new DataTypeFactoryMock(), function));
         }
 
@@ -1435,5 +1548,41 @@ class TypeInferenceExtractorTest {
         public int[] call1(Object procedureContext) {
             return null;
         }
+    }
+
+    private static class ZeroArgFunctionAsync extends AsyncScalarFunction {
+        public void eval(CompletableFuture<Integer> f) {}
+    }
+
+    private static class MixedArgFunctionAsync extends AsyncScalarFunction {
+        public void eval(CompletableFuture<Integer> f, int i, Double d) {}
+    }
+
+    private static class OverloadedFunctionAsync extends AsyncScalarFunction {
+        public void eval(CompletableFuture<Integer> f, int i, Double d) {}
+
+        public void eval(CompletableFuture<Long> f, String s) {}
+    }
+
+    private static class VarArgFunctionAsync extends AsyncScalarFunction {
+        public void eval(CompletableFuture<String> f, int i, int... more) {}
+    }
+
+    private static class VarArgWithByteFunctionAsync extends AsyncScalarFunction {
+        public void eval(CompletableFuture<String> f, byte... bytes) {}
+    }
+
+    @FunctionHint(output = @DataTypeHint("INT"))
+    private static class ExtractWithOutputHintFunctionAsync extends AsyncScalarFunction {
+        public void eval(CompletableFuture<Object> f, Integer i) {}
+    }
+
+    @FunctionHint(output = @DataTypeHint("STRING"))
+    private static class InvalidMethodScalarFunctionAsync extends AsyncScalarFunction {
+        public void eval(CompletableFuture<Long> f, int[] i) {}
+    }
+
+    private static class DataTypeHintOnScalarFunctionAsync extends AsyncScalarFunction {
+        public void eval(@DataTypeHint("ROW<i INT>") CompletableFuture<RowData> f) {}
     }
 }

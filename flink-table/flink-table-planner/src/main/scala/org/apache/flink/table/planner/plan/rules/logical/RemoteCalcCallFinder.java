@@ -16,24 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.functions;
+package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.calcite.rex.RexNode;
 
-/** Categorizes the semantics of a {@link FunctionDefinition}. */
-@PublicEvolving
-public enum FunctionKind {
-    SCALAR,
+/**
+ * Finds whether a {@link RexNode} contains remote calls or not.
+ */
+public interface RemoteCalcCallFinder {
 
-    ASYNC_SCALAR,
+    // If the node contains directly or indirectly a remote call.
+    boolean containsRemoteCall(RexNode node);
+    // If the node contains directly or indirectly a non-remote call.
+    boolean containsNonRemoteCall(RexNode node);
+    // If the node contains directly a remote call.
+    boolean isRemoteCall(RexNode node);
 
-    TABLE,
-
-    ASYNC_TABLE,
-
-    AGGREGATE,
-
-    TABLE_AGGREGATE,
-
-    OTHER
+    // If the node contains directly a non-remote call.
+    boolean isNonRemoteCall(RexNode node);
 }
