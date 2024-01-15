@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.RoundRobinOperatorStateRepartitioner;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -38,6 +39,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -157,8 +160,7 @@ public class OperatorStateRestoreOperationTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    void testRestoreAndRescalePartitionedOperatorState(boolean snapshotCompressionEnabled)
-            throws Exception {
+    void testMergeOperatorState(boolean snapshotCompressionEnabled) throws Exception {
         final ExecutionConfig cfg = new ExecutionConfig();
         cfg.setUseSnapshotCompression(snapshotCompressionEnabled);
         final ThrowingFunction<Collection<OperatorStateHandle>, OperatorStateBackend>
@@ -213,14 +215,75 @@ public class OperatorStateRestoreOperationTest {
         listStates.put("bufferState", Collections.emptyList());
         listStates.put("offsetState", Collections.singletonList("foo"));
 
+        final Map<String, Map<String, String>> broadcastStates = new HashMap<>();
+        broadcastStates.put("whateverState", Collections.emptyMap());
+
         final OperatorStateHandle stateHandle =
-                createOperatorStateHandle(
-                        operatorStateBackendFactory, listStates, Collections.emptyMap());
+                createOperatorStateHandle(operatorStateBackendFactory, listStates, broadcastStates);
 
         verifyOperatorStateHandle(
                 operatorStateBackendFactory,
                 Collections.singletonList(stateHandle),
                 listStates,
-                Collections.emptyMap());
+                broadcastStates);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testRepartitionOperatorState(boolean snapshotCompressionEnabled) throws Exception {
+        final ExecutionConfig cfg = new ExecutionConfig();
+        cfg.setUseSnapshotCompression(snapshotCompressionEnabled);
+        final ThrowingFunction<Collection<OperatorStateHandle>, OperatorStateBackend>
+                operatorStateBackendFactory =
+                        createOperatorStateBackendFactory(
+                                cfg, new CloseableRegistry(), this.getClass().getClassLoader());
+
+        final Map<String, List<String>> listStates = new HashMap<>();
+        listStates.put(
+                "bufferState",
+                IntStream.range(0, 10).mapToObj(idx -> "foo" + idx).collect(Collectors.toList()));
+        listStates.put(
+                "offsetState",
+                IntStream.range(0, 10).mapToObj(idx -> "bar" + idx).collect(Collectors.toList()));
+
+        final OperatorStateHandle stateHandle =
+                createOperatorStateHandle(
+                        operatorStateBackendFactory, listStates, Collections.emptyMap());
+
+        for (int newParallelism : Arrays.asList(1, 2, 5, 10)) {
+            final RoundRobinOperatorStateRepartitioner partitioner =
+                    new RoundRobinOperatorStateRepartitioner();
+            final List<List<OperatorStateHandle>> repartitioned =
+                    partitioner.repartitionState(
+                            Collections.singletonList(Collections.singletonList(stateHandle)),
+                            1,
+                            newParallelism);
+            for (int idx = 0; idx < newParallelism; idx++) {
+                verifyOperatorStateHandle(
+                        operatorStateBackendFactory,
+                        repartitioned.get(idx),
+                        getExpectedSplit(listStates, newParallelism, idx),
+                        Collections.emptyMap());
+            }
+        }
+    }
+
+    /**
+     * This is a simplified version of what RR partitioner does, so it only works in case there is
+     * no remainder.
+     */
+    private static Map<String, List<String>> getExpectedSplit(
+            Map<String, List<String>> states, int newParallelism, int idx) {
+        final Map<String, List<String>> newStates = new HashMap<>();
+        for (String stateName : states.keySet()) {
+            final int stateSize = states.get(stateName).size();
+            newStates.put(
+                    stateName,
+                    states.get(stateName)
+                            .subList(
+                                    idx * stateSize / newParallelism,
+                                    (idx + 1) * stateSize / newParallelism));
+        }
+        return newStates;
     }
 }
