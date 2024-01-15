@@ -70,8 +70,8 @@ class RocksIncrementalSnapshotStrategyTest {
     void testCheckpointIsIncremental() throws Exception {
 
         try (CloseableRegistry closeableRegistry = new CloseableRegistry();
-                RocksIncrementalSnapshotStrategy checkpointSnapshotStrategy =
-                        createSnapshotStrategy(closeableRegistry)) {
+                RocksIncrementalSnapshotStrategy<?> checkpointSnapshotStrategy =
+                        createSnapshotStrategy()) {
             FsCheckpointStreamFactory checkpointStreamFactory = createFsCheckpointStreamFactory();
 
             // make and notify checkpoint with id 1
@@ -96,8 +96,8 @@ class RocksIncrementalSnapshotStrategyTest {
         }
     }
 
-    public RocksIncrementalSnapshotStrategy createSnapshotStrategy(
-            CloseableRegistry closeableRegistry) throws IOException, RocksDBException {
+    public RocksIncrementalSnapshotStrategy<?> createSnapshotStrategy()
+            throws IOException, RocksDBException {
 
         ColumnFamilyHandle columnFamilyHandle = rocksDBExtension.createNewColumnFamily("test");
         RocksDB rocksDB = rocksDBExtension.getRocksDB();
@@ -138,7 +138,6 @@ class RocksIncrementalSnapshotStrategyTest {
                 new KeyGroupRange(0, 1),
                 keyGroupPrefixBytes,
                 TestLocalRecoveryConfig.disabled(),
-                closeableRegistry,
                 TempDirUtils.newFolder(tmp),
                 UUID.randomUUID(),
                 materializedSstFiles,
@@ -160,7 +159,7 @@ class RocksIncrementalSnapshotStrategyTest {
 
     public IncrementalRemoteKeyedStateHandle snapshot(
             long checkpointId,
-            RocksIncrementalSnapshotStrategy checkpointSnapshotStrategy,
+            RocksIncrementalSnapshotStrategy<?> checkpointSnapshotStrategy,
             FsCheckpointStreamFactory checkpointStreamFactory,
             CloseableRegistry closeableRegistry)
             throws Exception {
