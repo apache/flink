@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.heap;
+package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.state.KeyGroupRange;
 
 import javax.annotation.Nonnull;
 

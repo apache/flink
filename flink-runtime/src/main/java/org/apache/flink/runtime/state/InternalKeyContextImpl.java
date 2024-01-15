@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.heap;
-
-import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
+package org.apache.flink.runtime.state;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
