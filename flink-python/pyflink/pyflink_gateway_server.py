@@ -36,6 +36,7 @@ KEY_ENV_HBASE_CONF_DIR = "env.hbase.conf.dir"
 KEY_ENV_JAVA_HOME = "env.java.home"
 KEY_ENV_JAVA_OPTS = "env.java.opts.all"
 KEY_ENV_JAVA_OPTS_DEPRECATED = "env.java.opts"
+KEY_ENV_JAVA_DEFAULT_OPTS = "env.java.default-opts.all"
 
 
 def on_windows():
@@ -156,12 +157,14 @@ def construct_log_settings(env):
 
 def get_jvm_opts(env):
     flink_conf_file = os.path.join(env['FLINK_CONF_DIR'], "flink-conf.yaml")
-    jvm_opts = env.get(
-        'FLINK_ENV_JAVA_OPTS',
-        read_from_config(
+    jvm_opts = env.get("FLINK_ENV_JAVA_OPTS")
+    if jvm_opts is None:
+        default_jvm_opts = read_from_config(KEY_ENV_JAVA_DEFAULT_OPTS, "", flink_conf_file)
+        extra_jvm_opts = read_from_config(
             KEY_ENV_JAVA_OPTS,
             read_from_config(KEY_ENV_JAVA_OPTS_DEPRECATED, "", flink_conf_file),
-            flink_conf_file))
+            flink_conf_file)
+        jvm_opts = default_jvm_opts + " " + extra_jvm_opts
 
     # Remove leading and trailing double quotes (if present) of value
     jvm_opts = jvm_opts.strip('"')
