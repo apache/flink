@@ -81,7 +81,7 @@ class SqlNodeConvertUtils {
         // index to identify the duplicate names.
         SqlValidatorNamespace validatedNamespace =
                 context.getSqlValidator().getNamespace(validateQuery);
-        validateDuplicatedColumnNames(query, validatedNamespace);
+        validateDuplicatedColumnNames(query, viewFields, validatedNamespace);
 
         // The LATERAL operator was eliminated during sql validation, thus the unparsed SQL
         // does not contain LATERAL which is problematic,
@@ -142,12 +142,23 @@ class SqlNodeConvertUtils {
     }
 
     private static void validateDuplicatedColumnNames(
-            SqlNode query, SqlValidatorNamespace namespace) {
+            SqlNode query, List<SqlNode> viewFields, SqlValidatorNamespace namespace) {
+
+        // If view fields is not empty, means the view column list is specified by user use syntax
+        // 'CREATE VIEW viewName(x,x,x) AS SELECT x,x,x FROM table'. For this syntax, we need
+        // validate whether the column name in the view column list is unique.
+        List<String> columnNameList;
+        if (!viewFields.isEmpty()) {
+            columnNameList =
+                    viewFields.stream().map(SqlNode::toString).collect(Collectors.toList());
+        } else {
+            Objects.requireNonNull(namespace);
+            columnNameList = namespace.getType().getFieldNames();
+        }
+
         Map<String, Integer> nameToPos = new HashMap<>();
-        for (int i = 0;
-                i < Objects.requireNonNull(namespace).getType().getFieldList().size();
-                i++) {
-            String columnName = namespace.getType().getFieldList().get(i).getName();
+        for (int i = 0; i < columnNameList.size(); i++) {
+            String columnName = columnNameList.get(i);
             if (nameToPos.containsKey(columnName)) {
                 SqlSelect select = extractSelect(query);
                 // Can not get the origin schema.
