@@ -44,7 +44,6 @@ import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
@@ -105,8 +104,6 @@ public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
     CheckpointStatsSnapshot requestCheckpointStats();
 
     JobStatus requestJobStatus();
-
-    JobDetails requestJobDetails();
 
     // ------------------------------------------------------------------------------------
     // Methods below do not belong to Scheduler but are included due to historical reasons

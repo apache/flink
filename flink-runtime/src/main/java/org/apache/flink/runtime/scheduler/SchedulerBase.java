@@ -78,7 +78,6 @@ import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
@@ -817,12 +816,6 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     @Override
     public JobStatus requestJobStatus() {
         return executionGraph.getState();
-    }
-
-    @Override
-    public JobDetails requestJobDetails() {
-        mainThreadExecutor.assertRunningInMainThread();
-        return JobDetails.createDetailsForJob(executionGraph);
     }
 
     @Override
