@@ -32,7 +32,6 @@ import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
-import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexFactory;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
@@ -61,18 +60,20 @@ import java.util.Optional;
 @Internal
 public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 
-    private final FlinkContext context;
     private final FunctionCatalog functionCatalog;
     private final DataTypeFactory dataTypeFactory;
     private final FlinkTypeFactory typeFactory;
     private final RexFactory rexFactory;
 
-    public FunctionCatalogOperatorTable(FlinkContext context, FlinkTypeFactory typeFactory) {
-        this.context = context;
-        this.functionCatalog = context.getFunctionCatalog();
-        this.dataTypeFactory = context.getCatalogManager().getDataTypeFactory();
+    public FunctionCatalogOperatorTable(
+            FunctionCatalog functionCatalog,
+            DataTypeFactory dataTypeFactory,
+            FlinkTypeFactory typeFactory,
+            RexFactory rexFactory) {
+        this.functionCatalog = functionCatalog;
+        this.dataTypeFactory = dataTypeFactory;
         this.typeFactory = typeFactory;
-        this.rexFactory = context.getRexFactory();
+        this.rexFactory = rexFactory;
     }
 
     @Override
@@ -152,7 +153,7 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
                 || definition.getKind() == FunctionKind.TABLE_AGGREGATE) {
             function =
                     BridgingSqlAggFunction.of(
-                            context,
+                            dataTypeFactory,
                             typeFactory,
                             SqlKind.OTHER_FUNCTION,
                             resolvedFunction,

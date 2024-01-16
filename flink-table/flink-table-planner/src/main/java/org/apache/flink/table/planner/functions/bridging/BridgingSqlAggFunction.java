@@ -26,6 +26,7 @@ import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.FunctionRequirement;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInference;
 
 import org.apache.calcite.rel.type.RelDataType;
@@ -51,8 +52,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public final class BridgingSqlAggFunction extends SqlAggFunction {
 
-    private final FlinkContext context;
-
     private final DataTypeFactory dataTypeFactory;
 
     private final FlinkTypeFactory typeFactory;
@@ -64,7 +63,6 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
     private final List<RelDataType> paramTypes;
 
     private BridgingSqlAggFunction(
-            FlinkContext context,
             DataTypeFactory dataTypeFactory,
             FlinkTypeFactory typeFactory,
             SqlKind kind,
@@ -86,7 +84,6 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
                 createGroupOrderRequirement());
 
         this.dataTypeFactory = dataTypeFactory;
-        this.context = context;
         this.typeFactory = typeFactory;
         this.resolvedFunction = resolvedFunction;
         this.typeInference = typeInference;
@@ -96,7 +93,7 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
     /**
      * Creates an instance of a aggregating function (either a system or user-defined function).
      *
-     * @param context used for accessing to flink context {@link FlinkContext}
+     * @param dataTypeFactory used for creating {@link DataType}
      * @param typeFactory used for bridging to {@link RelDataType}
      * @param kind commonly used SQL standard function; use {@link SqlKind#OTHER_FUNCTION} if this
      *     function cannot be mapped to a common function kind.
@@ -104,7 +101,7 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
      * @param typeInference type inference logic
      */
     public static BridgingSqlAggFunction of(
-            FlinkContext context,
+            DataTypeFactory dataTypeFactory,
             FlinkTypeFactory typeFactory,
             SqlKind kind,
             ContextResolvedFunction resolvedFunction,
@@ -116,12 +113,7 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
                 "Aggregating function kind expected.");
 
         return new BridgingSqlAggFunction(
-                context,
-                context.getCatalogManager().getDataTypeFactory(),
-                typeFactory,
-                kind,
-                resolvedFunction,
-                typeInference);
+                dataTypeFactory, typeFactory, kind, resolvedFunction, typeInference);
     }
 
     /** Creates an instance of a aggregate function during translation. */
@@ -132,15 +124,16 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
         final DataTypeFactory dataTypeFactory = context.getCatalogManager().getDataTypeFactory();
         final TypeInference typeInference =
                 resolvedFunction.getDefinition().getTypeInference(dataTypeFactory);
-        return of(context, typeFactory, SqlKind.OTHER_FUNCTION, resolvedFunction, typeInference);
+        return of(
+                dataTypeFactory,
+                typeFactory,
+                SqlKind.OTHER_FUNCTION,
+                resolvedFunction,
+                typeInference);
     }
 
     public DataTypeFactory getDataTypeFactory() {
         return dataTypeFactory;
-    }
-
-    public FlinkContext getContext() {
-        return context;
     }
 
     public FlinkTypeFactory getTypeFactory() {

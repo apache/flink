@@ -750,8 +750,6 @@ public final class BuiltInFunctionDefinitions {
                     .name("ARRAY_AGG")
                     .kind(AGGREGATE)
                     .outputTypeStrategy(nullableIfArgs(SpecificTypeStrategies.ARRAY))
-                    .runtimeClass(
-                            "org.apache.flink.table.runtime.functions.aggregate.ArrayAggFunction")
                     .build();
 
     // --------------------------------------------------------------------------------------------

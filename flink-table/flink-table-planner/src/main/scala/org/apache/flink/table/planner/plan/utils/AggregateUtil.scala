@@ -25,8 +25,7 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.JLong
-import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
-import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.DefaultExpressionEvaluatorFactory
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.aggfunctions.{AvgAggFunction, CountAggFunction, Sum0AggFunction}
 import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction._
@@ -43,7 +42,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalR
 import org.apache.flink.table.planner.typeutils.DataViewUtils
 import org.apache.flink.table.planner.typeutils.LegacyDataViewUtils.useNullSerializerForStateViewFieldsFromAccType
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
-import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapContext, unwrapTypeFactory}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory
 import org.apache.flink.table.runtime.dataview.DataViewSpec
 import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction
 import org.apache.flink.table.runtime.groupwindow._
@@ -485,7 +484,7 @@ object AggregateUtil extends Enumeration {
             call,
             index,
             argIndexes,
-            factory,
+            factory.createAggFunction(call, index),
             isStateBackedDataViews,
             aggCallNeedRetractions(index))
       }
@@ -498,7 +497,7 @@ object AggregateUtil extends Enumeration {
       call: AggregateCall,
       index: Int,
       argIndexes: Array[Int],
-      factory: AggFunctionFactory,
+      udf: UserDefinedFunction,
       hasStateBackedDataViews: Boolean,
       needsRetraction: Boolean): AggregateInfo =
     call.getAggregation match {
@@ -507,7 +506,7 @@ object AggregateUtil extends Enumeration {
         if (bridging.getDefinition.isInstanceOf[DeclarativeAggregateFunction]) {
           createAggregateInfoFromInternalFunction(
             call,
-            factory.createAggFunction(call, index),
+            udf,
             index,
             argIndexes,
             needsRetraction,
@@ -527,15 +526,14 @@ object AggregateUtil extends Enumeration {
           call,
           index,
           argIndexes,
-          factory.createAggFunction(call, index).asInstanceOf[ImperativeAggregateFunction[_, _]],
+          udf.asInstanceOf[ImperativeAggregateFunction[_, _]],
           hasStateBackedDataViews,
-          needsRetraction
-        )
+          needsRetraction)
 
       case _: SqlAggFunction =>
         createAggregateInfoFromInternalFunction(
           call,
-          factory.createAggFunction(call, index),
+          udf,
           index,
           argIndexes,
           needsRetraction,
@@ -553,7 +551,6 @@ object AggregateUtil extends Enumeration {
     val function = call.getAggregation.asInstanceOf[BridgingSqlAggFunction]
     val definition = function.getDefinition
     val dataTypeFactory = function.getDataTypeFactory
-    val context = function.getContext
 
     // not all information is available in the call context of aggregate functions at this location
     // e.g. literal information is lost because the aggregation is split into multiple operators
@@ -571,15 +568,14 @@ object AggregateUtil extends Enumeration {
       call.getType)
 
     // create the final UDF for runtime
-    val classLoader = classOf[PlannerBase].getClassLoader
-    val tableConfig = context.getTableConfig
     val udf = UserDefinedFunctionHelper.createSpecializedFunction(
       function.getName,
       definition,
       callContext,
-      classLoader,
-      tableConfig,
-      new DefaultExpressionEvaluatorFactory(tableConfig, classLoader, context.getRexFactory)
+      classOf[PlannerBase].getClassLoader,
+      // currently, aggregate functions have no access to FlinkContext
+      null,
+      null
     )
     val inference = udf.getTypeInference(dataTypeFactory)
 
