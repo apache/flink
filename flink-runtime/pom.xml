@@ -494,7 +494,7 @@ under the License.
 
 			<properties>
 				<surefire.module.config.jdk21> <!--
-				    required by DeclarativeSlotManagerTest-->
+					required by AbstractFineGrainedSlotManagerITCase-->
 					-Djava.security.manager=allow</surefire.module.config.jdk21>
 			</properties>
 		</profile>

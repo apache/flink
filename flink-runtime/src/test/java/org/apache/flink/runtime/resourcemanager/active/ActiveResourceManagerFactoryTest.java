@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.resourcemanager.active;
 
-import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -39,27 +38,8 @@ class ActiveResourceManagerFactoryTest {
     private static final MemorySize TOTAL_PROCESS_SIZE = MemorySize.ofMebiBytes(3 * 1024);
 
     @Test
-    void testGetEffectiveConfigurationForResourceManagerCoarseGrained() {
-        final Configuration config = new Configuration();
-        config.set(ClusterOptions.ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT, false);
-        config.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, TOTAL_FLINK_SIZE);
-        config.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, TOTAL_PROCESS_SIZE);
-
-        final Configuration effectiveConfig =
-                getFactory().getEffectiveConfigurationForResourceManager(config);
-
-        assertThat(effectiveConfig.contains(TaskManagerOptions.TOTAL_FLINK_MEMORY)).isTrue();
-        assertThat(effectiveConfig.contains(TaskManagerOptions.TOTAL_PROCESS_MEMORY)).isTrue();
-        assertThat(effectiveConfig.get(TaskManagerOptions.TOTAL_FLINK_MEMORY))
-                .isSameAs(TOTAL_FLINK_SIZE);
-        assertThat(effectiveConfig.get(TaskManagerOptions.TOTAL_PROCESS_MEMORY))
-                .isSameAs(TOTAL_PROCESS_SIZE);
-    }
-
-    @Test
     void testGetEffectiveConfigurationForResourceManagerFineGrained() {
         final Configuration config = new Configuration();
-        config.set(ClusterOptions.ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT, true);
         config.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, TOTAL_FLINK_SIZE);
         config.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, TOTAL_PROCESS_SIZE);
 
