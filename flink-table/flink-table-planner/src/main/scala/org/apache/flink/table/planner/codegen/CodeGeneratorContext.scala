@@ -1052,7 +1052,7 @@ class CodeGeneratorContext(
          |      "Algorithm for 'SHA-" + $bitLen + "' is not available.", e);
          |  }
          |} else {
-         |  throw new RuntimeException("Unsupported algorithm.");
+         |  throw new RuntimeException("Unsupported SHA2 function with hashLength of $bitLen.");
          |}
          |""".stripMargin
     val nullableInit =
