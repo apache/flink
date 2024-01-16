@@ -69,16 +69,6 @@ class AdaptiveBatchSchedulerITCase {
     }
 
     @Test
-    void testSchedulingWithUnknownResource() throws Exception {
-        testScheduling(false);
-    }
-
-    @Test
-    void testSchedulingWithFineGrainedResource() throws Exception {
-        testScheduling(true);
-    }
-
-    @Test
     void testParallelismOfForwardGroupLargerThanGlobalMaxParallelism() throws Exception {
         final Configuration configuration = createConfiguration();
         final StreamExecutionEnvironment env =
@@ -127,8 +117,9 @@ class AdaptiveBatchSchedulerITCase {
         env.execute();
     }
 
-    private void testScheduling(Boolean isFineGrained) throws Exception {
-        executeJob(isFineGrained);
+    @Test
+    void testScheduling() throws Exception {
+        executeJob();
 
         Map<Long, Long> numberCountResultMap =
                 numberCountResults.stream()
@@ -147,12 +138,9 @@ class AdaptiveBatchSchedulerITCase {
         assertThat(numberCountResultMap).isEqualTo(expectedResult);
     }
 
-    private void executeJob(Boolean isFineGrained) throws Exception {
+    private void executeJob() throws Exception {
         final Configuration configuration = createConfiguration();
-        if (isFineGrained) {
-            configuration.set(ClusterOptions.ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT, true);
-            configuration.set(ClusterOptions.FINE_GRAINED_SHUFFLE_MODE_ALL_BLOCKING, true);
-        }
+        configuration.set(ClusterOptions.FINE_GRAINED_SHUFFLE_MODE_ALL_BLOCKING, true);
 
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.createLocalEnvironment(configuration);
@@ -161,16 +149,11 @@ class AdaptiveBatchSchedulerITCase {
         List<SlotSharingGroup> slotSharingGroups = new ArrayList<>();
 
         for (int i = 0; i < 3; ++i) {
-            SlotSharingGroup group;
-            if (isFineGrained) {
-                group =
-                        SlotSharingGroup.newBuilder("group" + i)
-                                .setCpuCores(1.0)
-                                .setTaskHeapMemory(MemorySize.parse("100m"))
-                                .build();
-            } else {
-                group = SlotSharingGroup.newBuilder("group" + i).build();
-            }
+            SlotSharingGroup group =
+                    SlotSharingGroup.newBuilder("group" + i)
+                            .setCpuCores(1.0)
+                            .setTaskHeapMemory(MemorySize.parse("100m"))
+                            .build();
             slotSharingGroups.add(group);
         }
 
