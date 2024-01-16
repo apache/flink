@@ -186,7 +186,7 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                                 getRequestSlotMatchingStrategy(configuration, jobType));
                 break;
             case Adaptive:
-                schedulerNGFactory = getAdaptiveSchedulerFactoryFromConfiguration(configuration);
+                schedulerNGFactory = new AdaptiveSchedulerFactory();
                 slotPoolServiceFactory =
                         new DeclarativeSlotPoolServiceFactory(
                                 SystemClock.getInstance(), slotIdleTimeout, rpcTimeout);
@@ -280,31 +280,5 @@ public final class DefaultSlotPoolServiceSchedulerFactory
         } else {
             return SimpleRequestSlotMatchingStrategy.INSTANCE;
         }
-    }
-
-    private static AdaptiveSchedulerFactory getAdaptiveSchedulerFactoryFromConfiguration(
-            Configuration configuration) {
-        Duration allocationTimeoutDefault = JobManagerOptions.RESOURCE_WAIT_TIMEOUT.defaultValue();
-        Duration stabilizationTimeoutDefault =
-                JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT.defaultValue();
-
-        if (configuration.get(JobManagerOptions.SCHEDULER_MODE)
-                == SchedulerExecutionMode.REACTIVE) {
-            allocationTimeoutDefault = Duration.ofMillis(-1);
-            stabilizationTimeoutDefault = Duration.ZERO;
-        }
-
-        final Duration initialResourceAllocationTimeout =
-                configuration
-                        .getOptional(JobManagerOptions.RESOURCE_WAIT_TIMEOUT)
-                        .orElse(allocationTimeoutDefault);
-
-        final Duration resourceStabilizationTimeout =
-                configuration
-                        .getOptional(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT)
-                        .orElse(stabilizationTimeoutDefault);
-
-        return new AdaptiveSchedulerFactory(
-                initialResourceAllocationTimeout, resourceStabilizationTimeout);
     }
 }

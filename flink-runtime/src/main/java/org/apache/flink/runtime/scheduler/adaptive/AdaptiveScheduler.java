@@ -235,7 +235,7 @@ public class AdaptiveScheduler
         private final Duration scalingIntervalMin;
         private final Duration scalingIntervalMax;
 
-        public Settings(
+        private Settings(
                 SchedulerExecutionMode executionMode,
                 Duration initialResourceAllocationTimeout,
                 Duration resourceStabilizationTimeout,
