@@ -18,9 +18,6 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.util.ExceptionUtils;
-
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -197,11 +194,14 @@ class GlobalConfigurationTest {
         // We do not allow malformed YAML files if loaded standard yaml
         assertThatThrownBy(() -> GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath()))
                 .isInstanceOf(RuntimeException.class)
+                .hasCauseInstanceOf(ClassCastException.class)
                 .satisfies(
-                        e ->
-                                Assertions.assertThat(ExceptionUtils.stringifyException(e))
-                                        .contains(
-                                                "java.lang.String cannot be cast to java.util.Map"));
+                        e -> {
+                            Throwable cause = e.getCause();
+                            assertThat(cause).isNotNull();
+                            assertThat(cause).hasMessageContaining("java.lang.String");
+                            assertThat(cause).hasMessageContaining("java.util.Map");
+                        });
     }
 
     @Test
