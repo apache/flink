@@ -84,19 +84,6 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
         // Executing is recreated with each restart (when we rescale)
         // we consider the first execution of the pipeline as a rescale event
         this.lastRescale = lastRescale;
-        Preconditions.checkState(
-                !scalingIntervalMin.isNegative(),
-                "%s must be positive integer or 0",
-                JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN.key());
-        if (scalingIntervalMax != null) {
-            Preconditions.checkState(
-                    scalingIntervalMax.compareTo(scalingIntervalMin) > 0,
-                    "%s(%d) must be greater than %s(%d)",
-                    JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX.key(),
-                    scalingIntervalMax,
-                    JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN.key(),
-                    scalingIntervalMin);
-        }
 
         deploy();
 
