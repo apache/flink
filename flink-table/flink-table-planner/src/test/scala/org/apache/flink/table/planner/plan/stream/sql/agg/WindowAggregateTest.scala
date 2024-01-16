@@ -1437,7 +1437,6 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
   @TestTemplate
   def testSession_OnRowtime(): Unit = {
     // Session window does not support two-phase optimization
-    // TODO remove redundant Exchange
     val sql =
       """
         |SELECT
@@ -1458,8 +1457,7 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
 
   @TestTemplate
   def testSession_OnProctime(): Unit = {
-    // Session window does not support two-phase optimization
-    // TODO remove redundant Exchange
+    assumeThat(isTwoPhase).isTrue
     val sql =
       """
         |SELECT
@@ -1483,7 +1481,6 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
     // Session window does not support split-distinct optimization
     util.tableEnv.getConfig.getConfiguration
       .setBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
-    // TODO remove redundant Exchange
     val sql =
       """
         |SELECT
@@ -1502,9 +1499,10 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
   }
 
   @TestTemplate
-  def testContainInvalidGroupKeySessionWindow(): Unit = {
-    // Window aggregate group key could only contain window_start, window_end and partition keys
-    // of session window
+  def testGroupKeyMoreThanPartitionKeyInSessionWindow(): Unit = {
+    // the aggregate will not be converted to window aggregate
+    // TODO Support session window table function in ExecWindowTableFunction. See
+    //  more at FLINK-34100
     val sql =
       """
         |SELECT
@@ -1522,18 +1520,14 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
       """.stripMargin
 
     assertThatThrownBy(() => util.verifyExplain(sql))
-      .hasMessageContaining(
-        "Group keys of Window Aggregate should contain and only contain window_start, " +
-          "window_end and partition keys of session window.\n" +
-          s"Session partition keys are [].\n" +
-          s"Window Aggregate group keys are [a, window_start, window_end].")
+      .hasMessageContaining("Session Window TableFunction is not supported yet.")
       .isInstanceOf[TableException]
   }
 
   @TestTemplate
-  def testMissRequiredGroupKeySessionWindow(): Unit = {
-    // Window aggregate group key could only contain window_start, window_end and partition keys
-    // of session window
+  def testGroupKeyLessThanPartitionKeyInSessionWindow(): Unit = {
+    // TODO Support session window table function in ExecWindowTableFunction. See
+    //  more at FLINK-34100
     val sql = {
       """
         |SELECT
@@ -1551,11 +1545,7 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
     }
 
     assertThatThrownBy(() => util.verifyExplain(sql))
-      .hasMessageContaining(
-        "Group keys of Window Aggregate should contain and only contain window_start, " +
-          "window_end and partition keys of session window.\n" +
-          s"Session partition keys are [a, b].\n" +
-          s"Window Aggregate group keys are [b, window_start, window_end].")
+      .hasMessageContaining("Session Window TableFunction is not supported yet.")
       .isInstanceOf[TableException]
   }
 
@@ -1585,8 +1575,7 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
   }
 
   @TestTemplate
-  def testGroupKeysOrderDifferentWithSessionPartitionKeysInSessionWindow(): Unit = {
-    // TODO fix it later to support: fixing replacing window spec in FlinkRelMdWindowProperties
+  def testGroupKeysIndicesChangesInSessionWindow(): Unit = {
     val sql =
       """
         |SELECT
@@ -1599,10 +1588,7 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
         |GROUP BY window_start, window_end, a
       """.stripMargin
 
-    assertThatThrownBy(() => util.verifyExplain(sql))
-      .hasMessageContaining(
-        "Error while applying rule PullUpWindowTableFunctionIntoWindowAggregateRule")
-      .isInstanceOf[ValidationException]
+    util.verifyExplain(sql)
   }
 }
 

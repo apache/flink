@@ -1185,54 +1185,71 @@ class WindowAggregateITCase(
 
   @TestTemplate
   def testEventTimeSessionWindow(): Unit = {
-    // To verify the "merge" functionality, we create this test with the following characteristics:
-    // 1. set the Parallelism to 1, and have the test data out of order
-    // 2. create a waterMark with 10ms offset to delay the window emission by 10ms
-    val sessionData = List(
-      (1L, 1, "Hello", "a"),
-      (2L, 2, "Hello", "b"),
-      (8L, 8, "Hello", "a"),
-      (9L, 9, "Hello World", "b"),
-      (4L, 4, "Hello", "c"),
-      (16L, 16, "Hello", "d"))
-
-    val stream = failingDataSource(sessionData)
-      .assignTimestampsAndWatermarks(
-        new TimestampAndWatermarkWithOffset[(Long, Int, String, String)](10L))
-    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'string, 'name)
-    tEnv.registerTable("T", table)
-
     val sql =
       """
         |SELECT
-        |  `string`,
+        |  `name`,
         |  window_start,
-        |  window_time,
-        |  COUNT(1),
-        |  SUM(1),
-        |  COUNT(`int`),
-        |  SUM(`int`),
-        |  COUNT(DISTINCT name)
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`),
+        |  concat_distinct_agg(`string`)
         |FROM TABLE(
-        |  SESSION(TABLE T PARTITION BY `string`, DESCRIPTOR(rowtime), INTERVAL '0.005' SECOND))
-        |GROUP BY `string`, window_start, window_end, window_time
+        |   SESSION(TABLE T1 PARTITION BY `name`, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |GROUP BY `name`, window_start, window_end
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
-      "Hello World,1970-01-01T00:00:00.009,1970-01-01T00:00:00.013,1,1,1,9,1",
-      "Hello,1970-01-01T00:00:00.016,1970-01-01T00:00:00.020,1,1,1,16,1",
-      "Hello,1970-01-01T00:00:00.001,1970-01-01T00:00:00.012,4,4,4,15,3"
+      "a,2020-10-10T00:00:01,2020-10-10T00:00:13,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
+      "b,2020-10-10T00:00:06,2020-10-10T00:00:12,2,6.66,6.0,3.0,2,Hello|Hi",
+      "b,2020-10-10T00:00:16,2020-10-10T00:00:21,1,4.44,4.0,4.0,1,Hi",
+      "b,2020-10-10T00:00:34,2020-10-10T00:00:39,1,3.33,3.0,3.0,1,Comment#3",
+      "null,2020-10-10T00:00:32,2020-10-10T00:00:37,1,7.77,7.0,7.0,0,null"
     )
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
       .isEqualTo(expected.sorted.mkString("\n"))
   }
 
   @TestTemplate
-  def testDistinctAggWithMergeOnEventTimeSessionGroupWindow(): Unit = {
+  def testEventTimeSessionWindowWithCDCSource(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`)
+        |FROM TABLE(
+        |   SESSION(TABLE T1_CDC PARTITION BY `name`, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |GROUP BY `name`, window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "a,2020-10-10T00:00:01,2020-10-10T00:00:13,5,38.87,22.0,2.0,4",
+      "b,2020-10-10T00:00:06,2020-10-10T00:00:12,2,6.66,6.0,3.0,2",
+      "b,2020-10-10T00:00:16,2020-10-10T00:00:21,1,4.44,4.0,4.0,1"
+    )
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
+  }
+
+  @TestTemplate
+  def testDistinctAggWithMergeOnEventTimeSessionWindow(): Unit = {
     // create a watermark with 10ms offset to delay the window emission by 10ms to verify merge
     val sessionWindowTestData = List(
       (1L, 2, "Hello"), // (1, Hello)       - window

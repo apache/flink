@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.`trait`
 
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.JArrayList
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 
@@ -254,20 +253,6 @@ object FlinkRelDistribution {
     val fieldCollations = ImmutableList.copyOf[RelFieldCollation](collations)
     canonize(
       new FlinkRelDistribution(RelDistribution.Type.RANGE_DISTRIBUTED, keys, Some(fieldCollations)))
-  }
-
-  def convertFrom(relDistribution: RelDistribution): FlinkRelDistribution = {
-    relDistribution.getType match {
-      case Type.SINGLETON => SINGLETON
-      case Type.HASH_DISTRIBUTED => hash(relDistribution.getKeys)
-      case Type.RANGE_DISTRIBUTED => range(relDistribution.getKeys)
-      case Type.RANDOM_DISTRIBUTED => RANDOM_DISTRIBUTED.asInstanceOf[FlinkRelDistribution]
-      case Type.ROUND_ROBIN_DISTRIBUTED =>
-        ROUND_ROBIN_DISTRIBUTED.asInstanceOf[FlinkRelDistribution]
-      case Type.BROADCAST_DISTRIBUTED => BROADCAST_DISTRIBUTED
-      case Type.ANY => ANY
-      case _ => throw new TableException(s"Unknown distribution type: ${relDistribution.getType}")
-    }
   }
 
   /** NOTE: All creation of FlinkRelDistribution should be canonized */

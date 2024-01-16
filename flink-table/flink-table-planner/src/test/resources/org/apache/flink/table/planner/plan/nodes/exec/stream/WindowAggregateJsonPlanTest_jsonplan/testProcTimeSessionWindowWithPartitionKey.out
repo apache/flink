@@ -78,10 +78,19 @@
             "connector" : "values"
           }
         }
-      }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 1 ], [ 2 ] ],
+        "producedType" : "ROW<`b` BIGINT, `c` VARCHAR(2147483647)> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`b` BIGINT, `c` VARCHAR(2147483647)> NOT NULL"
+      } ]
     },
-    "outputType" : "ROW<`a` INT, `b` BIGINT, `c` VARCHAR(2147483647)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
+    "outputType" : "ROW<`b` BIGINT, `c` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, c], metadata=[]]], fields=[b, c])",
     "inputProperties" : [ ]
   }, {
     "id" : 2,
@@ -89,24 +98,7 @@
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
-      "type" : "INT"
-    }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 1,
       "type" : "BIGINT"
-    }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 2,
-      "type" : "VARCHAR(2147483647)"
-    }, {
-      "kind" : "CALL",
-      "internalName" : "$TO_TIMESTAMP$1",
-      "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 2,
-        "type" : "VARCHAR(2147483647)"
-      } ],
-      "type" : "TIMESTAMP(3)"
     }, {
       "kind" : "CALL",
       "internalName" : "$PROCTIME$1",
@@ -117,6 +109,15 @@
         "precision" : 3,
         "kind" : "PROCTIME"
       }
+    }, {
+      "kind" : "CALL",
+      "internalName" : "$TO_TIMESTAMP$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : "VARCHAR(2147483647)"
+      } ],
+      "type" : "TIMESTAMP(3)"
     } ],
     "condition" : null,
     "inputProperties" : [ {
@@ -129,17 +130,8 @@
     "outputType" : {
       "type" : "ROW",
       "fields" : [ {
-        "name" : "a",
-        "fieldType" : "INT"
-      }, {
         "name" : "b",
         "fieldType" : "BIGINT"
-      }, {
-        "name" : "c",
-        "fieldType" : "VARCHAR(2147483647)"
-      }, {
-        "name" : "rowtime",
-        "fieldType" : "TIMESTAMP(3)"
       }, {
         "name" : "proctime",
         "fieldType" : {
@@ -148,9 +140,12 @@
           "precision" : 3,
           "kind" : "PROCTIME"
         }
+      }, {
+        "name" : "rowtime",
+        "fieldType" : "TIMESTAMP(3)"
       } ]
     },
-    "description" : "Calc(select=[a, b, c, TO_TIMESTAMP(c) AS rowtime, PROCTIME() AS proctime])"
+    "description" : "Calc(select=[b, PROCTIME() AS proctime, TO_TIMESTAMP(c) AS rowtime])"
   }, {
     "id" : 3,
     "type" : "stream-exec-watermark-assigner_1",
@@ -160,7 +155,7 @@
       "internalName" : "$-$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
-        "inputIndex" : 3,
+        "inputIndex" : 2,
         "type" : "TIMESTAMP(3)"
       }, {
         "kind" : "LITERAL",
@@ -169,7 +164,7 @@
       } ],
       "type" : "TIMESTAMP(3)"
     },
-    "rowtimeFieldIndex" : 3,
+    "rowtimeFieldIndex" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -180,21 +175,8 @@
     "outputType" : {
       "type" : "ROW",
       "fields" : [ {
-        "name" : "a",
-        "fieldType" : "INT"
-      }, {
         "name" : "b",
         "fieldType" : "BIGINT"
-      }, {
-        "name" : "c",
-        "fieldType" : "VARCHAR(2147483647)"
-      }, {
-        "name" : "rowtime",
-        "fieldType" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "precision" : 3,
-          "kind" : "ROWTIME"
-        }
       }, {
         "name" : "proctime",
         "fieldType" : {
@@ -202,60 +184,27 @@
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
+        }
+      }, {
+        "name" : "rowtime",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
         }
       } ]
     },
     "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])"
   }, {
     "id" : 4,
-    "type" : "stream-exec-exchange_1",
-    "inputProperties" : [ {
-      "requiredDistribution" : {
-        "type" : "HASH",
-        "keys" : [ 1 ]
-      },
-      "damBehavior" : "PIPELINED",
-      "priority" : 0
-    } ],
-    "outputType" : {
-      "type" : "ROW",
-      "fields" : [ {
-        "name" : "a",
-        "fieldType" : "INT"
-      }, {
-        "name" : "b",
-        "fieldType" : "BIGINT"
-      }, {
-        "name" : "c",
-        "fieldType" : "VARCHAR(2147483647)"
-      }, {
-        "name" : "rowtime",
-        "fieldType" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "precision" : 3,
-          "kind" : "ROWTIME"
-        }
-      }, {
-        "name" : "proctime",
-        "fieldType" : {
-          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-          "nullable" : false,
-          "precision" : 3,
-          "kind" : "PROCTIME"
-        }
-      } ]
-    },
-    "description" : "Exchange(distribution=[hash[b]])"
-  }, {
-    "id" : 5,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
-      "inputIndex" : 1,
+      "inputIndex" : 0,
       "type" : "BIGINT"
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 4,
+      "inputIndex" : 1,
       "type" : {
         "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
         "nullable" : false,
@@ -288,7 +237,7 @@
     },
     "description" : "Calc(select=[b, proctime])"
   }, {
-    "id" : 6,
+    "id" : 5,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -315,7 +264,7 @@
     },
     "description" : "Exchange(distribution=[hash[b]])"
   }, {
-    "id" : 7,
+    "id" : 6,
     "type" : "stream-exec-window-aggregate_1",
     "configuration" : {
       "table.local-time-zone" : "default"
@@ -377,6 +326,7 @@
         }
       }
     } ],
+    "needRetraction" : false,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -387,7 +337,7 @@
     "outputType" : "ROW<`b` BIGINT, `EXPR$2` BIGINT NOT NULL, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL>",
     "description" : "WindowAggregate(groupBy=[b], window=[SESSION(time_col=[proctime], gap=[15 min], partition keys=[b])], select=[b, COUNT(*) AS EXPR$2, start('w$) AS window_start, end('w$) AS window_end])"
   }, {
-    "id" : 8,
+    "id" : 7,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
@@ -413,7 +363,7 @@
     "outputType" : "ROW<`b` BIGINT, `window_end` TIMESTAMP(3) NOT NULL, `EXPR$2` BIGINT NOT NULL>",
     "description" : "Calc(select=[b, window_end, EXPR$2])"
   }, {
-    "id" : 9,
+    "id" : 8,
     "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -502,13 +452,6 @@
   }, {
     "source" : 7,
     "target" : 8,
-    "shuffle" : {
-      "type" : "FORWARD"
-    },
-    "shuffleMode" : "PIPELINED"
-  }, {
-    "source" : 8,
-    "target" : 9,
     "shuffle" : {
       "type" : "FORWARD"
     },

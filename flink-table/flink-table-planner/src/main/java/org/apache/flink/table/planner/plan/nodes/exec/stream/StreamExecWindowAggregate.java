@@ -278,8 +278,8 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
     }
 
     /**
-     * Currently, the operator of WindowAggregate does not support Session Window and it needs to
-     * fall back to the legacy GroupWindowAggregate.
+     * TODO Currently, the operator of WindowAggregate does not support Session Window, and it needs
+     * to fall back to the legacy GroupWindowAggregate. See more at FLINK-34048.
      */
     private boolean shouldFallbackToGroupWindowAgg(WindowSpec windowSpec) {
         return windowSpec instanceof SessionWindowSpec;
@@ -313,7 +313,7 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
                             aggCalls,
                             logicalWindow,
                             namedWindowProperties,
-                            false,
+                            needRetraction,
                             InputProperty.DEFAULT,
                             (RowType) getOutputType(),
                             getDescription());
@@ -323,6 +323,8 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
         }
 
         throw new UnsupportedOperationException(
-                "Unsupported windowing strategy: " + windowing.getClass());
+                String.format(
+                        "Unsupported windowing strategy: %s for session window.",
+                        windowing.getClass()));
     }
 }

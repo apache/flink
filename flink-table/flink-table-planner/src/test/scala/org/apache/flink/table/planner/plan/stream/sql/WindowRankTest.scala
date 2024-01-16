@@ -557,23 +557,4 @@ class WindowRankTest extends TableTestBase {
         "Rank strategy rankEnd=max_b is not supported on window rank currently.")
       .isInstanceOf[TableException]
   }
-
-  @Test
-  def testUnsupportedWindowTVF_Session(): Unit = {
-    // TODO introduce session window tvf op instead of falling back to group window agg op
-    val sql =
-      """
-        |SELECT window_start, window_end, window_time, a, b, c, d, e
-        |FROM (
-        |SELECT *,
-        |   ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end ORDER BY b DESC) as rownum
-        |FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE))
-        |)
-        |WHERE rownum <= 3
-      """.stripMargin
-
-    assertThatThrownBy(() => util.verifyExplain(sql))
-      .hasMessageContaining("Session Window TableFunction is not supported yet.")
-      .isInstanceOf[TableException]
-  }
 }

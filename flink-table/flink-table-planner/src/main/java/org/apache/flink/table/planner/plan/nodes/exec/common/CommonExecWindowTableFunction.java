@@ -80,8 +80,8 @@ public abstract class CommonExecWindowTableFunction extends ExecNodeBase<RowData
     protected Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
         if (windowingStrategy.getWindow() instanceof SessionWindowSpec) {
-            // TODO introduce session window tvf op instead of falling back to group window
-            // agg op
+            // TODO Support session window table function in ExecWindowTableFunction. See
+            //  more at FLINK-34100
             throw new TableException("Session Window TableFunction is not supported yet.");
         }
         final ExecEdge inputEdge = getInputEdges().get(0);

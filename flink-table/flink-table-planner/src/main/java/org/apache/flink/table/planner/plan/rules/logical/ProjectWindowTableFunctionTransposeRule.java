@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.RexSetSemanticsTableCall;
 import org.apache.flink.table.planner.functions.sql.SqlWindowTableFunction;
 import org.apache.flink.table.planner.plan.logical.SessionWindowSpec;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
@@ -176,6 +177,18 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
         List<RexNode> newOperands = new ArrayList<>();
         for (RexNode next : windowCall.getOperands()) {
             newOperands.add(adjustInputRef(next, mapping));
+        }
+        if (windowCall instanceof RexSetSemanticsTableCall) {
+            RexSetSemanticsTableCall originalCall = (RexSetSemanticsTableCall) windowCall;
+            ImmutableBitSet newPartitionKeys =
+                    originalCall.getPartitionKeys().toList().stream()
+                            .map(mapping::get)
+                            .collect(ImmutableBitSet.toImmutableBitSet());
+            ImmutableBitSet newOrderKeys =
+                    originalCall.getOrderKeys().toList().stream()
+                            .map(mapping::get)
+                            .collect(ImmutableBitSet.toImmutableBitSet());
+            return originalCall.copy(newOperands, newPartitionKeys, newOrderKeys);
         }
         return relBuilder.call(windowCall.getOperator(), newOperands);
     }

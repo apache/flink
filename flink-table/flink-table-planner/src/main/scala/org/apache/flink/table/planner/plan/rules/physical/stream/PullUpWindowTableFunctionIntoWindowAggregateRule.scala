@@ -17,9 +17,8 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
-import org.apache.flink.table.planner.plan.logical.{SessionWindowSpec, TimeAttributeWindowingStrategy, WindowSpec}
+import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalCalc, StreamPhysicalExchange, StreamPhysicalWindowAggregate, StreamPhysicalWindowTableFunction}
@@ -29,11 +28,9 @@ import org.apache.flink.table.planner.plan.utils.WindowUtil.buildNewProgramWitho
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.{RelCollations, RelNode}
-import org.apache.calcite.rex.RexInputRef
 import org.apache.calcite.util.ImmutableBitSet
 
 import scala.collection.JavaConversions._
-import scala.collection.mutable.ArrayBuffer
 
 /**
  * Planner rule that tries to pull up [[StreamPhysicalWindowTableFunction]] into a
@@ -82,8 +79,6 @@ class PullUpWindowTableFunctionIntoWindowAggregateRule
     val requiredInputTraitSet = input.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val newInput: RelNode = RelOptRule.convert(input, requiredInputTraitSet)
 
-    validateWindow(windowAgg, calc, windowTVF)
-
     // -------------------------------------------------------------------------
     //  1. transpose Calc and WindowTVF, build the new Calc node
     // -------------------------------------------------------------------------
@@ -120,9 +115,8 @@ class PullUpWindowTableFunctionIntoWindowAggregateRule
     // -----------------------------------------------------------------------------
     //  3. Adjust aggregate arguments index and construct new window aggregate node
     // -----------------------------------------------------------------------------
-    val newWindowSpec = updateWindowSpec(windowTVF.windowing.getWindow, calc)
     val newWindowing = new TimeAttributeWindowingStrategy(
-      newWindowSpec,
+      windowTVF.windowing.getWindow,
       windowTVF.windowing.getTimeAttributeType,
       timeAttributeIndex)
     val providedTraitSet = windowAgg.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
@@ -151,67 +145,6 @@ class PullUpWindowTableFunctionIntoWindowAggregateRule
       windowAgg.namedWindowProperties)
 
     call.transformTo(newWindowAgg)
-  }
-
-  private def validateWindow(
-      windowAgg: StreamPhysicalWindowAggregate,
-      calc: StreamPhysicalCalc,
-      windowTVF: StreamPhysicalWindowTableFunction
-  ): Unit = {
-    windowTVF.windowing.getWindow match {
-      case sessionWindowSpec: SessionWindowSpec =>
-        val windowPartitionKeys = sessionWindowSpec.getPartitionKeyIndices
-        val newPartitionKeysThroughCalc =
-          getSessionPartitionKeysThroughCalc(windowPartitionKeys, calc)
-        if (
-          windowPartitionKeys.length != newPartitionKeysThroughCalc.length ||
-          !newPartitionKeysThroughCalc.sorted.sameElements(windowAgg.grouping.sorted)
-        ) {
-          val aggInputFieldNames = windowAgg.getInput.getRowType.getFieldNames
-          val groupKeyNames = windowAgg.grouping.map(aggInputFieldNames)
-          val windowTVFFieldNames = windowTVF.getRowType.getFieldNames
-          val partitionKeyNames =
-            windowPartitionKeys.map(windowTVFFieldNames.get)
-          // TODO validate as early as before
-          throw new TableException(
-            "Group keys of Window Aggregate should contain and only contain window_start, " +
-              "window_end and partition keys of session window.\n" +
-              s"Session partition keys are [${partitionKeyNames.mkString(", ")}].\n" +
-              s"Window Aggregate group keys are [${groupKeyNames.mkString(", ")}, " +
-              s"window_start, window_end].")
-        }
-      case _ => // ignore
-    }
-  }
-
-  private def getSessionPartitionKeysThroughCalc(
-      sessionWindowPartitionKeyIndices: Array[Int],
-      calc: StreamPhysicalCalc): Array[Int] = {
-    val newSessionWindowPartitionKeyIndices = ArrayBuffer[Int]()
-    val program = calc.getProgram
-    program.getNamedProjects.zipWithIndex.foreach {
-      case (project, index) =>
-        val expr = program.expandLocalRef(project.left)
-        expr match {
-          case inputRef: RexInputRef =>
-            if (sessionWindowPartitionKeyIndices.indexOf(inputRef.getIndex) != -1) {
-              newSessionWindowPartitionKeyIndices += index
-            }
-          case _ => // ignore
-        }
-    }
-    newSessionWindowPartitionKeyIndices.toArray
-  }
-
-  private def updateWindowSpec(oldWindowSpec: WindowSpec, calc: StreamPhysicalCalc): WindowSpec = {
-    oldWindowSpec match {
-      case sessionWindowSpec: SessionWindowSpec =>
-        val windowPartitionKeys = sessionWindowSpec.getPartitionKeyIndices
-        val newPartitionKeysThroughCalc =
-          getSessionPartitionKeysThroughCalc(windowPartitionKeys, calc)
-        new SessionWindowSpec(sessionWindowSpec.getGap, newPartitionKeysThroughCalc)
-      case _ => oldWindowSpec
-    }
   }
 }
 
