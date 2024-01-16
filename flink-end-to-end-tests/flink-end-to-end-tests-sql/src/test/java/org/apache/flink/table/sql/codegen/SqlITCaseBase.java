@@ -196,6 +196,7 @@ public abstract class SqlITCaseBase extends TestLogger {
                 lines = readResultFiles(resultPath);
                 try {
                     List<String> actual = resultFormatter.apply(lines);
+                    System.out.println(actual);
                     assertThat(actual)
                             .hasSameSizeAs(expectedItems)
                             .containsExactlyInAnyOrderElementsOf(expectedItems);

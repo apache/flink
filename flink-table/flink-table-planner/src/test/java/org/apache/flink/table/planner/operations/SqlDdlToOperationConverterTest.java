@@ -45,6 +45,7 @@ import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.factories.TestManagedTableFactory;
+import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.SinkModifyOperation;
@@ -558,10 +559,12 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                         new HamcrestCondition<>(
                                 isCreateTableOperation(
                                         withDistribution(
-                                                new CatalogTable.TableDistribution(
-                                                        CatalogTable.TableDistribution.Kind.UNKNOWN,
-                                                        null,
-                                                        Arrays.asList("a", "f0"))),
+                                                Optional.of(
+                                                        new CatalogTable.TableDistribution(
+                                                                CatalogTable.TableDistribution.Kind
+                                                                        .UNKNOWN,
+                                                                null,
+                                                                Arrays.asList("a", "f0")))),
                                         withSchema(
                                                 Schema.newBuilder()
                                                         .column("f0", DataTypes.INT().notNull())
@@ -585,10 +588,13 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                         new HamcrestCondition<>(
                                 isCreateTableOperation(
                                         withDistribution(
-                                                new CatalogTable.TableDistribution(
-                                                        CatalogTable.TableDistribution.Kind.UNKNOWN,
-                                                        null,
-                                                        Collections.singletonList("a"))))));
+                                                Optional.of(
+                                                        new CatalogTable.TableDistribution(
+                                                                CatalogTable.TableDistribution.Kind
+                                                                        .UNKNOWN,
+                                                                null,
+                                                                Collections.singletonList(
+                                                                        "a")))))));
     }
 
     @Test
@@ -600,6 +606,96 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "Invalid bucket key 'f3'. A bucket key must reference a physical column in the schema. Available columns are: [a]");
+    }
+
+    // TODO Discuss this case.
+    @Test
+    public void testMergingCreateTableAsWitDistribution() {
+        Map<String, String> sourceProperties = new HashMap<>();
+        sourceProperties.put("format.type", "json");
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("f0", DataTypes.INT().notNull())
+                                .column("f1", DataTypes.TIMESTAMP(3))
+                                .columnByExpression("f2", "`f0` + 12345")
+                                .watermark("f1", "`f1` - interval '1' second")
+                                .build(),
+                        null,
+                        Optional.of(
+                                CatalogTable.TableDistribution.ofHash(
+                                        Collections.singletonList("f0"), 3)),
+                        Arrays.asList("f0", "f1"),
+                        sourceProperties,
+                        null);
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
+
+        final String sql =
+                "create table derivedTable DISTRIBUTED BY (f0) AS SELECT * FROM sourceTable";
+        assertThatThrownBy(() -> parseAndConvert(sql))
+                .isInstanceOf(SqlValidateException.class)
+                .hasMessageContaining(
+                        "CREATE TABLE AS SELECT syntax does not support creating distributed tables yet.");
+
+        /*
+        Operation operation = ((CreateTableASOperation) ctas).getCreateTableOperation();
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withDistribution(Optional.of(new CatalogTable.TableDistribution(
+                                                CatalogTable.TableDistribution.Kind.UNKNOWN,
+                                                null,
+                                                Collections.singletonList("f0")))),
+                                        withSchema(
+                                                Schema.newBuilder()
+                                                        .column("f0", DataTypes.INT().notNull())
+                                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                                        .column("f2", DataTypes.INT().notNull())
+                                                        .build())
+                                )));
+         */
+    }
+
+    @Test
+    public void testMergingCreateTableAsWitEmptyDistribution() {
+        Map<String, String> sourceProperties = new HashMap<>();
+        sourceProperties.put("format.type", "json");
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("f0", DataTypes.INT().notNull())
+                                .column("f1", DataTypes.TIMESTAMP(3))
+                                .columnByExpression("f2", "`f0` + 12345")
+                                .watermark("f1", "`f1` - interval '1' second")
+                                .build(),
+                        null,
+                        Optional.of(
+                                CatalogTable.TableDistribution.ofHash(
+                                        Collections.singletonList("f0"), 3)),
+                        Arrays.asList("f0", "f1"),
+                        sourceProperties,
+                        null);
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
+
+        final String sql = "create table derivedTable AS SELECT * FROM sourceTable";
+        Operation ctas = parseAndConvert(sql);
+        Operation operation = ((CreateTableASOperation) ctas).getCreateTableOperation();
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withDistribution(Optional.empty()),
+                                        withSchema(
+                                                Schema.newBuilder()
+                                                        .column("f0", DataTypes.INT().notNull())
+                                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                                        .column("f2", DataTypes.INT().notNull())
+                                                        .build()))));
     }
 
     @Test

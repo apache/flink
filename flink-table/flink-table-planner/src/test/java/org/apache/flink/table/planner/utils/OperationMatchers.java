@@ -32,6 +32,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 
@@ -122,12 +123,13 @@ public class OperationMatchers {
      * @param distribution TableDistribution that the {@link CreateTableOperation} should have
      * @see #isCreateTableOperation(Matcher[])
      */
-    public static Matcher<CreateTableOperation> withDistribution(TableDistribution distribution) {
-        return new FeatureMatcher<CreateTableOperation, TableDistribution>(
+    public static Matcher<CreateTableOperation> withDistribution(
+            Optional<TableDistribution> distribution) {
+        return new FeatureMatcher<CreateTableOperation, Optional<TableDistribution>>(
                 equalTo(distribution), "distribution of the derived table", "schema") {
             @Override
-            protected TableDistribution featureValueOf(CreateTableOperation actual) {
-                return actual.getCatalogTable().getDistribution().get();
+            protected Optional<TableDistribution> featureValueOf(CreateTableOperation actual) {
+                return actual.getCatalogTable().getDistribution();
             }
         };
     }
@@ -143,6 +145,9 @@ public class OperationMatchers {
                 equalTo(schema), "schema of the derived table", "schema") {
             @Override
             protected Schema featureValueOf(CreateTableOperation actual) {
+                System.out.println(actual.getCatalogTable().getUnresolvedSchema());
+                System.out.println(schema);
+
                 return actual.getCatalogTable().getUnresolvedSchema();
             }
         };
