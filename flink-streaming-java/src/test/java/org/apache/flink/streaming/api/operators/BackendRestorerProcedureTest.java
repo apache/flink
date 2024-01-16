@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingFSDataInputStream;
 import org.apache.flink.util.FlinkException;
@@ -121,7 +122,8 @@ public class BackendRestorerProcedureTest extends TestLogger {
                         backendSupplier, closeableRegistry, "test op state backend");
 
         OperatorStateBackend restoredBackend =
-                restorerProcedure.createAndRestore(sortedRestoreOptions);
+                restorerProcedure.createAndRestore(
+                        sortedRestoreOptions, StateObject.StateObjectSizeStatsCollector.create());
         Assert.assertNotNull(restoredBackend);
 
         try {
@@ -165,7 +167,8 @@ public class BackendRestorerProcedureTest extends TestLogger {
                         backendSupplier, closeableRegistry, "test op state backend");
 
         try {
-            restorerProcedure.createAndRestore(sortedRestoreOptions);
+            restorerProcedure.createAndRestore(
+                    sortedRestoreOptions, StateObject.StateObjectSizeStatsCollector.create());
             Assert.fail();
         } catch (Exception ignore) {
         }
@@ -199,7 +202,9 @@ public class BackendRestorerProcedureTest extends TestLogger {
                 new Thread(
                         () -> {
                             try {
-                                restorerProcedure.createAndRestore(sortedRestoreOptions);
+                                restorerProcedure.createAndRestore(
+                                        sortedRestoreOptions,
+                                        StateObject.StateObjectSizeStatsCollector.create());
                             } catch (Exception e) {
                                 exceptionReference.set(e);
                             }
