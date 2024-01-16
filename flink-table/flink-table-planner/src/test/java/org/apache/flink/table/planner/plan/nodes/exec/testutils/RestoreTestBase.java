@@ -90,16 +90,30 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class RestoreTestBase implements TableTestProgramRunner {
 
     private final Class<? extends ExecNode<?>> execNodeUnderTest;
+    private final List<Class<? extends ExecNode<?>>> childExecNodesUnderTest;
     private final AfterRestoreSource afterRestoreSource;
 
     protected RestoreTestBase(Class<? extends ExecNode<?>> execNodeUnderTest) {
-        this.execNodeUnderTest = execNodeUnderTest;
-        this.afterRestoreSource = AfterRestoreSource.FINITE;
+        this(execNodeUnderTest, new ArrayList<>(), AfterRestoreSource.FINITE);
+    }
+
+    protected RestoreTestBase(
+            Class<? extends ExecNode<?>> execNodeUnderTest,
+            List<Class<? extends ExecNode<?>>> childExecNodesUnderTest) {
+        this(execNodeUnderTest, childExecNodesUnderTest, AfterRestoreSource.FINITE);
     }
 
     protected RestoreTestBase(
             Class<? extends ExecNode<?>> execNodeUnderTest, AfterRestoreSource state) {
+        this(execNodeUnderTest, new ArrayList<>(), state);
+    }
+
+    protected RestoreTestBase(
+            Class<? extends ExecNode<?>> execNodeUnderTest,
+            List<Class<? extends ExecNode<?>>> childExecNodesUnderTest,
+            AfterRestoreSource state) {
         this.execNodeUnderTest = execNodeUnderTest;
+        this.childExecNodesUnderTest = childExecNodesUnderTest;
         this.afterRestoreSource = state;
     }
 
@@ -111,6 +125,16 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         FINITE,
         INFINITE,
         NO_RESTORE
+    }
+
+    // Used for testing Restore Test Completeness
+    public Class<? extends ExecNode<?>> getExecNode() {
+        return execNodeUnderTest;
+    }
+
+    // Used for testing Restore Test Completeness
+    public List<Class<? extends ExecNode<?>>> getChildExecNodes() {
+        return childExecNodesUnderTest;
     }
 
     @Override

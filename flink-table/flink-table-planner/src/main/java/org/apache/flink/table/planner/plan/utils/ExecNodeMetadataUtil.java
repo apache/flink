@@ -189,6 +189,10 @@ public final class ExecNodeMetadataUtil {
         return EXEC_NODES;
     }
 
+    public static Map<ExecNodeNameVersion, Class<? extends ExecNode<?>>> getVersionedExecNodes() {
+        return LOOKUP_MAP;
+    }
+
     public static Class<? extends ExecNode<?>> retrieveExecNode(String name, int version) {
         return LOOKUP_MAP.get(new ExecNodeNameVersion(name, version));
     }
@@ -337,7 +341,7 @@ public final class ExecNodeMetadataUtil {
     }
 
     /** Helper Pojo used as a tuple for the {@link #LOOKUP_MAP}. */
-    private static final class ExecNodeNameVersion {
+    public static final class ExecNodeNameVersion {
 
         private final String name;
         private final int version;
