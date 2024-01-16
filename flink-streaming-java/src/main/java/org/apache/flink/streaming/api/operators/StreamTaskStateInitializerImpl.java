@@ -29,6 +29,7 @@ import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -42,6 +43,7 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateBackendParametersImpl;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateManager;
@@ -65,7 +67,9 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.OptionalLong;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.runtime.state.StateBackendLoader.loadStateBackendFromKeyedStateHandles;
@@ -166,6 +170,9 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
         CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs = null;
         InternalTimeServiceManager<?> timeServiceManager;
 
+        final StateObject.StateObjectSizeStatsCollector statsCollector =
+                StateObject.StateObjectSizeStatsCollector.create();
+
         try {
 
             // -------------- Keyed State Backend --------------
@@ -176,28 +183,32 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                             prioritizedOperatorSubtaskStates,
                             streamTaskCloseableRegistry,
                             metricGroup,
-                            managedMemoryFraction);
+                            managedMemoryFraction,
+                            statsCollector);
 
             // -------------- Operator State Backend --------------
             operatorStateBackend =
                     operatorStateBackend(
                             operatorIdentifierText,
                             prioritizedOperatorSubtaskStates,
-                            streamTaskCloseableRegistry);
+                            streamTaskCloseableRegistry,
+                            statsCollector);
 
             // -------------- Raw State Streams --------------
             rawKeyedStateInputs =
                     rawKeyedStateInputs(
                             prioritizedOperatorSubtaskStates
                                     .getPrioritizedRawKeyedState()
-                                    .iterator());
+                                    .iterator(),
+                            statsCollector);
             streamTaskCloseableRegistry.registerCloseable(rawKeyedStateInputs);
 
             rawOperatorStateInputs =
                     rawOperatorStateInputs(
                             prioritizedOperatorSubtaskStates
                                     .getPrioritizedRawOperatorState()
-                                    .iterator());
+                                    .iterator(),
+                            statsCollector);
             streamTaskCloseableRegistry.registerCloseable(rawOperatorStateInputs);
 
             // -------------- Internal Timer Service Manager --------------
@@ -226,6 +237,24 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
             } else {
                 timeServiceManager = null;
             }
+
+            // Add stats for input channel and result partition state
+            Stream.concat(
+                            prioritizedOperatorSubtaskStates.getPrioritizedInputChannelState()
+                                    .stream(),
+                            prioritizedOperatorSubtaskStates.getPrioritizedResultSubpartitionState()
+                                    .stream())
+                    .filter(Objects::nonNull)
+                    .forEach(channelHandle -> channelHandle.collectSizeStats(statsCollector));
+
+            // Report collected stats to metrics
+            statsCollector
+                    .getStats()
+                    .forEach(
+                            (location, metricValue) ->
+                                    initializationMetrics.addDurationMetric(
+                                            MetricNames.RESTORED_STATE_SIZE + "." + location,
+                                            metricValue));
 
             // -------------- Preparing return value --------------
 
@@ -269,7 +298,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
     protected OperatorStateBackend operatorStateBackend(
             String operatorIdentifierText,
             PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates,
-            CloseableRegistry backendCloseableRegistry)
+            CloseableRegistry backendCloseableRegistry,
+            StateObject.StateObjectSizeStatsCollector statsCollector)
             throws Exception {
 
         String logDescription = "operator state backend for " + operatorIdentifierText;
@@ -295,7 +325,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
         try {
             return backendRestorer.createAndRestore(
-                    prioritizedOperatorSubtaskStates.getPrioritizedManagedOperatorState());
+                    prioritizedOperatorSubtaskStates.getPrioritizedManagedOperatorState(),
+                    statsCollector);
         } finally {
             if (backendCloseableRegistry.unregisterCloseable(cancelStreamRegistryForRestore)) {
                 IOUtils.closeQuietly(cancelStreamRegistryForRestore);
@@ -309,7 +340,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
             PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates,
             CloseableRegistry backendCloseableRegistry,
             MetricGroup metricGroup,
-            double managedMemoryFraction)
+            double managedMemoryFraction,
+            StateObject.StateObjectSizeStatsCollector statsCollector)
             throws Exception {
 
         if (keySerializer == null) {
@@ -365,7 +397,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
         try {
             return backendRestorer.createAndRestore(
-                    prioritizedOperatorSubtaskStates.getPrioritizedManagedKeyedState());
+                    prioritizedOperatorSubtaskStates.getPrioritizedManagedKeyedState(),
+                    statsCollector);
         } finally {
             if (backendCloseableRegistry.unregisterCloseable(cancelStreamRegistryForRestore)) {
                 IOUtils.closeQuietly(cancelStreamRegistryForRestore);
@@ -374,7 +407,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
     }
 
     protected CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs(
-            Iterator<StateObjectCollection<OperatorStateHandle>> restoreStateAlternatives) {
+            @Nonnull Iterator<StateObjectCollection<OperatorStateHandle>> restoreStateAlternatives,
+            @Nonnull StateObject.StateObjectSizeStatsCollector statsCollector) {
 
         if (restoreStateAlternatives.hasNext()) {
 
@@ -386,6 +420,10 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                     "Local recovery is currently not implemented for raw operator state, but found state alternative.");
 
             if (rawOperatorState != null) {
+                // Report restore size stats
+                rawOperatorState.forEach(
+                        stateObject -> stateObject.collectSizeStats(statsCollector));
+
                 return new CloseableIterable<StatePartitionStreamProvider>() {
 
                     final CloseableRegistry closeableRegistry = new CloseableRegistry();
@@ -411,7 +449,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
     }
 
     protected CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs(
-            Iterator<StateObjectCollection<KeyedStateHandle>> restoreStateAlternatives) {
+            @Nonnull Iterator<StateObjectCollection<KeyedStateHandle>> restoreStateAlternatives,
+            @Nonnull StateObject.StateObjectSizeStatsCollector statsCollector) {
 
         if (restoreStateAlternatives.hasNext()) {
             Collection<KeyedStateHandle> rawKeyedState = restoreStateAlternatives.next();
@@ -424,6 +463,9 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
             if (rawKeyedState != null) {
                 Collection<KeyGroupsStateHandle> keyGroupsStateHandles = transform(rawKeyedState);
+                // Report restore size stats
+                keyGroupsStateHandles.forEach(
+                        stateObject -> stateObject.collectSizeStats(statsCollector));
                 final CloseableRegistry closeableRegistry = new CloseableRegistry();
 
                 return new CloseableIterable<KeyGroupStatePartitionStreamProvider>() {

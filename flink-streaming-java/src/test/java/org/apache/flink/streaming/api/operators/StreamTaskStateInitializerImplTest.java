@@ -25,11 +25,13 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
@@ -38,6 +40,7 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.state.TaskLocalStateStore;
@@ -59,14 +62,17 @@ import org.junit.Test;
 
 import java.io.Closeable;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.OptionalLong;
 import java.util.Random;
+import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.state.OperatorStateHandle.Mode.SPLIT_DISTRIBUTE;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -81,7 +87,12 @@ public class StreamTaskStateInitializerImplTest {
 
         // No job manager provided state to restore
         StreamTaskStateInitializer streamTaskStateManager =
-                streamTaskStateManager(stateBackend, null, true);
+                streamTaskStateManager(
+                        stateBackend,
+                        null,
+                        new SubTaskInitializationMetricsBuilder(
+                                SystemClock.getInstance().absoluteTimeMillis()),
+                        true);
 
         OperatorID operatorID = new OperatorID(47L, 11L);
         AbstractStreamOperator<?> streamOperator = mock(AbstractStreamOperator.class);
@@ -187,8 +198,13 @@ public class StreamTaskStateInitializerImplTest {
         JobManagerTaskRestore jobManagerTaskRestore =
                 new JobManagerTaskRestore(42L, taskStateSnapshot);
 
+        SubTaskInitializationMetricsBuilder metricsBuilder =
+                new SubTaskInitializationMetricsBuilder(
+                        SystemClock.getInstance().absoluteTimeMillis());
+
         StreamTaskStateInitializer streamTaskStateManager =
-                streamTaskStateManager(mockingBackend, jobManagerTaskRestore, false);
+                streamTaskStateManager(
+                        mockingBackend, jobManagerTaskRestore, metricsBuilder, false);
 
         AbstractStreamOperator<?> streamOperator = mock(AbstractStreamOperator.class);
         when(streamOperator.getOperatorID()).thenReturn(operatorID);
@@ -217,7 +233,7 @@ public class StreamTaskStateInitializerImplTest {
         CloseableIterable<StatePartitionStreamProvider> operatorStateInputs =
                 stateContext.rawOperatorStateInputs();
 
-        Assert.assertTrue("Expected the context to be restored", stateContext.isRestored());
+        assertTrue("Expected the context to be restored", stateContext.isRestored());
         Assert.assertEquals(OptionalLong.of(42L), stateContext.getRestoredCheckpointId());
 
         Assert.assertNotNull(operatorStateBackend);
@@ -240,6 +256,41 @@ public class StreamTaskStateInitializerImplTest {
         }
         Assert.assertEquals(3, count);
 
+        long expectedSumLocalMemory =
+                Stream.of(
+                                operatorSubtaskState.getManagedOperatorState().stream(),
+                                operatorSubtaskState.getManagedKeyedState().stream(),
+                                operatorSubtaskState.getRawKeyedState().stream(),
+                                operatorSubtaskState.getRawOperatorState().stream())
+                        .flatMap(i -> i)
+                        .mapToLong(StateObject::getStateSize)
+                        .sum();
+
+        long expectedSumUnknown =
+                Stream.concat(
+                                operatorSubtaskState.getInputChannelState().stream(),
+                                operatorSubtaskState.getResultSubpartitionState().stream())
+                        .mapToLong(StateObject::getStateSize)
+                        .sum();
+
+        SubTaskInitializationMetrics metrics = metricsBuilder.build();
+        Assert.assertEquals(
+                new HashMap<String, Long>() {
+                    {
+                        put(
+                                MetricNames.RESTORED_STATE_SIZE
+                                        + "."
+                                        + StateObject.StateObjectLocation.LOCAL_MEMORY.name(),
+                                expectedSumLocalMemory);
+                        put(
+                                MetricNames.RESTORED_STATE_SIZE
+                                        + "."
+                                        + StateObject.StateObjectLocation.UNKNOWN.name(),
+                                expectedSumUnknown);
+                    }
+                },
+                metrics.getDurationMetrics());
+
         checkCloseablesRegistered(
                 closeableRegistry,
                 operatorStateBackend,
@@ -251,13 +302,14 @@ public class StreamTaskStateInitializerImplTest {
     private static void checkCloseablesRegistered(
             CloseableRegistry closeableRegistry, Closeable... closeables) {
         for (Closeable closeable : closeables) {
-            Assert.assertTrue(closeableRegistry.unregisterCloseable(closeable));
+            assertTrue(closeableRegistry.unregisterCloseable(closeable));
         }
     }
 
     private StreamTaskStateInitializer streamTaskStateManager(
             StateBackend stateBackend,
             JobManagerTaskRestore jobManagerTaskRestore,
+            SubTaskInitializationMetricsBuilder metricsBuilder,
             boolean createTimerServiceManager) {
 
         JobID jobID = new JobID(42L, 43L);
@@ -291,8 +343,7 @@ public class StreamTaskStateInitializerImplTest {
             return new StreamTaskStateInitializerImpl(
                     dummyEnvironment,
                     stateBackend,
-                    new SubTaskInitializationMetricsBuilder(
-                            SystemClock.getInstance().absoluteTimeMillis()),
+                    metricsBuilder,
                     TtlTimeProvider.DEFAULT,
                     new InternalTimeServiceManager.Provider() {
                         @Override
