@@ -19,9 +19,9 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.api.connector.sink2.SupportsCommitter;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
-import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
+import org.apache.flink.streaming.api.connector.sink2.SupportsPostCommitTopology;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -41,14 +41,12 @@ public final class CommitterOperatorFactory<CommT>
         implements OneInputStreamOperatorFactory<
                 CommittableMessage<CommT>, CommittableMessage<CommT>> {
 
-    private final TwoPhaseCommittingSink<?, CommT> sink;
+    private final SupportsCommitter<CommT> sink;
     private final boolean isBatchMode;
     private final boolean isCheckpointingEnabled;
 
     public CommitterOperatorFactory(
-            TwoPhaseCommittingSink<?, CommT> sink,
-            boolean isBatchMode,
-            boolean isCheckpointingEnabled) {
+            SupportsCommitter<CommT> sink, boolean isBatchMode, boolean isCheckpointingEnabled) {
         this.sink = checkNotNull(sink);
         this.isBatchMode = isBatchMode;
         this.isCheckpointingEnabled = isCheckpointingEnabled;
@@ -65,7 +63,7 @@ public final class CommitterOperatorFactory<CommT>
                             processingTimeService,
                             sink.getCommittableSerializer(),
                             context -> sink.createCommitter(context),
-                            sink instanceof WithPostCommitTopology,
+                            sink instanceof SupportsPostCommitTopology,
                             isBatchMode,
                             isCheckpointingEnabled);
             committerOperator.setup(
