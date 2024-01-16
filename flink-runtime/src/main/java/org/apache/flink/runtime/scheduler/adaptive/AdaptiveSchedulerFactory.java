@@ -55,14 +55,7 @@ import java.util.concurrent.ScheduledExecutorService;
 /** Factory for the adaptive scheduler. */
 public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
 
-    private final Duration initialResourceAllocationTimeout;
-    private final Duration resourceStabilizationTimeout;
-
-    public AdaptiveSchedulerFactory(
-            Duration initialResourceAllocationTimeout, Duration resourceStabilizationTimeout) {
-        this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
-        this.resourceStabilizationTimeout = resourceStabilizationTimeout;
-    }
+    public AdaptiveSchedulerFactory() {}
 
     @Override
     public SchedulerNG createInstance(
