@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -361,6 +362,18 @@ public class FileUtilsTest {
                         // path contains multiple symlink : xxx/symlink1/symlink3/one
                         symlink3.resolve("one"));
         assertThat(targetPath).isEqualTo(dirInLinked2);
+    }
+
+    @Test
+    void testGetDirectorySize() throws Exception {
+        final File parent = TempDirUtils.newFolder(temporaryFolder);
+
+        // Empty directory should have size 0
+        Assertions.assertEquals(0, FileUtils.getDirectoryFilesSize(parent.toPath()));
+
+        // Expected size: (20*5^0 + 20*5^1 + 20*5^2 + 20*5^3) * 1 byte = 3120 bytes
+        generateRandomDirs(parent, 20, 5, 3);
+        Assertions.assertEquals(3120, FileUtils.getDirectoryFilesSize(parent.toPath()));
     }
 
     // ------------------------------------------------------------------------
