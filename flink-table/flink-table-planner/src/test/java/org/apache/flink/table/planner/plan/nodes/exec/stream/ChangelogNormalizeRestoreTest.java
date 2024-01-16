@@ -22,13 +22,16 @@ import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /** Restore tests for {@link StreamExecChangelogNormalize}. */
 public class ChangelogNormalizeRestoreTest extends RestoreTestBase {
 
     public ChangelogNormalizeRestoreTest() {
-        super(StreamExecChangelogNormalize.class);
+        super(
+                StreamExecChangelogNormalize.class,
+                Collections.singletonList(StreamExecDropUpdateBefore.class));
     }
 
     @Override
