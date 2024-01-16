@@ -207,6 +207,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         this.userJarInclusion = getUserJarInclusionMode(flinkConfiguration);
 
         adaptEnvSetting(flinkConfiguration, CoreOptions.FLINK_LOG_LEVEL, "ROOT_LOG_LEVEL");
+        adaptEnvSetting(flinkConfiguration, CoreOptions.FLINK_LOG_MAX, "MAX_LOG_FILE_NUMBER");
 
         getLocalFlinkDistPath(flinkConfiguration).ifPresent(this::setLocalJarPath);
         decodeFilesToShipToCluster(flinkConfiguration, YarnConfigOptions.SHIP_FILES)
