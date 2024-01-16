@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -204,16 +205,17 @@ public class OperatorState implements CompositeStateHandle {
 
     @Override
     public long getStateSize() {
-        long result = coordinatorState == null ? 0L : coordinatorState.getStateSize();
+        return streamAllSubHandles().mapToLong(StateObject::getStateSize).sum();
+    }
 
-        for (int i = 0; i < parallelism; i++) {
-            OperatorSubtaskState operatorSubtaskState = operatorSubtaskStates.get(i);
-            if (operatorSubtaskState != null) {
-                result += operatorSubtaskState.getStateSize();
-            }
-        }
+    @Override
+    public void collectSizeStats(StateObjectSizeStatsCollector collector) {
+        streamAllSubHandles().forEach(handle -> handle.collectSizeStats(collector));
+    }
 
-        return result;
+    private Stream<StateObject> streamAllSubHandles() {
+        return Stream.concat(Stream.of(coordinatorState), operatorSubtaskStates.values().stream())
+                .filter(Objects::nonNull);
     }
 
     @Override
