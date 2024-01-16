@@ -581,6 +581,30 @@ public final class FileUtils {
     }
 
     /**
+     * Computes the sum of sizes of all files in the directory and it's subdirectories.
+     *
+     * @param path the root path from which to start the calculation.
+     * @param options visitation options for the directory traversal.
+     * @return sum of sizes of all files in the directory and it's subdirectories.
+     * @throws IOException if the size cannot be determined.
+     */
+    public static long getDirectoryFilesSize(java.nio.file.Path path, FileVisitOption... options)
+            throws IOException {
+
+        if (path == null) {
+            return 0L;
+        }
+
+        try (Stream<java.nio.file.Path> pathStream = Files.walk(path, options)) {
+            return pathStream
+                    .map(java.nio.file.Path::toFile)
+                    .filter(File::isFile)
+                    .mapToLong(File::length)
+                    .sum();
+        }
+    }
+
+    /**
      * Absolutize the given path if it is relative.
      *
      * @param pathToAbsolutize path which is being absolutized if it is a relative path
