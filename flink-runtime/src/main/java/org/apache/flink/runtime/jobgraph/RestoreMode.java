@@ -37,7 +37,7 @@ public enum RestoreMode implements DescribedEnum {
                     + " Flink will take the first checkpoint as a full one, which means it might"
                     + " reupload/duplicate files that are part of the restored checkpoint."),
     LEGACY(
-            "This is the mode in which Flink worked so far. It will not claim ownership of the"
+            "This is the mode in which Flink worked until 1.15. It will not claim ownership of the"
                     + " snapshot and will not delete the files. However, it can directly depend on"
                     + " the existence of the files of the restored checkpoint. It might not be safe"
                     + " to delete checkpoints that were restored in legacy mode ");
