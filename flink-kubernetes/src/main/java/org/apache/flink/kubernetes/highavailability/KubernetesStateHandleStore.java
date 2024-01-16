@@ -137,6 +137,11 @@ public class KubernetesStateHandleStore<T extends Serializable>
             return inner.getStateSize();
         }
 
+        @Override
+        public void collectSizeStats(StateObjectSizeStatsCollector collector) {
+            inner.collectSizeStats(collector);
+        }
+
         RetrievableStateHandle<T> getInner() {
             return inner;
         }

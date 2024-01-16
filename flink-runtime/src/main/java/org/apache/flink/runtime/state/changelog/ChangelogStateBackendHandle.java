@@ -366,6 +366,11 @@ public interface ChangelogStateBackendHandle
             }
 
             @Override
+            public void collectSizeStats(StateObjectSizeStatsCollector collector) {
+                keyedStateHandle.collectSizeStats(collector);
+            }
+
+            @Override
             public FSDataInputStream openInputStream() throws IOException {
                 throw new UnsupportedOperationException("Should not call here.");
             }

@@ -24,10 +24,12 @@ import org.apache.flink.core.fs.FileSystemFactory;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.plugin.TestingPluginManager;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.RunnableWithException;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -150,6 +152,41 @@ class FileStateHandleTest {
                         .setDeleteFunction((ignoredPath, ignoredRecursionMarker) -> false)
                         .setExistsFunction(path -> true)
                         .build());
+    }
+
+    @Test
+    void testCollectSizeStats() throws Exception {
+        final long stateSize = 123L;
+
+        StateObject.StateObjectSizeStatsCollector statsCollector =
+                StateObject.StateObjectSizeStatsCollector.create();
+        FileStateHandle handle =
+                new FileStateHandle(new Path(new URI("file:///home/test.txt")), stateSize);
+        handle.collectSizeStats(statsCollector);
+        checkStats(statsCollector, StateObject.StateObjectLocation.LOCAL_DISK, stateSize);
+
+        statsCollector = StateObject.StateObjectSizeStatsCollector.create();
+        handle = new FileStateHandle(new Path(new URI("/home/test.txt")), stateSize);
+        handle.collectSizeStats(statsCollector);
+        checkStats(statsCollector, StateObject.StateObjectLocation.LOCAL_DISK, stateSize);
+
+        statsCollector = StateObject.StateObjectSizeStatsCollector.create();
+        handle = new FileStateHandle(new Path(new URI("s3:///folder/test.txt")), stateSize);
+        handle.collectSizeStats(statsCollector);
+        checkStats(statsCollector, StateObject.StateObjectLocation.REMOTE, stateSize);
+    }
+
+    private void checkStats(
+            StateObject.StateObjectSizeStatsCollector statsCollector,
+            StateObject.StateObjectLocation expectedLocation,
+            long expectedSize) {
+        Assertions.assertEquals(
+                new HashMap<StateObject.StateObjectLocation, Long>() {
+                    {
+                        put(expectedLocation, expectedSize);
+                    }
+                },
+                statsCollector.getStats());
     }
 
     private static void testDiscardStateFailed(FileSystem fileSystem) throws Exception {

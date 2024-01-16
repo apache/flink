@@ -53,7 +53,7 @@ public class StateHandleDownloadSpec {
         return new IncrementalLocalKeyedStateHandle(
                 stateHandle.getBackendIdentifier(),
                 stateHandle.getCheckpointId(),
-                new DirectoryStateHandle(downloadDestination),
+                new DirectoryStateHandle(downloadDestination, stateHandle.getStateSize()),
                 stateHandle.getKeyGroupRange(),
                 stateHandle.getMetaDataStateHandle(),
                 stateHandle.getSharedState());
