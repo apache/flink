@@ -155,7 +155,7 @@ public class RocksDBConfigurableOptions implements Serializable {
                                             "A semicolon-separated list of Compression Type. Different levels can have different "
                                                     + "compression policies. In many cases, lower levels use fast compression algorithms,"
                                                     + " while higher levels with more data use slower but more effective compression algorithms. "
-                                                    + "If the list is not empty, it should have an entry for each level of the database, "
+                                                    + "The N th element in the List corresponds to the compression type of the level N-1"
                                                     + "When level_compaction_dynamic_level_bytes=true, compression_per_level[0] still determines L0, but other "
                                                     + "elements are based on the base level and may not match the level seen in the info log")
                                     .linebreak()
