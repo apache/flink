@@ -43,6 +43,7 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.table.test.program.TableTestProgramRunner;
 import org.apache.flink.table.test.program.TestStep.TestKind;
 import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.types.Row;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.junit.jupiter.api.AfterEach;
@@ -63,6 +64,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -118,6 +120,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                 TestKind.FUNCTION,
                 TestKind.TEMPORAL_FUNCTION,
                 TestKind.SOURCE_WITH_RESTORE_DATA,
+                TestKind.SOURCE_WITH_DATA,
                 TestKind.SINK_WITH_RESTORE_DATA,
                 TestKind.SINK_WITH_DATA);
     }
@@ -264,7 +267,11 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         program.getSetupConfigOptionTestSteps().forEach(s -> s.apply(tEnv));
 
         for (SourceTestStep sourceTestStep : program.getSetupSourceTestSteps()) {
-            final String id = TestValuesTableFactory.registerData(sourceTestStep.dataAfterRestore);
+            final Collection<Row> data =
+                    afterRestoreSource == AfterRestoreSource.NO_RESTORE
+                            ? sourceTestStep.dataBeforeRestore
+                            : sourceTestStep.dataAfterRestore;
+            final String id = TestValuesTableFactory.registerData(data);
             final Map<String, String> options = new HashMap<>();
             options.put("connector", "values");
             options.put("data-id", id);
