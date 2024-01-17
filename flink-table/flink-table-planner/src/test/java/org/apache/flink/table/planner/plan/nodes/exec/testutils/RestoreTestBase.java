@@ -107,7 +107,8 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
      */
     protected enum AfterRestoreSource {
         FINITE,
-        INFINITE
+        INFINITE,
+        NO_RESTORE
     }
 
     @Override
@@ -117,7 +118,8 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                 TestKind.FUNCTION,
                 TestKind.TEMPORAL_FUNCTION,
                 TestKind.SOURCE_WITH_RESTORE_DATA,
-                TestKind.SINK_WITH_RESTORE_DATA);
+                TestKind.SINK_WITH_RESTORE_DATA,
+                TestKind.SINK_WITH_DATA);
     }
 
     @Override
@@ -241,11 +243,16 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
     @Order(1)
     void testRestore(TableTestProgram program, ExecNodeMetadata metadata) throws Exception {
         final EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
-        final SavepointRestoreSettings restoreSettings =
-                SavepointRestoreSettings.forPath(
-                        getSavepointPath(program, metadata).toString(),
-                        false,
-                        RestoreMode.NO_CLAIM);
+        final SavepointRestoreSettings restoreSettings;
+        if (afterRestoreSource == AfterRestoreSource.NO_RESTORE) {
+            restoreSettings = SavepointRestoreSettings.none();
+        } else {
+            restoreSettings =
+                    SavepointRestoreSettings.forPath(
+                            getSavepointPath(program, metadata).toString(),
+                            false,
+                            RestoreMode.NO_CLAIM);
+        }
         SavepointRestoreSettings.toConfiguration(restoreSettings, settings.getConfiguration());
         settings.getConfiguration().set(StateBackendOptions.STATE_BACKEND, "rocksdb");
         final TableEnvironment tEnv = TableEnvironment.create(settings);
