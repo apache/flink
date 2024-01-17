@@ -70,6 +70,22 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
                                 + ")");
         util.getTableEnv()
                 .executeSql(
+                        "create temporary table upsert_with_meta (\n"
+                                + "  a int,\n"
+                                + "  b bigint,\n"
+                                + "  c string,\n"
+                                + "  d boolean,\n"
+                                + "  metadata_1 int metadata,\n"
+                                + "  metadata_2 string metadata,\n"
+                                + "  metadata_3 bigint metadata,\n"
+                                + "  primary key (a) not enforced\n"
+                                + ") with (\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'changelog-mode' = 'I,UA,D',\n"
+                                + "  'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'\n"
+                                + ")");
+        util.getTableEnv()
+                .executeSql(
                         "create temporary table sink_with_pk (\n"
                                 + "  a int,\n"
                                 + "  b bigint,\n"
@@ -136,6 +152,33 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
         util.doVerifyPlanInsert(
                 "insert into sink_with_composite_pk\n"
                         + "select a, b, c, e from cdc_with_meta_rename",
+                new ExplainDetail[] {ExplainDetail.PLAN_ADVICE},
+                false,
+                new Enumeration.Value[] {PlanKind.OPT_REL_WITH_ADVICE()});
+    }
+
+    @Test
+    void testCdcSourceWithoutPkSinkWithoutPk() {
+        // from NonDeterministicDagTest#testCdcSourceWithoutPkSinkWithoutPk
+        util.getTableEnv()
+                .executeSql(
+                        "create temporary table cdc_without_pk (\n"
+                                + " a int,\n"
+                                + " b bigint,\n"
+                                + " c string,\n"
+                                + " d boolean,\n"
+                                + " metadata_1 int metadata,\n"
+                                + " metadata_2 string metadata\n"
+                                + ") with (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'changelog-mode' = 'I,UA,UB,D',\n"
+                                + " 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING'\n"
+                                + ")");
+
+        util.doVerifyPlanInsert(
+                "insert into sink_without_pk\n"
+                        + "select metadata_1, b, metadata_2\n"
+                        + "from cdc_without_pk",
                 new ExplainDetail[] {ExplainDetail.PLAN_ADVICE},
                 false,
                 new Enumeration.Value[] {PlanKind.OPT_REL_WITH_ADVICE()});
