@@ -62,7 +62,7 @@ final class ArrayAggFunctionTest {
         @Override
         protected AggregateFunction<ArrayData, ArrayAggFunction.ArrayAggAccumulator<Byte>>
                 getAggregator() {
-            return new ArrayAggFunction<>(DataTypes.TINYINT().getLogicalType());
+            return new ArrayAggFunction<>(DataTypes.TINYINT().getLogicalType(), true);
         }
     }
 
@@ -78,7 +78,7 @@ final class ArrayAggFunctionTest {
         @Override
         protected AggregateFunction<ArrayData, ArrayAggFunction.ArrayAggAccumulator<Short>>
                 getAggregator() {
-            return new ArrayAggFunction<>(DataTypes.SMALLINT().getLogicalType());
+            return new ArrayAggFunction<>(DataTypes.SMALLINT().getLogicalType(), true);
         }
     }
 
@@ -94,7 +94,7 @@ final class ArrayAggFunctionTest {
         @Override
         protected AggregateFunction<ArrayData, ArrayAggFunction.ArrayAggAccumulator<Integer>>
                 getAggregator() {
-            return new ArrayAggFunction<>(DataTypes.INT().getLogicalType());
+            return new ArrayAggFunction<>(DataTypes.INT().getLogicalType(), true);
         }
     }
 
@@ -110,7 +110,7 @@ final class ArrayAggFunctionTest {
         @Override
         protected AggregateFunction<ArrayData, ArrayAggFunction.ArrayAggAccumulator<Long>>
                 getAggregator() {
-            return new ArrayAggFunction<>(DataTypes.BIGINT().getLogicalType());
+            return new ArrayAggFunction<>(DataTypes.BIGINT().getLogicalType(), true);
         }
     }
 
@@ -126,7 +126,7 @@ final class ArrayAggFunctionTest {
         @Override
         protected AggregateFunction<ArrayData, ArrayAggFunction.ArrayAggAccumulator<Float>>
                 getAggregator() {
-            return new ArrayAggFunction<>(DataTypes.FLOAT().getLogicalType());
+            return new ArrayAggFunction<>(DataTypes.FLOAT().getLogicalType(), true);
         }
     }
 
@@ -142,7 +142,7 @@ final class ArrayAggFunctionTest {
         @Override
         protected AggregateFunction<ArrayData, ArrayAggFunction.ArrayAggAccumulator<Double>>
                 getAggregator() {
-            return new ArrayAggFunction<>(DataTypes.DOUBLE().getLogicalType());
+            return new ArrayAggFunction<>(DataTypes.DOUBLE().getLogicalType(), true);
         }
     }
 
@@ -173,7 +173,7 @@ final class ArrayAggFunctionTest {
         @Override
         protected AggregateFunction<ArrayData, ArrayAggFunction.ArrayAggAccumulator<Boolean>>
                 getAggregator() {
-            return new ArrayAggFunction<>(DataTypes.BOOLEAN().getLogicalType());
+            return new ArrayAggFunction<>(DataTypes.BOOLEAN().getLogicalType(), true);
         }
     }
 
@@ -226,7 +226,8 @@ final class ArrayAggFunctionTest {
         @Override
         protected AggregateFunction<ArrayData, ArrayAggFunction.ArrayAggAccumulator<DecimalData>>
                 getAggregator() {
-            return new ArrayAggFunction<>(DataTypes.DECIMAL(precision, scale).getLogicalType());
+            return new ArrayAggFunction<>(
+                    DataTypes.DECIMAL(precision, scale).getLogicalType(), true);
         }
     }
 
@@ -270,7 +271,7 @@ final class ArrayAggFunctionTest {
         @Override
         protected AggregateFunction<ArrayData, ArrayAggFunction.ArrayAggAccumulator<StringData>>
                 getAggregator() {
-            return new ArrayAggFunction<>(DataTypes.STRING().getLogicalType());
+            return new ArrayAggFunction<>(DataTypes.STRING().getLogicalType(), true);
         }
     }
 
@@ -321,7 +322,7 @@ final class ArrayAggFunctionTest {
         protected AggregateFunction<ArrayData, ArrayAggFunction.ArrayAggAccumulator<RowData>>
                 getAggregator() {
             return new ArrayAggFunction<>(
-                    DataTypes.ROW(DataTypes.INT(), DataTypes.STRING()).getLogicalType());
+                    DataTypes.ROW(DataTypes.INT(), DataTypes.STRING()).getLogicalType(), true);
         }
     }
 
@@ -361,7 +362,7 @@ final class ArrayAggFunctionTest {
         @Override
         protected AggregateFunction<ArrayData, ArrayAggFunction.ArrayAggAccumulator<ArrayData>>
                 getAggregator() {
-            return new ArrayAggFunction<>(DataTypes.ARRAY(DataTypes.INT()).getLogicalType());
+            return new ArrayAggFunction<>(DataTypes.ARRAY(DataTypes.INT()).getLogicalType(), true);
         }
     }
 

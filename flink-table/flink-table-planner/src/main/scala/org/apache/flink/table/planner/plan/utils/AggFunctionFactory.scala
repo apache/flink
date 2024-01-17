@@ -147,7 +147,7 @@ class AggFunctionFactory(
         createCollectAggFunction(argTypes)
 
       case a: SqlAggFunction if a.getKind == SqlKind.ARRAY_AGG =>
-        createArrayAggFunction(argTypes)
+        createArrayAggFunction(argTypes, call.ignoreNulls)
 
       case fn: SqlAggFunction if fn.getKind == SqlKind.JSON_OBJECTAGG =>
         val onNull = fn.asInstanceOf[SqlJsonObjectAggAggFunction].getNullClause
@@ -624,7 +624,9 @@ class AggFunctionFactory(
     new CollectAggFunction(argTypes(0))
   }
 
-  private def createArrayAggFunction(types: Array[LogicalType]): UserDefinedFunction = {
-    new ArrayAggFunction(types(0))
+  private def createArrayAggFunction(
+      types: Array[LogicalType],
+      ignoreNulls: Boolean): UserDefinedFunction = {
+    new ArrayAggFunction(types(0), ignoreNulls)
   }
 }

@@ -1059,12 +1059,12 @@ aggregate:
       Divides the rows for each window partition into `n` buckets ranging from 1 to at most `n`.
       If the number of rows in the window partition doesn't divide evenly into the number of buckets, then the remainder values are distributed one per bucket, starting with the first bucket.
       For example, with 6 rows and 4 buckets, the bucket values would be as follows: 1 1 2 2 3 4
-  - sql: ARRAY_AGG([ ALL | DISTINCT ] expression)
+  - sql: ARRAY_AGG([ ALL | DISTINCT ] expression [ RESPECT NULLS | IGNORE NULLS ])
     table: FIELD.arrayAgg
     description: |
-      By default or with keyword ALL, return an array that concatenates the input rows
-      and returns NULL if there are no input rows.
-      NULL values will be ignored. Use DISTINCT for one unique instance of each value.
+      By default or with keyword `ALL` and, return an array that concatenates the input rows
+      and returns `NULL` if there are no input rows. Use `DISTINCT` for one unique instance of each value.
+      By default null values are respected, use `IGNORE NULLS` to skip null values.
   - sql: JSON_OBJECTAGG([KEY] key VALUE value [ { NULL | ABSENT } ON NULL ])
     table: jsonObjectAgg(JsonOnNull, keyExpression, valueExpression)
     description: |

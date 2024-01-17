@@ -19,16 +19,19 @@
 package org.apache.flink.table.runtime.functions.aggregate;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
+import org.apache.flink.table.runtime.typeutils.LinkedListSerializer;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 
@@ -43,8 +46,11 @@ public final class ArrayAggFunction<T>
 
     private final transient DataType elementDataType;
 
-    public ArrayAggFunction(LogicalType elementType) {
+    private final boolean ignoreNulls;
+
+    public ArrayAggFunction(LogicalType elementType, boolean ignoreNulls) {
         this.elementDataType = toInternalDataType(elementType);
+        this.ignoreNulls = ignoreNulls;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -58,16 +64,23 @@ public final class ArrayAggFunction<T>
 
     @Override
     public DataType getAccumulatorDataType() {
+        DataType linkedListType = getLinkedListType();
         return DataTypes.STRUCTURED(
                 ArrayAggAccumulator.class,
-                DataTypes.FIELD("list", ListView.newListViewDataType(elementDataType.notNull())),
-                DataTypes.FIELD(
-                        "retractList", ListView.newListViewDataType(elementDataType.notNull())));
+                DataTypes.FIELD("list", linkedListType),
+                DataTypes.FIELD("retractList", linkedListType));
     }
 
     @Override
     public DataType getOutputDataType() {
         return DataTypes.ARRAY(elementDataType).bridgedTo(ArrayData.class);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private DataType getLinkedListType() {
+        TypeSerializer<T> serializer = InternalSerializers.create(elementDataType.getLogicalType());
+        return DataTypes.RAW(
+                LinkedList.class, (TypeSerializer) new LinkedListSerializer<>(serializer));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -76,8 +89,8 @@ public final class ArrayAggFunction<T>
 
     /** Accumulator for ARRAY_AGG with retraction. */
     public static class ArrayAggAccumulator<T> {
-        public ListView<T> list;
-        public ListView<T> retractList;
+        public LinkedList<T> list;
+        public LinkedList<T> retractList;
 
         @Override
         public boolean equals(Object o) {
@@ -100,13 +113,17 @@ public final class ArrayAggFunction<T>
     @Override
     public ArrayAggAccumulator<T> createAccumulator() {
         final ArrayAggAccumulator<T> acc = new ArrayAggAccumulator<>();
-        acc.list = new ListView<>();
-        acc.retractList = new ListView<>();
+        acc.list = new LinkedList<>();
+        acc.retractList = new LinkedList<>();
         return acc;
     }
 
     public void accumulate(ArrayAggAccumulator<T> acc, T value) throws Exception {
-        if (value != null) {
+        if (value == null) {
+            if (!ignoreNulls) {
+                acc.list.add(null);
+            }
+        } else {
             acc.list.add(value);
         }
     }
@@ -124,18 +141,18 @@ public final class ArrayAggFunction<T>
         for (ArrayAggAccumulator<T> otherAcc : its) {
             // merge list of acc and other
             List<T> buffer = new ArrayList<>();
-            for (T element : acc.list.get()) {
+            for (T element : acc.list) {
                 buffer.add(element);
             }
-            for (T element : otherAcc.list.get()) {
+            for (T element : otherAcc.list) {
                 buffer.add(element);
             }
             // merge retract list of acc and other
             List<T> retractBuffer = new ArrayList<>();
-            for (T element : acc.retractList.get()) {
+            for (T element : acc.retractList) {
                 retractBuffer.add(element);
             }
-            for (T element : otherAcc.retractList.get()) {
+            for (T element : otherAcc.retractList) {
                 retractBuffer.add(element);
             }
 
@@ -158,7 +175,7 @@ public final class ArrayAggFunction<T>
     @Override
     public ArrayData getValue(ArrayAggAccumulator<T> acc) {
         try {
-            List<T> accList = acc.list.getList();
+            List<T> accList = acc.list;
             if (accList == null || accList.isEmpty()) {
                 // array_agg returns null rather than an empty array when there are no input rows.
                 return null;

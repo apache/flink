@@ -71,19 +71,14 @@ class ArrayAggFunctionITCase extends BuiltInAggregateFunctionTestBase {
                                 Arrays.asList(
                                         Row.of("A", new Integer[] {1, 2}),
                                         Row.of("B", new Integer[] {2, 2, 3}),
-                                        Row.of("C", new Integer[] {3}),
-                                        Row.of("D", null),
+                                        Row.of("C", new Integer[] {3, null}),
+                                        Row.of("D", new Integer[] {null}),
                                         Row.of("E", new Integer[] {6})))
-                        .testResult(
+                        .testSqlResult(
                                 source ->
-                                        "SELECT f0, array_agg(DISTINCT f1) FROM "
+                                        "SELECT f0, array_agg(DISTINCT f1 IGNORE NULLS) FROM "
                                                 + source
                                                 + " GROUP BY f0",
-                                TableApiAggSpec.groupBySelect(
-                                        Collections.singletonList($("f0")),
-                                        $("f0"),
-                                        $("f1").arrayAgg().distinct()),
-                                ROW(STRING(), ARRAY(INT())),
                                 ROW(STRING(), ARRAY(INT())),
                                 Arrays.asList(
                                         Row.of("A", new Integer[] {1, 2}),
