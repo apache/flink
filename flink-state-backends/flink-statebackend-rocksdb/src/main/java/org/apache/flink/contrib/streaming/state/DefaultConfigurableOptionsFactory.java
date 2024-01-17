@@ -27,7 +27,6 @@ import org.rocksdb.BlockBasedTableConfig;
 import org.rocksdb.BloomFilter;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompactionStyle;
-import org.rocksdb.CompressionType;
 import org.rocksdb.DBOptions;
 import org.rocksdb.InfoLogLevel;
 import org.rocksdb.PlainTableConfig;
@@ -47,7 +46,6 @@ import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOption
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.BLOOM_FILTER_BITS_PER_KEY;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.BLOOM_FILTER_BLOCK_BASED_MODE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.COMPACTION_STYLE;
-import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.COMPRESSION_TYPE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.LOG_DIR;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.LOG_FILE_NUM;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.LOG_LEVEL;
@@ -116,10 +114,6 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
             ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
         if (isOptionConfigured(COMPACTION_STYLE)) {
             currentOptions.setCompactionStyle(getCompactionStyle());
-        }
-
-        if (isOptionConfigured(COMPRESSION_TYPE)) {
-            currentOptions.setCompressionType(getCompressionType());
         }
 
         if (isOptionConfigured(USE_DYNAMIC_LEVEL_SIZE)) {
@@ -311,15 +305,6 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
 
     public DefaultConfigurableOptionsFactory setCompactionStyle(CompactionStyle compactionStyle) {
         setInternal(COMPACTION_STYLE.key(), compactionStyle.name());
-        return this;
-    }
-
-    private CompressionType getCompressionType() {
-        return CompressionType.valueOf(getInternal(COMPRESSION_TYPE.key()).toUpperCase());
-    }
-
-    public DefaultConfigurableOptionsFactory setCompressionType(CompressionType compressionType) {
-        setInternal(COMPRESSION_TYPE.key(), compressionType.name());
         return this;
     }
 
@@ -516,7 +501,6 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
 
                 // configurable ColumnFamilyOptions
                 COMPACTION_STYLE,
-                COMPRESSION_TYPE,
                 USE_DYNAMIC_LEVEL_SIZE,
                 TARGET_FILE_SIZE_BASE,
                 MAX_SIZE_LEVEL_BASE,
