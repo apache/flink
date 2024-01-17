@@ -25,7 +25,6 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.configuration.description.HtmlFormatter;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -554,10 +553,6 @@ public class RocksDBStateBackendConfigTest {
                     RocksDBConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD, "2");
         }
 
-        HtmlFormatter htmlFormatter = new HtmlFormatter();
-        System.out.println(
-                htmlFormatter.format(
-                        RocksDBConfigurableOptions.COMPRESSION_PER_LEVEL.description()));
         // verify legal configuration
         {
             configuration.setString(RocksDBConfigurableOptions.LOG_LEVEL.key(), "DEBUG_LEVEL");
