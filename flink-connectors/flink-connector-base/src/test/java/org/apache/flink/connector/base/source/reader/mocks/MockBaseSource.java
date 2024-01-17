@@ -27,9 +27,7 @@ import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -66,8 +64,6 @@ public class MockBaseSource implements Source<Integer, MockSourceSplit, List<Moc
 
     @Override
     public SourceReader<Integer, MockSourceSplit> createReader(SourceReaderContext readerContext) {
-        FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
-                new FutureCompletingBlockingQueue<>();
 
         Configuration config = new Configuration();
         config.set(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 1);
@@ -76,7 +72,7 @@ public class MockBaseSource implements Source<Integer, MockSourceSplit, List<Moc
                 MockSplitReader.newBuilder()
                         .setNumRecordsPerSplitPerFetch(2)
                         .setBlockingFetch(true);
-        return new MockSourceReader(elementsQueue, builder::build, config, readerContext);
+        return new MockSourceReader(builder::build, config, readerContext);
     }
 
     @Override
