@@ -21,6 +21,7 @@ package org.apache.flink.connector.base.source.reader.fetcher;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
+import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.apache.flink.connector.base.source.reader.mocks.TestingRecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.mocks.TestingSourceSplit;
 import org.apache.flink.connector.base.source.reader.mocks.TestingSplitReader;
@@ -61,7 +62,7 @@ public class SplitFetcherManagerTest {
         TestingSplitReader<Object, TestingSourceSplit> reader = new TestingSplitReader<>();
         reader.setCloseWithException();
         SplitFetcherManager<Object, TestingSourceSplit> fetcherManager =
-                createFetcher("test-split", new FutureCompletingBlockingQueue<>(), reader);
+                createFetcher("test-split", reader, new Configuration());
         fetcherManager.close(1000L);
         assertThatThrownBy(fetcherManager::checkErrors)
                 .hasRootCauseMessage("Artificial exception on closing the split reader.");
@@ -74,21 +75,21 @@ public class SplitFetcherManagerTest {
             final RecordsWithSplitIds<Integer>... fetchesBeforeError) throws Exception {
         final IOException testingException = new IOException("test");
 
-        final FutureCompletingBlockingQueue<RecordsWithSplitIds<Integer>> queue =
-                new FutureCompletingBlockingQueue<>(10);
         final AwaitingReader<Integer, TestingSourceSplit> reader =
                 new AwaitingReader<>(testingException, fetchesBeforeError);
+        final Configuration configuration = new Configuration();
+        configuration.set(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 10);
         final SplitFetcherManager<Integer, TestingSourceSplit> fetcher =
-                createFetcher("testSplit", queue, reader);
+                createFetcher("testSplit", reader, configuration);
 
         reader.awaitAllRecordsReturned();
-        drainQueue(queue);
+        drainQueue(fetcher.getQueue());
 
-        assertThat(queue.getAvailabilityFuture().isDone()).isFalse();
+        assertThat(fetcher.getQueue().getAvailabilityFuture().isDone()).isFalse();
         reader.triggerThrowException();
 
         // await the error propagation
-        queue.getAvailabilityFuture().get();
+        fetcher.getQueue().getAvailabilityFuture().get();
 
         try {
             fetcher.checkErrors();
@@ -106,11 +107,11 @@ public class SplitFetcherManagerTest {
 
     private static <E> SplitFetcherManager<E, TestingSourceSplit> createFetcher(
             final String splitId,
-            final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> queue,
-            final SplitReader<E, TestingSourceSplit> reader) {
+            final SplitReader<E, TestingSourceSplit> reader,
+            final Configuration configuration) {
 
         final SingleThreadFetcherManager<E, TestingSourceSplit> fetcher =
-                new SingleThreadFetcherManager<>(queue, () -> reader, new Configuration());
+                new SingleThreadFetcherManager<>(() -> reader, configuration);
         fetcher.addSplits(Collections.singletonList(new TestingSourceSplit(splitId)));
         return fetcher;
     }

@@ -19,11 +19,13 @@
 package org.apache.flink.connector.base.source.reader.fetcher;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
+import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 
@@ -55,7 +57,7 @@ import static org.apache.flink.configuration.PipelineOptions.ALLOW_UNALIGNED_SOU
  * manager would only start a single fetcher and assign all the splits to it. A one-thread-per-split
  * fetcher may spawn a new thread every time a new split is assigned.
  */
-@Internal
+@PublicEvolving
 public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
     private static final Logger LOG = LoggerFactory.getLogger(SplitFetcherManager.class);
 
@@ -99,7 +101,9 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
      * @param elementsQueue the queue that split readers will put elements into.
      * @param splitReaderFactory a supplier that could be used to create split readers.
      * @param configuration the configuration of this fetcher manager.
+     * @deprecated Please use {@link #SplitFetcherManager(Supplier, Configuration)} instead.
      */
+    @Deprecated
     public SplitFetcherManager(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             Supplier<SplitReader<E, SplitT>> splitReaderFactory,
@@ -114,7 +118,10 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
      * @param splitReaderFactory a supplier that could be used to create split readers.
      * @param configuration the configuration of this fetcher manager.
      * @param splitFinishedHook Hook for handling finished splits in split fetchers.
+     * @deprecated Please use {@link #SplitFetcherManager(Supplier, Configuration, Consumer)}
+     *     instead.
      */
+    @Deprecated
     @VisibleForTesting
     public SplitFetcherManager(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
@@ -122,6 +129,60 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
             Configuration configuration,
             Consumer<Collection<String>> splitFinishedHook) {
         this.elementsQueue = elementsQueue;
+        this.errorHandler =
+                new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable t) {
+                        LOG.error("Received uncaught exception.", t);
+                        if (!uncaughtFetcherException.compareAndSet(null, t)) {
+                            // Add the exception to the exception list.
+                            uncaughtFetcherException.get().addSuppressed(t);
+                        }
+                        // Wake up the main thread to let it know the exception.
+                        elementsQueue.notifyAvailable();
+                    }
+                };
+        this.splitReaderFactory = splitReaderFactory;
+        this.splitFinishedHook = splitFinishedHook;
+        this.uncaughtFetcherException = new AtomicReference<>(null);
+        this.fetcherIdGenerator = new AtomicInteger(0);
+        this.fetchers = new ConcurrentHashMap<>();
+        this.allowUnalignedSourceSplits = configuration.get(ALLOW_UNALIGNED_SOURCE_SPLITS);
+
+        // Create the executor with a thread factory that fails the source reader if one of
+        // the fetcher thread exits abnormally.
+        final String taskThreadName = Thread.currentThread().getName();
+        this.executors =
+                Executors.newCachedThreadPool(
+                        r -> new Thread(r, "Source Data Fetcher for " + taskThreadName));
+        this.closed = false;
+    }
+
+    /**
+     * Create a split fetcher manager.
+     *
+     * @param splitReaderFactory a supplier that could be used to create split readers.
+     * @param configuration the configuration of this fetcher manager.
+     */
+    public SplitFetcherManager(
+            Supplier<SplitReader<E, SplitT>> splitReaderFactory, Configuration configuration) {
+        this(splitReaderFactory, configuration, (ignore) -> {});
+    }
+
+    /**
+     * Create a split fetcher manager.
+     *
+     * @param splitReaderFactory a supplier that could be used to create split readers.
+     * @param configuration the configuration of this fetcher manager.
+     * @param splitFinishedHook Hook for handling finished splits in split fetchers.
+     */
+    public SplitFetcherManager(
+            Supplier<SplitReader<E, SplitT>> splitReaderFactory,
+            Configuration configuration,
+            Consumer<Collection<String>> splitFinishedHook) {
+        this.elementsQueue =
+                new FutureCompletingBlockingQueue<>(
+                        configuration.get(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY));
         this.errorHandler =
                 new Consumer<Throwable>() {
                     @Override
@@ -236,6 +297,15 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
             }
         }
         return fetchers.isEmpty();
+    }
+
+    /**
+     * Return the queue contains data produced by split fetchers.This method is Internal and only
+     * used in {@link SourceReaderBase}.
+     */
+    @Internal
+    public FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> getQueue() {
+        return elementsQueue;
     }
 
     /**
