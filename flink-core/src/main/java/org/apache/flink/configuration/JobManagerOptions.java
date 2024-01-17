@@ -18,9 +18,11 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.InlineElement;
 
 import java.time.Duration;
 
@@ -458,29 +460,42 @@ public class JobManagerOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Determines which scheduler implementation is used to schedule tasks. Accepted values are:")
-                                    .list(
-                                            text("'Default': Default scheduler"),
-                                            text(
-                                                    "'Adaptive': Adaptive scheduler. More details can be found %s.",
-                                                    link(
-                                                            "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-scheduler",
-                                                            "here")),
-                                            text(
-                                                    "'AdaptiveBatch': Adaptive batch scheduler. More details can be found %s.",
-                                                    link(
-                                                            "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-batch-scheduler",
-                                                            "here")))
+                                            "Determines which scheduler implementation is used to schedule tasks. "
+                                                    + "If this option is not explicitly set, batch jobs will use the "
+                                                    + "'AdaptiveBatch' scheduler as the default, while streaming jobs "
+                                                    + "will default to the 'Default' scheduler. ")
                                     .build());
 
     /** Type of scheduler implementation. */
-    public enum SchedulerType {
+    public enum SchedulerType implements DescribedEnum {
         /** @deprecated Use {@link SchedulerType#Default} instead. */
         @Deprecated
-        Ng,
-        Default,
-        Adaptive,
-        AdaptiveBatch
+        Ng(text("Deprecated. Use Default scheduler instead.")),
+        Default(text("Default scheduler")),
+        Adaptive(
+                text(
+                        "Adaptive scheduler. More details can be found %s.",
+                        link(
+                                "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-scheduler",
+                                "here"))),
+        AdaptiveBatch(
+                text(
+                        "Adaptive batch scheduler. More details can be found %s.",
+                        link(
+                                "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-batch-scheduler",
+                                "here")));
+
+        private final InlineElement description;
+
+        SchedulerType(InlineElement description) {
+            this.description = description;
+        }
+
+        @Internal
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
     }
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
