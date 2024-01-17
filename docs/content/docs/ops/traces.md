@@ -97,7 +97,7 @@ Flink reports a single span trace for the whole checkpoint and job initializatio
   </thead>
   <tbody>
     <tr>
-      <th rowspan="15">org.apache.flink.</br>runtime.checkpoint.</br>CheckpointStatsTracker</th>
+      <th rowspan="16">org.apache.flink.</br>runtime.checkpoint.</br>CheckpointStatsTracker</th>
       <th rowspan="6"><strong>Checkpoint</strong></th>
       <td>startTs</td>
       <td>Timestamp when the checkpoint has started.</td>
@@ -123,7 +123,7 @@ Flink reports a single span trace for the whole checkpoint and job initializatio
       <td>What was the state of this checkpoint: FAILED or COMPLETED.</td>
     </tr>
     <tr>
-      <th rowspan="9"><strong>JobInitialization</strong></th>
+      <th rowspan="10"><strong>JobInitialization</strong></th>
       <td>startTs</td>
       <td>Timestamp when the job initialization has started.</td>
     </tr>
@@ -158,6 +158,14 @@ Flink reports a single span trace for the whole checkpoint and job initializatio
     <tr>
       <td>(Max/Sum)DownloadStateDurationMs<br><br>(optional - currently only supported by RocksDB Incremental)</td>
       <td>The aggregated (max and sum) across all subtasks duration of downloading state files from the DFS.</td>
+    </tr>
+    <tr>
+      <td>(Max/Sum)RestoredStateSizeBytes.[location]</td>
+      <td>The aggregated (max and sum) across all subtasks size of restored state by location. Possible locations are defined in Enum StateObjectSizeStatsCollector as 
+        LOCAL_MEMORY,
+        LOCAL_DISK,
+        REMOTE,
+        UNKNOWN.</td>
     </tr>
   </tbody>
 </table>
