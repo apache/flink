@@ -16,9 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.testutils;
+package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecUnion;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
