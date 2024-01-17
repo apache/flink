@@ -169,7 +169,7 @@ class MergeTableLikeUtil {
      *
      * <p>Distribution is a single property of a Table, thus there can be at most a single instance
      * of it. Therefore, it is not possible to use {@link MergingStrategy#INCLUDING} with
-     * partitioning defined in both source and derived table.
+     * a distribution defined in both source and derived table.
      */
     public Optional<CatalogTable.TableDistribution> mergeDistribution(
             MergingStrategy mergingStrategy,

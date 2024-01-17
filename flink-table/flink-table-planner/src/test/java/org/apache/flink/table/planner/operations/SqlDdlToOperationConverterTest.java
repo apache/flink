@@ -458,7 +458,6 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                                 entry("format.type", "json")))));
     }
 
-    // TODO: Look here
     @Test
     public void testMergingCreateTableLike() {
         Map<String, String> sourceProperties = new HashMap<>();

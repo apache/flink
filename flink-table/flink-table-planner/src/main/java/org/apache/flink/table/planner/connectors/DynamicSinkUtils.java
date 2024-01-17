@@ -1043,7 +1043,6 @@ public final class DynamicSinkUtils {
                             DynamicTableSink.class.getSimpleName(),
                             SupportsBucketing.class.getSimpleName()));
         }
-        // TODO Verify Anything about the keys relative to the tableDistribution?
     }
 
     private static void validatePartitioning(

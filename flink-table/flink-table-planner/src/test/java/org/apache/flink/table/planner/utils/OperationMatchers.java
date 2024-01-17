@@ -145,9 +145,6 @@ public class OperationMatchers {
                 equalTo(schema), "schema of the derived table", "schema") {
             @Override
             protected Schema featureValueOf(CreateTableOperation actual) {
-                System.out.println(actual.getCatalogTable().getUnresolvedSchema());
-                System.out.println(schema);
-
                 return actual.getCatalogTable().getUnresolvedSchema();
             }
         };

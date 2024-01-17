@@ -875,285 +875,93 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql(sql).ok(expected);
     }
 
+    String buildDistributionInput(final String distributionClause) {
+        return "CREATE TABLE tbl1 (\n"
+                + "  a bigint,\n"
+                + "  h varchar, \n"
+                + "  g as 2 * (a + 1), \n"
+                + "  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'), \n"
+                + "  b varchar,\n"
+                + "  proc as PROCTIME(), \n"
+                + "  meta STRING METADATA, \n"
+                + "  my_meta STRING METADATA FROM 'meta', \n"
+                + "  my_meta STRING METADATA FROM 'meta' VIRTUAL, \n"
+                + "  meta STRING METADATA VIRTUAL, \n"
+                + "  PRIMARY KEY (a, b)\n"
+                + ")\n"
+                + distributionClause
+                + "  with (\n"
+                + "    'connector' = 'kafka', \n"
+                + "    'kafka.topic' = 'log.test'\n"
+                + ")\n";
+    }
+
+    String buildDistributionOutput(final String distributionClause) {
+        return                 "CREATE TABLE `TBL1` (\n"
+                + "  `A` BIGINT,\n"
+                + "  `H` VARCHAR,\n"
+                + "  `G` AS (2 * (`A` + 1)),\n"
+                + "  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n"
+                + "  `B` VARCHAR,\n"
+                + "  `PROC` AS `PROCTIME`(),\n"
+                + "  `META` STRING METADATA,\n"
+                + "  `MY_META` STRING METADATA FROM 'meta',\n"
+                + "  `MY_META` STRING METADATA FROM 'meta' VIRTUAL,\n"
+                + "  `META` STRING METADATA VIRTUAL,\n"
+                + "  PRIMARY KEY (`A`, `B`)\n"
+                + ")\n"
+                + distributionClause
+                + "WITH (\n"
+                + "  'connector' = 'kafka',\n"
+                + "  'kafka.topic' = 'log.test'\n"
+                + ")";
+    }
+
     @Test
     void testCreateTableWithDistribution() {
-        final String sql =
-                "CREATE TABLE tbl1 (\n"
-                        + "  a bigint,\n"
-                        + "  h varchar, \n"
-                        + "  g as 2 * (a + 1), \n"
-                        + "  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'), \n"
-                        + "  b varchar,\n"
-                        + "  proc as PROCTIME(), \n"
-                        + "  meta STRING METADATA, \n"
-                        + "  my_meta STRING METADATA FROM 'meta', \n"
-                        + "  my_meta STRING METADATA FROM 'meta' VIRTUAL, \n"
-                        + "  meta STRING METADATA VIRTUAL, \n"
-                        + "  PRIMARY KEY (a, b)\n"
-                        + ")\n"
-                        + "DISTRIBUTED BY HASH(a, h) INTO 6 BUCKETS\n"
-                        + "  with (\n"
-                        + "    'connector' = 'kafka', \n"
-                        + "    'kafka.topic' = 'log.test'\n"
-                        + ")\n";
-        final String expected =
-                "CREATE TABLE `TBL1` (\n"
-                        + "  `A` BIGINT,\n"
-                        + "  `H` VARCHAR,\n"
-                        + "  `G` AS (2 * (`A` + 1)),\n"
-                        + "  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n"
-                        + "  `B` VARCHAR,\n"
-                        + "  `PROC` AS `PROCTIME`(),\n"
-                        + "  `META` STRING METADATA,\n"
-                        + "  `MY_META` STRING METADATA FROM 'meta',\n"
-                        + "  `MY_META` STRING METADATA FROM 'meta' VIRTUAL,\n"
-                        + "  `META` STRING METADATA VIRTUAL,\n"
-                        + "  PRIMARY KEY (`A`, `B`)\n"
-                        + ")\n"
-                        + "DISTRIBUTED BY HASH(`A`, `H`) INTO 6 BUCKETS\n"
-                        + "WITH (\n"
-                        + "  'connector' = 'kafka',\n"
-                        + "  'kafka.topic' = 'log.test'\n"
-                        + ")";
+        final String sql = buildDistributionInput("DISTRIBUTED BY HASH(a, h) INTO 6 BUCKETS\n");
+        final String expected = buildDistributionOutput("DISTRIBUTED BY HASH(`A`, `H`) INTO 6 BUCKETS\n");
         sql(sql).ok(expected);
     }
 
     @Test
     void testCreateTableWithRangeDistribution() {
-        final String sql =
-                "CREATE TABLE tbl1 (\n"
-                        + "  a bigint,\n"
-                        + "  h varchar, \n"
-                        + "  g as 2 * (a + 1), \n"
-                        + "  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'), \n"
-                        + "  b varchar,\n"
-                        + "  proc as PROCTIME(), \n"
-                        + "  meta STRING METADATA, \n"
-                        + "  my_meta STRING METADATA FROM 'meta', \n"
-                        + "  my_meta STRING METADATA FROM 'meta' VIRTUAL, \n"
-                        + "  meta STRING METADATA VIRTUAL, \n"
-                        + "  PRIMARY KEY (a, b)\n"
-                        + ")\n"
-                        + "DISTRIBUTED BY RANGE(a, h) INTO 6 BUCKETS\n"
-                        + "  with (\n"
-                        + "    'connector' = 'kafka', \n"
-                        + "    'kafka.topic' = 'log.test'\n"
-                        + ")\n";
-        final String expected =
-                "CREATE TABLE `TBL1` (\n"
-                        + "  `A` BIGINT,\n"
-                        + "  `H` VARCHAR,\n"
-                        + "  `G` AS (2 * (`A` + 1)),\n"
-                        + "  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n"
-                        + "  `B` VARCHAR,\n"
-                        + "  `PROC` AS `PROCTIME`(),\n"
-                        + "  `META` STRING METADATA,\n"
-                        + "  `MY_META` STRING METADATA FROM 'meta',\n"
-                        + "  `MY_META` STRING METADATA FROM 'meta' VIRTUAL,\n"
-                        + "  `META` STRING METADATA VIRTUAL,\n"
-                        + "  PRIMARY KEY (`A`, `B`)\n"
-                        + ")\n"
-                        + "DISTRIBUTED BY RANGE(`A`, `H`) INTO 6 BUCKETS\n"
-                        + "WITH (\n"
-                        + "  'connector' = 'kafka',\n"
-                        + "  'kafka.topic' = 'log.test'\n"
-                        + ")";
+        final String sql = buildDistributionInput("DISTRIBUTED BY RANGE(a, h) INTO 6 BUCKETS\n");
+        final String expected = buildDistributionOutput("DISTRIBUTED BY RANGE(`A`, `H`) INTO 6 BUCKETS\n");
         sql(sql).ok(expected);
     }
 
-    // @Test
+    @Test
     void testCreateTableWithRandomDistribution() {
-        final String sql =
-                "CREATE TABLE tbl1 (\n"
-                        + "  a bigint,\n"
-                        + "  h varchar, \n"
-                        + "  g as 2 * (a + 1), \n"
-                        + "  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'), \n"
-                        + "  b varchar,\n"
-                        + "  proc as PROCTIME(), \n"
-                        + "  meta STRING METADATA, \n"
-                        + "  my_meta STRING METADATA FROM 'meta', \n"
-                        + "  my_meta STRING METADATA FROM 'meta' VIRTUAL, \n"
-                        + "  meta STRING METADATA VIRTUAL, \n"
-                        + "  PRIMARY KEY (a, b)\n"
-                        + ")\n"
-                        + "DISTRIBUTED BY RANDOM(a, h) INTO 6 BUCKETS\n"
-                        + "  with (\n"
-                        + "    'connector' = 'kafka', \n"
-                        + "    'kafka.topic' = 'log.test'\n"
-                        + ")\n";
-        sql(sql).fails("failure");
+        final String sql = buildDistributionInput("DISTRIBUTED BY ^RANDOM^(a, h) INTO 6 BUCKETS\n");
+        sql(sql).fails("(?s).*Encountered \"RANDOM\" at line 14, column 16.*");
     }
 
     @Test
     void testCreateTableWithDistributionNoAlgorithm() {
-        final String sql =
-                "CREATE TABLE tbl1 (\n"
-                        + "  a bigint,\n"
-                        + "  h varchar, \n"
-                        + "  g as 2 * (a + 1), \n"
-                        + "  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'), \n"
-                        + "  b varchar,\n"
-                        + "  proc as PROCTIME(), \n"
-                        + "  meta STRING METADATA, \n"
-                        + "  my_meta STRING METADATA FROM 'meta', \n"
-                        + "  my_meta STRING METADATA FROM 'meta' VIRTUAL, \n"
-                        + "  meta STRING METADATA VIRTUAL, \n"
-                        + "  PRIMARY KEY (a, b)\n"
-                        + ")\n"
-                        + "DISTRIBUTED BY (a, h) INTO 6 BUCKETS\n"
-                        + "  with (\n"
-                        + "    'connector' = 'kafka', \n"
-                        + "    'kafka.topic' = 'log.test'\n"
-                        + ")\n";
-        final String expected =
-                "CREATE TABLE `TBL1` (\n"
-                        + "  `A` BIGINT,\n"
-                        + "  `H` VARCHAR,\n"
-                        + "  `G` AS (2 * (`A` + 1)),\n"
-                        + "  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n"
-                        + "  `B` VARCHAR,\n"
-                        + "  `PROC` AS `PROCTIME`(),\n"
-                        + "  `META` STRING METADATA,\n"
-                        + "  `MY_META` STRING METADATA FROM 'meta',\n"
-                        + "  `MY_META` STRING METADATA FROM 'meta' VIRTUAL,\n"
-                        + "  `META` STRING METADATA VIRTUAL,\n"
-                        + "  PRIMARY KEY (`A`, `B`)\n"
-                        + ")\n"
-                        + "DISTRIBUTED BY (`A`, `H`) INTO 6 BUCKETS\n"
-                        + "WITH (\n"
-                        + "  'connector' = 'kafka',\n"
-                        + "  'kafka.topic' = 'log.test'\n"
-                        + ")";
+        final String sql = buildDistributionInput("DISTRIBUTED BY (a, h) INTO 6 BUCKETS\n");
+        final String expected = buildDistributionOutput("DISTRIBUTED BY (`A`, `H`) INTO 6 BUCKETS\n");
         sql(sql).ok(expected);
     }
 
     @Test
     void testCreateTableWithDistributionAlgorithmWithoutBuckets() {
-        final String sql =
-                "CREATE TABLE tbl1 (\n"
-                        + "  a bigint,\n"
-                        + "  h varchar, \n"
-                        + "  g as 2 * (a + 1), \n"
-                        + "  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'), \n"
-                        + "  b varchar,\n"
-                        + "  proc as PROCTIME(), \n"
-                        + "  meta STRING METADATA, \n"
-                        + "  my_meta STRING METADATA FROM 'meta', \n"
-                        + "  my_meta STRING METADATA FROM 'meta' VIRTUAL, \n"
-                        + "  meta STRING METADATA VIRTUAL, \n"
-                        + "  PRIMARY KEY (a, b)\n"
-                        + ")\n"
-                        + "DISTRIBUTED BY RANGE(a, h)\n"
-                        + "  with (\n"
-                        + "    'connector' = 'kafka', \n"
-                        + "    'kafka.topic' = 'log.test'\n"
-                        + ")\n";
-        final String expected =
-                "CREATE TABLE `TBL1` (\n"
-                        + "  `A` BIGINT,\n"
-                        + "  `H` VARCHAR,\n"
-                        + "  `G` AS (2 * (`A` + 1)),\n"
-                        + "  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n"
-                        + "  `B` VARCHAR,\n"
-                        + "  `PROC` AS `PROCTIME`(),\n"
-                        + "  `META` STRING METADATA,\n"
-                        + "  `MY_META` STRING METADATA FROM 'meta',\n"
-                        + "  `MY_META` STRING METADATA FROM 'meta' VIRTUAL,\n"
-                        + "  `META` STRING METADATA VIRTUAL,\n"
-                        + "  PRIMARY KEY (`A`, `B`)\n"
-                        + ")\n"
-                        + "DISTRIBUTED BY RANGE(`A`, `H`)\n"
-                        + "WITH (\n"
-                        + "  'connector' = 'kafka',\n"
-                        + "  'kafka.topic' = 'log.test'\n"
-                        + ")";
+        final String sql = buildDistributionInput("DISTRIBUTED BY RANGE(a, h)\n");
+        final String expected = buildDistributionOutput("DISTRIBUTED BY RANGE(`A`, `H`)\n");
         sql(sql).ok(expected);
     }
 
     @Test
     void testCreateTableWithDistributionNoAlgorithmWithoutBuckets() {
-        final String sql =
-                "CREATE TABLE tbl1 (\n"
-                        + "  a bigint,\n"
-                        + "  h varchar, \n"
-                        + "  g as 2 * (a + 1), \n"
-                        + "  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'), \n"
-                        + "  b varchar,\n"
-                        + "  proc as PROCTIME(), \n"
-                        + "  meta STRING METADATA, \n"
-                        + "  my_meta STRING METADATA FROM 'meta', \n"
-                        + "  my_meta STRING METADATA FROM 'meta' VIRTUAL, \n"
-                        + "  meta STRING METADATA VIRTUAL, \n"
-                        + "  PRIMARY KEY (a, b)\n"
-                        + ")\n"
-                        + "DISTRIBUTED BY (a, h)\n"
-                        + "  with (\n"
-                        + "    'connector' = 'kafka', \n"
-                        + "    'kafka.topic' = 'log.test'\n"
-                        + ")\n";
-        final String expected =
-                "CREATE TABLE `TBL1` (\n"
-                        + "  `A` BIGINT,\n"
-                        + "  `H` VARCHAR,\n"
-                        + "  `G` AS (2 * (`A` + 1)),\n"
-                        + "  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n"
-                        + "  `B` VARCHAR,\n"
-                        + "  `PROC` AS `PROCTIME`(),\n"
-                        + "  `META` STRING METADATA,\n"
-                        + "  `MY_META` STRING METADATA FROM 'meta',\n"
-                        + "  `MY_META` STRING METADATA FROM 'meta' VIRTUAL,\n"
-                        + "  `META` STRING METADATA VIRTUAL,\n"
-                        + "  PRIMARY KEY (`A`, `B`)\n"
-                        + ")\n"
-                        + "DISTRIBUTED BY (`A`, `H`)\n"
-                        + "WITH (\n"
-                        + "  'connector' = 'kafka',\n"
-                        + "  'kafka.topic' = 'log.test'\n"
-                        + ")";
+        final String sql = buildDistributionInput("DISTRIBUTED BY (a, h)\n");
+        final String expected = buildDistributionOutput("DISTRIBUTED BY (`A`, `H`)\n");
         sql(sql).ok(expected);
     }
 
     @Test
     void testCreateTableWithDistributionIntoBuckets() {
-        final String sql =
-                "CREATE TABLE tbl1 (\n"
-                        + "  a bigint,\n"
-                        + "  h varchar, \n"
-                        + "  g as 2 * (a + 1), \n"
-                        + "  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'), \n"
-                        + "  b varchar,\n"
-                        + "  proc as PROCTIME(), \n"
-                        + "  meta STRING METADATA, \n"
-                        + "  my_meta STRING METADATA FROM 'meta', \n"
-                        + "  my_meta STRING METADATA FROM 'meta' VIRTUAL, \n"
-                        + "  meta STRING METADATA VIRTUAL, \n"
-                        + "  PRIMARY KEY (a, b)\n"
-                        + ")\n"
-                        + "DISTRIBUTED INTO 3 BUCKETS\n"
-                        + "  with (\n"
-                        + "    'connector' = 'kafka', \n"
-                        + "    'kafka.topic' = 'log.test'\n"
-                        + ")\n";
-        final String expected =
-                "CREATE TABLE `TBL1` (\n"
-                        + "  `A` BIGINT,\n"
-                        + "  `H` VARCHAR,\n"
-                        + "  `G` AS (2 * (`A` + 1)),\n"
-                        + "  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n"
-                        + "  `B` VARCHAR,\n"
-                        + "  `PROC` AS `PROCTIME`(),\n"
-                        + "  `META` STRING METADATA,\n"
-                        + "  `MY_META` STRING METADATA FROM 'meta',\n"
-                        + "  `MY_META` STRING METADATA FROM 'meta' VIRTUAL,\n"
-                        + "  `META` STRING METADATA VIRTUAL,\n"
-                        + "  PRIMARY KEY (`A`, `B`)\n"
-                        + ")\n"
-                        + "DISTRIBUTED INTO 3 BUCKETS\n"
-                        + "WITH (\n"
-                        + "  'connector' = 'kafka',\n"
-                        + "  'kafka.topic' = 'log.test'\n"
-                        + ")";
+        final String sql = buildDistributionInput("DISTRIBUTED INTO 3 BUCKETS\n");
+        final String expected = buildDistributionOutput("DISTRIBUTED INTO 3 BUCKETS\n");
         sql(sql).ok(expected);
     }
 
@@ -1187,14 +995,6 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 "CREATE TABLE if not exists tbl1 (\n"
                         + "  a bigint,\n"
                         + "  h varchar, \n"
-                        + "  g as 2 * (a + 1), \n"
-                        + "  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'), \n"
-                        + "  b varchar,\n"
-                        + "  proc as PROCTIME(), \n"
-                        + "  meta STRING METADATA, \n"
-                        + "  my_meta STRING METADATA FROM 'meta', \n"
-                        + "  my_meta STRING METADATA FROM 'meta' VIRTUAL, \n"
-                        + "  meta STRING METADATA VIRTUAL, \n"
                         + "  PRIMARY KEY (a, b)\n"
                         + ")\n"
                         + "DISTRIBUTED BY HASH(a, h) INTO 6 BUCKETS\n"
@@ -1206,14 +1006,6 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 "CREATE TABLE IF NOT EXISTS `TBL1` (\n"
                         + "  `A` BIGINT,\n"
                         + "  `H` VARCHAR,\n"
-                        + "  `G` AS (2 * (`A` + 1)),\n"
-                        + "  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n"
-                        + "  `B` VARCHAR,\n"
-                        + "  `PROC` AS `PROCTIME`(),\n"
-                        + "  `META` STRING METADATA,\n"
-                        + "  `MY_META` STRING METADATA FROM 'meta',\n"
-                        + "  `MY_META` STRING METADATA FROM 'meta' VIRTUAL,\n"
-                        + "  `META` STRING METADATA VIRTUAL,\n"
                         + "  PRIMARY KEY (`A`, `B`)\n"
                         + ")\n"
                         + "DISTRIBUTED BY HASH(`A`, `H`) INTO 6 BUCKETS\n"
@@ -1230,10 +1022,6 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 "CREATE TABLE IF NOT EXISTS tbl1 (\n"
                         + "  a bigint,\n"
                         + "  h varchar, \n"
-                        + "  g as 2 * (a + 1), \n"
-                        + "  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'), \n"
-                        + "  b varchar,\n"
-                        + "  proc as PROCTIME(), \n"
                         + "  PRIMARY KEY (a, b)\n"
                         + ")\n"
                         + "PARTITIONED BY (a, h)\n"
@@ -1245,10 +1033,6 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 "CREATE TABLE IF NOT EXISTS `TBL1` (\n"
                         + "  `A` BIGINT,\n"
                         + "  `H` VARCHAR,\n"
-                        + "  `G` AS (2 * (`A` + 1)),\n"
-                        + "  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n"
-                        + "  `B` VARCHAR,\n"
-                        + "  `PROC` AS `PROCTIME`(),\n"
                         + "  PRIMARY KEY (`A`, `B`)\n"
                         + ")\n"
                         + "PARTITIONED BY (`A`, `H`)\n"
@@ -3046,7 +2830,6 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                         "REPLACE TABLE AS SELECT syntax does not support creating distributed tables yet."));
     }
 
-    // TODO: JNH Add test cases for DISTRIBUTED BY
     @Test
     void testCreateOrReplaceTableAsSelect() {
         // test create or replace table as select without options

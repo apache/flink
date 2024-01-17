@@ -170,35 +170,8 @@ class SqlCreateTableConverter {
                                 .orElseGet(Collections::emptyList),
                         primaryKey.orElse(null));
 
-        // TODO: Extract this as a method?
-        Optional<CatalogTable.TableDistribution> tableDistribution = Optional.empty();
-        if (sqlCreateTable.getSqlDistribution() != null) {
-            CatalogTable.TableDistribution.Kind kind =
-                    CatalogTable.TableDistribution.Kind.valueOf(
-                            sqlCreateTable.getSqlDistribution().getDistributionKind());
-            Integer bucketCount = null;
-            SqlNumericLiteral count =
-                    (SqlNumericLiteral) sqlCreateTable.getSqlDistribution().getBucketCount();
-            if (count != null) {
-                bucketCount = (Integer) (count).getValue();
-            }
-
-            List<String> bucketColumns = Collections.emptyList();
-
-            SqlNodeList columns = sqlCreateTable.getSqlDistribution().getBucketColumns();
-            if (columns != null) {
-                bucketColumns =
-                        columns.getList().stream()
-                                .map(p -> ((SqlIdentifier) p).getSimple())
-                                .collect(Collectors.toList());
-            }
-            tableDistribution =
-                    Optional.of(
-                            new CatalogTable.TableDistribution(kind, bucketCount, bucketColumns));
-        }
-
         Optional<CatalogTable.TableDistribution> mergedTableDistribution =
-                mergeDistribution(sourceTableDistribution, tableDistribution, mergingStrategies);
+                mergeDistribution(sourceTableDistribution, sqlCreateTable, mergingStrategies);
 
         List<String> partitionKeys =
                 mergePartitions(
@@ -263,8 +236,35 @@ class SqlCreateTableConverter {
 
     private Optional<CatalogTable.TableDistribution> mergeDistribution(
             Optional<CatalogTable.TableDistribution> sourceTableDistribution,
-            Optional<CatalogTable.TableDistribution> derivedTabledDistribution,
+            SqlCreateTable sqlCreateTable,
             Map<SqlTableLike.FeatureOption, SqlTableLike.MergingStrategy> mergingStrategies) {
+
+        Optional<CatalogTable.TableDistribution> derivedTabledDistribution = Optional.empty();
+        if (sqlCreateTable.getSqlDistribution() != null) {
+            CatalogTable.TableDistribution.Kind kind =
+                    CatalogTable.TableDistribution.Kind.valueOf(
+                            sqlCreateTable.getSqlDistribution().getDistributionKind());
+            Integer bucketCount = null;
+            SqlNumericLiteral count =
+                    (SqlNumericLiteral) sqlCreateTable.getSqlDistribution().getBucketCount();
+            if (count != null) {
+                bucketCount = (Integer) (count).getValue();
+            }
+
+            List<String> bucketColumns = Collections.emptyList();
+
+            SqlNodeList columns = sqlCreateTable.getSqlDistribution().getBucketColumns();
+            if (columns != null) {
+                bucketColumns =
+                        columns.getList().stream()
+                                .map(p -> ((SqlIdentifier) p).getSimple())
+                                .collect(Collectors.toList());
+            }
+            derivedTabledDistribution =
+                    Optional.of(
+                            new CatalogTable.TableDistribution(kind, bucketCount, bucketColumns));
+        }
+
         return mergeTableLikeUtil.mergeDistribution(
                 mergingStrategies.get(SqlTableLike.FeatureOption.DISTRIBUTION),
                 sourceTableDistribution,
