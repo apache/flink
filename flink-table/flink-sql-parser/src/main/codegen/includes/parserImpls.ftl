@@ -1375,6 +1375,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
             distribution = new SqlDistribution(getPos(), distributionKind, bucketColumns, bucketCount);
         }
     ]
+
     [
         <PARTITIONED> <BY>
         partitionColumns = ParenthesizedSimpleIdentifierList()
@@ -1410,6 +1411,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
                     columnList,
                     constraints,
                     propertyList,
+                    distribution,
                     partitionColumns,
                     watermark,
                     comment,
@@ -1542,7 +1544,10 @@ SqlNode SqlReplaceTable() :
     List<SqlTableConstraint> constraints = new ArrayList<SqlTableConstraint>();
     SqlWatermark watermark = null;
     SqlNodeList columnList = SqlNodeList.EMPTY;
-                SqlDistribution distribution = null;
+    String distributionKind = null;
+    SqlNode bucketCount = null;
+    SqlNodeList bucketColumns = SqlNodeList.EMPTY;
+    SqlDistribution distribution = null;
     SqlNodeList partitionColumns = SqlNodeList.EMPTY;
     boolean ifNotExists = false;
 }
@@ -1575,6 +1580,29 @@ SqlNode SqlReplaceTable() :
         comment = SqlLiteral.createCharString(p, getPos());
     }]
     [
+        <DISTRIBUTED>
+        (
+            <INTO> { bucketCount = Literal(); } <BUCKETS>
+            |
+            (
+                <BY> (
+                    <HASH> { distributionKind = "HASH"; }
+                    | <RANGE> { distributionKind = "RANGE"; }
+                    | { distributionKind = null; }
+                )
+                {
+                    bucketColumns = ParenthesizedSimpleIdentifierList();
+                }
+                [
+                    <INTO> { bucketCount = Literal(); } <BUCKETS>
+                ]
+            )
+        )
+        {
+            distribution = new SqlDistribution(getPos(), distributionKind, bucketColumns, bucketCount);
+        }
+    ]
+    [
         <PARTITIONED> <BY>
         partitionColumns = ParenthesizedSimpleIdentifierList()
     ]
@@ -1590,6 +1618,7 @@ SqlNode SqlReplaceTable() :
             columnList,
             constraints,
             propertyList,
+            distribution,
             partitionColumns,
             watermark,
             comment,
@@ -1736,6 +1765,7 @@ SqlDrop SqlDropView(Span s, boolean replace, boolean isTemporary) :
     <VIEW>
 
     ifExists = IfExistsOpt()
+
 
     viewName = CompoundIdentifier()
     {

@@ -3037,6 +3037,13 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         new ValidationMatcher()
                                 .fails(
                                         "REPLACE TABLE AS SELECT syntax does not support to create partitioned table yet."));
+
+        // test replace table as select with distribution
+        sql("REPLACE TABLE t DISTRIBUTED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "REPLACE TABLE AS SELECT syntax does not support creating distributed tables yet."));
     }
 
     // TODO: JNH Add test cases for DISTRIBUTED BY
@@ -3096,6 +3103,12 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         new ValidationMatcher()
                                 .fails(
                                         "CREATE OR REPLACE TABLE AS SELECT syntax does not support to create partitioned table yet."));
+
+        sql("CREATE OR REPLACE TABLE t DISTRIBUTED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "CREATE OR REPLACE TABLE AS SELECT syntax does not support creating distributed tables yet."));
     }
 
     @Test
