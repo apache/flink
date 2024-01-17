@@ -25,6 +25,7 @@ import org.apache.flink.api.java.typeutils.runtime.KryoRegistration;
 import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 
 import java.util.LinkedHashMap;
+import java.util.Optional;
 
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.hasSuperclass;
 
@@ -52,6 +53,25 @@ public abstract class AvroUtils {
         } catch (ClassNotFoundException e) {
             // cannot find the utils, return the default implementation
             return new DefaultAvroUtils();
+        } catch (Exception e) {
+            throw new RuntimeException("Could not instantiate " + AVRO_KRYO_UTILS + ".", e);
+        }
+    }
+
+    /**
+     * Returns either {@code Optional#EMPTY} which throw an exception in cases where Avro would be
+     * needed or loads the specific utils for Avro from flink-avro.
+     */
+    public static Optional<AvroUtils> tryGetAvroUtils() {
+        // try and load the special AvroUtils from the flink-avro package
+        try {
+            Class<?> clazz =
+                    Class.forName(
+                            AVRO_KRYO_UTILS, false, Thread.currentThread().getContextClassLoader());
+            return Optional.of(clazz.asSubclass(AvroUtils.class).getConstructor().newInstance());
+        } catch (ClassNotFoundException e) {
+            // cannot find the utils, return none.
+            return Optional.empty();
         } catch (Exception e) {
             throw new RuntimeException("Could not instantiate " + AVRO_KRYO_UTILS + ".", e);
         }

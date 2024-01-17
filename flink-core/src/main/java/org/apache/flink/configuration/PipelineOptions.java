@@ -146,6 +146,23 @@ public class PipelineOptions {
                                     + " analyze as POJO. In some cases this might be preferable. For example, when using interfaces"
                                     + " with subclasses that cannot be analyzed as POJO.");
 
+    public static final ConfigOption<Boolean> FORCE_KRYO_AVRO =
+            key("pipeline.force-kryo-avro")
+                    .booleanType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text("Force register avro classes in kryo serializer. ")
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "Important: Make sure to include the flink-avro module."
+                                                    + " Otherwise, nothing will be registered. For backward compatibility,"
+                                                    + " the default value is empty to conform to the behavior of the older version."
+                                                    + " That is, always register avro with kryo, and if flink-avro is not in the class"
+                                                    + " path, register a dummy Serializer. In flink-2.0, we will set the default value to true")
+                                    .build());
+
     public static final ConfigOption<Boolean> GENERIC_TYPES =
             key("pipeline.generic-types")
                     .booleanType()

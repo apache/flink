@@ -39,6 +39,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -273,6 +274,14 @@ public final class SerializerConfig implements Serializable {
         configuration.set(PipelineOptions.FORCE_AVRO, forceAvro);
     }
 
+    public void setForceAvroKryo(boolean forceAvroKryo) {
+        configuration.set(PipelineOptions.FORCE_KRYO_AVRO, forceAvroKryo);
+    }
+
+    public Optional<Boolean> isForceAvroKryo() {
+        return configuration.getOptional(PipelineOptions.FORCE_KRYO_AVRO);
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof SerializerConfig) {
@@ -374,6 +383,10 @@ public final class SerializerConfig implements Serializable {
             }
             throw e;
         }
+
+        configuration
+                .getOptional(PipelineOptions.FORCE_KRYO_AVRO)
+                .ifPresent(this::setForceAvroKryo);
     }
 
     private LinkedHashSet<Class<?>> loadClasses(
