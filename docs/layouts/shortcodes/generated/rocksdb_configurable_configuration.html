@@ -63,10 +63,10 @@
             <td>The specified compaction style for DB. Candidate compaction style is LEVEL, FIFO, UNIVERSAL or NONE, and Flink chooses 'LEVEL' as default style.<br /><br />Possible values:<ul><li>"LEVEL"</li><li>"UNIVERSAL"</li><li>"FIFO"</li><li>"NONE"</li></ul></td>
         </tr>
         <tr>
-            <td><h5>state.backend.rocksdb.compression.type</h5></td>
+            <td><h5>state.backend.rocksdb.compression.per.level</h5></td>
             <td style="word-wrap: break-word;">SNAPPY_COMPRESSION</td>
-            <td><p>Enum</p></td>
-            <td>The specified compression type for DB. Candidate compression type is NO_COMPRESSION, SNAPPY_COMPRESSION, ZLIB_COMPRESSION, BZLIB2_COMPRESSION, LZ4_COMPRESSION, LZ4HC_COMPRESSION, XPRESS_COMPRESSION, ZSTD_COMPRESSION or DISABLE_COMPRESSION_OPTION, and Flink chooses 'SNAPPY_COMPRESSION' as default style.<br /><br />Possible values:<ul><li>"NO_COMPRESSION"</li><li>"SNAPPY_COMPRESSION"</li><li>"ZLIB_COMPRESSION"</li><li>"BZLIB2_COMPRESSION"</li><li>"LZ4_COMPRESSION"</li><li>"LZ4HC_COMPRESSION"</li><li>"XPRESS_COMPRESSION"</li><li>"ZSTD_COMPRESSION"</li><li>"DISABLE_COMPRESSION_OPTION"</li></ul></td>
+            <td><p>List&lt;Enum&gt;</p></td>
+            <td>A semicolon-separated list of Compression Type. Different levels can have different compression policies. In many cases, lower levels use fast compression algorithms, while higher levels with more data use slower but more effective compression algorithms. If the COMPRESSION_PER_LEVEL list is not empty, it should have an entry for each level of the database, When level_compaction_dynamic_level_bytes=true, compression_per_level[0] still determines L0, but other elements are based on the base level and may not match the level seen in the info log. Note: If the List size is smaller than the level number, the undefined lower level uses the last Compression Type in the List.<br />Possible values:<ul><li>"NO_COMPRESSION"</li><li>"SNAPPY_COMPRESSION"</li><li>"NO_COMPRESSION;NO_COMPRESSION;LZ4_COMPRESSION"</li></ul></td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.files.open</h5></td>
