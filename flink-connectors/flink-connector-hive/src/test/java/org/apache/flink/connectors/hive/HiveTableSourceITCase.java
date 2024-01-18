@@ -26,7 +26,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.connector.datagen.source.DataGenerators;
+import org.apache.flink.connector.datagen.source.TestDataGenerators;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -997,7 +997,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 
         DataStream<Row> stream =
                 env.fromSource(
-                                DataGenerators.fromDataWithSnapshotsLatch(rows, typeInfo),
+                                TestDataGenerators.fromDataWithSnapshotsLatch(rows, typeInfo),
                                 WatermarkStrategy.noWatermarks(),
                                 "Test Source")
                         .filter((FilterFunction<Row>) value -> true)

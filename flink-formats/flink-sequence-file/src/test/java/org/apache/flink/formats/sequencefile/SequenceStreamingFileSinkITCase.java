@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.connector.datagen.source.DataGenerators;
+import org.apache.flink.connector.datagen.source.TestDataGenerators;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -69,7 +69,7 @@ class SequenceStreamingFileSinkITCase {
 
         DataStream<Tuple2<Long, String>> stream =
                 env.fromSource(
-                        DataGenerators.fromDataWithSnapshotsLatch(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
                                 testData,
                                 TypeInformation.of(new TypeHint<Tuple2<Long, String>>() {})),
                         WatermarkStrategy.noWatermarks(),

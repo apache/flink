@@ -20,7 +20,7 @@ package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.connector.datagen.source.DataGenerators;
+import org.apache.flink.connector.datagen.source.TestDataGenerators;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
@@ -79,7 +79,7 @@ public class AvroStreamingFileSinkITCase extends AbstractTestBase {
         AvroWriterFactory<Address> avroWriterFactory = AvroWriters.forSpecificRecord(Address.class);
         DataStream<Address> stream =
                 env.fromSource(
-                        DataGenerators.fromDataWithSnapshotsLatch(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
                                 data, TypeInformation.of(Address.class)),
                         WatermarkStrategy.noWatermarks(),
                         "Test Source");
@@ -107,7 +107,7 @@ public class AvroStreamingFileSinkITCase extends AbstractTestBase {
         AvroWriterFactory<GenericRecord> avroWriterFactory = AvroWriters.forGenericRecord(schema);
         DataStream<GenericRecord> stream =
                 env.fromSource(
-                        DataGenerators.fromDataWithSnapshotsLatch(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
                                 data, new GenericRecordAvroTypeInfo(schema)),
                         WatermarkStrategy.noWatermarks(),
                         "Test Source");
@@ -135,7 +135,7 @@ public class AvroStreamingFileSinkITCase extends AbstractTestBase {
 
         DataStream<Datum> stream =
                 env.fromSource(
-                        DataGenerators.fromDataWithSnapshotsLatch(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
                                 data, TypeInformation.of(Datum.class)),
                         WatermarkStrategy.noWatermarks(),
                         "Test Source");

@@ -20,7 +20,7 @@ package org.apache.flink.formats.parquet.avro;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.connector.datagen.source.DataGenerators;
+import org.apache.flink.connector.datagen.source.TestDataGenerators;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
 import org.apache.flink.formats.parquet.generated.Address;
@@ -78,7 +78,7 @@ class AvroParquetStreamingFileSinkITCase {
 
         DataStream<Address> stream =
                 env.fromSource(
-                        DataGenerators.fromDataWithSnapshotsLatch(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
                                 data, TypeInformation.of(Address.class)),
                         WatermarkStrategy.noWatermarks(),
                         "Test Source");
@@ -108,7 +108,7 @@ class AvroParquetStreamingFileSinkITCase {
 
         DataStream<GenericRecord> stream =
                 env.fromSource(
-                        DataGenerators.fromDataWithSnapshotsLatch(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
                                 data, new GenericRecordAvroTypeInfo(schema)),
                         WatermarkStrategy.noWatermarks(),
                         "Test Source");
@@ -142,7 +142,7 @@ class AvroParquetStreamingFileSinkITCase {
 
         DataStream<Datum> stream =
                 env.fromSource(
-                        DataGenerators.fromDataWithSnapshotsLatch(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
                                 data, TypeInformation.of(Datum.class)),
                         WatermarkStrategy.noWatermarks(),
                         "Test Source");

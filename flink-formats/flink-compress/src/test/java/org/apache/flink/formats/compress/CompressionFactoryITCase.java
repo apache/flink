@@ -20,7 +20,7 @@ package org.apache.flink.formats.compress;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.connector.datagen.source.DataGenerators;
+import org.apache.flink.connector.datagen.source.TestDataGenerators;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.compress.extractor.DefaultExtractor;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -70,7 +70,7 @@ class CompressionFactoryITCase {
 
         DataStream<String> stream =
                 env.fromSource(
-                        DataGenerators.fromDataWithSnapshotsLatch(testData, Types.STRING),
+                        TestDataGenerators.fromDataWithSnapshotsLatch(testData, Types.STRING),
                         WatermarkStrategy.noWatermarks(),
                         "Test Source");
 

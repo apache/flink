@@ -20,7 +20,7 @@ package org.apache.flink.formats.hadoop.bulk;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.connector.datagen.source.DataGenerators;
+import org.apache.flink.connector.datagen.source.TestDataGenerators;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.HadoopPathBasedBulkFormatBuilder;
@@ -84,7 +84,7 @@ public class HadoopPathBasedPartFileWriterITCase extends AbstractTestBase {
         // in between
         DataStream<String> stream =
                 env.fromSource(
-                        DataGenerators.fromDataWithSnapshotsLatch(data, Types.STRING),
+                        TestDataGenerators.fromDataWithSnapshotsLatch(data, Types.STRING),
                         WatermarkStrategy.noWatermarks(),
                         "Test Source");
 

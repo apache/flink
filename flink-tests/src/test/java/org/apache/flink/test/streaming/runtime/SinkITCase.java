@@ -21,7 +21,7 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.connector.datagen.source.DataGenerators;
+import org.apache.flink.connector.datagen.source.TestDataGenerators;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.runtime.operators.sink.TestSink;
@@ -121,7 +121,7 @@ public class SinkITCase extends AbstractTestBase {
 
         final DataStream<Integer> stream =
                 env.fromSource(
-                        DataGenerators.fromDataWithSnapshotsLatch(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
                                 SOURCE_DATA, Types.INT, BOTH_QUEUE_RECEIVE_ALL_DATA),
                         WatermarkStrategy.noWatermarks(),
                         "Test Source");
@@ -182,7 +182,7 @@ public class SinkITCase extends AbstractTestBase {
 
         final DataStream<Integer> stream =
                 env.fromSource(
-                        DataGenerators.fromDataWithSnapshotsLatch(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
                                 SOURCE_DATA, Types.INT, COMMIT_QUEUE_RECEIVE_ALL_DATA),
                         WatermarkStrategy.noWatermarks(),
                         "Test Source");
@@ -219,7 +219,7 @@ public class SinkITCase extends AbstractTestBase {
 
         final DataStream<Integer> stream =
                 env.fromSource(
-                        DataGenerators.fromDataWithSnapshotsLatch(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
                                 SOURCE_DATA, Types.INT, GLOBAL_COMMIT_QUEUE_RECEIVE_ALL_DATA),
                         WatermarkStrategy.noWatermarks(),
                         "Test Source");

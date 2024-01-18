@@ -20,7 +20,7 @@ package org.apache.flink.formats.parquet.protobuf;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.connector.datagen.source.DataGenerators;
+import org.apache.flink.connector.datagen.source.TestDataGenerators;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -68,7 +68,7 @@ class ParquetProtoStreamingFileSinkITCase {
 
         DataStream<SimpleProtoRecord> stream =
                 env.fromSource(
-                        DataGenerators.fromDataWithSnapshotsLatch(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
                                 data, TypeInformation.of(SimpleProtoRecord.class)),
                         WatermarkStrategy.noWatermarks(),
                         "Test Source");

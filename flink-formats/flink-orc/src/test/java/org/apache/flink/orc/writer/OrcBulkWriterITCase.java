@@ -20,7 +20,7 @@ package org.apache.flink.orc.writer;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.connector.datagen.source.DataGenerators;
+import org.apache.flink.connector.datagen.source.TestDataGenerators;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.data.Record;
 import org.apache.flink.orc.util.OrcBulkWriterTestUtil;
@@ -61,7 +61,7 @@ class OrcBulkWriterITCase {
 
         DataStream<Record> stream =
                 env.fromSource(
-                        DataGenerators.fromDataWithSnapshotsLatch(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
                                 testData, TypeInformation.of(Record.class)),
                         WatermarkStrategy.noWatermarks(),
                         "Test Source");

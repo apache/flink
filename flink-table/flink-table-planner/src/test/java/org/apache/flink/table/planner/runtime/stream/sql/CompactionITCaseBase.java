@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.connector.datagen.source.DataGenerators;
+import org.apache.flink.connector.datagen.source.TestDataGenerators;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.scala.DataStream;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
@@ -91,7 +91,7 @@ public abstract class CompactionITCaseBase extends StreamingTestBase {
                 new DataStream<>(
                                 env().getJavaEnv()
                                         .fromSource(
-                                                DataGenerators.fromDataWithSnapshotsLatch(
+                                                TestDataGenerators.fromDataWithSnapshotsLatch(
                                                         rows, rowTypeInfo),
                                                 WatermarkStrategy.noWatermarks(),
                                                 "Test Source"))

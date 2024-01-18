@@ -29,13 +29,10 @@ import java.util.function.BooleanSupplier;
 
 /** A collection of factory methods for creating data generator-based sources. */
 @Experimental
-public class DataGenerators {
+public class TestDataGenerators {
 
     /**
-     * TODO: consider moving into test scope TestDataGenerators in datagen test package after
-     * https://github.com/apache/flink/pull/23553 gets merged.
-     *
-     * <p>Creates a source that emits provided {@code data}, waits for two checkpoints and emits the
+     * Creates a source that emits provided {@code data}, waits for two checkpoints and emits the
      * same {@code data } again. It is intended only to be used for test purposes. See {@link
      * DoubleEmittingSourceReaderWithCheckpointsInBetween} for details.
      *
@@ -59,10 +56,7 @@ public class DataGenerators {
     }
 
     /**
-     * TODO: consider moving into test scope TestDataGenerators in datagen test package after
-     * https://github.com/apache/flink/pull/23553 gets merged.
-     *
-     * <p>Creates a source that emits provided {@code data}, waits for two checkpoints and emits the
+     * Creates a source that emits provided {@code data}, waits for two checkpoints and emits the
      * same {@code data } again. It is intended only to be used for test purposes. See {@link
      * DoubleEmittingSourceReaderWithCheckpointsInBetween} for details.
      *

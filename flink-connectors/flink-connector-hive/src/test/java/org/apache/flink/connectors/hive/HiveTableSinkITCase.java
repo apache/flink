@@ -22,7 +22,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.connector.datagen.source.DataGenerators;
+import org.apache.flink.connector.datagen.source.TestDataGenerators;
 import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -803,7 +803,8 @@ class HiveTableSinkITCase {
 
                     DataStream<Row> stream =
                             env.fromSource(
-                                    DataGenerators.fromDataWithSnapshotsLatch(data, rowTypeInfo),
+                                    TestDataGenerators.fromDataWithSnapshotsLatch(
+                                            data, rowTypeInfo),
                                     WatermarkStrategy.noWatermarks(),
                                     "Test Source");
 
@@ -902,7 +903,8 @@ class HiveTableSinkITCase {
 
                     DataStream<Row> stream =
                             env.fromSource(
-                                    DataGenerators.fromDataWithSnapshotsLatch(data, rowTypeInfo),
+                                    TestDataGenerators.fromDataWithSnapshotsLatch(
+                                            data, rowTypeInfo),
                                     WatermarkStrategy.noWatermarks(),
                                     "Test Source");
 
