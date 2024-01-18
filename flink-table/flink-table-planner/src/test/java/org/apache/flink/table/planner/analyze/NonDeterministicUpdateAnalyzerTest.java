@@ -70,22 +70,6 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
                                 + ")");
         util.getTableEnv()
                 .executeSql(
-                        "create temporary table upsert_with_meta (\n"
-                                + "  a int,\n"
-                                + "  b bigint,\n"
-                                + "  c string,\n"
-                                + "  d boolean,\n"
-                                + "  metadata_1 int metadata,\n"
-                                + "  metadata_2 string metadata,\n"
-                                + "  metadata_3 bigint metadata,\n"
-                                + "  primary key (a) not enforced\n"
-                                + ") with (\n"
-                                + "  'connector' = 'values',\n"
-                                + "  'changelog-mode' = 'I,UA,D',\n"
-                                + "  'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'\n"
-                                + ")");
-        util.getTableEnv()
-                .executeSql(
                         "create temporary table sink_with_pk (\n"
                                 + "  a int,\n"
                                 + "  b bigint,\n"
