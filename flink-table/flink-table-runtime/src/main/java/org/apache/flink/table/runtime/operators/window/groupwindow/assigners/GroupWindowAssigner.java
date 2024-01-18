@@ -22,7 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.Window;
-import org.apache.flink.table.runtime.operators.window.groupwindow.context.WindowContext;
+import org.apache.flink.table.runtime.operators.window.groupwindow.internal.InternalWindowProcessFunction;
 import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.Trigger;
 
 import java.io.IOException;
@@ -48,7 +48,7 @@ public abstract class GroupWindowAssigner<W extends Window> implements Serializa
     private static final long serialVersionUID = 1L;
 
     /** Initialization method for the function. It is called before the actual working methods. */
-    public void open(WindowContext<?, W> ctx) throws Exception {
+    public void open(InternalWindowProcessFunction.Context<?, W> ctx) throws Exception {
         // nothing to do
     }
 

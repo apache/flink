@@ -68,18 +68,28 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>Because aligned windows can be divided into finite number of non-overlapping chunks (a.k.a.
  * slices), which can apply efficient processing to share intermediate results.
  *
- * <p>Note: currently, {@link AbstractWindowOperator} doesn't support early-fire and late-arrival.
- * Thus late elements (elements belong to emitted windows) will be simply dropped.
+ * <pre>
+ * Window
+ * |
+ * +-- Aligned Window (Slicing Window)
+ * |    |
+ * |    +-- Tumble (Slice Unshared Window)
+ * |    |
+ * |    +-- Hop (Slice Shared Window)
+ * |    |
+ * |    +-- Cumulate (Slice Shared Window)
+ * |
+ * +-- Unaligned Window (Unslice Window)
+ *      |
+ *      +-- Session
  *
- * <p>See more details in {@link
- * org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowOperator}.
+ * </pre>
  *
- * <p>TODO support unaligned window in FLINK-34048.
- *
- * <p>TODO support early / late fire in FLINK-29692.
+ * <p>Note: currently, {@link WindowOperatorBase} doesn't support early-fire and late-arrival. Thus
+ * late elements (elements belong to emitted windows) will be simply dropped.
  */
 @Internal
-public abstract class AbstractWindowOperator<K, W> extends TableStreamOperator<RowData>
+public abstract class WindowOperatorBase<K, W> extends TableStreamOperator<RowData>
         implements OneInputStreamOperator<RowData, RowData>, Triggerable<K, W>, KeyContext {
 
     private static final long serialVersionUID = 1L;
@@ -113,7 +123,7 @@ public abstract class AbstractWindowOperator<K, W> extends TableStreamOperator<R
     protected transient Meter lateRecordsDroppedRate;
     protected transient Gauge<Long> watermarkLatency;
 
-    public AbstractWindowOperator(WindowProcessor<W> windowProcessor) {
+    public WindowOperatorBase(WindowProcessor<W> windowProcessor) {
         this.windowProcessor = windowProcessor;
         setChainingStrategy(ChainingStrategy.ALWAYS);
     }

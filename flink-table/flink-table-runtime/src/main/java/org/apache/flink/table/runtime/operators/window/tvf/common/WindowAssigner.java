@@ -29,9 +29,7 @@ import java.io.Serializable;
  * window assigner is translated from the new window TVF syntax, but the other is from the legacy
  * GROUP WINDOW FUNCTION syntax. In the long future, {@link GroupWindowAssigner} will be dropped.
  *
- * <p>See more details in {@link AbstractWindowOperator}.
- *
- * <p>TODO support UnsliceAssigner in FLINK-34048.
+ * <p>See more details in {@link WindowOperatorBase}.
  */
 public interface WindowAssigner extends Serializable {
 

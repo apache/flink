@@ -27,7 +27,7 @@ import javax.annotation.Nullable;
  * @param <W> The type {@link Window} for windows or the type {@link Long} for slices that this
  *     callback used to merge.
  * @param <R> The result type like {@link java.util.Collection} or {@link Iterable} to specify which
- *     slices or windows should be merged. TODO use {@link java.util.Collection} uniformly.
+ *     slices or windows should be merged.
  */
 public interface MergeCallback<W, R> {
 

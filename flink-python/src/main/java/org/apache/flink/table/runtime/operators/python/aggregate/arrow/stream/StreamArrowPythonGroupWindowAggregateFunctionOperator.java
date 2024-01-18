@@ -52,8 +52,7 @@ import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractA
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.GroupWindowAssigner;
-import org.apache.flink.table.runtime.operators.window.groupwindow.context.TriggerContext;
-import org.apache.flink.table.runtime.operators.window.groupwindow.context.WindowContext;
+import org.apache.flink.table.runtime.operators.window.groupwindow.internal.InternalWindowProcessFunction;
 import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.Trigger;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.RowType;
@@ -118,7 +117,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
     /** Stores retract message data(DELETE/UPDATE_BEFORE) in window. */
     private transient InternalListState<K, W, RowData> windowRetractData;
 
-    private transient TriggerContextImpl triggerContext;
+    private transient TriggerContext triggerContext;
 
     /** For serializing the window in checkpoints. */
     private transient TypeSerializer<W> windowSerializer;
@@ -177,7 +176,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 
         internalTimerService = getInternalTimerService("window-timers", windowSerializer, this);
 
-        triggerContext = new TriggerContextImpl();
+        triggerContext = new TriggerContext();
         triggerContext.open();
 
         StateDescriptor<ListState<RowData>, List<RowData>> windowStateDescriptor =
@@ -194,7 +193,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
         windowProperty = new GenericRowData(namedProperties.length);
         windowAggResult = new JoinedRowData();
 
-        PythonWindowContext windowContext = new PythonWindowContext();
+        WindowContext windowContext = new WindowContext();
         windowAssigner.open(windowContext);
     }
 
@@ -454,7 +453,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
      * reused by setting the {@code key} and {@code window} fields. No internal state must be kept
      * in the {@code TriggerContext}.
      */
-    private class TriggerContextImpl implements TriggerContext {
+    private class TriggerContext implements Trigger.TriggerContext {
 
         private W window;
 
@@ -529,7 +528,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
         }
     }
 
-    private class PythonWindowContext implements WindowContext<K, W> {
+    private class WindowContext implements InternalWindowProcessFunction.Context<K, W> {
         @Override
         public <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor)
                 throws Exception {

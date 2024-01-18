@@ -23,8 +23,6 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.table.runtime.operators.window.Window;
-import org.apache.flink.table.runtime.operators.window.groupwindow.context.OnMergeContext;
-import org.apache.flink.table.runtime.operators.window.groupwindow.context.TriggerContext;
 
 import java.time.Duration;
 

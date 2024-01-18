@@ -35,7 +35,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.GroupWindowAssigner;
-import org.apache.flink.table.runtime.operators.window.tvf.operator.AlignedWindowTableFunctionOperator;
 import org.apache.flink.table.runtime.operators.window.tvf.operator.WindowTableFunctionOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
@@ -81,14 +80,14 @@ public abstract class CommonExecWindowTableFunction extends ExecNodeBase<RowData
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
-        final WindowTableFunctionOperator windowTableFunctionOperator;
-        if (windowingStrategy.getWindow().isAlignedWindow()) {
-            windowTableFunctionOperator = createAlignedWindowTableFunctionOperator(config);
-        } else {
-            throw new UnsupportedOperationException(
-                    "Currently only aligned window is supported for window table-valued function.");
-        }
-
+        GroupWindowAssigner<TimeWindow> windowAssigner = createWindowAssigner(windowingStrategy);
+        final ZoneId shiftTimeZone =
+                TimeWindowUtil.getShiftTimeZone(
+                        windowingStrategy.getTimeAttributeType(),
+                        TableConfigUtils.getLocalTimeZone(config));
+        WindowTableFunctionOperator windowTableFunctionOperator =
+                new WindowTableFunctionOperator(
+                        windowAssigner, windowingStrategy.getTimeAttributeIndex(), shiftTimeZone);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
                 createTransformationMeta(WINDOW_TRANSFORMATION, config),
@@ -96,17 +95,5 @@ public abstract class CommonExecWindowTableFunction extends ExecNodeBase<RowData
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism(),
                 false);
-    }
-
-    private WindowTableFunctionOperator createAlignedWindowTableFunctionOperator(
-            ExecNodeConfig config) {
-        // TODO use WindowAssigner instead of using GroupWindowAssigner
-        GroupWindowAssigner<TimeWindow> windowAssigner = createWindowAssigner(windowingStrategy);
-        final ZoneId shiftTimeZone =
-                TimeWindowUtil.getShiftTimeZone(
-                        windowingStrategy.getTimeAttributeType(),
-                        TableConfigUtils.getLocalTimeZone(config));
-        return new AlignedWindowTableFunctionOperator(
-                windowAssigner, windowingStrategy.getTimeAttributeIndex(), shiftTimeZone);
     }
 }

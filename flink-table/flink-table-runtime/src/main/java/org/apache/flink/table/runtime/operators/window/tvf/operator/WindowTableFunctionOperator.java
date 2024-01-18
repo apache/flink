@@ -21,32 +21,46 @@ package org.apache.flink.table.runtime.operators.window.tvf.operator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
+import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.GroupWindowAssigner;
 
 import java.time.ZoneId;
 import java.util.Collection;
 
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMills;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * The {@link WindowTableFunctionOperator} acts as a table-valued function to assign windows for
- * input row. Output row includes the original columns as well additional 3 columns named {@code
- * window_start}, {@code window_end}, {@code window_time} to indicate the assigned window.
+ * The operator acts as a table-valued function to assign windows for input row. Output row includes
+ * the original columns as well additional 3 columns named {@code window_start}, {@code window_end},
+ * {@code window_time} to indicate the assigned window.
+ *
+ * <p>Note: The operator only applies for Window TVF with row semantics (e.g TUMBLE/HOP/CUMULATE)
+ * instead of set semantics (e.g Session).
+ *
+ * <p>The operator emits result per record instead of at the end of window.
  */
-public abstract class WindowTableFunctionOperator extends TableStreamOperator<RowData>
+public class WindowTableFunctionOperator extends TableStreamOperator<RowData>
         implements OneInputStreamOperator<RowData, RowData> {
+
+    private static final long serialVersionUID = 1L;
+
+    private final GroupWindowAssigner<TimeWindow> windowAssigner;
+    private final int rowtimeIndex;
 
     /**
      * The shift timezone of the window, if the proctime or rowtime type is TIMESTAMP_LTZ, the shift
      * timezone is the timezone user configured in TableConfig, other cases the timezone is UTC
      * which means never shift when assigning windows.
      */
-    protected final ZoneId shiftTimeZone;
+    private final ZoneId shiftTimeZone;
 
     /** This is used for emitting elements with a given timestamp. */
     private transient TimestampedCollector<RowData> collector;
@@ -54,7 +68,13 @@ public abstract class WindowTableFunctionOperator extends TableStreamOperator<Ro
     private transient JoinedRowData outRow;
     private transient GenericRowData windowProperties;
 
-    public WindowTableFunctionOperator(ZoneId shiftTimeZone) {
+    public WindowTableFunctionOperator(
+            GroupWindowAssigner<TimeWindow> windowAssigner,
+            int rowtimeIndex,
+            ZoneId shiftTimeZone) {
+        checkArgument(!windowAssigner.isEventTime() || rowtimeIndex >= 0);
+        this.windowAssigner = windowAssigner;
+        this.rowtimeIndex = rowtimeIndex;
         this.shiftTimeZone = shiftTimeZone;
 
         setChainingStrategy(ChainingStrategy.ALWAYS);
@@ -70,8 +90,22 @@ public abstract class WindowTableFunctionOperator extends TableStreamOperator<Ro
         windowProperties = new GenericRowData(3);
     }
 
-    protected void collect(RowData inputRow, Collection<TimeWindow> allWindows) {
-        for (TimeWindow window : allWindows) {
+    @Override
+    public void processElement(StreamRecord<RowData> element) throws Exception {
+        RowData inputRow = element.getValue();
+        long timestamp;
+        if (windowAssigner.isEventTime()) {
+            if (inputRow.isNullAt(rowtimeIndex)) {
+                // null timestamp would be dropped
+                return;
+            }
+            timestamp = inputRow.getTimestamp(rowtimeIndex, 3).getMillisecond();
+        } else {
+            timestamp = getProcessingTimeService().getCurrentProcessingTime();
+        }
+        timestamp = toUtcTimestampMills(timestamp, shiftTimeZone);
+        Collection<TimeWindow> elementWindows = windowAssigner.assignWindows(inputRow, timestamp);
+        for (TimeWindow window : elementWindows) {
             windowProperties.setField(0, TimestampData.fromEpochMillis(window.getStart()));
             windowProperties.setField(1, TimestampData.fromEpochMillis(window.getEnd()));
             windowProperties.setField(

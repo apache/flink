@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.operators.window.groupwindow.triggers;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.runtime.operators.window.Window;
-import org.apache.flink.table.runtime.operators.window.groupwindow.context.TriggerContext;
 
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
 

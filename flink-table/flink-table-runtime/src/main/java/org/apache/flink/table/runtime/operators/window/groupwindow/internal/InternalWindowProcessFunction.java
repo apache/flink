@@ -18,14 +18,16 @@
 
 package org.apache.flink.table.runtime.operators.window.groupwindow.internal;
 
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.GroupWindowAssigner;
-import org.apache.flink.table.runtime.operators.window.groupwindow.context.WindowContext;
 import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.Trigger;
 
 import java.io.Serializable;
+import java.time.ZoneId;
 import java.util.Collection;
 
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
@@ -42,7 +44,7 @@ public abstract class InternalWindowProcessFunction<K, W extends Window> impleme
     protected final GroupWindowAssigner<W> windowAssigner;
     protected final NamespaceAggsHandleFunctionBase<W> windowAggregator;
     protected final long allowedLateness;
-    protected WindowContext<K, W> ctx;
+    protected Context<K, W> ctx;
 
     protected InternalWindowProcessFunction(
             GroupWindowAssigner<W> windowAssigner,
@@ -54,7 +56,7 @@ public abstract class InternalWindowProcessFunction<K, W extends Window> impleme
     }
 
     /** Initialization method for the function. It is called before the actual working methods. */
-    public void open(WindowContext<K, W> ctx) throws Exception {
+    public void open(Context<K, W> ctx) throws Exception {
         this.ctx = ctx;
         this.windowAssigner.open(ctx);
     }
@@ -134,5 +136,55 @@ public abstract class InternalWindowProcessFunction<K, W extends Window> impleme
         } else {
             return window.maxTimestamp();
         }
+    }
+
+    /**
+     * Information available in an invocation of methods of {@link InternalWindowProcessFunction}.
+     *
+     * @param <W>
+     */
+    public interface Context<K, W extends Window> {
+
+        /**
+         * Creates a partitioned state handle, using the state backend configured for this task.
+         *
+         * @throws IllegalStateException Thrown, if the key/value state was already initialized.
+         * @throws Exception Thrown, if the state backend cannot create the key/value state.
+         */
+        <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor)
+                throws Exception;
+
+        /** @return current key of current processed element. */
+        K currentKey();
+
+        /** Returns the current processing time. */
+        long currentProcessingTime();
+
+        /** Returns the current event-time watermark. */
+        long currentWatermark();
+
+        /** Returns the shifted timezone of the window. */
+        ZoneId getShiftTimeZone();
+
+        /** Gets the accumulators of the given window. */
+        RowData getWindowAccumulators(W window) throws Exception;
+
+        /** Sets the accumulators of the given window. */
+        void setWindowAccumulators(W window, RowData acc) throws Exception;
+
+        /** Clear window state of the given window. */
+        void clearWindowState(W window) throws Exception;
+
+        /** Clear previous agg state (used for retraction) of the given window. */
+        void clearPreviousState(W window) throws Exception;
+
+        /** Call {@link Trigger#clear(Window)}} on trigger. */
+        void clearTrigger(W window) throws Exception;
+
+        /** Call {@link Trigger#onMerge(Window, Trigger.OnMergeContext)} on trigger. */
+        void onMerge(W newWindow, Collection<W> mergedWindows) throws Exception;
+
+        /** Deletes the cleanup timer set for the contents of the provided window. */
+        void deleteCleanupTimer(W window) throws Exception;
     }
 }

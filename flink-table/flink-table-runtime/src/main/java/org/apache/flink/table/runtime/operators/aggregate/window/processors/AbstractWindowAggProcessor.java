@@ -41,17 +41,7 @@ import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * A base class for window aggregate processors.
- *
- * <p>The main subclasses of this abstract class are:
- *
- * <ul>
- *   <li>{@link AbstractSliceWindowAggProcessor}
- * </ul>
- *
- * <p>TODO support unslice window aggregate in FLINK-34048.
- */
+/** A base class for window aggregate processors. */
 public abstract class AbstractWindowAggProcessor<W> implements WindowProcessor<W> {
 
     private static final long serialVersionUID = 1L;

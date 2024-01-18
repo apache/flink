@@ -22,8 +22,6 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.runtime.operators.window.Window;
-import org.apache.flink.table.runtime.operators.window.groupwindow.context.OnMergeContext;
-import org.apache.flink.table.runtime.operators.window.groupwindow.context.TriggerContext;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 

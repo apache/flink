@@ -99,9 +99,4 @@ public class TumblingWindowSpec implements WindowSpec {
                     formatWithHighestUnit(size), formatWithHighestUnit(offset));
         }
     }
-
-    @Override
-    public boolean isAlignedWindow() {
-        return true;
-    }
 }

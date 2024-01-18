@@ -19,14 +19,14 @@
 package org.apache.flink.table.runtime.operators.window.tvf.slicing;
 
 import org.apache.flink.streaming.api.operators.InternalTimerService;
-import org.apache.flink.table.runtime.operators.window.tvf.common.AbstractWindowTimerService;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerServiceBase;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
 
 import java.time.ZoneId;
 
 /** A {@link WindowTimerService} for slicing window. */
-public class SlicingWindowTimerServiceImpl extends AbstractWindowTimerService<Long> {
+public class SlicingWindowTimerServiceImpl extends WindowTimerServiceBase<Long> {
 
     public SlicingWindowTimerServiceImpl(
             InternalTimerService<Long> internalTimerService, ZoneId shiftTimeZone) {

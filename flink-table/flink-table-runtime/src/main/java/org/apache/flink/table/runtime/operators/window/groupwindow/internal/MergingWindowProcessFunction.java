@@ -25,7 +25,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.MergingWindowAssigner;
-import org.apache.flink.table.runtime.operators.window.groupwindow.context.WindowContext;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -61,7 +60,7 @@ public class MergingWindowProcessFunction<K, W extends Window>
     }
 
     @Override
-    public void open(WindowContext<K, W> ctx) throws Exception {
+    public void open(Context<K, W> ctx) throws Exception {
         super.open(ctx);
         MapStateDescriptor<W, W> mappingStateDescriptor =
                 new MapStateDescriptor<>(

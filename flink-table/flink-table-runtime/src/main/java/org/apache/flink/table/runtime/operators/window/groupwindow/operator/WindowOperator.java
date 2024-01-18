@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.window.groupwindow.operator;
 
+import org.apache.flink.api.common.state.MergingState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -29,6 +30,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.state.internal.InternalMergingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -47,8 +49,6 @@ import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.GroupWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.MergingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.PanedWindowAssigner;
-import org.apache.flink.table.runtime.operators.window.groupwindow.context.AbstractTriggerContext;
-import org.apache.flink.table.runtime.operators.window.groupwindow.context.AbstractWindowContext;
 import org.apache.flink.table.runtime.operators.window.groupwindow.internal.GeneralWindowProcessFunction;
 import org.apache.flink.table.runtime.operators.window.groupwindow.internal.InternalWindowProcessFunction;
 import org.apache.flink.table.runtime.operators.window.groupwindow.internal.MergingWindowProcessFunction;
@@ -59,8 +59,6 @@ import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.commons.lang3.ArrayUtils;
-
-import javax.annotation.Nullable;
 
 import java.time.ZoneId;
 import java.util.Collection;
@@ -167,7 +165,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
 
     protected transient InternalValueState<K, W, RowData> previousState;
 
-    private transient TriggerContextImpl triggerContext;
+    private transient TriggerContext triggerContext;
 
     // ------------------------------------------------------------------------
     // Metrics
@@ -256,9 +254,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
 
         internalTimerService = getInternalTimerService("window-timers", windowSerializer, this);
 
-        triggerContext =
-                new TriggerContextImpl(
-                        trigger, internalTimerService, shiftTimeZone, windowSerializer);
+        triggerContext = new TriggerContext();
         triggerContext.open();
 
         StateDescriptor<ValueState<RowData>, RowData> windowStateDescriptor =
@@ -277,19 +273,11 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         }
 
         compileGeneratedCode();
+
+        WindowContext windowContext = new WindowContext();
         windowAggregator.open(
                 new PerWindowStateDataViewStore(
                         getKeyedStateBackend(), windowSerializer, getRuntimeContext()));
-
-        WindowContextImpl windowContext =
-                new WindowContextImpl(
-                        shiftTimeZone,
-                        internalTimerService,
-                        windowState,
-                        previousState,
-                        windowAggregator,
-                        windowAssigner,
-                        triggerContext);
 
         if (windowAssigner instanceof MergingWindowAssigner) {
             this.windowFunction =
@@ -378,7 +366,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         Collection<W> actualWindows = windowFunction.assignActualWindows(inputRow, timestamp);
         for (W window : actualWindows) {
             isElementDropped = false;
-            triggerContext.setWindow(window);
+            triggerContext.window = window;
             boolean triggerResult = triggerContext.onElement(inputRow, timestamp);
             if (triggerResult) {
                 emitWindowResult(window);
@@ -397,14 +385,14 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
     public void onEventTime(InternalTimer<K, W> timer) throws Exception {
         setCurrentKey(timer.getKey());
 
-        triggerContext.setWindow(timer.getNamespace());
+        triggerContext.window = timer.getNamespace();
         if (triggerContext.onEventTime(timer.getTimestamp())) {
             // fire
-            emitWindowResult(triggerContext.getWindow());
+            emitWindowResult(triggerContext.window);
         }
 
         if (windowAssigner.isEventTime()) {
-            windowFunction.cleanWindowIfNeeded(triggerContext.getWindow(), timer.getTimestamp());
+            windowFunction.cleanWindowIfNeeded(triggerContext.window, timer.getTimestamp());
         }
     }
 
@@ -412,14 +400,14 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
     public void onProcessingTime(InternalTimer<K, W> timer) throws Exception {
         setCurrentKey(timer.getKey());
 
-        triggerContext.setWindow(timer.getNamespace());
+        triggerContext.window = timer.getNamespace();
         if (triggerContext.onProcessingTime(timer.getTimestamp())) {
             // fire
-            emitWindowResult(triggerContext.getWindow());
+            emitWindowResult(triggerContext.window);
         }
 
         if (!windowAssigner.isEventTime()) {
-            windowFunction.cleanWindowIfNeeded(triggerContext.getWindow(), timer.getTimestamp());
+            windowFunction.cleanWindowIfNeeded(triggerContext.window, timer.getTimestamp());
         }
     }
 
@@ -468,30 +456,8 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
 
     // ------------------------------------------------------------------------------
 
-    private class WindowContextImpl extends AbstractWindowContext<K, W> {
-
-        public WindowContextImpl(
-                ZoneId shiftTimeZone,
-                InternalTimerService<W> internalTimerService,
-                InternalValueState<K, W, RowData> windowState,
-                @Nullable InternalValueState<K, W, RowData> previousState,
-                NamespaceAggsHandleFunctionBase<W> windowAggregator,
-                GroupWindowAssigner<W> windowAssigner,
-                AbstractTriggerContext<K, W> triggerContext) {
-            super(
-                    shiftTimeZone,
-                    internalTimerService,
-                    windowState,
-                    previousState,
-                    windowAggregator,
-                    windowAssigner,
-                    triggerContext);
-        }
-
-        @Override
-        protected long findCleanupTime(W window) {
-            return cleanupTime(window);
-        }
+    /** Context of window. */
+    private class WindowContext implements InternalWindowProcessFunction.Context<K, W> {
 
         @Override
         public <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor)
@@ -502,30 +468,151 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
 
         @Override
         public K currentKey() {
-            return (K) WindowOperator.this.getCurrentKey();
-        }
-    }
-
-    private class TriggerContextImpl extends AbstractTriggerContext<K, W> {
-
-        public TriggerContextImpl(
-                Trigger<W> trigger,
-                InternalTimerService<W> internalTimerService,
-                ZoneId shiftTimeZone,
-                TypeSerializer<W> windowSerializer) {
-            super(trigger, internalTimerService, shiftTimeZone, windowSerializer);
+            return WindowOperator.this.currentKey();
         }
 
         @Override
-        protected <N, S extends State, T> S getOrCreateKeyedState(
-                TypeSerializer<N> namespaceSerializer, StateDescriptor<S, T> stateDescriptor)
-                throws Exception {
-            return WindowOperator.this.getOrCreateKeyedState(namespaceSerializer, stateDescriptor);
+        public long currentProcessingTime() {
+            return internalTimerService.currentProcessingTime();
+        }
+
+        @Override
+        public long currentWatermark() {
+            return internalTimerService.currentWatermark();
+        }
+
+        @Override
+        public ZoneId getShiftTimeZone() {
+            return shiftTimeZone;
+        }
+
+        @Override
+        public RowData getWindowAccumulators(W window) throws Exception {
+            windowState.setCurrentNamespace(window);
+            return windowState.value();
+        }
+
+        @Override
+        public void setWindowAccumulators(W window, RowData acc) throws Exception {
+            windowState.setCurrentNamespace(window);
+            windowState.update(acc);
+        }
+
+        @Override
+        public void clearWindowState(W window) throws Exception {
+            windowState.setCurrentNamespace(window);
+            windowState.clear();
+            windowAggregator.cleanup(window);
+        }
+
+        @Override
+        public void clearPreviousState(W window) throws Exception {
+            if (previousState != null) {
+                previousState.setCurrentNamespace(window);
+                previousState.clear();
+            }
+        }
+
+        @Override
+        public void clearTrigger(W window) throws Exception {
+            triggerContext.window = window;
+            triggerContext.clear();
+        }
+
+        @Override
+        public void deleteCleanupTimer(W window) throws Exception {
+            long cleanupTime = toEpochMillsForTimer(cleanupTime(window), shiftTimeZone);
+            if (cleanupTime == Long.MAX_VALUE) {
+                // no need to clean up because we didn't set one
+                return;
+            }
+            if (windowAssigner.isEventTime()) {
+                triggerContext.deleteEventTimeTimer(cleanupTime);
+            } else {
+                triggerContext.deleteProcessingTimeTimer(cleanupTime);
+            }
+        }
+
+        @Override
+        public void onMerge(W newWindow, Collection<W> mergedWindows) throws Exception {
+            triggerContext.window = newWindow;
+            triggerContext.mergedWindows = mergedWindows;
+            triggerContext.onMerge();
+        }
+    }
+
+    /**
+     * {@code TriggerContext} is a utility for handling {@code Trigger} invocations. It can be
+     * reused by setting the {@code key} and {@code window} fields. No internal state must be kept
+     * in the {@code TriggerContext}
+     */
+    private class TriggerContext implements Trigger.OnMergeContext {
+
+        private W window;
+        private Collection<W> mergedWindows;
+
+        public void open() throws Exception {
+            trigger.open(this);
+        }
+
+        boolean onElement(RowData row, long timestamp) throws Exception {
+            return trigger.onElement(row, timestamp, window);
+        }
+
+        boolean onProcessingTime(long time) throws Exception {
+            return trigger.onProcessingTime(time, window);
+        }
+
+        boolean onEventTime(long time) throws Exception {
+            return trigger.onEventTime(time, window);
+        }
+
+        void onMerge() throws Exception {
+            trigger.onMerge(window, this);
+        }
+
+        @Override
+        public long getCurrentProcessingTime() {
+            return internalTimerService.currentProcessingTime();
+        }
+
+        @Override
+        public long getCurrentWatermark() {
+            return internalTimerService.currentWatermark();
         }
 
         @Override
         public MetricGroup getMetricGroup() {
             return WindowOperator.this.getMetricGroup();
+        }
+
+        @Override
+        public void registerProcessingTimeTimer(long time) {
+            internalTimerService.registerProcessingTimeTimer(window, time);
+        }
+
+        @Override
+        public void registerEventTimeTimer(long time) {
+            internalTimerService.registerEventTimeTimer(window, time);
+        }
+
+        @Override
+        public void deleteProcessingTimeTimer(long time) {
+            internalTimerService.deleteProcessingTimeTimer(window, time);
+        }
+
+        @Override
+        public void deleteEventTimeTimer(long time) {
+            internalTimerService.deleteEventTimeTimer(window, time);
+        }
+
+        @Override
+        public ZoneId getShiftTimeZone() {
+            return shiftTimeZone;
+        }
+
+        public void clear() throws Exception {
+            trigger.clear(window);
         }
 
         @Override
@@ -535,6 +622,27 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
                         window, windowSerializer, stateDescriptor);
             } catch (Exception e) {
                 throw new RuntimeException("Could not retrieve state", e);
+            }
+        }
+
+        @Override
+        public <S extends MergingState<?, ?>> void mergePartitionedState(
+                StateDescriptor<S, ?> stateDescriptor) {
+            if (mergedWindows != null && mergedWindows.size() > 0) {
+                try {
+                    State state =
+                            WindowOperator.this.getOrCreateKeyedState(
+                                    windowSerializer, stateDescriptor);
+                    if (state instanceof InternalMergingState) {
+                        ((InternalMergingState<K, W, ?, ?, ?>) state)
+                                .mergeNamespaces(window, mergedWindows);
+                    } else {
+                        throw new IllegalArgumentException(
+                                "The given state descriptor does not refer to a mergeable state (MergingState)");
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException("Error while merging state.", e);
+                }
             }
         }
     }

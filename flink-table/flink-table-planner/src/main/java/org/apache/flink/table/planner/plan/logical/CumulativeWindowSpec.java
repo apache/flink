@@ -120,9 +120,4 @@ public class CumulativeWindowSpec implements WindowSpec {
                     formatWithHighestUnit(offset));
         }
     }
-
-    @Override
-    public boolean isAlignedWindow() {
-        return true;
-    }
 }

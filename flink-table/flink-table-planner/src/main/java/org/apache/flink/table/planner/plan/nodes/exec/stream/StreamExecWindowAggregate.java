@@ -260,9 +260,6 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
                 aggInfoList,
                 JavaScalaConversionUtil.toScala(windowProperties),
                 sliceAssigner,
-                // we use window end timestamp to indicate a slicing window, see SliceAssigner
-                // TODO support unslicing window and using class Window here in FLINK-34048
-                Long.class,
                 shiftTimeZone);
     }
 }

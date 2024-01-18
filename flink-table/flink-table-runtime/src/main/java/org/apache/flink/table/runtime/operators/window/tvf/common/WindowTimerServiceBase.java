@@ -23,12 +23,12 @@ import org.apache.flink.streaming.api.operators.InternalTimerService;
 import java.time.ZoneId;
 
 /** A base implement of {@link WindowTimerService}. */
-public abstract class AbstractWindowTimerService<W> implements WindowTimerService<W> {
+public abstract class WindowTimerServiceBase<W> implements WindowTimerService<W> {
 
     protected final InternalTimerService<W> internalTimerService;
     protected final ZoneId shiftTimeZone;
 
-    public AbstractWindowTimerService(
+    public WindowTimerServiceBase(
             InternalTimerService<W> internalTimerService, ZoneId shiftTimeZone) {
         this.internalTimerService = internalTimerService;
         this.shiftTimeZone = shiftTimeZone;

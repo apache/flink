@@ -30,7 +30,6 @@ import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.Cum
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.GroupWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.SlidingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.TumblingWindowAssigner;
-import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner;
 
 /** Utilities for Window Table Function. */
 @Internal
@@ -38,8 +37,6 @@ public final class WindowTableFunctionUtil {
 
     /**
      * Creates window assigner based on input window strategy.
-     *
-     * <p>TODO use {@link WindowAssigner} instead of using {@link GroupWindowAssigner}.
      *
      * @param windowingStrategy input window strategy
      * @return new created window assigner

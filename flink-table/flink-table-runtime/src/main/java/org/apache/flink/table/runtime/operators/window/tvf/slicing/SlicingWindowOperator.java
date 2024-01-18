@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.operators.window.tvf.slicing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceSharedWindowAggProcessor;
-import org.apache.flink.table.runtime.operators.window.tvf.common.AbstractWindowOperator;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowOperatorBase;
 
 /**
  * The {@link SlicingWindowOperator} implements an optimized processing for aligned windows which
@@ -50,10 +50,10 @@ import org.apache.flink.table.runtime.operators.window.tvf.common.AbstractWindow
  * <p>Note: since {@link SlicingWindowProcessor} leverages slicing optimization for aligned windows,
  * therefore, it doesn't support unaligned windows, e.g. session window.
  *
- * <p>See more details in {@link AbstractWindowOperator}.
+ * <p>See more details in {@link WindowOperatorBase}.
  */
 @Internal
-public final class SlicingWindowOperator<K, W> extends AbstractWindowOperator<K, W> {
+public final class SlicingWindowOperator<K, W> extends WindowOperatorBase<K, W> {
 
     private static final long serialVersionUID = 1L;
 

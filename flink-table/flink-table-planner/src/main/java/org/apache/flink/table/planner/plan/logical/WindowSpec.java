@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.logical;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonSubTypes;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
 
@@ -32,15 +31,4 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
 public interface WindowSpec {
 
     String toSummaryString(String windowing);
-
-    /**
-     * Return true if the window is a aligned window.
-     *
-     * <p>See more details about aligned window and unaligned window in {@link
-     * org.apache.flink.table.runtime.operators.window.tvf.common.AbstractWindowOperator}.
-     *
-     * <p>TODO introduce unaligned window like session window in FLINK-34048.
-     */
-    @JsonIgnore
-    boolean isAlignedWindow();
 }

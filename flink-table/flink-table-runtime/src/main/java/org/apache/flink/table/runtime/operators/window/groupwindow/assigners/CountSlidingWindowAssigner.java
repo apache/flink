@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.CountWindow;
-import org.apache.flink.table.runtime.operators.window.groupwindow.context.WindowContext;
+import org.apache.flink.table.runtime.operators.window.groupwindow.internal.InternalWindowProcessFunction;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -54,7 +54,7 @@ public class CountSlidingWindowAssigner extends GroupWindowAssigner<CountWindow>
     }
 
     @Override
-    public void open(WindowContext<?, CountWindow> ctx) throws Exception {
+    public void open(InternalWindowProcessFunction.Context<?, CountWindow> ctx) throws Exception {
         String descriptorName = "slide-count-assigner";
         ValueStateDescriptor<Long> countDescriptor =
                 new ValueStateDescriptor<>(descriptorName, Types.LONG);
