@@ -775,4 +775,42 @@ class TableScanTest extends TableTestBase {
           "expression type is CHAR(0) NOT NULL")
       .isInstanceOf[ValidationException]
   }
+
+  @Test
+  def testSetParallelismForSource(): Unit = {
+    val config = TableConfig.getDefault
+    config.set(ExecutionConfigOptions.TABLE_EXEC_SIMPLIFY_OPERATOR_NAME_ENABLED, Boolean.box(false))
+    val util = streamTestUtil(config)
+
+    util.addTable("""
+                    |CREATE TABLE changelog_src (
+                    |  id INT,
+                    |  a STRING,
+                    |  PRIMARY KEY (id) NOT ENFORCED
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'bounded' = 'true',
+                    |  'runtime-source' = 'DataStream',
+                    |  'scan.parallelism' = '5',
+                    |  'enable-projection-push-down' = 'false',
+                    |  'changelog-mode' = 'I,UA,D'
+                    |)
+      """.stripMargin)
+    util.addTable("""
+                    |CREATE TABLE src (
+                    |  id INT,
+                    |  b STRING,
+                    |  c INT
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'bounded' = 'true',
+                    |  'runtime-source' = 'DataStream',
+                    |  'scan.parallelism' = '3',
+                    |  'enable-projection-push-down' = 'false'
+                    |)
+      """.stripMargin)
+    util.verifyTransformation(
+      "SELECT * FROM src LEFT JOIN changelog_src " +
+        "on src.id = changelog_src.id WHERE src.c > 1")
+  }
 }

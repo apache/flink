@@ -65,6 +65,7 @@ import org.apache.flink.streaming.api.transformations.ReduceTransformation;
 import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
+import org.apache.flink.streaming.api.transformations.SourceTransformationWrapper;
 import org.apache.flink.streaming.api.transformations.TimestampsAndWatermarksTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
@@ -553,6 +554,8 @@ public class StreamGraphGenerator {
             transformedIds = transformFeedback((FeedbackTransformation<?>) transform);
         } else if (transform instanceof CoFeedbackTransformation<?>) {
             transformedIds = transformCoFeedback((CoFeedbackTransformation<?>) transform);
+        } else if (transform instanceof SourceTransformationWrapper<?>) {
+            transformedIds = transform(((SourceTransformationWrapper<?>) transform).getInput());
         } else {
             throw new IllegalStateException("Unknown transformation: " + transform);
         }
