@@ -44,5 +44,12 @@ public final class WordCountSQLExample {
                                 // group for aggregation
                                 + "GROUP BY word")
                 .print();
+        // should output:
+        // +--------------------------------+-------------+
+        // |                           word |       count |
+        // +--------------------------------+-------------+
+        // |                           Ciao |           1 |
+        // |                          Hello |           3 |
+        // +--------------------------------+-------------+
     }
 }
