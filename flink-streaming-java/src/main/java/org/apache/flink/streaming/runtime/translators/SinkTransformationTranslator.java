@@ -185,16 +185,16 @@ public class SinkTransformationTranslator<Input, Output>
             }
         }
 
-        private <CommittableT, WriteResultT> void addCommittingTopology(
+        private <CommT, WriteResultT> void addCommittingTopology(
                 Sink<T> sink, DataStream<T> inputStream) {
-            SupportsCommitter<CommittableT> committingSink = (SupportsCommitter<CommittableT>) sink;
-            TypeInformation<CommittableMessage<CommittableT>> committableTypeInformation =
+            SupportsCommitter<CommT> committingSink = (SupportsCommitter<CommT>) sink;
+            TypeInformation<CommittableMessage<CommT>> committableTypeInformation =
                     CommittableMessageTypeInfo.of(committingSink::getCommittableSerializer);
 
-            DataStream<CommittableMessage<CommittableT>> precommitted;
+            DataStream<CommittableMessage<CommT>> precommitted;
             if (sink instanceof SupportsPreCommitTopology) {
-                SupportsPreCommitTopology<WriteResultT, CommittableT> preCommittingSink =
-                        (SupportsPreCommitTopology<WriteResultT, CommittableT>) sink;
+                SupportsPreCommitTopology<WriteResultT, CommT> preCommittingSink =
+                        (SupportsPreCommitTopology<WriteResultT, CommT>) sink;
                 TypeInformation<CommittableMessage<WriteResultT>> writeResultTypeInformation =
                         CommittableMessageTypeInfo.of(preCommittingSink::getWriteResultSerializer);
 
@@ -208,7 +208,7 @@ public class SinkTransformationTranslator<Input, Output>
                 precommitted = addWriter(sink, inputStream, committableTypeInformation);
             }
 
-            DataStream<CommittableMessage<CommittableT>> committed =
+            DataStream<CommittableMessage<CommT>> committed =
                     adjustTransformations(
                             precommitted,
                             pc ->
@@ -223,12 +223,12 @@ public class SinkTransformationTranslator<Input, Output>
                             false);
 
             if (sink instanceof SupportsPostCommitTopology) {
-                DataStream<CommittableMessage<CommittableT>> postcommitted =
+                DataStream<CommittableMessage<CommT>> postcommitted =
                         addFailOverRegion(committed);
                 adjustTransformations(
                         postcommitted,
                         pc -> {
-                            ((SupportsPostCommitTopology<CommittableT>) sink)
+                            ((SupportsPostCommitTopology<CommT>) sink)
                                     .addPostCommitTopology(pc);
                             return null;
                         },
