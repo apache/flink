@@ -223,13 +223,11 @@ public class SinkTransformationTranslator<Input, Output>
                             false);
 
             if (sink instanceof SupportsPostCommitTopology) {
-                DataStream<CommittableMessage<CommT>> postcommitted =
-                        addFailOverRegion(committed);
+                DataStream<CommittableMessage<CommT>> postcommitted = addFailOverRegion(committed);
                 adjustTransformations(
                         postcommitted,
                         pc -> {
-                            ((SupportsPostCommitTopology<CommT>) sink)
-                                    .addPostCommitTopology(pc);
+                            ((SupportsPostCommitTopology<CommT>) sink).addPostCommitTopology(pc);
                             return null;
                         },
                         true,
