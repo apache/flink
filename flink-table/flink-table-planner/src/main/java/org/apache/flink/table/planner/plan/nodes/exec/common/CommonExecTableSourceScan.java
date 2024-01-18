@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -30,6 +31,9 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
+import org.apache.flink.streaming.api.transformations.SourceTransformationWrapper;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.InputFormatProvider;
@@ -72,6 +76,8 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
     @JsonProperty(FIELD_NAME_SCAN_TABLE_SOURCE)
     private final DynamicTableSourceSpec tableSourceSpec;
 
+    protected boolean sourceParallelismConfigured;
+
     protected CommonExecTableSourceScan(
             int id,
             ExecNodeContext context,
@@ -96,6 +102,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
     @Override
     protected Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
+        final Transformation<RowData> sourceTransform;
         final StreamExecutionEnvironment env = planner.getExecEnv();
         final TransformationMetadata meta = createTransformationMeta(SOURCE_TRANSFORMATION, config);
         final InternalTypeInfo<RowData> outputTypeInfo =
@@ -105,53 +112,91 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
                         planner.getFlinkContext(), ShortcutUtils.unwrapTypeFactory(planner));
         ScanTableSource.ScanRuntimeProvider provider =
                 tableSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+        final int sourceParallelism = deriveSourceParallelism(provider);
+        sourceParallelismConfigured = isParallelismConfigured(provider);
         if (provider instanceof SourceFunctionProvider) {
             final SourceFunctionProvider sourceFunctionProvider = (SourceFunctionProvider) provider;
             final SourceFunction<RowData> function = sourceFunctionProvider.createSourceFunction();
-            final Transformation<RowData> transformation =
+            sourceTransform =
                     createSourceFunctionTransformation(
                             env,
                             function,
                             sourceFunctionProvider.isBounded(),
                             meta.getName(),
-                            outputTypeInfo);
-            return meta.fill(transformation);
+                            outputTypeInfo,
+                            sourceParallelism);
+            meta.fill(sourceTransform);
         } else if (provider instanceof InputFormatProvider) {
             final InputFormat<RowData, ?> inputFormat =
                     ((InputFormatProvider) provider).createInputFormat();
-            final Transformation<RowData> transformation =
+            sourceTransform =
                     createInputFormatTransformation(
                             env, inputFormat, outputTypeInfo, meta.getName());
-            return meta.fill(transformation);
+            sourceTransform.setParallelism(sourceParallelism, sourceParallelismConfigured);
+            meta.fill(sourceTransform);
         } else if (provider instanceof SourceProvider) {
             final Source<RowData, ?, ?> source = ((SourceProvider) provider).createSource();
             // TODO: Push down watermark strategy to source scan
-            final Transformation<RowData> transformation =
+            sourceTransform =
                     env.fromSource(
                                     source,
                                     WatermarkStrategy.noWatermarks(),
                                     meta.getName(),
                                     outputTypeInfo)
                             .getTransformation();
-            return meta.fill(transformation);
+            sourceTransform.setParallelism(sourceParallelism, sourceParallelismConfigured);
+            meta.fill(sourceTransform);
         } else if (provider instanceof DataStreamScanProvider) {
-            Transformation<RowData> transformation =
+            sourceTransform =
                     ((DataStreamScanProvider) provider)
                             .produceDataStream(createProviderContext(config), env)
                             .getTransformation();
-            meta.fill(transformation);
-            transformation.setOutputType(outputTypeInfo);
-            return transformation;
+            sourceTransform.setParallelism(sourceParallelism, sourceParallelismConfigured);
+            meta.fill(sourceTransform);
+            sourceTransform.setOutputType(outputTypeInfo);
         } else if (provider instanceof TransformationScanProvider) {
-            final Transformation<RowData> transformation =
+            sourceTransform =
                     ((TransformationScanProvider) provider)
                             .createTransformation(createProviderContext(config));
-            meta.fill(transformation);
-            transformation.setOutputType(outputTypeInfo);
-            return transformation;
+            sourceTransform.setParallelism(sourceParallelism, sourceParallelismConfigured);
+            meta.fill(sourceTransform);
+            sourceTransform.setOutputType(outputTypeInfo);
         } else {
             throw new UnsupportedOperationException(
                     provider.getClass().getSimpleName() + " is unsupported now.");
+        }
+
+        if (!sourceParallelismConfigured) {
+            return sourceTransform;
+        } else {
+            return new SourceTransformationWrapper<>(
+                    sourceTransform,
+                    "ChangeToDefaultParallel",
+                    ExecutionConfig.PARALLELISM_DEFAULT);
+        }
+    }
+
+    private boolean isParallelismConfigured(ScanTableSource.ScanRuntimeProvider runtimeProvider) {
+        return runtimeProvider instanceof ParallelismProvider
+                && ((ParallelismProvider) runtimeProvider).getParallelism().isPresent();
+    }
+
+    private int deriveSourceParallelism(ScanTableSource.ScanRuntimeProvider runtimeProvider) {
+        if (isParallelismConfigured(runtimeProvider)) {
+            int sourceParallelism = ((ParallelismProvider) runtimeProvider).getParallelism().get();
+            if (sourceParallelism <= 0) {
+                throw new TableException(
+                        String.format(
+                                "Invalid configured parallelism %s for table '%s'.",
+                                sourceParallelism,
+                                tableSourceSpec
+                                        .getContextResolvedTable()
+                                        .getIdentifier()
+                                        .asSummaryString()));
+            }
+            return sourceParallelism;
+        } else {
+            return ExecutionConfig.PARALLELISM_DEFAULT;
         }
     }
 
@@ -178,17 +223,21 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
             SourceFunction<RowData> function,
             boolean isBounded,
             String operatorName,
-            TypeInformation<RowData> outputTypeInfo) {
+            TypeInformation<RowData> outputTypeInfo,
+            int sourceParallelism) {
 
         env.clean(function);
 
         final int parallelism;
-        boolean parallelismConfigured = false;
         if (function instanceof ParallelSourceFunction) {
-            parallelism = env.getParallelism();
+            if (sourceParallelismConfigured) {
+                parallelism = sourceParallelism;
+            } else {
+                parallelism = env.getParallelism();
+            }
         } else {
             parallelism = 1;
-            parallelismConfigured = true;
+            sourceParallelismConfigured = true;
         }
 
         final Boundedness boundedness;
@@ -205,7 +254,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
                 outputTypeInfo,
                 parallelism,
                 boundedness,
-                parallelismConfigured);
+                sourceParallelismConfigured);
     }
 
     /**

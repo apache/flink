@@ -465,6 +465,8 @@ public final class TestValuesTableFactory
     private static final ConfigOption<String> SINK_CHANGELOG_MODE_ENFORCED =
             ConfigOptions.key("sink-changelog-mode-enforced").stringType().noDefaultValue();
 
+    private static final ConfigOption<Integer> SOURCE_PARALLELISM = FactoryUtil.SOURCE_PARALLELISM;
+
     private static final ConfigOption<Integer> SINK_PARALLELISM = FactoryUtil.SINK_PARALLELISM;
 
     @Override
@@ -496,6 +498,7 @@ public final class TestValuesTableFactory
         int lookupThreshold = helper.getOptions().get(LOOKUP_THRESHOLD);
         int sleepAfterElements = helper.getOptions().get(SOURCE_SLEEP_AFTER_ELEMENTS);
         long sleepTimeMillis = helper.getOptions().get(SOURCE_SLEEP_TIME).toMillis();
+        Integer parallelism = helper.getOptions().get(SOURCE_PARALLELISM);
         DefaultLookupCache cache = null;
         if (helper.getOptions().get(CACHE_TYPE).equals(LookupOptions.LookupCacheType.PARTIAL)) {
             cache = DefaultLookupCache.fromConfig(helper.getOptions());
@@ -570,7 +573,8 @@ public final class TestValuesTableFactory
                         Long.MAX_VALUE,
                         partitions,
                         readableMetadata,
-                        null);
+                        null,
+                        parallelism);
             }
 
             if (disableLookup) {
@@ -745,6 +749,7 @@ public final class TestValuesTableFactory
                         SOURCE_NUM_ELEMENT_TO_SKIP,
                         SOURCE_SLEEP_AFTER_ELEMENTS,
                         SOURCE_SLEEP_TIME,
+                        SOURCE_PARALLELISM,
                         INTERNAL_DATA,
                         CACHE_TYPE,
                         PARTIAL_CACHE_EXPIRE_AFTER_ACCESS,
@@ -915,6 +920,7 @@ public final class TestValuesTableFactory
         private @Nullable int[] groupingSet;
         private List<AggregateExpression> aggregateExpressions;
         private List<String> acceptedPartitionFilterFields;
+        private final Integer parallelism;
 
         private TestValuesScanTableSourceWithoutProjectionPushDown(
                 DataType producedDataType,
@@ -933,7 +939,8 @@ public final class TestValuesTableFactory
                 long limit,
                 List<Map<String, String>> allPartitions,
                 Map<String, DataType> readableMetadata,
-                @Nullable int[] projectedMetadataFields) {
+                @Nullable int[] projectedMetadataFields,
+                @Nullable Integer parallelism) {
             this.producedDataType = producedDataType;
             this.changelogMode = changelogMode;
             this.boundedness = boundedness;
@@ -953,6 +960,7 @@ public final class TestValuesTableFactory
             this.projectedMetadataFields = projectedMetadataFields;
             this.groupingSet = null;
             this.aggregateExpressions = Collections.emptyList();
+            this.parallelism = parallelism;
         }
 
         @Override
@@ -986,7 +994,7 @@ public final class TestValuesTableFactory
                             sourceFunction = new FromElementsFunction<>(serializer, values);
                         }
                         return SourceFunctionProvider.of(
-                                sourceFunction, boundedness == Boundedness.BOUNDED);
+                                sourceFunction, boundedness == Boundedness.BOUNDED, parallelism);
                     } catch (IOException e) {
                         throw new TableException("Fail to init source function", e);
                     }
@@ -998,7 +1006,8 @@ public final class TestValuesTableFactory
                             terminating == TerminatingLogic.FINITE,
                             "Values Source doesn't support infinite InputFormat.");
                     Collection<RowData> values = convertToRowData(converter);
-                    return InputFormatProvider.of(new CollectionInputFormat<>(values, serializer));
+                    return InputFormatProvider.of(
+                            new CollectionInputFormat<>(values, serializer), parallelism);
                 case "DataStream":
                     checkArgument(
                             !failingSource,
@@ -1024,6 +1033,11 @@ public final class TestValuesTableFactory
                             }
 
                             @Override
+                            public Optional<Integer> getParallelism() {
+                                return Optional.ofNullable(parallelism);
+                            }
+
+                            @Override
                             public boolean isBounded() {
                                 return boundedness == Boundedness.BOUNDED;
                             }
@@ -1038,7 +1052,8 @@ public final class TestValuesTableFactory
                             || acceptedPartitionFilterFields.isEmpty()) {
                         Collection<RowData> values2 = convertToRowData(converter);
                         return SourceProvider.of(
-                                new ValuesSource(terminating, boundedness, values2, serializer));
+                                new ValuesSource(terminating, boundedness, values2, serializer),
+                                parallelism);
                     } else {
                         Map<Map<String, String>, Collection<RowData>> partitionValues =
                                 convertToPartitionedRowData(converter);
@@ -1049,7 +1064,7 @@ public final class TestValuesTableFactory
                                         partitionValues,
                                         serializer,
                                         acceptedPartitionFilterFields);
-                        return SourceProvider.of(source);
+                        return SourceProvider.of(source, parallelism);
                     }
                 default:
                     throw new IllegalArgumentException(
@@ -1113,7 +1128,8 @@ public final class TestValuesTableFactory
                     limit,
                     allPartitions,
                     readableMetadata,
-                    projectedMetadataFields);
+                    projectedMetadataFields,
+                    parallelism);
         }
 
         @Override
@@ -1476,7 +1492,8 @@ public final class TestValuesTableFactory
                     limit,
                     allPartitions,
                     readableMetadata,
-                    projectedMetadataFields);
+                    projectedMetadataFields,
+                    null);
         }
 
         @Override
