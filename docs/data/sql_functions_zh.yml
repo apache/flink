@@ -1186,6 +1186,7 @@ aggregate:
     description: |
       默认情况下或使用关键字ALL，返回输入行中表达式所组成的数组，并且如果没有输入行，则返回 `NULL`。使用 `DISTINCT` 则对所有值去重后计算。
       默认情况下`NULL` 值不会被忽略，使用 `IGNORE NULLS` 忽略 `NULL` 值。
+      目前尚不支持 `ORDER BY` 子句。
   - sql: JSON_OBJECTAGG([KEY] key VALUE value [ { NULL | ABSENT } ON NULL ])
     table: jsonObjectAgg(JsonOnNull, keyExpression, valueExpression)
     description: |

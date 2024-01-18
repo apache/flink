@@ -1065,6 +1065,7 @@ aggregate:
       By default or with keyword `ALL` and, return an array that concatenates the input rows
       and returns `NULL` if there are no input rows. Use `DISTINCT` for one unique instance of each value.
       By default null values are respected, use `IGNORE NULLS` to skip null values.
+      The `ORDER BY` clause is currently not supported.
   - sql: JSON_OBJECTAGG([KEY] key VALUE value [ { NULL | ABSENT } ON NULL ])
     table: jsonObjectAgg(JsonOnNull, keyExpression, valueExpression)
     description: |
