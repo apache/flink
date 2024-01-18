@@ -20,7 +20,9 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 
 import javax.annotation.Nullable;
@@ -36,6 +38,8 @@ interface SlotTracker {
      * @param slotStatusUpdateListener listener to register
      */
     void registerSlotStatusUpdateListener(SlotStatusUpdateListener slotStatusUpdateListener);
+
+    LoadingWeight getLoadingWeightOf(InstanceID instanceID);
 
     /**
      * Adds the given slot to this tracker. The given slot may already be allocated for a job. This

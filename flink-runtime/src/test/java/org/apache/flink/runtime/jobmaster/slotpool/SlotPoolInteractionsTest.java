@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
@@ -63,6 +64,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
                                     pool.requestNewAllocatedSlot(
                                             new SlotRequestId(),
                                             ResourceProfile.UNKNOWN,
+                                            LoadingWeight.EMPTY,
                                             fastTimeout));
 
             try {
@@ -85,6 +87,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
                                     pool.requestNewAllocatedSlot(
                                             new SlotRequestId(),
                                             ResourceProfile.UNKNOWN,
+                                            LoadingWeight.EMPTY,
                                             fastTimeout));
 
             try {
@@ -110,6 +113,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
                                     pool.requestNewAllocatedSlot(
                                             new SlotRequestId(),
                                             ResourceProfile.UNKNOWN,
+                                            LoadingWeight.EMPTY,
                                             fastTimeout));
 
             try {

@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.util.Preconditions;
 
@@ -63,6 +64,15 @@ public class DefaultSlotTracker implements SlotTracker {
     public void registerSlotStatusUpdateListener(
             SlotStatusUpdateListener slotStatusUpdateListener) {
         this.slotStatusUpdateListeners.registerSlotStatusUpdateListener(slotStatusUpdateListener);
+    }
+
+    @Override
+    public LoadingWeight getLoadingWeightOf(InstanceID instanceID) {
+        return slots.values().stream()
+                .filter(slot -> slot.getInstanceId().equals(instanceID))
+                .map(DeclarativeTaskManagerSlot::getLoading)
+                .reduce(LoadingWeight::merge)
+                .orElse(LoadingWeight.EMPTY);
     }
 
     @Override

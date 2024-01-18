@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableMap;
 
@@ -49,13 +50,20 @@ class ResourceCounterTest {
 
     @Test
     public void testWithResourceRejectsNegativeCount() {
-        assertThatThrownBy(() -> ResourceCounter.withResource(ResourceProfile.UNKNOWN, -1))
+        assertThatThrownBy(
+                        () ->
+                                ResourceCounter.withResource(
+                                        ResourceProfile.UNKNOWN,
+                                        -1,
+                                        LoadingWeight.supplyEmptyLoadWeights(1)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testWithResourceCreatesEmptyCounterIfCountIsZero() {
-        final ResourceCounter empty = ResourceCounter.withResource(ResourceProfile.UNKNOWN, 0);
+        final ResourceCounter empty =
+                ResourceCounter.withResource(
+                        ResourceProfile.UNKNOWN, 0, LoadingWeight.supplyEmptyLoadWeights(0));
 
         assertThat(empty.isEmpty()).isTrue();
     }
@@ -63,7 +71,8 @@ class ResourceCounterTest {
     @Test
     void testIsNonEmpty() {
         final ResourceCounter resourceCounter =
-                ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1);
+                ResourceCounter.withResource(
+                        ResourceProfile.UNKNOWN, 1, LoadingWeight.supplyEmptyLoadWeights(1));
 
         assertThat(resourceCounter.isEmpty()).isFalse();
         assertThat(resourceCounter.containsResource(ResourceProfile.UNKNOWN)).isTrue();
@@ -121,9 +130,15 @@ class ResourceCounterTest {
         final int value2 = 42;
 
         final ResourceCounter resourceCounter1 =
-                ResourceCounter.withResource(ResourceProfile.UNKNOWN, value1);
+                ResourceCounter.withResource(
+                        ResourceProfile.UNKNOWN,
+                        value1,
+                        LoadingWeight.supplyEmptyLoadWeights(value1));
         final ResourceCounter resourceCounter2 =
-                ResourceCounter.withResource(ResourceProfile.UNKNOWN, value2);
+                ResourceCounter.withResource(
+                        ResourceProfile.UNKNOWN,
+                        value2,
+                        LoadingWeight.supplyEmptyLoadWeights(value2));
 
         final ResourceCounter result = resourceCounter1.add(resourceCounter2);
 
@@ -142,8 +157,12 @@ class ResourceCounterTest {
 
     @Test
     void testAddDifferentResourceProfile() {
-        final ResourceCounter resourceCounter1 = ResourceCounter.withResource(resourceProfile1, 1);
-        final ResourceCounter resourceCounter2 = ResourceCounter.withResource(resourceProfile2, 1);
+        final ResourceCounter resourceCounter1 =
+                ResourceCounter.withResource(
+                        resourceProfile1, 1, LoadingWeight.supplyEmptyLoadWeights(1));
+        final ResourceCounter resourceCounter2 =
+                ResourceCounter.withResource(
+                        resourceProfile2, 1, LoadingWeight.supplyEmptyLoadWeights(1));
 
         final ResourceCounter result = resourceCounter1.add(resourceCounter2);
 
@@ -157,18 +176,26 @@ class ResourceCounterTest {
 
     @Test
     void testCountEqualToZeroRemovesResource() {
-        final ResourceCounter resourceCounter = ResourceCounter.withResource(resourceProfile1, 2);
+        final ResourceCounter resourceCounter =
+                ResourceCounter.withResource(
+                        resourceProfile1, 2, LoadingWeight.supplyEmptyLoadWeights(2));
 
-        final ResourceCounter result = resourceCounter.subtract(resourceProfile1, 2);
+        final ResourceCounter result =
+                resourceCounter.subtract(
+                        resourceProfile1, 2, LoadingWeight.supplyEmptyLoadWeights(2));
 
         assertThat(result.isEmpty()).isTrue();
     }
 
     @Test
     void testCountBelowZeroRemovesResources() {
-        final ResourceCounter resourceCounter = ResourceCounter.withResource(resourceProfile1, 1);
+        final ResourceCounter resourceCounter =
+                ResourceCounter.withResource(
+                        resourceProfile1, 1, LoadingWeight.supplyEmptyLoadWeights(1));
 
-        final ResourceCounter result = resourceCounter.subtract(resourceProfile1, 2);
+        final ResourceCounter result =
+                resourceCounter.subtract(
+                        resourceProfile1, 2, LoadingWeight.supplyEmptyLoadWeights(2));
 
         assertThat(result.isEmpty()).isTrue();
     }
@@ -179,9 +206,15 @@ class ResourceCounterTest {
         final int value2 = 3;
 
         final ResourceCounter resourceCounter1 =
-                ResourceCounter.withResource(ResourceProfile.UNKNOWN, value1);
+                ResourceCounter.withResource(
+                        ResourceProfile.UNKNOWN,
+                        value1,
+                        LoadingWeight.supplyEmptyLoadWeights(value1));
         final ResourceCounter resourceCounter2 =
-                ResourceCounter.withResource(ResourceProfile.UNKNOWN, value2);
+                ResourceCounter.withResource(
+                        ResourceProfile.UNKNOWN,
+                        value2,
+                        LoadingWeight.supplyEmptyLoadWeights(value2));
 
         final ResourceCounter result = resourceCounter1.subtract(resourceCounter2);
 
@@ -200,8 +233,12 @@ class ResourceCounterTest {
 
     @Test
     void testSubtractDifferentResourceProfile() {
-        final ResourceCounter resourceCounter1 = ResourceCounter.withResource(resourceProfile1, 1);
-        final ResourceCounter resourceCounter2 = ResourceCounter.withResource(resourceProfile2, 1);
+        final ResourceCounter resourceCounter1 =
+                ResourceCounter.withResource(
+                        resourceProfile1, 1, LoadingWeight.supplyEmptyLoadWeights(1));
+        final ResourceCounter resourceCounter2 =
+                ResourceCounter.withResource(
+                        resourceProfile2, 1, LoadingWeight.supplyEmptyLoadWeights(1));
 
         final ResourceCounter result = resourceCounter1.subtract(resourceCounter2);
 

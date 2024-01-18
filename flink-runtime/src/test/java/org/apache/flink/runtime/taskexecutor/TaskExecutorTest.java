@@ -81,6 +81,7 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
@@ -636,7 +637,12 @@ class TaskExecutorTest {
         final SlotReport slotReport1 = new SlotReport(new SlotStatus(slotId, resourceProfile));
         final SlotReport slotReport2 =
                 new SlotReport(
-                        new SlotStatus(slotId, resourceProfile, new JobID(), new AllocationID()));
+                        new SlotStatus(
+                                slotId,
+                                resourceProfile,
+                                new JobID(),
+                                new AllocationID(),
+                                LoadingWeight.EMPTY));
 
         final Queue<SlotReport> reports = new ArrayDeque<>(Arrays.asList(slotReport1, slotReport2));
         final TaskSlotTable<Task> taskSlotTable =
@@ -2516,7 +2522,8 @@ class TaskExecutorTest {
                                     new SlotID(resourceId, 2),
                                     resourceProfile,
                                     jobId,
-                                    allocationId));
+                                    allocationId,
+                                    LoadingWeight.EMPTY));
         }
     }
 

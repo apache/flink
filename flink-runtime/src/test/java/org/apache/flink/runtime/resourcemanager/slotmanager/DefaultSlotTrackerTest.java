@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 
@@ -238,9 +239,24 @@ class DefaultSlotTrackerTest {
 
         final List<SlotStatus> slotReport =
                 Arrays.asList(
-                        new SlotStatus(slotId1, ResourceProfile.ANY, jobId, new AllocationID()),
-                        new SlotStatus(slotId2, ResourceProfile.ANY, null, new AllocationID()),
-                        new SlotStatus(slotId3, ResourceProfile.ANY, null, new AllocationID()));
+                        new SlotStatus(
+                                slotId1,
+                                ResourceProfile.ANY,
+                                jobId,
+                                new AllocationID(),
+                                LoadingWeight.EMPTY),
+                        new SlotStatus(
+                                slotId2,
+                                ResourceProfile.ANY,
+                                null,
+                                new AllocationID(),
+                                LoadingWeight.EMPTY),
+                        new SlotStatus(
+                                slotId3,
+                                ResourceProfile.ANY,
+                                null,
+                                new AllocationID(),
+                                LoadingWeight.EMPTY));
 
         assertThat(tracker.notifySlotStatus(slotReport)).isTrue();
 
@@ -254,9 +270,24 @@ class DefaultSlotTrackerTest {
 
         final List<SlotStatus> idempotentSlotReport =
                 Arrays.asList(
-                        new SlotStatus(slotId1, ResourceProfile.ANY, jobId, new AllocationID()),
-                        new SlotStatus(slotId2, ResourceProfile.ANY, jobId, new AllocationID()),
-                        new SlotStatus(slotId3, ResourceProfile.ANY, null, new AllocationID()));
+                        new SlotStatus(
+                                slotId1,
+                                ResourceProfile.ANY,
+                                jobId,
+                                new AllocationID(),
+                                LoadingWeight.EMPTY),
+                        new SlotStatus(
+                                slotId2,
+                                ResourceProfile.ANY,
+                                jobId,
+                                new AllocationID(),
+                                LoadingWeight.EMPTY),
+                        new SlotStatus(
+                                slotId3,
+                                ResourceProfile.ANY,
+                                null,
+                                new AllocationID(),
+                                LoadingWeight.EMPTY));
 
         assertThat(tracker.notifySlotStatus(idempotentSlotReport)).isFalse();
     }

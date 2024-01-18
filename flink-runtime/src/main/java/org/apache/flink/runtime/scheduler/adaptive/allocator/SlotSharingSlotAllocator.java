@@ -265,7 +265,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     private SharedSlot reserveSharedSlot(SlotInfo slotInfo) {
         final PhysicalSlot physicalSlot =
                 reserveSlotFunction.reserveSlot(
-                        slotInfo.getAllocationId(), ResourceProfile.UNKNOWN);
+                        slotInfo.getAllocationId(), ResourceProfile.UNKNOWN, slotInfo.getLoading());
 
         return new SharedSlot(
                 new SlotRequestId(),

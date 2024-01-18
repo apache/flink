@@ -24,9 +24,11 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.slots.DefaultRequirementMatcher;
 import org.apache.flink.runtime.slots.RequirementMatcher;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -50,6 +52,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -103,12 +107,20 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
     private final RequirementMatcher requirementMatcher = new DefaultRequirementMatcher();
 
+    @Nonnull private final ComponentMainThreadExecutor componentMainThreadExecutor;
+
+    // For slots(resources) requests by batch.
+    @Nullable private final Time slotRequestMaxInterval;
+    @Nullable private ScheduledFuture<?> slotRequestMaxIntervalTimeoutFuture;
+
     public DefaultDeclarativeSlotPool(
             JobID jobId,
             AllocatedSlotPool slotPool,
             Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements,
             Time idleSlotTimeout,
-            Time rpcTimeout) {
+            Time rpcTimeout,
+            @Nullable Time slotRequestMaxInterval,
+            @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
 
         this.jobId = jobId;
         this.slotPool = slotPool;
@@ -118,6 +130,8 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         this.totalResourceRequirements = ResourceCounter.empty();
         this.fulfilledResourceRequirements = ResourceCounter.empty();
         this.slotToRequirementProfileMappings = new HashMap<>();
+        this.componentMainThreadExecutor = Preconditions.checkNotNull(componentMainThreadExecutor);
+        this.slotRequestMaxInterval = slotRequestMaxInterval;
     }
 
     @Override
@@ -127,7 +141,25 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         }
         totalResourceRequirements = totalResourceRequirements.add(increment);
 
-        declareResourceRequirements();
+        doDeclareResourceRequirements();
+    }
+
+    private void doDeclareResourceRequirements() {
+        if (slotRequestMaxInterval == null) {
+            declareResourceRequirements();
+            return;
+        }
+
+        if (slotRequestMaxIntervalTimeoutFuture != null
+                && !slotRequestMaxIntervalTimeoutFuture.isDone()
+                && !slotRequestMaxIntervalTimeoutFuture.isCancelled()) {
+            slotRequestMaxIntervalTimeoutFuture.cancel(true);
+        }
+        slotRequestMaxIntervalTimeoutFuture =
+                componentMainThreadExecutor.schedule(
+                        this::declareResourceRequirements,
+                        slotRequestMaxInterval.toMilliseconds(),
+                        TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -137,7 +169,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         }
         totalResourceRequirements = totalResourceRequirements.subtract(decrement);
 
-        declareResourceRequirements();
+        doDeclareResourceRequirements();
     }
 
     @Override
@@ -168,7 +200,10 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
                 totalResourceRequirements.getResourcesWithCount()) {
             currentResourceRequirements.add(
                     ResourceRequirement.create(
-                            resourceRequirement.getKey(), resourceRequirement.getValue()));
+                            resourceRequirement.getKey(),
+                            resourceRequirement.getValue(),
+                            totalResourceRequirements.getLoadingWeights(
+                                    resourceRequirement.getKey())));
         }
 
         return currentResourceRequirements;
@@ -337,8 +372,10 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
     @Override
     public PhysicalSlot reserveFreeSlot(
-            AllocationID allocationId, ResourceProfile requiredSlotProfile) {
-        final AllocatedSlot allocatedSlot = slotPool.reserveFreeSlot(allocationId);
+            AllocationID allocationId,
+            ResourceProfile requiredSlotProfile,
+            LoadingWeight loadingWeight) {
+        final AllocatedSlot allocatedSlot = slotPool.reserveFreeSlot(allocationId, loadingWeight);
 
         Preconditions.checkState(
                 allocatedSlot.getResourceProfile().isMatching(requiredSlotProfile),
@@ -353,7 +390,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         if (!previouslyMatchedResourceProfile.equals(requiredSlotProfile)) {
             // slots can be reserved for a requirement that is not in line with the mapping we
             // computed when the slot was offered, so we have to update the mapping
-            updateSlotToRequirementProfileMapping(allocationId, requiredSlotProfile);
+            updateSlotToRequirementProfileMapping(allocationId, requiredSlotProfile, loadingWeight);
             if (previouslyMatchedResourceProfile == ResourceProfile.ANY) {
                 log.debug(
                         "Re-matched slot offer {} to requirement {}.",
@@ -370,7 +407,8 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
                         allocationId,
                         previouslyMatchedResourceProfile,
                         requiredSlotProfile);
-                adjustRequirements(previouslyMatchedResourceProfile, requiredSlotProfile);
+                adjustRequirements(
+                        previouslyMatchedResourceProfile, requiredSlotProfile, loadingWeight);
             }
         }
 
@@ -393,33 +431,43 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
                     releasePayload(Collections.singleton(allocatedSlot), cause);
                     newSlotsListener.notifyNewSlotsAreAvailable(
                             Collections.singletonList(allocatedSlot));
+                    // clear loading weight.
+                    allocatedSlot.setLoading(LoadingWeight.EMPTY);
                 });
 
         return previouslyFulfilledRequirement.orElseGet(ResourceCounter::empty);
     }
 
     private void updateSlotToRequirementProfileMapping(
-            AllocationID allocationId, ResourceProfile matchedResourceProfile) {
+            AllocationID allocationId,
+            ResourceProfile matchedResourceProfile,
+            LoadingWeight loadingWeight) {
         final ResourceProfile oldResourceProfile =
                 Preconditions.checkNotNull(
                         slotToRequirementProfileMappings.put(allocationId, matchedResourceProfile),
                         "Expected slot profile matching to be non-empty.");
 
         fulfilledResourceRequirements =
-                fulfilledResourceRequirements.add(matchedResourceProfile, 1);
+                fulfilledResourceRequirements.add(
+                        matchedResourceProfile, 1, Collections.singletonList(loadingWeight));
         fulfilledResourceRequirements =
-                fulfilledResourceRequirements.subtract(oldResourceProfile, 1);
+                fulfilledResourceRequirements.subtract(
+                        oldResourceProfile, 1, Collections.singletonList(loadingWeight));
     }
 
     private void adjustRequirements(
-            ResourceProfile oldResourceProfile, ResourceProfile newResourceProfile) {
+            ResourceProfile oldResourceProfile,
+            ResourceProfile newResourceProfile,
+            LoadingWeight loadingWeight) {
         // slots can be reserved for a requirement that is not in line with the mapping we computed
         // when the slot was
         // offered, so we have to adjust the requirements accordingly to ensure we still request
         // enough slots to
         // be able to fulfill the total requirements
-        decreaseResourceRequirementsBy(ResourceCounter.withResource(newResourceProfile, 1));
-        increaseResourceRequirementsBy(ResourceCounter.withResource(oldResourceProfile, 1));
+        decreaseResourceRequirementsBy(
+                ResourceCounter.withSingleResource(newResourceProfile, loadingWeight));
+        increaseResourceRequirementsBy(
+                ResourceCounter.withSingleResource(oldResourceProfile, loadingWeight));
     }
 
     @Override
@@ -454,10 +502,13 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
             final AllocatedSlot slot = removedSlot.get();
 
             final Collection<AllocatedSlot> slotAsCollection = Collections.singleton(slot);
-            return freeAndReleaseSlots(
-                    wasSlotFree ? Collections.emptySet() : slotAsCollection,
-                    slotAsCollection,
-                    cause);
+            ResourceCounter result =
+                    freeAndReleaseSlots(
+                            wasSlotFree ? Collections.emptySet() : slotAsCollection,
+                            slotAsCollection,
+                            cause);
+            removedSlot.get().setLoading(LoadingWeight.EMPTY);
+            return result;
         } else {
             return ResourceCounter.empty();
         }
@@ -473,7 +524,9 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
         releasePayload(currentlyReservedSlots, cause);
         releaseSlots(slots, cause);
-
+        currentlyReservedSlots.forEach(
+                weightLoadable -> weightLoadable.setLoading(LoadingWeight.EMPTY));
+        slots.forEach(weightLoadable -> weightLoadable.setLoading(LoadingWeight.EMPTY));
         return previouslyFulfilledRequirements;
     }
 
@@ -504,7 +557,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
                         getMatchingResourceProfile(idleSlot.getAllocationId());
 
                 if (excessResources.containsResource(matchingProfile)) {
-                    excessResources = excessResources.subtract(matchingProfile, 1);
+                    excessResources = excessResources.subtractWithEmptyLoadings(matchingProfile, 1);
                     final Optional<AllocatedSlot> removedSlot =
                             slotPool.removeSlot(idleSlot.getAllocationId());
 
@@ -540,7 +593,10 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
             final ResourceProfile matchingResourceProfile =
                     getMatchingResourceProfile(slotToReturn.getAllocationId());
             fulfilledResourceRequirements =
-                    fulfilledResourceRequirements.subtract(matchingResourceProfile, 1);
+                    fulfilledResourceRequirements.subtract(
+                            matchingResourceProfile,
+                            1,
+                            Collections.singletonList(slotToReturn.getLoading()));
             slotToRequirementProfileMappings.remove(slotToReturn.getAllocationId());
 
             final CompletableFuture<Acknowledge> freeSlotFuture =
@@ -573,6 +629,11 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     @Override
+    public Map<ResourceID, LoadingWeight> getTaskExecutorsLoadingWeight() {
+        return slotPool.getTaskExecutorsLoadingWeight();
+    }
+
+    @Override
     public boolean containsFreeSlot(AllocationID allocationId) {
         return slotPool.containsFreeSlot(allocationId);
     }
@@ -589,7 +650,11 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         for (AllocatedSlot allocatedSlot : allocatedSlots) {
             final ResourceProfile matchingResourceProfile =
                     getMatchingResourceProfile(allocatedSlot.getAllocationId());
-            resourceDecrement = resourceDecrement.add(matchingResourceProfile, 1);
+            resourceDecrement =
+                    resourceDecrement.add(
+                            matchingResourceProfile,
+                            1,
+                            Collections.singletonList(allocatedSlot.getLoading()));
         }
 
         return resourceDecrement;

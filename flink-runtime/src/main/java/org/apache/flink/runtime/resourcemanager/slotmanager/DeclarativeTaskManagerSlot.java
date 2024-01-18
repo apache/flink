@@ -23,8 +23,10 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -49,6 +51,8 @@ class DeclarativeTaskManagerSlot implements TaskManagerSlotInformation {
     private SlotState state = SlotState.FREE;
 
     private long allocationStartTimeStamp;
+
+    private LoadingWeight loadingWeight;
 
     public DeclarativeTaskManagerSlot(
             SlotID slotId,
@@ -142,5 +146,15 @@ class DeclarativeTaskManagerSlot implements TaskManagerSlotInformation {
                 + ", allocationStartTimeStamp="
                 + allocationStartTimeStamp
                 + '}';
+    }
+
+    @Override
+    public LoadingWeight getLoading() {
+        return loadingWeight;
+    }
+
+    @Override
+    public void setLoading(@Nonnull LoadingWeight loadingWeight) {
+        this.loadingWeight = Preconditions.checkNotNull(loadingWeight);
     }
 }

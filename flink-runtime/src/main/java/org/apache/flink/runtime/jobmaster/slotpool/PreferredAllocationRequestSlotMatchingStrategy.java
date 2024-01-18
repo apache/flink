@@ -19,7 +19,11 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,12 +39,25 @@ import java.util.stream.Collectors;
  * strategy will try to fulfill the preferred allocations and if this is not possible, then it will
  * fall back to {@link SimpleRequestSlotMatchingStrategy}.
  */
-public enum PreferredAllocationRequestSlotMatchingStrategy implements RequestSlotMatchingStrategy {
-    INSTANCE;
+public class PreferredAllocationRequestSlotMatchingStrategy implements RequestSlotMatchingStrategy {
+
+    private RequestSlotMatchingStrategy rollback;
+
+    private PreferredAllocationRequestSlotMatchingStrategy(
+            @Nullable RequestSlotMatchingStrategy rollback) {
+        this.rollback = rollback;
+    }
+
+    public static RequestSlotMatchingStrategy create(
+            @Nullable RequestSlotMatchingStrategy rollback) {
+        return new PreferredAllocationRequestSlotMatchingStrategy(rollback);
+    }
 
     @Override
     public Collection<RequestSlotMatch> matchRequestsAndSlots(
-            Collection<? extends PhysicalSlot> slots, Collection<PendingRequest> pendingRequests) {
+            Collection<? extends PhysicalSlot> slots,
+            Collection<PendingRequest> pendingRequests,
+            Map<ResourceID, LoadingWeight> taskExecutorsLoadingWeight) {
         final Collection<RequestSlotMatch> requestSlotMatches = new ArrayList<>();
 
         final Map<AllocationID, PhysicalSlot> freeSlots =
@@ -79,6 +96,12 @@ public enum PreferredAllocationRequestSlotMatchingStrategy implements RequestSlo
                                 .getPreferredAllocations()
                                 .contains(freeSlot.getAllocationId())) {
                     requestSlotMatches.add(RequestSlotMatch.createFor(pendingRequest, freeSlot));
+                    taskExecutorsLoadingWeight.compute(
+                            freeSlot.getTaskManagerLocation().getResourceID(),
+                            (resourceID, loadingWeight) ->
+                                    loadingWeight == null
+                                            ? pendingRequest.getLoading()
+                                            : loadingWeight.merge(pendingRequest.getLoading()));
                     pendingRequestIterator.remove();
                     freeSlotsIterator.remove();
                     break;
@@ -87,10 +110,10 @@ public enum PreferredAllocationRequestSlotMatchingStrategy implements RequestSlo
         }
 
         unmatchedRequests.addAll(pendingRequestsWithPreferredAllocations.values());
-        if (!freeSlots.isEmpty() && !unmatchedRequests.isEmpty()) {
+        if (rollback != null && !freeSlots.isEmpty() && !unmatchedRequests.isEmpty()) {
             requestSlotMatches.addAll(
-                    SimpleRequestSlotMatchingStrategy.INSTANCE.matchRequestsAndSlots(
-                            freeSlots.values(), unmatchedRequests));
+                    rollback.matchRequestsAndSlots(
+                            freeSlots.values(), unmatchedRequests, taskExecutorsLoadingWeight));
         }
 
         return requestSlotMatches;

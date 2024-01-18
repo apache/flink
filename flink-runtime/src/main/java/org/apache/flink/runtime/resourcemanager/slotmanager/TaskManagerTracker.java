@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.util.ResourceCounter;
 
 import java.util.Collection;
@@ -106,7 +107,8 @@ interface TaskManagerTracker
             JobID jobId,
             InstanceID instanceId,
             ResourceProfile resourceProfile,
-            SlotState slotState);
+            SlotState slotState,
+            LoadingWeight loadingWeight);
 
     /**
      * Clear all previous pending slot allocation records if any, and record new pending slot

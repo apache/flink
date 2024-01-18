@@ -65,8 +65,10 @@ class LeastUtilizationSlotMatchingStrategyTest {
         final Optional<TestingTaskManagerSlotInformation> matchingSlot =
                 LeastUtilizationSlotMatchingStrategy.INSTANCE.findMatchingSlot(
                         requestedResourceProfile,
+                        null,
                         freeSlots,
-                        createRegisteredSlotsLookupFunction(registeredSlotPerTaskExecutor));
+                        createRegisteredSlotsLookupFunction(registeredSlotPerTaskExecutor),
+                        null);
 
         assertThat(matchingSlot)
                 .hasValueSatisfying(

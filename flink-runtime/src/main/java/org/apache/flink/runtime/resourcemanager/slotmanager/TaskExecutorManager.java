@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
@@ -50,8 +51,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 /**
  * SlotManager component for various task executor related responsibilities of the slot manager,
@@ -182,9 +181,7 @@ class TaskExecutorManager implements AutoCloseable {
         TaskManagerRegistration taskManagerRegistration =
                 new TaskManagerRegistration(
                         taskExecutorConnection,
-                        StreamSupport.stream(initialSlotReport.spliterator(), false)
-                                .map(SlotStatus::getSlotID)
-                                .collect(Collectors.toList()),
+                        initialSlotReport,
                         totalResourceProfile,
                         defaultSlotResourceProfile);
 
@@ -300,7 +297,10 @@ class TaskExecutorManager implements AutoCloseable {
         declareNeededResourcesWithDelay();
 
         return Optional.of(
-                ResourceRequirement.create(defaultSlotResourceProfile, numSlotsPerWorker));
+                ResourceRequirement.create(
+                        defaultSlotResourceProfile,
+                        numSlotsPerWorker,
+                        LoadingWeight.supplyEmptyLoadWeights(numSlotsPerWorker)));
     }
 
     private boolean isMaxSlotNumExceededAfterAdding(int numNewSlot) {
@@ -576,12 +576,12 @@ class TaskExecutorManager implements AutoCloseable {
     // TaskExecutor slot book-keeping
     // ---------------------------------------------------------------------------------------------
 
-    public void occupySlot(InstanceID instanceId) {
-        taskManagerRegistrations.get(instanceId).occupySlot();
+    public void occupySlot(TaskManagerSlotInformation taskManagerSlot) {
+        taskManagerRegistrations.get(taskManagerSlot.getInstanceId()).occupySlot(taskManagerSlot);
     }
 
-    public void freeSlot(InstanceID instanceId) {
-        taskManagerRegistrations.get(instanceId).freeSlot();
+    public void freeSlot(TaskManagerSlotInformation taskManagerSlot) {
+        taskManagerRegistrations.get(taskManagerSlot.getInstanceId()).freeSlot(taskManagerSlot);
     }
 
     public void markUsed(InstanceID instanceID) {

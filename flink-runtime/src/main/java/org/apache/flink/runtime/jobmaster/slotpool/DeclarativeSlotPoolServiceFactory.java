@@ -20,9 +20,11 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.util.clock.Clock;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /** Factory for the {@link DeclarativeSlotPoolService}. */
 public class DeclarativeSlotPoolServiceFactory implements SlotPoolServiceFactory {
@@ -40,8 +42,18 @@ public class DeclarativeSlotPoolServiceFactory implements SlotPoolServiceFactory
     @Nonnull
     @Override
     public SlotPoolService createSlotPoolService(
-            @Nonnull JobID jobId, DeclarativeSlotPoolFactory declarativeSlotPoolFactory) {
+            @Nonnull JobID jobId,
+            DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
+            @Nullable Time slotRequestMaxInterval,
+            @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor,
+            boolean slotBatchAllocatable) {
         return new DeclarativeSlotPoolService(
-                jobId, declarativeSlotPoolFactory, clock, idleSlotTimeout, rpcTimeout);
+                jobId,
+                declarativeSlotPoolFactory,
+                clock,
+                idleSlotTimeout,
+                rpcTimeout,
+                slotRequestMaxInterval,
+                componentMainThreadExecutor);
     }
 }

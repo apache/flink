@@ -33,6 +33,8 @@ import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter.forMainThread;
+
 /** Builder for a {@link DeclarativeSlotPoolBridge}. */
 public class DeclarativeSlotPoolBridgeBuilder {
 
@@ -81,6 +83,10 @@ public class DeclarativeSlotPoolBridgeBuilder {
     }
 
     public DeclarativeSlotPoolBridge build() {
+        return build(false);
+    }
+
+    public DeclarativeSlotPoolBridge build(boolean slotBatchAllocatable) {
         return new DeclarativeSlotPoolBridge(
                 jobId,
                 new DefaultDeclarativeSlotPoolFactory(),
@@ -88,12 +94,21 @@ public class DeclarativeSlotPoolBridgeBuilder {
                 TestingUtils.infiniteTime(),
                 idleSlotTimeout,
                 batchSlotTimeout,
-                requestSlotMatchingStrategy);
+                requestSlotMatchingStrategy,
+                null,
+                forMainThread(),
+                slotBatchAllocatable);
     }
 
     public DeclarativeSlotPoolBridge buildAndStart(
             ComponentMainThreadExecutor componentMainThreadExecutor) throws Exception {
-        final DeclarativeSlotPoolBridge slotPool = build();
+        return buildAndStart(componentMainThreadExecutor, false);
+    }
+
+    public DeclarativeSlotPoolBridge buildAndStart(
+            ComponentMainThreadExecutor componentMainThreadExecutor, boolean slotBatchAllocatable)
+            throws Exception {
+        final DeclarativeSlotPoolBridge slotPool = build(slotBatchAllocatable);
 
         slotPool.start(JobMasterId.generate(), "foobar", componentMainThreadExecutor);
 

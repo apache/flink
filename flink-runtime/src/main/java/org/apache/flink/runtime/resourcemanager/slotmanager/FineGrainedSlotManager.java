@@ -35,6 +35,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.rest.messages.taskmanager.SlotInfo;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
@@ -717,13 +718,16 @@ public class FineGrainedSlotManager implements SlotManager {
                 final InstanceID instanceID = tmEntry.getKey();
                 for (Map.Entry<ResourceProfile, Integer> slotEntry :
                         tmEntry.getValue().getResourcesWithCount()) {
+                    List<LoadingWeight> loadingWeights =
+                            tmEntry.getValue().getLoadingWeights(slotEntry.getKey());
                     for (int i = 0; i < slotEntry.getValue(); ++i) {
                         allocationFutures.add(
                                 slotStatusSyncer.allocateSlot(
                                         instanceID,
                                         jobID,
                                         jobMasterTargetAddresses.get(jobID),
-                                        slotEntry.getKey()));
+                                        slotEntry.getKey(),
+                                        loadingWeights.get(i)));
                     }
                 }
             }
@@ -767,6 +771,11 @@ public class FineGrainedSlotManager implements SlotManager {
     @Override
     public int getNumberRegisteredSlotsOf(InstanceID instanceId) {
         return taskManagerTracker.getNumberRegisteredSlotsOf(instanceId);
+    }
+
+    @Override
+    public LoadingWeight getLoadingWeightOf(InstanceID instanceId) {
+        return taskManagerTracker.getLoadingWeights().get(instanceId);
     }
 
     @Override

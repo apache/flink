@@ -27,6 +27,7 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.rest.messages.taskmanager.SlotInfo;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 
@@ -62,6 +63,11 @@ public class TestingSlotManager implements SlotManager {
     @Override
     public int getNumberRegisteredSlotsOf(InstanceID instanceId) {
         return 0;
+    }
+
+    @Override
+    public LoadingWeight getLoadingWeightOf(InstanceID instanceId) {
+        return LoadingWeight.EMPTY;
     }
 
     @Override

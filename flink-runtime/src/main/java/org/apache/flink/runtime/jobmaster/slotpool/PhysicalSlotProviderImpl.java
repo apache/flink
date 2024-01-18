@@ -22,6 +22,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,12 +60,7 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
     public Map<SlotRequestId, CompletableFuture<PhysicalSlotRequest.Result>> allocatePhysicalSlots(
             Collection<PhysicalSlotRequest> physicalSlotRequests) {
 
-        for (PhysicalSlotRequest physicalSlotRequest : physicalSlotRequests) {
-            LOG.debug(
-                    "Received slot request [{}] with resource requirements: {}",
-                    physicalSlotRequest.getSlotRequestId(),
-                    physicalSlotRequest.getSlotProfile().getPhysicalSlotResourceProfile());
-        }
+        logRequestInfo(physicalSlotRequests);
 
         Map<SlotRequestId, PhysicalSlotRequest> physicalSlotRequestsById =
                 physicalSlotRequests.stream()
@@ -96,6 +92,8 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
                                                                     requestNewSlot(
                                                                             slotRequestId,
                                                                             resourceProfile,
+                                                                            physicalSlotRequest
+                                                                                    .getLoading(),
                                                                             slotProfile
                                                                                     .getPreferredAllocations(),
                                                                             physicalSlotRequest
@@ -106,6 +104,15 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
                                                     new PhysicalSlotRequest.Result(
                                                             slotRequestId, physicalSlot));
                                 }));
+    }
+
+    private void logRequestInfo(Collection<PhysicalSlotRequest> physicalSlotRequests) {
+        for (PhysicalSlotRequest physicalSlotRequest : physicalSlotRequests) {
+            LOG.debug(
+                    "Received slot request [{}] with resource requirements: {}",
+                    physicalSlotRequest.getSlotRequestId(),
+                    physicalSlotRequest.getSlotProfile().getPhysicalSlotResourceProfile());
+        }
     }
 
     private Map<SlotRequestId, Optional<PhysicalSlot>> tryAllocateFromAvailable(
@@ -126,7 +133,8 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
                                 return slotPool.allocateAvailableSlot(
                                         request.getSlotRequestId(),
                                         slotInfoAndLocality.getSlotInfo().getAllocationId(),
-                                        request.getSlotProfile().getPhysicalSlotResourceProfile());
+                                        request.getSlotProfile().getPhysicalSlotResourceProfile(),
+                                        request.getLoading());
                             }));
         }
         return allocateResult;
@@ -135,11 +143,12 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
     private CompletableFuture<PhysicalSlot> requestNewSlot(
             SlotRequestId slotRequestId,
             ResourceProfile resourceProfile,
+            LoadingWeight loadingWeight,
             Collection<AllocationID> preferredAllocations,
             boolean willSlotBeOccupiedIndefinitely) {
         if (willSlotBeOccupiedIndefinitely) {
             return slotPool.requestNewAllocatedSlot(
-                    slotRequestId, resourceProfile, preferredAllocations, null);
+                    slotRequestId, resourceProfile, loadingWeight, preferredAllocations, null);
         } else {
             return slotPool.requestNewAllocatedBatchSlot(
                     slotRequestId, resourceProfile, preferredAllocations);

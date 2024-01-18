@@ -21,6 +21,7 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.util.Preconditions;
 
@@ -64,14 +65,15 @@ public class DefaultResourceTracker implements ResourceTracker {
     }
 
     @Override
-    public void notifyAcquiredResource(JobID jobId, ResourceProfile resourceProfile) {
+    public void notifyAcquiredResource(
+            JobID jobId, ResourceProfile resourceProfile, LoadingWeight loadingWeight) {
         Preconditions.checkNotNull(jobId);
         Preconditions.checkNotNull(resourceProfile);
         LOG.trace(
                 "Received notification for job {} having acquired resource {}.",
                 jobId,
                 resourceProfile);
-        getOrCreateTracker(jobId).notifyAcquiredResource(resourceProfile);
+        getOrCreateTracker(jobId).notifyAcquiredResource(resourceProfile, loadingWeight);
     }
 
     private JobScopedResourceTracker getOrCreateTracker(JobID jobId) {
@@ -84,7 +86,8 @@ public class DefaultResourceTracker implements ResourceTracker {
     }
 
     @Override
-    public void notifyLostResource(JobID jobId, ResourceProfile resourceProfile) {
+    public void notifyLostResource(
+            JobID jobId, ResourceProfile resourceProfile, LoadingWeight loadingWeight) {
         Preconditions.checkNotNull(jobId);
         Preconditions.checkNotNull(resourceProfile);
         JobScopedResourceTracker tracker = trackers.get(jobId);
@@ -96,7 +99,7 @@ public class DefaultResourceTracker implements ResourceTracker {
                     "Received notification for job {} having lost resource {}.",
                     jobId,
                     resourceProfile);
-            tracker.notifyLostResource(resourceProfile);
+            tracker.notifyLostResource(resourceProfile, loadingWeight);
 
             checkWhetherTrackerCanBeRemoved(jobId, tracker);
         } else {

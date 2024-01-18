@@ -18,9 +18,12 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.util.ResourceCounter;
 
 import org.junit.jupiter.api.Test;
+
+import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -35,7 +38,8 @@ class BiDirectionalResourceToRequirementMappingTest {
         ResourceProfile requirement = ResourceProfile.UNKNOWN;
         ResourceProfile resource = ResourceProfile.ANY;
 
-        mapping.incrementCount(requirement, resource, 1);
+        mapping.incrementCount(
+                requirement, resource, 1, Collections.singletonList(LoadingWeight.EMPTY));
 
         assertThat(mapping.getRequirementsFulfilledBy(resource))
                 .isEqualTo(ResourceCounter.withResource(requirement, 1));
@@ -54,8 +58,10 @@ class BiDirectionalResourceToRequirementMappingTest {
         ResourceProfile requirement = ResourceProfile.UNKNOWN;
         ResourceProfile resource = ResourceProfile.ANY;
 
-        mapping.incrementCount(requirement, resource, 1);
-        mapping.decrementCount(requirement, resource, 1);
+        mapping.incrementCount(
+                requirement, resource, 1, Collections.singletonList(LoadingWeight.EMPTY));
+        mapping.decrementCount(
+                requirement, resource, 1, Collections.singletonList(LoadingWeight.EMPTY));
 
         assertThat(mapping.getRequirementsFulfilledBy(resource).isEmpty()).isTrue();
         assertThat(mapping.getResourcesFulfilling(requirement).isEmpty()).isTrue();

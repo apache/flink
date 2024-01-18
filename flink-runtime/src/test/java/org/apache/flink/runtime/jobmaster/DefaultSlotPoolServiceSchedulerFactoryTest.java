@@ -135,7 +135,7 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest {
         configuration.set(CheckpointingOptions.LOCAL_RECOVERY, isLocalRecoveryEnabled);
         assertThat(
                         DefaultSlotPoolServiceSchedulerFactory.getRequestSlotMatchingStrategy(
-                                configuration, jobType))
+                                configuration, jobType, JobManagerOptions.SchedulerType.Default))
                 .isSameAs(expected);
     }
 
@@ -147,7 +147,8 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest {
                 Arguments.of(
                         true,
                         JobType.STREAMING,
-                        PreferredAllocationRequestSlotMatchingStrategy.INSTANCE));
+                        PreferredAllocationRequestSlotMatchingStrategy.create(
+                                SimpleRequestSlotMatchingStrategy.INSTANCE)));
     }
 
     private String saveAdaptiveSchedulerTestPropertyValue() {

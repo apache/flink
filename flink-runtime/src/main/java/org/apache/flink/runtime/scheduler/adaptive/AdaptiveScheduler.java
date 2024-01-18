@@ -114,6 +114,7 @@ import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.EnforceParallel
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.RescalingController;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.scheduler.metrics.DeploymentStateTimeMetrics;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.util.BoundedFIFOQueue;
@@ -858,9 +859,15 @@ public class AdaptiveScheduler
             final ResourceProfile resourceProfile = slotInfo.getResourceProfile();
 
             if (outstandingResources.containsResource(resourceProfile)) {
-                outstandingResources = outstandingResources.subtract(resourceProfile, 1);
+                outstandingResources =
+                        outstandingResources.subtract(
+                                resourceProfile, 1, LoadingWeight.supplyEmptyLoadWeights(1));
             } else {
-                outstandingResources = outstandingResources.subtract(ResourceProfile.UNKNOWN, 1);
+                outstandingResources =
+                        outstandingResources.subtract(
+                                ResourceProfile.UNKNOWN,
+                                1,
+                                LoadingWeight.supplyEmptyLoadWeights(1));
             }
         }
 

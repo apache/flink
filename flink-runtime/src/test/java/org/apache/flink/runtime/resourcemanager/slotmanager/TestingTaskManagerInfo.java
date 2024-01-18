@@ -23,8 +23,11 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.util.Preconditions;
+
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Collections;
 import java.util.Map;
@@ -104,4 +107,7 @@ public class TestingTaskManagerInfo implements TaskManagerInfo {
     public boolean isIdle() {
         return idleSince != Long.MAX_VALUE;
     }
+
+    @Override
+    public void setLoading(@NotNull LoadingWeight loadingWeight) {}
 }

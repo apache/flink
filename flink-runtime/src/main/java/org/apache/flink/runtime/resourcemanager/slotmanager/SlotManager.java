@@ -27,6 +27,7 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.rest.messages.taskmanager.SlotInfo;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 
@@ -48,6 +49,8 @@ public interface SlotManager extends AutoCloseable {
     int getNumberRegisteredSlots();
 
     int getNumberRegisteredSlotsOf(InstanceID instanceId);
+
+    LoadingWeight getLoadingWeightOf(InstanceID instanceId);
 
     int getNumberFreeSlots();
 

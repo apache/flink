@@ -25,6 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.testutils.TestingUtils;
@@ -342,22 +343,26 @@ class TaskSlotTableImplTest {
                                     new SlotID(resourceId, 0),
                                     TaskSlotUtils.DEFAULT_RESOURCE_PROFILE,
                                     jobId,
-                                    allocationId1),
+                                    allocationId1,
+                                    LoadingWeight.EMPTY),
                             new SlotStatus(
                                     new SlotID(resourceId, 1),
                                     TaskSlotUtils.DEFAULT_RESOURCE_PROFILE,
                                     null,
-                                    null),
+                                    null,
+                                    LoadingWeight.EMPTY),
                             new SlotStatus(
                                     new SlotID(resourceId, 2),
                                     TaskSlotUtils.DEFAULT_RESOURCE_PROFILE,
                                     null,
-                                    null),
+                                    null,
+                                    LoadingWeight.EMPTY),
                             new SlotStatus(
                                     new SlotID(resourceId, 4),
                                     TaskSlotUtils.DEFAULT_RESOURCE_PROFILE,
                                     jobId,
-                                    allocationId3));
+                                    allocationId3,
+                                    LoadingWeight.EMPTY));
         }
     }
 

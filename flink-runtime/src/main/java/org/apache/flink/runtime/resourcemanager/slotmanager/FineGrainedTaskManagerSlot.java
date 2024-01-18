@@ -24,7 +24,10 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -50,6 +53,8 @@ public class FineGrainedTaskManagerSlot implements TaskManagerSlotInformation {
 
     /** Current state of this slot. Should be either PENDING or ALLOCATED. */
     private SlotState state;
+
+    private LoadingWeight loadingWeight;
 
     public FineGrainedTaskManagerSlot(
             AllocationID allocationId,
@@ -108,5 +113,15 @@ public class FineGrainedTaskManagerSlot implements TaskManagerSlotInformation {
                 "In order to complete an allocation, the slot has to be allocated.");
 
         state = SlotState.ALLOCATED;
+    }
+
+    @Override
+    public LoadingWeight getLoading() {
+        return loadingWeight;
+    }
+
+    @Override
+    public void setLoading(@Nonnull LoadingWeight loadingWeight) {
+        this.loadingWeight = Preconditions.checkNotNull(loadingWeight);
     }
 }

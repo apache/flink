@@ -18,11 +18,17 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.WeightLoadable;
+import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 /** Represents a request for a physical slot. */
-public class PhysicalSlotRequest {
+public class PhysicalSlotRequest implements WeightLoadable {
 
     private final SlotRequestId slotRequestId;
 
@@ -30,13 +36,26 @@ public class PhysicalSlotRequest {
 
     private final boolean slotWillBeOccupiedIndefinitely;
 
+    private LoadingWeight loadingWeight;
+
+    @VisibleForTesting
     public PhysicalSlotRequest(
             final SlotRequestId slotRequestId,
             final SlotProfile slotProfile,
             final boolean slotWillBeOccupiedIndefinitely) {
 
+        this(slotRequestId, slotProfile, LoadingWeight.EMPTY, slotWillBeOccupiedIndefinitely);
+    }
+
+    public PhysicalSlotRequest(
+            final SlotRequestId slotRequestId,
+            final SlotProfile slotProfile,
+            final LoadingWeight loadingWeight,
+            final boolean slotWillBeOccupiedIndefinitely) {
+
         this.slotRequestId = slotRequestId;
         this.slotProfile = slotProfile;
+        this.loadingWeight = Preconditions.checkNotNull(loadingWeight);
         this.slotWillBeOccupiedIndefinitely = slotWillBeOccupiedIndefinitely;
     }
 
@@ -50,6 +69,16 @@ public class PhysicalSlotRequest {
 
     public boolean willSlotBeOccupiedIndefinitely() {
         return slotWillBeOccupiedIndefinitely;
+    }
+
+    @Override
+    public LoadingWeight getLoading() {
+        return loadingWeight;
+    }
+
+    @Override
+    public void setLoading(@Nonnull LoadingWeight loadingWeight) {
+        this.loadingWeight = Preconditions.checkNotNull(loadingWeight);
     }
 
     /** Result of a {@link PhysicalSlotRequest}. */

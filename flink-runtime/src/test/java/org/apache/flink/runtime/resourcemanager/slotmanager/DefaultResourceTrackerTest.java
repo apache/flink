@@ -19,6 +19,7 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 
 import org.assertj.core.api.Condition;
@@ -46,7 +47,7 @@ class DefaultResourceTrackerTest {
         DefaultResourceTracker tracker = new DefaultResourceTracker();
 
         assertThat(tracker.isEmpty()).isTrue();
-        tracker.notifyLostResource(JobID.generate(), ResourceProfile.ANY);
+        tracker.notifyLostResource(JobID.generate(), ResourceProfile.ANY, LoadingWeight.EMPTY);
     }
 
     @Test
@@ -101,15 +102,20 @@ class DefaultResourceTrackerTest {
         ResourceRequirement requirement1 = ResourceRequirement.create(ResourceProfile.ANY, 1);
         ResourceRequirement requirement2 = ResourceRequirement.create(ResourceProfile.ANY, 2);
 
-        tracker.notifyAcquiredResource(JOB_ID_1, requirement1.getResourceProfile());
+        tracker.notifyAcquiredResource(
+                JOB_ID_1, requirement1.getResourceProfile(), LoadingWeight.EMPTY);
         for (int x = 0; x < requirement2.getNumberOfRequiredSlots(); x++) {
-            tracker.notifyAcquiredResource(JOB_ID_2, requirement2.getResourceProfile());
+            tracker.notifyAcquiredResource(
+                    JOB_ID_2, requirement2.getResourceProfile(), LoadingWeight.EMPTY);
         }
 
         assertThat(tracker.getAcquiredResources(JOB_ID_1)).contains(requirement1);
         assertThat(tracker.getAcquiredResources(JOB_ID_2)).contains(requirement2);
 
-        tracker.notifyLostResource(JOB_ID_1, requirement1.getResourceProfile());
+        tracker.notifyLostResource(
+                JOB_ID_1,
+                requirement1.getResourceProfile(),
+                requirement1.getLoadingWeights().get(0));
         assertThat(tracker.getAcquiredResources(JOB_ID_1)).isEmpty();
     }
 
@@ -130,10 +136,10 @@ class DefaultResourceTrackerTest {
     void testTrackerRemovedOnResourceLoss() {
         DefaultResourceTracker tracker = new DefaultResourceTracker();
 
-        tracker.notifyAcquiredResource(JOB_ID_1, ResourceProfile.ANY);
+        tracker.notifyAcquiredResource(JOB_ID_1, ResourceProfile.ANY, LoadingWeight.EMPTY);
         assertThat(tracker.isEmpty()).isFalse();
 
-        tracker.notifyLostResource(JOB_ID_1, ResourceProfile.ANY);
+        tracker.notifyLostResource(JOB_ID_1, ResourceProfile.ANY, LoadingWeight.EMPTY);
         assertThat(tracker.isEmpty()).isTrue();
     }
 
@@ -141,12 +147,12 @@ class DefaultResourceTrackerTest {
     void testTrackerRetainedOnResourceLossIfRequirementExists() {
         DefaultResourceTracker tracker = new DefaultResourceTracker();
 
-        tracker.notifyAcquiredResource(JOB_ID_1, ResourceProfile.ANY);
+        tracker.notifyAcquiredResource(JOB_ID_1, ResourceProfile.ANY, LoadingWeight.EMPTY);
         tracker.notifyResourceRequirements(
                 JOB_ID_1,
                 Collections.singletonList(ResourceRequirement.create(ResourceProfile.ANY, 1)));
 
-        tracker.notifyLostResource(JOB_ID_1, ResourceProfile.ANY);
+        tracker.notifyLostResource(JOB_ID_1, ResourceProfile.ANY, LoadingWeight.EMPTY);
         assertThat(tracker.isEmpty()).isFalse();
 
         tracker.notifyResourceRequirements(JOB_ID_1, Collections.emptyList());
@@ -157,7 +163,7 @@ class DefaultResourceTrackerTest {
     void testTrackerRetainedOnRequirementResetIfResourceExists() {
         DefaultResourceTracker tracker = new DefaultResourceTracker();
 
-        tracker.notifyAcquiredResource(JOB_ID_1, ResourceProfile.ANY);
+        tracker.notifyAcquiredResource(JOB_ID_1, ResourceProfile.ANY, LoadingWeight.EMPTY);
         tracker.notifyResourceRequirements(
                 JOB_ID_1,
                 Collections.singletonList(ResourceRequirement.create(ResourceProfile.ANY, 1)));
@@ -165,7 +171,7 @@ class DefaultResourceTrackerTest {
         tracker.notifyResourceRequirements(JOB_ID_1, Collections.emptyList());
         assertThat(tracker.isEmpty()).isFalse();
 
-        tracker.notifyLostResource(JOB_ID_1, ResourceProfile.ANY);
+        tracker.notifyLostResource(JOB_ID_1, ResourceProfile.ANY, LoadingWeight.EMPTY);
         assertThat(tracker.isEmpty()).isTrue();
     }
 }

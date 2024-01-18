@@ -39,6 +39,9 @@ import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
 import org.slf4j.Logger;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -51,10 +54,17 @@ public interface SlotPoolServiceSchedulerFactory {
      *
      * @param jid jid is the JobID to pass to the service
      * @param declarativeSlotPoolFactory the declarative slot pool factory
+     * @param slotRequestMaxInterval max request interval for slots.
+     * @param componentMainThreadExecutor component main thread executor.
+     * @param slotBatchAllocatable whether enabled slot allocation by batch.
      * @return created SlotPoolService
      */
     SlotPoolService createSlotPoolService(
-            JobID jid, DeclarativeSlotPoolFactory declarativeSlotPoolFactory);
+            JobID jid,
+            DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
+            @Nullable Time slotRequestMaxInterval,
+            @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor,
+            boolean slotBatchAllocatable);
 
     /**
      * Returns the scheduler type this factory is creating.

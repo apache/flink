@@ -22,6 +22,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
@@ -43,8 +44,9 @@ public class PreferredAllocationRequestSlotMatchingStrategyTest {
      */
     @Test
     public void testNewSlotsAreMatchedAgainstPreferredAllocationIDs() throws Exception {
-        final PreferredAllocationRequestSlotMatchingStrategy strategy =
-                PreferredAllocationRequestSlotMatchingStrategy.INSTANCE;
+        final RequestSlotMatchingStrategy strategy =
+                PreferredAllocationRequestSlotMatchingStrategy.create(
+                        SimpleRequestSlotMatchingStrategy.INSTANCE);
 
         final AllocationID allocationId1 = new AllocationID();
         final AllocationID allocationId2 = new AllocationID();
@@ -58,14 +60,16 @@ public class PreferredAllocationRequestSlotMatchingStrategyTest {
                         PendingRequest.createNormalRequest(
                                 new SlotRequestId(),
                                 ResourceProfile.UNKNOWN,
+                                LoadingWeight.EMPTY,
                                 Collections.singleton(allocationId2)),
                         PendingRequest.createNormalRequest(
                                 new SlotRequestId(),
                                 ResourceProfile.UNKNOWN,
+                                LoadingWeight.EMPTY,
                                 Collections.singleton(allocationId1)));
 
         final Collection<RequestSlotMatchingStrategy.RequestSlotMatch> requestSlotMatches =
-                strategy.matchRequestsAndSlots(slots, pendingRequests);
+                strategy.matchRequestsAndSlots(slots, pendingRequests, null);
 
         assertThat(requestSlotMatches).hasSize(2);
 

@@ -27,6 +27,7 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
@@ -100,7 +101,8 @@ class DefaultSlotStatusSyncerTest {
                         taskExecutorConnection.getInstanceID(),
                         jobId,
                         "address",
-                        ResourceProfile.ANY);
+                        ResourceProfile.ANY,
+                        LoadingWeight.EMPTY);
         final AllocationID allocationId = requestFuture.get().f2;
         assertThat(resourceTracker.getAcquiredResources(jobId))
                 .contains(ResourceRequirement.create(ResourceProfile.ANY, 1));
@@ -156,7 +158,8 @@ class DefaultSlotStatusSyncerTest {
                         taskExecutorConnection.getInstanceID(),
                         jobId,
                         "address",
-                        ResourceProfile.ANY);
+                        ResourceProfile.ANY,
+                        LoadingWeight.EMPTY);
         final AllocationID allocationId = requestFuture.get().f2;
         assertThat(resourceTracker.getAcquiredResources(jobId))
                 .contains(ResourceRequirement.create(ResourceProfile.ANY, 1));
@@ -204,7 +207,8 @@ class DefaultSlotStatusSyncerTest {
                         taskExecutorConnection.getInstanceID(),
                         jobId,
                         "address",
-                        ResourceProfile.ANY);
+                        ResourceProfile.ANY,
+                        LoadingWeight.EMPTY);
 
         assertThatThrownBy(allocatedFuture::get).hasCauseInstanceOf(TimeoutException.class);
         assertThat(resourceTracker.getAcquiredResources(jobId)).isEmpty();
@@ -237,8 +241,9 @@ class DefaultSlotStatusSyncerTest {
                 jobId,
                 TASK_EXECUTOR_CONNECTION.getInstanceID(),
                 ResourceProfile.ANY,
-                SlotState.ALLOCATED);
-        resourceTracker.notifyAcquiredResource(jobId, ResourceProfile.ANY);
+                SlotState.ALLOCATED,
+                LoadingWeight.EMPTY);
+        resourceTracker.notifyAcquiredResource(jobId, ResourceProfile.ANY, LoadingWeight.EMPTY);
 
         // unknown slot will be ignored.
         slotStatusSyncer.freeSlot(new AllocationID());
@@ -286,13 +291,28 @@ class DefaultSlotStatusSyncerTest {
                 new SlotReport(
                         Arrays.asList(
                                 new SlotStatus(slotId1, totalResource),
-                                new SlotStatus(slotId2, resource, jobId, allocationId1),
-                                new SlotStatus(slotId3, resource, jobId, allocationId2)));
+                                new SlotStatus(
+                                        slotId2,
+                                        resource,
+                                        jobId,
+                                        allocationId1,
+                                        LoadingWeight.EMPTY),
+                                new SlotStatus(
+                                        slotId3,
+                                        resource,
+                                        jobId,
+                                        allocationId2,
+                                        LoadingWeight.EMPTY)));
         final SlotReport slotReport2 =
                 new SlotReport(
                         Arrays.asList(
                                 new SlotStatus(slotId3, resource),
-                                new SlotStatus(slotId2, resource, jobId, allocationId1)));
+                                new SlotStatus(
+                                        slotId2,
+                                        resource,
+                                        jobId,
+                                        allocationId1,
+                                        LoadingWeight.EMPTY)));
         taskManagerTracker.addTaskManager(taskExecutorConnection, totalResource, totalResource);
 
         slotStatusSyncer.reportSlotStatus(taskExecutorConnection.getInstanceID(), slotReport1);
@@ -309,7 +329,11 @@ class DefaultSlotStatusSyncerTest {
         assertThat(taskManagerTracker.getAllocatedOrPendingSlot(allocationId2)).isPresent();
 
         slotStatusSyncer.allocateSlot(
-                taskExecutorConnection.getInstanceID(), jobId, "address", resource);
+                taskExecutorConnection.getInstanceID(),
+                jobId,
+                "address",
+                resource,
+                LoadingWeight.EMPTY);
         assertThat(resourceTracker.getAcquiredResources(jobId))
                 .contains(ResourceRequirement.create(resource, 3));
         assertThat(

@@ -18,14 +18,19 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
+import java.util.stream.StreamSupport;
 
 public class TaskManagerRegistration {
 
@@ -42,24 +47,33 @@ public class TaskManagerRegistration {
     /** Timestamp when the last time becoming idle. Otherwise Long.MAX_VALUE. */
     private long idleSince;
 
+    private Map<SlotID, LoadingWeight> loadingWeights;
+
     public TaskManagerRegistration(
             TaskExecutorConnection taskManagerConnection,
-            Collection<SlotID> slots,
+            SlotReport initialSlotReport,
             ResourceProfile totalResourceProfile,
             ResourceProfile defaultSlotResourceProfile) {
 
         this.taskManagerConnection =
                 Preconditions.checkNotNull(taskManagerConnection, "taskManagerConnection");
-        Preconditions.checkNotNull(slots, "slots");
-
+        this.constructSlotsAndLoadingWeights(initialSlotReport);
         this.totalResource = Preconditions.checkNotNull(totalResourceProfile);
         this.defaultSlotResourceProfile = Preconditions.checkNotNull(defaultSlotResourceProfile);
 
-        this.slots = new HashSet<>(slots);
+        this.slots = new HashSet<>(loadingWeights.keySet());
+        Preconditions.checkNotNull(slots, "slots");
 
         this.numberFreeSlots = slots.size();
 
         idleSince = System.currentTimeMillis();
+    }
+
+    private void constructSlotsAndLoadingWeights(SlotReport slotReport) {
+        this.loadingWeights = new HashMap<>();
+        StreamSupport.stream(slotReport.spliterator(), false)
+                .map(slotStatus -> Tuple2.of(slotStatus.getSlotID(), slotStatus.getLoading()))
+                .forEach(tuple2 -> loadingWeights.put(tuple2.f0, tuple2.f1));
     }
 
     public TaskExecutorConnection getTaskManagerConnection() {
@@ -86,21 +100,24 @@ public class TaskManagerRegistration {
         return totalResource;
     }
 
-    public void freeSlot() {
+    public void freeSlot(TaskManagerSlotInformation taskManagerSlot) {
         Preconditions.checkState(
                 numberFreeSlots < slots.size(),
                 "The number of free slots cannot exceed the number of registered slots. This indicates a bug.");
         numberFreeSlots++;
+
+        loadingWeights.remove(taskManagerSlot.getSlotId());
 
         if (numberFreeSlots == getNumberRegisteredSlots() && idleSince == Long.MAX_VALUE) {
             idleSince = System.currentTimeMillis();
         }
     }
 
-    public void occupySlot() {
+    public void occupySlot(TaskManagerSlotInformation taskManagerSlot) {
         Preconditions.checkState(
                 numberFreeSlots > 0, "There are no more free slots. This indicates a bug.");
         numberFreeSlots--;
+        loadingWeights.put(taskManagerSlot.getSlotId(), taskManagerSlot.getLoading());
 
         idleSince = Long.MAX_VALUE;
     }

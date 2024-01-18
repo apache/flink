@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 
 import java.util.concurrent.CompletableFuture;
@@ -65,7 +66,8 @@ public interface SlotStatusSyncer {
             InstanceID instanceId,
             JobID jobId,
             String targetAddress,
-            ResourceProfile resourceProfile);
+            ResourceProfile resourceProfile,
+            LoadingWeight loadingWeight);
 
     /**
      * Free the given slot.

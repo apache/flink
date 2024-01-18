@@ -31,6 +31,7 @@ import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
@@ -696,9 +697,19 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         final ResourceProfile resourceProfile1 = ResourceProfile.fromResources(1, 10);
         final ResourceProfile resourceProfile2 = ResourceProfile.fromResources(2, 20);
         final SlotStatus slotStatus1 =
-                new SlotStatus(slotId1, resourceProfile1, new JobID(), new AllocationID());
+                new SlotStatus(
+                        slotId1,
+                        resourceProfile1,
+                        new JobID(),
+                        new AllocationID(),
+                        LoadingWeight.EMPTY);
         final SlotStatus slotStatus2 =
-                new SlotStatus(slotId2, resourceProfile2, new JobID(), new AllocationID());
+                new SlotStatus(
+                        slotId2,
+                        resourceProfile2,
+                        new JobID(),
+                        new AllocationID(),
+                        LoadingWeight.EMPTY);
         final SlotReport slotReport1 = new SlotReport(slotStatus1);
         final SlotReport slotReport2 = new SlotReport(slotStatus2);
 

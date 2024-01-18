@@ -22,11 +22,12 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.WeightLoadable;
 
 import java.util.Map;
 
 /** Information of a TaskManager needed in {@link SlotManager}. */
-public interface TaskManagerInfo {
+public interface TaskManagerInfo extends WeightLoadable {
 
     /**
      * Get the instanceId of this task manager.

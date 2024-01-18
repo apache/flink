@@ -126,9 +126,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.JobManagerOptions.SLOT_REQUEST_MAX_INTERVAL;
+import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadBalanceMode;
+import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadBalanceMode.TASKS;
 import static org.apache.flink.runtime.checkpoint.TaskStateSnapshot.deserializeTaskStateSnapshot;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -329,12 +333,32 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                         getMainThreadExecutor(),
                         log);
 
+        TaskManagerLoadBalanceMode mode =
+                TaskManagerLoadBalanceMode.loadFromConfiguration(
+                        jobMasterConfiguration.getConfiguration());
+        JobManagerOptions.SchedulerType schedulerType =
+                slotPoolServiceSchedulerFactory.getSchedulerType();
+        Time slotRequestMaxInterval = null;
+        boolean slotBatchAllocatable = false;
+        if (mode == TASKS && schedulerType == JobManagerOptions.SchedulerType.Adaptive) {
+            slotBatchAllocatable = true;
+            slotRequestMaxInterval =
+                    Time.of(
+                            jobMasterConfiguration
+                                    .getConfiguration()
+                                    .get(SLOT_REQUEST_MAX_INTERVAL)
+                                    .toMillis(),
+                            TimeUnit.MILLISECONDS);
+        }
         this.slotPoolService =
                 checkNotNull(slotPoolServiceSchedulerFactory)
                         .createSlotPoolService(
                                 jid,
                                 createDeclarativeSlotPoolFactory(
-                                        jobMasterConfiguration.getConfiguration()));
+                                        jobMasterConfiguration.getConfiguration()),
+                                slotRequestMaxInterval,
+                                getMainThreadExecutor(),
+                                slotBatchAllocatable);
 
         this.partitionTracker =
                 checkNotNull(partitionTrackerFactory)

@@ -20,15 +20,19 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.WeightLoadable;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
 /** Represents a pending task manager in the {@link SlotManager}. */
-public class PendingTaskManager {
+public class PendingTaskManager implements WeightLoadable {
     private final PendingTaskManagerId pendingTaskManagerId;
     private final ResourceProfile totalResourceProfile;
     private final ResourceProfile defaultSlotResourceProfile;
@@ -103,4 +107,14 @@ public class PendingTaskManager {
                 "PendingTaskManager{id=%s, totalResourceProfile=%s, defaultSlotResourceProfile=%s}",
                 pendingTaskManagerId, totalResourceProfile, defaultSlotResourceProfile);
     }
+
+    @Override
+    public LoadingWeight getLoading() {
+        return pendingSlotAllocationRecords.values().stream()
+                .map(ResourceCounter::getLoading)
+                .reduce(LoadingWeight.EMPTY, LoadingWeight::merge);
+    }
+
+    @Override
+    public void setLoading(@Nonnull LoadingWeight loadingWeight) {}
 }

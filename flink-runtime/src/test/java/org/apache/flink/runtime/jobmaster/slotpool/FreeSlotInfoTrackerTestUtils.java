@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 
 import java.util.Map;
 
@@ -37,6 +38,7 @@ public class FreeSlotInfoTrackerTestUtils {
                 freeSlots.keySet(),
                 freeSlots::get,
                 id -> new TestingFreeSlotInfoTracker.TestingFreeSlotInfo(freeSlots.get(id)),
-                ignored -> 0d);
+                ignored -> 0d,
+                ignored -> LoadingWeight.ofDefaultLoadingWeight(0f));
     }
 }

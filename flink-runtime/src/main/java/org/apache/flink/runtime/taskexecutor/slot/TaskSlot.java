@@ -172,6 +172,10 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseableAsync {
         return tasks.values().iterator();
     }
 
+    public int getTaskNumber() {
+        return tasks.size();
+    }
+
     public MemoryManager getMemoryManager() {
         return memoryManager;
     }

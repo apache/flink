@@ -270,7 +270,10 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
                     sharedSlotProfileRetriever.getSlotProfile(group, physicalSlotResourceProfile);
             PhysicalSlotRequest request =
                     new PhysicalSlotRequest(
-                            physicalSlotRequestId, slotProfile, slotWillBeOccupiedIndefinitely);
+                            physicalSlotRequestId,
+                            slotProfile,
+                            group.getLoading(),
+                            slotWillBeOccupiedIndefinitely);
             slotRequests.add(request);
             requestToGroup.put(physicalSlotRequestId, group);
             requestToPhysicalResources.put(physicalSlotRequestId, physicalSlotResourceProfile);

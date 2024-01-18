@@ -20,8 +20,10 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
 
 /** Provide the information of TaskManager's resource and slot status. */
@@ -56,6 +58,8 @@ interface TaskManagerResourceInfoProvider {
      * @return An Optional of {@link TaskManagerSlotInformation}, if find, of the slot
      */
     Optional<TaskManagerSlotInformation> getAllocatedOrPendingSlot(AllocationID allocationId);
+
+    Map<InstanceID, LoadingWeight> getLoadingWeights();
 
     /**
      * Get all pending task managers with given total and default slot profile.

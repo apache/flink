@@ -21,6 +21,7 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.util.ResourceCounter;
 
 import java.util.ArrayList;
@@ -101,7 +102,10 @@ public class ResourceAllocationResult {
                                 if (counter == null) {
                                     return ResourceCounter.withResource(resourceProfile, 1);
                                 } else {
-                                    return counter.add(resourceProfile, 1);
+                                    return counter.add(
+                                            resourceProfile,
+                                            1,
+                                            LoadingWeight.supplyEmptyLoadWeights(1));
                                 }
                             });
             return this;
@@ -117,7 +121,7 @@ public class ResourceAllocationResult {
                                 if (counter == null) {
                                     return ResourceCounter.withResource(resourceProfile, 1);
                                 } else {
-                                    return counter.add(resourceProfile, 1);
+                                    return counter.addWithEmptyLoadings(resourceProfile, 1);
                                 }
                             });
             return this;

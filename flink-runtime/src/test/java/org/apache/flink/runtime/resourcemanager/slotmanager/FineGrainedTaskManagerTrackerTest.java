@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.util.ResourceCounter;
 
@@ -145,7 +146,8 @@ class FineGrainedTaskManagerTrackerTest {
                 jobId,
                 TASK_EXECUTOR_CONNECTION.getInstanceID(),
                 ResourceProfile.fromResources(3, 200),
-                SlotState.PENDING);
+                SlotState.PENDING,
+                LoadingWeight.EMPTY);
         assertThat(taskManagerTracker.getAllocatedOrPendingSlot(allocationId1)).isPresent();
         assertThat(
                         taskManagerTracker.getRegisteredTaskManager(
@@ -161,7 +163,8 @@ class FineGrainedTaskManagerTrackerTest {
                 jobId,
                 TASK_EXECUTOR_CONNECTION.getInstanceID(),
                 ResourceProfile.fromResources(3, 200),
-                SlotState.ALLOCATED);
+                SlotState.ALLOCATED,
+                LoadingWeight.EMPTY);
         assertThat(taskManagerTracker.getAllocatedOrPendingSlot(allocationId1)).isPresent();
         assertThat(
                         taskManagerTracker.getRegisteredTaskManager(
@@ -177,7 +180,8 @@ class FineGrainedTaskManagerTrackerTest {
                 jobId,
                 TASK_EXECUTOR_CONNECTION.getInstanceID(),
                 ResourceProfile.fromResources(2, 300),
-                SlotState.ALLOCATED);
+                SlotState.ALLOCATED,
+                LoadingWeight.EMPTY);
         assertThat(taskManagerTracker.getAllocatedOrPendingSlot(allocationId2)).isPresent();
         assertThat(
                         taskManagerTracker.getRegisteredTaskManager(
@@ -202,13 +206,15 @@ class FineGrainedTaskManagerTrackerTest {
                 jobId,
                 TASK_EXECUTOR_CONNECTION.getInstanceID(),
                 ResourceProfile.fromResources(3, 200),
-                SlotState.PENDING);
+                SlotState.PENDING,
+                LoadingWeight.EMPTY);
         taskManagerTracker.notifySlotStatus(
                 allocationId2,
                 jobId,
                 TASK_EXECUTOR_CONNECTION.getInstanceID(),
                 ResourceProfile.fromResources(2, 300),
-                SlotState.ALLOCATED);
+                SlotState.ALLOCATED,
+                LoadingWeight.EMPTY);
 
         // Free pending slot
         taskManagerTracker.notifySlotStatus(
@@ -216,7 +222,8 @@ class FineGrainedTaskManagerTrackerTest {
                 jobId,
                 TASK_EXECUTOR_CONNECTION.getInstanceID(),
                 ResourceProfile.fromResources(3, 200),
-                SlotState.FREE);
+                SlotState.FREE,
+                LoadingWeight.EMPTY);
         assertThat(taskManagerTracker.getAllocatedOrPendingSlot(allocationId1)).isNotPresent();
         assertThat(
                         taskManagerTracker.getRegisteredTaskManager(
@@ -231,7 +238,8 @@ class FineGrainedTaskManagerTrackerTest {
                 jobId,
                 TASK_EXECUTOR_CONNECTION.getInstanceID(),
                 ResourceProfile.fromResources(2, 300),
-                SlotState.FREE);
+                SlotState.FREE,
+                LoadingWeight.EMPTY);
         assertThat(taskManagerTracker.getAllocatedOrPendingSlot(allocationId2)).isNotPresent();
         assertThat(
                         taskManagerTracker.getRegisteredTaskManager(
@@ -254,7 +262,8 @@ class FineGrainedTaskManagerTrackerTest {
                                     new JobID(),
                                     new InstanceID(),
                                     ResourceProfile.ANY,
-                                    SlotState.FREE);
+                                    SlotState.FREE,
+                                    LoadingWeight.EMPTY);
                         })
                 .isInstanceOf(NullPointerException.class);
     }
@@ -326,13 +335,15 @@ class FineGrainedTaskManagerTrackerTest {
                 jobId,
                 TASK_EXECUTOR_CONNECTION.getInstanceID(),
                 ResourceProfile.fromResources(3, 200),
-                SlotState.ALLOCATED);
+                SlotState.ALLOCATED,
+                LoadingWeight.EMPTY);
         taskManagerTracker.notifySlotStatus(
                 allocationId2,
                 jobId,
                 TASK_EXECUTOR_CONNECTION.getInstanceID(),
                 defaultSlotResource,
-                SlotState.ALLOCATED);
+                SlotState.ALLOCATED,
+                LoadingWeight.EMPTY);
         taskManagerTracker.addPendingTaskManager(
                 new PendingTaskManager(ResourceProfile.fromResources(4, 200), 1));
 

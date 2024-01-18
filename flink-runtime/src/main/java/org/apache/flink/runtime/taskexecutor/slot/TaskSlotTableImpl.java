@@ -29,6 +29,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor.DummyComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.util.CollectionUtil;
@@ -243,9 +244,16 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
                                 slotId,
                                 taskSlot.getResourceProfile(),
                                 taskSlot.getJobId(),
-                                taskSlot.getAllocationId());
+                                taskSlot.getAllocationId(),
+                                LoadingWeight.ofDefaultLoadingWeight(taskSlot.getTaskNumber()));
             } else {
-                slotStatus = new SlotStatus(slotId, defaultSlotResourceProfile, null, null);
+                slotStatus =
+                        new SlotStatus(
+                                slotId,
+                                defaultSlotResourceProfile,
+                                null,
+                                null,
+                                LoadingWeight.EMPTY);
             }
 
             slotStatuses.add(slotStatus);
@@ -258,7 +266,8 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
                                 new SlotID(resourceId, taskSlot.getIndex()),
                                 taskSlot.getResourceProfile(),
                                 taskSlot.getJobId(),
-                                taskSlot.getAllocationId());
+                                taskSlot.getAllocationId(),
+                                LoadingWeight.ofDefaultLoadingWeight(taskSlot.getTaskNumber()));
                 slotStatuses.add(slotStatus);
             }
         }

@@ -24,6 +24,8 @@ import org.apache.flink.runtime.slots.ResourceRequirement;
 import java.util.Collection;
 import java.util.function.Consumer;
 
+import static org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter.forMainThread;
+
 /** Builder for {@link DefaultDeclarativeSlotPool}. */
 final class DefaultDeclarativeSlotPoolBuilder {
 
@@ -56,7 +58,9 @@ final class DefaultDeclarativeSlotPoolBuilder {
                 allocatedSlotPool,
                 notifyNewResourceRequirements,
                 idleSlotTimeout,
-                rpcTimeout);
+                rpcTimeout,
+                null,
+                forMainThread());
     }
 
     public static DefaultDeclarativeSlotPoolBuilder builder() {

@@ -20,8 +20,11 @@ package org.apache.flink.runtime.scheduler.adaptive.allocator;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+
+import org.jetbrains.annotations.NotNull;
 
 /** Test {@link SlotInfo} implementation. */
 public class TestSlotInfo implements SlotInfo {
@@ -70,4 +73,12 @@ public class TestSlotInfo implements SlotInfo {
     public boolean willBeOccupiedIndefinitely() {
         return false;
     }
+
+    @Override
+    public LoadingWeight getLoading() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setLoading(@NotNull LoadingWeight loadingWeight) {}
 }

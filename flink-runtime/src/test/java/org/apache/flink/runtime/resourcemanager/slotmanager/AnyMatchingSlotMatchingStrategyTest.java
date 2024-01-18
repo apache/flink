@@ -64,8 +64,10 @@ class AnyMatchingSlotMatchingStrategyTest {
         final Optional<TestingTaskManagerSlotInformation> optionalMatchingSlot =
                 AnyMatchingSlotMatchingStrategy.INSTANCE.findMatchingSlot(
                         largeTaskManagerSlotInformation.getResourceProfile(),
+                        null,
                         freeSlots,
-                        countSlotsPerInstance(freeSlots));
+                        countSlotsPerInstance(freeSlots),
+                        null);
 
         assertThat(optionalMatchingSlot)
                 .hasValueSatisfying(
@@ -79,8 +81,10 @@ class AnyMatchingSlotMatchingStrategyTest {
         final Optional<TestingTaskManagerSlotInformation> optionalMatchingSlot =
                 AnyMatchingSlotMatchingStrategy.INSTANCE.findMatchingSlot(
                         ResourceProfile.fromResources(Double.MAX_VALUE, Integer.MAX_VALUE),
+                        null,
                         freeSlots,
-                        countSlotsPerInstance(freeSlots));
+                        countSlotsPerInstance(freeSlots),
+                        null);
 
         assertThat(optionalMatchingSlot).isNotPresent();
     }

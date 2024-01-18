@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
 
@@ -34,6 +35,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -206,7 +208,8 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
             JobID jobId,
             InstanceID instanceId,
             ResourceProfile resourceProfile,
-            SlotState slotState) {
+            SlotState slotState,
+            LoadingWeight loadingWeight) {
         Preconditions.checkNotNull(allocationId);
         Preconditions.checkNotNull(jobId);
         Preconditions.checkNotNull(instanceId);
@@ -217,10 +220,10 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
                 freeSlot(instanceId, allocationId);
                 break;
             case ALLOCATED:
-                addAllocatedSlot(allocationId, jobId, instanceId, resourceProfile);
+                addAllocatedSlot(allocationId, jobId, instanceId, resourceProfile, loadingWeight);
                 break;
             case PENDING:
-                addPendingSlot(allocationId, jobId, instanceId, resourceProfile);
+                addPendingSlot(allocationId, jobId, instanceId, resourceProfile, loadingWeight);
                 break;
         }
     }
@@ -237,7 +240,8 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
             AllocationID allocationId,
             JobID jobId,
             InstanceID instanceId,
-            ResourceProfile resourceProfile) {
+            ResourceProfile resourceProfile,
+            LoadingWeight loadingWeight) {
         final FineGrainedTaskManagerRegistration taskManager =
                 Preconditions.checkNotNull(taskManagerRegistrations.get(instanceId));
         if (slots.containsKey(allocationId)) {
@@ -254,6 +258,7 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
                             resourceProfile,
                             taskManager.getTaskExecutorConnection(),
                             SlotState.ALLOCATED);
+            slot.setLoading(loadingWeight);
             slots.put(allocationId, slot);
             taskManager.notifyAllocation(allocationId, slot);
         }
@@ -263,7 +268,8 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
             AllocationID allocationId,
             JobID jobId,
             InstanceID instanceId,
-            ResourceProfile resourceProfile) {
+            ResourceProfile resourceProfile,
+            LoadingWeight loadingWeight) {
         Preconditions.checkState(!slots.containsKey(allocationId));
         final FineGrainedTaskManagerRegistration taskManager =
                 Preconditions.checkNotNull(taskManagerRegistrations.get(instanceId));
@@ -275,6 +281,7 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
                         resourceProfile,
                         taskManager.getTaskExecutorConnection(),
                         SlotState.PENDING);
+        slot.setLoading(loadingWeight);
         taskManager.notifyAllocation(allocationId, slot);
         slots.put(allocationId, slot);
     }
@@ -297,6 +304,25 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
     public Optional<TaskManagerSlotInformation> getAllocatedOrPendingSlot(
             AllocationID allocationId) {
         return Optional.ofNullable(slots.get(allocationId));
+    }
+
+    @Override
+    public Map<InstanceID, LoadingWeight> getLoadingWeights() {
+        Map<InstanceID, List<FineGrainedTaskManagerSlot>> collect =
+                slots.values().stream()
+                        .collect(Collectors.groupingBy(TaskManagerSlotInformation::getInstanceId));
+        Map<InstanceID, LoadingWeight> result = new HashMap<>(collect.size());
+        for (Map.Entry<InstanceID, List<FineGrainedTaskManagerSlot>> entry : collect.entrySet()) {
+            result.put(
+                    entry.getKey(),
+                    entry.getValue().stream()
+                            .map(TaskManagerSlotInformation::getLoading)
+                            .reduce(
+                                    (loadingWeight, loadingWeight2) ->
+                                            loadingWeight2.merge(loadingWeight))
+                            .orElse(LoadingWeight.EMPTY));
+        }
+        return result;
     }
 
     @Override

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.Iterators;
@@ -46,15 +47,22 @@ public class SimpleRequestSlotMatchingStrategyTest {
         final Collection<PhysicalSlot> slots = Arrays.asList(TestingPhysicalSlot.builder().build());
         final PendingRequest pendingRequest1 =
                 PendingRequest.createNormalRequest(
-                        new SlotRequestId(), ResourceProfile.UNKNOWN, Collections.emptyList());
+                        new SlotRequestId(),
+                        ResourceProfile.UNKNOWN,
+                        LoadingWeight.EMPTY,
+                        Collections.emptyList());
         final PendingRequest pendingRequest2 =
                 PendingRequest.createNormalRequest(
-                        new SlotRequestId(), ResourceProfile.UNKNOWN, Collections.emptyList());
+                        new SlotRequestId(),
+                        ResourceProfile.UNKNOWN,
+                        LoadingWeight.EMPTY,
+                        Collections.emptyList());
         final Collection<PendingRequest> pendingRequests =
                 Arrays.asList(pendingRequest1, pendingRequest2);
 
         final Collection<RequestSlotMatchingStrategy.RequestSlotMatch> requestSlotMatches =
-                simpleRequestSlotMatchingStrategy.matchRequestsAndSlots(slots, pendingRequests);
+                simpleRequestSlotMatchingStrategy.matchRequestsAndSlots(
+                        slots, pendingRequests, null);
 
         assertThat(requestSlotMatches).hasSize(1);
         assertThat(
@@ -79,15 +87,16 @@ public class SimpleRequestSlotMatchingStrategyTest {
 
         final PendingRequest pendingRequest1 =
                 PendingRequest.createNormalRequest(
-                        new SlotRequestId(), large, Collections.emptyList());
+                        new SlotRequestId(), large, LoadingWeight.EMPTY, Collections.emptyList());
         final PendingRequest pendingRequest2 =
                 PendingRequest.createNormalRequest(
-                        new SlotRequestId(), small, Collections.emptyList());
+                        new SlotRequestId(), small, LoadingWeight.EMPTY, Collections.emptyList());
         final Collection<PendingRequest> pendingRequests =
                 Arrays.asList(pendingRequest1, pendingRequest2);
 
         final Collection<RequestSlotMatchingStrategy.RequestSlotMatch> requestSlotMatches =
-                simpleRequestSlotMatchingStrategy.matchRequestsAndSlots(slots, pendingRequests);
+                simpleRequestSlotMatchingStrategy.matchRequestsAndSlots(
+                        slots, pendingRequests, null);
 
         assertThat(requestSlotMatches).hasSize(1);
         assertThat(

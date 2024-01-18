@@ -35,6 +35,7 @@ import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
@@ -1601,7 +1602,8 @@ class DeclarativeSlotManagerTest {
     }
 
     private static SlotStatus createAllocatedSlotStatus(SlotID slotId, JobID jobId) {
-        return new SlotStatus(slotId, ResourceProfile.ANY, jobId, new AllocationID());
+        return new SlotStatus(
+                slotId, ResourceProfile.ANY, jobId, new AllocationID(), LoadingWeight.EMPTY);
     }
 
     private DeclarativeSlotManager createSlotManager(

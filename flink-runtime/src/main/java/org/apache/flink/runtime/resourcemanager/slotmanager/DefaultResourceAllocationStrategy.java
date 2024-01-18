@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.util.Preconditions;
 
@@ -96,13 +97,24 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                 SlotManagerUtils.generateDefaultSlotResourceProfile(
                         totalResourceProfile, numSlotsPerWorker);
         this.availableResourceMatchingStrategy =
-                taskManagerLoadBalanceMode == TaskManagerLoadBalanceMode.SLOTS
-                        ? LeastUtilizationResourceMatchingStrategy.INSTANCE
-                        : AnyMatchingResourceMatchingStrategy.INSTANCE;
+                getAvailableResourceMatchingStrategy(taskManagerLoadBalanceMode);
         this.taskManagerTimeout = taskManagerTimeout;
         this.redundantTaskManagerNum = redundantTaskManagerNum;
         this.minTotalCPU = minTotalCPU;
         this.minTotalMemory = minTotalMemory;
+    }
+
+    private ResourceMatchingStrategy getAvailableResourceMatchingStrategy(
+            TaskManagerLoadBalanceMode mode) {
+        switch (mode) {
+            case SLOTS:
+                return LeastUtilizationResourceMatchingStrategy.INSTANCE;
+            case TASKS:
+                return LeastLoadingWeightResourceMatchingStrategy.INSTANCE;
+            case NONE:
+            default:
+                return AnyMatchingResourceMatchingStrategy.INSTANCE;
+        }
     }
 
     @Override
@@ -263,7 +275,8 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                                                 resultBuilder.addAllocationOnRegisteredResource(
                                                         jobId,
                                                         taskManager.getInstanceId(),
-                                                        slotProfile)))
+                                                        slotProfile),
+                                        taskManager.getLoading()))
                 .collect(Collectors.toList());
     }
 
@@ -282,7 +295,8 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                                                         jobId,
                                                         pendingTaskManager
                                                                 .getPendingTaskManagerId(),
-                                                        slotProfile)))
+                                                        slotProfile),
+                                        pendingTaskManager.getLoading()))
                 .collect(Collectors.toList());
     }
 
@@ -293,16 +307,11 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
         Collection<ResourceRequirement> outstandingRequirements = new ArrayList<>();
 
         for (ResourceRequirement resourceRequirement : missingResources) {
-            int numMissingRequirements =
+            ResourceRequirement missingRequirements =
                     availableResourceMatchingStrategy.tryFulfilledRequirementWithResource(
-                            registeredResources,
-                            resourceRequirement.getNumberOfRequiredSlots(),
-                            resourceRequirement.getResourceProfile(),
-                            jobId);
-            if (numMissingRequirements > 0) {
-                outstandingRequirements.add(
-                        ResourceRequirement.create(
-                                resourceRequirement.getResourceProfile(), numMissingRequirements));
+                            registeredResources, resourceRequirement, jobId);
+            if (missingRequirements.getNumberOfRequiredSlots() > 0) {
+                outstandingRequirements.add(missingRequirements);
             }
         }
         return outstandingRequirements;
@@ -325,18 +334,16 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
             final ResourceProfile effectiveProfile =
                     getEffectiveResourceProfile(
                             missingResource.getResourceProfile(), defaultSlotResourceProfile);
-            int numUnfulfilled =
+            ResourceRequirement unfulfilledResourceRequirement =
                     pendingResourceMatchingStrategy.tryFulfilledRequirementWithResource(
-                            availableResources,
-                            missingResource.getNumberOfRequiredSlots(),
-                            missingResource.getResourceProfile(),
-                            jobId);
+                            availableResources, missingResource, jobId);
 
             if (!totalResourceProfile.allFieldsNoLessThan(effectiveProfile)) {
                 // Can not fulfill this resource type will the default worker.
                 resultBuilder.addUnfulfillableJob(jobId);
                 continue;
             }
+            int numUnfulfilled = unfulfilledResourceRequirement.getNumberOfRequiredSlots();
             while (numUnfulfilled > 0) {
                 // Circularly add new pending task manager
                 final PendingTaskManager newPendingTaskManager =
@@ -344,6 +351,8 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                 resultBuilder.addPendingTaskManagerAllocate(newPendingTaskManager);
                 newAddedResourceProfile = newAddedResourceProfile.merge(totalResourceProfile);
                 ResourceProfile remainResource = totalResourceProfile;
+                LoadingWeight loadingWeight = LoadingWeight.EMPTY;
+                int loadingIndex = 0;
                 while (numUnfulfilled > 0
                         && canFulfillRequirement(effectiveProfile, remainResource)) {
                     numUnfulfilled--;
@@ -352,6 +361,11 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                             newPendingTaskManager.getPendingTaskManagerId(),
                             effectiveProfile);
                     remainResource = remainResource.subtract(effectiveProfile);
+                    loadingWeight =
+                            loadingWeight.merge(
+                                    unfulfilledResourceRequirement
+                                            .getLoadingWeights()
+                                            .get(loadingIndex++));
                 }
                 if (!remainResource.equals(ResourceProfile.ZERO)) {
                     availableResources.add(
@@ -363,7 +377,8 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                                             resultBuilder.addAllocationOnPendingResource(
                                                     jobID,
                                                     newPendingTaskManager.getPendingTaskManagerId(),
-                                                    slotProfile)));
+                                                    slotProfile),
+                                    loadingWeight));
                 }
             }
         }
@@ -444,12 +459,14 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
         private final ResourceProfile totalProfile;
         private ResourceProfile availableProfile;
         private double utilization;
+        private LoadingWeight loadingWeight;
 
         InternalResourceInfo(
                 ResourceProfile defaultSlotProfile,
                 ResourceProfile totalProfile,
                 ResourceProfile availableProfile,
-                BiConsumer<JobID, ResourceProfile> allocationConsumer) {
+                BiConsumer<JobID, ResourceProfile> allocationConsumer,
+                LoadingWeight loadingWeight) {
             Preconditions.checkState(!defaultSlotProfile.equals(ResourceProfile.UNKNOWN));
             Preconditions.checkState(!totalProfile.equals(ResourceProfile.UNKNOWN));
             Preconditions.checkState(!availableProfile.equals(ResourceProfile.UNKNOWN));
@@ -458,15 +475,18 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
             this.availableProfile = availableProfile;
             this.allocationConsumer = allocationConsumer;
             this.utilization = updateUtilization();
+            this.loadingWeight = loadingWeight;
         }
 
-        boolean tryAllocateSlotForJob(JobID jobId, ResourceProfile requirement) {
+        boolean tryAllocateSlotForJob(
+                JobID jobId, ResourceProfile requirement, LoadingWeight weightPayload) {
             final ResourceProfile effectiveProfile =
                     getEffectiveResourceProfile(requirement, defaultSlotProfile);
             if (availableProfile.allFieldsNoLessThan(effectiveProfile)) {
                 availableProfile = availableProfile.subtract(effectiveProfile);
                 allocationConsumer.accept(jobId, effectiveProfile);
                 utilization = updateUtilization();
+                loadingWeight = loadingWeight.merge(weightPayload);
                 return true;
             } else {
                 return false;
@@ -494,35 +514,80 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
 
     private interface ResourceMatchingStrategy {
 
-        int tryFulfilledRequirementWithResource(
+        ResourceRequirement tryFulfilledRequirementWithResource(
                 List<InternalResourceInfo> internalResources,
-                int numUnfulfilled,
-                ResourceProfile requiredResource,
+                ResourceRequirement resourceRequirement,
                 JobID jobId);
+    }
+
+    private enum LeastLoadingWeightResourceMatchingStrategy implements ResourceMatchingStrategy {
+        INSTANCE;
+
+        @Override
+        public ResourceRequirement tryFulfilledRequirementWithResource(
+                List<InternalResourceInfo> internalResources,
+                ResourceRequirement resourceRequirement,
+                JobID jobId) {
+            if (internalResources.isEmpty()) {
+                return resourceRequirement;
+            }
+
+            final Queue<InternalResourceInfo> resourceInfoInLoadingWeightOrder =
+                    new PriorityQueue<>(
+                            internalResources.size(), Comparator.comparing(o -> o.loadingWeight));
+            resourceInfoInLoadingWeightOrder.addAll(internalResources);
+            int numUnfulfilled = resourceRequirement.getNumberOfRequiredSlots();
+            ResourceProfile requiredResource = resourceRequirement.getResourceProfile();
+            resourceRequirement.getLoadingWeights().sort(Comparator.reverseOrder());
+            while (numUnfulfilled > 0 && !resourceInfoInLoadingWeightOrder.isEmpty()) {
+                final InternalResourceInfo currentTaskManager =
+                        resourceInfoInLoadingWeightOrder.poll();
+
+                LoadingWeight loadingWeight = resourceRequirement.getLoadingWeights().get(0);
+                if (currentTaskManager.tryAllocateSlotForJob(
+                        jobId, requiredResource, loadingWeight)) {
+                    numUnfulfilled--;
+                    resourceRequirement.getLoadingWeights().remove(0);
+
+                    // ignore non resource task managers to reduce the overhead of insert.
+                    if (!currentTaskManager.availableProfile.equals(ResourceProfile.ZERO)) {
+                        resourceInfoInLoadingWeightOrder.add(currentTaskManager);
+                    }
+                }
+            }
+            return ResourceRequirement.create(
+                    requiredResource, numUnfulfilled, resourceRequirement.getLoadingWeights());
+        }
     }
 
     private enum AnyMatchingResourceMatchingStrategy implements ResourceMatchingStrategy {
         INSTANCE;
 
         @Override
-        public int tryFulfilledRequirementWithResource(
+        public ResourceRequirement tryFulfilledRequirementWithResource(
                 List<InternalResourceInfo> internalResources,
-                int numUnfulfilled,
-                ResourceProfile requiredResource,
+                ResourceRequirement resourceRequirement,
                 JobID jobId) {
             final Iterator<InternalResourceInfo> internalResourceInfoItr =
                     internalResources.iterator();
+            int numUnfulfilled = resourceRequirement.getNumberOfRequiredSlots();
+            final List<LoadingWeight> loadingWeights =
+                    new ArrayList<>(resourceRequirement.getLoadingWeights());
+            ResourceProfile requiredResource = resourceRequirement.getResourceProfile();
             while (numUnfulfilled > 0 && internalResourceInfoItr.hasNext()) {
                 final InternalResourceInfo currentTaskManager = internalResourceInfoItr.next();
+
                 while (numUnfulfilled > 0
-                        && currentTaskManager.tryAllocateSlotForJob(jobId, requiredResource)) {
+                        && currentTaskManager.tryAllocateSlotForJob(
+                                jobId, requiredResource, loadingWeights.get(numUnfulfilled - 1))) {
                     numUnfulfilled--;
+                    loadingWeights.remove(numUnfulfilled);
                 }
                 if (currentTaskManager.availableProfile.equals(ResourceProfile.ZERO)) {
                     internalResourceInfoItr.remove();
                 }
             }
-            return numUnfulfilled;
+            return ResourceRequirement.create(requiredResource, numUnfulfilled, loadingWeights);
         }
     }
 
@@ -530,13 +595,12 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
         INSTANCE;
 
         @Override
-        public int tryFulfilledRequirementWithResource(
+        public ResourceRequirement tryFulfilledRequirementWithResource(
                 List<InternalResourceInfo> internalResources,
-                int numUnfulfilled,
-                ResourceProfile requiredResource,
+                ResourceRequirement resourceRequirement,
                 JobID jobId) {
             if (internalResources.isEmpty()) {
-                return numUnfulfilled;
+                return resourceRequirement;
             }
 
             Queue<InternalResourceInfo> resourceInfoInUtilizationOrder =
@@ -544,13 +608,17 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                             internalResources.size(),
                             Comparator.comparingDouble(i -> i.utilization));
             resourceInfoInUtilizationOrder.addAll(internalResources);
-
+            int numUnfulfilled = resourceRequirement.getNumberOfRequiredSlots();
+            ResourceProfile requiredResource = resourceRequirement.getResourceProfile();
+            List<LoadingWeight> loadingWeights = resourceRequirement.getLoadingWeights();
             while (numUnfulfilled > 0 && !resourceInfoInUtilizationOrder.isEmpty()) {
                 final InternalResourceInfo currentTaskManager =
                         resourceInfoInUtilizationOrder.poll();
 
-                if (currentTaskManager.tryAllocateSlotForJob(jobId, requiredResource)) {
+                if (currentTaskManager.tryAllocateSlotForJob(
+                        jobId, requiredResource, loadingWeights.get(numUnfulfilled - 1))) {
                     numUnfulfilled--;
+                    loadingWeights.remove(numUnfulfilled);
 
                     // ignore non resource task managers to reduce the overhead of insert.
                     if (!currentTaskManager.availableProfile.equals(ResourceProfile.ZERO)) {
@@ -558,7 +626,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                     }
                 }
             }
-            return numUnfulfilled;
+            return ResourceRequirement.create(requiredResource, numUnfulfilled, loadingWeights);
         }
     }
 }

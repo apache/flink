@@ -30,6 +30,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
@@ -86,7 +87,11 @@ abstract class FineGrainedSlotManagerTestBase {
     static SlotStatus createAllocatedSlotStatus(
             JobID jobId, AllocationID allocationID, ResourceProfile resourceProfile) {
         return new SlotStatus(
-                new SlotID(ResourceID.generate(), 0), resourceProfile, jobId, allocationID);
+                new SlotID(ResourceID.generate(), 0),
+                resourceProfile,
+                jobId,
+                allocationID,
+                LoadingWeight.EMPTY);
     }
 
     static int getTotalResourceCount(Collection<ResourceRequirement> resources) {

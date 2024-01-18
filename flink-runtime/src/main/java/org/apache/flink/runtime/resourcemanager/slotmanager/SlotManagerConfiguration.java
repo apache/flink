@@ -264,9 +264,7 @@ public class SlotManagerConfiguration {
         TaskManagerLoadBalanceMode taskManagerLoadBalanceMode =
                 TaskManagerLoadBalanceMode.loadFromConfiguration(configuration);
         final SlotMatchingStrategy slotMatchingStrategy =
-                taskManagerLoadBalanceMode == TaskManagerLoadBalanceMode.SLOTS
-                        ? LeastUtilizationSlotMatchingStrategy.INSTANCE
-                        : AnyMatchingSlotMatchingStrategy.INSTANCE;
+                getSlotMatchingStrategy(taskManagerLoadBalanceMode);
 
         int numSlotsPerWorker = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
 
@@ -293,6 +291,18 @@ public class SlotManagerConfiguration {
                 getMinTotalMem(configuration, defaultWorkerResourceSpec, minSlotNum),
                 getMaxTotalMem(configuration, defaultWorkerResourceSpec, maxSlotNum),
                 redundantTaskManagerNum);
+    }
+
+    private static SlotMatchingStrategy getSlotMatchingStrategy(TaskManagerLoadBalanceMode mode) {
+        switch (mode) {
+            case SLOTS:
+                return LeastUtilizationSlotMatchingStrategy.INSTANCE;
+            case TASKS:
+                return LeastLoadingWeightSlotMatchingStrategy.INSTANCE;
+            case NONE:
+            default:
+                return AnyMatchingSlotMatchingStrategy.INSTANCE;
+        }
     }
 
     private static CPUResource getMinTotalCpu(

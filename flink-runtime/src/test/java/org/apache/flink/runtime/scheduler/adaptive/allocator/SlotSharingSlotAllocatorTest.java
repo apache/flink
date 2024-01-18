@@ -58,7 +58,7 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
 
     private static final FreeSlotFunction TEST_FREE_SLOT_FUNCTION = (a, c, t) -> {};
     private static final ReserveSlotFunction TEST_RESERVE_SLOT_FUNCTION =
-            (allocationId, resourceProfile) ->
+            (allocationId, resourceProfile, loading) ->
                     TestingPhysicalSlot.builder()
                             .withAllocationID(allocationId)
                             .withResourceProfile(resourceProfile)
@@ -401,7 +401,7 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
 
         JobSchedulingPlan schedulingPlan =
                 SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
-                                (allocationId, resourceProfile) ->
+                                (allocationId, resourceProfile, loadingWeight) ->
                                         TestingPhysicalSlot.builder().build(),
                                 (allocationID, cause, ts) -> {},
                                 id -> false)

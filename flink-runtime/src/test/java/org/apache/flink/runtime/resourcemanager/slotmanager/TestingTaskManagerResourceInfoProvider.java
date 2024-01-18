@@ -21,10 +21,13 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -40,6 +43,8 @@ public class TestingTaskManagerResourceInfoProvider implements TaskManagerResour
     private final BiFunction<ResourceProfile, ResourceProfile, Collection<PendingTaskManager>>
             getPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction;
 
+    private final Map<InstanceID, LoadingWeight> loadingWeightMap;
+
     private TestingTaskManagerResourceInfoProvider(
             Supplier<Collection<? extends TaskManagerInfo>> registeredTaskManagersSupplier,
             Function<InstanceID, Optional<TaskManagerInfo>> getRegisteredTaskManagerFunction,
@@ -47,7 +52,8 @@ public class TestingTaskManagerResourceInfoProvider implements TaskManagerResour
             Function<AllocationID, Optional<TaskManagerSlotInformation>>
                     getAllocatedOrPendingSlotFunction,
             BiFunction<ResourceProfile, ResourceProfile, Collection<PendingTaskManager>>
-                    getPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction) {
+                    getPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction,
+            Map<InstanceID, LoadingWeight> loadingWeightMap) {
         this.registeredTaskManagersSupplier =
                 Preconditions.checkNotNull(registeredTaskManagersSupplier);
         this.getRegisteredTaskManagerFunction =
@@ -58,6 +64,7 @@ public class TestingTaskManagerResourceInfoProvider implements TaskManagerResour
         this.getPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction =
                 Preconditions.checkNotNull(
                         getPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction);
+        this.loadingWeightMap = loadingWeightMap;
     }
 
     @Override
@@ -79,6 +86,11 @@ public class TestingTaskManagerResourceInfoProvider implements TaskManagerResour
     public Optional<TaskManagerSlotInformation> getAllocatedOrPendingSlot(
             AllocationID allocationId) {
         return getAllocatedOrPendingSlotFunction.apply(allocationId);
+    }
+
+    @Override
+    public Map<InstanceID, LoadingWeight> getLoadingWeights() {
+        return loadingWeightMap;
     }
 
     @Override
@@ -106,6 +118,13 @@ public class TestingTaskManagerResourceInfoProvider implements TaskManagerResour
         private BiFunction<ResourceProfile, ResourceProfile, Collection<PendingTaskManager>>
                 getPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction =
                         (ignored1, ignored2) -> Collections.emptyList();
+
+        private Map<InstanceID, LoadingWeight> loadingWeightMap = new HashMap<>();
+
+        public Builder setLoadingWeightMap(Map<InstanceID, LoadingWeight> loadingWeightMap) {
+            this.loadingWeightMap = loadingWeightMap;
+            return this;
+        }
 
         public Builder setGetAllocatedOrPendingSlotFunction(
                 Function<AllocationID, Optional<TaskManagerSlotInformation>>
@@ -146,7 +165,8 @@ public class TestingTaskManagerResourceInfoProvider implements TaskManagerResour
                     getRegisteredTaskManagerFunction,
                     pendingTaskManagersSupplier,
                     getAllocatedOrPendingSlotFunction,
-                    getPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction);
+                    getPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction,
+                    loadingWeightMap);
         }
     }
 }

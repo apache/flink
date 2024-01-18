@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
@@ -117,7 +118,8 @@ class TaskExecutorManagerTest {
                                     new SlotID(taskExecutorConnection.getResourceID(), 0),
                                     requestedSlotProfile,
                                     JobID.generate(),
-                                    new AllocationID()));
+                                    new AllocationID(),
+                                    LoadingWeight.EMPTY));
             taskExecutorManager.registerTaskManager(
                     taskExecutorConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
 
@@ -247,8 +249,14 @@ class TaskExecutorManagerTest {
                                         createAndRegisterTaskExecutor(
                                                 taskExecutorManager, 1, resourceProfile);
 
-                                taskExecutorManager.occupySlot(taskExecutorId);
-                                taskExecutorManager.freeSlot(taskExecutorId);
+                                taskExecutorManager.occupySlot(
+                                        TestingTaskManagerSlotInformation.newBuilder()
+                                                .setInstanceId(taskExecutorId)
+                                                .build());
+                                taskExecutorManager.freeSlot(
+                                        TestingTaskManagerSlotInformation.newBuilder()
+                                                .setInstanceId(taskExecutorId)
+                                                .build());
 
                                 return taskExecutorId;
                             },
@@ -286,7 +294,10 @@ class TaskExecutorManagerTest {
 
             InstanceID taskExecutorId =
                     createAndRegisterTaskExecutor(taskExecutorManager, 1, resourceProfile);
-            taskExecutorManager.occupySlot(taskExecutorId);
+            taskExecutorManager.occupySlot(
+                    TestingTaskManagerSlotInformation.newBuilder()
+                            .setInstanceId(taskExecutorId)
+                            .build());
             assertThat(declareResourceCount).hasValue(0);
 
             // request 1 redundant task manager
@@ -404,8 +415,14 @@ class TaskExecutorManagerTest {
                     createAndRegisterTaskExecutor(taskExecutorManager, 2, resourceProfile1);
             final InstanceID instanceId2 =
                     createAndRegisterTaskExecutor(taskExecutorManager, 2, resourceProfile2);
-            taskExecutorManager.occupySlot(instanceId1);
-            taskExecutorManager.occupySlot(instanceId2);
+            taskExecutorManager.occupySlot(
+                    TestingTaskManagerSlotInformation.newBuilder()
+                            .setInstanceId(instanceId1)
+                            .build());
+            taskExecutorManager.occupySlot(
+                    TestingTaskManagerSlotInformation.newBuilder()
+                            .setInstanceId(instanceId2)
+                            .build());
 
             assertThat(taskExecutorManager.getTotalFreeResources())
                     .isEqualTo(resourceProfile1.merge(resourceProfile2));

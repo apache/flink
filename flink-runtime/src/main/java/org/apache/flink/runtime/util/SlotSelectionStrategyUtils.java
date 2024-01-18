@@ -45,9 +45,7 @@ public class SlotSelectionStrategyUtils {
         final SlotSelectionStrategy locationPreferenceSlotSelectionStrategy;
 
         locationPreferenceSlotSelectionStrategy =
-                taskManagerLoadBalanceMode == TaskManagerLoadBalanceMode.SLOTS
-                        ? LocationPreferenceSlotSelectionStrategy.createEvenlySpreadOut()
-                        : LocationPreferenceSlotSelectionStrategy.createDefault();
+                getSlotSelectionStrategy(taskManagerLoadBalanceMode, jobType);
 
         final boolean isLocalRecoveryEnabled =
                 configuration.getBoolean(CheckpointingOptions.LOCAL_RECOVERY);
@@ -64,6 +62,16 @@ public class SlotSelectionStrategyUtils {
         } else {
             return locationPreferenceSlotSelectionStrategy;
         }
+    }
+
+    private static SlotSelectionStrategy getSlotSelectionStrategy(
+            TaskManagerLoadBalanceMode mode, JobType jobType) {
+        if (jobType == JobType.STREAMING && mode == TaskManagerLoadBalanceMode.TASKS) {
+            return LocationPreferenceSlotSelectionStrategy.createBalancedTasks();
+        }
+        return mode == TaskManagerLoadBalanceMode.SLOTS
+                ? LocationPreferenceSlotSelectionStrategy.createEvenlySpreadOut()
+                : LocationPreferenceSlotSelectionStrategy.createDefault();
     }
 
     /** Private default constructor to avoid being instantiated. */
