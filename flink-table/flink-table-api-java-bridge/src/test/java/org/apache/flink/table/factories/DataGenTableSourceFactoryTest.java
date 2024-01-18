@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.factories;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.datagen.table.DataGenConnectorOptions;
 import org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil;
 import org.apache.flink.connector.datagen.table.DataGenTableSource;
@@ -34,9 +35,13 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.jupiter.api.Test;
@@ -45,8 +50,10 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
@@ -581,6 +588,27 @@ class DataGenTableSourceFactoryTest {
                         anyCauseMatches("Could not parse value 'Wrong' for key 'fields.f0.start'"));
     }
 
+    @Test
+    void testWithParallelism() {
+        ResolvedSchema schema = ResolvedSchema.of(Column.physical("f0", DataTypes.CHAR(1)));
+
+        Map<String, String> options = new HashMap<>();
+        options.put(FactoryUtil.CONNECTOR.key(), "datagen");
+        options.put(DataGenConnectorOptions.SOURCE_PARALLELISM.key(), "10");
+
+        DynamicTableSource source = createTableSource(schema, options);
+        assertThat(source).isInstanceOf(DataGenTableSource.class);
+
+        DataGenTableSource dataGenTableSource = (DataGenTableSource) source;
+        ScanTableSource.ScanRuntimeProvider scanRuntimeProvider =
+                dataGenTableSource.getScanRuntimeProvider(new TestScanContext());
+        assertThat(scanRuntimeProvider).isInstanceOf(SourceFunctionProvider.class);
+
+        SourceFunctionProvider sourceFunctionProvider =
+                (SourceFunctionProvider) scanRuntimeProvider;
+        assertThat(sourceFunctionProvider.getParallelism()).hasValue(10);
+    }
+
     private void assertException(
             ResolvedSchema schema,
             DescriptorProperties descriptor,
@@ -648,5 +676,23 @@ class DataGenTableSourceFactoryTest {
 
         @Override
         public void close() {}
+    }
+
+    private static class TestScanContext implements ScanTableSource.ScanContext {
+        @Override
+        public <T> TypeInformation<T> createTypeInformation(DataType producedDataType) {
+            return null;
+        }
+
+        @Override
+        public <T> TypeInformation<T> createTypeInformation(LogicalType producedLogicalType) {
+            return null;
+        }
+
+        @Override
+        public DynamicTableSource.DataStructureConverter createDataStructureConverter(
+                DataType producedDataType) {
+            return null;
+        }
     }
 }

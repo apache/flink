@@ -267,6 +267,13 @@ CREATE TABLE Orders (
       <td>生成数据的总行数。默认情况下，该表是无界的。</td>
     </tr>
     <tr>
+      <td><h5>scan.parallelism</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Integer</td>
+      <td>定义算子并行度。不设置将使用全局默认并发。</td>
+    </tr>
+    <tr>
       <td><h5>fields.#.kind</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">random</td>
