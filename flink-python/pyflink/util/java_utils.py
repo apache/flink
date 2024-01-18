@@ -141,6 +141,8 @@ def add_jars_to_context_class_loader(jar_urls):
     gateway = get_gateway()
     # validate and normalize
     jar_urls = [gateway.jvm.java.net.URL(url) for url in jar_urls]
+    print(f'jar_urls: {jar_urls}')
+
     context_classloader = gateway.jvm.Thread.currentThread().getContextClassLoader()
     existing_urls = []
     class_loader_name = context_classloader.getClass().getName()
@@ -149,6 +151,8 @@ def add_jars_to_context_class_loader(jar_urls):
     if all([url.toString() in existing_urls for url in jar_urls]):
         # if urls all existed, no need to create new class loader.
         return
+
+    print(f'existingurls: {existing_urls}')
 
     URLClassLoaderClass = load_java_class("java.net.URLClassLoader")
     if is_instance_of(context_classloader, URLClassLoaderClass):

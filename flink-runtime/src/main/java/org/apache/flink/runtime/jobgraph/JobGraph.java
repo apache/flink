@@ -401,6 +401,9 @@ public class JobGraph implements Serializable {
      * @param paths paths of the directories/JAR files required to run the job on a task manager
      */
     public void setClasspaths(List<URL> paths) {
+        System.out.println("Set classpaths in JobGraph");
+        System.out.println(paths);
+
         classpaths = paths;
     }
 

@@ -78,6 +78,10 @@ public class FileJobGraphRetriever extends AbstractUserClassPathJobGraphRetrieve
             classPaths.addAll(jobGraph.getClasspaths());
         }
         classPaths.addAll(getUserClassPaths());
+        System.out.println("FileJobGraphRetriever classpaths");
+        System.out.println(classPaths);
+
+
         jobGraph.setClasspaths(classPaths);
     }
 
