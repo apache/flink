@@ -1322,7 +1322,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
 
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     String distributionKind = null;
-    SqlNode bucketCount = null;
+    SqlNumericLiteral bucketCount = null;
     SqlNodeList bucketColumns = SqlNodeList.EMPTY;
     SqlDistribution distribution = null;
     SqlNodeList partitionColumns = SqlNodeList.EMPTY;
@@ -1355,7 +1355,12 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
     [
         <DISTRIBUTED>
         (
-            <INTO> { bucketCount = Literal(); } <BUCKETS>
+            <INTO> { bucketCount = UnsignedNumericLiteral();
+                if (!bucketCount.isInteger()) {
+                throw SqlUtil.newContextException(getPos(),
+                ParserResource.RESOURCE.overwriteIsOnlyUsedWithInsert());
+                }
+                } <BUCKETS>
             |
             (
                 <BY> (
@@ -1367,7 +1372,12 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
                     bucketColumns = ParenthesizedSimpleIdentifierList();
                 }
                 [
-                    <INTO> { bucketCount = Literal(); } <BUCKETS>
+                    <INTO> { bucketCount = UnsignedNumericLiteral();
+                            if (!bucketCount.isInteger()) {
+                                throw SqlUtil.newContextException(getPos(),
+                                ParserResource.RESOURCE.overwriteIsOnlyUsedWithInsert());
+                            }
+                        } <BUCKETS>
                 ]
             )
         )
@@ -1545,7 +1555,7 @@ SqlNode SqlReplaceTable() :
     SqlWatermark watermark = null;
     SqlNodeList columnList = SqlNodeList.EMPTY;
     String distributionKind = null;
-    SqlNode bucketCount = null;
+    SqlNumericLiteral bucketCount = null;
     SqlNodeList bucketColumns = SqlNodeList.EMPTY;
     SqlDistribution distribution = null;
     SqlNodeList partitionColumns = SqlNodeList.EMPTY;
@@ -1582,7 +1592,12 @@ SqlNode SqlReplaceTable() :
     [
         <DISTRIBUTED>
         (
-            <INTO> { bucketCount = Literal(); } <BUCKETS>
+            <INTO> { bucketCount = UnsignedNumericLiteral();
+                if (!bucketCount.isInteger()) {
+                throw SqlUtil.newContextException(getPos(),
+                ParserResource.RESOURCE.overwriteIsOnlyUsedWithInsert());
+                }
+                } <BUCKETS>
             |
             (
                 <BY> (
@@ -1594,7 +1609,12 @@ SqlNode SqlReplaceTable() :
                     bucketColumns = ParenthesizedSimpleIdentifierList();
                 }
                 [
-                    <INTO> { bucketCount = Literal(); } <BUCKETS>
+                            <INTO> { bucketCount = UnsignedNumericLiteral();
+                                if (!bucketCount.isInteger()) {
+                                throw SqlUtil.newContextException(getPos(),
+                                ParserResource.RESOURCE.overwriteIsOnlyUsedWithInsert());
+                                }
+                                } <BUCKETS>
                 ]
             )
         )

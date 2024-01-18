@@ -22,6 +22,7 @@ import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlNumericLiteral;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
@@ -44,13 +45,13 @@ public class SqlDistribution extends SqlCall {
 
     private final String distributionKind;
     private final SqlNodeList bucketColumns;
-    private final SqlNode bucketCount;
+    private final SqlNumericLiteral bucketCount;
 
     public SqlDistribution(
             SqlParserPos pos,
             @Nullable String distributionKind,
             @Nullable SqlNodeList bucketColumns,
-            @Nullable SqlNode bucketCount) {
+            @Nullable SqlNumericLiteral bucketCount) {
         super(pos);
         this.distributionKind = distributionKind;
         this.bucketColumns = bucketColumns;
@@ -102,7 +103,7 @@ public class SqlDistribution extends SqlCall {
         return distributionKind;
     }
 
-    public SqlNode getBucketCount() {
+    public SqlNumericLiteral getBucketCount() {
         return bucketCount;
     }
 

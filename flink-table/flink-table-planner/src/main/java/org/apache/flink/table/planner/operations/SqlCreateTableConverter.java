@@ -44,6 +44,7 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlNumericLiteral;
 
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -245,10 +246,9 @@ class SqlCreateTableConverter {
                     CatalogTable.TableDistribution.Kind.valueOf(
                             sqlCreateTable.getSqlDistribution().getDistributionKind());
             Integer bucketCount = null;
-            SqlNumericLiteral count =
-                    (SqlNumericLiteral) sqlCreateTable.getSqlDistribution().getBucketCount();
-            if (count != null) {
-                bucketCount = (Integer) (count).getValue();
+            SqlNumericLiteral count = sqlCreateTable.getSqlDistribution().getBucketCount();
+            if (count != null && count.isInteger()) {
+                bucketCount = ((BigDecimal) (count).getValue()).intValue();
             }
 
             List<String> bucketColumns = Collections.emptyList();

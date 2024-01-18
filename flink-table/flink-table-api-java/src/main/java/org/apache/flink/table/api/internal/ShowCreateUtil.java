@@ -21,6 +21,7 @@ package org.apache.flink.table.api.internal;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -64,6 +65,8 @@ public class ShowCreateUtil {
         extractFormattedComment(table)
                 .ifPresent(
                         c -> sb.append(String.format("COMMENT '%s'%s", c, System.lineSeparator())));
+        extractFormattedDistributedInfo((ResolvedCatalogTable) table)
+                .ifPresent(sb::append);
         extractFormattedPartitionedInfo((ResolvedCatalogTable) table)
                 .ifPresent(
                         partitionedInfoFormatted ->
@@ -195,6 +198,36 @@ public class ShowCreateUtil {
             return Optional.of(EncodingUtils.escapeSingleQuotes(comment));
         }
         return Optional.empty();
+    }
+
+    static Optional<String> extractFormattedDistributedInfo(ResolvedCatalogTable catalogTable) {
+        if (!catalogTable.getDistribution().isPresent()) {
+            return Optional.empty();
+        }
+        CatalogTable.TableDistribution distribution =  catalogTable.getDistribution().get();
+
+        if (distribution.getBucketKeys().isEmpty() && distribution.getBucketCount().isPresent() &&
+        distribution.getBucketCount().get() != 0) {
+            return Optional.of("DISTRIBUTED INTO " + distribution.getBucketCount().get() + " BUCKETS\n");
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("DISTRIBUTED BY ");
+        if (distribution.getKind() != null && distribution.getKind() != CatalogTable.TableDistribution.Kind.UNKNOWN) {
+            sb.append(distribution.getKind());
+        }
+        sb.append("(");
+        sb.append(distribution.getBucketKeys().stream()
+                .map(EncodingUtils::escapeIdentifier)
+                .collect(Collectors.joining(", ")));
+        sb.append(")");
+        if (distribution.getBucketCount().isPresent() && distribution.getBucketCount().get() != 0) {
+            sb.append(" INTO ");
+            sb.append(distribution.getBucketCount().get());
+            sb.append(" BUCKETS");
+        }
+        sb.append("\n");
+        return Optional.of(sb.toString());
     }
 
     static Optional<String> extractFormattedPartitionedInfo(ResolvedCatalogTable catalogTable) {
