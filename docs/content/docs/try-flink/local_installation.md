@@ -141,7 +141,7 @@ You can view the data flow plan for the execution:
 
 Here for the job execution, Flink has two operators. The ﬁrst is the source operator which reads data from the
 collection source. The second operator is the transformation operator which aggregates counts of words. Learn
-more about [DataStream operators]({{< ref "docs/dev/datastream/operators" >}}).
+more about [DataStream operators]({{< ref "docs/dev/datastream/operators/overview" >}}).
 
 You can also look at the timeline of the job execution:
 
