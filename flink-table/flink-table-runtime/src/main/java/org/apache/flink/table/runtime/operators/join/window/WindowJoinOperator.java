@@ -43,9 +43,9 @@ import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.operators.join.JoinConditionWithNullFilters;
-import org.apache.flink.table.runtime.operators.window.windowtvf.common.WindowTimerService;
-import org.apache.flink.table.runtime.operators.window.windowtvf.slicing.SlicingWindowTimerServiceImpl;
-import org.apache.flink.table.runtime.operators.window.windowtvf.state.WindowListState;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowTimerServiceImpl;
+import org.apache.flink.table.runtime.operators.window.tvf.state.WindowListState;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.types.RowKind;
 

@@ -194,7 +194,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
         windowProperty = new GenericRowData(namedProperties.length);
         windowAggResult = new JoinedRowData();
 
-        PhthonWindowContext windowContext = new PhthonWindowContext();
+        PythonWindowContext windowContext = new PythonWindowContext();
         windowAssigner.open(windowContext);
     }
 
@@ -529,7 +529,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
         }
     }
 
-    private class PhthonWindowContext implements WindowContext<K, W> {
+    private class PythonWindowContext implements WindowContext<K, W> {
         @Override
         public <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor)
                 throws Exception {

@@ -22,11 +22,11 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.operators.window.windowtvf.combines.RecordsCombiner;
-import org.apache.flink.table.runtime.operators.window.windowtvf.common.WindowTimerService;
-import org.apache.flink.table.runtime.operators.window.windowtvf.state.StateKeyContext;
-import org.apache.flink.table.runtime.operators.window.windowtvf.state.WindowState;
-import org.apache.flink.table.runtime.operators.window.windowtvf.state.WindowValueState;
+import org.apache.flink.table.runtime.operators.window.tvf.combines.RecordsCombiner;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
+import org.apache.flink.table.runtime.operators.window.tvf.state.StateKeyContext;
+import org.apache.flink.table.runtime.operators.window.tvf.state.WindowState;
+import org.apache.flink.table.runtime.operators.window.tvf.state.WindowValueState;
 import org.apache.flink.table.runtime.util.WindowKey;
 
 import java.util.Iterator;

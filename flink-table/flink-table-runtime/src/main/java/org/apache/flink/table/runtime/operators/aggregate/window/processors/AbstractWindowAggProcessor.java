@@ -27,12 +27,12 @@ import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.dataview.PerWindowStateDataViewStore;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
-import org.apache.flink.table.runtime.operators.window.windowtvf.common.ClockService;
-import org.apache.flink.table.runtime.operators.window.windowtvf.common.WindowAssigner;
-import org.apache.flink.table.runtime.operators.window.windowtvf.common.WindowProcessor;
-import org.apache.flink.table.runtime.operators.window.windowtvf.common.WindowTimerService;
-import org.apache.flink.table.runtime.operators.window.windowtvf.slicing.SliceAssigners;
-import org.apache.flink.table.runtime.operators.window.windowtvf.state.WindowValueState;
+import org.apache.flink.table.runtime.operators.window.tvf.common.ClockService;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigners;
+import org.apache.flink.table.runtime.operators.window.tvf.state.WindowValueState;
 
 import java.io.Serializable;
 import java.time.ZoneId;
@@ -50,7 +50,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *   <li>{@link AbstractSliceWindowAggProcessor}
  * </ul>
  *
- * <p>TODO support unslice window aggregate.
+ * <p>TODO support unslice window aggregate in FLINK-34048.
  */
 public abstract class AbstractWindowAggProcessor<W> implements WindowProcessor<W> {
 

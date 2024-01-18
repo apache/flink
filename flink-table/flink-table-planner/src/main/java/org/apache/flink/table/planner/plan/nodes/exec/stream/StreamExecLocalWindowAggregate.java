@@ -46,7 +46,7 @@ import org.apache.flink.table.runtime.operators.aggregate.window.LocalSlicingWin
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.RecordsWindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.combines.LocalAggCombiner;
-import org.apache.flink.table.runtime.operators.window.windowtvf.slicing.SliceAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
@@ -231,7 +231,7 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
                 JavaScalaConversionUtil.toScala(Collections.emptyList()),
                 sliceAssigner,
                 // we use window end timestamp to indicate a slicing window, see SliceAssigner
-                // TODO support unslicing window and using class Window here
+                // TODO support unslicing window and using class Window in FLINK-34048
                 Long.class,
                 shiftTimeZone);
     }

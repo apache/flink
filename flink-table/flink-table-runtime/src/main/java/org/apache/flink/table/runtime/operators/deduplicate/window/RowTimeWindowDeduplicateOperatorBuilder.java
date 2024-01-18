@@ -23,9 +23,9 @@ import org.apache.flink.table.runtime.operators.aggregate.window.buffers.Records
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.deduplicate.window.combines.RowTimeDeduplicateRecordsCombiner;
 import org.apache.flink.table.runtime.operators.deduplicate.window.processors.RowTimeWindowDeduplicateProcessor;
-import org.apache.flink.table.runtime.operators.window.windowtvf.combines.RecordsCombiner;
-import org.apache.flink.table.runtime.operators.window.windowtvf.slicing.SlicingWindowOperator;
-import org.apache.flink.table.runtime.operators.window.windowtvf.slicing.SlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.combines.RecordsCombiner;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowOperator;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 

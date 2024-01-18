@@ -23,7 +23,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.window.MergeCallback;
-import org.apache.flink.table.runtime.operators.window.windowtvf.slicing.SliceSharedAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceSharedAssigner;
 
 import javax.annotation.Nullable;
 

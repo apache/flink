@@ -25,10 +25,10 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
-import org.apache.flink.table.runtime.operators.window.windowtvf.common.WindowTimerService;
-import org.apache.flink.table.runtime.operators.window.windowtvf.slicing.SlicingWindowProcessor;
-import org.apache.flink.table.runtime.operators.window.windowtvf.slicing.SlicingWindowTimerServiceImpl;
-import org.apache.flink.table.runtime.operators.window.windowtvf.state.WindowValueState;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowTimerServiceImpl;
+import org.apache.flink.table.runtime.operators.window.tvf.state.WindowValueState;
 
 import java.time.ZoneId;
 

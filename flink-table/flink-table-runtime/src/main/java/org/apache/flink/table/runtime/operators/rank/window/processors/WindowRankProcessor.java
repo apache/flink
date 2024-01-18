@@ -30,10 +30,10 @@ import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.rank.TopNBuffer;
-import org.apache.flink.table.runtime.operators.window.windowtvf.common.WindowTimerService;
-import org.apache.flink.table.runtime.operators.window.windowtvf.slicing.SlicingWindowProcessor;
-import org.apache.flink.table.runtime.operators.window.windowtvf.slicing.SlicingWindowTimerServiceImpl;
-import org.apache.flink.table.runtime.operators.window.windowtvf.state.WindowMapState;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowTimerServiceImpl;
+import org.apache.flink.table.runtime.operators.window.tvf.state.WindowMapState;
 import org.apache.flink.types.RowKind;
 
 import java.time.ZoneId;

@@ -34,12 +34,12 @@ public interface WindowSpec {
     String toSummaryString(String windowing);
 
     /**
-     * Return if the window is a aligned window.
+     * Return true if the window is a aligned window.
      *
      * <p>See more details about aligned window and unaligned window in {@link
-     * org.apache.flink.table.runtime.operators.window.windowtvf.common.AbstractWindowOperator}.
+     * org.apache.flink.table.runtime.operators.window.tvf.common.AbstractWindowOperator}.
      *
-     * <p>TODO introduce unaligned window like session window.
+     * <p>TODO introduce unaligned window like session window in FLINK-34048.
      */
     @JsonIgnore
     boolean isAlignedWindow();

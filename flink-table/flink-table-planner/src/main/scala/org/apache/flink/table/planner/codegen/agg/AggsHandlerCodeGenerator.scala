@@ -35,7 +35,7 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.dataview._
 import org.apache.flink.table.runtime.generated._
 import org.apache.flink.table.runtime.groupwindow._
-import org.apache.flink.table.runtime.operators.window.windowtvf.common.WindowAssigner
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{BooleanType, IntType, LogicalType, RowType}

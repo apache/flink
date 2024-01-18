@@ -38,9 +38,9 @@ import java.util.Collection;
  * that pane.
  *
  * <p>The differences between {@link GroupWindowAssigner} and {@link
- * org.apache.flink.table.runtime.operators.window.windowtvf.common.WindowAssigner} is that, this
- * window assigner is translated from the legacy GROUP WINDOW FUNCTION syntax, but the other is from
- * the new window TVF syntax. In the long future, {@link GroupWindowAssigner} will be dropped.
+ * org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner} is that, this window
+ * assigner is translated from the legacy GROUP WINDOW FUNCTION syntax, but the other is from the
+ * new window TVF syntax. In the long future, {@link GroupWindowAssigner} will be dropped.
  *
  * @param <W> The type of {@code Window} that this assigner assigns.
  */

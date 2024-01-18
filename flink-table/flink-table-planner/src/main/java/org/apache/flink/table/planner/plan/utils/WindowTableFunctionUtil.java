@@ -30,7 +30,7 @@ import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.Cum
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.GroupWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.SlidingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.TumblingWindowAssigner;
-import org.apache.flink.table.runtime.operators.window.windowtvf.common.WindowAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner;
 
 /** Utilities for Window Table Function. */
 @Internal
