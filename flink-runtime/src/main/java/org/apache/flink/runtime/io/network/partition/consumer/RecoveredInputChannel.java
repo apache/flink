@@ -36,7 +36,6 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.activation.UnsupportedDataTypeException;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
@@ -193,7 +192,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 
     @Override
     protected int peekNextBufferSubpartitionIdInternal() throws IOException {
-        throw new UnsupportedDataTypeException();
+        throw new UnsupportedOperationException();
     }
 
     @Override
