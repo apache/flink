@@ -189,6 +189,7 @@ public class TableFactoryHarness {
             super(
                     schema,
                     Collections.singletonMap(FactoryUtil.CONNECTOR.key(), IDENTIFIER),
+                    null,
                     Collections.emptyList(),
                     null);
 

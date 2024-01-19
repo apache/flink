@@ -55,16 +55,19 @@ public class TableDescriptor {
 
     private final @Nullable Schema schema;
     private final Map<String, String> options;
+    private final CatalogTable.TableDistribution tableDistribution;
     private final List<String> partitionKeys;
     private final @Nullable String comment;
 
     protected TableDescriptor(
             @Nullable Schema schema,
             Map<String, String> options,
+            CatalogTable.TableDistribution tableDistribution,
             List<String> partitionKeys,
             @Nullable String comment) {
         this.schema = schema;
         this.options = Collections.unmodifiableMap(options);
+        this.tableDistribution = tableDistribution;
         this.partitionKeys = Collections.unmodifiableList(partitionKeys);
         this.comment = comment;
     }
@@ -99,6 +102,14 @@ public class TableDescriptor {
 
     public Map<String, String> getOptions() {
         return options;
+    }
+
+    public CatalogTable.TableDistribution getTableDistribution() {
+        return tableDistribution;
+    }
+
+    public List<String> getBucketKeys() {
+        return partitionKeys;
     }
 
     public List<String> getPartitionKeys() {
@@ -140,6 +151,9 @@ public class TableDescriptor {
                         .map(EncodingUtils::escapeIdentifier)
                         .collect(Collectors.joining(", "));
 
+        final String distributedBy =
+                tableDistribution == null ? "" : tableDistribution.toSqlString();
+
         final String partitionedBy =
                 !partitionKeys.isEmpty()
                         ? String.format("PARTITIONED BY (%s)", escapedPartitionKeys)
@@ -156,9 +170,10 @@ public class TableDescriptor {
                         .collect(Collectors.joining(String.format(",%n")));
 
         return String.format(
-                "%s%nCOMMENT '%s'%n%s%nWITH (%n%s%n)",
+                "%s%nCOMMENT '%s'%n%s%s%nWITH (%n%s%n)",
                 schema != null ? schema : "",
                 comment != null ? comment : "",
+                distributedBy,
                 partitionedBy,
                 serializedOptions);
     }
@@ -193,17 +208,20 @@ public class TableDescriptor {
 
         private @Nullable Schema schema;
         private final Map<String, String> options;
+        private @Nullable CatalogTable.TableDistribution tableDistribution;
         private final List<String> partitionKeys;
         private @Nullable String comment;
 
         protected Builder() {
             this.options = new HashMap<>();
+            this.tableDistribution = null;
             this.partitionKeys = new ArrayList<>();
         }
 
         protected Builder(TableDescriptor descriptor) {
             this.schema = descriptor.getSchema().orElse(null);
             this.options = new HashMap<>(descriptor.getOptions());
+            this.tableDistribution = descriptor.getTableDistribution();
             this.partitionKeys = new ArrayList<>(descriptor.getPartitionKeys());
             this.comment = descriptor.getComment().orElse(null);
         }
@@ -334,6 +352,12 @@ public class TableDescriptor {
             return this;
         }
 
+        /** Define which columns this table is distributed by. */
+        public Builder distributedBy(CatalogTable.TableDistribution tableDistribution) {
+            this.tableDistribution = tableDistribution;
+            return this;
+        }
+
         /** Define which columns this table is partitioned by. */
         public Builder partitionedBy(String... partitionKeys) {
             this.partitionKeys.addAll(Arrays.asList(partitionKeys));
@@ -348,7 +372,7 @@ public class TableDescriptor {
 
         /** Returns an immutable instance of {@link TableDescriptor}. */
         public TableDescriptor build() {
-            return new TableDescriptor(schema, options, partitionKeys, comment);
+            return new TableDescriptor(schema, options, tableDistribution, partitionKeys, comment);
         }
     }
 }

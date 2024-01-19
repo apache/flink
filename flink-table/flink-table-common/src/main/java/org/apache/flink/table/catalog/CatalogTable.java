@@ -21,13 +21,16 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.factories.DynamicTableFactory;
+import org.apache.flink.table.utils.EncodingUtils;
 
 import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Represents the unresolved metadata of a table in a {@link Catalog}.
@@ -82,7 +85,29 @@ public interface CatalogTable extends CatalogBaseTable {
             List<String> partitionKeys,
             Map<String, String> options,
             @Nullable Long snapshot) {
-        return new DefaultCatalogTable(schema, comment, partitionKeys, options, snapshot);
+        return new DefaultCatalogTable(
+                schema, comment, partitionKeys, options, snapshot, Optional.empty());
+    }
+
+    /**
+     * Creates an instance of {@link CatalogTable} with a specific snapshot.
+     *
+     * @param schema unresolved schema
+     * @param comment optional comment
+     * @param distribution distribution of the table
+     * @param partitionKeys list of partition keys or an empty list if not partitioned
+     * @param options options to configure the connector
+     * @param snapshot table snapshot of the table
+     */
+    static CatalogTable of(
+            Schema schema,
+            @Nullable String comment,
+            Optional<TableDistribution> distribution,
+            List<String> partitionKeys,
+            Map<String, String> options,
+            @Nullable Long snapshot) {
+        return new DefaultCatalogTable(
+                schema, comment, partitionKeys, options, snapshot, distribution);
     }
 
     /**
@@ -143,5 +168,109 @@ public interface CatalogTable extends CatalogBaseTable {
     /** Return the snapshot specified for the table. Return Optional.empty() if not specified. */
     default Optional<Long> getSnapshot() {
         return Optional.empty();
+    }
+
+    /** Returns the distribution of the table if the {@code DISTRIBUTED} clause is defined. */
+    default Optional<TableDistribution> getDistribution() {
+        return Optional.empty();
+    }
+
+    /** Distribution specification. */
+    @PublicEvolving
+    class TableDistribution {
+
+        private final Kind kind;
+        private final @Nullable Integer bucketCount;
+        private final List<String> bucketKeys;
+
+        @PublicEvolving
+        public TableDistribution(
+                Kind kind, @Nullable Integer bucketCount, List<String> bucketKeys) {
+            this.kind = kind;
+            this.bucketCount = bucketCount;
+            this.bucketKeys = bucketKeys;
+        }
+
+        /** Connector-dependent distribution with a declared number of buckets. */
+        public static TableDistribution ofUnknown(int bucketCount) {
+            return new TableDistribution(Kind.UNKNOWN, bucketCount, Collections.emptyList());
+        }
+
+        /** Hash distribution over on the given keys among the declared number of buckets. */
+        public static TableDistribution ofHash(
+                List<String> bucketKeys, @Nullable Integer bucketCount) {
+            return new TableDistribution(Kind.HASH, bucketCount, bucketKeys);
+        }
+
+        /** Range distribution over on the given keys among the declared number of buckets. */
+        public static TableDistribution ofRange(
+                List<String> bucketKeys, @Nullable Integer bucketCount) {
+            return new TableDistribution(Kind.RANGE, bucketCount, bucketKeys);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            TableDistribution that = (TableDistribution) o;
+            return kind == that.kind
+                    && Objects.equals(bucketCount, that.bucketCount)
+                    && Objects.equals(bucketKeys, that.bucketKeys);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(kind, bucketCount, bucketKeys);
+        }
+
+        @PublicEvolving
+        public enum Kind {
+            UNKNOWN,
+            HASH,
+            RANGE
+        }
+
+        public Kind getKind() {
+            return kind;
+        }
+
+        public List<String> getBucketKeys() {
+            return bucketKeys;
+        }
+
+        public Optional<Integer> getBucketCount() {
+            return Optional.ofNullable(bucketCount);
+        }
+
+        public String toSqlString() {
+            if (getBucketKeys().isEmpty()
+                    && getBucketCount().isPresent()
+                    && getBucketCount().get() != 0) {
+                return "DISTRIBUTED INTO " + getBucketCount().get() + " BUCKETS\n";
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("DISTRIBUTED BY ");
+            if (getKind() != null && getKind() != Kind.UNKNOWN) {
+                sb.append(getKind());
+            }
+            sb.append("(");
+            sb.append(
+                    getBucketKeys().stream()
+                            .map(EncodingUtils::escapeIdentifier)
+                            .collect(Collectors.joining(", ")));
+            sb.append(")");
+            if (getBucketCount().isPresent() && getBucketCount().get() != 0) {
+                sb.append(" INTO ");
+                sb.append(getBucketCount().get());
+                sb.append(" BUCKETS");
+            }
+            sb.append("\n");
+            return sb.toString();
+        }
     }
 }

@@ -63,6 +63,12 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
     private final List<SqlTableConstraint> tableConstraints;
 
+    public SqlDistribution getSqlDistribution() {
+        return sqlDistribution;
+    }
+
+    private final SqlDistribution sqlDistribution;
+
     private final SqlNodeList partitionKeyList;
 
     private final SqlWatermark watermark;
@@ -77,6 +83,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             SqlNodeList columnList,
             List<SqlTableConstraint> tableConstraints,
             SqlNodeList propertyList,
+            SqlDistribution sqlDistribution,
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
             @Nullable SqlCharStringLiteral comment,
@@ -89,6 +96,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
                 columnList,
                 tableConstraints,
                 propertyList,
+                sqlDistribution,
                 partitionKeyList,
                 watermark,
                 comment,
@@ -103,6 +111,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             SqlNodeList columnList,
             List<SqlTableConstraint> tableConstraints,
             SqlNodeList propertyList,
+            @Nullable SqlDistribution sqlDistribution,
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
             @Nullable SqlCharStringLiteral comment,
@@ -114,6 +123,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
         this.tableConstraints =
                 requireNonNull(tableConstraints, "table constraints should not be null");
         this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
+        this.sqlDistribution = sqlDistribution;
         this.partitionKeyList =
                 requireNonNull(partitionKeyList, "partitionKeyList should not be null");
         this.watermark = watermark;
@@ -254,6 +264,10 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             writer.newlineAndIndent();
             writer.keyword("COMMENT");
             comment.unparse(writer, leftPrec, rightPrec);
+        }
+
+        if (this.sqlDistribution != null) {
+            sqlDistribution.unparse(writer, leftPrec, rightPrec);
         }
 
         if (this.partitionKeyList.size() > 0) {

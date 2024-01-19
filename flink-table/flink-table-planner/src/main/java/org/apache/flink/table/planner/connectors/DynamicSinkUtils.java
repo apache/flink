@@ -30,6 +30,7 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
 import org.apache.flink.table.catalog.ContextResolvedTable;
@@ -40,6 +41,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.connector.RowLevelModificationScanContext;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.abilities.SupportsBucketing;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
@@ -955,6 +957,11 @@ public final class DynamicSinkUtils {
             DynamicTableSink sink,
             ResolvedCatalogTable table,
             List<SinkAbilitySpec> sinkAbilitySpecs) {
+        table.getDistribution()
+                .ifPresent(
+                        tableDistribution ->
+                                validateBucketing(tableDebugName, sink, tableDistribution));
+
         validatePartitioning(tableDebugName, staticPartitions, sink, table.getPartitionKeys());
 
         validateAndApplyOverwrite(tableDebugName, isOverwrite, sink, sinkAbilitySpecs);
@@ -1028,6 +1035,38 @@ public final class DynamicSinkUtils {
                 TypeTransformations.legacyRawToTypeInfoRaw(),
                 TypeTransformations.legacyToNonLegacy(),
                 TypeTransformations.toNullable());
+    }
+
+    private static void validateBucketing(
+            String tableDebugName,
+            DynamicTableSink sink,
+            CatalogTable.TableDistribution tableDistribution) {
+        if (!(sink instanceof SupportsBucketing)) {
+            throw new TableException(
+                    String.format(
+                            "Table '%s' is a bucketed table, but the underlying %s doesn't "
+                                    + "implement the %s interface.",
+                            tableDebugName,
+                            DynamicTableSink.class.getSimpleName(),
+                            SupportsBucketing.class.getSimpleName()));
+        }
+        SupportsBucketing sinkWithBucketing = (SupportsBucketing) sink;
+        if (sinkWithBucketing.requiresBucketCount()
+                && !tableDistribution.getBucketCount().isPresent()) {
+            throw new ValidationException(
+                    String.format(
+                            "Table '%s' is a bucketed table, but the underlying %s requires the number of buckets to be set.",
+                            tableDebugName, DynamicTableSink.class.getSimpleName()));
+        }
+        if (tableDistribution.getKind() != CatalogTable.TableDistribution.Kind.UNKNOWN
+                && !sinkWithBucketing.listAlgorithms().contains(tableDistribution.getKind())) {
+            throw new ValidationException(
+                    String.format(
+                            "Table '%s' is a bucketed table and it supports %s, but %s was requested.",
+                            tableDebugName,
+                            sinkWithBucketing.listAlgorithms(),
+                            tableDistribution.getKind()));
+        }
     }
 
     private static void validatePartitioning(

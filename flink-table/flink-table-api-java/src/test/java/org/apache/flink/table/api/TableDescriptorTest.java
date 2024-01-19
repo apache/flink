@@ -20,8 +20,11 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.table.catalog.CatalogTable;
 
 import org.junit.jupiter.api.Test;
+
+import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -50,12 +53,19 @@ class TableDescriptorTest {
         final TableDescriptor descriptor =
                 TableDescriptor.forConnector("test-connector")
                         .schema(schema)
+                        .distributedBy(
+                                CatalogTable.TableDistribution.ofHash(
+                                        Collections.singletonList("f0"), 1))
                         .partitionedBy("f0")
                         .comment("Test Comment")
                         .build();
 
         assertThat(descriptor.getSchema()).isPresent();
         assertThat(descriptor.getSchema().get()).isEqualTo(schema);
+
+        assertThat(descriptor.getTableDistribution())
+                .isEqualTo(
+                        CatalogTable.TableDistribution.ofHash(Collections.singletonList("f0"), 1));
 
         assertThat(descriptor.getPartitionKeys()).hasSize(1);
         assertThat(descriptor.getPartitionKeys().get(0)).isEqualTo("f0");
@@ -134,6 +144,9 @@ class TableDescriptorTest {
         final TableDescriptor tableDescriptor =
                 TableDescriptor.forConnector("test-connector")
                         .schema(schema)
+                        .distributedBy(
+                                CatalogTable.TableDistribution.ofRange(
+                                        Collections.singletonList("f0"), 3))
                         .partitionedBy("f0")
                         .option(OPTION_A, true)
                         .format(formatDescriptor)
@@ -147,6 +160,7 @@ class TableDescriptorTest {
                                 + "  `f0` STRING\n"
                                 + ")\n"
                                 + "COMMENT 'Test Comment'\n"
+                                + "DISTRIBUTED BY RANGE(`f0`) INTO 3 BUCKETS\n"
                                 + "PARTITIONED BY (`f0`)\n"
                                 + "WITH (\n"
                                 + "  'a' = 'true',\n"

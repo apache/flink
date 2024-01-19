@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.catalog.CatalogTable.TableDistribution;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 
@@ -31,6 +32,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 
@@ -110,6 +112,24 @@ public class OperationMatchers {
             @Override
             protected List<String> featureValueOf(CreateTableOperation actual) {
                 return actual.getCatalogTable().getPartitionKeys();
+            }
+        };
+    }
+
+    /**
+     * Checks that the schema of {@link CreateTableOperation} is equal to the given {@link
+     * TableDistribution}.
+     *
+     * @param distribution TableDistribution that the {@link CreateTableOperation} should have
+     * @see #isCreateTableOperation(Matcher[])
+     */
+    public static Matcher<CreateTableOperation> withDistribution(
+            Optional<TableDistribution> distribution) {
+        return new FeatureMatcher<CreateTableOperation, Optional<TableDistribution>>(
+                equalTo(distribution), "distribution of the derived table", "schema") {
+            @Override
+            protected Optional<TableDistribution> featureValueOf(CreateTableOperation actual) {
+                return actual.getCatalogTable().getDistribution();
             }
         };
     }

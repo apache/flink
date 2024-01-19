@@ -40,6 +40,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_CATALOG;
@@ -198,6 +199,52 @@ class CatalogBaseTableResolutionTest {
                                             "Invalid partition key 'countyINVALID'. A partition key must "
                                                     + "reference a physical column in the schema. Available "
                                                     + "columns are: [id, region, county]")));
+        }
+    }
+
+    @Test
+    void testValidDistributionKeys() {
+        final CatalogTable catalogTable =
+                new DefaultCatalogTable(
+                        TABLE_SCHEMA,
+                        null,
+                        Collections.emptyList(),
+                        Collections.emptyMap(),
+                        null,
+                        Optional.of(
+                                CatalogTable.TableDistribution.ofHash(
+                                        Collections.singletonList("county"), 6)));
+        final ResolvedCatalogTable resolvedTable =
+                resolveCatalogBaseTable(ResolvedCatalogTable.class, catalogTable);
+        assertThat(resolvedTable.getDistribution().get().getBucketKeys())
+                .isEqualTo(Collections.singletonList("county"));
+        assertThat(resolvedTable.getDistribution().get().getKind())
+                .isEqualTo(CatalogTable.TableDistribution.Kind.HASH);
+    }
+
+    @Test
+    void testInvalidDistributionKeys() {
+        final CatalogTable catalogTable =
+                new DefaultCatalogTable(
+                        TABLE_SCHEMA,
+                        null,
+                        Collections.emptyList(),
+                        Collections.emptyMap(),
+                        null,
+                        Optional.of(
+                                CatalogTable.TableDistribution.ofHash(
+                                        Collections.singletonList("countyINVALID"), 6)));
+        try {
+            resolveCatalogBaseTable(ResolvedCatalogTable.class, catalogTable);
+            fail("Invalid bucket keys expected.");
+        } catch (Exception e) {
+            assertThat(e)
+                    .satisfies(
+                            matching(
+                                    containsMessage(
+                                            "Invalid bucket key 'countyINVALID'. A bucket key must "
+                                                    + "reference a physical column in the schema. "
+                                                    + "Available columns are: [id, region, county]")));
         }
     }
 

@@ -37,6 +37,9 @@ public class DefaultCatalogTable implements CatalogTable {
 
     private final Schema schema;
     private final @Nullable String comment;
+
+    private final Optional<TableDistribution> tableDistribution;
+
     private final List<String> partitionKeys;
     private final Map<String, String> options;
 
@@ -47,7 +50,7 @@ public class DefaultCatalogTable implements CatalogTable {
             @Nullable String comment,
             List<String> partitionKeys,
             Map<String, String> options) {
-        this(schema, comment, partitionKeys, options, null);
+        this(schema, comment, partitionKeys, options, null, Optional.empty());
     }
 
     protected DefaultCatalogTable(
@@ -55,12 +58,14 @@ public class DefaultCatalogTable implements CatalogTable {
             @Nullable String comment,
             List<String> partitionKeys,
             Map<String, String> options,
-            @Nullable Long snapshot) {
+            @Nullable Long snapshot,
+            Optional<TableDistribution> tableDistribution) {
         this.schema = checkNotNull(schema, "Schema must not be null.");
         this.comment = comment;
         this.partitionKeys = checkNotNull(partitionKeys, "Partition keys must not be null.");
         this.options = checkNotNull(options, "Options must not be null.");
         this.snapshot = snapshot;
+        this.tableDistribution = tableDistribution;
 
         checkArgument(
                 options.entrySet().stream()
@@ -89,18 +94,25 @@ public class DefaultCatalogTable implements CatalogTable {
     }
 
     @Override
+    public Optional<TableDistribution> getDistribution() {
+        return tableDistribution;
+    }
+
+    @Override
     public Map<String, String> getOptions() {
         return options;
     }
 
     @Override
     public CatalogBaseTable copy() {
-        return new DefaultCatalogTable(schema, comment, partitionKeys, options, snapshot);
+        return new DefaultCatalogTable(
+                schema, comment, partitionKeys, options, snapshot, tableDistribution);
     }
 
     @Override
     public CatalogTable copy(Map<String, String> options) {
-        return new DefaultCatalogTable(schema, comment, partitionKeys, options, snapshot);
+        return new DefaultCatalogTable(
+                schema, comment, partitionKeys, options, snapshot, tableDistribution);
     }
 
     @Override
