@@ -188,6 +188,11 @@ public final class SliceAssigners {
         public long getSliceEndInterval() {
             return size;
         }
+
+        @Override
+        public String getDescription() {
+            return String.format("TumblingWindow(size=%dms, offset=%dms)", size, offset);
+        }
     }
 
     /** The {@link SliceAssigner} for hopping windows. */
@@ -277,6 +282,12 @@ public final class SliceAssigners {
             } else {
                 return Optional.of(windowEnd + sliceSize);
             }
+        }
+
+        @Override
+        public String getDescription() {
+            return String.format(
+                    "HoppingWindow(size=%dms, slide=%dms, offset=%dms)", size, slide, offset);
         }
     }
 
@@ -384,6 +395,13 @@ public final class SliceAssigners {
                 return Optional.of(nextWindowEnd);
             }
         }
+
+        @Override
+        public String getDescription() {
+            return String.format(
+                    "CumulativeWindow(maxSize=%dms, step=%dms, offset=%dms)",
+                    maxSize, step, offset);
+        }
     }
 
     /**
@@ -438,6 +456,13 @@ public final class SliceAssigners {
             // it always works in event-time mode if input row has been attached windows
             return true;
         }
+
+        @Override
+        public String getDescription() {
+            return String.format(
+                    "WindowedSliceWindow(innerWindow=%s, windowEndIndex=%d)",
+                    innerAssigner, windowEndIndex);
+        }
     }
 
     /**
@@ -469,6 +494,11 @@ public final class SliceAssigners {
         public long getLastWindowEnd(long sliceEnd) {
             return innerAssigner.getLastWindowEnd(sliceEnd);
         }
+
+        @Override
+        public String getDescription() {
+            return String.format("SlicedSharedSliceWindow(innerWindow=%s)", innerAssigner);
+        }
     }
 
     /**
@@ -490,6 +520,11 @@ public final class SliceAssigners {
             // because SlicedUnsharedSliceAssigner is slice unshared, an attached unshared slice
             // can't be shared with other windows and the last window should be itself.
             return sliceEnd;
+        }
+
+        @Override
+        public String getDescription() {
+            return String.format("SlicedUnSharedSliceWindow(innerWindow=%s)", innerAssigner);
         }
     }
 
