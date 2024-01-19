@@ -195,6 +195,8 @@ string functions
     Expression.reverse
     Expression.split_index
     Expression.str_to_map
+    Expression.json_quote
+    Expression.json_unquote
 
 temporal functions
 ------------------

@@ -88,7 +88,8 @@ _string_doc_seealso = """
              :func:`~Expression.overlay`, :func:`~Expression.regexp_replace`,
              :func:`~Expression.regexp_extract`, :func:`~Expression.substring`,
              :py:attr:`~Expression.from_base64`, :py:attr:`~Expression.to_base64`,
-             :py:attr:`~Expression.ltrim`, :py:attr:`~Expression.rtrim`, :func:`~Expression.repeat`
+             :py:attr:`~Expression.ltrim`, :py:attr:`~Expression.rtrim`, :func:`~Expression.repeat`,
+             :func:`~Expression.json_quote`, :func:`~Expression.json_unquote`
 """
 
 _temporal_doc_seealso = """
@@ -186,7 +187,8 @@ def _make_string_doc():
         Expression.init_cap, Expression.like, Expression.similar, Expression.position,
         Expression.lpad, Expression.rpad, Expression.overlay, Expression.regexp_replace,
         Expression.regexp_extract, Expression.from_base64, Expression.to_base64,
-        Expression.ltrim, Expression.rtrim, Expression.repeat
+        Expression.ltrim, Expression.rtrim, Expression.repeat,
+        Expression.json_quote, Expression.json_unquote
     ]
 
     for func in string_funcs:
@@ -1200,6 +1202,22 @@ class Expression(Generic[T]):
             return _ternary_op("regexpExtract")(self, regex)
         else:
             return _ternary_op("regexpExtract")(self, regex, extract_index)
+
+    def json_quote(self) -> 'Expression':
+        """
+        Quotes a string as a JSON value by wrapping it with double quote characters,
+        escaping interior quote and other characters, and returning the result as
+        a utf8mb4 string. If the argument is NULL, the function returns NULL.
+        """
+        return _unary_op("jsonQuote")(self)
+
+    def json_unquote(self) -> 'Expression':
+        """
+        Unquotes JSON value and returns the result as a utf8mb4 string.
+        If the argument is NULL, returns NULL. If the value starts and ends with
+        double quotes but is not a valid JSON string literal, an error occurs.
+        """
+        return _unary_op("jsonUnquote")(self)
 
     @property
     def from_base64(self) -> 'Expression[str]':
