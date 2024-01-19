@@ -20,24 +20,28 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 
-import javax.activation.UnsupportedDataTypeException;
-
 import java.io.IOException;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /** Test implementation for {@link NettyConnectionReader}. */
 public class TestingNettyConnectionReader implements NettyConnectionReader {
 
     private final Function<Integer, Buffer> readBufferFunction;
 
-    private TestingNettyConnectionReader(Function<Integer, Buffer> readBufferFunction) {
+    private final Supplier<Integer> peekNextBufferSubpartitionIdSupplier;
+
+    private TestingNettyConnectionReader(
+            Function<Integer, Buffer> readBufferFunction,
+            Supplier<Integer> peekNextBufferSubpartitionIdSupplier) {
         this.readBufferFunction = readBufferFunction;
+        this.peekNextBufferSubpartitionIdSupplier = peekNextBufferSubpartitionIdSupplier;
     }
 
     @Override
     public int peekNextBufferSubpartitionId() throws IOException {
-        throw new UnsupportedDataTypeException();
+        return peekNextBufferSubpartitionIdSupplier.get();
     }
 
     @Override
@@ -50,6 +54,8 @@ public class TestingNettyConnectionReader implements NettyConnectionReader {
 
         private Function<Integer, Buffer> readBufferFunction = segmentId -> null;
 
+        private Supplier<Integer> peekNextBufferSubpartitionIdSupplier = () -> -1;
+
         public Builder() {}
 
         public Builder setReadBufferFunction(Function<Integer, Buffer> readBufferFunction) {
@@ -57,8 +63,15 @@ public class TestingNettyConnectionReader implements NettyConnectionReader {
             return this;
         }
 
+        public Builder setPeekNextBufferSubpartitionIdSupplier(
+                Supplier<Integer> peekNextBufferSubpartitionIdSupplier) {
+            this.peekNextBufferSubpartitionIdSupplier = peekNextBufferSubpartitionIdSupplier;
+            return this;
+        }
+
         public TestingNettyConnectionReader build() {
-            return new TestingNettyConnectionReader(readBufferFunction);
+            return new TestingNettyConnectionReader(
+                    readBufferFunction, peekNextBufferSubpartitionIdSupplier);
         }
     }
 }
