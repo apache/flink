@@ -30,6 +30,7 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
 import org.apache.flink.table.catalog.ContextResolvedTable;
@@ -956,7 +957,9 @@ public final class DynamicSinkUtils {
             ResolvedCatalogTable table,
             List<SinkAbilitySpec> sinkAbilitySpecs) {
         table.getDistribution()
-                .ifPresent(tableDistribution -> validateBucketing(tableDebugName, sink));
+                .ifPresent(
+                        tableDistribution ->
+                                validateBucketing(tableDebugName, sink, tableDistribution));
 
         validatePartitioning(tableDebugName, staticPartitions, sink, table.getPartitionKeys());
 
@@ -1033,7 +1036,10 @@ public final class DynamicSinkUtils {
                 TypeTransformations.toNullable());
     }
 
-    private static void validateBucketing(String tableDebugName, DynamicTableSink sink) {
+    private static void validateBucketing(
+            String tableDebugName,
+            DynamicTableSink sink,
+            CatalogTable.TableDistribution tableDistribution) {
         if (!(sink instanceof SupportsBucketing)) {
             throw new TableException(
                     String.format(
@@ -1042,6 +1048,23 @@ public final class DynamicSinkUtils {
                             tableDebugName,
                             DynamicTableSink.class.getSimpleName(),
                             SupportsBucketing.class.getSimpleName()));
+        }
+        SupportsBucketing sinkWithBucketing = (SupportsBucketing) sink;
+        if (sinkWithBucketing.requiresBucketCount()
+                && !tableDistribution.getBucketCount().isPresent()) {
+            throw new ValidationException(
+                    String.format(
+                            "Table '%s' is a bucketed table, but the underlying %s requires the number of buckets to be set.",
+                            tableDebugName, DynamicTableSink.class.getSimpleName()));
+        }
+        if (tableDistribution.getKind() != CatalogTable.TableDistribution.Kind.UNKNOWN
+                && !sinkWithBucketing.listAlgorithms().contains(tableDistribution.getKind())) {
+            throw new ValidationException(
+                    String.format(
+                            "Table '%s' is a bucketed table and it supports %s, but %s was requested.",
+                            tableDebugName,
+                            sinkWithBucketing.listAlgorithms(),
+                            tableDistribution.getKind()));
         }
     }
 
