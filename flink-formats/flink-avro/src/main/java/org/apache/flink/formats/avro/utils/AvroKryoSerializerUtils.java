@@ -19,6 +19,7 @@
 package org.apache.flink.formats.avro.utils;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.AvroUtils;
@@ -41,7 +42,7 @@ import java.util.LinkedHashMap;
 public class AvroKryoSerializerUtils extends AvroUtils {
 
     @Override
-    public void addAvroSerializersIfRequired(ExecutionConfig reg, Class<?> type) {
+    public void addAvroSerializersIfRequired(SerializerConfig reg, Class<?> type) {
         if (org.apache.avro.specific.SpecificRecordBase.class.isAssignableFrom(type)
                 || org.apache.avro.generic.GenericData.Record.class.isAssignableFrom(type)) {
 

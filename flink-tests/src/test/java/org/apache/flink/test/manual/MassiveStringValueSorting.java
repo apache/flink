@@ -19,6 +19,7 @@
 package org.apache.flink.test.manual;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -214,7 +215,7 @@ public class MassiveStringValueSorting {
                                 new TypeHint<Tuple2<StringValue, StringValue[]>>() {}.getTypeInfo();
 
                 TypeSerializer<Tuple2<StringValue, StringValue[]>> serializer =
-                        typeInfo.createSerializer(new ExecutionConfig());
+                        typeInfo.createSerializer(new SerializerConfigImpl());
                 TypeComparator<Tuple2<StringValue, StringValue[]>> comparator =
                         typeInfo.createComparator(
                                 new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());

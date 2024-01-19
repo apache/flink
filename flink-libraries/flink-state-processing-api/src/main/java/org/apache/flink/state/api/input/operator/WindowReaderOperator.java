@@ -134,7 +134,8 @@ public class WindowReaderOperator<S extends State, KEY, IN, W extends Window, OU
         @SuppressWarnings({"unchecked", "rawtypes"})
         TypeSerializer<StreamRecord<T>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<T>>)
-                        new StreamElementSerializer(stateType.createSerializer(config));
+                        new StreamElementSerializer(
+                                stateType.createSerializer(config.getSerializerConfig()));
 
         StateDescriptor<ListState<StreamRecord<T>>, List<StreamRecord<T>>> descriptor =
                 new ListStateDescriptor<>(WINDOW_STATE_NAME, streamRecordSerializer);

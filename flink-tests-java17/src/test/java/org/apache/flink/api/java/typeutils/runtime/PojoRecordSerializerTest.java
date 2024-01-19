@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.common.operators.Keys.IncompatibleKeysException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -49,7 +50,8 @@ class PojoRecordSerializerTest extends SerializerTestBase<PojoRecordSerializerTe
 
     @Override
     protected TypeSerializer<TestUserClass> createSerializer() {
-        TypeSerializer<TestUserClass> serializer = type.createSerializer(new ExecutionConfig());
+        TypeSerializer<TestUserClass> serializer =
+                type.createSerializer(new SerializerConfigImpl());
         assertThat(serializer).isInstanceOf(PojoSerializer.class);
         return serializer;
     }

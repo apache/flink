@@ -417,7 +417,9 @@ public abstract class DataSet<T> {
     public List<T> collect() throws Exception {
         final String id = new AbstractID().toString();
         final TypeSerializer<T> serializer =
-                getType().createSerializer(getExecutionEnvironment().getConfig());
+                getType()
+                        .createSerializer(
+                                getExecutionEnvironment().getConfig().getSerializerConfig());
 
         this.output(new Utils.CollectHelper<>(id, serializer)).name("collect()");
         JobExecutionResult res = getExecutionEnvironment().execute();

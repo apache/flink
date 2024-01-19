@@ -31,6 +31,7 @@ import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichJoinFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
@@ -2403,8 +2404,13 @@ public class TypeExtractorTest {
                     }
 
                     @Override
-                    public TypeSerializer<Object> createSerializer(ExecutionConfig config) {
+                    public TypeSerializer<Object> createSerializer(SerializerConfig config) {
                         return null;
+                    }
+
+                    @Override
+                    public TypeSerializer<Object> createSerializer(ExecutionConfig config) {
+                        return createSerializer(config.getSerializerConfig());
                     }
 
                     @Override

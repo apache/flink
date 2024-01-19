@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.rank;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -86,7 +86,7 @@ public class FastTop1Function extends AbstractTopNFunction implements Checkpoint
                 generateUpdateBefore,
                 outputRankNumber);
 
-        this.inputRowSer = inputRowType.createSerializer(new ExecutionConfig());
+        this.inputRowSer = inputRowType.createSerializer(new SerializerConfigImpl());
         this.cacheSize = cacheSize;
     }
 

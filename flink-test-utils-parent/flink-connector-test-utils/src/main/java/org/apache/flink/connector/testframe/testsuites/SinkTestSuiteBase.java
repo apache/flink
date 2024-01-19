@@ -600,7 +600,8 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
 
     protected CollectResultIterator<T> addCollectSink(DataStream<T> stream) {
         TypeSerializer<T> serializer =
-                stream.getType().createSerializer(stream.getExecutionConfig());
+                stream.getType()
+                        .createSerializer(stream.getExecutionConfig().getSerializerConfig());
         String accumulatorName = "dataStreamCollect_" + UUID.randomUUID();
         CollectSinkOperatorFactory<T> factory =
                 new CollectSinkOperatorFactory<>(serializer, accumulatorName);

@@ -21,6 +21,7 @@ package org.apache.flink.api.java.typeutils.runtime.kryo;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig.SerializableSerializer;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.typeutils.AvroUtils;
@@ -176,17 +177,21 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
     // ------------------------------------------------------------------------
 
     public KryoSerializer(Class<T> type, ExecutionConfig executionConfig) {
+        this(type, executionConfig.getSerializerConfig());
+    }
+
+    public KryoSerializer(Class<T> type, SerializerConfig serializerConfig) {
         this.type = checkNotNull(type);
 
-        this.defaultSerializers = executionConfig.getDefaultKryoSerializers();
-        this.defaultSerializerClasses = executionConfig.getDefaultKryoSerializerClasses();
+        this.defaultSerializers = serializerConfig.getDefaultKryoSerializers();
+        this.defaultSerializerClasses = serializerConfig.getDefaultKryoSerializerClasses();
 
         this.kryoRegistrations =
                 buildKryoRegistrations(
                         this.type,
-                        executionConfig.getRegisteredKryoTypes(),
-                        executionConfig.getRegisteredTypesWithKryoSerializerClasses(),
-                        executionConfig.getRegisteredTypesWithKryoSerializers());
+                        serializerConfig.getRegisteredKryoTypes(),
+                        serializerConfig.getRegisteredTypesWithKryoSerializerClasses(),
+                        serializerConfig.getRegisteredTypesWithKryoSerializers());
     }
 
     /**

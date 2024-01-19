@@ -129,6 +129,7 @@ public class PackagedProgramUtilsPipelineTest {
 
         assertThat(
                         executionConfig
+                                .getSerializerConfig()
                                 .getDefaultKryoSerializerClasses()
                                 .get(PackagedProgramUtilsPipelineTest.class)
                                 .getName())

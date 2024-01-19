@@ -124,7 +124,9 @@ public class ChangelogListStateTest {
         private final List<String> list;
 
         public TestingInternalListState(List<String> stringStringList) {
-            serializer = TypeInformation.of(String.class).createSerializer(new ExecutionConfig());
+            serializer =
+                    TypeInformation.of(String.class)
+                            .createSerializer(new ExecutionConfig().getSerializerConfig());
             listSerializer = new ListSerializer<>(serializer);
             list = new ArrayList<>(stringStringList);
         }

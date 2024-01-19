@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
@@ -68,7 +69,7 @@ public class ValueStateDescriptorTest extends TestLogger {
         // ensure that we correctly read very large data when deserializing the default value
 
         TypeSerializer<String> serializer =
-                new KryoSerializer<>(String.class, new ExecutionConfig());
+                new KryoSerializer<>(String.class, new SerializerConfigImpl());
         byte[] data = new byte[200000];
         for (int i = 0; i < 200000; i++) {
             data[i] = 65;

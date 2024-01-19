@@ -152,7 +152,8 @@ public class FromElementsFunction<T>
                 elements != null,
                 "The output type should've been specified before shipping the graph to the cluster");
         checkIterable(elements, outTypeInfo.getTypeClass());
-        TypeSerializer<T> newSerializer = outTypeInfo.createSerializer(executionConfig);
+        TypeSerializer<T> newSerializer =
+                outTypeInfo.createSerializer(executionConfig.getSerializerConfig());
         if (Objects.equals(serializer, newSerializer)) {
             return;
         }

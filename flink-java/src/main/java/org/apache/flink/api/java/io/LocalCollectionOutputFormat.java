@@ -99,6 +99,7 @@ public class LocalCollectionOutputFormat<T> extends RichOutputFormat<T>
     @Override
     @SuppressWarnings("unchecked")
     public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
-        this.typeSerializer = (TypeSerializer<T>) type.createSerializer(executionConfig);
+        this.typeSerializer =
+                (TypeSerializer<T>) type.createSerializer(executionConfig.getSerializerConfig());
     }
 }

@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.rank;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfig;
@@ -88,7 +88,7 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
                 generateUpdateBefore,
                 outputRankNumber);
         this.sortKeyType = sortKeySelector.getProducedType();
-        this.inputRowSer = inputRowType.createSerializer(new ExecutionConfig());
+        this.inputRowSer = inputRowType.createSerializer(new SerializerConfigImpl());
         this.cacheSize = cacheSize;
     }
 

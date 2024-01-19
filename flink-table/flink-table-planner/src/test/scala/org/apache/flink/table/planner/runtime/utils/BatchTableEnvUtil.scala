@@ -261,7 +261,7 @@ object BatchTableEnvUtil {
     val boundedStream = execEnv.createInput(
       new CollectionInputFormat[T](
         data.asJavaCollection,
-        typeInfo.createSerializer(execEnv.getConfig)),
+        typeInfo.createSerializer(execEnv.getConfig.getSerializerConfig)),
       typeInfo)
     boundedStream.forceNonParallel()
     registerBoundedStreamInternal(tEnv, tableName, boundedStream, fields, fieldNullables, statistic)
@@ -312,7 +312,7 @@ object BatchTableEnvUtil {
     val boundedStream = execEnv.createInput(
       new CollectionInputFormat[T](
         data.asJavaCollection,
-        typeInfo.createSerializer(execEnv.getConfig)),
+        typeInfo.createSerializer(execEnv.getConfig.getSerializerConfig)),
       typeInfo)
     boundedStream.setParallelism(1)
     val name = if (tableName == null) UUID.randomUUID().toString else tableName

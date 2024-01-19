@@ -668,10 +668,10 @@ public class StreamGraphGenerator {
                 itSource.getId(),
                 null,
                 null,
-                iterate.getOutputType().createSerializer(executionConfig));
+                iterate.getOutputType().createSerializer(executionConfig.getSerializerConfig()));
         streamGraph.setSerializers(
                 itSink.getId(),
-                iterate.getOutputType().createSerializer(executionConfig),
+                iterate.getOutputType().createSerializer(executionConfig.getSerializerConfig()),
                 null,
                 null);
 
@@ -753,10 +753,10 @@ public class StreamGraphGenerator {
                 itSource.getId(),
                 null,
                 null,
-                coIterate.getOutputType().createSerializer(executionConfig));
+                coIterate.getOutputType().createSerializer(executionConfig.getSerializerConfig()));
         streamGraph.setSerializers(
                 itSink.getId(),
-                coIterate.getOutputType().createSerializer(executionConfig),
+                coIterate.getOutputType().createSerializer(executionConfig.getSerializerConfig()),
                 null,
                 null);
 

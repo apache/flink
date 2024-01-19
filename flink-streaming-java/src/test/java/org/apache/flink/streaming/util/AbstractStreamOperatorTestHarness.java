@@ -858,7 +858,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
             if (outputSerializer == null) {
                 outputSerializer =
                         TypeExtractor.getForObject(element.getValue())
-                                .createSerializer(executionConfig);
+                                .createSerializer(executionConfig.getSerializerConfig());
             }
             if (element.hasTimestamp()) {
                 outputList.add(
@@ -871,7 +871,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
         @Override
         public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-            sideOutputSerializer = outputTag.getTypeInfo().createSerializer(executionConfig);
+            sideOutputSerializer =
+                    outputTag.getTypeInfo().createSerializer(executionConfig.getSerializerConfig());
 
             ConcurrentLinkedQueue<Object> sideOutputList = sideOutputLists.get(outputTag);
             if (sideOutputList == null) {

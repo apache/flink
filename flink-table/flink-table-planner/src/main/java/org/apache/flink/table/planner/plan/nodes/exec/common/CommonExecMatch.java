@@ -147,7 +147,8 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
         final InternalTypeInfo<RowData> inputTypeInfo =
                 (InternalTypeInfo<RowData>) inputTransform.getOutputType();
         final TypeSerializer<RowData> inputSerializer =
-                inputTypeInfo.createSerializer(planner.getExecEnv().getConfig());
+                inputTypeInfo.createSerializer(
+                        planner.getExecEnv().getConfig().getSerializerConfig());
         final NFACompiler.NFAFactory<RowData> nfaFactory =
                 NFACompiler.compileFactory(cepPattern, false);
         final MatchCodeGenerator generator =

@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.planner.factories;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -973,7 +973,7 @@ public final class TestValuesTableFactory
         public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
             TypeInformation<RowData> type =
                     runtimeProviderContext.createTypeInformation(producedDataType);
-            TypeSerializer<RowData> serializer = type.createSerializer(new ExecutionConfig());
+            TypeSerializer<RowData> serializer = type.createSerializer(new SerializerConfigImpl());
             DataStructureConverter converter =
                     runtimeProviderContext.createDataStructureConverter(producedDataType);
             converter.open(
@@ -1594,7 +1594,7 @@ public final class TestValuesTableFactory
         public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
             TypeInformation<RowData> type =
                     runtimeProviderContext.createTypeInformation(producedDataType);
-            TypeSerializer<RowData> serializer = type.createSerializer(new ExecutionConfig());
+            TypeSerializer<RowData> serializer = type.createSerializer(new SerializerConfigImpl());
             DataStructureConverter converter =
                     runtimeProviderContext.createDataStructureConverter(producedDataType);
             converter.open(

@@ -677,7 +677,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
                         @Override
                         public <T> TypeSerializer<T> createSerializer(
                                 TypeInformation<T> typeInformation) {
-                            return typeInformation.createSerializer(executionConfig);
+                            return typeInformation.createSerializer(
+                                    executionConfig.getSerializerConfig());
                         }
                     });
         }
@@ -855,7 +856,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
             ValueStateDescriptor<S> stateDesc =
                     new ValueStateDescriptor<>(
-                            name, stateType.createSerializer(getExecutionConfig()), defaultState);
+                            name,
+                            stateType.createSerializer(getExecutionConfig().getSerializerConfig()),
+                            defaultState);
             return getPartitionedState(stateDesc);
         }
 

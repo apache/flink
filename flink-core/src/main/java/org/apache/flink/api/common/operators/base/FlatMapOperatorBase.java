@@ -68,9 +68,13 @@ public class FlatMapOperatorBase<IN, OUT, FT extends FlatMapFunction<IN, OUT>>
         ArrayList<OUT> result = new ArrayList<OUT>(input.size());
 
         TypeSerializer<IN> inSerializer =
-                getOperatorInfo().getInputType().createSerializer(executionConfig);
+                getOperatorInfo()
+                        .getInputType()
+                        .createSerializer(executionConfig.getSerializerConfig());
         TypeSerializer<OUT> outSerializer =
-                getOperatorInfo().getOutputType().createSerializer(executionConfig);
+                getOperatorInfo()
+                        .getOutputType()
+                        .createSerializer(executionConfig.getSerializerConfig());
 
         CopyingListCollector<OUT> resultCollector =
                 new CopyingListCollector<OUT>(result, outSerializer);

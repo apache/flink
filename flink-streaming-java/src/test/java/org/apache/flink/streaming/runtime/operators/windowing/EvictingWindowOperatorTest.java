@@ -18,9 +18,9 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
@@ -78,7 +78,7 @@ public class EvictingWindowOperatorTest {
         TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<Tuple2<String, Integer>>>)
                         new StreamElementSerializer(
-                                STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                                STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -91,7 +91,7 @@ public class EvictingWindowOperatorTest {
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<GlobalWindow>(closeCalled)),
@@ -170,7 +170,7 @@ public class EvictingWindowOperatorTest {
         TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<Tuple2<String, Integer>>>)
                         new StreamElementSerializer(
-                                STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                                STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -183,7 +183,7 @@ public class EvictingWindowOperatorTest {
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<GlobalWindow>(closeCalled)),
@@ -252,7 +252,7 @@ public class EvictingWindowOperatorTest {
         TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<Tuple2<String, Integer>>>)
                         new StreamElementSerializer(
-                                STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                                STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -264,7 +264,7 @@ public class EvictingWindowOperatorTest {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<TimeWindow>(closeCalled)),
@@ -336,7 +336,7 @@ public class EvictingWindowOperatorTest {
         TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<Tuple2<String, Integer>>>)
                         new StreamElementSerializer(
-                                STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                                STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -349,7 +349,7 @@ public class EvictingWindowOperatorTest {
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<GlobalWindow>(closeCalled)),
@@ -417,7 +417,7 @@ public class EvictingWindowOperatorTest {
         TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<Tuple2<String, Integer>>>)
                         new StreamElementSerializer(
-                                STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                                STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -430,7 +430,7 @@ public class EvictingWindowOperatorTest {
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<GlobalWindow>(closeCalled)),
@@ -511,7 +511,7 @@ public class EvictingWindowOperatorTest {
         TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<Tuple2<String, Integer>>>)
                         new StreamElementSerializer(
-                                STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                                STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -524,7 +524,7 @@ public class EvictingWindowOperatorTest {
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<GlobalWindow>(closeCalled)),
@@ -604,7 +604,7 @@ public class EvictingWindowOperatorTest {
         TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<Tuple2<String, Integer>>>)
                         new StreamElementSerializer(
-                                STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                                STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -617,7 +617,7 @@ public class EvictingWindowOperatorTest {
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new ReduceApplyWindowFunction<>(
@@ -695,7 +695,7 @@ public class EvictingWindowOperatorTest {
         TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<Tuple2<String, Integer>>>)
                         new StreamElementSerializer(
-                                STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                                STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -708,7 +708,7 @@ public class EvictingWindowOperatorTest {
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<GlobalWindow>(closeCalled)),
@@ -780,7 +780,7 @@ public class EvictingWindowOperatorTest {
         TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<Tuple2<String, Integer>>>)
                         new StreamElementSerializer(
-                                STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                                STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -792,7 +792,7 @@ public class EvictingWindowOperatorTest {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<TimeWindow>(closeCalled)),

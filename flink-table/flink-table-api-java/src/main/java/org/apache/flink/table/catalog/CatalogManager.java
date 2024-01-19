@@ -207,7 +207,12 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                     defaultCatalog,
                     dataTypeFactory != null
                             ? dataTypeFactory
-                            : new DataTypeFactoryImpl(classLoader, config, executionConfig),
+                            : new DataTypeFactoryImpl(
+                                    classLoader,
+                                    config,
+                                    executionConfig == null
+                                            ? null
+                                            : executionConfig.getSerializerConfig()),
                     new ManagedTableListener(classLoader, config),
                     catalogModificationListeners,
                     catalogStoreHolder);

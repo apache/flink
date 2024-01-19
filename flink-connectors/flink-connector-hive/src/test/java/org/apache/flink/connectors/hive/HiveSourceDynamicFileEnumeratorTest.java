@@ -18,7 +18,7 @@
 
 package org.apache.flink.connectors.hive;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -219,7 +219,7 @@ class HiveSourceDynamicFileEnumeratorTest {
     private byte[] serialize(TypeInformation<RowData> typeInfo, RowData row) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
-            typeInfo.createSerializer(new ExecutionConfig())
+            typeInfo.createSerializer(new SerializerConfigImpl())
                     .serialize(row, new DataOutputViewStreamWrapper(baos));
         } catch (IOException e) {
             // throw as RuntimeException so the function can use in lambda

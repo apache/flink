@@ -675,8 +675,12 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
                             upperBoundInclusive,
                             leftLateDataOutputTag,
                             rightLateDataOutputTag,
-                            left.getType().createSerializer(left.getExecutionConfig()),
-                            right.getType().createSerializer(right.getExecutionConfig()),
+                            left.getType()
+                                    .createSerializer(
+                                            left.getExecutionConfig().getSerializerConfig()),
+                            right.getType()
+                                    .createSerializer(
+                                            right.getExecutionConfig().getSerializerConfig()),
                             cleanedUdf);
 
             return left.connect(right)
@@ -1108,7 +1112,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
         return new QueryableStateStream<>(
                 queryableStateName,
                 stateDescriptor,
-                getKeyType().createSerializer(getExecutionConfig()));
+                getKeyType().createSerializer(getExecutionConfig().getSerializerConfig()));
     }
 
     /**
@@ -1135,6 +1139,6 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
         return new QueryableStateStream<>(
                 queryableStateName,
                 stateDescriptor,
-                getKeyType().createSerializer(getExecutionConfig()));
+                getKeyType().createSerializer(getExecutionConfig().getSerializerConfig()));
     }
 }

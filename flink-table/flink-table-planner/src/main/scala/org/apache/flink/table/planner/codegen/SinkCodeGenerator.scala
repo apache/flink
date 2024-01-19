@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
@@ -126,7 +127,7 @@ object SinkCodeGenerator {
         // Scala Case Class
         val tupleClass = consumedDataType.getConversionClass.getCanonicalName
         val scalaTupleSerializer = fromDataTypeToTypeInfo(consumedDataType)
-          .createSerializer(new ExecutionConfig)
+          .createSerializer(new SerializerConfigImpl)
           .asInstanceOf[TupleSerializerBase[_]]
         val serializerTerm = ctx.addReusableObject(
           scalaTupleSerializer,

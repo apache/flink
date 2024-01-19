@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -41,9 +42,9 @@ public class MapStateDescriptorTest {
     public void testMapStateDescriptor() throws Exception {
 
         TypeSerializer<Integer> keySerializer =
-                new KryoSerializer<>(Integer.class, new ExecutionConfig());
+                new KryoSerializer<>(Integer.class, new SerializerConfigImpl());
         TypeSerializer<String> valueSerializer =
-                new KryoSerializer<>(String.class, new ExecutionConfig());
+                new KryoSerializer<>(String.class, new SerializerConfigImpl());
 
         MapStateDescriptor<Integer, String> descr =
                 new MapStateDescriptor<>("testName", keySerializer, valueSerializer);
@@ -111,9 +112,9 @@ public class MapStateDescriptorTest {
         // we need a serializer that actually duplicates for testing (a stateful one)
         // we use Kryo here, because it meets these conditions
         TypeSerializer<String> keySerializer =
-                new KryoSerializer<>(String.class, new ExecutionConfig());
+                new KryoSerializer<>(String.class, new SerializerConfigImpl());
         TypeSerializer<Long> valueSerializer =
-                new KryoSerializer<>(Long.class, new ExecutionConfig());
+                new KryoSerializer<>(Long.class, new SerializerConfigImpl());
 
         MapStateDescriptor<String, Long> descr =
                 new MapStateDescriptor<>("foobar", keySerializer, valueSerializer);
