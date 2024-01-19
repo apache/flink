@@ -148,6 +148,30 @@ public class BatchExecutionOptions {
                     .withDescription(
                             "Controls how long an detected slow node should be blocked for.");
 
+    @Documentation.Section({Documentation.Sections.EXPERT_SCHEDULING})
+    public static final ConfigOption<Boolean> JOB_RECOVERY_ENABLED =
+            key("execution.batch.job-recovery.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("A flag to enable or disable the job recovery.");
+
+    @Documentation.Section({Documentation.Sections.EXPERT_SCHEDULING})
+    public static final ConfigOption<Duration> JOB_RECOVERY_PREVIOUS_WORKER_RECOVERY_TIMEOUT =
+            key("execution.batch.job-recovery.previous-worker.recovery.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(30))
+                    .withDescription(
+                            "The timeout for a new job master to wait for the previous worker to reconnect.");
+
+    @Documentation.Section({Documentation.Sections.EXPERT_SCHEDULING})
+    public static final ConfigOption<Duration> JOB_RECOVERY_SNAPSHOT_MIN_PAUSE =
+            key("execution.batch.job-recovery.snapshot.min-pause")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(3))
+                    .withDescription(
+                            "The minimal pause between snapshots. To avoid performance issues caused by too frequent snapshots. "
+                                    + "Used to take snapshots for operator coordinator or other components.");
+
     private BatchExecutionOptions() {
         throw new UnsupportedOperationException("This class should never be instantiated.");
     }
