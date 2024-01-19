@@ -897,7 +897,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     String buildDistributionOutput(final String distributionClause) {
-        return                 "CREATE TABLE `TBL1` (\n"
+        return "CREATE TABLE `TBL1` (\n"
                 + "  `A` BIGINT,\n"
                 + "  `H` VARCHAR,\n"
                 + "  `G` AS (2 * (`A` + 1)),\n"
@@ -920,14 +920,16 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testCreateTableWithDistribution() {
         final String sql = buildDistributionInput("DISTRIBUTED BY HASH(a, h) INTO 6 BUCKETS\n");
-        final String expected = buildDistributionOutput("DISTRIBUTED BY HASH(`A`, `H`) INTO 6 BUCKETS\n");
+        final String expected =
+                buildDistributionOutput("DISTRIBUTED BY HASH(`A`, `H`) INTO 6 BUCKETS\n");
         sql(sql).ok(expected);
     }
 
     @Test
     void testCreateTableWithRangeDistribution() {
         final String sql = buildDistributionInput("DISTRIBUTED BY RANGE(a, h) INTO 6 BUCKETS\n");
-        final String expected = buildDistributionOutput("DISTRIBUTED BY RANGE(`A`, `H`) INTO 6 BUCKETS\n");
+        final String expected =
+                buildDistributionOutput("DISTRIBUTED BY RANGE(`A`, `H`) INTO 6 BUCKETS\n");
         sql(sql).ok(expected);
     }
 
@@ -940,7 +942,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testCreateTableWithDistributionNoAlgorithm() {
         final String sql = buildDistributionInput("DISTRIBUTED BY (a, h) INTO 6 BUCKETS\n");
-        final String expected = buildDistributionOutput("DISTRIBUTED BY (`A`, `H`) INTO 6 BUCKETS\n");
+        final String expected =
+                buildDistributionOutput("DISTRIBUTED BY (`A`, `H`) INTO 6 BUCKETS\n");
         sql(sql).ok(expected);
     }
 

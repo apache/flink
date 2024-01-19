@@ -161,12 +161,12 @@ class CreateTableLikeTest {
         ExtendedSqlNode extendedSqlNode =
                 (ExtendedSqlNode)
                         createFlinkParser(
-                                "CREATE TABLE t (\n"
-                                        + "   a STRING\n"
-                                        + ")\n"
-                                        + "LIKE b (\n"
-                                        + "   OVERWRITING DISTRIBUTION"
-                                        + ")")
+                                        "CREATE TABLE t (\n"
+                                                + "   a STRING\n"
+                                                + ")\n"
+                                                + "LIKE b (\n"
+                                                + "   OVERWRITING DISTRIBUTION"
+                                                + ")")
                                 .parseStmt();
 
         assertThatThrownBy(extendedSqlNode::validate)

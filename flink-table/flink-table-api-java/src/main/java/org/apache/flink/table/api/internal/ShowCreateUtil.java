@@ -65,8 +65,7 @@ public class ShowCreateUtil {
         extractFormattedComment(table)
                 .ifPresent(
                         c -> sb.append(String.format("COMMENT '%s'%s", c, System.lineSeparator())));
-        extractFormattedDistributedInfo((ResolvedCatalogTable) table)
-                .ifPresent(sb::append);
+        extractFormattedDistributedInfo((ResolvedCatalogTable) table).ifPresent(sb::append);
         extractFormattedPartitionedInfo((ResolvedCatalogTable) table)
                 .ifPresent(
                         partitionedInfoFormatted ->
@@ -204,22 +203,26 @@ public class ShowCreateUtil {
         if (!catalogTable.getDistribution().isPresent()) {
             return Optional.empty();
         }
-        CatalogTable.TableDistribution distribution =  catalogTable.getDistribution().get();
+        CatalogTable.TableDistribution distribution = catalogTable.getDistribution().get();
 
-        if (distribution.getBucketKeys().isEmpty() && distribution.getBucketCount().isPresent() &&
-        distribution.getBucketCount().get() != 0) {
-            return Optional.of("DISTRIBUTED INTO " + distribution.getBucketCount().get() + " BUCKETS\n");
+        if (distribution.getBucketKeys().isEmpty()
+                && distribution.getBucketCount().isPresent()
+                && distribution.getBucketCount().get() != 0) {
+            return Optional.of(
+                    "DISTRIBUTED INTO " + distribution.getBucketCount().get() + " BUCKETS\n");
         }
 
         StringBuilder sb = new StringBuilder();
         sb.append("DISTRIBUTED BY ");
-        if (distribution.getKind() != null && distribution.getKind() != CatalogTable.TableDistribution.Kind.UNKNOWN) {
+        if (distribution.getKind() != null
+                && distribution.getKind() != CatalogTable.TableDistribution.Kind.UNKNOWN) {
             sb.append(distribution.getKind());
         }
         sb.append("(");
-        sb.append(distribution.getBucketKeys().stream()
-                .map(EncodingUtils::escapeIdentifier)
-                .collect(Collectors.joining(", ")));
+        sb.append(
+                distribution.getBucketKeys().stream()
+                        .map(EncodingUtils::escapeIdentifier)
+                        .collect(Collectors.joining(", ")));
         sb.append(")");
         if (distribution.getBucketCount().isPresent() && distribution.getBucketCount().get() != 0) {
             sb.append(" INTO ");

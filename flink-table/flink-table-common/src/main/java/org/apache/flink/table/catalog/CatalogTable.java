@@ -208,10 +208,15 @@ public interface CatalogTable extends CatalogBaseTable {
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
             TableDistribution that = (TableDistribution) o;
-            return kind == that.kind && Objects.equals(bucketCount, that.bucketCount)
+            return kind == that.kind
+                    && Objects.equals(bucketCount, that.bucketCount)
                     && Objects.equals(bucketKeys, that.bucketKeys);
         }
 

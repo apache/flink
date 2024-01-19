@@ -1308,6 +1308,46 @@ SqlNodeList TableProperties():
     {  return new SqlNodeList(proList, span.end(this)); }
 }
 
+SqlDistribution SqlDistribution(SqlParserPos startPos) :
+{
+    String distributionKind = null;
+    SqlNumericLiteral bucketCount = null;
+    SqlNodeList bucketColumns = SqlNodeList.EMPTY;
+    SqlDistribution distribution = null;
+}
+{
+    (
+        <INTO> { bucketCount = UnsignedNumericLiteral();
+            if (!bucketCount.isInteger()) {
+                throw SqlUtil.newContextException(getPos(),
+                    ParserResource.RESOURCE.overwriteIsOnlyUsedWithInsert());
+            }
+        } <BUCKETS>
+    |
+    (
+        <BY> (
+            <HASH> { distributionKind = "HASH"; }
+            | <RANGE> { distributionKind = "RANGE"; }
+            | { distributionKind = null; }
+        )
+        {
+            bucketColumns = ParenthesizedSimpleIdentifierList();
+        }
+        [
+            <INTO> { bucketCount = UnsignedNumericLiteral();
+            if (!bucketCount.isInteger()) {
+                throw SqlUtil.newContextException(getPos(),
+                    ParserResource.RESOURCE.overwriteIsOnlyUsedWithInsert());
+            }
+        } <BUCKETS>
+        ]
+        )
+    )
+    {
+        return new SqlDistribution(startPos, distributionKind, bucketColumns, bucketCount);
+    }
+}
+
 SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
 {
     final SqlParserPos startPos = s.pos();
@@ -1354,36 +1394,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
     }]
     [
         <DISTRIBUTED>
-        (
-            <INTO> { bucketCount = UnsignedNumericLiteral();
-                if (!bucketCount.isInteger()) {
-                throw SqlUtil.newContextException(getPos(),
-                ParserResource.RESOURCE.overwriteIsOnlyUsedWithInsert());
-                }
-                } <BUCKETS>
-            |
-            (
-                <BY> (
-                    <HASH> { distributionKind = "HASH"; }
-                    | <RANGE> { distributionKind = "RANGE"; }
-                    | { distributionKind = null; }
-                )
-                {
-                    bucketColumns = ParenthesizedSimpleIdentifierList();
-                }
-                [
-                    <INTO> { bucketCount = UnsignedNumericLiteral();
-                            if (!bucketCount.isInteger()) {
-                                throw SqlUtil.newContextException(getPos(),
-                                ParserResource.RESOURCE.overwriteIsOnlyUsedWithInsert());
-                            }
-                        } <BUCKETS>
-                ]
-            )
-        )
-        {
-            distribution = new SqlDistribution(getPos(), distributionKind, bucketColumns, bucketCount);
-        }
+        distribution = SqlDistribution(getPos())
     ]
 
     [
@@ -1591,36 +1602,7 @@ SqlNode SqlReplaceTable() :
     }]
     [
         <DISTRIBUTED>
-        (
-            <INTO> { bucketCount = UnsignedNumericLiteral();
-                if (!bucketCount.isInteger()) {
-                throw SqlUtil.newContextException(getPos(),
-                ParserResource.RESOURCE.overwriteIsOnlyUsedWithInsert());
-                }
-                } <BUCKETS>
-            |
-            (
-                <BY> (
-                    <HASH> { distributionKind = "HASH"; }
-                    | <RANGE> { distributionKind = "RANGE"; }
-                    | { distributionKind = null; }
-                )
-                {
-                    bucketColumns = ParenthesizedSimpleIdentifierList();
-                }
-                [
-                            <INTO> { bucketCount = UnsignedNumericLiteral();
-                                if (!bucketCount.isInteger()) {
-                                throw SqlUtil.newContextException(getPos(),
-                                ParserResource.RESOURCE.overwriteIsOnlyUsedWithInsert());
-                                }
-                                } <BUCKETS>
-                ]
-            )
-        )
-        {
-            distribution = new SqlDistribution(getPos(), distributionKind, bucketColumns, bucketCount);
-        }
+        distribution = SqlDistribution(getPos())
     ]
     [
         <PARTITIONED> <BY>
