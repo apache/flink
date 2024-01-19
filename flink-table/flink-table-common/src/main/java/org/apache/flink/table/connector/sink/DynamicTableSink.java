@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.RuntimeConverter;
+import org.apache.flink.table.connector.sink.abilities.SupportsBucketing;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
@@ -66,6 +67,7 @@ import java.util.Optional;
  * <p>A {@link DynamicTableSink} can implement the following abilities:
  *
  * <ul>
+ *   <li>{@link SupportsBucketing}
  *   <li>{@link SupportsPartitioning}
  *   <li>{@link SupportsOverwrite}
  *   <li>{@link SupportsWritingMetadata}

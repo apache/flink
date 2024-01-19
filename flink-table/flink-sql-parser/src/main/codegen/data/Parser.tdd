@@ -61,6 +61,7 @@
     "org.apache.flink.sql.parser.ddl.SqlCreateTableAs"
     "org.apache.flink.sql.parser.ddl.SqlCreateTableLike"
     "org.apache.flink.sql.parser.ddl.SqlCreateView"
+    "org.apache.flink.sql.parser.ddl.SqlDistribution"
     "org.apache.flink.sql.parser.ddl.SqlDropCatalog"
     "org.apache.flink.sql.parser.ddl.SqlDropDatabase"
     "org.apache.flink.sql.parser.ddl.SqlDropFunction"
@@ -139,6 +140,7 @@
   # keyword, please also add it to 'nonReservedKeywords' section.
   # Please keep the keyword in alphabetical order if new keyword is added.
   keywords: [
+    "BUCKETS"
     "BYTES"
     "CATALOGS"
     "CHANGELOG_MODE"
@@ -147,11 +149,14 @@
     "COMPILE"
     "COLUMNS"
     "DATABASES"
+    "DISTRIBUTED"
+    "DISTRIBUTION"
     "DRAIN"
     "ENFORCED"
     "ESTIMATED_COST"
     "EXTENDED"
     "FUNCTIONS"
+    "HASH"
     "IF"
     "JSON_EXECUTION_PLAN"
     "PLAN_ADVICE"

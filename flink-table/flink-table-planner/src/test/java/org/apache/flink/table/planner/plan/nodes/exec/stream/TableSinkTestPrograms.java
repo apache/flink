@@ -18,11 +18,14 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
+
+import java.util.Arrays;
 
 /** {@link TableTestProgram} definitions for testing {@link StreamExecDeduplicate}. */
 public class TableSinkTestPrograms {
@@ -34,6 +37,41 @@ public class TableSinkTestPrograms {
     static final Row[] AFTER_DATA = {Row.of(4, 4L, "foo"), Row.of(5, 2L, "foo bar")};
 
     static final String[] SOURCE_SCHEMA = {"a INT", "b BIGINT", "c VARCHAR"};
+
+    static final TableTestProgram SINK_BUCKETING_WITH_COUNT =
+            buildBucketingTest("with-count", TableDistribution.ofUnknown(3));
+    static final TableTestProgram SINK_BUCKETING_WITH_KEYS_AND_COUNT =
+            buildBucketingTest(
+                    "with-keys-and-count", TableDistribution.ofUnknown(Arrays.asList("a"), 3));
+    static final TableTestProgram SINK_BUCKETING_HASH_WITH_KEYS_AND_COUNT =
+            buildBucketingTest(
+                    "hash-with-keys-with-count", TableDistribution.ofHash(Arrays.asList("a"), 3));
+    static final TableTestProgram SINK_BUCKETING_HASH_WITH_KEYS_AND_WITHOUT_COUNT =
+            buildBucketingTest(
+                    "range_with_keys_without_count",
+                    TableDistribution.ofHash(Arrays.asList("a"), null));
+
+    private static TableTestProgram buildBucketingTest(
+            final String suffix, final TableDistribution distribution) {
+        return TableTestProgram.of("sink-bucketing_" + suffix, "validates sink bucketing")
+                .setupTableSource(
+                        SourceTestStep.newBuilder("source_t")
+                                .addSchema(SOURCE_SCHEMA)
+                                .producedBeforeRestore(BEFORE_DATA)
+                                .producedAfterRestore(AFTER_DATA)
+                                .build())
+                .setupTableSink(
+                        SinkTestStep.newBuilder("sink_t")
+                                .addSchema("a INT", "b BIGINT", "c VARCHAR")
+                                .addDistribution(distribution)
+                                .addPartitionKeys("b")
+                                .consumedBeforeRestore(
+                                        "+I[1, 1, hi]", "+I[2, 2, hello]", "+I[3, 2, hello world]")
+                                .consumedAfterRestore("+I[4, 4, foo]", "+I[5, 2, foo bar]")
+                                .build())
+                .runSql("INSERT INTO sink_t SELECT * FROM source_t")
+                .build();
+    }
 
     static final TableTestProgram SINK_PARTITION =
             TableTestProgram.of("sink-partition", "validates sink partition")

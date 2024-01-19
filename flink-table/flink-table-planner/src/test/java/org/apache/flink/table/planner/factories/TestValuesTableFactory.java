@@ -44,6 +44,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WatermarkSpec;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.RuntimeConverter;
@@ -51,6 +52,7 @@ import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.OutputFormatProvider;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
+import org.apache.flink.table.connector.sink.abilities.SupportsBucketing;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
@@ -434,6 +436,14 @@ public final class TestValuesTableFactory
                     .booleanType()
                     .defaultValue(false)
                     .withDescription("Option to determine whether to discard the late event.");
+
+    private static final ConfigOption<Boolean> SINK_BUCKET_COUNT_REQUIRED =
+            ConfigOptions.key("sink.bucket-count-required")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Option to determine whether or not to require the distribution bucket count");
+
     private static final ConfigOption<Integer> SOURCE_NUM_ELEMENT_TO_SKIP =
             ConfigOptions.key("source.num-element-to-skip")
                     .intType()
@@ -683,6 +693,7 @@ public final class TestValuesTableFactory
         TableSchema tableSchema =
                 TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
 
+        boolean requireBucketCount = helper.getOptions().get(SINK_BUCKET_COUNT_REQUIRED);
         if (sinkClass.equals("DEFAULT")) {
             int rowTimeIndex =
                     validateAndExtractRowtimeIndex(
@@ -698,7 +709,8 @@ public final class TestValuesTableFactory
                     parallelism,
                     changelogMode,
                     rowTimeIndex,
-                    tableSchema);
+                    tableSchema,
+                    requireBucketCount);
         } else {
             try {
                 return InstantiationUtil.instantiate(
@@ -747,6 +759,7 @@ public final class TestValuesTableFactory
                         WRITABLE_METADATA,
                         ENABLE_WATERMARK_PUSH_DOWN,
                         SINK_DROP_LATE_EVENT,
+                        SINK_BUCKET_COUNT_REQUIRED,
                         SOURCE_NUM_ELEMENT_TO_SKIP,
                         SOURCE_SLEEP_AFTER_ELEMENTS,
                         SOURCE_SLEEP_TIME,
@@ -1958,7 +1971,8 @@ public final class TestValuesTableFactory
             implements DynamicTableSink,
                     SupportsWritingMetadata,
                     SupportsPartitioning,
-                    SupportsOverwrite {
+                    SupportsOverwrite,
+                    SupportsBucketing {
 
         private DataType consumedDataType;
         private int[] primaryKeyIndices;
@@ -1971,6 +1985,7 @@ public final class TestValuesTableFactory
         private final ChangelogMode changelogModeEnforced;
         private final int rowtimeIndex;
         private final TableSchema tableSchema;
+        private final boolean requireBucketCount;
 
         private TestValuesTableSink(
                 DataType consumedDataType,
@@ -1983,7 +1998,8 @@ public final class TestValuesTableFactory
                 @Nullable Integer parallelism,
                 @Nullable ChangelogMode changelogModeEnforced,
                 int rowtimeIndex,
-                TableSchema tableSchema) {
+                TableSchema tableSchema,
+                boolean requireBucketCount) {
             this.consumedDataType = consumedDataType;
             this.primaryKeyIndices = primaryKeyIndices;
             this.tableName = tableName;
@@ -1995,6 +2011,7 @@ public final class TestValuesTableFactory
             this.changelogModeEnforced = changelogModeEnforced;
             this.rowtimeIndex = rowtimeIndex;
             this.tableSchema = tableSchema;
+            this.requireBucketCount = requireBucketCount;
         }
 
         @Override
@@ -2131,7 +2148,8 @@ public final class TestValuesTableFactory
                     parallelism,
                     changelogModeEnforced,
                     rowtimeIndex,
-                    tableSchema);
+                    tableSchema,
+                    requireBucketCount);
         }
 
         @Override
@@ -2159,6 +2177,16 @@ public final class TestValuesTableFactory
 
         @Override
         public void applyOverwrite(boolean overwrite) {}
+
+        public Set<TableDistribution.Kind> listAlgorithms() {
+            return new HashSet<>(
+                    Arrays.asList(TableDistribution.Kind.UNKNOWN, TableDistribution.Kind.HASH));
+        }
+
+        @Override
+        public boolean requiresBucketCount() {
+            return requireBucketCount;
+        }
     }
 
     /** A TableSink used for testing the implementation of {@link SinkFunction.Context}. */
