@@ -1542,6 +1542,7 @@ class TableEnvironment(object):
     def _add_jars_to_j_env_config(self, config_key):
         jvm = get_gateway().jvm
         jar_urls = self.get_config().get(config_key, None)
+        print(f'_add_jars_to_j_env_config with config_key {config_key}: {jar_urls}')
         if jar_urls is not None:
             # normalize
             jar_urls_list = []
@@ -1549,12 +1550,17 @@ class TableEnvironment(object):
                 url = url.strip()
                 if url != "":
                     jar_urls_list.append(jvm.java.net.URL(url).toString())
+
+            print(f'jar_urls_list after first for-loop: {jar_urls_list}')
             j_configuration = get_j_env_configuration(self._get_j_env())
             if j_configuration.containsKey(config_key):
                 for url in j_configuration.getString(config_key, "").split(";"):
                     url = url.strip()
                     if url != "" and url not in jar_urls_list:
                         jar_urls_list.append(url)
+
+            print(f'jar_urls_list after second for-loop: {jar_urls_list}')
+
             j_configuration.setString(config_key, ";".join(jar_urls_list))
 
     def _get_j_env(self):
