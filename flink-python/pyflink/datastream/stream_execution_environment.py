@@ -716,7 +716,6 @@ class StreamExecutionEnvironment(object):
         env_config.setString(jars_key, joined_jars_path)
         print(f'joined_jars_path in add_jars: {joined_jars_path}')
 
-
     def add_classpaths(self, *classpaths: str):
         """
         Adds a list of URLs that are added to the classpath of each user code classloader of the
