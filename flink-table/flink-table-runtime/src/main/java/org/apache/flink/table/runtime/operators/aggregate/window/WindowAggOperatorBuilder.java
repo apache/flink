@@ -26,13 +26,20 @@ import org.apache.flink.table.runtime.operators.aggregate.window.combines.AggCom
 import org.apache.flink.table.runtime.operators.aggregate.window.combines.GlobalAggCombiner;
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceSharedWindowAggProcessor;
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceUnsharedWindowAggProcessor;
+import org.apache.flink.table.runtime.operators.aggregate.window.processors.UnsliceWindowAggProcessor;
+import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.tvf.combines.RecordsCombiner;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowOperatorBase;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigners.HoppingSliceAssigner;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceSharedAssigner;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceUnsharedAssigner;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowOperator;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnsliceAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnsliceAssigners;
+import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnslicingWindowOperator;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 
@@ -42,68 +49,78 @@ import java.util.function.Supplier;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The {@link SlicingWindowAggOperatorBuilder} is used to build a {@link SlicingWindowOperator} for
- * window aggregate.
+ * The {@link WindowAggOperatorBuilder} is used to build a {@link SlicingWindowOperator} with
+ * slicing window or a {@link UnslicingWindowOperator} for with unslicing window.
  *
  * <pre>
- * SlicingWindowAggOperatorBuilder.builder()
+ * WindowAggOperatorBuilder.builder()
  *   .inputType(inputType)
  *   .keyTypes(keyFieldTypes)
  *   .assigner(SliceAssigners.tumbling(rowtimeIndex, Duration.ofSeconds(5)))
  *   .aggregate(genAggsFunction), accTypes)
  *   .build();
  * </pre>
+ *
+ * <p>or
+ *
+ * <pre>
+ * WindowAggOperatorBuilder.builder()
+ *   .inputType(inputType)
+ *   .keyTypes(keyFieldTypes)
+ *   .assigner(UnsliceAssigners.session(rowtimeIndex, Duration.ofSeconds(5)))
+ *   .aggregate(genAggsFunction), accTypes)
+ *   .build();
+ * </pre>
  */
-public class SlicingWindowAggOperatorBuilder {
+public class WindowAggOperatorBuilder {
 
-    public static SlicingWindowAggOperatorBuilder builder() {
-        return new SlicingWindowAggOperatorBuilder();
+    public static WindowAggOperatorBuilder builder() {
+        return new WindowAggOperatorBuilder();
     }
 
-    private SliceAssigner assigner;
+    private WindowAssigner assigner;
     private AbstractRowDataSerializer<RowData> inputSerializer;
     private PagedTypeSerializer<RowData> keySerializer;
     private AbstractRowDataSerializer<RowData> accSerializer;
-    private GeneratedNamespaceAggsHandleFunction<Long> generatedAggregateFunction;
-    private GeneratedNamespaceAggsHandleFunction<Long> localGeneratedAggregateFunction;
-    private GeneratedNamespaceAggsHandleFunction<Long> globalGeneratedAggregateFunction;
+    private GeneratedNamespaceAggsHandleFunction<?> generatedAggregateFunction;
+    private GeneratedNamespaceAggsHandleFunction<?> localGeneratedAggregateFunction;
+    private GeneratedNamespaceAggsHandleFunction<?> globalGeneratedAggregateFunction;
     private int indexOfCountStart = -1;
     private ZoneId shiftTimeZone;
 
-    public SlicingWindowAggOperatorBuilder inputSerializer(
+    public WindowAggOperatorBuilder inputSerializer(
             AbstractRowDataSerializer<RowData> inputSerializer) {
         this.inputSerializer = inputSerializer;
         return this;
     }
 
-    public SlicingWindowAggOperatorBuilder shiftTimeZone(ZoneId shiftTimeZone) {
+    public WindowAggOperatorBuilder shiftTimeZone(ZoneId shiftTimeZone) {
         this.shiftTimeZone = shiftTimeZone;
         return this;
     }
 
-    public SlicingWindowAggOperatorBuilder keySerializer(
-            PagedTypeSerializer<RowData> keySerializer) {
+    public WindowAggOperatorBuilder keySerializer(PagedTypeSerializer<RowData> keySerializer) {
         this.keySerializer = keySerializer;
         return this;
     }
 
-    public SlicingWindowAggOperatorBuilder assigner(SliceAssigner assigner) {
+    public WindowAggOperatorBuilder assigner(WindowAssigner assigner) {
         this.assigner = assigner;
         return this;
     }
 
-    public SlicingWindowAggOperatorBuilder aggregate(
-            GeneratedNamespaceAggsHandleFunction<Long> generatedAggregateFunction,
+    public WindowAggOperatorBuilder aggregate(
+            GeneratedNamespaceAggsHandleFunction<?> generatedAggregateFunction,
             AbstractRowDataSerializer<RowData> accSerializer) {
         this.generatedAggregateFunction = generatedAggregateFunction;
         this.accSerializer = accSerializer;
         return this;
     }
 
-    public SlicingWindowAggOperatorBuilder globalAggregate(
-            GeneratedNamespaceAggsHandleFunction<Long> localGeneratedAggregateFunction,
-            GeneratedNamespaceAggsHandleFunction<Long> globalGeneratedAggregateFunction,
-            GeneratedNamespaceAggsHandleFunction<Long> stateGeneratedAggregateFunction,
+    public WindowAggOperatorBuilder globalAggregate(
+            GeneratedNamespaceAggsHandleFunction<?> localGeneratedAggregateFunction,
+            GeneratedNamespaceAggsHandleFunction<?> globalGeneratedAggregateFunction,
+            GeneratedNamespaceAggsHandleFunction<?> stateGeneratedAggregateFunction,
             AbstractRowDataSerializer<RowData> accSerializer) {
         this.localGeneratedAggregateFunction = localGeneratedAggregateFunction;
         this.globalGeneratedAggregateFunction = globalGeneratedAggregateFunction;
@@ -119,17 +136,27 @@ public class SlicingWindowAggOperatorBuilder {
      *
      * @see HoppingSliceAssigner#nextTriggerWindow(long, Supplier)
      */
-    public SlicingWindowAggOperatorBuilder countStarIndex(int indexOfCountStart) {
+    public WindowAggOperatorBuilder countStarIndex(int indexOfCountStart) {
         this.indexOfCountStart = indexOfCountStart;
         return this;
     }
 
-    public SlicingWindowOperator<RowData, ?> build() {
+    public WindowOperatorBase<RowData, ?> build() {
         checkNotNull(assigner);
         checkNotNull(inputSerializer);
         checkNotNull(keySerializer);
         checkNotNull(accSerializer);
         checkNotNull(generatedAggregateFunction);
+
+        if (assigner instanceof SliceAssigner) {
+            return buildSlicingWindowOperator();
+        } else {
+            return buildUnslicingWindowOperator();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    protected WindowOperatorBase<RowData, ?> buildSlicingWindowOperator() {
 
         boolean isGlobalAgg =
                 localGeneratedAggregateFunction != null && globalGeneratedAggregateFunction != null;
@@ -138,9 +165,15 @@ public class SlicingWindowAggOperatorBuilder {
         if (isGlobalAgg) {
             combinerFactory =
                     new GlobalAggCombiner.Factory(
-                            localGeneratedAggregateFunction, globalGeneratedAggregateFunction);
+                            (GeneratedNamespaceAggsHandleFunction<Long>)
+                                    localGeneratedAggregateFunction,
+                            (GeneratedNamespaceAggsHandleFunction<Long>)
+                                    globalGeneratedAggregateFunction);
         } else {
-            combinerFactory = new AggCombiner.Factory(generatedAggregateFunction);
+            combinerFactory =
+                    new AggCombiner.Factory(
+                            (GeneratedNamespaceAggsHandleFunction<Long>)
+                                    generatedAggregateFunction);
         }
         final WindowBuffer.Factory bufferFactory =
                 new RecordsWindowBuffer.Factory(keySerializer, inputSerializer, combinerFactory);
@@ -149,7 +182,7 @@ public class SlicingWindowAggOperatorBuilder {
         if (assigner instanceof SliceSharedAssigner) {
             windowProcessor =
                     new SliceSharedWindowAggProcessor(
-                            generatedAggregateFunction,
+                            (GeneratedNamespaceAggsHandleFunction<Long>) generatedAggregateFunction,
                             bufferFactory,
                             (SliceSharedAssigner) assigner,
                             accSerializer,
@@ -158,7 +191,7 @@ public class SlicingWindowAggOperatorBuilder {
         } else if (assigner instanceof SliceUnsharedAssigner) {
             windowProcessor =
                     new SliceUnsharedWindowAggProcessor(
-                            generatedAggregateFunction,
+                            (GeneratedNamespaceAggsHandleFunction<Long>) generatedAggregateFunction,
                             bufferFactory,
                             (SliceUnsharedAssigner) assigner,
                             accSerializer,
@@ -169,5 +202,24 @@ public class SlicingWindowAggOperatorBuilder {
                     "assigner must be instance of SliceUnsharedAssigner or SliceSharedAssigner.");
         }
         return new SlicingWindowOperator<>(windowProcessor);
+    }
+
+    @SuppressWarnings("unchecked")
+    private WindowOperatorBase<RowData, ?> buildUnslicingWindowOperator() {
+
+        if (assigner instanceof UnsliceAssigners.SessionUnsliceAssigner) {
+            final UnsliceWindowAggProcessor windowProcessor =
+                    new UnsliceWindowAggProcessor(
+                            (GeneratedNamespaceAggsHandleFunction<TimeWindow>)
+                                    generatedAggregateFunction,
+                            (UnsliceAssigner<TimeWindow>) assigner,
+                            accSerializer,
+                            indexOfCountStart,
+                            shiftTimeZone);
+            return new UnslicingWindowOperator<>(windowProcessor);
+        }
+
+        throw new UnsupportedOperationException(
+                "Unsupported unslice assigner: " + assigner.getClass().getCanonicalName());
     }
 }

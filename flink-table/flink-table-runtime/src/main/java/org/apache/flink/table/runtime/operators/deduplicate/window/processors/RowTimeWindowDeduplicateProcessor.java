@@ -124,7 +124,7 @@ public final class RowTimeWindowDeduplicateProcessor implements SlicingWindowPro
     }
 
     @Override
-    public void clearWindow(Long windowEnd) throws Exception {
+    public void clearWindow(long timerTimestamp, Long windowEnd) throws Exception {
         windowState.clear(windowEnd);
     }
 
@@ -141,7 +141,7 @@ public final class RowTimeWindowDeduplicateProcessor implements SlicingWindowPro
     }
 
     @Override
-    public void fireWindow(Long windowEnd) throws Exception {
+    public void fireWindow(long timerTimestamp, Long windowEnd) throws Exception {
         RowData data = windowState.value(windowEnd);
         if (data != null) {
             ctx.output(data);

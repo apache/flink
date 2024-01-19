@@ -46,6 +46,7 @@ import org.apache.flink.table.runtime.operators.aggregate.window.LocalSlicingWin
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.RecordsWindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.combines.LocalAggCombiner;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -70,6 +71,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** Stream {@link ExecNode} for window table-valued based local aggregate. */
 @ExecNodeMetadata(
@@ -155,7 +157,11 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
                 TimeWindowUtil.getShiftTimeZone(
                         windowing.getTimeAttributeType(),
                         TableConfigUtils.getLocalTimeZone(config));
-        final SliceAssigner sliceAssigner = createSliceAssigner(windowing, shiftTimeZone);
+        final WindowAssigner windowAssigner = createWindowAssigner(windowing, shiftTimeZone);
+        checkState(
+                windowAssigner instanceof SliceAssigner,
+                "Two-stage optimization on unslicing window like SESSION are not supported yet");
+        final SliceAssigner sliceAssigner = (SliceAssigner) windowAssigner;
 
         final AggregateInfoList aggInfoList =
                 AggregateUtil.deriveStreamWindowAggregateInfoList(
@@ -230,6 +236,8 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
                 aggInfoList,
                 JavaScalaConversionUtil.toScala(Collections.emptyList()),
                 sliceAssigner,
+                // we use window end timestamp to indicate a slicing window, see SliceAssigner
+                Long.class,
                 shiftTimeZone);
     }
 }

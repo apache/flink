@@ -157,7 +157,7 @@ public abstract class AbstractSliceWindowAggProcessor extends AbstractWindowAggP
     }
 
     @Override
-    public void clearWindow(Long windowEnd) throws Exception {
+    public void clearWindow(long timerTimestamp, Long windowEnd) throws Exception {
         Iterable<Long> expires = sliceAssigner.expiredSlices(windowEnd);
         for (Long slice : expires) {
             windowState.clear(slice);

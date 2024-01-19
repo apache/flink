@@ -35,7 +35,7 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.dataview._
 import org.apache.flink.table.runtime.generated._
 import org.apache.flink.table.runtime.groupwindow._
-import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{BooleanType, IntType, LogicalType, RowType}
@@ -71,7 +71,7 @@ class AggsHandlerCodeGenerator(
   private var namespaceClassName: String = _
   private var windowProperties: Seq[WindowProperty] = Seq()
   private var hasNamespace: Boolean = false
-  private var sliceAssignerTerm: String = _
+  private var windowAssignerTerm: String = _
   private var shiftTimeZone: ZoneId = _
 
   /** Aggregates informations */
@@ -626,16 +626,16 @@ class AggsHandlerCodeGenerator(
    * Generate [[NamespaceAggsHandleFunction]] with the given function name and aggregate infos and
    * window properties.
    */
-  def generateNamespaceAggsHandler(
+  def generateNamespaceAggsHandler[N](
       name: String,
       aggInfoList: AggregateInfoList,
       windowProperties: Seq[WindowProperty],
-      sliceAssigner: SliceAssigner,
-      shiftTimeZone: ZoneId): GeneratedNamespaceAggsHandleFunction[JLong] = {
-    this.sliceAssignerTerm = newName(ctx, "sliceAssigner")
-    ctx.addReusableObjectWithName(sliceAssigner, sliceAssignerTerm)
-    // we use window end timestamp to indicate a window, see SliceAssigner
-    generateNamespaceAggsHandler(name, aggInfoList, windowProperties, classOf[JLong], shiftTimeZone)
+      windowAssigner: WindowAssigner,
+      windowClass: Class[N],
+      shiftTimeZone: ZoneId): GeneratedNamespaceAggsHandleFunction[N] = {
+    this.windowAssignerTerm = newName(ctx, "windowAssigner")
+    ctx.addReusableObjectWithName(windowAssigner, windowAssignerTerm)
+    generateNamespaceAggsHandler(name, aggInfoList, windowProperties, windowClass, shiftTimeZone)
   }
 
   /**
@@ -1097,7 +1097,7 @@ class AggsHandlerCodeGenerator(
         case w: WindowStart =>
           // return a Timestamp(Internal is TimestampData)
           GeneratedExpression(
-            s"$TIMESTAMP_DATA.fromEpochMillis($sliceAssignerTerm.getWindowStart($NAMESPACE_TERM))",
+            s"$TIMESTAMP_DATA.fromEpochMillis($windowAssignerTerm.getWindowStart($NAMESPACE_TERM))",
             "false",
             "",
             w.getResultType)
