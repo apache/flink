@@ -78,7 +78,11 @@ class NettyMessageClientDecoderDelegateTest {
         channel = new EmbeddedChannel(new NettyMessageClientDecoderDelegate(handler));
 
         inputGate = createSingleInputGate(1, networkBufferPool);
-        inputGate.setBufferPool(new TestingBufferPool());
+        inputGate.setBufferPool(
+                TestingBufferPool.builder()
+                        .setRequestMemorySegmentSupplier(
+                                () -> MemorySegmentFactory.allocateUnpooledSegment(1024))
+                        .build());
         RemoteInputChannel inputChannel =
                 createRemoteInputChannel(
                         inputGate, new TestingPartitionRequestClient(), NUMBER_OF_BUFFER_RESPONSES);

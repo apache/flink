@@ -136,15 +136,16 @@ class BatchShuffleITCaseBase {
             throws Exception {
         JobGraphRunningUtil.execute(
                 jobGraph, configuration, NUM_TASK_MANAGERS, NUM_SLOTS_PER_TASK_MANAGER);
-        checkAllDataReceived(numRecordsToSend);
+        checkAllDataReceived(numRecordsToSend, PARALLELISM, 1);
     }
 
-    private void checkAllDataReceived(int numRecordsToSend) {
+    protected void checkAllDataReceived(
+            int numRecordsToSend, int parallelism, int numResultPartitions) {
         assertThat(Arrays.stream(NUM_RECEIVED_RECORDS).sum())
-                .isEqualTo(numRecordsToSend * PARALLELISM);
+                .isEqualTo(numRecordsToSend * parallelism * numResultPartitions);
     }
 
-    private static class StringSource implements ParallelSourceFunction<String> {
+    static class StringSource implements ParallelSourceFunction<String> {
         private volatile boolean isRunning = true;
         private int numRecordsToSend;
 
@@ -165,7 +166,7 @@ class BatchShuffleITCaseBase {
         }
     }
 
-    private static class VerifySink extends RichSinkFunction<String> {
+    static class VerifySink extends RichSinkFunction<String> {
         private final boolean failExecution;
 
         private final boolean deletePartitionFile;
@@ -180,9 +181,14 @@ class BatchShuffleITCaseBase {
 
         @Override
         public void open(OpenContext openContext) throws Exception {
-            NUM_RECEIVED_RECORDS[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = 0;
-            if (getRuntimeContext().getTaskInfo().getAttemptNumber() > 0
-                    || getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() != 0) {
+            int indexOfSubtask = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
+            int attemptNumber = getRuntimeContext().getTaskInfo().getAttemptNumber();
+
+            if (attemptNumber > 0) {
+                NUM_RECEIVED_RECORDS[indexOfSubtask] = 0;
+            }
+
+            if (attemptNumber > 0 || indexOfSubtask != 0) {
                 return;
             }
 

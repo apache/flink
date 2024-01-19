@@ -106,6 +106,7 @@ public class TieredResultPartitionFactory {
                 createBufferAccumulator(
                         numSubpartitions,
                         numAccumulatorExclusiveBuffers,
+                        tieredStorageConfiguration.getMemoryDecouplingEnabled(),
                         memoryManager,
                         isNumberOfPartitionConsumerUndefined);
 
@@ -153,21 +154,31 @@ public class TieredResultPartitionFactory {
     private BufferAccumulator createBufferAccumulator(
             int numSubpartitions,
             int numAccumulatorExclusiveBuffers,
+            boolean enableMemoryDecoupling,
             TieredStorageMemoryManager storageMemoryManager,
             boolean isNumberOfPartitionConsumerUndefined) {
         int bufferSize = tieredStorageConfiguration.getTieredStorageBufferSize();
-        return (numSubpartitions + 1) > numAccumulatorExclusiveBuffers
-                ? new SortBufferAccumulator(
-                        numSubpartitions,
-                        numAccumulatorExclusiveBuffers,
-                        bufferSize,
-                        storageMemoryManager,
-                        !isNumberOfPartitionConsumerUndefined)
-                : new HashBufferAccumulator(
-                        numSubpartitions,
-                        bufferSize,
-                        storageMemoryManager,
-                        !isNumberOfPartitionConsumerUndefined);
+        long poolSizeCheckInterval = tieredStorageConfiguration.getPoolSizeCheckInterval();
+
+        BufferAccumulator bufferAccumulator;
+        if (enableMemoryDecoupling || (numSubpartitions + 1) > numAccumulatorExclusiveBuffers) {
+            bufferAccumulator =
+                    new SortBufferAccumulator(
+                            numSubpartitions,
+                            Math.min(numSubpartitions + 1, numAccumulatorExclusiveBuffers),
+                            bufferSize,
+                            enableMemoryDecoupling ? poolSizeCheckInterval : 0,
+                            storageMemoryManager,
+                            !isNumberOfPartitionConsumerUndefined);
+        } else {
+            bufferAccumulator =
+                    new HashBufferAccumulator(
+                            numSubpartitions,
+                            bufferSize,
+                            storageMemoryManager,
+                            !isNumberOfPartitionConsumerUndefined);
+        }
+        return bufferAccumulator;
     }
 
     private Tuple2<List<TierProducerAgent>, List<TieredStorageMemorySpec>>

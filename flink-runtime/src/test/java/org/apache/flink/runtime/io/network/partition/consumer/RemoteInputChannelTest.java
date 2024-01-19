@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -39,6 +40,8 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.buffer.TestingBufferPool;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
@@ -1375,7 +1378,14 @@ class RemoteInputChannelTest {
 
     @Test
     void testOnUpstreamBlockedAndResumed() throws Exception {
-        BufferPool bufferPool = new TestingBufferPool();
+        BufferPool bufferPool =
+                TestingBufferPool.builder()
+                        .setRequestBufferSupplier(
+                                () ->
+                                        new NetworkBuffer(
+                                                MemorySegmentFactory.allocateUnpooledSegment(1024),
+                                                FreeingBufferRecycler.INSTANCE))
+                        .build();
         SingleInputGate inputGate = createSingleInputGate(bufferPool);
 
         RemoteInputChannel remoteChannel1 = createRemoteInputChannel(inputGate, 0, 2);
@@ -1424,7 +1434,14 @@ class RemoteInputChannelTest {
 
     @Test
     void testRequestBuffer() throws Exception {
-        BufferPool bufferPool = new TestingBufferPool();
+        BufferPool bufferPool =
+                TestingBufferPool.builder()
+                        .setRequestBufferSupplier(
+                                () ->
+                                        new NetworkBuffer(
+                                                MemorySegmentFactory.allocateUnpooledSegment(1024),
+                                                FreeingBufferRecycler.INSTANCE))
+                        .build();
         SingleInputGate inputGate = createSingleInputGate(bufferPool);
 
         RemoteInputChannel remoteChannel1 = createRemoteInputChannel(inputGate, 0, 2);
