@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.window.tvf.operator;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
@@ -43,6 +45,9 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public abstract class WindowTableFunctionOperatorBase extends TableStreamOperator<RowData>
         implements OneInputStreamOperator<RowData, RowData> {
 
+    private static final String NULL_ROW_TIME_ELEMENTS_DROPPED_METRIC_NAME =
+            "numNullRowTimeRecordsDropped";
+
     /**
      * The shift timezone of the window, if the proctime or rowtime type is TIMESTAMP_LTZ, the shift
      * timezone is the timezone user configured in TableConfig, other cases the timezone is UTC
@@ -59,6 +64,12 @@ public abstract class WindowTableFunctionOperatorBase extends TableStreamOperato
 
     private transient JoinedRowData outRow;
     private transient GenericRowData windowProperties;
+
+    // ------------------------------------------------------------------------
+    // Metrics
+    // ------------------------------------------------------------------------
+
+    protected transient Counter numNullRowTimeRecordsDropped;
 
     public WindowTableFunctionOperatorBase(
             GroupWindowAssigner<TimeWindow> windowAssigner,
@@ -80,6 +91,10 @@ public abstract class WindowTableFunctionOperatorBase extends TableStreamOperato
 
         outRow = new JoinedRowData();
         windowProperties = new GenericRowData(3);
+
+        // metrics
+        this.numNullRowTimeRecordsDropped =
+                metrics.counter(NULL_ROW_TIME_ELEMENTS_DROPPED_METRIC_NAME);
     }
 
     @Override
@@ -100,5 +115,10 @@ public abstract class WindowTableFunctionOperatorBase extends TableStreamOperato
                             toEpochMills(window.maxTimestamp(), shiftTimeZone)));
             collector.collect(outRow.replace(inputRow, windowProperties));
         }
+    }
+
+    @VisibleForTesting
+    public Counter getNumNullRowTimeRecordsDropped() {
+        return numNullRowTimeRecordsDropped;
     }
 }

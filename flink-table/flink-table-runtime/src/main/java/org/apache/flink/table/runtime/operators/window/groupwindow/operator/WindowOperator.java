@@ -57,6 +57,7 @@ import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.Trig
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.util.function.BiConsumerWithException;
 
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -274,12 +275,13 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
 
         compileGeneratedCode();
 
-        WindowContext windowContext = new WindowContext();
         windowAggregator.open(
                 new PerWindowStateDataViewStore(
                         getKeyedStateBackend(), windowSerializer, getRuntimeContext()));
 
+        WindowContext windowContext;
         if (windowAssigner instanceof MergingWindowAssigner) {
+            windowContext = new MergingWindowContext();
             this.windowFunction =
                     new MergingWindowProcessFunction<>(
                             (MergingWindowAssigner<W>) windowAssigner,
@@ -287,12 +289,14 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
                             windowSerializer,
                             allowedLateness);
         } else if (windowAssigner instanceof PanedWindowAssigner) {
+            windowContext = new WindowContext();
             this.windowFunction =
                     new PanedWindowProcessFunction<>(
                             (PanedWindowAssigner<W>) windowAssigner,
                             windowAggregator,
                             allowedLateness);
         } else {
+            windowContext = new WindowContext();
             this.windowFunction =
                     new GeneralWindowProcessFunction<>(
                             windowAssigner, windowAggregator, allowedLateness);
@@ -538,6 +542,16 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
             triggerContext.window = newWindow;
             triggerContext.mergedWindows = mergedWindows;
             triggerContext.onMerge();
+        }
+    }
+
+    private class MergingWindowContext extends WindowContext
+            implements MergingWindowProcessFunction.MergingContext<K, W> {
+        @Override
+        public BiConsumerWithException<W, Collection<W>, Throwable>
+                getWindowStateMergingConsumer() {
+            return new MergingWindowProcessFunction.DefaultAccMergingConsumer<>(
+                    this, windowAggregator);
         }
     }
 

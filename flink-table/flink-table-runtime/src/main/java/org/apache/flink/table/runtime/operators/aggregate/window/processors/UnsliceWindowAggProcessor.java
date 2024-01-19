@@ -31,7 +31,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
-import org.apache.flink.table.runtime.operators.window.groupwindow.internal.InternalWindowProcessFunction;
 import org.apache.flink.table.runtime.operators.window.groupwindow.internal.MergingWindowProcessFunction;
 import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.EventTimeTriggers;
 import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.ProcessingTimeTriggers;
@@ -41,6 +40,7 @@ import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnsliceAssi
 import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnslicingWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnslicingWindowTimerServiceImpl;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.BiConsumerWithException;
 
 import java.time.ZoneId;
 import java.util.Collection;
@@ -198,7 +198,7 @@ public class UnsliceWindowAggProcessor extends AbstractWindowAggProcessor<TimeWi
     }
 
     private class WindowContextImpl
-            implements InternalWindowProcessFunction.Context<RowData, TimeWindow> {
+            implements MergingWindowProcessFunction.MergingContext<RowData, TimeWindow> {
 
         @Override
         public long currentProcessingTime() {
@@ -276,6 +276,12 @@ public class UnsliceWindowAggProcessor extends AbstractWindowAggProcessor<TimeWi
         @Override
         public RowData currentKey() {
             return ctx.getKeyedStateBackend().getCurrentKey();
+        }
+
+        @Override
+        public BiConsumerWithException<TimeWindow, Collection<TimeWindow>, Throwable>
+                getWindowStateMergingConsumer() {
+            return new MergingWindowProcessFunction.DefaultAccMergingConsumer<>(this, aggregator);
         }
     }
 

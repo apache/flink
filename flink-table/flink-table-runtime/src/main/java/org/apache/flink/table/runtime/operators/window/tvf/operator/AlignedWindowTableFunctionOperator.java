@@ -57,6 +57,7 @@ public class AlignedWindowTableFunctionOperator extends WindowTableFunctionOpera
         if (windowAssigner.isEventTime()) {
             if (inputRow.isNullAt(rowtimeIndex)) {
                 // null timestamp would be dropped
+                numNullRowTimeRecordsDropped.inc();
                 return;
             }
             timestamp = inputRow.getTimestamp(rowtimeIndex, 3).getMillisecond();
