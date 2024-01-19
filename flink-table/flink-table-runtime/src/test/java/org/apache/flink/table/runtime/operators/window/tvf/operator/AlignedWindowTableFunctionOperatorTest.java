@@ -18,25 +18,14 @@
 
 package org.apache.flink.table.runtime.operators.window.tvf.operator;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.CumulativeWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.GroupWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.SlidingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.TumblingWindowAssigner;
-import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
-import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
-import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
-import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.VarCharType;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -48,52 +37,21 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
-import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link AlignedWindowTableFunctionOperator}. */
 @RunWith(Parameterized.class)
-public class AlignedWindowTableFunctionOperatorTest {
-
-    private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
-    private static final ZoneId SHANGHAI_ZONE_ID = ZoneId.of("Asia/Shanghai");
-    private final ZoneId shiftTimeZone;
+public class AlignedWindowTableFunctionOperatorTest extends WindowTableFunctionOperatorTestBase {
 
     public AlignedWindowTableFunctionOperatorTest(ZoneId shiftTimeZone) {
-        this.shiftTimeZone = shiftTimeZone;
+        super(shiftTimeZone);
     }
 
     @Parameterized.Parameters(name = "TimeZone = {0}")
     public static Collection<Object[]> runMode() {
         return Arrays.asList(new Object[] {UTC_ZONE_ID}, new Object[] {SHANGHAI_ZONE_ID});
     }
-
-    private static final RowType INPUT_ROW_TYPE =
-            new RowType(
-                    Arrays.asList(
-                            new RowType.RowField("f0", new VarCharType(Integer.MAX_VALUE)),
-                            new RowType.RowField("f1", new IntType()),
-                            new RowType.RowField("f2", new TimestampType(3))));
-
-    private static final RowDataSerializer INPUT_ROW_SER = new RowDataSerializer(INPUT_ROW_TYPE);
-    private static final int ROW_TIME_INDEX = 2;
-
-    private static final LogicalType[] OUTPUT_TYPES =
-            new LogicalType[] {
-                new VarCharType(Integer.MAX_VALUE),
-                new IntType(),
-                new TimestampType(3),
-                new TimestampType(3),
-                new TimestampType(3),
-                new TimestampType(3)
-            };
-
-    private static final TypeSerializer<RowData> OUT_SERIALIZER =
-            new RowDataSerializer(OUTPUT_TYPES);
-
-    private static final RowDataHarnessAssertor ASSERTER =
-            new RowDataHarnessAssertor(
-                    OUTPUT_TYPES, new GenericRowRecordSortComparator(4, new TimestampType()));
 
     @Test
     public void testTumblingWindows() throws Exception {
@@ -119,9 +77,18 @@ public class AlignedWindowTableFunctionOperatorTest {
 
         // late element would not be dropped
         testHarness.processElement(insertRecord("key2", 1, 80L));
+        // rowtime is null, should be dropped
+        testHarness.processElement(insertRecord("key2", 1, ((Long) null)));
         expectedOutput.add(insertRecord("key2", 1, 80L, localMills(0L), localMills(3000L), 2999L));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
+
+        assertThat(
+                        ((AlignedWindowTableFunctionOperator) testHarness.getOperator())
+                                .getNumNullRowTimeRecordsDropped()
+                                .getCount())
+                .isEqualTo(1);
+        testHarness.close();
     }
 
     @Test
@@ -148,6 +115,7 @@ public class AlignedWindowTableFunctionOperatorTest {
                         "key2", 1, Long.MAX_VALUE, localMills(3000L), localMills(6000L), 5999L));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
     }
 
     @Test
@@ -189,6 +157,7 @@ public class AlignedWindowTableFunctionOperatorTest {
         expectedOutput.add(insertRecord("key2", 1, 80L, localMills(0L), localMills(3000L), 2999L));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
     }
 
     @Test
@@ -228,6 +197,7 @@ public class AlignedWindowTableFunctionOperatorTest {
                         "key2", 1, Long.MAX_VALUE, localMills(3000L), localMills(6000L), 5999L));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
     }
 
     @Test
@@ -265,6 +235,7 @@ public class AlignedWindowTableFunctionOperatorTest {
         expectedOutput.add(insertRecord("key2", 1, 80L, localMills(0L), localMills(3000L), 2999L));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
     }
 
     @Test
@@ -302,6 +273,7 @@ public class AlignedWindowTableFunctionOperatorTest {
                         "key2", 1, Long.MAX_VALUE, localMills(3000L), localMills(6000L), 5999L));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
     }
 
     private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
@@ -310,20 +282,5 @@ public class AlignedWindowTableFunctionOperatorTest {
                 new AlignedWindowTableFunctionOperator(
                         windowAssigner, ROW_TIME_INDEX, shiftTimeZone);
         return new OneInputStreamOperatorTestHarness<>(operator, INPUT_ROW_SER);
-    }
-
-    private StreamRecord<RowData> insertRecord(String f0, int f1, Long... f2) {
-        Object[] fields = new Object[2 + f2.length];
-        fields[0] = f0;
-        fields[1] = f1;
-        for (int idx = 0; idx < f2.length; idx++) {
-            fields[2 + idx] = TimestampData.fromEpochMillis(f2[idx]);
-        }
-        return new StreamRecord<>(row(fields));
-    }
-
-    /** Get the timestamp in mills by given epoch mills and timezone. */
-    private long localMills(long epochMills) {
-        return toUtcTimestampMills(epochMills, shiftTimeZone);
     }
 }
