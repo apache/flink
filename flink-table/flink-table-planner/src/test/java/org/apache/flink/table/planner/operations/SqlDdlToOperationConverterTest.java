@@ -2229,6 +2229,19 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "id_table"), false);
 
+        Operation operation =
+                parse("CREATE VIEW id_view(a, b) AS SELECT id, uid AS id FROM id_table");
+        assertThat(operation).isInstanceOf(CreateViewOperation.class);
+
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "CREATE VIEW id_view(a, a) AS SELECT id, uid AS id FROM id_table"))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                SqlValidateException.class,
+                                "A column with the same name `a` has been defined at line 1, column 37."));
+
         assertThatThrownBy(
                         () -> parse("CREATE VIEW id_view AS\nSELECT id, uid AS id FROM id_table"))
                 .satisfies(
