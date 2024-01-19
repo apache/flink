@@ -141,8 +141,7 @@ def add_jars_to_context_class_loader(jar_urls):
     gateway = get_gateway()
     # validate and normalize
     jar_urls = [gateway.jvm.java.net.URL(url) for url in jar_urls]
-    jar_urls_string = [gateway.jvm.java.net.URL(url).toString() for url in jar_urls]
-    print(f'jar_urls: {jar_urls_string}')
+    print(f'jar_urls: {jar_urls}')
 
     context_classloader = gateway.jvm.Thread.currentThread().getContextClassLoader()
     existing_urls = []
