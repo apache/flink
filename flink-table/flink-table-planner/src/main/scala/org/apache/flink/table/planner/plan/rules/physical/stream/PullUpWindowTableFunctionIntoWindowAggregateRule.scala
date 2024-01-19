@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.plan.utils.WindowUtil.buildNewProgramWitho
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
+import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.{RelCollations, RelNode}
 import org.apache.calcite.util.ImmutableBitSet
 
@@ -73,7 +74,12 @@ class PullUpWindowTableFunctionIntoWindowAggregateRule
     val windowTVF: StreamPhysicalWindowTableFunction = call.rel(3)
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(windowAgg.getCluster.getMetadataQuery)
     val cluster = windowAgg.getCluster
-    val input = windowTVF.getInput
+    val input = unwrapRel(windowTVF.getInput) match {
+      case exchange: StreamPhysicalExchange =>
+        exchange.getInput
+      case other =>
+        other
+    }
     val inputRowType = input.getRowType
 
     val requiredInputTraitSet = input.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
@@ -145,6 +151,15 @@ class PullUpWindowTableFunctionIntoWindowAggregateRule
       windowAgg.namedWindowProperties)
 
     call.transformTo(newWindowAgg)
+  }
+
+  private def unwrapRel(rel: RelNode): RelNode = {
+    rel match {
+      case relSubset: RelSubset =>
+        unwrapRel(relSubset.getOriginal)
+      case _ =>
+        rel
+    }
   }
 }
 

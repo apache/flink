@@ -17,13 +17,14 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
+import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWindowTableFunction
 import org.apache.flink.table.planner.plan.utils.WindowUtil
-import org.apache.flink.table.planner.plan.utils.WindowUtil.{convertToWindowingStrategy, validateTimeFieldWithTimeAttribute}
+import org.apache.flink.table.planner.plan.utils.WindowUtil.{convertToWindowingStrategy, getWindowPartitionKeys, validateTimeFieldWithTimeAttribute}
 
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.convert.ConverterRule.Config
@@ -42,8 +43,20 @@ class StreamPhysicalWindowTableFunctionRule(config: Config) extends ConverterRul
 
   def convert(rel: RelNode): RelNode = {
     val scan: FlinkLogicalTableFunctionScan = rel.asInstanceOf[FlinkLogicalTableFunctionScan]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    val newInput = RelOptRule.convert(scan.getInput(0), FlinkConventions.STREAM_PHYSICAL)
+
+    val partitionKeys: Array[Int] = getWindowPartitionKeys(scan.getCall.asInstanceOf[RexCall])
+    val requiredDistribution = if (!partitionKeys.isEmpty) {
+      FlinkRelDistribution.hash(partitionKeys, requireStrict = true)
+    } else {
+      FlinkRelDistribution.DEFAULT
+    }
+
+    val requiredTraitSet = rel.getCluster.getPlanner
+      .emptyTraitSet()
+      .replace(requiredDistribution)
+      .replace(FlinkConventions.STREAM_PHYSICAL)
+    val providedTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
+    val newInput = RelOptRule.convert(scan.getInput(0), requiredTraitSet)
 
     val windowTableFunction = scan.getCall.asInstanceOf[RexCall]
     val inputRowType = newInput.getRowType
@@ -51,7 +64,7 @@ class StreamPhysicalWindowTableFunctionRule(config: Config) extends ConverterRul
     validateTimeFieldWithTimeAttribute(windowTableFunction, inputRowType)
     new StreamPhysicalWindowTableFunction(
       scan.getCluster,
-      traitSet,
+      providedTraitSet,
       newInput,
       scan.getRowType,
       convertToWindowingStrategy(windowTableFunction, newInput)
