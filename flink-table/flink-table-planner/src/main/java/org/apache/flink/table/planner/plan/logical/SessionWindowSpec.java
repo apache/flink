@@ -97,4 +97,9 @@ public class SessionWindowSpec implements WindowSpec {
                 "SESSION(gap=[%s],partitionKeys=%s)",
                 formatWithHighestUnit(gap), Arrays.toString(partitionKeyIndices));
     }
+
+    @Override
+    public boolean isAlignedWindow() {
+        return false;
+    }
 }
