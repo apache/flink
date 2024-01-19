@@ -24,12 +24,12 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
+import org.apache.flink.api.connector.sink2.CommittingSinkWriter;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.Sink.InitContext;
 import org.apache.flink.api.connector.sink2.SinkWriter;
-import org.apache.flink.api.connector.sink2.StatefulSink;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink.PrecommittingSinkWriter;
+import org.apache.flink.api.connector.sink2.SupportsCommitter;
+import org.apache.flink.api.connector.sink2.SupportsWriterState;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
@@ -113,18 +113,17 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         this.processingTimeService = checkNotNull(processingTimeService);
         this.mailboxExecutor = checkNotNull(mailboxExecutor);
         this.context = new Context<>();
-        this.emitDownstream = sink instanceof TwoPhaseCommittingSink;
+        this.emitDownstream = sink instanceof SupportsCommitter;
 
-        if (sink instanceof StatefulSink) {
+        if (sink instanceof SupportsWriterState) {
             writerStateHandler =
-                    new StatefulSinkWriterStateHandler<>((StatefulSink<InputT, ?>) sink);
+                    new StatefulSinkWriterStateHandler<>((SupportsWriterState<InputT, ?>) sink);
         } else {
             writerStateHandler = new StatelessSinkWriterStateHandler<>(sink);
         }
 
-        if (sink instanceof TwoPhaseCommittingSink) {
-            committableSerializer =
-                    ((TwoPhaseCommittingSink<InputT, CommT>) sink).getCommittableSerializer();
+        if (sink instanceof SupportsCommitter) {
+            committableSerializer = ((SupportsCommitter<CommT>) sink).getCommittableSerializer();
         } else {
             committableSerializer = null;
         }
@@ -188,13 +187,13 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         if (!emitDownstream) {
             // To support SinkV1 topologies with only a writer we have to call prepareCommit
             // although no committables are forwarded
-            if (sinkWriter instanceof PrecommittingSinkWriter) {
-                ((PrecommittingSinkWriter<?, ?>) sinkWriter).prepareCommit();
+            if (sinkWriter instanceof CommittingSinkWriter) {
+                ((CommittingSinkWriter<?, ?>) sinkWriter).prepareCommit();
             }
             return;
         }
         Collection<CommT> committables =
-                ((PrecommittingSinkWriter<?, CommT>) sinkWriter).prepareCommit();
+                ((CommittingSinkWriter<?, CommT>) sinkWriter).prepareCommit();
         StreamingRuntimeContext runtimeContext = getRuntimeContext();
         final int indexOfThisSubtask = runtimeContext.getTaskInfo().getIndexOfThisSubtask();
         final int numberOfParallelSubtasks =
