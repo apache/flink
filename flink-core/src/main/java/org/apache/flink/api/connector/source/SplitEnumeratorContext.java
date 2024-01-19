@@ -195,5 +195,7 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
      * source is considered to have isProcessingBacklog=false by default.
      */
     @PublicEvolving
-    void setIsProcessingBacklog(boolean isProcessingBacklog);
+    default void setIsProcessingBacklog(boolean isProcessingBacklog) {
+        throw new UnsupportedOperationException();
+    }
 }
