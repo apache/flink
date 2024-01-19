@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.utils
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -58,7 +59,7 @@ class TestLegacyLimitableTableSource(
       data.asJava
     }
     execEnv.createInput(
-      new CollectionInputFormat(dataSet, rowType.createSerializer(new ExecutionConfig)),
+      new CollectionInputFormat(dataSet, rowType.createSerializer(new SerializerConfigImpl)),
       rowType)
   }
 

@@ -20,12 +20,12 @@ package org.apache.flink.api.scala.typeutils
 import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.operators.Keys
+import org.apache.flink.api.common.operators.Keys.ExpressionKeys
+import org.apache.flink.api.common.serialization.SerializerConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.common.typeutils.CompositeType.{FlatFieldDescriptor, InvalidFieldReferenceException, TypeComparatorBuilder}
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
-
-import Keys.ExpressionKeys
 
 import java.util
 import java.util.regex.{Matcher, Pattern}
@@ -254,7 +254,7 @@ abstract class CaseClassTypeInfo[T <: Product](
       new CaseClassComparator[T](
         logicalKeyFields.toArray,
         fieldComparators.toArray,
-        types.take(maxIndex + 1).map(_.createSerializer(config))
+        types.take(maxIndex + 1).map(_.createSerializer(config.getSerializerConfig))
       )
     }
   }

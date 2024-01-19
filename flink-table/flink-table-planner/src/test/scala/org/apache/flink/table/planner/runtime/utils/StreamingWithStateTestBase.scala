@@ -126,7 +126,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
     FromElementsFunction.checkCollection(data, typeInfo.getTypeClass)
 
     val function = new FailingCollectionSource[T](
-      typeInfo.createSerializer(env.getConfig),
+      typeInfo.createSerializer(env.getConfig.getSerializerConfig),
       collection,
       data.length / 2
     ) // fail after half elements

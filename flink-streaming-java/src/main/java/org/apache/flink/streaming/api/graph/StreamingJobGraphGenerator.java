@@ -1151,7 +1151,8 @@ public class StreamingJobGraphGenerator {
                         edge.getOutputTag(),
                         edge.getOutputTag()
                                 .getTypeInfo()
-                                .createSerializer(streamGraph.getExecutionConfig()));
+                                .createSerializer(
+                                        streamGraph.getExecutionConfig().getSerializerConfig()));
             }
         }
         config.setChainedOutputs(chainableOutputs);
@@ -1169,7 +1170,8 @@ public class StreamingJobGraphGenerator {
                         edge.getOutputTag(),
                         edge.getOutputTag()
                                 .getTypeInfo()
-                                .createSerializer(streamGraph.getExecutionConfig()));
+                                .createSerializer(
+                                        streamGraph.getExecutionConfig().getSerializerConfig()));
             }
         }
 

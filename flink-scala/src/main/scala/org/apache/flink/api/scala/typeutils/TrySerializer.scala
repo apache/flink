@@ -19,6 +19,7 @@ package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfig
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
@@ -35,10 +36,10 @@ class TrySerializer[A](
 
   private[typeutils] def this(
       elemSerializer: TypeSerializer[A],
-      executionConfig: ExecutionConfig) = {
+      serializerConfig: SerializerConfig) = {
     this(
       elemSerializer,
-      new KryoSerializer[Throwable](classOf[Throwable], executionConfig)
+      new KryoSerializer[Throwable](classOf[Throwable], serializerConfig)
     )
   }
 

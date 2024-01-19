@@ -100,7 +100,8 @@ public class AggregationFunctionTest {
         List<Tuple2<Integer, Integer>> groupedSumList =
                 MockContext.createAndExecuteForKeyedStream(
                         new StreamGroupedReduceOperator<>(
-                                sumFunction, typeInfo.createSerializer(config)),
+                                sumFunction,
+                                typeInfo.createSerializer(config.getSerializerConfig())),
                         getInputList(),
                         keySelector,
                         keyType);
@@ -108,7 +109,8 @@ public class AggregationFunctionTest {
         List<Tuple2<Integer, Integer>> groupedMinList =
                 MockContext.createAndExecuteForKeyedStream(
                         new StreamGroupedReduceOperator<>(
-                                minFunction, typeInfo.createSerializer(config)),
+                                minFunction,
+                                typeInfo.createSerializer(config.getSerializerConfig())),
                         getInputList(),
                         keySelector,
                         keyType);
@@ -116,7 +118,8 @@ public class AggregationFunctionTest {
         List<Tuple2<Integer, Integer>> groupedMaxList =
                 MockContext.createAndExecuteForKeyedStream(
                         new StreamGroupedReduceOperator<>(
-                                maxFunction, typeInfo.createSerializer(config)),
+                                maxFunction,
+                                typeInfo.createSerializer(config.getSerializerConfig())),
                         getInputList(),
                         keySelector,
                         keyType);
@@ -177,7 +180,8 @@ public class AggregationFunctionTest {
         List<MyPojo> groupedSumList =
                 MockContext.createAndExecuteForKeyedStream(
                         new StreamGroupedReduceOperator<>(
-                                sumFunction, typeInfo.createSerializer(config)),
+                                sumFunction,
+                                typeInfo.createSerializer(config.getSerializerConfig())),
                         getInputPojoList(),
                         keySelector,
                         keyType);
@@ -185,7 +189,8 @@ public class AggregationFunctionTest {
         List<MyPojo> groupedMinList =
                 MockContext.createAndExecuteForKeyedStream(
                         new StreamGroupedReduceOperator<>(
-                                minFunction, typeInfo.createSerializer(config)),
+                                minFunction,
+                                typeInfo.createSerializer(config.getSerializerConfig())),
                         getInputPojoList(),
                         keySelector,
                         keyType);
@@ -193,7 +198,8 @@ public class AggregationFunctionTest {
         List<MyPojo> groupedMaxList =
                 MockContext.createAndExecuteForKeyedStream(
                         new StreamGroupedReduceOperator<>(
-                                maxFunction, typeInfo.createSerializer(config)),
+                                maxFunction,
+                                typeInfo.createSerializer(config.getSerializerConfig())),
                         getInputPojoList(),
                         keySelector,
                         keyType);
@@ -281,7 +287,8 @@ public class AggregationFunctionTest {
                 maxByFirstExpected,
                 MockContext.createAndExecuteForKeyedStream(
                         new StreamGroupedReduceOperator<>(
-                                maxByFunctionFirst, typeInfo.createSerializer(config)),
+                                maxByFunctionFirst,
+                                typeInfo.createSerializer(config.getSerializerConfig())),
                         getInputByList(),
                         keySelector,
                         keyType));
@@ -290,7 +297,8 @@ public class AggregationFunctionTest {
                 maxByLastExpected,
                 MockContext.createAndExecuteForKeyedStream(
                         new StreamGroupedReduceOperator<>(
-                                maxByFunctionLast, typeInfo.createSerializer(config)),
+                                maxByFunctionLast,
+                                typeInfo.createSerializer(config.getSerializerConfig())),
                         getInputByList(),
                         keySelector,
                         keyType));
@@ -299,7 +307,8 @@ public class AggregationFunctionTest {
                 minByLastExpected,
                 MockContext.createAndExecuteForKeyedStream(
                         new StreamGroupedReduceOperator<>(
-                                minByFunctionLast, typeInfo.createSerializer(config)),
+                                minByFunctionLast,
+                                typeInfo.createSerializer(config.getSerializerConfig())),
                         getInputByList(),
                         keySelector,
                         keyType));
@@ -308,7 +317,8 @@ public class AggregationFunctionTest {
                 minByFirstExpected,
                 MockContext.createAndExecuteForKeyedStream(
                         new StreamGroupedReduceOperator<>(
-                                minByFunctionFirst, typeInfo.createSerializer(config)),
+                                minByFunctionFirst,
+                                typeInfo.createSerializer(config.getSerializerConfig())),
                         getInputByList(),
                         keySelector,
                         keyType));
@@ -391,7 +401,8 @@ public class AggregationFunctionTest {
                 maxByFirstExpected,
                 MockContext.createAndExecuteForKeyedStream(
                         new StreamGroupedReduceOperator<>(
-                                maxByFunctionFirst, typeInfo.createSerializer(config)),
+                                maxByFunctionFirst,
+                                typeInfo.createSerializer(config.getSerializerConfig())),
                         getInputByPojoList(),
                         keySelector,
                         keyType));
@@ -400,7 +411,8 @@ public class AggregationFunctionTest {
                 maxByLastExpected,
                 MockContext.createAndExecuteForKeyedStream(
                         new StreamGroupedReduceOperator<>(
-                                maxByFunctionLast, typeInfo.createSerializer(config)),
+                                maxByFunctionLast,
+                                typeInfo.createSerializer(config.getSerializerConfig())),
                         getInputByPojoList(),
                         keySelector,
                         keyType));
@@ -409,7 +421,8 @@ public class AggregationFunctionTest {
                 minByLastExpected,
                 MockContext.createAndExecuteForKeyedStream(
                         new StreamGroupedReduceOperator<>(
-                                minByFunctionLast, typeInfo.createSerializer(config)),
+                                minByFunctionLast,
+                                typeInfo.createSerializer(config.getSerializerConfig())),
                         getInputByPojoList(),
                         keySelector,
                         keyType));
@@ -418,7 +431,8 @@ public class AggregationFunctionTest {
                 minByFirstExpected,
                 MockContext.createAndExecuteForKeyedStream(
                         new StreamGroupedReduceOperator<>(
-                                minByFunctionFirst, typeInfo.createSerializer(config)),
+                                minByFunctionFirst,
+                                typeInfo.createSerializer(config.getSerializerConfig())),
                         getInputByPojoList(),
                         keySelector,
                         keyType));

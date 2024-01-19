@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase.TestInputView;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase.TestOutputView;
@@ -64,7 +64,7 @@ class EitherSerializerTest {
                                 BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.DOUBLE_TYPE_INFO);
         EitherSerializer<String, Double> eitherSerializer =
                 (EitherSerializer<String, Double>)
-                        eitherTypeInfo.createSerializer(new ExecutionConfig());
+                        eitherTypeInfo.createSerializer(new SerializerConfigImpl());
         SerializerTestInstance<Either<String, Double>> testInstance =
                 new EitherSerializerTestInstance<Either<String, Double>>(
                         eitherSerializer, eitherTypeInfo.getTypeClass(), -1, testData);
@@ -89,7 +89,7 @@ class EitherSerializerTest {
                         ValueTypeInfo.STRING_VALUE_TYPE_INFO, ValueTypeInfo.DOUBLE_VALUE_TYPE_INFO);
         EitherSerializer<StringValue, DoubleValue> eitherSerializer =
                 (EitherSerializer<StringValue, DoubleValue>)
-                        eitherTypeInfo.createSerializer(new ExecutionConfig());
+                        eitherTypeInfo.createSerializer(new SerializerConfigImpl());
         SerializerTestInstance<Either<StringValue, DoubleValue>> testInstance =
                 new EitherSerializerTestInstance<>(
                         eitherSerializer, eitherTypeInfo.getTypeClass(), -1, testData);
@@ -117,7 +117,7 @@ class EitherSerializerTest {
                                 BasicTypeInfo.DOUBLE_TYPE_INFO);
         EitherSerializer<Tuple2<Long, Long>, Double> eitherSerializer =
                 (EitherSerializer<Tuple2<Long, Long>, Double>)
-                        eitherTypeInfo.createSerializer(new ExecutionConfig());
+                        eitherTypeInfo.createSerializer(new SerializerConfigImpl());
         SerializerTestInstance<Either<Tuple2<Long, Long>, Double>> testInstance =
                 new EitherSerializerTestInstance<Either<Tuple2<Long, Long>, Double>>(
                         eitherSerializer, eitherTypeInfo.getTypeClass(), -1, testData);
@@ -146,7 +146,7 @@ class EitherSerializerTest {
                         ValueTypeInfo.DOUBLE_VALUE_TYPE_INFO);
         EitherSerializer<Tuple2<LongValue, LongValue>, DoubleValue> eitherSerializer =
                 (EitherSerializer<Tuple2<LongValue, LongValue>, DoubleValue>)
-                        eitherTypeInfo.createSerializer(new ExecutionConfig());
+                        eitherTypeInfo.createSerializer(new SerializerConfigImpl());
         SerializerTestInstance<Either<Tuple2<LongValue, LongValue>, DoubleValue>> testInstance =
                 new EitherSerializerTestInstance<>(
                         eitherSerializer, eitherTypeInfo.getTypeClass(), -1, testData);
@@ -160,7 +160,7 @@ class EitherSerializerTest {
                         ValueTypeInfo.LONG_VALUE_TYPE_INFO, ValueTypeInfo.DOUBLE_VALUE_TYPE_INFO);
         EitherSerializer<LongValue, DoubleValue> eitherSerializer =
                 (EitherSerializer<LongValue, DoubleValue>)
-                        eitherTypeInfo.createSerializer(new ExecutionConfig());
+                        eitherTypeInfo.createSerializer(new SerializerConfigImpl());
 
         LongValue lv = new LongValue();
         DoubleValue dv = new DoubleValue();
@@ -191,7 +191,7 @@ class EitherSerializerTest {
                         ValueTypeInfo.LONG_VALUE_TYPE_INFO, ValueTypeInfo.DOUBLE_VALUE_TYPE_INFO);
         EitherSerializer<LongValue, DoubleValue> eitherSerializer =
                 (EitherSerializer<LongValue, DoubleValue>)
-                        eitherTypeInfo.createSerializer(new ExecutionConfig());
+                        eitherTypeInfo.createSerializer(new SerializerConfigImpl());
 
         LongValue lv = new LongValue();
         DoubleValue dv = new DoubleValue();

@@ -352,7 +352,7 @@ public class ExecutionEnvironment {
      */
     public <T extends Serializer<?> & Serializable> void addDefaultKryoSerializer(
             Class<?> type, T serializer) {
-        config.addDefaultKryoSerializer(type, serializer);
+        config.getSerializerConfig().addDefaultKryoSerializer(type, serializer);
     }
 
     /**
@@ -363,7 +363,7 @@ public class ExecutionEnvironment {
      */
     public void addDefaultKryoSerializer(
             Class<?> type, Class<? extends Serializer<?>> serializerClass) {
-        config.addDefaultKryoSerializer(type, serializerClass);
+        config.getSerializerConfig().addDefaultKryoSerializer(type, serializerClass);
     }
 
     /**
@@ -378,7 +378,7 @@ public class ExecutionEnvironment {
      */
     public <T extends Serializer<?> & Serializable> void registerTypeWithKryoSerializer(
             Class<?> type, T serializer) {
-        config.registerTypeWithKryoSerializer(type, serializer);
+        config.getSerializerConfig().registerTypeWithKryoSerializer(type, serializer);
     }
 
     /**
@@ -390,7 +390,7 @@ public class ExecutionEnvironment {
      */
     public void registerTypeWithKryoSerializer(
             Class<?> type, Class<? extends Serializer<?>> serializerClass) {
-        config.registerTypeWithKryoSerializer(type, serializerClass);
+        config.getSerializerConfig().registerTypeWithKryoSerializer(type, serializerClass);
     }
 
     /**
@@ -409,9 +409,9 @@ public class ExecutionEnvironment {
         TypeInformation<?> typeInfo = TypeExtractor.createTypeInfo(type);
 
         if (typeInfo instanceof PojoTypeInfo) {
-            config.registerPojoType(type);
+            config.getSerializerConfig().registerPojoType(type);
         } else {
-            config.registerKryoType(type);
+            config.getSerializerConfig().registerKryoType(type);
         }
     }
 
@@ -725,7 +725,8 @@ public class ExecutionEnvironment {
         CollectionInputFormat.checkCollection(data, type.getTypeClass());
         return new DataSource<>(
                 this,
-                new CollectionInputFormat<>(data, type.createSerializer(config)),
+                new CollectionInputFormat<>(
+                        data, type.createSerializer(config.getSerializerConfig())),
                 type,
                 Utils.getCallLocationName());
     }
@@ -750,7 +751,8 @@ public class ExecutionEnvironment {
         CollectionInputFormat.checkCollection(data, type.getTypeClass());
         return new DataSource<>(
                 this,
-                new CollectionInputFormat<>(data, type.createSerializer(config)),
+                new CollectionInputFormat<>(
+                        data, type.createSerializer(config.getSerializerConfig())),
                 type,
                 callLocationName);
     }

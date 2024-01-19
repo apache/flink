@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.{AtomicType => AtomicTypeInfo}
 import org.apache.flink.table.data._
 import org.apache.flink.table.data.binary.{BinaryRowData, BinaryStringData}
@@ -689,7 +690,7 @@ object GenerateUtils {
             s".compareTo($rightTerm.toObject($serializerTerm))"
 
         case rawType: TypeInformationRawType[_] =>
-          val serializer = rawType.getTypeInformation.createSerializer(new ExecutionConfig)
+          val serializer = rawType.getTypeInformation.createSerializer(new SerializerConfigImpl)
           val ser = ctx.addReusableObject(serializer, "serializer")
           val comp = ctx.addReusableObject(
             rawType.getTypeInformation

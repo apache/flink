@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -109,7 +109,7 @@ public class AbstractStreamOperatorTestHarnessTest extends TestLogger {
         final TypeSerializer<Integer> typeSerializer = spy(TypeSerializer.class);
 
         final TypeInformation<Integer> typeInformation = spy(Types.INT);
-        when(typeInformation.createSerializer(any(ExecutionConfig.class)))
+        when(typeInformation.createSerializer(any(SerializerConfigImpl.class)))
                 .thenReturn(typeSerializer);
 
         final OutputTag<Integer> outputTag = new OutputTag<>("test", typeInformation);

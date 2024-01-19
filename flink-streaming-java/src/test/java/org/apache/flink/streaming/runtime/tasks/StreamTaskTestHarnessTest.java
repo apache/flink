@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -67,7 +67,8 @@ public class StreamTaskTestHarnessTest {
                 .chain(
                         new OperatorID(),
                         new TestOperator(),
-                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()));
+                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
+                                new SerializerConfigImpl()));
 
         try {
             harness.setupOutputForSingletonOperatorChain();
@@ -95,7 +96,8 @@ public class StreamTaskTestHarnessTest {
                 .chain(
                         new OperatorID(),
                         new TestOperator(),
-                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()));
+                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
+                                new SerializerConfigImpl()));
 
         try {
             harness.setupOutputForSingletonOperatorChain();

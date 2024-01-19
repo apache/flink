@@ -18,9 +18,9 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -222,7 +222,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -238,7 +238,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new PassThroughWindowFunction<
@@ -260,7 +260,7 @@ public class WindowOperatorTest extends TestLogger {
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -276,7 +276,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<TimeWindow>()),
@@ -404,7 +404,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -418,7 +418,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new PassThroughWindowFunction<
@@ -440,7 +440,7 @@ public class WindowOperatorTest extends TestLogger {
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -454,7 +454,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<TimeWindow>()),
@@ -478,7 +478,7 @@ public class WindowOperatorTest extends TestLogger {
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -492,7 +492,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(new SessionWindowFunction()),
                                 EventTimeTrigger.create(),
@@ -571,7 +571,7 @@ public class WindowOperatorTest extends TestLogger {
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -585,7 +585,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableProcessWindowFunction<>(
                                         new SessionProcessWindowFunction()),
@@ -666,7 +666,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -680,7 +680,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new ReducedSessionWindowFunction()),
@@ -753,7 +753,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -767,7 +767,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueProcessWindowFunction<>(
                                         new ReducedProcessSessionWindowFunction()),
@@ -839,7 +839,7 @@ public class WindowOperatorTest extends TestLogger {
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -853,7 +853,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(new SessionWindowFunction()),
                                 PurgingTrigger.of(CountTrigger.of(4)),
@@ -930,7 +930,7 @@ public class WindowOperatorTest extends TestLogger {
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -944,7 +944,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(new SessionWindowFunction()),
                                 ContinuousEventTimeTrigger.of(Time.seconds(2)),
@@ -1024,7 +1024,7 @@ public class WindowOperatorTest extends TestLogger {
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -1038,7 +1038,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(new SessionWindowFunction()),
                                 EventTimeTrigger.create(),
@@ -1105,7 +1105,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -1119,7 +1119,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new PassThroughWindowFunction<
@@ -1230,7 +1230,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -1244,7 +1244,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new PassThroughWindowFunction<
@@ -1284,14 +1284,14 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         operator =
                 new WindowOperator<>(
                         GlobalWindows.create(),
                         new GlobalWindow.Serializer(),
                         new TupleKeySelector(),
-                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl()),
                         stateDesc,
                         new InternalSingleValueWindowFunction<>(
                                 new PassThroughWindowFunction<
@@ -1342,7 +1342,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -1357,7 +1357,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new PassThroughWindowFunction<
@@ -1420,7 +1420,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -1436,7 +1436,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new PassThroughWindowFunction<
@@ -1520,7 +1520,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -1535,7 +1535,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new PassThroughWindowFunction<
@@ -1628,7 +1628,7 @@ public class WindowOperatorTest extends TestLogger {
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -1642,7 +1642,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(new SessionWindowFunction()),
                                 EventTimeTrigger.create(),
@@ -1728,7 +1728,7 @@ public class WindowOperatorTest extends TestLogger {
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -1742,7 +1742,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(new SessionWindowFunction()),
                                 ProcessingTimeTrigger.create(),
@@ -1810,7 +1810,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -1824,7 +1824,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new PassThroughWindowFunction<
@@ -1893,7 +1893,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         TumblingEventTimeWindows windowAssigner =
                 TumblingEventTimeWindows.of(Time.milliseconds(windowSize));
@@ -1910,7 +1910,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new PassThroughWindowFunction<
@@ -1980,7 +1980,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -1994,7 +1994,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new PassThroughWindowFunction<
@@ -2062,7 +2062,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -2078,7 +2078,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new PassThroughWindowFunction<
@@ -2160,7 +2160,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -2174,7 +2174,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new ReducedSessionWindowFunction()),
@@ -2266,7 +2266,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -2280,7 +2280,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new ReducedSessionWindowFunction()),
@@ -2369,7 +2369,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -2383,7 +2383,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new ReducedSessionWindowFunction()),
@@ -2466,7 +2466,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -2480,7 +2480,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new ReducedSessionWindowFunction()),
@@ -2578,7 +2578,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -2592,7 +2592,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new ReducedSessionWindowFunction()),
@@ -2680,7 +2680,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -2694,7 +2694,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new ReducedSessionWindowFunction()),
@@ -2783,7 +2783,7 @@ public class WindowOperatorTest extends TestLogger {
         ListStateDescriptor<Tuple2<String, Integer>> windowStateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -2797,7 +2797,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 windowStateDesc,
                                 new InternalIterableWindowFunction<>(new PassThroughFunction2()),
                                 new EventTimeTriggerAccumGC(lateness),
@@ -2855,7 +2855,7 @@ public class WindowOperatorTest extends TestLogger {
         ListStateDescriptor<Tuple2<String, Integer>> windowStateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -2869,7 +2869,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 windowStateDesc,
                                 new InternalIterableWindowFunction<>(new PassThroughFunction()),
                                 EventTimeTrigger.create(),
@@ -2913,7 +2913,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -2927,7 +2927,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new PassThroughWindowFunction<
@@ -2972,7 +2972,7 @@ public class WindowOperatorTest extends TestLogger {
         ListStateDescriptor<Tuple2<String, Integer>> windowStateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -2986,7 +2986,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 windowStateDesc,
                                 new InternalIterableWindowFunction<>(new PassThroughFunction()),
                                 EventTimeTrigger.create(),
@@ -3025,7 +3025,7 @@ public class WindowOperatorTest extends TestLogger {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -3039,7 +3039,7 @@ public class WindowOperatorTest extends TestLogger {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new ReducedSessionWindowFunction()),

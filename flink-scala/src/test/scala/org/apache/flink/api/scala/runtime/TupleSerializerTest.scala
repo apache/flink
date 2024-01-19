@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.runtime
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest._
@@ -42,7 +43,7 @@ class TupleSerializerTest {
 
     val originalSerializer =
       tpe
-        .createSerializer(new ExecutionConfig)
+        .createSerializer(new SerializerConfigImpl)
         .asInstanceOf[CaseClassSerializer[((String, Int), (Int, String))]]
     val duplicateSerializer = originalSerializer.duplicate()
 
@@ -268,10 +269,12 @@ class TupleSerializerTest {
     try {
       // Register the custom Kryo Serializer
       val conf = new ExecutionConfig()
-      conf.registerTypeWithKryoSerializer(classOf[LocalDate], classOf[LocalDateSerializer])
+      conf.getSerializerConfig.registerTypeWithKryoSerializer(
+        classOf[LocalDate],
+        classOf[LocalDateSerializer])
 
       val tupleTypeInfo = implicitly[TypeInformation[T]].asInstanceOf[TupleTypeInfoBase[T]]
-      val serializer = tupleTypeInfo.createSerializer(conf)
+      val serializer = tupleTypeInfo.createSerializer(conf.getSerializerConfig)
       val tupleClass = tupleTypeInfo.getTypeClass
       val test = new TupleSerializerTestInstance[T](serializer, tupleClass, length, instances)
       test.testAll()

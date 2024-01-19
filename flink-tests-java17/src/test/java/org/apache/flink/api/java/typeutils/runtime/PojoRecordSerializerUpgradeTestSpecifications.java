@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.ClassRelocator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
@@ -57,7 +58,7 @@ class PojoRecordSerializerUpgradeTestSpecifications {
         public TypeSerializer<PojoBeforeUpgrade> createPriorSerializer() {
             TypeSerializer<PojoBeforeUpgrade> serializer =
                     TypeExtractor.createTypeInfo(PojoBeforeUpgrade.class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(PojoSerializer.class, serializer.getClass());
             return serializer;
         }
@@ -80,7 +81,7 @@ class PojoRecordSerializerUpgradeTestSpecifications {
         public TypeSerializer<PojoAfterUpgrade> createUpgradedSerializer() {
             TypeSerializer<PojoAfterUpgrade> serializer =
                     TypeExtractor.createTypeInfo(PojoAfterUpgrade.class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(PojoSerializer.class, serializer.getClass());
             return serializer;
         }
@@ -109,7 +110,7 @@ class PojoRecordSerializerUpgradeTestSpecifications {
         public TypeSerializer<RecordBeforeMigration> createPriorSerializer() {
             TypeSerializer<RecordBeforeMigration> serializer =
                     TypeExtractor.createTypeInfo(RecordBeforeMigration.class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(PojoSerializer.class, serializer.getClass());
             return serializer;
         }
@@ -132,7 +133,7 @@ class PojoRecordSerializerUpgradeTestSpecifications {
         public TypeSerializer<RecordAfterSchemaUpgrade> createUpgradedSerializer() {
             TypeSerializer<RecordAfterSchemaUpgrade> serializer =
                     TypeExtractor.createTypeInfo(RecordAfterSchemaUpgrade.class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(PojoSerializer.class, serializer.getClass());
             return serializer;
         }

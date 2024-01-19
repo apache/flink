@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
@@ -372,7 +372,7 @@ public class TwoPhaseCommitSinkFunctionTest {
     private static class ContentTransactionSerializer extends KryoSerializer<ContentTransaction> {
 
         public ContentTransactionSerializer() {
-            super(ContentTransaction.class, new ExecutionConfig());
+            super(ContentTransaction.class, new SerializerConfigImpl());
         }
 
         @Override

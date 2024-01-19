@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.co;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -901,7 +901,7 @@ public class IntervalJoinOperatorTest {
 
         public static TypeSerializer<TestElem> serializer() {
             return TypeInformation.of(new TypeHint<TestElem>() {})
-                    .createSerializer(new ExecutionConfig());
+                    .createSerializer(new SerializerConfigImpl());
         }
     }
 

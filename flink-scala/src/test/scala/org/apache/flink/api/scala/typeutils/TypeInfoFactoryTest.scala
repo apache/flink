@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfig
 import org.apache.flink.api.common.typeinfo.{TypeInfo, TypeInfoFactory, TypeInformation}
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeutils.TypeSerializer
@@ -140,6 +141,8 @@ object TypeInfoFactoryTest {
     override def getTypeClass: Class[MyOption[_]] = ???
 
     override def isKeyType: Boolean = ???
+
+    override def createSerializer(config: SerializerConfig): TypeSerializer[MyOption[_]] = ???
 
     override def createSerializer(config: ExecutionConfig): TypeSerializer[MyOption[_]] = ???
 

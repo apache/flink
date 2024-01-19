@@ -1433,7 +1433,9 @@ public class DataStream<T> {
     @Experimental
     public void collectAsync(Collector<T> collector) {
         TypeSerializer<T> serializer =
-                getType().createSerializer(getExecutionEnvironment().getConfig());
+                getType()
+                        .createSerializer(
+                                getExecutionEnvironment().getConfig().getSerializerConfig());
         String accumulatorName = "dataStreamCollect_" + UUID.randomUUID().toString();
 
         StreamExecutionEnvironment env = getExecutionEnvironment();

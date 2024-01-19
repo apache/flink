@@ -18,7 +18,7 @@
 
 package org.apache.flink.formats.avro;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -52,7 +52,7 @@ class AvroKryoSerializerRegistrationsTest {
      */
     @Test
     void testDefaultKryoRegisteredClassesDidNotChange() throws Exception {
-        final Kryo kryo = new KryoSerializer<>(Integer.class, new ExecutionConfig()).getKryo();
+        final Kryo kryo = new KryoSerializer<>(Integer.class, new SerializerConfigImpl()).getKryo();
 
         try (BufferedReader reader =
                 new BufferedReader(
@@ -103,7 +103,7 @@ class AvroKryoSerializerRegistrationsTest {
             assertThat(file.delete()).isTrue();
         }
 
-        final Kryo kryo = new KryoSerializer<>(Integer.class, new ExecutionConfig()).getKryo();
+        final Kryo kryo = new KryoSerializer<>(Integer.class, new SerializerConfigImpl()).getKryo();
         final int nextId = kryo.getNextRegistrationId();
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {

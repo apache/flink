@@ -105,7 +105,8 @@ public class StreamOperatorStateHandler {
                                 @Override
                                 public <T> TypeSerializer<T> createSerializer(
                                         TypeInformation<T> typeInformation) {
-                                    return typeInformation.createSerializer(executionConfig);
+                                    return typeInformation.createSerializer(
+                                            executionConfig.getSerializerConfig());
                                 }
                             });
         } else {

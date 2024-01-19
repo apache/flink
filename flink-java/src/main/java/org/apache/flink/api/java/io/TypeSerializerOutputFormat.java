@@ -64,6 +64,7 @@ public class TypeSerializerOutputFormat<T> extends BinaryOutputFormat<T>
     @Override
     @SuppressWarnings("unchecked")
     public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
-        serializer = (TypeSerializer<T>) type.createSerializer(executionConfig);
+        serializer =
+                (TypeSerializer<T>) type.createSerializer(executionConfig.getSerializerConfig());
     }
 }

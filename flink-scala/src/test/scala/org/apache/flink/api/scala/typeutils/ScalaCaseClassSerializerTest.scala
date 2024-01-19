@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeutils.SerializerTestBase
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.api.scala.typeutils.ScalaCaseClassSerializerTest.SimpleCaseClass
@@ -26,7 +27,7 @@ import org.apache.flink.api.scala.typeutils.ScalaCaseClassSerializerTest.SimpleC
 class ScalaCaseClassSerializerTest extends SerializerTestBase[SimpleCaseClass] {
 
   val serializer = createTypeInformation[SimpleCaseClass]
-    .createSerializer(new ExecutionConfig)
+    .createSerializer(new SerializerConfigImpl)
 
   override protected def createSerializer() = serializer
 

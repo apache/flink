@@ -143,7 +143,11 @@ class StreamExecutionEnvironmentComplexConfigurationTest {
 
         LinkedHashMap<Object, Object> serializers = new LinkedHashMap<>();
         serializers.put(CustomPojo.class, CustomPojoSerializer.class);
-        assertThat(envFromConfiguration.getConfig().getDefaultKryoSerializerClasses())
+        assertThat(
+                        envFromConfiguration
+                                .getConfig()
+                                .getSerializerConfig()
+                                .getDefaultKryoSerializerClasses())
                 .isEqualTo(serializers);
     }
 

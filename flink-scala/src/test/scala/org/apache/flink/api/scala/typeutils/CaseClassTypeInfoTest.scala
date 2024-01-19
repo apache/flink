@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfig
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.common.typeutils.{TypeInformationTestBase, TypeSerializer}
 
@@ -30,6 +31,8 @@ class CaseClassTypeInfoTest extends TypeInformationTestBase[CaseClassTypeInfo[_]
       Array(),
       Array(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
       Array("_1", "_2")) {
+      override def createSerializer(config: SerializerConfig): TypeSerializer[(Int, String)] = ???
+
       override def createSerializer(config: ExecutionConfig): TypeSerializer[(Int, String)] = ???
     },
     new CaseClassTypeInfo[(Int, Boolean)](
@@ -37,6 +40,8 @@ class CaseClassTypeInfoTest extends TypeInformationTestBase[CaseClassTypeInfo[_]
       Array(),
       Array(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.BOOLEAN_TYPE_INFO),
       Array("_1", "_2")) {
+      override def createSerializer(config: SerializerConfig): TypeSerializer[(Int, Boolean)] = ???
+
       override def createSerializer(config: ExecutionConfig): TypeSerializer[(Int, Boolean)] = ???
     }
   )

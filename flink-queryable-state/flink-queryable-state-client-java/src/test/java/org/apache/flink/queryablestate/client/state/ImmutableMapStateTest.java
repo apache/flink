@@ -19,6 +19,7 @@
 package org.apache.flink.queryablestate.client.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -56,8 +57,8 @@ class ImmutableMapStateTest {
         byte[] initSer =
                 KvStateSerializer.serializeMap(
                         initMap.entrySet(),
-                        BasicTypeInfo.LONG_TYPE_INFO.createSerializer(new ExecutionConfig()),
-                        BasicTypeInfo.LONG_TYPE_INFO.createSerializer(new ExecutionConfig()));
+                        BasicTypeInfo.LONG_TYPE_INFO.createSerializer(new SerializerConfigImpl()),
+                        BasicTypeInfo.LONG_TYPE_INFO.createSerializer(new SerializerConfigImpl()));
 
         mapState = ImmutableMapState.createState(mapStateDesc, initSer);
     }

@@ -191,9 +191,11 @@ class KryoGenericTypeSerializerTest {
 
     // Register the custom Kryo Serializer
     val conf = new ExecutionConfig
-    conf.registerTypeWithKryoSerializer(classOf[LocalDate], classOf[LocalDateSerializer])
+    conf.getSerializerConfig.registerTypeWithKryoSerializer(
+      classOf[LocalDate],
+      classOf[LocalDateSerializer])
     val typeInfo = new GenericTypeInfo[T](clsTag.runtimeClass.asInstanceOf[Class[T]])
-    val serializer = typeInfo.createSerializer(conf)
+    val serializer = typeInfo.createSerializer(conf.getSerializerConfig)
     val typeClass = typeInfo.getTypeClass
 
     val instance = new SerializerTestInstance[T](serializer, typeClass, -1, objects: _*) {}

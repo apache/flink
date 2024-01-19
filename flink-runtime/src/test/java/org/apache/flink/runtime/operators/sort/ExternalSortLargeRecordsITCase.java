@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators.sort;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -96,7 +97,7 @@ class ExternalSortLargeRecordsITCase {
             final TupleTypeInfo<Tuple2<Long, SomeMaybeLongValue>> typeInfo =
                     new TupleTypeInfo<Tuple2<Long, SomeMaybeLongValue>>(types);
             final TypeSerializer<Tuple2<Long, SomeMaybeLongValue>> serializer =
-                    typeInfo.createSerializer(new ExecutionConfig());
+                    typeInfo.createSerializer(new SerializerConfigImpl());
             final TypeComparator<Tuple2<Long, SomeMaybeLongValue>> comparator =
                     typeInfo.createComparator(
                             new int[] {0}, new boolean[] {false}, 0, new ExecutionConfig());
@@ -174,7 +175,7 @@ class ExternalSortLargeRecordsITCase {
             final TupleTypeInfo<Tuple2<Long, SomeMaybeLongValue>> typeInfo =
                     new TupleTypeInfo<Tuple2<Long, SomeMaybeLongValue>>(types);
             final TypeSerializer<Tuple2<Long, SomeMaybeLongValue>> serializer =
-                    typeInfo.createSerializer(new ExecutionConfig());
+                    typeInfo.createSerializer(new SerializerConfigImpl());
             final TypeComparator<Tuple2<Long, SomeMaybeLongValue>> comparator =
                     typeInfo.createComparator(
                             new int[] {0}, new boolean[] {false}, 0, new ExecutionConfig());
@@ -261,7 +262,7 @@ class ExternalSortLargeRecordsITCase {
                     new TupleTypeInfo<Tuple2<Long, SmallOrMediumOrLargeValue>>(types);
 
             final TypeSerializer<Tuple2<Long, SmallOrMediumOrLargeValue>> serializer =
-                    typeInfo.createSerializer(new ExecutionConfig());
+                    typeInfo.createSerializer(new SerializerConfigImpl());
             final TypeComparator<Tuple2<Long, SmallOrMediumOrLargeValue>> comparator =
                     typeInfo.createComparator(
                             new int[] {0}, new boolean[] {false}, 0, new ExecutionConfig());
@@ -348,7 +349,7 @@ class ExternalSortLargeRecordsITCase {
                     new TupleTypeInfo<Tuple2<Long, SmallOrMediumOrLargeValue>>(types);
 
             final TypeSerializer<Tuple2<Long, SmallOrMediumOrLargeValue>> serializer =
-                    typeInfo.createSerializer(new ExecutionConfig());
+                    typeInfo.createSerializer(new SerializerConfigImpl());
             final TypeComparator<Tuple2<Long, SmallOrMediumOrLargeValue>> comparator =
                     typeInfo.createComparator(
                             new int[] {0}, new boolean[] {false}, 0, new ExecutionConfig());

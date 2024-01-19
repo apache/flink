@@ -199,8 +199,10 @@ public class CoGroupRawOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN
         Arrays.fill(inputSortDirections1, true);
         Arrays.fill(inputSortDirections2, true);
 
-        final TypeSerializer<IN1> inputSerializer1 = inputType1.createSerializer(executionConfig);
-        final TypeSerializer<IN2> inputSerializer2 = inputType2.createSerializer(executionConfig);
+        final TypeSerializer<IN1> inputSerializer1 =
+                inputType1.createSerializer(executionConfig.getSerializerConfig());
+        final TypeSerializer<IN2> inputSerializer2 =
+                inputType2.createSerializer(executionConfig.getSerializerConfig());
 
         final TypeComparator<IN1> inputComparator1 =
                 getTypeComparator(executionConfig, inputType1, inputKeys1, inputSortDirections1);
@@ -224,7 +226,9 @@ public class CoGroupRawOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN
         Collector<OUT> resultCollector =
                 new CopyingListCollector<OUT>(
                         result,
-                        getOperatorInfo().getOutputType().createSerializer(executionConfig));
+                        getOperatorInfo()
+                                .getOutputType()
+                                .createSerializer(executionConfig.getSerializerConfig()));
 
         function.coGroup(iterator1, iterator2, resultCollector);
 

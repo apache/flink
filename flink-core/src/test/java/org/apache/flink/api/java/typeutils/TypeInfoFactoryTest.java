@@ -21,6 +21,7 @@ package org.apache.flink.api.java.typeutils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
@@ -257,8 +258,13 @@ public class TypeInfoFactoryTest {
         }
 
         @Override
-        public TypeSerializer<MyFaulty> createSerializer(ExecutionConfig config) {
+        public TypeSerializer<MyFaulty> createSerializer(SerializerConfig config) {
             return null;
+        }
+
+        @Override
+        public TypeSerializer<MyFaulty> createSerializer(ExecutionConfig config) {
+            return createSerializer(config.getSerializerConfig());
         }
 
         @Override
@@ -356,8 +362,13 @@ public class TypeInfoFactoryTest {
         }
 
         @Override
-        public TypeSerializer<MyTuple<T0, T1>> createSerializer(ExecutionConfig config) {
+        public TypeSerializer<MyTuple<T0, T1>> createSerializer(SerializerConfig config) {
             return null;
+        }
+
+        @Override
+        public TypeSerializer<MyTuple<T0, T1>> createSerializer(ExecutionConfig config) {
+            return createSerializer(config.getSerializerConfig());
         }
 
         @Override
@@ -454,8 +465,13 @@ public class TypeInfoFactoryTest {
         }
 
         @Override
-        public TypeSerializer<MyOption<T>> createSerializer(ExecutionConfig config) {
+        public TypeSerializer<MyOption<T>> createSerializer(SerializerConfig config) {
             return null;
+        }
+
+        @Override
+        public TypeSerializer<MyOption<T>> createSerializer(ExecutionConfig config) {
+            return createSerializer(config.getSerializerConfig());
         }
 
         @Override

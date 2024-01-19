@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.calcite;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
@@ -87,7 +87,7 @@ class FlinkTypeFactoryTest {
                 RowType.of(new DoubleType(), VarCharType.STRING_TYPE),
                 new RawType<>(
                         DayOfWeek.class,
-                        new KryoSerializer<>(DayOfWeek.class, new ExecutionConfig())));
+                        new KryoSerializer<>(DayOfWeek.class, new SerializerConfigImpl())));
     }
 
     @MethodSource("testInternalToRelType")

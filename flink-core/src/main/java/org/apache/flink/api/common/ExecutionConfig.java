@@ -23,6 +23,7 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SerializerConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
@@ -175,7 +176,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     @Internal
     public ExecutionConfig(Configuration configuration) {
         this.configuration = configuration;
-        this.serializerConfig = new SerializerConfig(configuration);
+        this.serializerConfig = new SerializerConfigImpl(configuration, this);
     }
 
     /**

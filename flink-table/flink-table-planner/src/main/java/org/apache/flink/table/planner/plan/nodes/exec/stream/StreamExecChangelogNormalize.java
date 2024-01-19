@@ -155,7 +155,8 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
 
         if (isMiniBatchEnabled) {
             TypeSerializer<RowData> rowSerializer =
-                    rowTypeInfo.createSerializer(planner.getExecEnv().getConfig());
+                    rowTypeInfo.createSerializer(
+                            planner.getExecEnv().getConfig().getSerializerConfig());
             ProcTimeMiniBatchDeduplicateKeepLastRowFunction processFunction =
                     new ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
                             rowTypeInfo,

@@ -569,6 +569,6 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
 
     @Override
     public void setOutputType(TypeInformation<OUT> outTypeInfo, ExecutionConfig executionConfig) {
-        this.serializer = outTypeInfo.createSerializer(executionConfig);
+        this.serializer = outTypeInfo.createSerializer(executionConfig.getSerializerConfig());
     }
 }

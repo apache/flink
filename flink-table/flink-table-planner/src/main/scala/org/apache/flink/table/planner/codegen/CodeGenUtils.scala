@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.RuntimeContext
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.core.memory.MemorySegment
 import org.apache.flink.table.data._
 import org.apache.flink.table.data.binary._
@@ -363,7 +364,7 @@ object CodeGenUtils {
           case rt: RawType[_] =>
             rt.getTypeSerializer
           case tirt: TypeInformationRawType[_] =>
-            tirt.getTypeInformation.createSerializer(new ExecutionConfig)
+            tirt.getTypeInformation.createSerializer(new SerializerConfigImpl)
         }
         val serTerm = ctx.addReusableObject(serializer, "serializer")
         s"$BINARY_RAW_VALUE.getJavaObjectFromRawValueData($term, $serTerm).hashCode()"

@@ -138,7 +138,9 @@ final class PatternStreamBuilder<IN> {
         checkNotNull(processFunction);
 
         final TypeSerializer<IN> inputSerializer =
-                inputStream.getType().createSerializer(inputStream.getExecutionConfig());
+                inputStream
+                        .getType()
+                        .createSerializer(inputStream.getExecutionConfig().getSerializerConfig());
         final boolean isProcessingTime = timeBehaviour == TimeBehaviour.ProcessingTime;
 
         final boolean timeoutHandling = processFunction instanceof TimedOutPartialMatchHandler;

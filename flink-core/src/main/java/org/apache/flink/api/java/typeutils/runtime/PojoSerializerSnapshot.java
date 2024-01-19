@@ -19,7 +19,8 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil.IntermediateCompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -60,7 +61,7 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
      * Configuration of the current execution. WARN: it's just used as point-in-time view to check
      * or generate something which should never be used in writeSnapshot or readSnapshot.
      */
-    private ExecutionConfig executionConfig;
+    private SerializerConfig serializerConfig;
 
     /** Constructor for reading the snapshot. */
     public PojoSerializerSnapshot() {}
@@ -84,7 +85,7 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
             TypeSerializer<?>[] fieldSerializers,
             LinkedHashMap<Class<?>, TypeSerializer<?>> registeredSubclassSerializers,
             Map<Class<?>, TypeSerializer<?>> nonRegisteredSubclassSerializers,
-            ExecutionConfig executionConfig) {
+            SerializerConfig serializerConfig) {
 
         this.snapshotData =
                 PojoSerializerSnapshotData.createFrom(
@@ -93,7 +94,7 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
                         fieldSerializers,
                         registeredSubclassSerializers,
                         nonRegisteredSubclassSerializers);
-        this.executionConfig = executionConfig;
+        this.serializerConfig = serializerConfig;
     }
 
     /**
@@ -110,7 +111,7 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
                     existingRegisteredSubclassSerializerSnapshots,
             Map<Class<?>, TypeSerializerSnapshot<?>>
                     existingNonRegisteredSubclassSerializerSnapshots,
-            ExecutionConfig executionConfig) {
+            SerializerConfig serializerConfig) {
 
         this.snapshotData =
                 PojoSerializerSnapshotData.createFrom(
@@ -119,7 +120,7 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
                         existingFieldSerializerSnapshots,
                         existingRegisteredSubclassSerializerSnapshots,
                         existingNonRegisteredSubclassSerializerSnapshots);
-        this.executionConfig = executionConfig;
+        this.serializerConfig = serializerConfig;
     }
 
     @Override
@@ -178,7 +179,7 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
                 decomposedSubclassSerializerRegistry.f0,
                 decomposedSubclassSerializerRegistry.f1,
                 nonRegisteredSubclassSerializers,
-                new ExecutionConfig());
+                new SerializerConfigImpl());
     }
 
     @Override
@@ -503,7 +504,7 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
                 reconfiguredSubclassRegistry.f0,
                 reconfiguredSubclassRegistry.f1,
                 restoreSerializers(nonRegisteredSubclassSerializerSnapshots.unwrapOptionals()),
-                executionConfig);
+                serializerConfig);
     }
 
     private static TypeSerializer[] constructReconfiguredFieldSerializers(
