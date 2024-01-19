@@ -61,6 +61,7 @@ public class UnsliceAssigners {
         private static final long serialVersionUID = 1L;
 
         private final int rowtimeIndex;
+        private final long sessionGap;
         private final boolean isEventTime;
         private final ZoneId shiftTimeZone;
 
@@ -69,6 +70,7 @@ public class UnsliceAssigners {
         public SessionUnsliceAssigner(int rowtimeIndex, ZoneId shiftTimeZone, long sessionGap) {
             this.rowtimeIndex = rowtimeIndex;
             this.shiftTimeZone = shiftTimeZone;
+            this.sessionGap = sessionGap;
             this.isEventTime = rowtimeIndex >= 0;
             this.innerSessionWindowAssigner =
                     SessionWindowAssigner.withGap(Duration.ofMillis(sessionGap));
@@ -137,6 +139,11 @@ public class UnsliceAssigners {
         @Override
         public boolean isEventTime() {
             return isEventTime;
+        }
+
+        @Override
+        public String getDescription() {
+            return String.format("SessionWindow(gap=%dms)", sessionGap);
         }
     }
 }
