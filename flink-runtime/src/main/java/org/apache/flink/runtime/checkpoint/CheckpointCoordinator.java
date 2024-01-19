@@ -1597,8 +1597,17 @@ public class CheckpointCoordinator {
                     for (ExecutionVertex ev : tasksToAbort) {
                         Execution ee = ev.getCurrentExecutionAttempt();
                         if (ee != null) {
-                            ee.notifyCheckpointAborted(
-                                    checkpointId, latestCompletedCheckpointId, timeStamp);
+                            try {
+                                ee.notifyCheckpointAborted(
+                                        checkpointId, latestCompletedCheckpointId, timeStamp);
+                            } catch (Throwable e) {
+                                LOG.warn(
+                                        "Could not send aborted message of checkpoint {} to task {} belonging to job {}.",
+                                        checkpointId,
+                                        ee.getAttemptId(),
+                                        ee.getVertex().getJobId(),
+                                        e);
+                            }
                         }
                     }
                 });
