@@ -709,10 +709,13 @@ class StreamExecutionEnvironment(object):
         env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
             .getEnvironmentConfig(self._j_stream_execution_environment)
         old_jar_paths = env_config.getString(jars_key, None)
+        print(f'old_jar_paths in add_jars: {old_jar_paths}')
         joined_jars_path = ';'.join(jars_path)
         if old_jar_paths and old_jar_paths.strip():
             joined_jars_path = ';'.join([old_jar_paths, joined_jars_path])
         env_config.setString(jars_key, joined_jars_path)
+        print(f'joined_jars_path in add_jars: {joined_jars_path}')
+
 
     def add_classpaths(self, *classpaths: str):
         """
