@@ -1008,6 +1008,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
     // ------------------------------ Utilities  ----------------------------------
 
+    @Public
     public static class SerializableSerializer<T extends Serializer<?> & Serializable>
             implements Serializable {
         private static final long serialVersionUID = 4687893502781067189L;
