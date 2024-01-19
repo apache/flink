@@ -51,15 +51,15 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 
-/** Tests for {@link WindowTableFunctionOperator}. */
+/** Tests for {@link AlignedWindowTableFunctionOperator}. */
 @RunWith(Parameterized.class)
-public class WindowTableFunctionOperatorTest {
+public class AlignedWindowTableFunctionOperatorTest {
 
     private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
     private static final ZoneId SHANGHAI_ZONE_ID = ZoneId.of("Asia/Shanghai");
     private final ZoneId shiftTimeZone;
 
-    public WindowTableFunctionOperatorTest(ZoneId shiftTimeZone) {
+    public AlignedWindowTableFunctionOperatorTest(ZoneId shiftTimeZone) {
         this.shiftTimeZone = shiftTimeZone;
     }
 
@@ -306,8 +306,9 @@ public class WindowTableFunctionOperatorTest {
 
     private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
             GroupWindowAssigner<TimeWindow> windowAssigner, ZoneId shiftTimeZone) throws Exception {
-        WindowTableFunctionOperator operator =
-                new WindowTableFunctionOperator(windowAssigner, ROW_TIME_INDEX, shiftTimeZone);
+        AlignedWindowTableFunctionOperator operator =
+                new AlignedWindowTableFunctionOperator(
+                        windowAssigner, ROW_TIME_INDEX, shiftTimeZone);
         return new OneInputStreamOperatorTestHarness<>(operator, INPUT_ROW_SER);
     }
 

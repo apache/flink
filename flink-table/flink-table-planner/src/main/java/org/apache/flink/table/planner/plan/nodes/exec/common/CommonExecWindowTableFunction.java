@@ -37,7 +37,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.GroupWindowAssigner;
-import org.apache.flink.table.runtime.operators.window.tvf.operator.WindowTableFunctionOperator;
+import org.apache.flink.table.runtime.operators.window.tvf.operator.AlignedWindowTableFunctionOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.RowType;
@@ -92,8 +92,8 @@ public abstract class CommonExecWindowTableFunction extends ExecNodeBase<RowData
                 TimeWindowUtil.getShiftTimeZone(
                         windowingStrategy.getTimeAttributeType(),
                         TableConfigUtils.getLocalTimeZone(config));
-        WindowTableFunctionOperator windowTableFunctionOperator =
-                new WindowTableFunctionOperator(
+        AlignedWindowTableFunctionOperator windowTableFunctionOperator =
+                new AlignedWindowTableFunctionOperator(
                         windowAssigner, windowingStrategy.getTimeAttributeIndex(), shiftTimeZone);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
