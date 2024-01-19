@@ -246,8 +246,8 @@ public abstract class WindowOperatorBase<K, W> extends TableStreamOperator<RowDa
     private void onTimer(InternalTimer<K, W> timer) throws Exception {
         setCurrentKey(timer.getKey());
         W window = timer.getNamespace();
-        windowProcessor.fireWindow(window);
-        windowProcessor.clearWindow(window);
+        windowProcessor.fireWindow(timer.getTimestamp(), window);
+        windowProcessor.clearWindow(timer.getTimestamp(), window);
         // we don't need to clear window timers,
         // because there should only be one timer for each window now, which is current timer.
     }

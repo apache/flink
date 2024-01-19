@@ -171,7 +171,7 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
     }
 
     @Override
-    public void clearWindow(Long windowEnd) throws Exception {
+    public void clearWindow(long timerTimestamp, Long windowEnd) throws Exception {
         windowState.clear(windowEnd);
     }
 
@@ -188,7 +188,7 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
     }
 
     @Override
-    public void fireWindow(Long windowEnd) throws Exception {
+    public void fireWindow(long timerTimestamp, Long windowEnd) throws Exception {
         TopNBuffer buffer = new TopNBuffer(sortKeyComparator, ArrayList::new);
         // step 1: load state data into TopNBuffer
         Iterator<Map.Entry<RowData, List<RowData>>> stateIterator = windowState.iterator(windowEnd);

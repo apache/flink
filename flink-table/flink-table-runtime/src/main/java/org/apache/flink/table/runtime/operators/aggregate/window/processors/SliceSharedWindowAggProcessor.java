@@ -61,7 +61,7 @@ public final class SliceSharedWindowAggProcessor extends AbstractSliceWindowAggP
     }
 
     @Override
-    public void fireWindow(Long windowEnd) throws Exception {
+    public void fireWindow(long timerTimestamp, Long windowEnd) throws Exception {
         sliceSharedAssigner.mergeSlices(windowEnd, this);
         // we have set accumulator in the merge() method
         RowData aggResult = aggregator.getValue(windowEnd);
