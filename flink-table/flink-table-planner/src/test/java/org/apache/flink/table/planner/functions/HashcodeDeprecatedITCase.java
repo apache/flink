@@ -19,13 +19,14 @@
 package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
+import org.apache.flink.streaming.runtime.operators.sink.deprecated.TestSinkV2;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.connector.sink.SinkV2Provider;
+import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.MapData;
@@ -60,8 +61,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for verifying runtime behaviour of {@link BuiltInFunctionDefinitions#INTERNAL_HASHCODE}.
+ *
+ * <p>Should be removed along with {@link
+ * org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink}
  */
-public class HashcodeITCase {
+@Deprecated
+public class HashcodeDeprecatedITCase {
 
     @RegisterExtension
     private static final MiniClusterExtension MINI_CLUSTER_EXTENSION = new MiniClusterExtension();
@@ -157,7 +162,8 @@ public class HashcodeITCase {
         }
 
         @Override
-        public ScanRuntimeProvider getScanRuntimeProvider(ScanContext context) {
+        public ScanTableSource.ScanRuntimeProvider getScanRuntimeProvider(
+                ScanTableSource.ScanContext context) {
             return SourceFunctionProvider.of(new TestSourceFunction(), false);
         }
     }

@@ -18,16 +18,21 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.api.connector.sink2.SupportsCommitter;
+import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.streaming.runtime.operators.sink.deprecated.TestSinkV2;
 
 import java.util.Collection;
 
-class SinkV2CommitterOperatorTest extends CommitterOperatorTestBase {
+/**
+ * Should be removed along with {@link org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink}.
+ */
+@Deprecated
+class SinkV2CommitterOperatorDeprecatedTest extends CommitterOperatorTestBase {
     @Override
     SinkAndCounters sinkWithPostCommit() {
         ForwardingCommitter committer = new ForwardingCommitter();
         return new SinkAndCounters(
-                (SupportsCommitter<String>)
+                (TwoPhaseCommittingSink<?, String>)
                         TestSinkV2.newBuilder()
                                 .setCommitter(committer)
                                 .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
@@ -38,8 +43,8 @@ class SinkV2CommitterOperatorTest extends CommitterOperatorTestBase {
 
     @Override
     SinkAndCounters sinkWithPostCommitWithRetry() {
-        return new CommitterOperatorTestBase.SinkAndCounters(
-                (SupportsCommitter<String>)
+        return new SinkAndCounters(
+                (TwoPhaseCommittingSink<?, String>)
                         TestSinkV2.newBuilder()
                                 .setCommitter(new TestSinkV2.RetryOnceCommitter())
                                 .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
@@ -52,7 +57,7 @@ class SinkV2CommitterOperatorTest extends CommitterOperatorTestBase {
     SinkAndCounters sinkWithoutPostCommit() {
         ForwardingCommitter committer = new ForwardingCommitter();
         return new SinkAndCounters(
-                (SupportsCommitter<String>)
+                (TwoPhaseCommittingSink<?, String>)
                         TestSinkV2.newBuilder()
                                 .setCommitter(committer)
                                 .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)

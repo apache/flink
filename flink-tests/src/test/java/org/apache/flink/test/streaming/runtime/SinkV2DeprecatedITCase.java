@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.IntegerTypeInfo;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
+import org.apache.flink.streaming.runtime.operators.sink.deprecated.TestSinkV2;
 import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.util.AbstractTestBase;
 
@@ -44,8 +44,12 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 
 /**
  * Integration test for {@link org.apache.flink.api.connector.sink.Sink} run time implementation.
+ *
+ * <p>Should be removed along with {@link
+ * org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink}
  */
-public class SinkV2ITCase extends AbstractTestBase {
+@Deprecated
+public class SinkV2DeprecatedITCase extends AbstractTestBase {
     static final List<Integer> SOURCE_DATA =
             Arrays.asList(
                     895, 127, 148, 161, 148, 662, 822, 491, 275, 122, 850, 630, 682, 765, 434, 970,
@@ -104,32 +108,6 @@ public class SinkV2ITCase extends AbstractTestBase {
     }
 
     @Test
-    public void writerAndPrecommitToplogyAndCommitterExecuteInStreamingMode() throws Exception {
-        final StreamExecutionEnvironment env = buildStreamEnv();
-        final FiniteTestSource<Integer> source =
-                new FiniteTestSource<>(COMMIT_QUEUE_RECEIVE_ALL_DATA, SOURCE_DATA);
-
-        env.addSource(source, IntegerTypeInfo.INT_TYPE_INFO)
-                .sinkTo(
-                        TestSinkV2.<Integer>newBuilder()
-                                .setDefaultCommitter(
-                                        (Supplier<Queue<Committer.CommitRequest<String>>>
-                                                        & Serializable)
-                                                () -> COMMIT_QUEUE)
-                                .setWithPreCommitTopology(true)
-                                .build());
-        env.execute();
-        assertThat(
-                COMMIT_QUEUE.stream()
-                        .map(Committer.CommitRequest::getCommittable)
-                        .collect(Collectors.toList()),
-                containsInAnyOrder(
-                        EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE.stream()
-                                .map(s -> s + "Transformed")
-                                .toArray()));
-    }
-
-    @Test
     public void writerAndCommitterExecuteInBatchMode() throws Exception {
         final StreamExecutionEnvironment env = buildBatchEnv();
 
@@ -147,30 +125,6 @@ public class SinkV2ITCase extends AbstractTestBase {
                         .map(Committer.CommitRequest::getCommittable)
                         .collect(Collectors.toList()),
                 containsInAnyOrder(EXPECTED_COMMITTED_DATA_IN_BATCH_MODE.toArray()));
-    }
-
-    @Test
-    public void writerAndPrecommitToplogyAndCommitterExecuteInBatchMode() throws Exception {
-        final StreamExecutionEnvironment env = buildBatchEnv();
-
-        env.fromData(SOURCE_DATA)
-                .sinkTo(
-                        TestSinkV2.<Integer>newBuilder()
-                                .setDefaultCommitter(
-                                        (Supplier<Queue<Committer.CommitRequest<String>>>
-                                                        & Serializable)
-                                                () -> COMMIT_QUEUE)
-                                .setWithPreCommitTopology(true)
-                                .build());
-        env.execute();
-        assertThat(
-                COMMIT_QUEUE.stream()
-                        .map(Committer.CommitRequest::getCommittable)
-                        .collect(Collectors.toList()),
-                containsInAnyOrder(
-                        EXPECTED_COMMITTED_DATA_IN_BATCH_MODE.stream()
-                                .map(s -> s + "Transformed")
-                                .toArray()));
     }
 
     private StreamExecutionEnvironment buildStreamEnv() {
