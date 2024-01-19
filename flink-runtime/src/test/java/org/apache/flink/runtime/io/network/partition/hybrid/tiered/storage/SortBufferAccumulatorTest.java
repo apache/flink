@@ -92,7 +92,7 @@ class SortBufferAccumulatorTest {
         // flushed.
         try (SortBufferAccumulator bufferAccumulator =
                 new SortBufferAccumulator(
-                        1, 2, BUFFER_SIZE_BYTES, memoryManager, isPartialRecordAllowed)) {
+                        1, 2, BUFFER_SIZE_BYTES, 0L, memoryManager, isPartialRecordAllowed)) {
             bufferAccumulator.setup(
                     ((subpartition, buffer, numRemainingBuffers) -> {
                         assertThat(buffer.getDataType()).isIn(expectedDataTypes);
@@ -141,7 +141,7 @@ class SortBufferAccumulatorTest {
         // flushed.
         try (SortBufferAccumulator bufferAccumulator =
                 new SortBufferAccumulator(
-                        1, 2, BUFFER_SIZE_BYTES, memoryManager, isPartialRecordAllowed)) {
+                        1, 2, BUFFER_SIZE_BYTES, 0L, memoryManager, isPartialRecordAllowed)) {
             AtomicInteger numReceivedBuffers = new AtomicInteger(0);
             bufferAccumulator.setup(
                     (subpartitionIndex, buffer, numRemainingBuffers) -> {
@@ -167,8 +167,8 @@ class SortBufferAccumulatorTest {
         TieredStorageMemoryManager memoryManager = createStorageMemoryManager(numBuffers);
 
         try (SortBufferAccumulator bufferAccumulator =
-                new SortBufferAccumulator(1, 1, bufferSize, memoryManager, true)) {
-            bufferAccumulator.setup((subpartitionIndex, buffer, numRemainingBuffers) -> {});
+                new SortBufferAccumulator(1, 1, bufferSize, 0L, memoryManager, true)) {
+            bufferAccumulator.setup((subpartitionIndex, buffers, numRemainingBuffers) -> {});
             assertThatThrownBy(
                             () ->
                                     bufferAccumulator.receive(
@@ -188,7 +188,7 @@ class SortBufferAccumulatorTest {
                 createStorageMemoryManager(numBuffers);
         SortBufferAccumulator bufferAccumulator =
                 new SortBufferAccumulator(
-                        1, 2, BUFFER_SIZE_BYTES, tieredStorageMemoryManager, true);
+                        1, 2, BUFFER_SIZE_BYTES, 0L, tieredStorageMemoryManager, true);
         bufferAccumulator.setup(
                 ((subpartition, buffer, numRemainingBuffers) -> buffer.recycleBuffer()));
         bufferAccumulator.receive(

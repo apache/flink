@@ -372,7 +372,19 @@ public class ResultPartitionFactory {
                                     .map(
                                             storage ->
                                                     storage.getTieredStorageConfiguration()
+                                                            .getMemoryDecouplingEnabled())
+                                    .orElse(false),
+                            tieredStorage
+                                    .map(
+                                            storage ->
+                                                    storage.getTieredStorageConfiguration()
                                                             .getTotalExclusiveBufferNum())
+                                    .orElse(0),
+                            tieredStorage
+                                    .map(
+                                            storage ->
+                                                    storage.getTieredStorageConfiguration()
+                                                            .getMinBuffersPerResultPartition())
                                     .orElse(0),
                             type);
 

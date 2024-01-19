@@ -242,11 +242,11 @@ public abstract class SortBuffer implements DataBuffer {
         }
 
         // allocate exactly enough buffers for the appended record
-        do {
+        while (availableBytes < numBytesRequired) {
             MemorySegment segment = freeSegments.poll();
             availableBytes += bufferSize;
             addBuffer(checkNotNull(segment));
-        } while (availableBytes < numBytesRequired);
+        }
 
         return true;
     }

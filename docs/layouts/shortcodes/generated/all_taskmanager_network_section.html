@@ -39,6 +39,12 @@
             <td>The option is used to enable the new mode of hybrid shuffle, which has resolved existing issues in the legacy mode. First, the new mode uses less required network memory. Second, the new mode can store shuffle data in remote storage when the disk space is not enough, which could avoid insufficient disk space errors and is only supported when taskmanager.network.hybrid-shuffle.remote.path is configured. The new mode is currently in an experimental phase. It can be set to false to fallback to the legacy mode  if something unexpected. Once the new mode reaches a stable state, the legacy mode as well as the option will be removed.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.network.hybrid-shuffle.memory-decoupling.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>The option is used to make the memory that is used by hybrid shuffle decoupled from the complexity of the job topology and the number of tasks on the task manager. It significantly reduces the chance of the "Insufficient number of network buffers" exception, while the workloads may suffer performance reduction silently.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.network.hybrid-shuffle.num-retained-in-memory-regions-max</h5></td>
             <td style="word-wrap: break-word;">1048576</td>
             <td>Long</td>
