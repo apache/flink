@@ -144,6 +144,26 @@ public class RocksDBConfigurableOptions implements Serializable {
                                     NONE.name(),
                                     LEVEL.name()));
 
+    public static final ConfigOption<Boolean> USE_DYNAMIC_LEVEL_SIZE =
+            key("state.backend.rocksdb.compaction.level.use-dynamic-size")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "If true, RocksDB will pick target size of each level dynamically. From an empty DB, ")
+                                    .text(
+                                            "RocksDB would make last level the base level, which means merging L0 data into the last level, ")
+                                    .text(
+                                            "until it exceeds max_bytes_for_level_base. And then repeat this process for second last level and so on. ")
+                                    .text("The default value is 'false'. ")
+                                    .text(
+                                            "For more information, please refer to %s",
+                                            link(
+                                                    "https://github.com/facebook/rocksdb/wiki/Leveled-Compaction#level_compaction_dynamic_level_bytes-is-true",
+                                                    "RocksDB's doc."))
+                                    .build());
+
     public static final ConfigOption<List<CompressionType>> COMPRESSION_PER_LEVEL =
             key("state.backend.rocksdb.compression.per.level")
                     .enumType(CompressionType.class)
@@ -156,8 +176,9 @@ public class RocksDBConfigurableOptions implements Serializable {
                                                     + "compression policies. In many cases, lower levels use fast compression algorithms,"
                                                     + " while higher levels with more data use slower but more effective compression algorithms. "
                                                     + "The N th element in the List corresponds to the compression type of the level N-1"
-                                                    + "When level_compaction_dynamic_level_bytes=true, compression_per_level[0] still determines L0, but other "
-                                                    + "elements are based on the base level and may not match the level seen in the info log")
+                                                    + "When %s is true, compression_per_level[0] still determines L0, but other "
+                                                    + "elements are based on the base level and may not match the level seen in the info log",
+                                            code(USE_DYNAMIC_LEVEL_SIZE.key()))
                                     .linebreak()
                                     .text(
                                             "Note: If the List size is smaller than the level number, the undefined lower level uses the last Compression Type in the List")
@@ -179,26 +200,6 @@ public class RocksDBConfigurableOptions implements Serializable {
                                             code(NO_COMPRESSION.name()),
                                             code(NO_COMPRESSION.name()),
                                             code(LZ4_COMPRESSION.name()))
-                                    .build());
-
-    public static final ConfigOption<Boolean> USE_DYNAMIC_LEVEL_SIZE =
-            key("state.backend.rocksdb.compaction.level.use-dynamic-size")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "If true, RocksDB will pick target size of each level dynamically. From an empty DB, ")
-                                    .text(
-                                            "RocksDB would make last level the base level, which means merging L0 data into the last level, ")
-                                    .text(
-                                            "until it exceeds max_bytes_for_level_base. And then repeat this process for second last level and so on. ")
-                                    .text("The default value is 'false'. ")
-                                    .text(
-                                            "For more information, please refer to %s",
-                                            link(
-                                                    "https://github.com/facebook/rocksdb/wiki/Leveled-Compaction#level_compaction_dynamic_level_bytes-is-true",
-                                                    "RocksDB's doc."))
                                     .build());
 
     public static final ConfigOption<MemorySize> TARGET_FILE_SIZE_BASE =
