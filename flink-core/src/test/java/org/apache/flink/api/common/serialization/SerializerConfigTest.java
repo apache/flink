@@ -38,13 +38,13 @@ class SerializerConfigTest {
 
     @Test
     void testReadingDefaultConfig() {
-        SerializerConfig SerializerConfig = new SerializerConfig();
+        SerializerConfig config = new SerializerConfig();
         Configuration configuration = new Configuration();
 
         // mutate config according to configuration
-        SerializerConfig.configure(configuration, SerializerConfigTest.class.getClassLoader());
+        config.configure(configuration, SerializerConfigTest.class.getClassLoader());
 
-        assertThat(SerializerConfig).isEqualTo(new SerializerConfig());
+        assertThat(config).isEqualTo(new SerializerConfig());
     }
 
     @Test
