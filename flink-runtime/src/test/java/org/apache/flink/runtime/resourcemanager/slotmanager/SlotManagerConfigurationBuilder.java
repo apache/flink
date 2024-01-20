@@ -156,9 +156,6 @@ public class SlotManagerConfigurationBuilder {
                 requirementCheckDelay,
                 declareNeededResourceDelay,
                 waitResultConsumedBeforeRelease,
-                taskManagerLoadBalanceMode == TaskManagerLoadBalanceMode.SLOTS
-                        ? LeastUtilizationSlotMatchingStrategy.INSTANCE
-                        : AnyMatchingSlotMatchingStrategy.INSTANCE,
                 taskManagerLoadBalanceMode,
                 defaultWorkerResourceSpec,
                 numSlotsPerWorker,
