@@ -273,7 +273,7 @@ public class SharedBuffer<V> {
             }
         }
 
-        //memory leak resolution
+        // memory leak resolution
         if (eventsCount.isEmpty()) {
             eventsCount.clear();
         }
