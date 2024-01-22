@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.dataview.DataView;
@@ -140,8 +141,11 @@ public final class DataTypeExtractor {
             DataTypeFactory typeFactory, Class<?> baseClass, Method method, int paramPos) {
         final Parameter parameter = method.getParameters()[paramPos];
         final DataTypeHint hint = parameter.getAnnotation(DataTypeHint.class);
+        final ArgumentHint argumentHint = parameter.getAnnotation(ArgumentHint.class);
         final DataTypeTemplate template;
-        if (hint != null) {
+        if (argumentHint != null) {
+            template = DataTypeTemplate.fromAnnotation(typeFactory, argumentHint.type());
+        } else if (hint != null) {
             template = DataTypeTemplate.fromAnnotation(typeFactory, hint);
         } else {
             template = DataTypeTemplate.fromDefaults();
@@ -261,8 +265,11 @@ public final class DataTypeExtractor {
         final Class<?> clazz = toClass(resolvedType);
         if (clazz != null) {
             final DataTypeHint hint = clazz.getAnnotation(DataTypeHint.class);
+            final ArgumentHint argumentHint = clazz.getAnnotation(ArgumentHint.class);
             if (hint != null) {
                 template = outerTemplate.mergeWithInnerAnnotation(typeFactory, hint);
+            } else if (argumentHint != null) {
+                template = outerTemplate.mergeWithInnerAnnotation(typeFactory, argumentHint.type());
             }
         }
         // main work

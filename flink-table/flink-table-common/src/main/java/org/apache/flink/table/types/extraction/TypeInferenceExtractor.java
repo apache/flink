@@ -254,14 +254,14 @@ public final class TypeInferenceExtractor {
         if (signatures.stream().anyMatch(s -> s.isVarArgs || s.argumentNames == null)) {
             return;
         }
-        final Set<List<String>> argumentNames =
+        final List<List<String>> argumentNames =
                 signatures.stream()
                         .map(
                                 s -> {
                                     assert s.argumentNames != null;
                                     return Arrays.asList(s.argumentNames);
                                 })
-                        .collect(Collectors.toSet());
+                        .collect(Collectors.toList());
         if (argumentNames.size() != 1) {
             return;
         }

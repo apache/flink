@@ -92,4 +92,10 @@ public class RexSetSemanticsTableCall extends RexCall {
             List<? extends RexNode> newOperands, int[] newPartitionKeys, int[] newOrderKeys) {
         return new RexSetSemanticsTableCall(type, op, newOperands, newPartitionKeys, newOrderKeys);
     }
+
+    @Override
+    public RexSetSemanticsTableCall clone(RelDataType type, List<RexNode> operands) {
+        return new RexSetSemanticsTableCall(
+                type, getOperator(), operands, partitionKeys, orderKeys);
+    }
 }

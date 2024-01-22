@@ -26,6 +26,7 @@ import org.apache.flink.table.types.inference.InputTypeStrategy;
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Array;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -60,6 +61,11 @@ final class FunctionSignatureTemplate {
             throw extractionError(
                     "Mismatch between number of argument names '%s' and argument types '%s'.",
                     argumentNames.length, argumentTemplates.size());
+        }
+        if (argumentNames != null
+                && argumentNames.length != Arrays.stream(argumentNames).distinct().count()) {
+            throw extractionError(
+                    "Argument name conflict, there are at least two argument names that are the same.");
         }
         return new FunctionSignatureTemplate(argumentTemplates, isVarArgs, argumentNames);
     }
