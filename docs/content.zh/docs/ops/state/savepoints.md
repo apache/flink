@@ -223,13 +223,17 @@ $ bin/flink run -s :savepointPath -restoreMode :mode -n [:runArgs]
 2. [Native](#savepoint-format) 格式支持增量的 RocksDB savepoints。对于这些 savepoints，Flink 将所有 SST 存储在 savepoints 目录中。这意味着这些 savepoints 是自包含和目录可移动的。然而，在 CLAIM 模式下恢复时，后续的 checkpoints 可能会复用一些 SST 文件，这反过来会阻止在 savepoints 被清理时删除 savepoints 目录。 Flink 之后运行期间可能会删除复用的SST 文件，但不会删除 savepoints 目录。因此，如果在 CLAIM 模式下恢复，Flink 可能会留下一个空的 savepoints 目录。
 {{< /hint >}}
 
-**LEGACY**
+**LEGACY (已废弃)**
 
 Legacy 模式是 Flink 在 1.15 之前的工作方式。该模式下 Flink 永远不会删除初始恢复的 checkpoint。同时，用户也不清楚是否可以删除它。导致该的问题原因是， Flink 会在用来恢复的 checkpoint 之上创建增量的 checkpoint，因此后续的 checkpoint 都有可能会依赖于用于恢复的那个 checkpoint。总而言之，恢复的 checkpoint 的所有权没有明确的界定。
 
 <div style="text-align: center">
   {{< img src="/fig/restore-mode-legacy.svg" alt="LEGACY restore mode" width="70%" >}}
 </div>
+
+{{< hint warning >}}
+**注意:** LEGACY 模式已经被废弃了，在 Flink 2.0 版本将会被移除。请使用 CLAIM 或 NO_CLAIM 模式。
+{{< /hint >}}
 
 ### 删除 Savepoint
 
