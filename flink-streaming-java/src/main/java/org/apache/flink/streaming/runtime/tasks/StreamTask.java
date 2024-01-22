@@ -1406,11 +1406,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                     String.format(
                             "Configured state backend (%s) does not support enforcing a full"
                                     + " snapshot. If you are restoring in %s mode, please"
-                                    + " consider choosing either %s or %s restore mode.",
-                            stateBackend,
-                            RestoreMode.NO_CLAIM,
-                            RestoreMode.CLAIM,
-                            RestoreMode.LEGACY));
+                                    + " consider choosing %s restore mode.",
+                            stateBackend, RestoreMode.NO_CLAIM, RestoreMode.CLAIM));
         } else if (checkpointOptions.getCheckpointType().isSavepoint()) {
             SavepointType savepointType = (SavepointType) checkpointOptions.getCheckpointType();
             if (!stateBackend.supportsSavepointFormat(savepointType.getFormatType())) {

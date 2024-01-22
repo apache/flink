@@ -271,7 +271,7 @@ Please note that, when restored in CLAIM mode, subsequent checkpoints might reus
 might delay the deletion the savepoints directory.
 {{< /hint >}}
 
-**LEGACY**
+**LEGACY (deprecated)**
 
 The legacy mode is how Flink worked until 1.15. In this mode Flink will never delete the initial
 checkpoint. At the same time, it is not clear if a user can ever delete it as well. The problem here,
@@ -281,6 +281,11 @@ subsequent checkpoints depend on the restored checkpoint. Overall, the ownership
 <div style="text-align: center">
   {{< img src="/fig/restore-mode-legacy.svg" alt="LEGACY restore mode" width="70%" >}}
 </div>
+
+{{< hint warning >}}
+**Attention:** The LEGACY mode is deprecated and will be removed in Flink 2.0. Please use CLAIM or
+NO_CLAIM mode instead.
+{{< /hint >}}
 
 
 ### Disposing Savepoints
