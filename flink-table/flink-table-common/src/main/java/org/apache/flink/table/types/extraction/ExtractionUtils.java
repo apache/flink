@@ -20,6 +20,7 @@ package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
@@ -44,7 +45,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -759,7 +759,16 @@ public final class ExtractionUtils {
         // so we need to extract them manually if possible
         List<String> parameterNames =
                 Stream.of(executable.getParameters())
-                        .map(Parameter::getName)
+                        .map(
+                                parameter -> {
+                                    ArgumentHint argumentHint =
+                                            parameter.getAnnotation(ArgumentHint.class);
+                                    if (argumentHint != null && argumentHint.name() != "") {
+                                        return argumentHint.name();
+                                    } else {
+                                        return parameter.getName();
+                                    }
+                                })
                         .collect(Collectors.toList());
         if (parameterNames.stream().allMatch(n -> n.startsWith("arg"))) {
             final ParameterExtractor extractor;

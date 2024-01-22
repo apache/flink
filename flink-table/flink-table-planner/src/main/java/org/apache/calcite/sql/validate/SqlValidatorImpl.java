@@ -158,13 +158,16 @@ import static org.apache.calcite.util.Static.RESOURCE;
  * Default implementation of {@link SqlValidator}, the class was copied over because of
  * CALCITE-4554.
  *
- * <p>Lines 1954 ~ 1977, Flink improves error message for functions without appropriate arguments in
+ * <p>Lines 1958 ~ 1978, Flink improves error message for functions without appropriate arguments in
  * handleUnresolvedFunction at {@link SqlValidatorImpl#handleUnresolvedFunction}.
  *
- * <p>Lines 5101 ~ 5114, Flink enables TIMESTAMP and TIMESTAMP_LTZ for system time period
+ * <p>Lines 3736 ~ 3740, Flink improves Optimize the retrieval of sub-operands in SqlCall when using
+ * NamedParameters at {@link SqlValidatorImpl#checkRollUp}.
+ *
+ * <p>Lines 5108 ~ 5121, Flink enables TIMESTAMP and TIMESTAMP_LTZ for system time period
  * specification type at {@link org.apache.calcite.sql.validate.SqlValidatorImpl#validateSnapshot}.
  *
- * <p>Lines 5458 ~ 5464, Flink enables TIMESTAMP and TIMESTAMP_LTZ for first orderBy column in
+ * <p>Lines 5465 ~ 5471, Flink enables TIMESTAMP and TIMESTAMP_LTZ for first orderBy column in
  * matchRecognize at {@link SqlValidatorImpl#validateMatchRecognize}.
  */
 public class SqlValidatorImpl implements SqlValidatorWithHints {
@@ -3730,7 +3733,11 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                 // can be another SqlCall, or an SqlIdentifier.
                 checkRollUp(grandParent, parent, stripDot, scope, contextClause);
             } else {
-                List<? extends @Nullable SqlNode> children = ((SqlCall) stripDot).getOperandList();
+                // ----- FLINK MODIFICATION BEGIN -----
+                SqlCall call = (SqlCall) stripDot;
+                List<? extends @Nullable SqlNode> children =
+                        new SqlCallBinding(this, scope, call).operands();
+                // ----- FLINK MODIFICATION END -----
                 for (SqlNode child : children) {
                     checkRollUp(parent, current, child, scope, contextClause);
                 }

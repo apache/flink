@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types.extraction;
 
+import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
@@ -362,7 +363,18 @@ abstract class BaseMappingExtractor {
             Method method, int paramPos) {
         final Parameter parameter = method.getParameters()[paramPos];
         final DataTypeHint hint = parameter.getAnnotation(DataTypeHint.class);
-        if (hint != null) {
+        final ArgumentHint argumentHint = parameter.getAnnotation(ArgumentHint.class);
+        if (hint != null && argumentHint != null) {
+            throw extractionError(
+                    "Argument and dataType hints cannot be declared in the same parameter at position %d.",
+                    paramPos);
+        }
+        if (argumentHint != null) {
+            final DataTypeTemplate template = DataTypeTemplate.fromAnnotation(argumentHint, null);
+            if (template.inputGroup != null) {
+                return Optional.of(FunctionArgumentTemplate.of(template.inputGroup));
+            }
+        } else if (hint != null) {
             final DataTypeTemplate template = DataTypeTemplate.fromAnnotation(hint, null);
             if (template.inputGroup != null) {
                 return Optional.of(FunctionArgumentTemplate.of(template.inputGroup));

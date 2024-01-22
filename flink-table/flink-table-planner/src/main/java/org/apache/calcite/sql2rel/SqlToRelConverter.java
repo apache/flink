@@ -234,13 +234,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Added in FLINK-29081, FLINK-28682, FLINK-33395: Lines 653 ~ 670
- *   <li>Added in Flink-24024: Lines 1434 ~ 1444, Lines 1458 ~ 1500
- *   <li>Added in FLINK-28682: Lines 2322 ~ 2339
- *   <li>Added in FLINK-28682: Lines 2376 ~ 2404
- *   <li>Added in FLINK-32474: Lines 2874 ~ 2886
- *   <li>Added in FLINK-32474: Lines 2986 ~ 3020
- *   <li>Added in FLINK-20873: Lines 5518 ~ 5527
+ *   <li>Added in FLINK-29081, FLINK-28682, FLINK-33395: Lines 654 ~ 671
+ *   <li>Added in Flink-24024: Lines 1435 ~ 1445, Lines 1459 ~ 1501
+ *   <li>Added in FLINK-28682: Lines 2323 ~ 2340
+ *   <li>Added in FLINK-28682: Lines 2377 ~ 2405
+ *   <li>Added in FLINK-32474: Lines 2875 ~ 2887
+ *   <li>Added in FLINK-32474: Lines 2987 ~ 3021
+ *   <li>Added in FLINK-20873: Lines 5519 ~ 5528
+ *   <li>Added in FLINK-34057: Lines 6089 ~ 6092
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
@@ -6085,8 +6086,11 @@ public class SqlToRelConverter {
             try {
                 // switch out of agg mode
                 bb.agg = null;
-                for (SqlNode operand : call.getOperandList()) {
-
+                // ----- FLINK MODIFICATION BEGIN -----
+                for (SqlNode operand :
+                        new SqlCallBinding(validator(), aggregatingSelectScope, call).operands())
+                // ----- FLINK MODIFICATION END -----
+                {
                     // special case for COUNT(*):  delete the *
                     if (operand instanceof SqlIdentifier) {
                         SqlIdentifier id = (SqlIdentifier) operand;
