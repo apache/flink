@@ -136,7 +136,7 @@ public class KeyedLookupJoinWrapper extends KeyedProcessFunction<RowData, RowDat
                 // fetcher has copied the input field when object reuse is enabled
                 lookupJoinRunner.doFetch(in);
 
-                // update state with empty row if lookup miss or pre-filtered
+                // update state with empty row if join condition unsatisfied
                 if (!collectListener.collected) {
                     updateState(emptyRow);
                 }
