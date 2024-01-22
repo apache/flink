@@ -200,7 +200,6 @@ public class KeyedLookupJoinHarnessTest {
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
         expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
-        expectedOutput.add(deleteRecord(3, "c", null, null));
         expectedOutput.add(insertRecord(3, "c2", 6, "Jark-2"));
         expectedOutput.add(deleteRecord(3, "c2", 6, "Jark-2"));
         expectedOutput.add(insertRecord(3, "c3", 9, "Jark-3"));
@@ -288,6 +287,8 @@ public class KeyedLookupJoinHarnessTest {
         testHarness.processElement(updateAfterRecord(3, "c2"));
         testHarness.processElement(deleteRecord(3, "c2"));
         testHarness.processElement(insertRecord(3, "c3"));
+        testHarness.processElement(deleteRecord(4, "d"));
+        testHarness.processElement(insertRecord(4, null));
 
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
@@ -304,6 +305,8 @@ public class KeyedLookupJoinHarnessTest {
         expectedOutput.add(deleteRecord(3, "c2", 6, "Jackson-2"));
         expectedOutput.add(insertRecord(3, "c3", 9, "Jark-3"));
         expectedOutput.add(insertRecord(3, "c3", 9, "Jackson-3"));
+        expectedOutput.add(deleteRecord(4, "d", 4, "Fabian"));
+        expectedOutput.add(insertRecord(4, null, 8, "Fabian-2"));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         testHarness.close();
@@ -327,6 +330,8 @@ public class KeyedLookupJoinHarnessTest {
         testHarness.processElement(updateAfterRecord(3, "c2"));
         testHarness.processElement(deleteRecord(3, "c2"));
         testHarness.processElement(insertRecord(3, "c3"));
+        testHarness.processElement(deleteRecord(4, "d"));
+        testHarness.processElement(insertRecord(4, null));
 
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
@@ -340,6 +345,8 @@ public class KeyedLookupJoinHarnessTest {
         expectedOutput.add(insertRecord(3, "c2", 6, "Jark-2"));
         expectedOutput.add(deleteRecord(3, "c2", 6, "Jark-2"));
         expectedOutput.add(insertRecord(3, "c3", 9, "Jark-3"));
+        expectedOutput.add(deleteRecord(4, "d", 4, "Fabian"));
+        expectedOutput.add(insertRecord(4, null, 8, "Fabian-2"));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         testHarness.close();
@@ -486,8 +493,8 @@ public class KeyedLookupJoinHarnessTest {
             int currentCnt = counter(id);
             List<GenericRowData> rows = lookup(id);
             if (rows != null) {
-                for (int i = 0; i < rows.size(); i++) {
-                    collectUpdatedRow(rows.get(i), currentCnt, out);
+                for (GenericRowData row : rows) {
+                    collectUpdatedRow(row, currentCnt, out);
                 }
             } else if (currentCnt > 1) {
                 // return a default value for which lookup miss at 1st time

@@ -42,7 +42,7 @@ public class LookupJoinRunner extends ProcessFunction<RowData, RowData> {
     private transient FlatMapFunction<RowData, RowData> fetcher;
     protected transient ListenableCollector<RowData> collector;
     protected transient JoinedRowData outRow;
-    private transient GenericRowData nullRow;
+    protected transient GenericRowData nullRow;
 
     public LookupJoinRunner(
             GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedFetcher,
