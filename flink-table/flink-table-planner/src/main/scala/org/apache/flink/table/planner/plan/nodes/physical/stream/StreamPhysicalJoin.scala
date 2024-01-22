@@ -112,6 +112,7 @@ class StreamPhysicalJoin(
           getUpsertKeys(right, joinSpec.getRightKeys)
         )
       )
+      .itemIf("miniBatch", "true", JoinUtil.isMiniBatchEnabled(unwrapTableConfig(this)))
   }
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
