@@ -29,14 +29,14 @@ import java.util.Properties;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for the {@link YamlConfigurationParserFactory}. */
-class YamlConfigurationParserFactoryTest {
+/** Tests for the {@link ModifiableClusterConfigurationParserFactory}. */
+class ModifiableClusterConfigurationParserFactoryTest {
 
-    private static final CommandLineParser<YamlConfiguration> commandLineParser =
-            new CommandLineParser<>(new YamlConfigurationParserFactory());
+    private static final CommandLineParser<ModifiableClusterConfiguration> commandLineParser =
+            new CommandLineParser<>(new ModifiableClusterConfigurationParserFactory());
 
     @Test
-    void testYamlConfigurationParsing() throws FlinkParseException {
+    void testModifiableClusterConfigurationParsing() throws FlinkParseException {
         final String configDir = "/foo/bar";
         final String key = "key";
         final String value = "value";
@@ -51,27 +51,28 @@ class YamlConfigurationParserFactoryTest {
             String.format("%s=%s", key, value),
             "--replaceKeyValue",
             String.format("%s,%s,%s", key, value, newValue),
-            "--flatten"
+            "--flattenConfig"
         };
 
-        YamlConfiguration yamlConfiguration = commandLineParser.parse(args);
+        ModifiableClusterConfiguration modifiableClusterConfiguration =
+                commandLineParser.parse(args);
 
-        assertThat(yamlConfiguration.getConfigDir()).isEqualTo(configDir);
+        assertThat(modifiableClusterConfiguration.getConfigDir()).isEqualTo(configDir);
 
-        Properties dynamicProperties = yamlConfiguration.getDynamicProperties();
+        Properties dynamicProperties = modifiableClusterConfiguration.getDynamicProperties();
         assertThat(dynamicProperties).containsEntry(key, value);
 
-        List<String> removeKeys = yamlConfiguration.getRemoveKeys();
+        List<String> removeKeys = modifiableClusterConfiguration.getRemoveKeys();
         assertThat(removeKeys).containsExactly(key);
 
-        Properties removeKeyValues = yamlConfiguration.getRemoveKeyValues();
+        Properties removeKeyValues = modifiableClusterConfiguration.getRemoveKeyValues();
         assertThat(removeKeyValues).containsEntry(key, value);
 
         List<Tuple3<String, String, String>> replaceKeyValues =
-                yamlConfiguration.getReplaceKeyValues();
+                modifiableClusterConfiguration.getReplaceKeyValues();
         assertThat(replaceKeyValues).containsExactly(Tuple3.of(key, value, newValue));
 
-        assertThat(yamlConfiguration.flattenConfig()).isTrue();
+        assertThat(modifiableClusterConfiguration.flattenConfig()).isTrue();
     }
 
     @Test
@@ -79,9 +80,10 @@ class YamlConfigurationParserFactoryTest {
         final String configDir = "/foo/bar";
         final String[] args = {"--configDir", configDir};
 
-        YamlConfiguration yamlConfiguration = commandLineParser.parse(args);
+        ModifiableClusterConfiguration modifiableClusterConfiguration =
+                commandLineParser.parse(args);
 
-        assertThat(yamlConfiguration.getConfigDir()).isEqualTo(configDir);
+        assertThat(modifiableClusterConfiguration.getConfigDir()).isEqualTo(configDir);
     }
 
     @Test

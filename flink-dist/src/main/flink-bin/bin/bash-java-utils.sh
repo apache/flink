@@ -81,12 +81,12 @@ runBashJavaUtilsCmd() {
     echo "$output"
 }
 
-getFlinkConfiguration() {
+updateAndGetFlinkConfiguration() {
     local FLINK_CONF_DIR="$1"
     local FLINK_BIN_DIR="$2"
     local FLINK_LIB_DIR="$3"
     local command_result
-    command_result=$(parseConfigurationAndExportLogs "$FLINK_CONF_DIR" "$FLINK_BIN_DIR" "$FLINK_LIB_DIR" "GET_FLINK_CONFIGURATION" "${@:4}")
+    command_result=$(parseConfigurationAndExportLogs "$FLINK_CONF_DIR" "$FLINK_BIN_DIR" "$FLINK_LIB_DIR" "UPDATE_AND_GET_FLINK_CONFIGURATION" "${@:4}")
     echo "$command_result"
 }
 

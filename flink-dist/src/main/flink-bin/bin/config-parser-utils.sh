@@ -27,7 +27,7 @@ fi
 source "$2"/bash-java-utils.sh
 
 ARGS=("${@:1}")
-result=$(getFlinkConfiguration "${ARGS[@]}")
+result=$(updateAndGetFlinkConfiguration "${ARGS[@]}")
 
 if [[ $? -ne 0 ]]; then
   echo "[ERROR] Could not get configurations properly, the result is :"

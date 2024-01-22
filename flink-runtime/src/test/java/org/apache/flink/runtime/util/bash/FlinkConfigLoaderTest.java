@@ -90,9 +90,9 @@ public class FlinkConfigLoaderTest {
     }
 
     @TestTemplate
-    void testGetConfigurationWritableDataConfigDirLongOpt() throws Exception {
+    void testloadAndModifyConfigurationConfigDirLongOpt() throws Exception {
         String[] args = {"--configDir", confDir.toFile().getAbsolutePath()};
-        List<String> list = FlinkConfigLoader.getConfigurationWritableData(args);
+        List<String> list = FlinkConfigLoader.loadAndModifyConfiguration(args);
         if (standardYaml) {
             assertThat(list).containsExactly("test:", "  key: " + TEST_CONFIG_VALUE);
         } else {
@@ -108,9 +108,9 @@ public class FlinkConfigLoaderTest {
     }
 
     @TestTemplate
-    void testGetConfigurationWritableDataConfigDirShortOpt() throws Exception {
+    void testloadAndModifyConfigurationConfigDirShortOpt() throws Exception {
         String[] args = {"-c", confDir.toFile().getAbsolutePath()};
-        List<String> list = FlinkConfigLoader.getConfigurationWritableData(args);
+        List<String> list = FlinkConfigLoader.loadAndModifyConfiguration(args);
         if (standardYaml) {
             assertThat(list).containsExactly("test:", "  key: " + TEST_CONFIG_VALUE);
         } else {
@@ -126,9 +126,9 @@ public class FlinkConfigLoaderTest {
     }
 
     @TestTemplate
-    void testGetConfigurationWritableDataDynamicPropertyWithSpace() throws Exception {
+    void testloadAndModifyConfigurationDynamicPropertyWithSpace() throws Exception {
         String[] args = {"--configDir", confDir.toFile().getAbsolutePath(), "-D", "key=value"};
-        List<String> list = FlinkConfigLoader.getConfigurationWritableData(args);
+        List<String> list = FlinkConfigLoader.loadAndModifyConfiguration(args);
         if (standardYaml) {
             assertThat(list).containsExactly("test:", "  key: " + TEST_CONFIG_VALUE, "key: value");
         } else {
@@ -146,9 +146,9 @@ public class FlinkConfigLoaderTest {
     }
 
     @TestTemplate
-    void testGetConfigurationWritableDataDynamicPropertyWithoutSpace() throws Exception {
+    void testloadAndModifyConfigurationDynamicPropertyWithoutSpace() throws Exception {
         String[] args = {"--configDir", confDir.toFile().getAbsolutePath(), "-Dkey=value"};
-        List<String> list = FlinkConfigLoader.getConfigurationWritableData(args);
+        List<String> list = FlinkConfigLoader.loadAndModifyConfiguration(args);
         if (standardYaml) {
             assertThat(list).containsExactly("test:", "  key: " + TEST_CONFIG_VALUE, "key: value");
         } else {
@@ -174,7 +174,7 @@ public class FlinkConfigLoaderTest {
     }
 
     @TestTemplate
-    void testGetConfigurationWritableDataIgnoreUnknownToken() throws Exception {
+    void testloadAndModifyConfigurationIgnoreUnknownToken() throws Exception {
         String[] args = {
             "unknown",
             "-u",
@@ -183,7 +183,7 @@ public class FlinkConfigLoaderTest {
             "--unknown",
             "-Dkey=value"
         };
-        List<String> list = FlinkConfigLoader.getConfigurationWritableData(args);
+        List<String> list = FlinkConfigLoader.loadAndModifyConfiguration(args);
         if (standardYaml) {
             assertThat(list).containsExactly("test:", "  key: " + TEST_CONFIG_VALUE, "key: value");
         } else {
@@ -194,7 +194,7 @@ public class FlinkConfigLoaderTest {
     }
 
     @TestTemplate
-    void testGetConfigurationWritableDataRemoveKeysMatched() throws Exception {
+    void testloadAndModifyConfigurationRemoveKeysMatched() throws Exception {
         String key = "key";
 
         String[] args = {
@@ -204,7 +204,7 @@ public class FlinkConfigLoaderTest {
             "--removeKey",
             key
         };
-        List<String> list = FlinkConfigLoader.getConfigurationWritableData(args);
+        List<String> list = FlinkConfigLoader.loadAndModifyConfiguration(args);
         if (standardYaml) {
             assertThat(list).containsExactly("test:", "  key: " + TEST_CONFIG_VALUE);
         } else {
@@ -213,7 +213,7 @@ public class FlinkConfigLoaderTest {
     }
 
     @TestTemplate
-    void testGetConfigurationWritableDataRemoveKeysNotMatched() throws Exception {
+    void testloadAndModifyConfigurationRemoveKeysNotMatched() throws Exception {
         String key = "key";
         String value = "value";
         String removeKey = "removeKey";
@@ -225,7 +225,7 @@ public class FlinkConfigLoaderTest {
             "--removeKey",
             removeKey
         };
-        List<String> list = FlinkConfigLoader.getConfigurationWritableData(args);
+        List<String> list = FlinkConfigLoader.loadAndModifyConfiguration(args);
         if (standardYaml) {
             assertThat(list)
                     .containsExactly("test:", "  key: " + TEST_CONFIG_VALUE, key + ": " + value);
@@ -237,7 +237,7 @@ public class FlinkConfigLoaderTest {
     }
 
     @TestTemplate
-    void testGetConfigurationWritableDataRemoveKeyValuesMatched() throws Exception {
+    void testloadAndModifyConfigurationRemoveKeyValuesMatched() throws Exception {
         String removeKey = "removeKey";
         String removeValue = "removeValue";
 
@@ -248,7 +248,7 @@ public class FlinkConfigLoaderTest {
             "--removeKeyValue",
             String.format("%s=%s", removeKey, removeValue)
         };
-        List<String> list = FlinkConfigLoader.getConfigurationWritableData(args);
+        List<String> list = FlinkConfigLoader.loadAndModifyConfiguration(args);
         if (standardYaml) {
             assertThat(list).containsExactly("test:", "  key: " + TEST_CONFIG_VALUE);
         } else {
@@ -257,7 +257,7 @@ public class FlinkConfigLoaderTest {
     }
 
     @TestTemplate
-    void testGetConfigurationWritableDataRemoveKeyValuesNotMatched() throws Exception {
+    void testloadAndModifyConfigurationRemoveKeyValuesNotMatched() throws Exception {
         String removeKey = "removeKey";
         String removeValue = "removeValue";
         String nonExistentValue = "nonExistentValue";
@@ -269,7 +269,7 @@ public class FlinkConfigLoaderTest {
             "--removeKeyValue",
             String.format("%s=%s", removeKey, nonExistentValue)
         };
-        List<String> list = FlinkConfigLoader.getConfigurationWritableData(args);
+        List<String> list = FlinkConfigLoader.loadAndModifyConfiguration(args);
         if (standardYaml) {
             assertThat(list)
                     .containsExactlyInAnyOrder(
@@ -283,7 +283,7 @@ public class FlinkConfigLoaderTest {
     }
 
     @TestTemplate
-    void testGetConfigurationWritableDataReplaceKeyValuesMatched() throws Exception {
+    void testloadAndModifyConfigurationReplaceKeyValuesMatched() throws Exception {
         String newValue = "newValue";
 
         String[] args = {
@@ -292,7 +292,7 @@ public class FlinkConfigLoaderTest {
             "--replaceKeyValue",
             String.format("%s,%s,%s", TEST_CONFIG_KEY, TEST_CONFIG_VALUE, newValue)
         };
-        List<String> list = FlinkConfigLoader.getConfigurationWritableData(args);
+        List<String> list = FlinkConfigLoader.loadAndModifyConfiguration(args);
         if (standardYaml) {
             assertThat(list).containsExactly("test:", "  key: " + newValue);
         } else {
@@ -301,7 +301,7 @@ public class FlinkConfigLoaderTest {
     }
 
     @TestTemplate
-    void testGetConfigurationWritableDataReplaceKeyValuesNotMatched() throws Exception {
+    void testloadAndModifyConfigurationReplaceKeyValuesNotMatched() throws Exception {
         String nonExistentValue = "nonExistentValue";
         String newValue = "newValue";
 
@@ -311,7 +311,7 @@ public class FlinkConfigLoaderTest {
             "--replaceKeyValue",
             String.format("%s,%s,%s", TEST_CONFIG_KEY, nonExistentValue, newValue)
         };
-        List<String> list = FlinkConfigLoader.getConfigurationWritableData(args);
+        List<String> list = FlinkConfigLoader.loadAndModifyConfiguration(args);
         if (standardYaml) {
             assertThat(list).containsExactly("test:", "  key: " + TEST_CONFIG_VALUE);
         } else {
@@ -320,9 +320,9 @@ public class FlinkConfigLoaderTest {
     }
 
     @TestTemplate
-    void testGetConfigurationWritableDataWithFlatten() throws Exception {
+    void testloadAndModifyConfigurationWithFlatten() throws Exception {
         String[] args = {"-c", confDir.toFile().getAbsolutePath(), "-flatten"};
-        List<String> list = FlinkConfigLoader.getConfigurationWritableData(args);
+        List<String> list = FlinkConfigLoader.loadAndModifyConfiguration(args);
         assertThat(list).containsExactly(TEST_CONFIG_KEY + ": " + TEST_CONFIG_VALUE);
     }
 

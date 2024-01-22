@@ -125,7 +125,7 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
         int expectedResultLines = 26;
         String[] commands = {
             RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
-            BashJavaUtils.Command.GET_FLINK_CONFIGURATION.toString(),
+            BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
             String.valueOf(expectedResultLines)
         };
         List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
@@ -138,7 +138,7 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
         int expectedResultLines = 24;
         String[] commands = {
             RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
-            BashJavaUtils.Command.GET_FLINK_CONFIGURATION.toString(),
+            BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
             String.valueOf(expectedResultLines),
             "-rmKey",
             "parallelism.default"
@@ -147,7 +147,7 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
 
         assertThat(lines).hasSize(expectedResultLines);
 
-        assertThat(lines).doesNotContainSequence(Arrays.asList("parallelism:", "  default: '1'"));
+        assertThat(lines).doesNotContainSequence(Arrays.asList("parallelism:", "  default: 1"));
     }
 
     @Test
@@ -155,7 +155,7 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
         int expectedResultLines = 24;
         String[] commands = {
             RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
-            BashJavaUtils.Command.GET_FLINK_CONFIGURATION.toString(),
+            BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
             String.valueOf(expectedResultLines),
             "-rmKV",
             "parallelism.default=1"
@@ -163,7 +163,23 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
         List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
         assertThat(lines).hasSize(expectedResultLines);
-        assertThat(lines).doesNotContainSequence(Arrays.asList("parallelism:", "  default: '1'"));
+        assertThat(lines).doesNotContainSequence(Arrays.asList("parallelism:", "  default: 1"));
+    }
+
+    @Test
+    void testGetConfigurationRemoveKeyValueNotMatchingValue() throws Exception {
+        int expectedResultLines = 26;
+        String[] commands = {
+            RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+            BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
+            String.valueOf(expectedResultLines),
+            "-rmKV",
+            "parallelism.default=2"
+        };
+        List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+        assertThat(lines).hasSize(expectedResultLines);
+        assertThat(lines).containsSequence(Arrays.asList("parallelism:", "  default: 1"));
     }
 
     @Test
@@ -171,7 +187,7 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
         int expectedResultLines = 26;
         String[] commands = {
             RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
-            BashJavaUtils.Command.GET_FLINK_CONFIGURATION.toString(),
+            BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
             String.valueOf(expectedResultLines),
             "-repKV",
             "parallelism.default,1,2"
@@ -179,8 +195,25 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
         List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
         assertThat(lines).hasSize(expectedResultLines);
-        assertThat(lines).doesNotContainSequence(Arrays.asList("parallelism:", "  default: '1'"));
+        assertThat(lines).doesNotContainSequence(Arrays.asList("parallelism:", "  default: 1"));
         assertThat(lines).containsSequence(Arrays.asList("parallelism:", "  default: '2'"));
+    }
+
+    @Test
+    void testGetConfigurationReplaceKeyValueNotMatchingValue() throws Exception {
+        int expectedResultLines = 26;
+        String[] commands = {
+            RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+            BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
+            String.valueOf(expectedResultLines),
+            "-repKV",
+            "parallelism.default,2,3"
+        };
+        List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+        assertThat(lines).hasSize(expectedResultLines);
+        assertThat(lines).containsSequence(Arrays.asList("parallelism:", "  default: 1"));
+        assertThat(lines).doesNotContainSequence(Arrays.asList("parallelism:", "  default: '3'"));
     }
 
     private static Map<String, String> parseAndAssertDynamicParameters(

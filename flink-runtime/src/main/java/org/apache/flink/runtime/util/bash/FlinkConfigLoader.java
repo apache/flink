@@ -20,7 +20,7 @@ package org.apache.flink.runtime.util.bash;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterConfigurationParserFactory;
-import org.apache.flink.runtime.entrypoint.YamlConfigurationParserFactory;
+import org.apache.flink.runtime.entrypoint.ModifiableClusterConfigurationParserFactory;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.util.FlinkException;
 
@@ -43,9 +43,9 @@ public class FlinkConfigLoader {
                 BashJavaUtils.class.getSimpleName());
     }
 
-    public static List<String> getConfigurationWritableData(String[] args) throws FlinkException {
+    public static List<String> loadAndModifyConfiguration(String[] args) throws FlinkException {
         return ConfigurationParserUtils.loadAndModifyConfiguration(
-                filterCmdArgs(args, YamlConfigurationParserFactory.options()),
+                filterCmdArgs(args, ModifiableClusterConfigurationParserFactory.options()),
                 BashJavaUtils.class.getSimpleName());
     }
 

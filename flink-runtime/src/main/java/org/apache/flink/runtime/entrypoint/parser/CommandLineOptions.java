@@ -43,42 +43,6 @@ public class CommandLineOptions {
                     .desc("Port for the rest endpoint and the web UI.")
                     .build();
 
-    public static final Option REPLACE_KEY_VALUE_OPTION =
-            Option.builder("repKV")
-                    .argName("key,oldValue,newValue")
-                    .longOpt("replaceKeyValue")
-                    .numberOfArgs(3)
-                    .valueSeparator(',')
-                    .desc(
-                            "Replace the specified key's value with a new one if it matches the old value.")
-                    .build();
-
-    public static final Option REMOVE_KEY_VALUE_OPTION =
-            Option.builder("rmKV")
-                    .argName("key=value")
-                    .longOpt("removeKeyValue")
-                    .numberOfArgs(2)
-                    .valueSeparator('=')
-                    .desc("Remove the specified key-value pairs if it matches the old value.")
-                    .build();
-
-    public static final Option REMOVE_KEY_OPTION =
-            Option.builder("rmKey")
-                    .argName("Key")
-                    .longOpt("removeKey")
-                    .hasArg(true)
-                    .desc("Key to remove from the configuration.")
-                    .build();
-
-    public static final Option FLATTEN_CONFIG_OPTION =
-            Option.builder("flatten")
-                    .argName("flatten configuration")
-                    .longOpt("flattenConfig")
-                    .hasArg(false)
-                    .desc(
-                            "If present, the configuration will be output in a flattened format instead of nested YAML.")
-                    .build();
-
     public static final Option DYNAMIC_PROPERTY_OPTION =
             Option.builder("D")
                     .argName("property=value")

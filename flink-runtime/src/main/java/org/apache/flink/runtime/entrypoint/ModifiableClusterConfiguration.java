@@ -27,7 +27,7 @@ import java.util.Properties;
  * Configuration class which contains the parsed command line arguments for the {@link
  * ClusterEntrypoint}.
  */
-public class YamlConfiguration {
+public class ModifiableClusterConfiguration {
 
     private final boolean flattenConfig;
 
@@ -41,7 +41,7 @@ public class YamlConfiguration {
 
     private final List<Tuple3<String, String, String>> replaceKeyValues;
 
-    public YamlConfiguration(
+    public ModifiableClusterConfiguration(
             boolean flattenConfig,
             String configDir,
             Properties dynamicProperties,

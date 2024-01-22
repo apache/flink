@@ -66,8 +66,8 @@ public class BashJavaUtils {
                 return getTmResourceParams(FlinkConfigLoader.loadConfiguration(commandArgs));
             case GET_JM_RESOURCE_PARAMS:
                 return getJmResourceParams(FlinkConfigLoader.loadConfiguration(commandArgs));
-            case GET_FLINK_CONFIGURATION:
-                return FlinkConfigLoader.getConfigurationWritableData(commandArgs);
+            case UPDATE_AND_GET_FLINK_CONFIGURATION:
+                return FlinkConfigLoader.loadAndModifyConfiguration(commandArgs);
             default:
                 // unexpected, Command#valueOf should fail if a unknown command is passed in
                 throw new RuntimeException("Unexpected, something is wrong.");
@@ -178,7 +178,7 @@ public class BashJavaUtils {
         /** Get JVM parameters and dynamic configs of job manager resources. */
         GET_JM_RESOURCE_PARAMS,
 
-        /** Get and modify configuration from conf file and dynamic configs of the FLINK cluster. */
-        GET_FLINK_CONFIGURATION
+        /** Update and get configuration from conf file and dynamic configs of the FLINK cluster. */
+        UPDATE_AND_GET_FLINK_CONFIGURATION
     }
 }

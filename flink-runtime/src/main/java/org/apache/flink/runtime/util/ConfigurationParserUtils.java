@@ -28,8 +28,8 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.entrypoint.ClusterConfiguration;
 import org.apache.flink.runtime.entrypoint.ClusterConfigurationParserFactory;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
-import org.apache.flink.runtime.entrypoint.YamlConfiguration;
-import org.apache.flink.runtime.entrypoint.YamlConfigurationParserFactory;
+import org.apache.flink.runtime.entrypoint.ModifiableClusterConfiguration;
+import org.apache.flink.runtime.entrypoint.ModifiableClusterConfigurationParserFactory;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.util.MathUtils;
@@ -155,12 +155,12 @@ public class ConfigurationParserUtils {
 
     public static List<String> loadAndModifyConfiguration(String[] args, String cmdLineSyntax)
             throws FlinkParseException {
-        final CommandLineParser<YamlConfiguration> commandLineParser =
-                new CommandLineParser<>(new YamlConfigurationParserFactory());
+        final CommandLineParser<ModifiableClusterConfiguration> commandLineParser =
+                new CommandLineParser<>(new ModifiableClusterConfigurationParserFactory());
 
-        final YamlConfiguration yamlConfiguration;
+        final ModifiableClusterConfiguration modifiableClusterConfiguration;
         try {
-            yamlConfiguration = commandLineParser.parse(args);
+            modifiableClusterConfiguration = commandLineParser.parse(args);
         } catch (FlinkParseException e) {
             LOG.error("Could not parse the command line options.", e);
             commandLineParser.printHelp(cmdLineSyntax);
@@ -168,15 +168,16 @@ public class ConfigurationParserUtils {
         }
 
         final Configuration dynamicProperties =
-                ConfigurationUtils.createConfiguration(yamlConfiguration.getDynamicProperties());
+                ConfigurationUtils.createConfiguration(
+                        modifiableClusterConfiguration.getDynamicProperties());
         // 1. Load configuration and append dynamic properties to configuration.
         Configuration configuration =
                 GlobalConfiguration.loadConfiguration(
-                        yamlConfiguration.getConfigDir(), dynamicProperties);
+                        modifiableClusterConfiguration.getConfigDir(), dynamicProperties);
 
         // 2. Replace the specified key's value with a new one if it matches the old value.
         List<Tuple3<String, String, String>> replaceKeyValues =
-                yamlConfiguration.getReplaceKeyValues();
+                modifiableClusterConfiguration.getReplaceKeyValues();
         replaceKeyValues.forEach(
                 tuple3 -> {
                     String key = tuple3.f0;
@@ -190,7 +191,7 @@ public class ConfigurationParserUtils {
                 });
 
         // 3. Remove the specified key value pairs if the value matches.
-        Properties removeKeyValues = yamlConfiguration.getRemoveKeyValues();
+        Properties removeKeyValues = modifiableClusterConfiguration.getRemoveKeyValues();
         final Set<String> propertyNames = removeKeyValues.stringPropertyNames();
 
         for (String propertyName : propertyNames) {
@@ -206,9 +207,9 @@ public class ConfigurationParserUtils {
         }
 
         // 4. Remove the specified key value pairs.
-        List<String> removeKeys = yamlConfiguration.getRemoveKeys();
+        List<String> removeKeys = modifiableClusterConfiguration.getRemoveKeys();
         removeKeys.forEach(configuration::removeKey);
         return ConfigurationUtils.convertConfigToWritableLines(
-                configuration, yamlConfiguration.flattenConfig());
+                configuration, modifiableClusterConfiguration.flattenConfig());
     }
 }

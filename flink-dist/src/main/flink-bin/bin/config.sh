@@ -116,7 +116,6 @@ readFromConfig() {
 # -or- the respective environment variables are not set.
 ########################################################################################################################
 
-source "$(dirname "$0")"/bash-java-utils.sh
 # WARNING !!! , these values are only used if there is nothing else is specified in
 # conf/config.yaml
 
@@ -210,26 +209,12 @@ export FLINK_LIB_DIR
 # export /opt dir to access it for the SQL client
 export FLINK_OPT_DIR
 
-YAML_CONF=$(getFlinkConfiguration "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}" "${FLINK_LIB_DIR}" -flatten)
+source "${FLINK_BIN_DIR}/bash-java-utils.sh"
+YAML_CONF=$(updateAndGetFlinkConfiguration "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}" "${FLINK_LIB_DIR}" -flatten)
 
 ########################################################################################################################
 # ENVIRONMENT VARIABLES
 ########################################################################################################################
-
-# read JAVA_HOME from config with no default value
-MY_JAVA_HOME=$(readFromConfig ${KEY_ENV_JAVA_HOME} "" "${YAML_CONF}")
-# check if config specified JAVA_HOME
-if [ -z "${MY_JAVA_HOME}" ]; then
-    # config did not specify JAVA_HOME. Use system JAVA_HOME
-    MY_JAVA_HOME="${JAVA_HOME}"
-fi
-# check if we have a valid JAVA_HOME and if java is not available
-if [ -z "${MY_JAVA_HOME}" ] && ! type java > /dev/null 2> /dev/null; then
-    echo "Please specify JAVA_HOME. Either in Flink config ./conf/config.yaml or as system-wide JAVA_HOME."
-    exit 1
-else
-    JAVA_HOME="${MY_JAVA_HOME}"
-fi
 
 # Define HOSTNAME if it is not already set
 if [ -z "${HOSTNAME}" ]; then

@@ -33,13 +33,14 @@ import java.util.Properties;
 
 import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.CONFIG_DIR_OPTION;
 import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.DYNAMIC_PROPERTY_OPTION;
-import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.FLATTEN_CONFIG_OPTION;
-import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.REMOVE_KEY_OPTION;
-import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.REMOVE_KEY_VALUE_OPTION;
-import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.REPLACE_KEY_VALUE_OPTION;
+import static org.apache.flink.runtime.entrypoint.parser.ConfigurationCommandLineOptions.FLATTEN_CONFIG_OPTION;
+import static org.apache.flink.runtime.entrypoint.parser.ConfigurationCommandLineOptions.REMOVE_KEY_OPTION;
+import static org.apache.flink.runtime.entrypoint.parser.ConfigurationCommandLineOptions.REMOVE_KEY_VALUE_OPTION;
+import static org.apache.flink.runtime.entrypoint.parser.ConfigurationCommandLineOptions.REPLACE_KEY_VALUE_OPTION;
 
 /** A class can be used to extract the configuration from command line and modify it. */
-public class YamlConfigurationParserFactory implements ParserResultFactory<YamlConfiguration> {
+public class ModifiableClusterConfigurationParserFactory
+        implements ParserResultFactory<ModifiableClusterConfiguration> {
 
     public static Options options() {
         final Options options = new Options();
@@ -59,7 +60,7 @@ public class YamlConfigurationParserFactory implements ParserResultFactory<YamlC
     }
 
     @Override
-    public YamlConfiguration createResult(@Nonnull CommandLine commandLine) {
+    public ModifiableClusterConfiguration createResult(@Nonnull CommandLine commandLine) {
         String configDir = commandLine.getOptionValue(CONFIG_DIR_OPTION.getOpt());
 
         Properties dynamicProperties =
@@ -86,7 +87,7 @@ public class YamlConfigurationParserFactory implements ParserResultFactory<YamlC
             }
         }
 
-        return new YamlConfiguration(
+        return new ModifiableClusterConfiguration(
                 commandLine.hasOption(FLATTEN_CONFIG_OPTION),
                 configDir,
                 dynamicProperties,
