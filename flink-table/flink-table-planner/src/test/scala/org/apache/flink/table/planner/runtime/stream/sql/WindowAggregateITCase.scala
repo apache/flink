@@ -1218,6 +1218,43 @@ class WindowAggregateITCase(
   }
 
   @TestTemplate
+  def testEventTimeSessionWindowWithTVFNotPullUpIntoWindowAgg(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`),
+        |  concat_distinct_agg(`string`)
+        |FROM (
+        | SELECT * FROM TABLE(
+        |   SESSION(TABLE T1 PARTITION BY `name`, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |   WHERE window_start > TIMESTAMP '2000-01-01 10:10:00.000'
+        |)
+        |GROUP BY `name`, window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "a,2020-10-10T00:00:01,2020-10-10T00:00:13,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
+      "b,2020-10-10T00:00:06,2020-10-10T00:00:12,2,6.66,6.0,3.0,2,Hello|Hi",
+      "b,2020-10-10T00:00:16,2020-10-10T00:00:21,1,4.44,4.0,4.0,1,Hi",
+      "b,2020-10-10T00:00:34,2020-10-10T00:00:39,1,3.33,3.0,3.0,1,Comment#3",
+      "null,2020-10-10T00:00:32,2020-10-10T00:00:37,1,7.77,7.0,7.0,0,null"
+    )
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
+  }
+
+  @TestTemplate
   def testEventTimeSessionWindowWithCDCSource(): Unit = {
     val sql =
       """

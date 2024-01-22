@@ -1541,15 +1541,11 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
         |GROUP BY a, window_start, window_end
       """.stripMargin
 
-    assertThatThrownBy(() => util.verifyExplain(sql))
-      .hasMessageContaining("Session Window TableFunction is not supported yet.")
-      .isInstanceOf[TableException]
+    util.verifyExplain(sql)
   }
 
   @TestTemplate
   def testGroupKeyLessThanPartitionKeyInSessionWindow(): Unit = {
-    // TODO Support session window table function in ExecWindowTableFunction. See
-    //  more at FLINK-34100
     val sql = {
       """
         |SELECT
@@ -1566,9 +1562,7 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
       """.stripMargin
     }
 
-    assertThatThrownBy(() => util.verifyExplain(sql))
-      .hasMessageContaining("Session Window TableFunction is not supported yet.")
-      .isInstanceOf[TableException]
+    util.verifyExplain(sql)
   }
 
   @TestTemplate

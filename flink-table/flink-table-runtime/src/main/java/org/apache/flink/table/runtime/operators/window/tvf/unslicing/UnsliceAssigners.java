@@ -19,17 +19,24 @@
 package org.apache.flink.table.runtime.operators.window.tvf.unslicing;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.runtime.operators.window.MergeCallback;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
+import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.InternalTimeWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.MergingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.SessionWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.internal.MergingWindowProcessFunction;
 import org.apache.flink.table.runtime.operators.window.tvf.common.ClockService;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.NavigableSet;
 import java.util.Optional;
 
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
@@ -144,6 +151,128 @@ public class UnsliceAssigners {
         @Override
         public String getDescription() {
             return String.format("SessionWindow(gap=%dms)", sessionGap);
+        }
+    }
+
+    /**
+     * Creates a {@link UnsliceAssigner} that assigns elements which has been attached window start
+     * and window end timestamp to windows. The assigned windows doesn't need to be merged again.
+     *
+     * @param windowStartIndex the index of window start field in the input row, mustn't be a
+     *     negative value.
+     * @param windowEndIndex the index of window end field in the input row, mustn't be a negative
+     *     value.
+     */
+    public static WindowedUnsliceAssigner windowed(
+            int windowStartIndex, int windowEndIndex, UnsliceAssigner<TimeWindow> innerAssigner) {
+        return new WindowedUnsliceAssigner(windowStartIndex, windowEndIndex, innerAssigner);
+    }
+
+    /**
+     * The {@link UnsliceAssigner} for elements have been merged into unslicing windows and attached
+     * window start and end timestamps.
+     */
+    public static class WindowedUnsliceAssigner extends MergingWindowAssigner<TimeWindow>
+            implements UnsliceAssigner<TimeWindow>, InternalTimeWindowAssigner {
+
+        private static final long serialVersionUID = 1L;
+
+        private final int windowStartIndex;
+
+        private final int windowEndIndex;
+
+        private final UnsliceAssigner<TimeWindow> innerAssigner;
+
+        public WindowedUnsliceAssigner(
+                int windowStartIndex,
+                int windowEndIndex,
+                UnsliceAssigner<TimeWindow> innerAssigner) {
+            this.windowStartIndex = windowStartIndex;
+            this.windowEndIndex = windowEndIndex;
+            this.innerAssigner = innerAssigner;
+        }
+
+        @Override
+        public Optional<TimeWindow> assignActualWindow(
+                RowData element,
+                ClockService clock,
+                MergingWindowProcessFunction<?, TimeWindow> windowFunction)
+                throws Exception {
+            return innerAssigner.assignActualWindow(element, clock, windowFunction);
+        }
+
+        @Override
+        public Optional<TimeWindow> assignStateNamespace(
+                RowData element,
+                ClockService clock,
+                MergingWindowProcessFunction<?, TimeWindow> windowFunction)
+                throws Exception {
+            return innerAssigner.assignStateNamespace(element, clock, windowFunction);
+        }
+
+        @Override
+        public MergingWindowAssigner<TimeWindow> getMergingWindowAssigner() {
+            return this;
+        }
+
+        @Override
+        public boolean isEventTime() {
+            // it always works in event-time mode if input row has been attached windows
+            return true;
+        }
+
+        @Override
+        public Collection<TimeWindow> assignWindows(RowData element, long timestamp)
+                throws IOException {
+            return Collections.singletonList(createWindow(element));
+        }
+
+        private TimeWindow createWindow(RowData element) {
+            if (element.isNullAt(windowStartIndex) || element.isNullAt(windowEndIndex)) {
+                throw new RuntimeException("RowTime field should not be null.");
+            }
+            // Precision for row timestamp is always 3
+            final long windowStartTime = element.getTimestamp(windowStartIndex, 3).getMillisecond();
+            final long windowEndTime = element.getTimestamp(windowEndIndex, 3).getMillisecond();
+            return new TimeWindow(windowStartTime, windowEndTime);
+        }
+
+        @Override
+        public TypeSerializer<TimeWindow> getWindowSerializer(ExecutionConfig executionConfig) {
+            return new TimeWindow.Serializer();
+        }
+
+        @Override
+        public String toString() {
+            return getDescription();
+        }
+
+        @Override
+        public String getDescription() {
+            return String.format(
+                    "WindowedUnsliceWindow(innerAssigner=%s, StartIndex=%d, windowEndIndex=%d)",
+                    innerAssigner.getDescription(), windowStartIndex, windowEndIndex);
+        }
+
+        @Override
+        public InternalTimeWindowAssigner withEventTime() {
+            throw new IllegalStateException(
+                    "Should not call this function on WindowedUnsliceAssigner.");
+        }
+
+        @Override
+        public InternalTimeWindowAssigner withProcessingTime() {
+            throw new IllegalStateException(
+                    "Should not call this function on WindowedUnsliceAssigner.");
+        }
+
+        @Override
+        public void mergeWindows(
+                TimeWindow newWindow,
+                NavigableSet<TimeWindow> sortedWindows,
+                MergeCallback<TimeWindow, Collection<TimeWindow>> callback) {
+            // no need to merge windows because the window tvf operator in upstream has done for
+            // them
         }
     }
 }
