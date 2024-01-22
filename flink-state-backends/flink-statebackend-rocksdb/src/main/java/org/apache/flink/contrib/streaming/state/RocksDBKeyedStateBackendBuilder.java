@@ -52,6 +52,7 @@ import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -471,7 +472,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
         DBOptions dbOptions = optionsContainer.getDbOptions();
-        if (restoreStateHandles.isEmpty()) {
+        if (CollectionUtil.isEmptyOrAllElementsNull(restoreStateHandles)) {
             return new RocksDBNoneRestoreOperation<>(
                     kvStateInformation,
                     instanceRocksDBPath,
@@ -500,7 +501,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                     nativeMetricOptions,
                     metricGroup,
                     customInitializationMetrics,
-                    restoreStateHandles,
+                    CollectionUtil.checkedSubTypeCast(
+                            restoreStateHandles, IncrementalKeyedStateHandle.class),
                     ttlCompactFiltersManager,
                     writeBatchSize,
                     optionsContainer.getWriteBufferManagerCapacity(),
