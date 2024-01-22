@@ -75,16 +75,20 @@ public abstract class StreamExecWindowAggregateBase extends StreamExecAggregateB
             WindowingStrategy windowingStrategy, ZoneId shiftTimeZone) {
         WindowSpec windowSpec = windowingStrategy.getWindow();
         if (windowingStrategy instanceof WindowAttachedWindowingStrategy) {
-            checkArgument(
-                    isAlignedWindow(windowSpec),
-                    "UnsliceAssigner with WindowAttachedWindowingStrategy is not supported yet.");
-
+            int windowStartIndex =
+                    ((WindowAttachedWindowingStrategy) windowingStrategy).getWindowStart();
             int windowEndIndex =
                     ((WindowAttachedWindowingStrategy) windowingStrategy).getWindowEnd();
-            // we don't need time attribute to assign windows, use a magic value in this case
-            SliceAssigner innerAssigner =
-                    createSliceAssigner(windowSpec, Integer.MAX_VALUE, shiftTimeZone);
-            return SliceAssigners.windowed(windowEndIndex, innerAssigner);
+            if (isAlignedWindow(windowSpec)) {
+                // we don't need time attribute to assign windows, use a magic value in this case
+                SliceAssigner innerAssigner =
+                        createSliceAssigner(windowSpec, Integer.MAX_VALUE, shiftTimeZone);
+                return SliceAssigners.windowed(windowEndIndex, innerAssigner);
+            } else {
+                UnsliceAssigner<TimeWindow> innerAssigner =
+                        createUnsliceAssigner(windowSpec, windowEndIndex, shiftTimeZone);
+                return UnsliceAssigners.windowed(windowStartIndex, windowEndIndex, innerAssigner);
+            }
 
         } else if (windowingStrategy instanceof SliceAttachedWindowingStrategy) {
             checkArgument(

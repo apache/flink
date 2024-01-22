@@ -38,7 +38,6 @@ import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceUnshared
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowOperator;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnsliceAssigner;
-import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnsliceAssigners;
 import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnslicingWindowOperator;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
@@ -206,20 +205,14 @@ public class WindowAggOperatorBuilder {
 
     @SuppressWarnings("unchecked")
     private WindowOperatorBase<RowData, ?> buildUnslicingWindowOperator() {
-
-        if (assigner instanceof UnsliceAssigners.SessionUnsliceAssigner) {
-            final UnsliceWindowAggProcessor windowProcessor =
-                    new UnsliceWindowAggProcessor(
-                            (GeneratedNamespaceAggsHandleFunction<TimeWindow>)
-                                    generatedAggregateFunction,
-                            (UnsliceAssigner<TimeWindow>) assigner,
-                            accSerializer,
-                            indexOfCountStart,
-                            shiftTimeZone);
-            return new UnslicingWindowOperator<>(windowProcessor);
-        }
-
-        throw new UnsupportedOperationException(
-                "Unsupported unslice assigner: " + assigner.getClass().getCanonicalName());
+        final UnsliceWindowAggProcessor windowProcessor =
+                new UnsliceWindowAggProcessor(
+                        (GeneratedNamespaceAggsHandleFunction<TimeWindow>)
+                                generatedAggregateFunction,
+                        (UnsliceAssigner<TimeWindow>) assigner,
+                        accSerializer,
+                        indexOfCountStart,
+                        shiftTimeZone);
+        return new UnslicingWindowOperator<>(windowProcessor);
     }
 }
