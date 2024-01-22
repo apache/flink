@@ -129,6 +129,8 @@ public abstract class AbstractChannelStateHandle<Info> implements StateObject {
                 + delegate
                 + ", offsets="
                 + offsets
+                + ", size="
+                + size
                 + '}';
     }
 
