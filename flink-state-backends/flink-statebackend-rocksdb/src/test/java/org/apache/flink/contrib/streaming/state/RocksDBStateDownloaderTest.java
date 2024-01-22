@@ -20,7 +20,6 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -40,14 +39,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
-import java.util.Set;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -75,8 +71,7 @@ public class RocksDBStateDownloaderTest extends TestLogger {
                         stateHandles,
                         stateHandle);
 
-        try (RocksDBStateDownloader rocksDBStateDownloader =
-                new RocksDBStateDownloader(5, (key, value) -> {})) {
+        try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(5)) {
             rocksDBStateDownloader.transferAllStateDataToDirectory(
                     Collections.singletonList(
                             new StateHandleDownloadSpec(
@@ -102,15 +97,10 @@ public class RocksDBStateDownloaderTest extends TestLogger {
                             temporaryFolder.newFolder().toPath(), contents[i], i));
         }
 
-        Set<String> customMetrics = new HashSet<>();
-
-        try (RocksDBStateDownloader rocksDBStateDownloader =
-                new RocksDBStateDownloader(4, (key, value) -> customMetrics.add(key))) {
+        try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(4)) {
             rocksDBStateDownloader.transferAllStateDataToDirectory(
                     downloadRequests, new CloseableRegistry());
         }
-
-        assertThat(customMetrics).containsExactly(MetricNames.DOWNLOAD_STATE_DURATION);
 
         for (int i = 0; i < numRemoteHandles; ++i) {
             StateHandleDownloadSpec downloadRequest = downloadRequests.get(i);
@@ -148,8 +138,7 @@ public class RocksDBStateDownloaderTest extends TestLogger {
                                 "error-handle"));
 
         CloseableRegistry closeableRegistry = new CloseableRegistry();
-        try (RocksDBStateDownloader rocksDBStateDownloader =
-                new RocksDBStateDownloader(5, (key, value) -> {})) {
+        try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(5)) {
             rocksDBStateDownloader.transferAllStateDataToDirectory(
                     downloadRequests, closeableRegistry);
             fail("Exception is expected");
