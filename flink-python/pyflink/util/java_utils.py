@@ -138,11 +138,11 @@ def add_jars_to_context_class_loader(jar_urls):
 
     :param jar_urls: The list of jar urls.
     """
-    print(f'jar_urls at beginning of add_jars_to_context_class_loader: {jar_urls}')
-
     gateway = get_gateway()
     # validate and normalize
     jar_urls = [gateway.jvm.java.net.URL(url) for url in jar_urls]
+    jar_urls_string = [gateway.jvm.java.net.URL(url).toString() for url in jar_urls]
+    print(f'jar_urls: {jar_urls_string}')
 
     context_classloader = gateway.jvm.Thread.currentThread().getContextClassLoader()
     existing_urls = []
@@ -153,7 +153,7 @@ def add_jars_to_context_class_loader(jar_urls):
         # if urls all existed, no need to create new class loader.
         return
 
-    print(f'existingurls in add_jars_to_context_class_loader: {existing_urls}')
+    print(f'existingurls: {existing_urls}')
 
     URLClassLoaderClass = load_java_class("java.net.URLClassLoader")
     if is_instance_of(context_classloader, URLClassLoaderClass):
