@@ -32,10 +32,10 @@ import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
-import org.apache.flink.table.runtime.dataview.{DataViewSpec, ListViewSpec, MapViewSpec, StateListView, StateMapView}
+import org.apache.flink.table.runtime.dataview._
 import org.apache.flink.table.runtime.generated._
 import org.apache.flink.table.runtime.groupwindow._
-import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{BooleanType, IntType, LogicalType, RowType}

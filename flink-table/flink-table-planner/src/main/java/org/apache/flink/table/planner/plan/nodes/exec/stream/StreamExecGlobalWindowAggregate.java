@@ -46,7 +46,7 @@ import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.runtime.groupwindow.WindowProperty;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.aggregate.window.SlicingWindowAggOperatorBuilder;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;

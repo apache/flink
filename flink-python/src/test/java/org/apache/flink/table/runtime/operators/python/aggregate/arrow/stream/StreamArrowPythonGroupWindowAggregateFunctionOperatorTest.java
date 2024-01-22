@@ -37,10 +37,10 @@ import org.apache.flink.table.runtime.groupwindow.WindowEnd;
 import org.apache.flink.table.runtime.groupwindow.WindowStart;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
 import org.apache.flink.table.runtime.operators.window.Window;
-import org.apache.flink.table.runtime.operators.window.assigners.SlidingWindowAssigner;
-import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
-import org.apache.flink.table.runtime.operators.window.triggers.EventTimeTriggers;
-import org.apache.flink.table.runtime.operators.window.triggers.Trigger;
+import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.GroupWindowAssigner;
+import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.SlidingWindowAssigner;
+import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.EventTimeTriggers;
+import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.Trigger;
 import org.apache.flink.table.runtime.utils.PassThroughPythonAggregateFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -409,7 +409,7 @@ class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                 RowType udfInputType,
                 RowType udfOutputType,
                 int inputTimeFieldIndex,
-                WindowAssigner windowAssigner,
+                GroupWindowAssigner windowAssigner,
                 Trigger trigger,
                 long allowedLateness,
                 NamedWindowProperty[] namedProperties,
