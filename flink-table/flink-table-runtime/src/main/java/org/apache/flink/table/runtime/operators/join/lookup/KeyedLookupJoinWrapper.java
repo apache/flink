@@ -150,7 +150,7 @@ public class KeyedLookupJoinWrapper extends KeyedProcessFunction<RowData, RowDat
                     RowData rightRow = uniqueState.value();
                     // should distinguish null from empty(join condition unsatisfied)
                     if (null == rightRow) {
-                        stateStaledErrorHandle(in, out);
+                        stateStaledErrorHandle();
                     } else if (!emptyRow.equals(rightRow)) {
                         collectDeleteRow(in, rightRow, out);
                         collected = true;
@@ -158,7 +158,7 @@ public class KeyedLookupJoinWrapper extends KeyedProcessFunction<RowData, RowDat
                 } else {
                     List<RowData> rightRows = state.value();
                     if (null == rightRows) {
-                        stateStaledErrorHandle(in, out);
+                        stateStaledErrorHandle();
                     } else {
                         for (RowData row : rightRows) {
                             if (!emptyRow.equals(row)) {
@@ -238,12 +238,9 @@ public class KeyedLookupJoinWrapper extends KeyedProcessFunction<RowData, RowDat
         }
     }
 
-    private void stateStaledErrorHandle(RowData in, Collector out) {
+    private void stateStaledErrorHandle() {
         if (lenient) {
             LOG.warn(STATE_CLEARED_WARN_MSG);
-            if (lookupJoinRunner.isLeftOuterJoin) {
-                lookupJoinRunner.padNullForLeftJoin(in, out);
-            }
         } else {
             throw new RuntimeException(STATE_CLEARED_WARN_MSG);
         }
