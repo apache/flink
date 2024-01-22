@@ -133,9 +133,6 @@ public class JobGraphBuilder {
         }
 
         if (!classpaths.isEmpty()) {
-            System.out.println("JobGraphBuilder classpaths");
-            System.out.println(classpaths);
-
             jobGraph.setClasspaths(classpaths);
         }
 

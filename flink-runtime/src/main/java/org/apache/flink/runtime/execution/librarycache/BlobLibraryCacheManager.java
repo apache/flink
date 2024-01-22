@@ -424,10 +424,6 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
                                 + requiredLibraries);
             }
 
-            System.out.println("Old classpath in bloblibrarycachemanager");
-            System.out.println(classPaths);
-            System.out.println("New classpath in bloblibrarycachemanager");
-            System.out.println(requiredClassPaths);
             // lazy construction of a new set with String representations of the URLs
             if (classPaths.size() != requiredClassPaths.size()
                     || !requiredClassPaths.stream()

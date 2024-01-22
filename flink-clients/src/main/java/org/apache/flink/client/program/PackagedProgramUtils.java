@@ -91,9 +91,6 @@ public enum PackagedProgramUtils {
             jobGraph.setJobID(jobID);
         }
         jobGraph.addJars(packagedProgram.getJobJarAndDependencies());
-        System.out.println("Packagedprogramutils classpaths");
-        System.out.println(packagedProgram.getClasspaths());
-
         jobGraph.setClasspaths(packagedProgram.getClasspaths());
         jobGraph.setSavepointRestoreSettings(packagedProgram.getSavepointSettings());
 

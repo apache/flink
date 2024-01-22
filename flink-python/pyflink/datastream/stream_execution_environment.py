@@ -721,8 +721,6 @@ class StreamExecutionEnvironment(object):
 
         :param classpaths: Classpaths that will be added.
         """
-        print(f'classpaths to add: {classpaths}')
-
         add_jars_to_context_class_loader(classpaths)
         jvm = get_gateway().jvm
         classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
@@ -732,8 +730,6 @@ class StreamExecutionEnvironment(object):
         joined_classpaths = ';'.join(list(classpaths))
         if old_classpaths and old_classpaths.strip():
             joined_classpaths = ';'.join([old_classpaths, joined_classpaths])
-
-        print(f'joined classpaths: {joined_classpaths}')
         env_config.setString(classpaths_key, joined_classpaths)
 
     def get_default_local_parallelism(self) -> int:

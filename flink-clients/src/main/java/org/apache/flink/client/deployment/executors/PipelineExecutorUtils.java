@@ -75,9 +75,6 @@ public class PipelineExecutorUtils {
         }
 
         jobGraph.addJars(executionConfigAccessor.getJars());
-        System.out.println("PipelineExecutorUitls classpaths");
-        System.out.println(executionConfigAccessor.getClasspaths());
-
         jobGraph.setClasspaths(executionConfigAccessor.getClasspaths());
         jobGraph.setSavepointRestoreSettings(executionConfigAccessor.getSavepointRestoreSettings());
 
