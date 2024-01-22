@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -31,6 +32,7 @@ import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -85,7 +87,8 @@ class ProcedureITCase extends StreamingTestBase {
                 CollectionUtil.iteratorToList(
                         tEnv().executeSql("show procedures in `system`").collect());
         assertThat(rows.toString())
-                .isEqualTo("[+I[generate_n], +I[generate_user], +I[get_year], +I[sum_n]]");
+                .isEqualTo(
+                        "[+I[generate_n], +I[generate_user], +I[get_year], +I[named_args], +I[named_args_overload], +I[sum_n]]");
 
         // show procedure with like
         rows =
@@ -111,14 +114,16 @@ class ProcedureITCase extends StreamingTestBase {
                 CollectionUtil.iteratorToList(
                         tEnv().executeSql("show procedures in `system` not like 'generate%'")
                                 .collect());
-        assertThat(rows.toString()).isEqualTo("[+I[get_year], +I[sum_n]]");
+        assertThat(rows.toString())
+                .isEqualTo("[+I[get_year], +I[named_args], +I[named_args_overload], +I[sum_n]]");
 
         // show procedure with not ilike
         rows =
                 CollectionUtil.iteratorToList(
                         tEnv().executeSql("show procedures in `system` not ilike 'generaTe%'")
                                 .collect());
-        assertThat(rows.toString()).isEqualTo("[+I[get_year], +I[sum_n]]");
+        assertThat(rows.toString())
+                .isEqualTo("[+I[get_year], +I[named_args], +I[named_args_overload], +I[sum_n]]");
     }
 
     @Test
@@ -170,6 +175,37 @@ class ProcedureITCase extends StreamingTestBase {
                 ResolvedSchema.of(
                         Column.physical("name", DataTypes.STRING()),
                         Column.physical("age", DataTypes.INT().notNull().bridgedTo(int.class))));
+    }
+
+    @Test
+    void testNamedArguments() {
+        TableResult tableResult =
+                tEnv().executeSql("call `system`.named_args(d => 19, c => 'yuxia')");
+        verifyTableResult(
+                tableResult,
+                Collections.singletonList(Row.of("yuxia, 19")),
+                ResolvedSchema.of(Column.physical("result", DataTypes.STRING())));
+    }
+
+    @Test
+    void testNamedArgumentsWithMethodOverload() {
+        // default value
+        Assertions.assertThatThrownBy(
+                        () ->
+                                tEnv().executeSql(
+                                                "call `system`.named_args_overload(d => 19, c => 'yuxia')"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Currently named arguments are not supported for varArgs and multi different argument names with overload function");
+    }
+
+    @Test
+    void testNamedArgumentsWithDefaultValue() {
+        // default value
+        Assertions.assertThatThrownBy(
+                        () -> tEnv().executeSql("call `system`.named_args(c => 'yuxia')"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("No match found for function signature named_args");
     }
 
     private void verifyTableResult(
