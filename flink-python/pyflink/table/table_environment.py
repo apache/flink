@@ -1553,8 +1553,10 @@ class TableEnvironment(object):
             if j_configuration.containsKey(config_key):
                 for url in j_configuration.getString(config_key, "").split(";"):
                     url = url.strip()
-                    if url != "" and url not in jar_urls_list:
-                        jar_urls_list.append(url)
+                    if url != "":
+                        formatted_url = jvm.java.net.URL(url).toString()
+                        if formatted_url not in jar_urls_list:
+                            jar_urls_list.append(url)
             j_configuration.setString(config_key, ";".join(jar_urls_list))
 
     def _get_j_env(self):
