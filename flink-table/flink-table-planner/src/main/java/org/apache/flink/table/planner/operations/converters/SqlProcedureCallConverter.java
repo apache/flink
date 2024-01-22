@@ -35,6 +35,7 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.ExplicitOperatorBinding;
 import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorBinding;
@@ -67,11 +68,13 @@ public class SqlProcedureCallConverter implements SqlNodeConverter<SqlNode> {
         ProcedureDefinition procedureDefinition =
                 new ProcedureDefinition(sqlProcedure.getContextResolveProcedure().getProcedure());
 
+        SqlCallBinding sqlCallBinding =
+                new SqlCallBinding(context.getSqlValidator(), null, callProcedure);
         SqlOperatorBinding sqlOperatorBinding =
                 new ExplicitOperatorBinding(
                         context.getSqlValidator().getTypeFactory(),
                         sqlProcedure,
-                        callProcedure.getOperandList().stream()
+                        sqlCallBinding.operands().stream()
                                 .map(sqlValidator::getValidatedNodeType)
                                 .collect(Collectors.toList()));
 
@@ -91,7 +94,7 @@ public class SqlProcedureCallConverter implements SqlNodeConverter<SqlNode> {
                         bindingCallContext,
                         null);
 
-        List<RexNode> reducedOperands = reduceOperands(callProcedure, context);
+        List<RexNode> reducedOperands = reduceOperands(sqlCallBinding.operands(), context);
         List<DataType> argumentTypes = typeInferResult.getExpectedArgumentTypes();
         int argumentCount = argumentTypes.size();
         DataType[] inputTypes = new DataType[argumentCount];
@@ -123,7 +126,7 @@ public class SqlProcedureCallConverter implements SqlNodeConverter<SqlNode> {
                 typeInferResult.getOutputDataType());
     }
 
-    private List<RexNode> reduceOperands(SqlCall sqlCall, ConvertContext context) {
+    private List<RexNode> reduceOperands(List<SqlNode> sqlNodes, ConvertContext context) {
         // we don't really care about the input row type while converting to RexNode
         // since call procedure shouldn't refer any inputs.
         // so, construct an empty row for it.
@@ -132,8 +135,8 @@ public class SqlProcedureCallConverter implements SqlNodeConverter<SqlNode> {
                         DataTypes.ROW().getLogicalType(),
                         context.getSqlValidator().getTypeFactory());
         List<RexNode> rexNodes = new ArrayList<>();
-        for (int i = 0; i < sqlCall.operandCount(); i++) {
-            RexNode rexNode = context.toRexNode(sqlCall.operand(i), inputRowType, null);
+        for (SqlNode sqlNode : sqlNodes) {
+            RexNode rexNode = context.toRexNode(sqlNode, inputRowType, null);
             rexNodes.add(rexNode);
         }
         return context.reduceRexNodes(rexNodes);
