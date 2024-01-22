@@ -26,6 +26,7 @@ import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
+import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchMode
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.utils.CountAggFunction
@@ -39,7 +40,8 @@ import org.junit.jupiter.api.extension.ExtendWith
 import java.time.Duration
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
+class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
+  extends StreamingWithMiniBatchTestBase(miniBatch, mode) {
 
   val data2 = List(
     (1, 1L, "Hi"),

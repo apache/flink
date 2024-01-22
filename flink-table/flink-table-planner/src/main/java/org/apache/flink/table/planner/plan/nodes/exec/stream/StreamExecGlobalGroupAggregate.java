@@ -24,7 +24,6 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
@@ -41,6 +40,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.plan.utils.MinibatchUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
@@ -258,8 +258,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
                         .generateRecordEqualiser("GroupAggValueEqualiser");
 
         final OneInputStreamOperator<RowData, RowData> operator;
-        final boolean isMiniBatchEnabled =
-                config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
+        final boolean isMiniBatchEnabled = MinibatchUtil.isMiniBatchEnabled(config);
         if (isMiniBatchEnabled) {
             MiniBatchGlobalGroupAggFunction aggFunction =
                     new MiniBatchGlobalGroupAggFunction(
@@ -273,7 +272,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
 
             operator =
                     new KeyedMapBundleOperator<>(
-                            aggFunction, AggregateUtil.createMiniBatchTrigger(config));
+                            aggFunction, MinibatchUtil.createMiniBatchTrigger(config));
         } else {
             throw new TableException("Local-Global optimization is only worked in miniBatch mode");
         }

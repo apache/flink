@@ -35,6 +35,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.plan.utils.MinibatchUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -172,7 +173,7 @@ public class StreamExecLocalGroupAggregate extends StreamExecAggregateBase {
 
         final MapBundleOperator<RowData, RowData, RowData, RowData> operator =
                 new MapBundleOperator<>(
-                        aggFunction, AggregateUtil.createMiniBatchTrigger(config), selector);
+                        aggFunction, MinibatchUtil.createMiniBatchTrigger(config), selector);
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,

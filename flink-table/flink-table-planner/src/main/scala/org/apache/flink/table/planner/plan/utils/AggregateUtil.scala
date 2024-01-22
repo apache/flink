@@ -1105,16 +1105,6 @@ object AggregateUtil extends Enumeration {
     (aggBufferNames ++ distinctBufferNames).toArray
   }
 
-  /** Creates a MiniBatch trigger depends on the config. */
-  def createMiniBatchTrigger(config: ReadableConfig): CountBundleTrigger[RowData] = {
-    val size = config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE)
-    if (size <= 0) {
-      throw new IllegalArgumentException(
-        ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE + " must be > 0.")
-    }
-    new CountBundleTrigger[RowData](size)
-  }
-
   /** Computes the positions of (window start, window end, row time). */
   private[flink] def computeWindowPropertyPos(
       properties: Seq[NamedWindowProperty]): (Option[Int], Option[Int], Option[Int]) = {
