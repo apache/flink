@@ -19,18 +19,23 @@
 package org.apache.flink.kubernetes.kubeclient.resources;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.kubernetes.KubernetesExtension;
+import org.apache.flink.kubernetes.configuration.KubernetesHighAvailabilityOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
 
+import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.time.Duration;
 import java.util.UUID;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -157,6 +162,109 @@ class KubernetesLeaderElectorITCase {
             } finally {
                 leaderElector.stop();
             }
+        }
+    }
+
+    /**
+     * This test verifies that the {@link KubernetesLeaderElector} is able to handle scenario where
+     * the lease cannot be renewed.
+     *
+     * <p>See FLINK-34007 for further details.
+     */
+    @Test
+    void testLeaderElectorLifecycleManagement() throws Exception {
+        final Configuration configuration = kubernetesExtension.getConfiguration();
+
+        try (final NamespacedKubernetesClient client =
+                kubeClientFactory.createFabric8ioKubernetesClient(configuration)) {
+
+            // set a low timeout that makes the client stop renewing the leadership lease
+            final Duration renewTimeout = Duration.ofMillis(100);
+            configuration.set(
+                    KubernetesHighAvailabilityOptions.KUBERNETES_RENEW_DEADLINE, renewTimeout);
+
+            final String lockIdentity = UUID.randomUUID().toString();
+            final KubernetesLeaderElectionConfiguration leaderConfig =
+                    new KubernetesLeaderElectionConfiguration(
+                            configMapName, lockIdentity, configuration);
+            final TestingLeaderCallbackHandler leadershipCallbackHandler =
+                    new TestingLeaderCallbackHandler(lockIdentity);
+
+            final ManuallyTriggeredScheduledExecutorService executorService =
+                    new ManuallyTriggeredScheduledExecutorService();
+            final KubernetesLeaderElector testInstance =
+                    new KubernetesLeaderElector(
+                            client, leaderConfig, leadershipCallbackHandler, executorService);
+
+            // first leadership lifecycle initiation
+            testInstance.run();
+
+            // triggers acquiring the leadership
+            final Duration waitForNextTaskForever = Duration.ofDays(10);
+            executorService.trigger(waitForNextTaskForever);
+
+            assertThatFuture(leadershipCallbackHandler.waitForNewLeaderAsync())
+                    .as("The leadership should be acquired eventually.")
+                    .eventuallySucceeds();
+
+            // halt thread to reach the renew deadline
+            Thread.sleep(renewTimeout.plusSeconds(1).toMillis());
+
+            // triggers renew loop within fabric8io's LeaderElector
+            executorService.trigger();
+
+            assertThatFuture(leadershipCallbackHandler.waitForRevokeLeaderAsync())
+                    .as(
+                            "The leadership should be lost eventually due to the renewal loop being stopped.")
+                    .eventuallySucceeds();
+
+            // revoking the leadership initiates another leadership lifecycle
+            testInstance.run();
+            executorService.trigger(waitForNextTaskForever);
+
+            assertThatFuture(leadershipCallbackHandler.waitForNewLeaderAsync())
+                    .as("The leadership should be acquired eventually again.");
+        }
+    }
+
+    @Test
+    void testKubernetesLeaderElectorSendingLeadershipLostSignalOnStop() {
+        final Configuration configuration = kubernetesExtension.getConfiguration();
+
+        try (final NamespacedKubernetesClient client =
+                kubeClientFactory.createFabric8ioKubernetesClient(configuration)) {
+
+            final String lockIdentity = UUID.randomUUID().toString();
+            final KubernetesLeaderElectionConfiguration leaderConfig =
+                    new KubernetesLeaderElectionConfiguration(
+                            configMapName, lockIdentity, configuration);
+            final TestingLeaderCallbackHandler leadershipCallbackHandler =
+                    new TestingLeaderCallbackHandler(lockIdentity);
+
+            final ManuallyTriggeredScheduledExecutorService executorService =
+                    new ManuallyTriggeredScheduledExecutorService();
+            final KubernetesLeaderElector testInstance =
+                    new KubernetesLeaderElector(
+                            client, leaderConfig, leadershipCallbackHandler, executorService);
+
+            // initiate leadership lifecycle
+            testInstance.run();
+
+            final Duration waitForNextTaskForever = Duration.ofDays(10);
+            executorService.trigger(waitForNextTaskForever);
+            assertThatFuture(leadershipCallbackHandler.waitForNewLeaderAsync())
+                    .as("Leadership should be acquired eventually.")
+                    .eventuallySucceeds();
+
+            testInstance.stop();
+
+            assertThat(leadershipCallbackHandler.hasLeadership())
+                    .as("Leadership should be lost right away after stopping the test instance.")
+                    .isFalse();
+
+            assertThatFuture(leadershipCallbackHandler.waitForRevokeLeaderAsync())
+                    .as("There should be a leadership lost event being received eventually.")
+                    .eventuallySucceeds();
         }
     }
 }
