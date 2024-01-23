@@ -28,17 +28,17 @@ import org.apache.flink.api.connector.sink.Sink.ProcessingTimeService;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.CommitterInitContext;
+import org.apache.flink.api.connector.sink2.CommittingSinkWriter;
 import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.StatefulSink;
-import org.apache.flink.api.connector.sink2.StatefulSink.StatefulSinkWriter;
-import org.apache.flink.api.connector.sink2.StatefulSink.WithCompatibleState;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink.PrecommittingSinkWriter;
+import org.apache.flink.api.connector.sink2.StatefulSinkWriter;
+import org.apache.flink.api.connector.sink2.SupportsCommitter;
+import org.apache.flink.api.connector.sink2.SupportsWriterState;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.StandardSinkTopologies;
-import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
+import org.apache.flink.streaming.api.connector.sink2.SupportsPostCommitTopology;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.util.UserCodeClassLoader;
 
@@ -72,7 +72,13 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
     }
 
     @Override
-    public SinkWriterV1Adapter<InputT, CommT, WriterStateT> createWriter(InitContext context)
+    public org.apache.flink.api.connector.sink2.SinkWriter<InputT> createWriter(InitContext context)
+            throws IOException {
+        throw new UnsupportedOperationException("Not supported");
+    }
+
+    @Override
+    public SinkWriterV1Adapter<InputT, CommT, WriterStateT> createWriter(WriterInitContext context)
             throws IOException {
         org.apache.flink.api.connector.sink.SinkWriter<InputT, CommT, WriterStateT> writer =
                 sink.createWriter(new InitContextAdapter(context), Collections.emptyList());
@@ -117,7 +123,7 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
 
     private static class SinkWriterV1Adapter<InputT, CommT, WriterStateT>
             implements StatefulSinkWriter<InputT, WriterStateT>,
-                    PrecommittingSinkWriter<InputT, CommT> {
+                    CommittingSinkWriter<InputT, CommT> {
 
         private final org.apache.flink.api.connector.sink.SinkWriter<InputT, CommT, WriterStateT>
                 writer;
@@ -184,9 +190,9 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
     private static class InitContextAdapter
             implements org.apache.flink.api.connector.sink.Sink.InitContext {
 
-        private final InitContext context;
+        private final WriterInitContext context;
 
-        public InitContextAdapter(InitContext context) {
+        public InitContextAdapter(WriterInitContext context) {
             this.context = context;
         }
 
@@ -302,8 +308,14 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
     /** Main class to simulate SinkV1 with SinkV2. */
     class PlainSinkAdapter implements Sink<InputT> {
         @Override
-        public SinkWriterV1Adapter<InputT, CommT, WriterStateT> createWriter(InitContext context)
-                throws IOException {
+        public org.apache.flink.api.connector.sink2.SinkWriter<InputT> createWriter(
+                InitContext context) throws IOException {
+            throw new UnsupportedOperationException("Not supported");
+        }
+
+        @Override
+        public SinkWriterV1Adapter<InputT, CommT, WriterStateT> createWriter(
+                WriterInitContext context) throws IOException {
             return SinkV1Adapter.this.createWriter(context);
         }
 
@@ -314,10 +326,11 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
     }
 
     private class StatefulSinkAdapter extends PlainSinkAdapter
-            implements StatefulSink<InputT, WriterStateT> {
+            implements SupportsWriterState<InputT, WriterStateT> {
         @Override
         public StatefulSinkWriter<InputT, WriterStateT> restoreWriter(
-                InitContext context, Collection<WriterStateT> recoveredState) throws IOException {
+                WriterInitContext context, Collection<WriterStateT> recoveredState)
+                throws IOException {
             org.apache.flink.api.connector.sink.SinkWriter<InputT, CommT, WriterStateT> writer =
                     sink.createWriter(
                             new InitContextAdapter(context), new ArrayList<>(recoveredState));
@@ -335,7 +348,7 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
     }
 
     private class TwoPhaseCommittingSinkAdapter extends PlainSinkAdapter
-            implements TwoPhaseCommittingSink<InputT, CommT>, WithCompatibleState {
+            implements SupportsCommitter<CommT>, SupportsWriterState.WithCompatibleState {
         @Override
         public Committer<CommT> createCommitter(CommitterInitContext context) throws IOException {
             return new CommitterAdapter<>(
@@ -358,7 +371,7 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
     }
 
     private class GlobalCommittingSinkAdapter extends TwoPhaseCommittingSinkAdapter
-            implements WithPostCommitTopology<InputT, CommT> {
+            implements SupportsPostCommitTopology<CommT> {
 
         @Override
         public void addPostCommitTopology(DataStream<CommittableMessage<CommT>> committables) {
@@ -371,7 +384,9 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
     }
 
     private class StatefulTwoPhaseCommittingSinkAdapter extends StatefulSinkAdapter
-            implements TwoPhaseCommittingSink<InputT, CommT>, WithCompatibleState {
+            implements Sink<InputT>,
+                    SupportsCommitter<CommT>,
+                    SupportsWriterState.WithCompatibleState {
         TwoPhaseCommittingSinkAdapter adapter = new TwoPhaseCommittingSinkAdapter();
 
         @Override
@@ -392,7 +407,7 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
 
     private class StatefulGlobalTwoPhaseCommittingSinkAdapter
             extends StatefulTwoPhaseCommittingSinkAdapter
-            implements WithPostCommitTopology<InputT, CommT> {
+            implements SupportsPostCommitTopology<CommT> {
         GlobalCommittingSinkAdapter globalCommittingSinkAdapter = new GlobalCommittingSinkAdapter();
 
         @Override
