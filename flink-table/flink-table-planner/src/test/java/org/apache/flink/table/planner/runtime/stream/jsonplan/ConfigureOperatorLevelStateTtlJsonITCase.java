@@ -43,7 +43,8 @@ import java.util.function.Function;
 class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
 
     @Test
-    void testDifferentStateTtlForDifferentOneInputOperator() throws Exception {
+    void testDifferentStateTtlThroughCompiledPlanForDifferentOneInputStreamOperator()
+            throws Exception {
         innerTestDeduplicateAndGroupAggregate(
                 "INSERT INTO OrdersStats \n"
                         + "SELECT buyer, COUNT(1) AS ord_cnt, SUM(quantity) AS quantity_cnt, SUM(amount) AS total_amount FROM (\n"
@@ -65,7 +66,32 @@ class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
     }
 
     @Test
-    void testDifferentStateTtlForSameTwoInputStreamOperator() throws Exception {
+    void testDifferentStateTtlThroughSqlHintForDifferentOneInputStreamOperator() throws Exception {
+        tableEnv.getConfig().set("table.exec.mini-batch.enabled", "true");
+        tableEnv.getConfig().set("table.exec.mini-batch.size", "2");
+        tableEnv.getConfig().set("table.exec.mini-batch.allow-latency", "1");
+        innerTestDeduplicateAndGroupAggregate(
+                "INSERT INTO OrdersStats \n"
+                        + "SELECT /*+STATE_TTL('tmp' = '9s')*/ buyer, COUNT(1) AS ord_cnt, SUM(quantity) AS quantity_cnt, SUM(amount) AS total_amount \n"
+                        + "FROM (\n"
+                        + "    SELECT *, ROW_NUMBER() OVER(PARTITION BY order_id, buyer, quantity, amount ORDER BY proctime() ASC) AS rk FROM Orders\n"
+                        + ") tmp\n"
+                        + "WHERE rk = 1\n"
+                        + "GROUP BY buyer",
+                json -> {
+                    try {
+                        JsonNode target = JsonTestUtils.readFromString(json);
+                        JsonTestUtils.setExecNodeStateMetadata(
+                                target, "stream-exec-deduplicate", 0, 6000L);
+                        return JsonTestUtils.writeToString(target);
+                    } catch (IOException e) {
+                        throw new TableException("Cannot modify compiled json plan.", e);
+                    }
+                });
+    }
+
+    @Test
+    void testDifferentStateTtlThroughCompiledPlanForSameTwoInputStreamOperator() throws Exception {
         innerTestRegularJoin(
                 "INSERT INTO OrdersShipInfo \n"
                         + "SELECT a.order_id, a.line_order_id, b.ship_mode FROM Orders a JOIN LineOrders b ON a.line_order_id = b.line_order_id",

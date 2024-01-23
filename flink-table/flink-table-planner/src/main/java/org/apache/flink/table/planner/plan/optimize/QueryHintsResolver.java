@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.optimize;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.hint.JoinStrategy;
@@ -27,6 +28,7 @@ import org.apache.flink.table.planner.hint.StateTtlHint;
 
 import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.hint.Hintable;
 import org.apache.calcite.rel.hint.RelHint;
@@ -83,21 +85,50 @@ public class QueryHintsResolver extends QueryHintsRelShuttle {
     }
 
     @Override
-    protected RelNode visitBiRel(BiRel biRel) {
-        Optional<String> leftName = extractAliasOrTableName(biRel.getLeft());
-        Optional<String> rightName = extractAliasOrTableName(biRel.getRight());
-
-        Set<RelHint> existentKVHints = new HashSet<>();
-
-        List<RelHint> oldHints = ((Hintable) biRel).getHints();
+    protected RelNode doVisit(RelNode node) {
+        List<RelHint> oldHints = ((Hintable) node).getHints();
         List<RelHint> oldQueryHints = FlinkHints.getAllQueryHints(oldHints);
         // has no hints, return directly.
         if (oldQueryHints.isEmpty()) {
-            return super.visitChildren(biRel);
+            return super.visitChildren(node);
         }
 
-        List<RelHint> newHints = new ArrayList<>();
+        final List<RelHint> newHints;
+        if (node instanceof BiRel) {
+            BiRel biRel = (BiRel) node;
+            Optional<String> leftName = extractAliasOrTableName(biRel.getLeft());
+            Optional<String> rightName = extractAliasOrTableName(biRel.getRight());
+            newHints = validateAndGetNewHintsFromBiRel(leftName, rightName, oldHints);
+        } else if (node instanceof SingleRel) {
+            SingleRel singleRel = (SingleRel) node;
+            Optional<String> tableName = extractAliasOrTableName(singleRel.getInput());
+            newHints = validateAndGetNewHintsFromSingleRel(tableName, oldHints);
+        } else {
+            throw new TableException(
+                    String.format(
+                            "Unsupported node when resolving query hints: %s",
+                            node.getClass().getCanonicalName()));
+        }
 
+        RelNode newNode = super.visitChildren(node);
+        List<RelHint> mergedHints = mergeQueryHintsIfNecessary(newHints);
+        // replace new query hints
+        return ((Hintable) newNode).withHints(mergedHints);
+    }
+
+    /**
+     * Resolve the query hints in the {@link BiRel} such as {@link
+     * org.apache.calcite.rel.core.Correlate} and {@link org.apache.calcite.rel.core.Join}.
+     *
+     * @param leftName left table name, view name or alias name
+     * @param rightName right table name, view name or alias name
+     * @param oldHints old hints in this node
+     */
+    private List<RelHint> validateAndGetNewHintsFromBiRel(
+            Optional<String> leftName, Optional<String> rightName, List<RelHint> oldHints) {
+        Set<RelHint> existentKVHints = new HashSet<>();
+
+        List<RelHint> newHints = new ArrayList<>();
         for (RelHint hint : oldHints) {
             if (JoinStrategy.isLookupHint(hint.hintName)) {
                 allHints.add(trimInheritPath(hint));
@@ -156,12 +187,43 @@ public class QueryHintsResolver extends QueryHintsRelShuttle {
                 }
             }
         }
+        return newHints;
+    }
 
-        RelNode newNode = super.visitChildren(biRel);
+    /**
+     * Resolve the query hints in the {@link SingleRel} such as {@link
+     * org.apache.calcite.rel.core.Aggregate}.
+     *
+     * @param inputName the input table name, view name or alias name
+     * @param oldHints old hints in this node
+     */
+    private List<RelHint> validateAndGetNewHintsFromSingleRel(
+            Optional<String> inputName, List<RelHint> oldHints) {
+        Set<RelHint> existentKVHints = new HashSet<>();
 
-        newHints = mergeQueryHintsIfNecessary(newHints);
-        // replace new query hints
-        return ((Hintable) newNode).withHints(newHints);
+        List<RelHint> newHints = new ArrayList<>();
+
+        for (RelHint hint : oldHints) {
+            if (StateTtlHint.isStateTtlHint(hint.hintName)) {
+                List<String> definedTables = new ArrayList<>(hint.kvOptions.keySet());
+                initOptionInfoAboutQueryHintsForCheck(hint.hintName, definedTables);
+                // the declared table name or query block name is replaced by
+                // FlinkHints#SINGLE_INPUT
+                Map<String, String> newKvOptions =
+                        getNewStateTtlHintOptions(inputName, hint.kvOptions, hint.hintName);
+                if (!newKvOptions.isEmpty()) {
+                    // only accept a matched hint
+                    validHints.add(trimInheritPath(hint));
+                    newHints.add(RelHint.builder(hint.hintName).hintOptions(newKvOptions).build());
+                }
+            } else {
+                if (!existentKVHints.contains(hint)) {
+                    existentKVHints.add(hint);
+                    newHints.add(hint);
+                }
+            }
+        }
+        return newHints;
     }
 
     private List<String> getNewJoinHintOptions(
@@ -223,6 +285,19 @@ public class QueryHintsResolver extends QueryHintsRelShuttle {
                         newOptions.put(FlinkHints.LEFT_INPUT, ttl);
                     } else if (rightName.isPresent() && matchIdentifier(input, rightName.get())) {
                         newOptions.put(FlinkHints.RIGHT_INPUT, ttl);
+                    }
+                });
+        return newOptions;
+    }
+
+    private Map<String, String> getNewStateTtlHintOptions(
+            Optional<String> inputName, Map<String, String> kvOptions, String hintName) {
+        updateInfoForOptionCheck(hintName, inputName);
+        Map<String, String> newOptions = new HashMap<>();
+        kvOptions.forEach(
+                (input, ttl) -> {
+                    if (inputName.isPresent() && matchIdentifier(input, inputName.get())) {
+                        newOptions.put(FlinkHints.INPUT, ttl);
                     }
                 });
         return newOptions;

@@ -21,10 +21,10 @@ import org.apache.flink.table.planner.analyze.{FlinkStreamPlanAnalyzers, PlanAdv
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
+import org.apache.flink.table.planner.plan.nodes.physical.stream._
 
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.{Correlate, Join, TableScan}
+import org.apache.calcite.rel.core.{Aggregate, Correlate, Join, TableScan}
 import org.apache.calcite.rel.externalize.RelWriterImpl
 import org.apache.calcite.rel.hint.Hintable
 import org.apache.calcite.sql.SqlExplainLevel
@@ -149,7 +149,22 @@ class RelTreeWriterImpl(
           if (stateTtlHints.nonEmpty) {
             printValues.add(Pair.of("stateTtlHints", RelExplainUtil.hintsToString(stateTtlHints)))
           }
-
+        case agg: Aggregate =>
+          val aggHints = FlinkHints.getAllStateTtlHints(agg.getHints)
+          if (aggHints.nonEmpty) {
+            printValues.add(
+              Pair.of(
+                "stateTtlHints",
+                RelExplainUtil.hintsToString(aggHints, ignoreKeyOnKVHints = true)))
+          }
+        case agg: StreamPhysicalGroupAggregateBase =>
+          val aggHints = agg.hints
+          if (aggHints.nonEmpty) {
+            printValues.add(
+              Pair.of(
+                "stateTtlHints",
+                RelExplainUtil.hintsToString(aggHints, ignoreKeyOnKVHints = true)))
+          }
         case _ => // ignore
       }
     }

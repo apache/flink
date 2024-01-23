@@ -112,6 +112,19 @@ abstract class ClearQueryHintsWithInvalidPropagationShuttleTestBase extends Tabl
                                 + isBatchMode()
                                 + "'\n"
                                 + ")");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t4 (\n"
+                                + "  a BIGINT,\n"
+                                + "  b BIGINT,\n"
+                                + "  c BIGINT\n"
+                                + ") WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'bounded' = '"
+                                + isBatchMode()
+                                + "'\n"
+                                + ")");
     }
 
     protected String buildRelPlanWithQueryBlockAlias(RelNode node) {

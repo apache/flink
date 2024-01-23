@@ -93,7 +93,9 @@ class IncrementalAggregateRule
       partialGlobalAgg.aggCallNeedRetractions,
       partialGlobalAgg.needRetraction,
       partialLocalAggInputRowType,
-      partialGlobalAgg.getRowType)
+      partialGlobalAgg.getRowType,
+      partialGlobalAgg.hints
+    )
     val incrAggOutputRowType = incrAgg.getRowType
 
     val newExchange = exchange.copy(exchange.getTraitSet, incrAgg, exchange.distribution)
@@ -142,7 +144,8 @@ class IncrementalAggregateRule
         finalGlobalAgg.localAggInputRowType,
         partialGlobalAgg.needRetraction,
         finalGlobalAgg.partialFinalType,
-        partialGlobalAgg.globalAggInfoList.indexOfCountStar)
+        partialGlobalAgg.globalAggInfoList.indexOfCountStar,
+        finalGlobalAgg.hints)
     }
 
     call.transformTo(globalAgg)

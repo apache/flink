@@ -70,6 +70,10 @@ class StateTtlHintTest extends TableTestBase {
 
         util.tableEnv()
                 .executeSql("create view V5 as select T1.* from T1 join T2 on T1.a1 = T2.a2");
+
+        util.tableEnv()
+                .executeSql(
+                        "create view V6 as select a1, b1, count(*) as cnt from T1 group by a1, b1");
     }
 
     @Test
@@ -190,6 +194,103 @@ class StateTtlHintTest extends TableTestBase {
     @Test
     void testJoinStateTtlHintWithEmptyKV() {
         String sql = "select /*+ STATE_TTL() */* from T1 join T2 on T1.a1 = T2.a2";
+        assertThatThrownBy(() -> verify(sql))
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining(
+                        "Invalid hint about STATE_TTL, expecting at least one key-value options specified.");
+    }
+
+    @Test
+    void testSimpleAggStateTtl() {
+        String sql = "select /*+ STATE_TTL('T1' = '2d') */ count(*) from T1 group by a1";
+        verify(sql);
+    }
+
+    @Test
+    void testAggStateTtlWithUnknownTable() {
+        String sql = "select /*+ STATE_TTL('T2' = '2d') */ count(*) from T1 group by a1";
+        assertThatThrownBy(() -> verify(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "The options of following hints cannot match the name of input tables or views: \n`%s` in `%s`",
+                        "T2", "STATE_TTL");
+    }
+
+    @Test
+    void testAggStateTtlWithView() {
+        String sql = "select /*+ STATE_TTL('V6' = '2d') */ max(b1) from V6 group by a1";
+        verify(sql);
+    }
+
+    @Test
+    void testAggStateTtlWithUnknownView() {
+        String sql =
+                "select /*+ STATE_TTL('T1' = '2d') */ max(b1) from "
+                        + "(select a1, b1, count(*) from T1 group by a1, b1) TMP group by a1";
+        assertThatThrownBy(() -> verify(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "The options of following hints cannot match the name of input tables or views: \n`%s` in `%s`",
+                        "T1", "STATE_TTL");
+    }
+
+    @Test
+    void testMultiAggStateTtl() {
+        String sql =
+                "select /*+ STATE_TTL('T1' = '2d'), STATE_TTL('T1' = '8d') */ count(*) from T1 group by a1";
+        verify(sql);
+    }
+
+    @Test
+    void testSingleAggStateTtlWithMultiKV() {
+        String sql =
+                "select /*+ STATE_TTL('T1' = '2d', 'T1' = '8d') */ count(*) from T1 group by a1";
+        verify(sql);
+    }
+
+    @Test
+    void testAggStateTtlWithCascadeAgg() {
+        String sql =
+                "select /*+ STATE_TTL('TMP' = '2d') */ max(b1) from "
+                        + "(select /*+ STATE_TTL('T1' = '4d') */ a1, b1, count(*) from T1 group by a1, b1) TMP group by a1";
+        verify(sql);
+    }
+
+    @Test
+    void testAggStateTtlNotPropagateOutOfView() {
+        String sql =
+                "select max(b1) from "
+                        + "(select /*+ STATE_TTL('T1' = '4d') */ a1, b1, count(*) from T1 group by a1, b1) TMP group by a1";
+        verify(sql);
+    }
+
+    @Test
+    void testAggStateTtlNotPropagateIntoView() {
+        String sql =
+                "select /*+ STATE_TTL('TMP' = '2d') */ max(b1) from "
+                        + "(select a1, b1, count(*) from T1 group by a1, b1) TMP group by a1";
+        verify(sql);
+    }
+
+    @Test
+    void testAggStateTtlWithJoin() {
+        String sql =
+                "select /*+ STATE_TTL('T1' = '2d') */ max(b1) from "
+                        + "(select T1.* from T1 join T2 on T1.a1 = T2.a2) T1 group by a1";
+        verify(sql);
+    }
+
+    @Test
+    void testAggStateTtlWithJoinHint() {
+        String sql =
+                "select /*+ STATE_TTL('T1' = '2d') */ max(b1) from "
+                        + "(select  /*+ BROADCAST(T1) */T1.* from T1 join T2 on T1.a1 = T2.a2) T1 group by a1";
+        verify(sql);
+    }
+
+    @Test
+    void testAggStateTtlWithEmptyKV() {
+        String sql = "select /*+ STATE_TTL() */ max(b1) from T1 group by a1";
         assertThatThrownBy(() -> verify(sql))
                 .isInstanceOf(AssertionError.class)
                 .hasMessageContaining(

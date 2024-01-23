@@ -41,6 +41,7 @@ public class GroupAggregateRestoreTest extends RestoreTestBase {
                 GroupAggregateTestPrograms.GROUP_BY_UDF_WITH_MERGE,
                 GroupAggregateTestPrograms.GROUP_BY_UDF_WITH_MERGE_MINI_BATCH,
                 GroupAggregateTestPrograms.GROUP_BY_UDF_WITHOUT_MERGE,
-                GroupAggregateTestPrograms.GROUP_BY_UDF_WITHOUT_MERGE_MINI_BATCH);
+                GroupAggregateTestPrograms.GROUP_BY_UDF_WITHOUT_MERGE_MINI_BATCH,
+                GroupAggregateTestPrograms.AGG_WITH_STATE_TTL_HINT);
     }
 }

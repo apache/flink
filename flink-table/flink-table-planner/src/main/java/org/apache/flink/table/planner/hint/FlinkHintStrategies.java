@@ -122,8 +122,9 @@ public abstract class FlinkHintStrategies {
                                 .build())
                 .hintStrategy(
                         StateTtlHint.STATE_TTL.getHintName(),
-                        // TODO support agg state ttl hint
-                        HintStrategy.builder(HintPredicates.JOIN)
+                        HintStrategy.builder(
+                                        HintPredicates.or(
+                                                HintPredicates.JOIN, HintPredicates.AGGREGATE))
                                 .optionChecker(STATE_TTL_NON_EMPTY_KV_OPTION_CHECKER)
                                 .build())
                 .build();

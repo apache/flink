@@ -120,6 +120,7 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
             boolean[] aggCallNeedRetractions,
             boolean generateUpdateBefore,
             boolean needRetraction,
+            @Nullable Long stateTtlFromHint,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -132,7 +133,8 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
                 aggCallNeedRetractions,
                 generateUpdateBefore,
                 needRetraction,
-                StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME),
+                StateMetadata.getOneInputOperatorDefaultMeta(
+                        stateTtlFromHint, tableConfig, STATE_NAME),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);

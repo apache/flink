@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.planner.hint;
 
-import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
 import org.apache.calcite.rel.hint.Hintable;
 import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalCorrelate;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.sql.SqlNode;
@@ -50,15 +50,15 @@ import java.util.stream.Collectors;
 public class ClearQueryHintsWithInvalidPropagationShuttle extends QueryHintsRelShuttle {
 
     @Override
-    protected RelNode visitBiRel(BiRel biRel) {
-        List<RelHint> hints = ((Hintable) biRel).getHints();
+    protected RelNode doVisit(RelNode node) {
+        List<RelHint> hints = ((Hintable) node).getHints();
 
         Set<String> allHintNames =
                 hints.stream().map(hint -> hint.hintName).collect(Collectors.toSet());
 
         // there are no query hints on this Join/Correlate node
         if (allHintNames.stream().noneMatch(FlinkHints::isQueryHint)) {
-            return super.visit(biRel);
+            return super.visit(node);
         }
 
         Optional<RelHint> firstAliasHint =
@@ -66,9 +66,9 @@ public class ClearQueryHintsWithInvalidPropagationShuttle extends QueryHintsRelS
                         .filter(hint -> FlinkHints.HINT_ALIAS.equals(hint.hintName))
                         .findFirst();
 
-        // there are no alias hints on this Join/Correlate node
+        // there are no alias hints on this Join/Correlate/Aggregate node
         if (!firstAliasHint.isPresent()) {
-            return super.visit(biRel);
+            return super.visit(node);
         }
 
         List<RelHint> queryHintsFromOuterQueryBlock =
@@ -84,10 +84,10 @@ public class ClearQueryHintsWithInvalidPropagationShuttle extends QueryHintsRelS
                         .collect(Collectors.toList());
 
         if (queryHintsFromOuterQueryBlock.isEmpty()) {
-            return super.visit(biRel);
+            return super.visit(node);
         }
 
-        RelNode newRelNode = biRel;
+        RelNode newRelNode = node;
         ClearOuterQueryHintShuttle clearOuterQueryHintShuttle;
 
         for (RelHint outerQueryHint : queryHintsFromOuterQueryBlock) {
@@ -128,26 +128,31 @@ public class ClearQueryHintsWithInvalidPropagationShuttle extends QueryHintsRelS
 
         @Override
         public RelNode visit(LogicalCorrelate correlate) {
-            return visitBiRel(correlate);
+            return doVisit(correlate);
         }
 
         @Override
         public RelNode visit(LogicalJoin join) {
-            return visitBiRel(join);
+            return doVisit(join);
         }
 
-        private RelNode visitBiRel(BiRel biRel) {
-            Hintable hBiRel = (Hintable) biRel;
-            List<RelHint> hints = new ArrayList<>(hBiRel.getHints());
+        @Override
+        public RelNode visit(LogicalAggregate aggregate) {
+            return doVisit(aggregate);
+        }
+
+        private RelNode doVisit(RelNode node) {
+            Hintable hNode = (Hintable) node;
+            List<RelHint> hints = new ArrayList<>(hNode.getHints());
             Optional<RelHint> invalidQueryHint = getInvalidQueryHint(hints);
 
             // if this node contains the query hint that needs to be removed
             if (invalidQueryHint.isPresent()) {
                 hints.remove(invalidQueryHint.get());
-                return super.visit(hBiRel.withHints(hints));
+                return super.visit(hNode.withHints(hints));
             }
 
-            return super.visit(biRel);
+            return super.visit(node);
         }
 
         /**

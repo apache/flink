@@ -128,7 +128,7 @@ class StreamPhysicalJoin(
       getUpsertKeys(right, joinSpec.getRightKeys),
       InputProperty.DEFAULT,
       InputProperty.DEFAULT,
-      StateTtlHint.getStateTtlFromHint(getHints),
+      StateTtlHint.getStateTtlFromHintOnBiRel(getHints),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

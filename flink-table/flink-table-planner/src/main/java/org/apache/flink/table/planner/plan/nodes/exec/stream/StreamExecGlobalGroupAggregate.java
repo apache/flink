@@ -133,6 +133,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
             boolean generateUpdateBefore,
             boolean needRetraction,
             @Nullable Integer indexOfCountStar,
+            @Nullable Long stateTtlFromHint,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -148,7 +149,8 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
                 generateUpdateBefore,
                 needRetraction,
                 indexOfCountStar,
-                StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME),
+                StateMetadata.getOneInputOperatorDefaultMeta(
+                        stateTtlFromHint, tableConfig, STATE_NAME),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);

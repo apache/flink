@@ -126,6 +126,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
             boolean[] partialAggCallNeedRetractions,
             RowType partialLocalAggInputType,
             boolean partialAggNeedRetraction,
+            @Nullable Long stateTtlFromHint,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -140,7 +141,8 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
                 partialAggCallNeedRetractions,
                 partialLocalAggInputType,
                 partialAggNeedRetraction,
-                StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME),
+                StateMetadata.getOneInputOperatorDefaultMeta(
+                        stateTtlFromHint, tableConfig, STATE_NAME),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);

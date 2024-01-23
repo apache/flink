@@ -52,9 +52,12 @@ public abstract class FlinkHints {
     // ~ Internal alias tag hint
     public static final String HINT_ALIAS = "ALIAS";
 
-    // ~ Option name for hints on join or correlate
+    // ~ Option name for hints on BiRel like join or correlate
     public static final String LEFT_INPUT = "LEFT";
     public static final String RIGHT_INPUT = "RIGHT";
+
+    // ~ Option name for hints on SingleRel like aggregate
+    public static final String INPUT = "INPUT";
 
     /**
      * Internal hint that JSON aggregation function arguments have been wrapped already. See {@link
