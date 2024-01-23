@@ -69,7 +69,7 @@ public class SourceOperatorLatencyMetricsTest extends TestLogger {
     @Test
     public void testLatencyMarkEmissionEnabledViaFlinkConfig() throws Exception {
         Configuration taskConfiguration = new Configuration();
-        taskConfiguration.setLong(MetricOptions.LATENCY_INTERVAL, LATENCY_MARK_INTERVAL);
+        taskConfiguration.set(MetricOptions.LATENCY_INTERVAL, LATENCY_MARK_INTERVAL);
         ExecutionConfig executionConfig = new ExecutionConfig();
 
         testLatencyMarkEmission(true, taskConfiguration, executionConfig);
@@ -82,7 +82,7 @@ public class SourceOperatorLatencyMetricsTest extends TestLogger {
     @Test
     public void testLatencyMarkEmissionEnabledOverrideViaExecutionConfig() throws Exception {
         Configuration taskConfiguration = new Configuration();
-        taskConfiguration.setLong(MetricOptions.LATENCY_INTERVAL, 0);
+        taskConfiguration.set(MetricOptions.LATENCY_INTERVAL, 0L);
         ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.setLatencyTrackingInterval(LATENCY_MARK_INTERVAL);
 
@@ -96,7 +96,7 @@ public class SourceOperatorLatencyMetricsTest extends TestLogger {
     @Test
     public void testLatencyMarkEmissionDisabledOverrideViaExecutionConfig() throws Exception {
         Configuration taskConfiguration = new Configuration();
-        taskConfiguration.setLong(MetricOptions.LATENCY_INTERVAL, LATENCY_MARK_INTERVAL);
+        taskConfiguration.set(MetricOptions.LATENCY_INTERVAL, LATENCY_MARK_INTERVAL);
         ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.setLatencyTrackingInterval(0);
 

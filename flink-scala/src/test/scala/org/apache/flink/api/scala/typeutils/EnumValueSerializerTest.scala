@@ -32,7 +32,11 @@ class EnumValueSerializerTest {
 
     val snapshot = enumSerializer.snapshotConfiguration()
 
-    assertThat(snapshot.resolveSchemaCompatibility(enumSerializer).isCompatibleAsIs).isTrue
+    assertThat(
+      enumSerializer
+        .snapshotConfiguration()
+        .resolveSchemaCompatibility(snapshot)
+        .isCompatibleAsIs).isTrue
   }
 }
 

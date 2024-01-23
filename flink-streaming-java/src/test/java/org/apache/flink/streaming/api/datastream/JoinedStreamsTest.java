@@ -22,12 +22,13 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.time.Duration;
 
 /** Unit test for {@link JoinedStreams}. */
 public class JoinedStreamsTest {
@@ -43,13 +44,13 @@ public class JoinedStreamsTest {
         dataStream1 = env.fromData("a1", "a2", "a3");
         dataStream2 = env.fromData("a1", "a2");
         keySelector = element -> element;
-        tsAssigner = TumblingEventTimeWindows.of(Time.milliseconds(1));
+        tsAssigner = TumblingEventTimeWindows.of(Duration.ofMillis(1));
         joinFunction = (first, second) -> first + second;
     }
 
     @Test
     public void testDelegateToCoGrouped() {
-        Time lateness = Time.milliseconds(42L);
+        Duration lateness = Duration.ofMillis(42L);
 
         JoinedStreams.WithWindow<String, String, String, TimeWindow> withLateness =
                 dataStream1
@@ -62,13 +63,16 @@ public class JoinedStreamsTest {
         withLateness.apply(joinFunction, BasicTypeInfo.STRING_TYPE_INFO);
 
         Assert.assertEquals(
-                lateness.toMilliseconds(),
-                withLateness.getCoGroupedWindowedStream().getAllowedLateness().toMilliseconds());
+                lateness,
+                withLateness
+                        .getCoGroupedWindowedStream()
+                        .getAllowedLatenessDuration()
+                        .orElse(null));
     }
 
     @Test
     public void testSetAllowedLateness() {
-        Time lateness = Time.milliseconds(42L);
+        Duration lateness = Duration.ofMillis(42L);
 
         JoinedStreams.WithWindow<String, String, String, TimeWindow> withLateness =
                 dataStream1
@@ -78,7 +82,6 @@ public class JoinedStreamsTest {
                         .window(tsAssigner)
                         .allowedLateness(lateness);
 
-        Assert.assertEquals(
-                lateness.toMilliseconds(), withLateness.getAllowedLateness().toMilliseconds());
+        Assert.assertEquals(lateness, withLateness.getAllowedLatenessDuration().orElse(null));
     }
 }

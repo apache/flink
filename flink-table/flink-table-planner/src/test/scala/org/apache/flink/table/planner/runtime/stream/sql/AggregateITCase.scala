@@ -49,6 +49,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Integer => JInt, Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
+import java.time.Duration
 
 import scala.collection.{mutable, Seq}
 import scala.math.BigDecimal.double2bigDecimal
@@ -1332,6 +1333,83 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
   }
 
   @TestTemplate
+  def testMinMaxWithChar(): Unit = {
+    val data =
+      List(
+        rowOf(1, "a", "gg"),
+        rowOf(1, "b", "hh"),
+        rowOf(2, "d", "j"),
+        rowOf(2, "c", "i")
+      )
+    val dataId = TestValuesTableFactory.registerData(data)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE src(
+                       |  `id` INT,
+                       |  `char1` CHAR(1),
+                       |  `char2` CHAR(2)
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
+
+    val sql =
+      """
+        |select `id`, count(*), min(`char1`), max(`char1`), min(`char2`), max(`char2`)  from src group by `id`
+      """.stripMargin
+
+    val sink = new TestingRetractSink()
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List("1,2,a,b,gg,hh", "2,2,c,d,i,j")
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testRetractMinMaxWithChar(): Unit = {
+    val data =
+      List(
+        changelogRow("+I", Int.box(1), "a", "ee"),
+        changelogRow("+I", Int.box(1), "b", "ff"),
+        changelogRow("+I", Int.box(1), "c", "gg"),
+        changelogRow("-D", Int.box(1), "c", "gg"),
+        changelogRow("-D", Int.box(1), "a", "ee"),
+        changelogRow("+I", Int.box(2), "a", "e"),
+        changelogRow("+I", Int.box(2), "b", "f"),
+        changelogRow("+I", Int.box(2), "c", "g"),
+        changelogRow("-U", Int.box(2), "b", "f"),
+        changelogRow("+U", Int.box(2), "d", "h"),
+        changelogRow("-U", Int.box(2), "a", "e"),
+        changelogRow("+U", Int.box(2), "b", "f")
+      )
+    val dataId = TestValuesTableFactory.registerData(data)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE src(
+                       |  `id` INT,
+                       |  `char1` CHAR(1),
+                       |  `char2` CHAR(2)
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId',
+                       |  'changelog-mode' = 'I,UA,UB,D'
+                       |)
+                       |""".stripMargin)
+
+    val sql =
+      """
+        |select `id`, count(*), min(`char1`), max(`char1`), min(`char2`), max(`char2`) from src group by `id`
+      """.stripMargin
+
+    val sink = new TestingRetractSink()
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List("1,1,b,b,ff,ff", "2,3,b,d,f,h")
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
   def testCollectOnClusteredFields(): Unit = {
     val data = List(
       (1, 1, (12, "45.6")),
@@ -1589,7 +1667,7 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
   def testGenericTypesWithoutStateClean(): Unit = {
     // because we don't provide a way to disable state cleanup.
     // TODO verify all tests with state cleanup closed.
-    tEnv.getConfig.setIdleStateRetentionTime(Time.days(0), Time.days(0))
+    tEnv.getConfig.setIdleStateRetention(Duration.ofDays(0))
     val t = failingDataSource(Seq(1, 2, 3)).toTable(tEnv, 'a)
     val results = t
       .select(new GenericAggregateFunction()('a))
@@ -1863,14 +1941,15 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
     val sql =
       s"""
          |select
-         |  LAG(len, 1, cast(null as int)) OVER w AS prev_quantity,
+         |  LAG(len, 1, cast(null as int)) OVER w AS nullable_prev_quantity,
+         |  LAG(len, 1, 1) OVER w AS prev_quantity,
          |  LAG(len) OVER w AS prev_quantity
          |from src
          |WINDOW w AS (ORDER BY proctime)
          |""".stripMargin
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
-    val expected = List("null,null", "15,15", "11,11")
+    val expected = List("null,1,null", "15,15,15", "11,11,11")
     assertThat(sink.getRetractResults).isEqualTo(expected)
   }
 

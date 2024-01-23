@@ -37,6 +37,8 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.rest.messages.LogInfo;
+import org.apache.flink.runtime.rest.messages.ProfilingInfo;
+import org.apache.flink.runtime.rest.messages.ProfilingInfo.ProfilingMode;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
@@ -51,6 +53,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
@@ -225,16 +228,38 @@ public interface ResourceManagerGateway
 
     /**
      * Request the file upload from the given {@link TaskExecutor} to the cluster's {@link
-     * BlobServer}. The corresponding {@link TransientBlobKey} is returned.
+     * BlobServer}. The corresponding {@link TransientBlobKey} is returned. To support different
+     * type file upload with name, using {@link
+     * ResourceManager#requestTaskManagerFileUploadByNameAndType} as instead.
      *
      * @param taskManagerId identifying the {@link TaskExecutor} to upload the specified file
      * @param fileName name of the file to upload
      * @param timeout for the asynchronous operation
      * @return Future which is completed with the {@link TransientBlobKey} after uploading the file
      *     to the {@link BlobServer}.
+     * @deprecated use {@link #requestTaskManagerFileUploadByNameAndType(ResourceID, String,
+     *     FileType, Duration)} as instead.
      */
+    @Deprecated
     CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByName(
             ResourceID taskManagerId, String fileName, @RpcTimeout Time timeout);
+
+    /**
+     * Request the file upload from the given {@link TaskExecutor} to the cluster's {@link
+     * BlobServer}. The corresponding {@link TransientBlobKey} is returned.
+     *
+     * @param taskManagerId identifying the {@link TaskExecutor} to upload the specified file
+     * @param fileName name of the file to upload
+     * @param fileType type of the file to upload
+     * @param timeout for the asynchronous operation
+     * @return Future which is completed with the {@link TransientBlobKey} after uploading the file
+     *     to the {@link BlobServer}.
+     */
+    CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByNameAndType(
+            ResourceID taskManagerId,
+            String fileName,
+            FileType fileType,
+            @RpcTimeout Duration timeout);
 
     /**
      * Request log list from the given {@link TaskExecutor}.
@@ -265,4 +290,30 @@ public interface ResourceManagerGateway
      */
     CompletableFuture<TaskExecutorThreadInfoGateway> requestTaskExecutorThreadInfoGateway(
             ResourceID taskManagerId, @RpcTimeout Time timeout);
+
+    /**
+     * Request profiling list from the given {@link TaskExecutor}.
+     *
+     * @param taskManagerId identifying the {@link TaskExecutor} to get profiling list from
+     * @param timeout for the asynchronous operation
+     * @return Future which is completed with the historical profiling list
+     */
+    CompletableFuture<Collection<ProfilingInfo>> requestTaskManagerProfilingList(
+            ResourceID taskManagerId, @RpcTimeout Duration timeout);
+
+    /**
+     * Requests the profiling instance from the given {@link TaskExecutor}.
+     *
+     * @param taskManagerId taskManagerId identifying the {@link TaskExecutor} to get the profiling
+     *     from
+     * @param duration profiling duration
+     * @param mode profiling mode {@link ProfilingMode}
+     * @param timeout timeout of the asynchronous operation
+     * @return Future containing the created profiling information
+     */
+    CompletableFuture<ProfilingInfo> requestProfiling(
+            ResourceID taskManagerId,
+            int duration,
+            ProfilingInfo.ProfilingMode mode,
+            @RpcTimeout Duration timeout);
 }

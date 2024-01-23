@@ -324,7 +324,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         this.globalResourceCleaner =
                 resourceCleanerFactory.createGlobalResourceCleaner(this.getMainThreadExecutor());
 
-        this.webTimeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
+        this.webTimeout = Time.milliseconds(configuration.get(WebOptions.TIMEOUT));
 
         this.jobClientAlivenessCheckInterval =
                 configuration.get(CLIENT_ALIVENESS_CHECK_DURATION).toMillis();
@@ -916,29 +916,32 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     @Override
     public CompletableFuture<ExecutionGraphInfo> requestExecutionGraphInfo(
             JobID jobId, Time timeout) {
-        Function<Throwable, ExecutionGraphInfo> checkExecutionGraphStoreOnException =
-                throwable -> {
-                    // check whether it is a completed job
-                    final ExecutionGraphInfo executionGraphInfo =
-                            executionGraphInfoStore.get(jobId);
-                    if (executionGraphInfo == null) {
-                        throw new CompletionException(
-                                ExceptionUtils.stripCompletionException(throwable));
-                    } else {
-                        return executionGraphInfo;
-                    }
-                };
         Optional<JobManagerRunner> maybeJob = getJobManagerRunner(jobId);
         return maybeJob.map(job -> job.requestJob(timeout))
                 .orElse(FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId)))
-                .exceptionally(checkExecutionGraphStoreOnException);
+                .exceptionally(t -> getExecutionGraphInfoFromStore(t, jobId));
+    }
+
+    private ExecutionGraphInfo getExecutionGraphInfoFromStore(Throwable t, JobID jobId) {
+        // check whether it is a completed job
+        final ExecutionGraphInfo executionGraphInfo = executionGraphInfoStore.get(jobId);
+        if (executionGraphInfo == null) {
+            throw new CompletionException(ExceptionUtils.stripCompletionException(t));
+        } else {
+            return executionGraphInfo;
+        }
     }
 
     @Override
     public CompletableFuture<CheckpointStatsSnapshot> requestCheckpointStats(
             JobID jobId, Time timeout) {
         return performOperationOnJobMasterGateway(
-                jobId, gateway -> gateway.requestCheckpointStats(timeout));
+                        jobId, gateway -> gateway.requestCheckpointStats(timeout))
+                .exceptionally(
+                        t ->
+                                getExecutionGraphInfoFromStore(t, jobId)
+                                        .getArchivedExecutionGraph()
+                                        .getCheckpointStatsSnapshot());
     }
 
     @Override
@@ -1608,7 +1611,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     private void applyParallelismOverrides(JobGraph jobGraph) {
-        Map<String, String> overrides = configuration.get(PipelineOptions.PARALLELISM_OVERRIDES);
+        Map<String, String> overrides = new HashMap<>();
+        overrides.putAll(configuration.get(PipelineOptions.PARALLELISM_OVERRIDES));
+        overrides.putAll(jobGraph.getJobConfiguration().get(PipelineOptions.PARALLELISM_OVERRIDES));
         for (JobVertex vertex : jobGraph.getVertices()) {
             String override = overrides.get(vertex.getID().toHexString());
             if (override != null) {

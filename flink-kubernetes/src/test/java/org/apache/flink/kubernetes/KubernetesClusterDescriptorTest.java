@@ -101,8 +101,7 @@ class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
     @Test
     void testDeployHighAvailabilitySessionCluster() throws ClusterDeploymentException {
         flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.SESSION.getName());
-        flinkConfig.setString(
-                HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.toString());
+        flinkConfig.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.toString());
         final ClusterClient<String> clusterClient = deploySessionCluster().getClusterClient();
         checkClusterClient(clusterClient);
 
@@ -255,11 +254,11 @@ class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
 
     private void checkUpdatedConfigAndResourceSetting() {
         // Check updated flink config options
-        assertThat(flinkConfig.getString(BlobServerOptions.PORT))
+        assertThat(flinkConfig.get(BlobServerOptions.PORT))
                 .isEqualTo(String.valueOf(Constants.BLOB_SERVER_PORT));
-        assertThat(flinkConfig.getString(TaskManagerOptions.RPC_PORT))
+        assertThat(flinkConfig.get(TaskManagerOptions.RPC_PORT))
                 .isEqualTo(String.valueOf(Constants.TASK_MANAGER_RPC_PORT));
-        assertThat(flinkConfig.getString(JobManagerOptions.ADDRESS))
+        assertThat(flinkConfig.get(JobManagerOptions.ADDRESS))
                 .isEqualTo(
                         InternalServiceDecorator.getNamespacedInternalServiceName(
                                 CLUSTER_ID, NAMESPACE));

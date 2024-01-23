@@ -26,10 +26,10 @@ import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrateg
 import org.apache.flink.table.planner.plan.logical.TumblingWindowSpec;
 import org.apache.flink.table.planner.plan.logical.WindowSpec;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
-import org.apache.flink.table.runtime.operators.window.assigners.CumulativeWindowAssigner;
-import org.apache.flink.table.runtime.operators.window.assigners.SlidingWindowAssigner;
-import org.apache.flink.table.runtime.operators.window.assigners.TumblingWindowAssigner;
-import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
+import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.CumulativeWindowAssigner;
+import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.GroupWindowAssigner;
+import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.SlidingWindowAssigner;
+import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.TumblingWindowAssigner;
 
 /** Utilities for Window Table Function. */
 @Internal
@@ -41,7 +41,7 @@ public final class WindowTableFunctionUtil {
      * @param windowingStrategy input window strategy
      * @return new created window assigner
      */
-    public static WindowAssigner<TimeWindow> createWindowAssigner(
+    public static GroupWindowAssigner<TimeWindow> createWindowAssigner(
             TimeAttributeWindowingStrategy windowingStrategy) {
         WindowSpec windowSpec = windowingStrategy.getWindow();
         boolean isProctime = windowingStrategy.isProctime();

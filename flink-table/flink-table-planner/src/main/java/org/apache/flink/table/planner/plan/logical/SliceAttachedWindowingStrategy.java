@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.logical;
 
-import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowOperator;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowOperator;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;

@@ -21,6 +21,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.api.connector.sink2.CommitterInitContext;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.InternalSinkCommitterMetricGroup;
@@ -49,7 +50,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.OptionalLong;
 
-import static org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink.CommitterInitContext;
 import static org.apache.flink.util.IOUtils.closeAll;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -125,8 +125,8 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
                                 .getListState(STREAMING_COMMITTER_RAW_STATES_DESC),
                         new CommittableCollectorSerializer<>(
                                 committableSerializer,
-                                getRuntimeContext().getIndexOfThisSubtask(),
-                                getRuntimeContext().getNumberOfParallelSubtasks(),
+                                getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                                getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks(),
                                 metricGroup));
         if (context.isRestored()) {
             committableCollectorState.get().forEach(cc -> committableCollector.merge(cc));

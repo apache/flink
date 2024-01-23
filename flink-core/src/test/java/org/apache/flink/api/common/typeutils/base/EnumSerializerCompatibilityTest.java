@@ -108,6 +108,6 @@ public class EnumSerializerCompatibilityTest extends TestLogger {
         }
 
         EnumSerializer enumSerializer2 = new EnumSerializer(classLoader2.loadClass(ENUM_NAME));
-        return restoredSnapshot.resolveSchemaCompatibility(enumSerializer2);
+        return enumSerializer2.snapshotConfiguration().resolveSchemaCompatibility(restoredSnapshot);
     }
 }

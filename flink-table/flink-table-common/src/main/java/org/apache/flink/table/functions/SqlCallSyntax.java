@@ -272,4 +272,6 @@ public interface SqlCallSyntax {
                             operands.subList(1, operands.size()).stream()
                                     .map(ResolvedExpression::asSerializableString)
                                     .collect(Collectors.joining(", ")));
+
+    SqlCallSyntax WINDOW_START_END = (sqlName, operands) -> String.format("%s", sqlName);
 }

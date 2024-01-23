@@ -39,7 +39,6 @@ import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -182,14 +181,6 @@ public interface JobMasterGateway
      * @return future which is completed exceptionally if the operation fails
      */
     CompletableFuture<Void> heartbeatFromResourceManager(final ResourceID resourceID);
-
-    /**
-     * Request the details of the executed job.
-     *
-     * @param timeout for the rpc call
-     * @return Future details of the executed job
-     */
-    CompletableFuture<JobDetails> requestJobDetails(@RpcTimeout Time timeout);
 
     /**
      * Requests the current job status.

@@ -36,6 +36,8 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{BeforeEach, Disabled, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
+import java.time.Duration
+
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
@@ -81,7 +83,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   @BeforeEach
   override def before(): Unit = {
     super.before()
-    tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    tEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
   }
 
   @TestTemplate
@@ -107,7 +109,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .select('a1, 'a2, 'b1, 'b2)
 
     val sink = new TestingAppendSink
-    joinedTable.toAppendStream[Row].addSink(sink)
+    joinedTable.toDataStream.addSink(sink)
 
     env.execute()
 
@@ -142,7 +144,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .select('a1, 'a2, 'b1, 'b2)
 
     val sink = new TestingAppendSink
-    joinedTable.toAppendStream[Row].addSink(sink)
+    joinedTable.toDataStream.addSink(sink)
 
     env.execute()
 
@@ -179,7 +181,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .select('a1, 'a2, 'a3, 'b1, 'b2, 'b3)
 
     val sink = new TestingAppendSink
-    joinedTable.toAppendStream[Row].addSink(sink)
+    joinedTable.toDataStream.addSink(sink)
 
     env.execute()
 
@@ -347,7 +349,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
         countDistinct('long))
 
     val sink = new TestingAppendSink
-    val results = windowedTable.toAppendStream[Row]
+    val results = windowedTable.toDataStream
     results.addSink(sink)
     env.execute()
 
@@ -956,7 +958,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   def testNonEqualInnerJoin(): Unit = {
     val ds1 = failingDataSource(data2).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = failingDataSource(data3).toTable(tEnv, 'd, 'e, 'f)
-    val results = ds1.join(ds2, 'a < 'd).select('a, 'd).toAppendStream[Row]
+    val results = ds1.join(ds2, 'a < 'd).select('a, 'd).toDataStream
 
     val sink = new TestingAppendSink
     results.addSink(sink)
@@ -1037,7 +1039,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val joinT = ds1.join(ds2).where('b === 'e).select('b, 'c, 'e, 'g)
 
     val sink = new TestingAppendSink
-    joinT.toAppendStream[Row].addSink(sink)
+    joinT.toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq("1,Hi,1,Hallo", "2,Hello world,2,Hallo Welt", "2,Hello,2,Hallo Welt")
@@ -1315,7 +1317,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .where('leftPk === 'rightPk)
 
     val sink = new TestingAppendSink
-    resultTable.toAppendStream[Row].addSink(sink)
+    resultTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -1374,7 +1376,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .groupBy('bb)
       .select('bb, 'c.count.as('c))
 
-    tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    tEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
 
     val t = leftTableWithPk
       .join(rightTableWithPk, 'b === 'bb)
@@ -1484,7 +1486,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
         countDistinct('long))
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     // proctime window output uncertain results, so assert has been ignored here.

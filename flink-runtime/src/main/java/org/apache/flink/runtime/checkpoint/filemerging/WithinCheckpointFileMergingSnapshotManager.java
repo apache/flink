@@ -94,7 +94,7 @@ public class WithinCheckpointFileMergingSnapshotManager extends FileMergingSnaps
                 os.sync();
             }
         }
-        if (current != physicalFile) {
+        if (current != null && current != physicalFile) {
             physicalFile.close();
         }
     }

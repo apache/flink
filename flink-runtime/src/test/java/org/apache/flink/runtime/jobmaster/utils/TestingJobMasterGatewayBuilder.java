@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster.utils;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple6;
@@ -45,7 +46,6 @@ import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.jobmaster.TaskManagerRegistrationInformation;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
@@ -118,7 +118,7 @@ public class TestingJobMasterGatewayBuilder {
                     (ignoredA, ignoredB) -> FutureUtils.completedVoidFuture();
     private Function<ResourceID, CompletableFuture<Void>> resourceManagerHeartbeatFunction =
             ignored -> FutureUtils.completedVoidFuture();
-    private Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier =
+    private Supplier<CompletableFuture<JobStatus>> requestJobStatusSupplier =
             () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
     private Supplier<CompletableFuture<ExecutionGraphInfo>> requestJobSupplier =
             () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
@@ -280,9 +280,9 @@ public class TestingJobMasterGatewayBuilder {
         return this;
     }
 
-    public TestingJobMasterGatewayBuilder setRequestJobDetailsSupplier(
-            Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier) {
-        this.requestJobDetailsSupplier = requestJobDetailsSupplier;
+    public TestingJobMasterGatewayBuilder setRequestJobStatusSupplier(
+            Supplier<CompletableFuture<JobStatus>> requestJobStatusSupplier) {
+        this.requestJobStatusSupplier = requestJobStatusSupplier;
         return this;
     }
 
@@ -446,7 +446,7 @@ public class TestingJobMasterGatewayBuilder {
                 registerTaskManagerFunction,
                 taskManagerHeartbeatFunction,
                 resourceManagerHeartbeatFunction,
-                requestJobDetailsSupplier,
+                requestJobStatusSupplier,
                 requestJobSupplier,
                 checkpointStatsSnapshotSupplier,
                 triggerSavepointFunction,

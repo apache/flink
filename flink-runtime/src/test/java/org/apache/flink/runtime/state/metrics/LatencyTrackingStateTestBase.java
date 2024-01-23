@@ -30,8 +30,10 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
@@ -56,27 +58,30 @@ abstract class LatencyTrackingStateTestBase<K> {
         KeyGroupRange keyGroupRange = new KeyGroupRange(0, 127);
         int numberOfKeyGroups = keyGroupRange.getNumberOfKeyGroups();
         Configuration configuration = new Configuration();
-        configuration.setBoolean(StateBackendOptions.LATENCY_TRACK_ENABLED, true);
-        configuration.setInteger(
-                StateBackendOptions.LATENCY_TRACK_SAMPLE_INTERVAL, SAMPLE_INTERVAL);
+        configuration.set(StateBackendOptions.LATENCY_TRACK_ENABLED, true);
+        configuration.set(StateBackendOptions.LATENCY_TRACK_SAMPLE_INTERVAL, SAMPLE_INTERVAL);
         // use a very large value to not let metrics data overridden.
         int historySize = 1000_000;
-        configuration.setInteger(StateBackendOptions.LATENCY_TRACK_HISTORY_SIZE, historySize);
+        configuration.set(StateBackendOptions.LATENCY_TRACK_HISTORY_SIZE, historySize);
         HashMapStateBackend stateBackend =
                 new HashMapStateBackend()
                         .configure(configuration, Thread.currentThread().getContextClassLoader());
+        JobID jobID = new JobID();
+        TaskKvStateRegistry kvStateRegistry = env.getTaskKvStateRegistry();
+        CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         return stateBackend.createKeyedStateBackend(
-                env,
-                new JobID(),
-                "test_op",
-                keySerializer,
-                numberOfKeyGroups,
-                keyGroupRange,
-                env.getTaskKvStateRegistry(),
-                TtlTimeProvider.DEFAULT,
-                new UnregisteredMetricsGroup(),
-                Collections.emptyList(),
-                new CloseableRegistry());
+                new KeyedStateBackendParametersImpl<>(
+                        env,
+                        jobID,
+                        "test_op",
+                        keySerializer,
+                        numberOfKeyGroups,
+                        keyGroupRange,
+                        kvStateRegistry,
+                        TtlTimeProvider.DEFAULT,
+                        new UnregisteredMetricsGroup(),
+                        Collections.emptyList(),
+                        cancelStreamRegistry));
     }
 
     @SuppressWarnings("unchecked")

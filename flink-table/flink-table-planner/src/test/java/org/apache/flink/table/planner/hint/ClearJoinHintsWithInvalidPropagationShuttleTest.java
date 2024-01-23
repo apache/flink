@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
 
 /** Tests clearing join hint with invalid propagation in batch. */
 class ClearJoinHintsWithInvalidPropagationShuttleTest
-        extends ClearJoinHintsWithInvalidPropagationShuttleTestBase {
+        extends ClearQueryHintsWithInvalidPropagationShuttleTestBase {
     @Override
     TableTestUtil getTableTestUtil() {
         return batchTestUtil(TableConfig.getDefault());

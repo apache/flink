@@ -19,18 +19,23 @@ package org.apache.flink.streaming.api.operators.collect;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.streaming.api.operators.collect.utils.CollectSinkFunctionTestWrapper;
 import org.apache.flink.streaming.api.operators.collect.utils.CollectTestUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.net.BindException;
+import java.net.ServerSocket;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link CollectSinkFunction}. */
 public class CollectSinkFunctionTest extends TestLogger {
@@ -39,19 +44,19 @@ public class CollectSinkFunctionTest extends TestLogger {
 
     private CollectSinkFunctionTestWrapper<Integer> functionWrapper;
 
-    @Before
+    @BeforeEach
     public void before() throws Exception {
         // max bytes per batch = 3 * sizeof(int)
         functionWrapper = new CollectSinkFunctionTestWrapper<>(serializer, 12);
     }
 
-    @After
+    @AfterEach
     public void after() throws Exception {
         functionWrapper.closeWrapper();
     }
 
     @Test
-    public void testIncreasingToken() throws Exception {
+    void testIncreasingToken() throws Exception {
         functionWrapper.openFunction();
         for (int i = 0; i < 6; i++) {
             functionWrapper.invoke(i);
@@ -70,7 +75,7 @@ public class CollectSinkFunctionTest extends TestLogger {
     }
 
     @Test
-    public void testDuplicatedToken() throws Exception {
+    void testDuplicatedToken() throws Exception {
         functionWrapper.openFunction();
         for (int i = 0; i < 6; i++) {
             functionWrapper.invoke(i);
@@ -89,7 +94,7 @@ public class CollectSinkFunctionTest extends TestLogger {
     }
 
     @Test
-    public void testInvalidToken() throws Exception {
+    void testInvalidToken() throws Exception {
         functionWrapper.openFunction();
         for (int i = 0; i < 6; i++) {
             functionWrapper.invoke(i);
@@ -106,7 +111,7 @@ public class CollectSinkFunctionTest extends TestLogger {
     }
 
     @Test
-    public void testInvalidVersion() throws Exception {
+    void testInvalidVersion() throws Exception {
         functionWrapper.openFunction();
         for (int i = 0; i < 6; i++) {
             functionWrapper.invoke(i);
@@ -122,7 +127,21 @@ public class CollectSinkFunctionTest extends TestLogger {
     }
 
     @Test
-    public void testCheckpoint() throws Exception {
+    void testConfiguredPortIsUsed() throws Exception {
+        try (ServerSocket socket = new ServerSocket(0)) {
+            functionWrapper
+                    .getRuntimeContext()
+                    .getTaskManagerRuntimeInfo()
+                    .getConfiguration()
+                    .set(TaskManagerOptions.COLLECT_PORT, socket.getLocalPort());
+            assertThatThrownBy(() -> functionWrapper.openFunction())
+                    .isInstanceOf(BindException.class)
+                    .hasMessageContaining("Address already in use");
+        }
+    }
+
+    @Test
+    void testCheckpoint() throws Exception {
         functionWrapper.openFunctionWithState();
         for (int i = 0; i < 2; i++) {
             functionWrapper.invoke(i);
@@ -156,7 +175,7 @@ public class CollectSinkFunctionTest extends TestLogger {
     }
 
     @Test
-    public void testRestart() throws Exception {
+    void testRestart() throws Exception {
         functionWrapper.openFunctionWithState();
         for (int i = 0; i < 3; i++) {
             functionWrapper.invoke(i);
@@ -195,12 +214,12 @@ public class CollectSinkFunctionTest extends TestLogger {
     }
 
     @Test
-    public void testAccumulatorResultWithoutCheckpoint() throws Exception {
+    void testAccumulatorResultWithoutCheckpoint() throws Exception {
         testAccumulatorResultWithoutCheckpoint(2, Arrays.asList(2, 3, 4, 5));
     }
 
     @Test
-    public void testEmptyAccumulatorResult() throws Exception {
+    void testEmptyAccumulatorResult() throws Exception {
         testAccumulatorResultWithoutCheckpoint(6, Collections.emptyList());
     }
 
@@ -219,7 +238,7 @@ public class CollectSinkFunctionTest extends TestLogger {
     }
 
     @Test
-    public void testAccumulatorResultWithCheckpoint() throws Exception {
+    void testAccumulatorResultWithCheckpoint() throws Exception {
         functionWrapper.openFunctionWithState();
         for (int i = 0; i < 6; i++) {
             functionWrapper.invoke(i);

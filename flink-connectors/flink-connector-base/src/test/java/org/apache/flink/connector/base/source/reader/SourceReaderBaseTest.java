@@ -46,6 +46,7 @@ import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
@@ -433,8 +434,8 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 
     private Configuration getConfig() {
         Configuration config = new Configuration();
-        config.setInteger(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 1);
-        config.setLong(SourceReaderOptions.SOURCE_READER_CLOSE_TIMEOUT, 30000L);
+        config.set(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 1);
+        config.set(SourceReaderOptions.SOURCE_READER_CLOSE_TIMEOUT, 30000L);
         return config;
     }
 
@@ -561,5 +562,8 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) {}
+
+        @Override
+        public void emitRecordAttributes(RecordAttributes recordAttributes) throws Exception {}
     }
 }

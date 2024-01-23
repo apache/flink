@@ -21,6 +21,7 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptionsInternal;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -29,7 +30,7 @@ import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.parameters.AbstractKubernetesParameters;
 import org.apache.flink.kubernetes.utils.Constants;
 
-import org.apache.flink.shaded.guava31.com.google.common.io.Files;
+import org.apache.flink.shaded.guava32.com.google.common.io.Files;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
@@ -55,7 +56,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_MAP_PREFIX;
@@ -104,8 +104,8 @@ public class FlinkConfMountDecorator extends AbstractKubernetesStepDecorator {
                         .collect(Collectors.toList());
         keyToPaths.add(
                 new KeyToPathBuilder()
-                        .withKey(FLINK_CONF_FILENAME)
-                        .withPath(FLINK_CONF_FILENAME)
+                        .withKey(GlobalConfiguration.getFlinkConfFilename())
+                        .withPath(GlobalConfiguration.getFlinkConfFilename())
                         .build());
 
         final Volume flinkConfVolume =
@@ -138,7 +138,7 @@ public class FlinkConfMountDecorator extends AbstractKubernetesStepDecorator {
 
         final Map<String, String> propertiesMap =
                 getClusterSidePropertiesMap(kubernetesComponentConf.getFlinkConfiguration());
-        data.put(FLINK_CONF_FILENAME, getFlinkConfData(propertiesMap));
+        data.put(GlobalConfiguration.getFlinkConfFilename(), getFlinkConfData(propertiesMap));
 
         final ConfigMap flinkConfConfigMap =
                 new ConfigMapBuilder()

@@ -169,7 +169,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     static boolean isProviderEnabled(Configuration configuration, String serviceName) {
         return SecurityOptions.forProvider(configuration, serviceName)
-                .getBoolean(DELEGATION_TOKEN_PROVIDER_ENABLED);
+                .get(DELEGATION_TOKEN_PROVIDER_ENABLED);
     }
 
     @VisibleForTesting

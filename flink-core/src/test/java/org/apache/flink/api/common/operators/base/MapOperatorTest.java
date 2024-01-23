@@ -20,6 +20,7 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
@@ -44,6 +45,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/** The test for map operator. */
 @SuppressWarnings("serial")
 public class MapOperatorTest implements java.io.Serializable {
 
@@ -95,9 +97,9 @@ public class MapOperatorTest implements java.io.Serializable {
                         public void open(OpenContext openContext) throws Exception {
                             opened.set(true);
                             RuntimeContext ctx = getRuntimeContext();
-                            assertEquals(0, ctx.getIndexOfThisSubtask());
-                            assertEquals(1, ctx.getNumberOfParallelSubtasks());
-                            assertEquals(taskName, ctx.getTaskName());
+                            assertEquals(0, ctx.getTaskInfo().getIndexOfThisSubtask());
+                            assertEquals(1, ctx.getTaskInfo().getNumberOfParallelSubtasks());
+                            assertEquals(taskName, ctx.getTaskInfo().getTaskName());
                         }
 
                         @Override
@@ -122,7 +124,7 @@ public class MapOperatorTest implements java.io.Serializable {
             final HashMap<String, Accumulator<?, ?>> accumulatorMap =
                     new HashMap<String, Accumulator<?, ?>>();
             final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
-            final TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
+            final TaskInfo taskInfo = new TaskInfoImpl(taskName, 1, 0, 1, 0);
             ExecutionConfig executionConfig = new ExecutionConfig();
             executionConfig.disableObjectReuse();
 

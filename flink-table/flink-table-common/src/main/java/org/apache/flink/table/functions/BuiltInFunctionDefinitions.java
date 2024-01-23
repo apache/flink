@@ -351,6 +351,16 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.ArrayJoinFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition ARRAY_MIN =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_MIN")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(arrayFullyComparableElementType())
+                    .outputTypeStrategy(forceNullable(SpecificTypeStrategies.ARRAY_ELEMENT))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArrayMinFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =
             BuiltInFunctionDefinition.newBuilder()
                     .name("$REPLICATE_ROWS$1")
@@ -368,6 +378,16 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(SpecificTypeStrategies.UNUSED)
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.table.UnnestRowsFunction")
+                    .internal()
+                    .build();
+
+    public static final BuiltInFunctionDefinition INTERNAL_HASHCODE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("$HASHCODE$1")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(ANY))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.INT().notNull())))
+                    .runtimeProvided()
                     .internal()
                     .build();
 
@@ -807,7 +827,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition SUBSTR =
             BuiltInFunctionDefinition.newBuilder()
                     .name("substr")
-                    .callSyntax("SUBSTR", SqlCallSyntax.SUBSTRING)
+                    .sqlName("SUBSTR")
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             or(
@@ -1644,7 +1664,7 @@ public final class BuiltInFunctionDefinitions {
                     .kind(SCALAR)
                     .notDeterministic()
                     .inputTypeStrategy(or(NO_ARGS, sequence(logical(LogicalTypeRoot.INTEGER))))
-                    .outputTypeStrategy(explicit(DataTypes.DOUBLE().notNull()))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.DOUBLE())))
                     .build();
 
     public static final BuiltInFunctionDefinition RAND_INTEGER =
@@ -1658,7 +1678,7 @@ public final class BuiltInFunctionDefinitions {
                                     sequence(
                                             logical(LogicalTypeRoot.INTEGER),
                                             logical(LogicalTypeRoot.INTEGER))))
-                    .outputTypeStrategy(explicit(INT().notNull()))
+                    .outputTypeStrategy(nullableIfArgs(explicit(INT())))
                     .build();
 
     public static final BuiltInFunctionDefinition BIN =
@@ -2095,6 +2115,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition WINDOW_START =
             BuiltInFunctionDefinition.newBuilder()
                     .name("start")
+                    .callSyntax("window_start", SqlCallSyntax.WINDOW_START_END)
                     .kind(OTHER)
                     .inputTypeStrategy(SpecificInputTypeStrategies.windowTimeIndicator())
                     .outputTypeStrategy(explicit(DataTypes.TIMESTAMP(3)))
@@ -2103,6 +2124,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition WINDOW_END =
             BuiltInFunctionDefinition.newBuilder()
                     .name("end")
+                    .callSyntax("window_end", SqlCallSyntax.WINDOW_START_END)
                     .kind(OTHER)
                     .inputTypeStrategy(SpecificInputTypeStrategies.windowTimeIndicator())
                     .outputTypeStrategy(explicit(DataTypes.TIMESTAMP(3)))
@@ -2115,6 +2137,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition ORDER_ASC =
             BuiltInFunctionDefinition.newBuilder()
                     .name("asc")
+                    .callSyntax("ASC", SqlCallSyntax.UNARY_SUFFIX_OP)
                     .kind(OTHER)
                     .inputTypeStrategy(sequence(ANY))
                     .outputTypeStrategy(argument(0))
@@ -2123,6 +2146,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition ORDER_DESC =
             BuiltInFunctionDefinition.newBuilder()
                     .name("desc")
+                    .callSyntax("DESC", SqlCallSyntax.UNARY_SUFFIX_OP)
                     .kind(OTHER)
                     .inputTypeStrategy(sequence(ANY))
                     .outputTypeStrategy(argument(0))

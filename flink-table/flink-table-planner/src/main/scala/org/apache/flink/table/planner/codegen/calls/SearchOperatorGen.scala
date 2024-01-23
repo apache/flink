@@ -83,7 +83,7 @@ object SearchOperatorGen {
       val setTerm = ctx.addReusableHashSet(haystack.toSeq, commonType)
       val negation = if (sarg.isComplementedPoints) "!" else ""
 
-      val Seq(resultTerm, nullTerm) = newNames("result", "isNull")
+      val Seq(resultTerm, nullTerm) = newNames(ctx, "result", "isNull")
       // Since https://issues.apache.org/jira/browse/CALCITE-4446
       // there is three-valued logic for SEARCH operator
       // sarg.nullAs should be used instead of sarg.containsNull
@@ -135,14 +135,15 @@ object SearchOperatorGen {
       // for sarg.nullAs == RexUnknownAs.FALSE: X IS NOT NULL AND (X IN (...))
       // for sarg.nullAs == RexUnknownAs.UNKNOWN: X IN (...)
       if (sarg.nullAs == RexUnknownAs.TRUE) {
-        rangeChecks =
-          Seq(generateIsNull(target, new BooleanType(target.resultType.isNullable))) ++ rangeChecks
+        rangeChecks = Seq(
+          generateIsNull(ctx, target, new BooleanType(target.resultType.isNullable))) ++ rangeChecks
       }
 
       val generatedRangeChecks = rangeChecks
         .reduce(
           (left, right) =>
             generateOr(
+              ctx,
               left,
               right,
               new BooleanType(left.resultType.isNullable || right.resultType.isNullable)))
@@ -150,8 +151,9 @@ object SearchOperatorGen {
       val generatedRangeWithIsNotNullIfRequiredChecks =
         if (sarg.nullAs == RexUnknownAs.FALSE)
           generateAnd(
+            ctx,
             generatedRangeChecks,
-            generateIsNotNull(target, new BooleanType(target.resultType.isNullable)),
+            generateIsNotNull(ctx, target, new BooleanType(target.resultType.isNullable)),
             new BooleanType(
               generatedRangeChecks.resultType.isNullable || target.resultType.isNullable)
           )
@@ -210,6 +212,7 @@ object SearchOperatorGen {
     /** lower <= target && target <= upper */
     override def closed(lower: C, upper: C): GeneratedExpression = {
       generateAnd(
+        ctx,
         generateComparison(ctx, "<=", lit(lower), target, resultTypeForBoolExpr),
         generateComparison(ctx, "<=", target, lit(upper), resultTypeForBoolExpr),
         resultTypeForBoolExpr
@@ -219,6 +222,7 @@ object SearchOperatorGen {
     /** lower <= target && target < upper */
     override def closedOpen(lower: C, upper: C): GeneratedExpression = {
       generateAnd(
+        ctx,
         generateComparison(ctx, "<=", lit(lower), target, resultTypeForBoolExpr),
         generateComparison(ctx, "<", target, lit(upper), resultTypeForBoolExpr),
         resultTypeForBoolExpr
@@ -228,6 +232,7 @@ object SearchOperatorGen {
     /** lower < target && target <= upper */
     override def openClosed(lower: C, upper: C): GeneratedExpression = {
       generateAnd(
+        ctx,
         generateComparison(ctx, "<", lit(lower), target, resultTypeForBoolExpr),
         generateComparison(ctx, "<=", target, lit(upper), resultTypeForBoolExpr),
         resultTypeForBoolExpr
@@ -237,6 +242,7 @@ object SearchOperatorGen {
     /** lower < target && target < upper */
     override def open(lower: C, upper: C): GeneratedExpression = {
       generateAnd(
+        ctx,
         generateComparison(ctx, "<", lit(lower), target, resultTypeForBoolExpr),
         generateComparison(ctx, "<", target, lit(upper), resultTypeForBoolExpr),
         resultTypeForBoolExpr

@@ -554,6 +554,45 @@ public class ConfigurationTest {
                                         .doesNotContain("secret_value"));
     }
 
+    @TestTemplate
+    void testGetWithOverrideDefault() {
+        final Configuration conf = new Configuration(standardYaml);
+
+        // Test for integer without default value.
+        ConfigOption<Integer> integerOption0 =
+                ConfigOptions.key("integer.key0").intType().noDefaultValue();
+        // integerOption0 doesn't exist in conf, and it should be overrideDefault.
+        assertThat(conf.get(integerOption0, 2)).isEqualTo(2);
+        // integerOption0 exists in conf, and it should be value that set before.
+        conf.set(integerOption0, 3);
+        assertThat(conf.get(integerOption0, 2)).isEqualTo(3);
+
+        // Test for integer with default value, the default value should be ignored.
+        ConfigOption<Integer> integerOption1 =
+                ConfigOptions.key("integer.key1").intType().defaultValue(4);
+        assertThat(conf.get(integerOption1, 5)).isEqualTo(5);
+        // integerOption1 is changed.
+        conf.set(integerOption1, 6);
+        assertThat(conf.get(integerOption1, 5)).isEqualTo(6);
+
+        // Test for string without default value.
+        ConfigOption<String> stringOption0 =
+                ConfigOptions.key("string.key0").stringType().noDefaultValue();
+        // stringOption0 doesn't exist in conf, and it should be overrideDefault.
+        assertThat(conf.get(stringOption0, "a")).isEqualTo("a");
+        // stringOption0 exists in conf, and it should be value that set before.
+        conf.set(stringOption0, "b");
+        assertThat(conf.get(stringOption0, "a")).isEqualTo("b");
+
+        // Test for string with default value, the default value should be ignored.
+        ConfigOption<String> stringOption1 =
+                ConfigOptions.key("string.key1").stringType().defaultValue("c");
+        assertThat(conf.get(stringOption1, "d")).isEqualTo("d");
+        // stringOption1 is changed.
+        conf.set(stringOption1, "e");
+        assertThat(conf.get(stringOption1, "d")).isEqualTo("e");
+    }
+
     // --------------------------------------------------------------------------------------------
     // Test classes
     // --------------------------------------------------------------------------------------------

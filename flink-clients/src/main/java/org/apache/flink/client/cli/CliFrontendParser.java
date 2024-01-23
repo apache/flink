@@ -164,6 +164,14 @@ public class CliFrontendParser {
                     false,
                     "Defines whether to trigger this checkpoint as a full one.");
 
+    static final Option SAVEPOINT_DETACHED_OPTION =
+            new Option(
+                    "detached",
+                    false,
+                    "Triggering savepoint in detached mode, client and JM are decoupled,"
+                            + " return the savepoint trigger id as the unique identification of"
+                            + " the detached savepoint.");
+
     // list specific options
     static final Option RUNNING_OPTION =
             new Option("r", "running", false, "Show only running programs and their JobIDs");
@@ -439,14 +447,16 @@ public class CliFrontendParser {
         return buildGeneralOptions(new Options())
                 .addOption(STOP_WITH_SAVEPOINT_PATH)
                 .addOption(STOP_AND_DRAIN)
-                .addOption(SAVEPOINT_FORMAT_OPTION);
+                .addOption(SAVEPOINT_FORMAT_OPTION)
+                .addOption(SAVEPOINT_DETACHED_OPTION);
     }
 
     static Options getSavepointCommandOptions() {
         return buildGeneralOptions(new Options())
                 .addOption(SAVEPOINT_DISPOSE_OPTION)
                 .addOption(JAR_OPTION)
-                .addOption(SAVEPOINT_FORMAT_OPTION);
+                .addOption(SAVEPOINT_FORMAT_OPTION)
+                .addOption(SAVEPOINT_DETACHED_OPTION);
     }
 
     static Options getCheckpointCommandOptions() {
@@ -484,13 +494,15 @@ public class CliFrontendParser {
     private static Options getStopOptionsWithoutDeprecatedOptions(Options options) {
         return options.addOption(STOP_WITH_SAVEPOINT_PATH)
                 .addOption(STOP_AND_DRAIN)
-                .addOption(SAVEPOINT_FORMAT_OPTION);
+                .addOption(SAVEPOINT_FORMAT_OPTION)
+                .addOption(SAVEPOINT_DETACHED_OPTION);
     }
 
     private static Options getSavepointOptionsWithoutDeprecatedOptions(Options options) {
         return options.addOption(SAVEPOINT_DISPOSE_OPTION)
                 .addOption(SAVEPOINT_FORMAT_OPTION)
-                .addOption(JAR_OPTION);
+                .addOption(JAR_OPTION)
+                .addOption(SAVEPOINT_DETACHED_OPTION);
     }
 
     private static Options getCheckpointOptionsWithoutDeprecatedOptions(Options options) {

@@ -101,6 +101,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
                                 jobGraph.getSerializedExecutionConfig()
                                         .deserializeValue(userCodeLoader)
                                         .getRestartStrategy(),
+                                jobGraph.getJobConfiguration(),
                                 jobMasterConfiguration,
                                 jobGraph.isCheckpointingEnabled())
                         .create();
@@ -125,8 +126,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 
         final CheckpointsCleaner checkpointsCleaner =
                 new CheckpointsCleaner(
-                        jobMasterConfiguration.getBoolean(
-                                CheckpointingOptions.CLEANER_PARALLEL_MODE));
+                        jobMasterConfiguration.get(CheckpointingOptions.CLEANER_PARALLEL_MODE));
 
         return new DefaultScheduler(
                 log,

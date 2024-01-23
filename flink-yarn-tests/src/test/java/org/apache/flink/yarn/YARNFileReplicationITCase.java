@@ -68,7 +68,7 @@ class YARNFileReplicationITCase extends YarnTestBase {
     @Test
     void testPerJobModeWithCustomizedFileReplication() throws Exception {
         final Configuration configuration = getDefaultConfiguration();
-        configuration.setInteger(YarnConfigOptions.FILE_REPLICATION, 4);
+        configuration.set(YarnConfigOptions.FILE_REPLICATION, 4);
 
         runTest(() -> deployPerJob(configuration, getTestingJobGraph()));
     }
@@ -174,8 +174,7 @@ class YARNFileReplicationITCase extends YarnTestBase {
 
         FileStatus fsStatus = fs.getFileStatus(uberJarHDFSPath);
 
-        final int flinkFileReplication =
-                configuration.getInteger(YarnConfigOptions.FILE_REPLICATION);
+        final int flinkFileReplication = configuration.get(YarnConfigOptions.FILE_REPLICATION);
         final int replication =
                 YARN_CONFIGURATION.getInt(
                         DFSConfigKeys.DFS_REPLICATION_KEY, DFSConfigKeys.DFS_REPLICATION_DEFAULT);

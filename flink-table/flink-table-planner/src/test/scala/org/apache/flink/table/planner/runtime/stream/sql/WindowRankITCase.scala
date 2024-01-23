@@ -94,7 +94,7 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -139,7 +139,7 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -179,7 +179,7 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -216,7 +216,7 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected =
@@ -269,7 +269,7 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected =
@@ -322,7 +322,7 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected =
@@ -372,7 +372,7 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected =
@@ -420,7 +420,7 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -470,7 +470,7 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -513,7 +513,7 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -553,7 +553,7 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected =
@@ -615,7 +615,7 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected =
@@ -673,7 +673,7 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -729,7 +729,7 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -777,7 +777,7 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -816,7 +816,7 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -860,7 +860,7 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected =
@@ -934,7 +934,7 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected =

@@ -112,16 +112,20 @@ public class AsyncSinkWriterTest {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
-                        .maxBatchSize(4)
-                        .delay(100)
+                        .maxBatchSize(2)
+                        .delay(50)
                         .build();
-        for (int i = 0; i < 4; i++) {
-            sink.write(String.valueOf(i));
-        }
+        sink.write(String.valueOf(1));
+        // introduce artificial delay, shouldn't be calculated in send time
+        Thread.sleep(50);
+        long sendStartTimestamp = System.currentTimeMillis();
         sink.flush(true);
+        long sendCompleteTimestamp = System.currentTimeMillis();
+
         assertThat(sinkInitContext.getCurrentSendTimeGauge().get().getValue())
-                .isGreaterThanOrEqualTo(99);
-        assertThat(sinkInitContext.getCurrentSendTimeGauge().get().getValue()).isLessThan(120);
+                .isGreaterThanOrEqualTo(50);
+        assertThat(sinkInitContext.getCurrentSendTimeGauge().get().getValue())
+                .isLessThanOrEqualTo(sendCompleteTimestamp - sendStartTimestamp);
     }
 
     @Test
@@ -1040,7 +1044,7 @@ public class AsyncSinkWriterTest {
 
         private AsyncSinkWriterImpl(
                 ElementConverter<String, Integer> elementConverter,
-                Sink.WriterInitContext context,
+                Sink.InitContext context,
                 int maxBatchSize,
                 int maxInFlightRequests,
                 int maxBufferedRequests,
@@ -1179,7 +1183,7 @@ public class AsyncSinkWriterTest {
                 (elem, ctx) -> Integer.parseInt(elem);
         private boolean simulateFailures = false;
         private int delay = 0;
-        private Sink.WriterInitContext context;
+        private Sink.InitContext context;
         private int maxBatchSize = 10;
         private int maxInFlightRequests = 1;
         private int maxBufferedRequests = 100;
@@ -1193,7 +1197,7 @@ public class AsyncSinkWriterTest {
             return this;
         }
 
-        private AsyncSinkWriterImplBuilder context(Sink.WriterInitContext context) {
+        private AsyncSinkWriterImplBuilder context(Sink.InitContext context) {
             this.context = context;
             return this;
         }
@@ -1281,7 +1285,7 @@ public class AsyncSinkWriterTest {
         private final boolean blockForLimitedTime;
 
         public AsyncSinkReleaseAndBlockWriterImpl(
-                Sink.WriterInitContext context,
+                Sink.InitContext context,
                 int maxInFlightRequests,
                 CountDownLatch blockedThreadLatch,
                 CountDownLatch delayedStartLatch,

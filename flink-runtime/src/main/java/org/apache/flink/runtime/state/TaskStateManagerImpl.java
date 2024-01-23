@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReaderImpl;
@@ -134,6 +135,12 @@ public class TaskStateManagerImpl implements TaskStateManager {
         this.executionAttemptID = executionAttemptID;
         this.checkpointResponder = checkpointResponder;
         this.sequentialChannelStateReader = sequentialChannelStateReader;
+    }
+
+    @Override
+    public void reportInitializationMetrics(
+            SubTaskInitializationMetrics subTaskInitializationMetrics) {
+        checkpointResponder.reportInitializationMetrics(jobId, subTaskInitializationMetrics);
     }
 
     @Override

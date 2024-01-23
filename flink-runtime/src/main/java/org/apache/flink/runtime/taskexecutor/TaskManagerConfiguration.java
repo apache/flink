@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -186,7 +185,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
             TaskExecutorResourceSpec taskExecutorResourceSpec,
             String externalAddress,
             File tmpWorkingDirectory) {
-        int numberSlots = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
+        int numberSlots = configuration.get(TaskManagerOptions.NUM_TASK_SLOTS, 1);
 
         if (numberSlots == -1) {
             numberSlots = 1;
@@ -210,12 +209,10 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
             finiteRegistrationDuration = null;
         }
 
-        final boolean exitOnOom =
-                configuration.getBoolean(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY);
+        final boolean exitOnOom = configuration.get(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY);
 
         final String taskManagerLogPath =
-                configuration.getString(
-                        ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, System.getProperty("log.file"));
+                configuration.get(TaskManagerOptions.TASK_MANAGER_LOG_PATH);
         final String taskManagerStdoutPath;
         final String taskManagerLogDir;
 

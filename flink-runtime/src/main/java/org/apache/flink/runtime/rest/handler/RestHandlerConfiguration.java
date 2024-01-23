@@ -111,10 +111,9 @@ public class RestHandlerConfiguration {
     }
 
     public static RestHandlerConfiguration fromConfiguration(Configuration configuration) {
-        final long refreshInterval = configuration.getLong(WebOptions.REFRESH_INTERVAL);
+        final long refreshInterval = configuration.get(WebOptions.REFRESH_INTERVAL);
 
-        final int checkpointHistorySize =
-                configuration.getInteger(WebOptions.CHECKPOINTS_HISTORY_SIZE);
+        final int checkpointHistorySize = configuration.get(WebOptions.CHECKPOINTS_HISTORY_SIZE);
         final Duration checkpointStatsSnapshotCacheExpireAfterWrite =
                 configuration
                         .getOptional(RestOptions.CACHE_CHECKPOINT_STATISTICS_TIMEOUT)
@@ -122,18 +121,18 @@ public class RestHandlerConfiguration {
         final int checkpointStatsSnapshotCacheSize =
                 configuration.get(RestOptions.CACHE_CHECKPOINT_STATISTICS_SIZE);
 
-        final Time timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
+        final Time timeout = Time.milliseconds(configuration.get(WebOptions.TIMEOUT));
 
         final String rootDir = "flink-web-ui";
-        final File webUiDir = new File(configuration.getString(WebOptions.TMP_DIR), rootDir);
+        final File webUiDir = new File(configuration.get(WebOptions.TMP_DIR), rootDir);
 
-        final boolean webSubmitEnabled = configuration.getBoolean(WebOptions.SUBMIT_ENABLE);
-        final boolean webCancelEnabled = configuration.getBoolean(WebOptions.CANCEL_ENABLE);
+        final boolean webSubmitEnabled = configuration.get(WebOptions.SUBMIT_ENABLE);
+        final boolean webCancelEnabled = configuration.get(WebOptions.CANCEL_ENABLE);
         final boolean webRescaleSupported =
                 ClusterOptions.isAdaptiveSchedulerEnabled(configuration)
                         && !ClusterOptions.isReactiveModeEnabled(configuration);
         final boolean webRescaleEnabled =
-                webRescaleSupported && configuration.getBoolean(WebOptions.RESCALE_ENABLE);
+                webRescaleSupported && configuration.get(WebOptions.RESCALE_ENABLE);
 
         return new RestHandlerConfiguration(
                 refreshInterval,

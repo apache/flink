@@ -857,7 +857,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c, 
 +- Correlate(invocation=[split($cor0.c)], correlate=[table(split($cor0.c))], select=[a,b,c,d,e,f,i,j,k,l,m,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, BIGINT e, VARCHAR(2147483647) f, INTEGER i, BIGINT j, INTEGER k, VARCHAR(2147483647) l, BIGINT m, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
    +- HashJoin(joinType=[InnerJoin], where=[(a = i)], select=[a, b, c, d, e, f, i, j, k, l, m], build=[left])
       :- Exchange(distribution=[hash[a]])
-      :  +- HashJoin(joinType=[InnerJoin], where=[(b = e)], select=[a, b, c, d, e, f], build=[right])
+      :  +- HashJoin(joinType=[InnerJoin], where=[(b = e)], select=[a, b, c, d, e, f], build=[left])
       :     :- Exchange(distribution=[hash[b]])
       :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
       :     +- Exchange(distribution=[hash[e]])

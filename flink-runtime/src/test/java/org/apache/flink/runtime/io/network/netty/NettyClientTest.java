@@ -37,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for {@link NettyClient}. */
-public class NettyClientTest {
+class NettyClientTest {
     @Test
     void testSetKeepaliveOptionWithNioConfigurable() throws Exception {
         assumeThat(keepaliveForNioConfigurable()).isTrue();

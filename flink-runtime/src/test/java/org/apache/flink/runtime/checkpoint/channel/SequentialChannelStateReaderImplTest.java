@@ -31,6 +31,7 @@ import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListen
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -45,7 +46,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTe
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.apache.flink.shaded.guava31.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava32.com.google.common.io.Closer;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
@@ -156,7 +157,8 @@ public class SequentialChannelStateReaderImplTest {
                         resultPartition.getAllPartitions()[i].getSubpartitionInfo();
                 ResultSubpartitionView view =
                         resultPartition.createSubpartitionView(
-                                info.getSubPartitionIdx(), new NoOpBufferAvailablityListener());
+                                new ResultSubpartitionIndexSet(info.getSubPartitionIdx()),
+                                new NoOpBufferAvailablityListener());
                 for (BufferAndBacklog buffer = view.getNextBuffer();
                         buffer != null;
                         buffer = view.getNextBuffer()) {

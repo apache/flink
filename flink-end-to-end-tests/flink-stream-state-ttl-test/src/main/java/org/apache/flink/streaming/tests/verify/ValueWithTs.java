@@ -122,9 +122,7 @@ public class ValueWithTs<V> implements Serializable {
         private static final int VERSION = 2;
 
         @SuppressWarnings("unused")
-        public ValueWithTsSerializerSnapshot() {
-            super(Serializer.class);
-        }
+        public ValueWithTsSerializerSnapshot() {}
 
         ValueWithTsSerializerSnapshot(Serializer serializerInstance) {
             super(serializerInstance);

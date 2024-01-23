@@ -142,7 +142,8 @@ public class ResultPartitionFactory {
                 desc.getNumberOfSubpartitions(),
                 desc.getMaxParallelism(),
                 desc.isBroadcast(),
-                createBufferPoolFactory(desc.getNumberOfSubpartitions(), desc.getPartitionType()));
+                createBufferPoolFactory(desc.getNumberOfSubpartitions(), desc.getPartitionType()),
+                desc.isNumberOfPartitionConsumerUndefined());
     }
 
     @VisibleForTesting
@@ -154,7 +155,8 @@ public class ResultPartitionFactory {
             int numberOfSubpartitions,
             int maxParallelism,
             boolean isBroadcast,
-            SupplierWithException<BufferPool, IOException> bufferPoolFactory) {
+            SupplierWithException<BufferPool, IOException> bufferPoolFactory,
+            boolean isNumberOfPartitionConsumerUndefined) {
         BufferCompressor bufferCompressor = null;
         if (type.supportCompression() && batchShuffleCompressionEnabled) {
             bufferCompressor = new BufferCompressor(networkBufferSize, compressionCodec);
@@ -250,7 +252,8 @@ public class ResultPartitionFactory {
                                         bufferPoolFactory,
                                         channelManager,
                                         batchShuffleReadBufferPool,
-                                        batchShuffleReadIOExecutor);
+                                        batchShuffleReadIOExecutor,
+                                        isNumberOfPartitionConsumerUndefined);
             } else {
                 partition =
                         new HsResultPartition(
@@ -273,6 +276,8 @@ public class ResultPartitionFactory {
         } else {
             throw new IllegalArgumentException("Unrecognized ResultPartitionType: " + type);
         }
+
+        partition.isNumberOfPartitionConsumerUndefined(isNumberOfPartitionConsumerUndefined);
 
         LOG.debug("{}: Initialized {}", taskNameWithSubtaskAndId, this);
 

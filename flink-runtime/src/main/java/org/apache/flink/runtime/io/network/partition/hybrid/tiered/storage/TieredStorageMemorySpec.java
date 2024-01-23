@@ -30,9 +30,21 @@ public class TieredStorageMemorySpec {
     /** The number of guaranteed buffers of this memory owner. */
     private final int numGuaranteedBuffers;
 
+    /**
+     * Whether the buffers of this owner are guaranteed to be reclaimed, even if the downstream does
+     * not consume them promptly.
+     */
+    private final boolean guaranteedReclaimable;
+
     public TieredStorageMemorySpec(Object owner, int numGuaranteedBuffers) {
+        this(owner, numGuaranteedBuffers, true);
+    }
+
+    public TieredStorageMemorySpec(
+            Object owner, int numGuaranteedBuffers, boolean guaranteedReclaimable) {
         this.owner = owner;
         this.numGuaranteedBuffers = numGuaranteedBuffers;
+        this.guaranteedReclaimable = guaranteedReclaimable;
     }
 
     public Object getOwner() {
@@ -41,5 +53,9 @@ public class TieredStorageMemorySpec {
 
     public int getNumGuaranteedBuffers() {
         return numGuaranteedBuffers;
+    }
+
+    public boolean isGuaranteedReclaimable() {
+        return guaranteedReclaimable;
     }
 }

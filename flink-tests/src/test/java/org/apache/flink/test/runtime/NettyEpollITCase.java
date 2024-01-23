@@ -72,7 +72,7 @@ public class NettyEpollITCase extends TestLogger {
     private MiniClusterWithClientResource trySetUpCluster() throws Exception {
         try {
             Configuration config = new Configuration();
-            config.setString(NettyShuffleEnvironmentOptions.TRANSPORT_TYPE, "epoll");
+            config.set(NettyShuffleEnvironmentOptions.TRANSPORT_TYPE, "epoll");
             MiniClusterWithClientResource cluster =
                     new MiniClusterWithClientResource(
                             new MiniClusterResourceConfiguration.Builder()

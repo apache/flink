@@ -730,7 +730,7 @@ public class SavepointITCase extends TestLogger {
         final int numSlotsPerTaskManager = 1;
 
         final Configuration config = new Configuration();
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 
         final MiniClusterWithClientResource cluster =
                 new MiniClusterWithClientResource(
@@ -957,7 +957,7 @@ public class SavepointITCase extends TestLogger {
         int parallelism = numTaskManagers * numSlotsPerTaskManager;
 
         final Configuration config = new Configuration();
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 
         MiniClusterWithClientResource cluster =
                 new MiniClusterWithClientResource(
@@ -1238,7 +1238,7 @@ public class SavepointITCase extends TestLogger {
 
         // Flink configuration
         final Configuration config = new Configuration();
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 
         String savepointPath;
 
@@ -1482,7 +1482,7 @@ public class SavepointITCase extends TestLogger {
         public void open(OpenContext openContext) throws Exception {
             if (data == null) {
                 // We need this to be large, because we want to test with files
-                Random rand = new Random(getRuntimeContext().getIndexOfThisSubtask());
+                Random rand = new Random(getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
                 data =
                         new byte
                                 [(int)
@@ -1693,7 +1693,8 @@ public class SavepointITCase extends TestLogger {
 
         @Override
         public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
-            iterTestCheckpointVerify[getRuntimeContext().getIndexOfThisSubtask()] = emittedCount;
+            iterTestCheckpointVerify[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] =
+                    emittedCount;
             return Collections.singletonList(emittedCount);
         }
 
@@ -1703,9 +1704,11 @@ public class SavepointITCase extends TestLogger {
                 this.emittedCount = state.get(0);
             }
             Assert.assertEquals(
-                    iterTestCheckpointVerify[getRuntimeContext().getIndexOfThisSubtask()],
+                    iterTestCheckpointVerify[
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()],
                     emittedCount);
-            iterTestRestoreWait[getRuntimeContext().getIndexOfThisSubtask()].trigger();
+            iterTestRestoreWait[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()]
+                    .trigger();
         }
     }
 
@@ -1729,7 +1732,8 @@ public class SavepointITCase extends TestLogger {
             }
 
             if (30 == value) {
-                iterTestSnapshotWait[getRuntimeContext().getIndexOfThisSubtask()].trigger();
+                iterTestSnapshotWait[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()]
+                        .trigger();
             }
         }
     }
@@ -1762,11 +1766,10 @@ public class SavepointITCase extends TestLogger {
 
     private Configuration getFileBasedCheckpointsConfig(final String savepointDir) {
         final Configuration config = new Configuration();
-        config.setString(StateBackendOptions.STATE_BACKEND, "filesystem");
-        config.setString(
-                CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
+        config.set(StateBackendOptions.STATE_BACKEND, "filesystem");
+        config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
         config.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, MemorySize.ZERO);
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
         return config;
     }
 

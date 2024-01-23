@@ -67,6 +67,8 @@ import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.source.coordinator.SourceCoordinator;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
@@ -77,7 +79,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -103,6 +107,9 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
     private final Map<IntermediateDataSetID, BlockingResultInfo> blockingResultInfos;
 
     private final HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint;
+
+    private final Map<JobVertexID, CompletableFuture<Integer>>
+            sourceParallelismFuturesByJobVertexId;
 
     public AdaptiveBatchScheduler(
             final Logger log,
@@ -172,22 +179,28 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
         this.blockingResultInfos = new HashMap<>();
 
         this.hybridPartitionDataConsumeConstraint = hybridPartitionDataConsumeConstraint;
+
+        this.sourceParallelismFuturesByJobVertexId = new HashMap<>();
     }
 
     @Override
     protected void startSchedulingInternal() {
-        initializeVerticesIfPossible();
-
-        super.startSchedulingInternal();
+        tryComputeSourceParallelismThenRunAsync(
+                (Void value, Throwable throwable) -> {
+                    initializeVerticesIfPossible();
+                    super.startSchedulingInternal();
+                });
     }
 
     @Override
     protected void onTaskFinished(final Execution execution, final IOMetrics ioMetrics) {
         checkNotNull(ioMetrics);
         updateResultPartitionBytesMetrics(ioMetrics.getResultPartitionBytes());
-        initializeVerticesIfPossible();
-
-        super.onTaskFinished(execution, ioMetrics);
+        tryComputeSourceParallelismThenRunAsync(
+                (Void value, Throwable throwable) -> {
+                    initializeVerticesIfPossible();
+                    super.onTaskFinished(execution, ioMetrics);
+                });
     }
 
     private void updateResultPartitionBytesMetrics(
@@ -257,6 +270,74 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
                         || hybridPartitionDataConsumeConstraint.isOnlyConsumeFinishedPartition();
     }
 
+    private void tryComputeSourceParallelismThenRunAsync(BiConsumer<Void, Throwable> action) {
+        // Ensure `initializeVerticesIfPossible` is invoked asynchronously post
+        // `computeDynamicSourceParallelism`. Any method required to run after
+        // `initializeVerticesIfPossible` should be enqueued within the same asynchronous action to
+        // maintain the correct execution order.
+        FutureUtils.ConjunctFuture<Void> dynamicSourceParallelismFutures =
+                FutureUtils.waitForAll(computeDynamicSourceParallelism());
+        dynamicSourceParallelismFutures
+                .whenCompleteAsync(action, getMainThreadExecutor())
+                .exceptionally(
+                        throwable -> {
+                            log.error("An unexpected error occurred while scheduling.", throwable);
+                            this.handleGlobalFailure(new SuppressRestartsException(throwable));
+                            return null;
+                        });
+    }
+
+    public List<CompletableFuture<Integer>> computeDynamicSourceParallelism() {
+        final List<CompletableFuture<Integer>> dynamicSourceParallelismFutures = new ArrayList<>();
+        for (ExecutionJobVertex jobVertex : getExecutionGraph().getVerticesTopologically()) {
+            List<SourceCoordinator<?, ?>> sourceCoordinators = jobVertex.getSourceCoordinators();
+            if (sourceCoordinators.isEmpty() || jobVertex.isParallelismDecided()) {
+                continue;
+            }
+            if (sourceParallelismFuturesByJobVertexId.containsKey(jobVertex.getJobVertexId())) {
+                dynamicSourceParallelismFutures.add(
+                        sourceParallelismFuturesByJobVertexId.get(jobVertex.getJobVertexId()));
+                continue;
+            }
+
+            // We need to wait for the upstream vertex to complete, otherwise, dynamic filtering
+            // information will be inaccessible during source parallelism inference.
+            Optional<List<BlockingResultInfo>> consumedResultsInfo =
+                    tryGetConsumedResultsInfo(jobVertex);
+            if (consumedResultsInfo.isPresent()) {
+                List<CompletableFuture<Integer>> sourceParallelismFutures =
+                        sourceCoordinators.stream()
+                                .map(
+                                        sourceCoordinator ->
+                                                sourceCoordinator.inferSourceParallelismAsync(
+                                                        vertexParallelismAndInputInfosDecider
+                                                                .computeSourceParallelismUpperBound(
+                                                                        jobVertex.getJobVertexId(),
+                                                                        jobVertex
+                                                                                .getMaxParallelism()),
+                                                        vertexParallelismAndInputInfosDecider
+                                                                .getDataVolumePerTask()))
+                                .collect(Collectors.toList());
+                CompletableFuture<Integer> dynamicSourceParallelismFuture =
+                        mergeDynamicParallelismFutures(sourceParallelismFutures);
+                sourceParallelismFuturesByJobVertexId.put(
+                        jobVertex.getJobVertexId(), dynamicSourceParallelismFuture);
+                dynamicSourceParallelismFutures.add(dynamicSourceParallelismFuture);
+            }
+        }
+
+        return dynamicSourceParallelismFutures;
+    }
+
+    @VisibleForTesting
+    static CompletableFuture<Integer> mergeDynamicParallelismFutures(
+            List<CompletableFuture<Integer>> sourceParallelismFutures) {
+        return sourceParallelismFutures.stream()
+                .reduce(
+                        CompletableFuture.completedFuture(ExecutionConfig.PARALLELISM_DEFAULT),
+                        (a, b) -> a.thenCombine(b, Math::max));
+    }
+
     @VisibleForTesting
     public void initializeVerticesIfPossible() {
         final List<ExecutionJobVertex> newlyInitializedJobVertices = new ArrayList<>();
@@ -278,9 +359,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
                     // ExecutionGraph#initializeJobVertex(ExecutionJobVertex, long) to initialize.
                     // TODO: In the future, if we want to load balance for job vertices whose
                     // parallelism has already been decided, we need to refactor the logic here.
-                    getExecutionGraph()
-                            .initializeJobVertex(
-                                    jobVertex, createTimestamp, jobManagerJobMetricGroup);
+                    getExecutionGraph().initializeJobVertex(jobVertex, createTimestamp);
                     newlyInitializedJobVertices.add(jobVertex);
                 } else {
                     Optional<List<BlockingResultInfo>> consumedResultsInfo =
@@ -296,8 +375,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
                                 .initializeJobVertex(
                                         jobVertex,
                                         createTimestamp,
-                                        parallelismAndInputInfos.getJobVertexInputInfos(),
-                                        jobManagerJobMetricGroup);
+                                        parallelismAndInputInfos.getJobVertexInputInfos());
                         newlyInitializedJobVertices.add(jobVertex);
                     }
                 }
@@ -314,34 +392,51 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
 
     private ParallelismAndInputInfos tryDecideParallelismAndInputInfos(
             final ExecutionJobVertex jobVertex, List<BlockingResultInfo> inputs) {
-        int parallelism = jobVertex.getParallelism();
+        int vertexInitialParallelism = jobVertex.getParallelism();
         ForwardGroup forwardGroup = forwardGroupsByJobVertexId.get(jobVertex.getJobVertexId());
         if (!jobVertex.isParallelismDecided()
                 && forwardGroup != null
                 && forwardGroup.isParallelismDecided()) {
-            parallelism = forwardGroup.getParallelism();
+            vertexInitialParallelism = forwardGroup.getParallelism();
             log.info(
                     "Parallelism of JobVertex: {} ({}) is decided to be {} according to forward group's parallelism.",
                     jobVertex.getName(),
                     jobVertex.getJobVertexId(),
-                    parallelism);
+                    vertexInitialParallelism);
+        }
+
+        int vertexMinParallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+        if (sourceParallelismFuturesByJobVertexId.containsKey(jobVertex.getJobVertexId())) {
+            int dynamicSourceParallelism = getDynamicSourceParallelism(jobVertex);
+            // If the JobVertex only acts as a source vertex, dynamicSourceParallelism will serve as
+            // the vertex's initial parallelism and will remain unchanged. If the JobVertex is also
+            // a source with upstream inputs, dynamicSourceParallelism will serve as the vertex's
+            // minimum parallelism, with the final parallelism being the maximum of
+            // dynamicSourceParallelism and the vertex's dynamic parallelism according to upstream
+            // inputs.
+            if (!inputs.isEmpty()) {
+                vertexMinParallelism = dynamicSourceParallelism;
+            } else {
+                vertexInitialParallelism = dynamicSourceParallelism;
+            }
         }
 
         final ParallelismAndInputInfos parallelismAndInputInfos =
                 vertexParallelismAndInputInfosDecider.decideParallelismAndInputInfosForVertex(
                         jobVertex.getJobVertexId(),
                         inputs,
-                        parallelism,
+                        vertexInitialParallelism,
+                        vertexMinParallelism,
                         jobVertex.getMaxParallelism());
 
-        if (parallelism == ExecutionConfig.PARALLELISM_DEFAULT) {
+        if (vertexInitialParallelism == ExecutionConfig.PARALLELISM_DEFAULT) {
             log.info(
                     "Parallelism of JobVertex: {} ({}) is decided to be {}.",
                     jobVertex.getName(),
                     jobVertex.getJobVertexId(),
                     parallelismAndInputInfos.getParallelism());
         } else {
-            checkState(parallelismAndInputInfos.getParallelism() == parallelism);
+            checkState(parallelismAndInputInfos.getParallelism() == vertexInitialParallelism);
         }
 
         if (forwardGroup != null && !forwardGroup.isParallelismDecided()) {
@@ -349,6 +444,36 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
         }
 
         return parallelismAndInputInfos;
+    }
+
+    private int getDynamicSourceParallelism(ExecutionJobVertex jobVertex) {
+        CompletableFuture<Integer> dynamicSourceParallelismFuture =
+                sourceParallelismFuturesByJobVertexId.get(jobVertex.getJobVertexId());
+        int dynamicSourceParallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+        if (dynamicSourceParallelismFuture != null) {
+            dynamicSourceParallelism = dynamicSourceParallelismFuture.join();
+            int vertexMaxParallelism = jobVertex.getMaxParallelism();
+            if (dynamicSourceParallelism > vertexMaxParallelism) {
+                log.info(
+                        "The dynamic inferred source parallelism {} is larger than the maximum parallelism {}. "
+                                + "Use {} as the upper bound parallelism of source job vertex {}.",
+                        dynamicSourceParallelism,
+                        vertexMaxParallelism,
+                        vertexMaxParallelism,
+                        jobVertex.getJobVertexId());
+                dynamicSourceParallelism = vertexMaxParallelism;
+            } else if (dynamicSourceParallelism > 0) {
+                log.info(
+                        "Parallelism of JobVertex: {} ({}) is decided to be {} according to dynamic source parallelism inference.",
+                        jobVertex.getName(),
+                        jobVertex.getJobVertexId(),
+                        dynamicSourceParallelism);
+            } else {
+                dynamicSourceParallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+            }
+        }
+
+        return dynamicSourceParallelism;
     }
 
     private void enrichInputBytesForExecutionVertices(List<ExecutionVertex> executionVertices) {
@@ -451,7 +576,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
 
     private void initializeOperatorCoordinatorsFor(ExecutionJobVertex vertex) {
         operatorCoordinatorHandler.registerAndStartNewCoordinators(
-                vertex.getOperatorCoordinators(), getMainThreadExecutor());
+                vertex.getOperatorCoordinators(), getMainThreadExecutor(), vertex.getParallelism());
     }
 
     /**

@@ -35,11 +35,14 @@ import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.representer.Represent
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -71,9 +74,21 @@ public class YamlParserUtils {
                         loaderOptions);
     }
 
-    public static synchronized Map<String, Object> loadYamlFile(File file) throws Exception {
+    /**
+     * Loads the contents of the given YAML file into a map.
+     *
+     * @param file the YAML file to load.
+     * @return a non-null map representing the YAML content. If the file is empty or only contains
+     *     comments, an empty map is returned.
+     * @throws FileNotFoundException if the YAML file is not found.
+     * @throws YAMLException if the file cannot be parsed.
+     * @throws IOException if an I/O error occurs while reading from the file stream.
+     */
+    public static synchronized @Nonnull Map<String, Object> loadYamlFile(File file)
+            throws Exception {
         try (FileInputStream inputStream = new FileInputStream((file))) {
-            return yaml.load(inputStream);
+            Map<String, Object> yamlResult = yaml.load(inputStream);
+            return yamlResult == null ? new HashMap<>() : yamlResult;
         } catch (FileNotFoundException e) {
             LOG.error("Failed to find YAML file", e);
             throw e;

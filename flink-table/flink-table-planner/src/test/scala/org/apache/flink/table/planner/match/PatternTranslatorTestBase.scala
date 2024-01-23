@@ -121,10 +121,10 @@ abstract class PatternTranslatorTestBase {
       val sameSkipStrategy = currentLeft.getAfterMatchSkipStrategy ==
         currentRight.getAfterMatchSkipStrategy
 
-      val sameTimeWindow = if (currentLeft.getWindowTime != null && currentRight != null) {
-        currentLeft.getWindowTime.toMilliseconds == currentRight.getWindowTime.toMilliseconds
+      val sameTimeWindow = if (currentLeft.getWindowSize.isPresent && currentRight != null) {
+        currentLeft.getWindowSize.get.toMillis == currentRight.getWindowSize.get.toMillis
       } else {
-        currentLeft.getWindowTime == null && currentRight.getWindowTime == null
+        !currentLeft.getWindowSize.isPresent && !currentRight.getWindowSize.isPresent
       }
 
       currentLeft = currentLeft.getPrevious

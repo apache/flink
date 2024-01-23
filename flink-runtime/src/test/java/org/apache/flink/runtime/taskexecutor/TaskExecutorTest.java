@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
@@ -121,7 +120,7 @@ import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriConsumerWithException;
 
 import org.apache.flink.shaded.curator5.com.google.common.collect.Iterators;
-import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -165,6 +164,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.stream.IntStream.range;
+import static org.apache.flink.configuration.TaskManagerOptions.TASK_MANAGER_LOG_PATH;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup;
 import static org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils.DEFAULT_RESOURCE_PROFILE;
@@ -2226,11 +2226,10 @@ class TaskExecutorTest {
     @Test
     @Timeout(10)
     void testLogNotFoundHandling() throws Throwable {
-        configuration.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, 0);
-        configuration.setInteger(
-                NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
-        configuration.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
-        configuration.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, "/i/dont/exist");
+        configuration.set(NettyShuffleEnvironmentOptions.DATA_PORT, 0);
+        configuration.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+        configuration.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+        configuration.set(TASK_MANAGER_LOG_PATH, "/i/dont/exist");
 
         try (TaskSubmissionTestEnvironment env =
                 new Builder(jobId)
@@ -2756,7 +2755,7 @@ class TaskExecutorTest {
                         .setTaskSlotTable(taskSlotTable)
                         .setUnresolvedTaskManagerLocation(unresolvedTaskManagerLocation)
                         .build();
-        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numberOFSlots);
+        configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, numberOFSlots);
         return createTaskExecutor(taskManagerServices);
     }
 

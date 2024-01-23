@@ -77,10 +77,10 @@ public class KubernetesJobManagerFactory {
                                 new ExternalServiceDecorator(kubernetesJobManagerParameters)));
 
         Configuration configuration = kubernetesJobManagerParameters.getFlinkConfiguration();
-        if (configuration.getBoolean(KUBERNETES_HADOOP_CONF_MOUNT_DECORATOR_ENABLED)) {
+        if (configuration.get(KUBERNETES_HADOOP_CONF_MOUNT_DECORATOR_ENABLED)) {
             stepDecorators.add(new HadoopConfMountDecorator(kubernetesJobManagerParameters));
         }
-        if (configuration.getBoolean(KUBERNETES_KERBEROS_MOUNT_DECORATOR_ENABLED)) {
+        if (configuration.get(KUBERNETES_KERBEROS_MOUNT_DECORATOR_ENABLED)) {
             stepDecorators.add(new KerberosMountDecorator(kubernetesJobManagerParameters));
         }
 

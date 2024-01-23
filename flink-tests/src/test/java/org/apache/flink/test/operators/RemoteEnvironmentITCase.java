@@ -60,7 +60,7 @@ public class RemoteEnvironmentITCase extends TestLogger {
     @Test
     public void testUserSpecificParallelism() throws Exception {
         Configuration config = new Configuration();
-        config.setString(AkkaOptions.STARTUP_TIMEOUT, VALID_STARTUP_TIMEOUT);
+        config.set(AkkaOptions.STARTUP_TIMEOUT, VALID_STARTUP_TIMEOUT);
 
         final URI restAddress = MINI_CLUSTER_RESOURCE.getRestAddress();
         final String hostname = restAddress.getHost();
@@ -79,7 +79,10 @@ public class RemoteEnvironmentITCase extends TestLogger {
                                     public void mapPartition(
                                             Iterable<Integer> values, Collector<Integer> out)
                                             throws Exception {
-                                        out.collect(getRuntimeContext().getIndexOfThisSubtask());
+                                        out.collect(
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getIndexOfThisSubtask());
                                     }
                                 });
         List<Integer> resultCollection = result.collect();

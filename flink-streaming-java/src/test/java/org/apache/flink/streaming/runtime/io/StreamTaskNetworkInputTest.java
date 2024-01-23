@@ -42,6 +42,7 @@ import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.streaming.api.operators.source.CollectingDataOutput;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierTracker;
@@ -49,6 +50,8 @@ import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate
 import org.apache.flink.streaming.runtime.io.checkpointing.SingleCheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.io.checkpointing.UpstreamRecoveryTracker;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributesBuilder;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -317,6 +320,54 @@ public class StreamTaskNetworkInputTest {
         assertThat(output.getNumberOfEmittedRecords()).isEqualTo(expectedElementCount * 2);
     }
 
+    @Test
+    public void testProcessRecordAttributes() throws Exception {
+        int numInputChannels = 2;
+        LongSerializer inSerializer = LongSerializer.INSTANCE;
+        StreamTestSingleInputGate<Long> inputGate =
+                new StreamTestSingleInputGate<>(numInputChannels, 0, inSerializer, 1024);
+        StreamTaskNetworkInput<Long> input =
+                new StreamTaskNetworkInput<>(
+                        createCheckpointedInputGate(inputGate.getInputGate()),
+                        inSerializer,
+                        ioManager,
+                        new StatusWatermarkValve(numInputChannels),
+                        0,
+                        () -> true);
+
+        final CollectingDataOutput<Long> output = new CollectingDataOutput<>();
+
+        final RecordAttributes backlogRecordAttributes =
+                new RecordAttributesBuilder(Collections.emptyList()).setBacklog(true).build();
+        final RecordAttributes nonBacklogRecordAttributes =
+                new RecordAttributesBuilder(Collections.emptyList()).setBacklog(false).build();
+        final StreamRecord<Long> element1 = new StreamRecord<>(0L, 0);
+        final StreamRecord<Long> element2 = new StreamRecord<>(1L, 1);
+        final StreamRecord<Long> element3 = new StreamRecord<>(2L, 2);
+
+        inputGate.sendElement(element1, 1);
+        inputGate.sendElement(backlogRecordAttributes, 0);
+        input.emitNext(output);
+        assertThat(output.getEvents()).containsExactly(element1, backlogRecordAttributes);
+        output.getEvents().clear();
+
+        inputGate.sendElement(backlogRecordAttributes, 1);
+        inputGate.sendElement(element2, 1);
+        inputGate.sendElement(element3, 1);
+        input.emitNext(output);
+        assertThat(output.getEvents()).isEmpty();
+
+        input.emitNext(output);
+        assertThat(output.getEvents()).containsExactly(element2, element3);
+        output.getEvents().clear();
+
+        inputGate.sendElement(nonBacklogRecordAttributes, 0);
+        inputGate.sendElement(nonBacklogRecordAttributes, 1);
+        input.emitNext(output);
+        input.emitNext(output);
+        assertThat(output.getEvents()).containsExactly(nonBacklogRecordAttributes);
+    }
+
     private BufferOrEvent createDataBuffer() throws IOException {
         try (BufferBuilder bufferBuilder =
                 BufferBuilderTestUtils.createEmptyBufferBuilder(PAGE_SIZE)) {
@@ -399,6 +450,9 @@ public class StreamTaskNetworkInputTest {
 
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) {}
+
+        @Override
+        public void emitRecordAttributes(RecordAttributes recordAttributes) {}
     }
 
     private static class VerifyRecordsDataOutput<T> extends NoOpDataOutput<T> {

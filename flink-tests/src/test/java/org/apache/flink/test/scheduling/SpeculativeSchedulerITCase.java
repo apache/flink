@@ -28,6 +28,7 @@ import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.api.connector.sink2.CommitterInitContext;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink.PrecommittingSinkWriter;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -243,9 +244,9 @@ class SpeculativeSchedulerITCase {
     }
 
     private Configuration configure(final Configuration configuration) {
-        configuration.setString(RestOptions.BIND_PORT, "0");
+        configuration.set(RestOptions.BIND_PORT, "0");
         configuration.set(JobManagerOptions.ARCHIVE_DIR, temporaryFolder.getRoot().toString());
-        configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 5000L);
+        configuration.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 5000L);
         configuration.set(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE, 1);
         configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4kb"));
         configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, MAX_PARALLELISM);
@@ -424,8 +425,8 @@ class SpeculativeSchedulerITCase {
         public void run(SourceContext<Long> ctx) throws Exception {
             maybeSleep();
 
-            final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
-            final int numSubtasks = getRuntimeContext().getNumberOfParallelSubtasks();
+            final int subtaskIndex = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
+            final int numSubtasks = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
 
             final long start = subtaskIndex * NUMBERS_TO_PRODUCE / numSubtasks;
             final long end = (subtaskIndex + 1) * NUMBERS_TO_PRODUCE / numSubtasks;
@@ -517,7 +518,8 @@ class SpeculativeSchedulerITCase {
 
         @Override
         public void finish() {
-            numberCountResults.put(getRuntimeContext().getIndexOfThisSubtask(), numberCountResult);
+            numberCountResults.put(
+                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(), numberCountResult);
         }
     }
 
@@ -527,9 +529,10 @@ class SpeculativeSchedulerITCase {
 
         @Override
         public PrecommittingSinkWriter<Long, Tuple3<Integer, Integer, Map<Long, Long>>>
-                createWriter(WriterInitContext context) {
+                createWriter(InitContext context) {
             return new DummyPrecommittingSinkWriter(
-                    context.getSubtaskId(), context.getAttemptNumber());
+                    context.getTaskInfo().getIndexOfThisSubtask(),
+                    context.getTaskInfo().getAttemptNumber());
         }
 
         @Override
@@ -648,9 +651,10 @@ class SpeculativeSchedulerITCase {
 
         @Override
         public void finish() {
-            if (getRuntimeContext().getAttemptNumber() == 0) {
+            if (getRuntimeContext().getTaskInfo().getAttemptNumber() == 0) {
                 numberCountResults.put(
-                        getRuntimeContext().getIndexOfThisSubtask(), numberCountResult);
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        numberCountResult);
             }
         }
     }
@@ -668,7 +672,8 @@ class SpeculativeSchedulerITCase {
 
         @Override
         public void finish() {
-            numberCountResults.put(getRuntimeContext().getIndexOfThisSubtask(), numberCountResult);
+            numberCountResults.put(
+                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(), numberCountResult);
         }
     }
 

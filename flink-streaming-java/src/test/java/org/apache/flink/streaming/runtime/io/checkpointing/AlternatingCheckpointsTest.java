@@ -112,7 +112,7 @@ public class AlternatingCheckpointsTest {
                     gate,
                     0); // using AC because UC would require ordering in gate while polling
             ((RemoteInputChannel) gate.getChannel(0))
-                    .onBuffer(createBuffer(1024), 1, 0); // to be captured
+                    .onBuffer(createBuffer(1024), 1, 0, 0); // to be captured
             send(
                     toBuffer(
                             new CheckpointBarrier(
@@ -221,7 +221,7 @@ public class AlternatingCheckpointsTest {
                                     CheckpointType.CHECKPOINT,
                                     getDefault(),
                                     alignedCheckpointTimeout));
-            ((RemoteInputChannel) gate.getChannel(0)).onBuffer(barrier1.retainBuffer(), 0, 0);
+            ((RemoteInputChannel) gate.getChannel(0)).onBuffer(barrier1.retainBuffer(), 0, 0, 0);
             assertAnnouncement(gate);
             clock.advanceTime(alignedCheckpointTimeout + 1, TimeUnit.MILLISECONDS);
             assertBarrier(gate);
@@ -235,7 +235,7 @@ public class AlternatingCheckpointsTest {
                                     CheckpointType.CHECKPOINT,
                                     getDefault(),
                                     alignedCheckpointTimeout));
-            ((RemoteInputChannel) gate.getChannel(0)).onBuffer(barrier2.retainBuffer(), 1, 0);
+            ((RemoteInputChannel) gate.getChannel(0)).onBuffer(barrier2.retainBuffer(), 1, 0, 0);
             assertAnnouncement(gate);
             assertBarrier(gate);
 
@@ -315,11 +315,11 @@ public class AlternatingCheckpointsTest {
             throws Exception {
         Buffer checkpointBarrier = withTimeout(alignedCheckpointTimeout);
 
-        getChannel(gate, 0).onBuffer(dataBuffer(), 0, 0);
-        getChannel(gate, 0).onBuffer(dataBuffer(), 1, 0);
-        getChannel(gate, 0).onBuffer(checkpointBarrier.retainBuffer(), 2, 0);
-        getChannel(gate, 1).onBuffer(dataBuffer(), 0, 0);
-        getChannel(gate, 1).onBuffer(checkpointBarrier.retainBuffer(), 1, 0);
+        getChannel(gate, 0).onBuffer(dataBuffer(), 0, 0, 0);
+        getChannel(gate, 0).onBuffer(dataBuffer(), 1, 0, 0);
+        getChannel(gate, 0).onBuffer(checkpointBarrier.retainBuffer(), 2, 0, 0);
+        getChannel(gate, 1).onBuffer(dataBuffer(), 0, 0, 0);
+        getChannel(gate, 1).onBuffer(checkpointBarrier.retainBuffer(), 1, 0, 0);
 
         assertEquals(0, target.getTriggeredCheckpointCounter());
         assertAnnouncement(gate);
@@ -360,7 +360,7 @@ public class AlternatingCheckpointsTest {
         Buffer checkpointBarrier = withTimeout(alignedCheckpointTimeout);
 
         for (int i = 0; i < numChannels; i++) {
-            (getChannel(gate, i)).onBuffer(checkpointBarrier.retainBuffer(), 0, 0);
+            (getChannel(gate, i)).onBuffer(checkpointBarrier.retainBuffer(), 0, 0, 0);
         }
 
         assertEquals(0, target.getTriggeredCheckpointCounter());
@@ -416,8 +416,8 @@ public class AlternatingCheckpointsTest {
 
         // when: Execute the first checkpoint when announcement received first.
         ((TestInputChannel) gate.getChannel(0)).read(checkpointBarrier.retainBuffer());
-        (getChannel(gate, 1)).onBuffer(checkpointBarrier.retainBuffer(), 0, 0);
-        (getChannel(gate, 2)).onBuffer(checkpointBarrier.retainBuffer(), 0, 0);
+        (getChannel(gate, 1)).onBuffer(checkpointBarrier.retainBuffer(), 0, 0, 0);
+        (getChannel(gate, 2)).onBuffer(checkpointBarrier.retainBuffer(), 0, 0, 0);
 
         assertAnnouncement(gate);
         assertAnnouncement(gate);
@@ -444,7 +444,7 @@ public class AlternatingCheckpointsTest {
         // when: Receiving the barrier from second channel(with/without) announcement after time
         // more than alignment timeout.
         clock.advanceTime(alignedCheckpointTimeout + 1, TimeUnit.MILLISECONDS);
-        (getChannel(gate, 1)).onBuffer(checkpointBarrier.retainBuffer(), 1, 0);
+        (getChannel(gate, 1)).onBuffer(checkpointBarrier.retainBuffer(), 1, 0, 0);
         assertAnnouncement(gate);
         assertBarrier(gate);
 
@@ -473,8 +473,8 @@ public class AlternatingCheckpointsTest {
             ((TestInputChannel) gate.getChannel(0)).read(dataBuffer());
             assertBarrier(gate);
 
-            getChannel(gate, 1).onBuffer(dataBuffer(), 0, 0);
-            getChannel(gate, 1).onBuffer(checkpointBarrier.retainBuffer(), 1, 0);
+            getChannel(gate, 1).onBuffer(dataBuffer(), 0, 0, 0);
+            getChannel(gate, 1).onBuffer(checkpointBarrier.retainBuffer(), 1, 0, 0);
 
             assertEquals(0, target.getTriggeredCheckpointCounter());
             clock.advanceTimeWithoutRunningCallables(
@@ -518,8 +518,8 @@ public class AlternatingCheckpointsTest {
         Buffer checkpointBarrier = withTimeout(2, alignedCheckpointTimeout);
 
         for (int i = 0; i < numChannels; i++) {
-            (getChannel(gate, i)).onBuffer(dataBuffer(), 1, 0);
-            (getChannel(gate, i)).onBuffer(checkpointBarrier.retainBuffer(), 2, 0);
+            (getChannel(gate, i)).onBuffer(dataBuffer(), 1, 0, 0);
+            (getChannel(gate, i)).onBuffer(checkpointBarrier.retainBuffer(), 2, 0, 0);
         }
 
         assertEquals(1, target.getTriggeredCheckpointCounter());
@@ -542,7 +542,7 @@ public class AlternatingCheckpointsTest {
             throws IOException, InterruptedException {
         Buffer checkpointBarrier = withTimeout(1, alignedCheckpointTimeout);
         for (int i = 0; i < numChannels; i++) {
-            (getChannel(gate, i)).onBuffer(checkpointBarrier.retainBuffer(), 0, 0);
+            (getChannel(gate, i)).onBuffer(checkpointBarrier.retainBuffer(), 0, 0, 0);
         }
         assertEquals(0, target.getTriggeredCheckpointCounter());
         for (int i = 0; i < numChannels; i++) {
@@ -567,13 +567,13 @@ public class AlternatingCheckpointsTest {
         long alignedCheckpointTimeout = 100;
         Buffer checkpointBarrier = withTimeout(alignedCheckpointTimeout);
 
-        (getChannel(gate, 0)).onBuffer(checkpointBarrier.retainBuffer(), 0, 0);
+        (getChannel(gate, 0)).onBuffer(checkpointBarrier.retainBuffer(), 0, 0, 0);
         assertEquals(0, target.getTriggeredCheckpointCounter());
         assertAnnouncement(gate);
         assertBarrier(gate);
         clock.advanceTimeWithoutRunningCallables(
                 alignedCheckpointTimeout * 4, TimeUnit.MILLISECONDS);
-        (getChannel(gate, 1)).onBuffer(checkpointBarrier.retainBuffer(), 0, 0);
+        (getChannel(gate, 1)).onBuffer(checkpointBarrier.retainBuffer(), 0, 0, 0);
         assertAnnouncement(gate);
 
         assertBarrier(gate);
@@ -733,11 +733,11 @@ public class AlternatingCheckpointsTest {
             long alignedCheckpointTimeout = 10;
             Buffer checkpointBarrier = withTimeout(alignedCheckpointTimeout);
 
-            getChannel(gate, 0).onBuffer(dataBuffer(), 0, 0);
-            getChannel(gate, 0).onBuffer(dataBuffer(), 1, 0);
-            getChannel(gate, 0).onBuffer(checkpointBarrier.retainBuffer(), 2, 0);
-            getChannel(gate, 1).onBuffer(dataBuffer(), 0, 0);
-            getChannel(gate, 1).onBuffer(checkpointBarrier.retainBuffer(), 1, 0);
+            getChannel(gate, 0).onBuffer(dataBuffer(), 0, 0, 0);
+            getChannel(gate, 0).onBuffer(dataBuffer(), 1, 0, 0);
+            getChannel(gate, 0).onBuffer(checkpointBarrier.retainBuffer(), 2, 0, 0);
+            getChannel(gate, 1).onBuffer(dataBuffer(), 0, 0, 0);
+            getChannel(gate, 1).onBuffer(checkpointBarrier.retainBuffer(), 1, 0, 0);
 
             assertEquals(0, target.getTriggeredCheckpointCounter());
             assertAnnouncement(gate);
@@ -770,11 +770,11 @@ public class AlternatingCheckpointsTest {
             long alignedCheckpointTimeout = 10;
             Buffer checkpointBarrier = withTimeout(alignedCheckpointTimeout);
 
-            getChannel(gate, 0).onBuffer(dataBuffer(), 0, 0);
-            getChannel(gate, 0).onBuffer(dataBuffer(), 1, 0);
-            getChannel(gate, 0).onBuffer(checkpointBarrier.retainBuffer(), 2, 0);
-            getChannel(gate, 1).onBuffer(dataBuffer(), 0, 0);
-            getChannel(gate, 1).onBuffer(checkpointBarrier.retainBuffer(), 1, 0);
+            getChannel(gate, 0).onBuffer(dataBuffer(), 0, 0, 0);
+            getChannel(gate, 0).onBuffer(dataBuffer(), 1, 0, 0);
+            getChannel(gate, 0).onBuffer(checkpointBarrier.retainBuffer(), 2, 0, 0);
+            getChannel(gate, 1).onBuffer(dataBuffer(), 0, 0, 0);
+            getChannel(gate, 1).onBuffer(checkpointBarrier.retainBuffer(), 1, 0, 0);
 
             assertEquals(0, target.getTriggeredCheckpointCounter());
             assertAnnouncement(gate);
@@ -812,10 +812,10 @@ public class AlternatingCheckpointsTest {
             long alignmentCheckpointTimeout = 10;
             Buffer checkpointBarrier = withTimeout(alignmentCheckpointTimeout);
 
-            getChannel(gate, 0).onBuffer(dataBuffer(), 0, 0);
-            getChannel(gate, 0).onBuffer(checkpointBarrier.retainBuffer(), 1, 0);
-            getChannel(gate, 1).onBuffer(dataBuffer(), 0, 0);
-            getChannel(gate, 1).onBuffer(checkpointBarrier.retainBuffer(), 1, 0);
+            getChannel(gate, 0).onBuffer(dataBuffer(), 0, 0, 0);
+            getChannel(gate, 0).onBuffer(checkpointBarrier.retainBuffer(), 1, 0, 0);
+            getChannel(gate, 1).onBuffer(dataBuffer(), 0, 0, 0);
+            getChannel(gate, 1).onBuffer(checkpointBarrier.retainBuffer(), 1, 0, 0);
 
             assertEquals(0, target.getTriggeredCheckpointCounter());
 
@@ -855,9 +855,9 @@ public class AlternatingCheckpointsTest {
             long alignedCheckpointTimeout = 10;
             Buffer checkpointBarrier = withTimeout(alignedCheckpointTimeout);
 
-            getChannel(gate, 0).onBuffer(dataBuffer(), 0, 0);
-            getChannel(gate, 0).onBuffer(dataBuffer(), 1, 0);
-            getChannel(gate, 0).onBuffer(checkpointBarrier.retainBuffer(), 2, 0);
+            getChannel(gate, 0).onBuffer(dataBuffer(), 0, 0, 0);
+            getChannel(gate, 0).onBuffer(dataBuffer(), 1, 0, 0);
+            getChannel(gate, 0).onBuffer(checkpointBarrier.retainBuffer(), 2, 0, 0);
 
             assertEquals(0, target.getTriggeredCheckpointCounter());
             assertAnnouncement(gate);
@@ -871,8 +871,8 @@ public class AlternatingCheckpointsTest {
             assertBarrier(gate);
             clock.executeCallables();
 
-            getChannel(gate, 1).onBuffer(dataBuffer(), 0, 0);
-            getChannel(gate, 1).onBuffer(checkpointBarrier.retainBuffer(), 1, 0);
+            getChannel(gate, 1).onBuffer(dataBuffer(), 0, 0, 0);
+            getChannel(gate, 1).onBuffer(checkpointBarrier.retainBuffer(), 1, 0, 0);
             assertAnnouncement(gate);
             assertBarrier(gate);
 
@@ -900,13 +900,13 @@ public class AlternatingCheckpointsTest {
                         .withMailboxExecutor()
                         .build();
 
-        getChannel(gate, 0).onBuffer(withTimeout(Integer.MAX_VALUE).retainBuffer(), 0, 0);
+        getChannel(gate, 0).onBuffer(withTimeout(Integer.MAX_VALUE).retainBuffer(), 0, 0, 0);
 
         assertAnnouncement(gate);
         assertBarrier(gate);
 
-        getChannel(gate, 1).onBuffer(dataBuffer(), 0, 0);
-        getChannel(gate, 1).onBuffer(dataBuffer(), 1, 0);
+        getChannel(gate, 1).onBuffer(dataBuffer(), 0, 0, 0);
+        getChannel(gate, 1).onBuffer(dataBuffer(), 1, 0, 0);
         getChannel(gate, 1)
                 .onBuffer(
                         toBuffer(
@@ -917,6 +917,7 @@ public class AlternatingCheckpointsTest {
                                         true)
                                 .retainBuffer(),
                         2,
+                        0,
                         0);
 
         assertBarrier(gate);
@@ -953,6 +954,7 @@ public class AlternatingCheckpointsTest {
                                             getDefault(),
                                             alignedCheckpointTimeout)),
                             0,
+                            0,
                             0);
             assertAnnouncement(gate);
             assertBarrier(gate);
@@ -963,13 +965,13 @@ public class AlternatingCheckpointsTest {
                     alignedCheckpointTimeout + 1, TimeUnit.MILLISECONDS);
 
             // The EndOfPartition should convert the checkpoint into unaligned.
-            getChannel(gate, 1).onBuffer(dataBuffer(), 0, 0);
-            getChannel(gate, 1).onBuffer(endOfPartition(), 1, 0);
+            getChannel(gate, 1).onBuffer(dataBuffer(), 0, 0, 0);
+            getChannel(gate, 1).onBuffer(endOfPartition(), 1, 0, 0);
             assertData(gate);
             assertEvent(gate, EndOfPartitionEvent.class);
 
-            getChannel(gate, 2).onBuffer(dataBuffer(), 0, 0);
-            getChannel(gate, 2).onBuffer(endOfPartition(), 1, 0);
+            getChannel(gate, 2).onBuffer(dataBuffer(), 0, 0, 0);
+            getChannel(gate, 2).onBuffer(endOfPartition(), 1, 0, 0);
             assertData(gate);
             assertEvent(gate, EndOfPartitionEvent.class);
 
@@ -1009,8 +1011,9 @@ public class AlternatingCheckpointsTest {
                                             getDefault(),
                                             alignedCheckpointTimeout)),
                             0,
+                            0,
                             0);
-            getChannel(gate, 1).onBuffer(endOfPartition(), 0, 0);
+            getChannel(gate, 1).onBuffer(endOfPartition(), 0, 0, 0);
 
             // The barrier announcement would start the checkpoint.
             assertAnnouncement(gate);
@@ -1032,6 +1035,7 @@ public class AlternatingCheckpointsTest {
                                             CheckpointType.CHECKPOINT,
                                             getDefault(),
                                             alignedCheckpointTimeout)),
+                            0,
                             0,
                             0);
             assertAnnouncement(gate);
@@ -1354,7 +1358,7 @@ public class AlternatingCheckpointsTest {
 
         assertEquals(singletonList(barrierId), target.triggeredCheckpoints);
         if (checkpointType.isSavepoint()) {
-            for (InputChannel channel : gate.getInputChannels().values()) {
+            for (InputChannel channel : gate.inputChannels()) {
                 assertFalse(
                         String.format("channel %d should be resumed", channel.getChannelIndex()),
                         ((TestInputChannel) channel).isBlocked());
@@ -1389,7 +1393,7 @@ public class AlternatingCheckpointsTest {
         if (channel instanceof TestInputChannel) {
             ((TestInputChannel) channel).read(buffer, buffer.getDataType());
         } else if (channel instanceof RemoteInputChannel) {
-            ((RemoteInputChannel) channel).onBuffer(buffer, 0, 0);
+            ((RemoteInputChannel) channel).onBuffer(buffer, 0, 0, 0);
         } else {
             throw new IllegalArgumentException("Unknown channel type: " + channel);
         }

@@ -21,10 +21,16 @@
             <td>Max number of consecutive materialization failures allowed.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.changelog.periodic-materialize.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Defines whether to enable periodic materialization, all changelogs will not be truncated which may increase the space of checkpoint if disabled</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.changelog.periodic-materialize.interval</h5></td>
             <td style="word-wrap: break-word;">10 min</td>
             <td>Duration</td>
-            <td>Defines the interval in milliseconds to perform periodic materialization for state backend. The periodic materialization will be disabled when the value is negative</td>
+            <td>Defines the interval in milliseconds to perform periodic materialization for state backend. It only takes effect when state.backend.changelog.periodic-materialize.enabled is true</td>
         </tr>
         <tr>
             <td><h5>state.backend.changelog.storage</h5></td>

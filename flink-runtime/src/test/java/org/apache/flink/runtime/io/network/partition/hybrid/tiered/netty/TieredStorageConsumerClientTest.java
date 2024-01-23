@@ -21,7 +21,9 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageIdMappingUtils;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageInputChannelId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TestingTierFactory;
@@ -47,6 +49,12 @@ class TieredStorageConsumerClientTest {
     private static final TieredStorageSubpartitionId DEFAULT_SUBPARTITION_ID =
             new TieredStorageSubpartitionId(0);
 
+    private static final TieredStorageInputChannelId DEFAULT_INPUT_CHANNEL_ID =
+            new TieredStorageInputChannelId(0);
+
+    private static final ResultSubpartitionIndexSet DEFAULT_SUBPARTITION_ID_SET =
+            new ResultSubpartitionIndexSet(0);
+
     @Test
     void testStart() {
         CompletableFuture<Void> future = new CompletableFuture<>();
@@ -61,7 +69,7 @@ class TieredStorageConsumerClientTest {
     }
 
     @Test
-    void testGetNextBuffer() {
+    void testGetNextBuffer() throws IOException {
         Buffer buffer = BufferBuilderTestUtils.buildSomeBuffer(0);
         TestingTierConsumerAgent tierConsumerAgent =
                 new TestingTierConsumerAgent.Builder().setBufferSupplier(() -> buffer).build();
@@ -109,7 +117,9 @@ class TieredStorageConsumerClientTest {
                                 .build()),
                 Collections.singletonList(
                         new TieredStorageConsumerSpec(
-                                DEFAULT_PARTITION_ID, DEFAULT_SUBPARTITION_ID)),
+                                DEFAULT_PARTITION_ID,
+                                DEFAULT_INPUT_CHANNEL_ID,
+                                DEFAULT_SUBPARTITION_ID_SET)),
                 new TestingTieredStorageNettyService.Builder().build());
     }
 }

@@ -143,14 +143,14 @@ public class TimestampDataSerializer extends TypeSerializer<TimestampData> {
 
         private static final int CURRENT_VERSION = 1;
 
-        private int previousPrecision;
+        private int precision;
 
         public TimestampDataSerializerSnapshot() {
             // this constructor is used when restoring from a checkpoint/savepoint.
         }
 
         TimestampDataSerializerSnapshot(int precision) {
-            this.previousPrecision = precision;
+            this.precision = precision;
         }
 
         @Override
@@ -160,30 +160,30 @@ public class TimestampDataSerializer extends TypeSerializer<TimestampData> {
 
         @Override
         public void writeSnapshot(DataOutputView out) throws IOException {
-            out.writeInt(previousPrecision);
+            out.writeInt(precision);
         }
 
         @Override
         public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader)
                 throws IOException {
-            this.previousPrecision = in.readInt();
+            this.precision = in.readInt();
         }
 
         @Override
         public TypeSerializer<TimestampData> restoreSerializer() {
-            return new TimestampDataSerializer(previousPrecision);
+            return new TimestampDataSerializer(precision);
         }
 
         @Override
         public TypeSerializerSchemaCompatibility<TimestampData> resolveSchemaCompatibility(
-                TypeSerializer<TimestampData> newSerializer) {
-            if (!(newSerializer instanceof TimestampDataSerializer)) {
+                TypeSerializerSnapshot<TimestampData> oldSerializerSnapshot) {
+            if (!(oldSerializerSnapshot instanceof TimestampDataSerializerSnapshot)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
 
-            TimestampDataSerializer timestampDataSerializer =
-                    (TimestampDataSerializer) newSerializer;
-            if (previousPrecision != timestampDataSerializer.precision) {
+            TimestampDataSerializerSnapshot timestampDataSerializerSnapshot =
+                    (TimestampDataSerializerSnapshot) oldSerializerSnapshot;
+            if (precision != timestampDataSerializerSnapshot.precision) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             } else {
                 return TypeSerializerSchemaCompatibility.compatibleAsIs();

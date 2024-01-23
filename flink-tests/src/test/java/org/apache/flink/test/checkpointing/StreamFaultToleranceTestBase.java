@@ -78,10 +78,10 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
         Configuration configuration = new Configuration();
         switch (failoverStrategy) {
             case RestartPipelinedRegionFailoverStrategy:
-                configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "region");
+                configuration.set(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "region");
                 break;
             case RestartAllFailoverStrategy:
-                configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
+                configuration.set(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
         }
 
         // Configure DFS DSTL for this test as it might produce too much GC pressure if

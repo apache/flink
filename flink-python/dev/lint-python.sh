@@ -338,7 +338,7 @@ function install_sphinx() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q Sphinx==4.5.0 importlib-metadata==4.4.0 Docutils==0.17.1 pydata_sphinx_theme==0.11.0 sphinx_mdinclude==0.5.3 "Jinja2<3.1.0" 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q Sphinx==4.5.0 importlib-metadata==4.4.0 Docutils==0.17.1 pydata_sphinx_theme==0.11.0 sphinx_mdinclude==0.5.3 "Jinja2<3.1.0" "sphinxcontrib-applehelp<1.0.8" "sphinxcontrib.devhelp<1.0.6" "sphinxcontrib.htmlhelp<2.0.5" "sphinxcontrib-serializinghtml<1.1.10" "sphinxcontrib-qthelp<1.0.7" 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "pip install sphinx failed \
         please try to exec the script again.\

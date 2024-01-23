@@ -40,11 +40,10 @@ class RetryingRegistrationConfigurationTest {
         final long refusedRegistrationDelay = 3L;
         final long errorRegistrationDelay = 4L;
 
-        configuration.setLong(
-                ClusterOptions.INITIAL_REGISTRATION_TIMEOUT, initialRegistrationTimeout);
-        configuration.setLong(ClusterOptions.MAX_REGISTRATION_TIMEOUT, maxRegistrationTimeout);
-        configuration.setLong(ClusterOptions.REFUSED_REGISTRATION_DELAY, refusedRegistrationDelay);
-        configuration.setLong(ClusterOptions.ERROR_REGISTRATION_DELAY, errorRegistrationDelay);
+        configuration.set(ClusterOptions.INITIAL_REGISTRATION_TIMEOUT, initialRegistrationTimeout);
+        configuration.set(ClusterOptions.MAX_REGISTRATION_TIMEOUT, maxRegistrationTimeout);
+        configuration.set(ClusterOptions.REFUSED_REGISTRATION_DELAY, refusedRegistrationDelay);
+        configuration.set(ClusterOptions.ERROR_REGISTRATION_DELAY, errorRegistrationDelay);
 
         final RetryingRegistrationConfiguration retryingRegistrationConfiguration =
                 RetryingRegistrationConfiguration.fromConfiguration(configuration);

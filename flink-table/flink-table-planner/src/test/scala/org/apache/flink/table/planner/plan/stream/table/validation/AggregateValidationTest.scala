@@ -153,8 +153,7 @@ class AggregateValidationTest extends TableTestBase {
       sql: String,
       keywords: String,
       clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
-    val callable: ThrowingCallable = () =>
-      util.tableEnv.toAppendStream[Row](util.tableEnv.sqlQuery(sql))
+    val callable: ThrowingCallable = () => util.tableEnv.toDataStream(util.tableEnv.sqlQuery(sql))
     if (keywords != null) {
       assertThatExceptionOfType(clazz)
         .isThrownBy(callable)

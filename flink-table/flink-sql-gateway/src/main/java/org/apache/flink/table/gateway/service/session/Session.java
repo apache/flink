@@ -19,11 +19,14 @@
 package org.apache.flink.table.gateway.service.session;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.internal.PlanCacheManager;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.service.context.SessionContext;
 import org.apache.flink.table.gateway.service.operation.OperationExecutor;
 import org.apache.flink.table.gateway.service.operation.OperationManager;
+
+import javax.annotation.Nullable;
 
 import java.io.Closeable;
 import java.util.Map;
@@ -72,6 +75,11 @@ public class Session implements Closeable {
 
     public OperationExecutor createExecutor(Configuration executionConfig) {
         return sessionContext.createOperationExecutor(executionConfig);
+    }
+
+    @Nullable
+    public PlanCacheManager getPlanCacheManager() {
+        return sessionContext.getPlanCacheManager();
     }
 
     @Override

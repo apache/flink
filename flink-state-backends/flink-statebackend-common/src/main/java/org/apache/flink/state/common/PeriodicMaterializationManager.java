@@ -112,6 +112,8 @@ public class PeriodicMaterializationManager implements Closeable {
 
     private final String subtaskName;
 
+    private final boolean isPeriodicMaterializeEnabled;
+
     private final long periodicMaterializeDelay;
 
     /** Allowed number of consecutive materialization failures. */
@@ -136,6 +138,7 @@ public class PeriodicMaterializationManager implements Closeable {
             AsyncExceptionHandler asyncExceptionHandler,
             MaterializationTarget target,
             ChangelogMaterializationMetricGroup metricGroup,
+            boolean isPeriodicMaterializeEnabled,
             long periodicMaterializeDelay,
             int allowedNumberOfFailures,
             String operatorSubtaskId) {
@@ -146,6 +149,7 @@ public class PeriodicMaterializationManager implements Closeable {
                 asyncExceptionHandler,
                 target,
                 metricGroup,
+                isPeriodicMaterializeEnabled,
                 periodicMaterializeDelay,
                 allowedNumberOfFailures,
                 operatorSubtaskId,
@@ -161,6 +165,7 @@ public class PeriodicMaterializationManager implements Closeable {
             AsyncExceptionHandler asyncExceptionHandler,
             MaterializationTarget target,
             ChangelogMaterializationMetricGroup metricGroup,
+            boolean isPeriodicMaterializeEnabled,
             long periodicMaterializeDelay,
             int allowedNumberOfFailures,
             String operatorSubtaskId,
@@ -172,6 +177,7 @@ public class PeriodicMaterializationManager implements Closeable {
         this.metrics = metricGroup;
         this.target = checkNotNull(target);
 
+        this.isPeriodicMaterializeEnabled = isPeriodicMaterializeEnabled;
         this.periodicMaterializeDelay = periodicMaterializeDelay;
         this.allowedNumberOfFailures = allowedNumberOfFailures;
         this.numberOfConsecutiveFailures = new AtomicInteger(0);
@@ -184,14 +190,17 @@ public class PeriodicMaterializationManager implements Closeable {
     }
 
     public void start() {
-        // disable periodic materialization when periodicMaterializeDelay is negative
-        if (!started && periodicMaterializeDelay >= 0) {
+        if (isPeriodicMaterializeEnabled) {
+            if (!started) {
 
-            started = true;
+                started = true;
 
-            LOG.info("Task {} starts periodic materialization", subtaskName);
+                LOG.info("Task {} starts periodic materialization", subtaskName);
 
-            scheduleNextMaterialization(initialDelay);
+                scheduleNextMaterialization(initialDelay);
+            }
+        } else {
+            LOG.info("Task {} disable periodic materialization", subtaskName);
         }
     }
 

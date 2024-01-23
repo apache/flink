@@ -422,7 +422,10 @@ public final class FlinkDistribution {
                         .map(entry -> entry.getKey() + ": " + entry.getValue())
                         .collect(Collectors.toList());
 
-        Files.write(conf.resolve("flink-conf.yaml"), configurationLines);
+        // NOTE: Before we change the default conf file in the flink-dist to 'config.yaml', we
+        // need to use the legacy flink conf file 'flink-conf.yaml' here.
+        Files.write(
+                conf.resolve(GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME), configurationLines);
     }
 
     public void setTaskExecutorHosts(Collection<String> taskExecutorHosts) throws IOException {

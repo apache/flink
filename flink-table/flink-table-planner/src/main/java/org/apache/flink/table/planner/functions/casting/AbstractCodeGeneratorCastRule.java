@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.utils.CastExecutor;
 import org.apache.flink.table.planner.codegen.CodeGenUtils;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.runtime.generated.CompileUtils;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -64,11 +65,13 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
             LogicalType targetLogicalType) {
         final String inputTerm = "_myInput";
         final String inputIsNullTerm = "_myInputIsNull";
-        final String castExecutorClassName = CodeGenUtils.newName("GeneratedCastExecutor");
         final String inputTypeTerm = CodeGenUtils.boxedTypeTermForType(inputLogicalType);
 
         final CastExecutorCodeGeneratorContext ctx =
                 new CastExecutorCodeGeneratorContext(castRuleContext);
+        CodeGeneratorContext codeGeneratorContext = castRuleContext.getCodeGeneratorContext();
+        final String castExecutorClassName =
+                CodeGenUtils.newName(codeGeneratorContext, "GeneratedCastExecutor");
         final CastCodeBlock codeBlock =
                 generateCodeBlock(
                         ctx, inputTerm, inputIsNullTerm, inputLogicalType, targetLogicalType);
@@ -131,7 +134,8 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
                                                             + " to "
                                                             + targetLogicalType
                                                             + "."),
-                                            exceptionTerm)));
+                                            exceptionTerm)),
+                    codeGeneratorContext);
         } else {
             bodyWriter.append(codeBlock).stmt("return " + codeBlock.getReturnTerm());
         }
@@ -231,6 +235,11 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
         public String declareClassField(String type, String name, String initialization) {
             this.classFields.add(type + " " + name + " = " + initialization + ";");
             return "this." + name;
+        }
+
+        @Override
+        public CodeGeneratorContext getCodeGeneratorContext() {
+            return castRuleCtx.getCodeGeneratorContext();
         }
 
         public List<String> getDeclaredTypeSerializers() {

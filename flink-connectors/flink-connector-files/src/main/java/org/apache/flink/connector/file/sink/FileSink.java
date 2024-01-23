@@ -141,13 +141,13 @@ public class FileSink<IN>
     }
 
     @Override
-    public FileWriter<IN> createWriter(WriterInitContext context) throws IOException {
+    public FileWriter<IN> createWriter(InitContext context) throws IOException {
         return restoreWriter(context, Collections.emptyList());
     }
 
     @Override
     public FileWriter<IN> restoreWriter(
-            WriterInitContext context, Collection<FileWriterBucketState> recoveredState)
+            InitContext context, Collection<FileWriterBucketState> recoveredState)
             throws IOException {
         FileWriter<IN> writer = bucketsBuilder.createWriter(context);
         writer.initializeState(recoveredState);
@@ -167,8 +167,7 @@ public class FileSink<IN>
     }
 
     @Override
-    public Committer<FileSinkCommittable> createCommitter(CommitterInitContext context)
-            throws IOException {
+    public Committer<FileSinkCommittable> createCommitter() throws IOException {
         return bucketsBuilder.createCommitter();
     }
 
@@ -292,7 +291,7 @@ public class FileSink<IN>
         }
 
         @Internal
-        abstract FileWriter<IN> createWriter(final WriterInitContext context) throws IOException;
+        abstract FileWriter<IN> createWriter(final InitContext context) throws IOException;
 
         @Internal
         abstract FileCommitter createCommitter() throws IOException;
@@ -410,7 +409,7 @@ public class FileSink<IN>
         }
 
         @Override
-        FileWriter<IN> createWriter(WriterInitContext context) throws IOException {
+        FileWriter<IN> createWriter(InitContext context) throws IOException {
             OutputFileConfig writerFileConfig;
             if (compactStrategy == null) {
                 writerFileConfig = outputFileConfig;
@@ -604,7 +603,7 @@ public class FileSink<IN>
         }
 
         @Override
-        FileWriter<IN> createWriter(WriterInitContext context) throws IOException {
+        FileWriter<IN> createWriter(InitContext context) throws IOException {
             OutputFileConfig writerFileConfig;
             if (compactStrategy == null) {
                 writerFileConfig = outputFileConfig;

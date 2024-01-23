@@ -84,10 +84,10 @@ public abstract class CancelingTestBase extends TestLogger {
     private static Configuration getConfiguration() {
         verifyJvmOptions();
         Configuration config = new Configuration();
-        config.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
+        config.set(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
         config.set(AkkaOptions.ASK_TIMEOUT_DURATION, TestingUtils.DEFAULT_ASK_TIMEOUT);
         config.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4096"));
-        config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 2048);
+        config.set(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 2048);
 
         return config;
     }

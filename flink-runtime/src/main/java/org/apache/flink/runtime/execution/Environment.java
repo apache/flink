@@ -20,6 +20,7 @@ package org.apache.flink.runtime.execution;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
@@ -119,7 +120,14 @@ public interface Environment {
     Configuration getJobConfiguration();
 
     /**
-     * Returns the {@link TaskInfo} object associated with this subtask
+     * Returns the {@link JobInfo} object associated with current job.
+     *
+     * @return JobInfo for current job
+     */
+    JobInfo getJobInfo();
+
+    /**
+     * Returns the {@link TaskInfo} object associated with this subtask.
      *
      * @return TaskInfo for this subtask
      */
@@ -153,7 +161,7 @@ public interface Environment {
     /** @return the resources shared among all tasks of this task manager. */
     SharedResources getSharedResources();
 
-    /** Returns the user code class loader */
+    /** Returns the user code class loader. */
     UserCodeClassLoader getUserCodeClassLoader();
 
     Map<String, Future<Path>> getDistributedCacheEntries();

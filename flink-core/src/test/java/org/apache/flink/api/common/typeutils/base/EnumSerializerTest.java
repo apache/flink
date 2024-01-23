@@ -93,7 +93,7 @@ public class EnumSerializerTest extends TestLogger {
         EnumSerializer.EnumSerializerSnapshot serializerSnapshot =
                 new EnumSerializer.EnumSerializerSnapshot(PublicEnum.class, mockPreviousOrder);
         TypeSerializerSchemaCompatibility compatibility =
-                serializerSnapshot.resolveSchemaCompatibility(serializer);
+                serializer.snapshotConfiguration().resolveSchemaCompatibility(serializerSnapshot);
         assertTrue(compatibility.isCompatibleWithReconfiguredSerializer());
 
         // after reconfiguration, the order should be first the original BAR, PAULA, NATHANIEL,
@@ -138,7 +138,7 @@ public class EnumSerializerTest extends TestLogger {
         }
 
         TypeSerializerSchemaCompatibility<PublicEnum> compatResult =
-                restoredConfig.resolveSchemaCompatibility(serializer);
+                serializer.snapshotConfiguration().resolveSchemaCompatibility(restoredConfig);
         assertTrue(compatResult.isCompatibleAsIs());
 
         assertEquals(
@@ -248,7 +248,7 @@ public class EnumSerializerTest extends TestLogger {
         EnumSerializer.EnumSerializerSnapshot serializerSnapshot =
                 new EnumSerializer.EnumSerializerSnapshot(PublicEnum.class, mockPreviousOrder);
         TypeSerializerSchemaCompatibility compatibility =
-                serializerSnapshot.resolveSchemaCompatibility(serializer);
+                serializer.snapshotConfiguration().resolveSchemaCompatibility(serializerSnapshot);
         assertTrue(compatibility.isCompatibleWithReconfiguredSerializer());
 
         // verify that after the serializer was read, the reconfigured constant ordering is

@@ -21,7 +21,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava31.com.google.common.base.Defaults;
+import org.apache.flink.shaded.guava32.com.google.common.base.Defaults;
 
 import javax.annotation.Nullable;
 

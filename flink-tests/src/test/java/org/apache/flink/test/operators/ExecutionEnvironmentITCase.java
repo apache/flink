@@ -45,7 +45,7 @@ public class ExecutionEnvironmentITCase extends TestLogger {
     @Test
     public void testLocalEnvironmentWithConfig() throws Exception {
         Configuration conf = new Configuration();
-        conf.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, PARALLELISM);
+        conf.set(TaskManagerOptions.NUM_TASK_SLOTS, PARALLELISM);
 
         final ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(conf);
 
@@ -58,7 +58,10 @@ public class ExecutionEnvironmentITCase extends TestLogger {
                                     public void mapPartition(
                                             Iterable<Integer> values, Collector<Integer> out)
                                             throws Exception {
-                                        out.collect(getRuntimeContext().getIndexOfThisSubtask());
+                                        out.collect(
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getIndexOfThisSubtask());
                                     }
                                 });
         List<Integer> resultCollection = result.collect();

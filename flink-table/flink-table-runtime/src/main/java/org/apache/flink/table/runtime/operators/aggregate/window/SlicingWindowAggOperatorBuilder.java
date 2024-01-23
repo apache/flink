@@ -26,13 +26,13 @@ import org.apache.flink.table.runtime.operators.aggregate.window.combines.AggCom
 import org.apache.flink.table.runtime.operators.aggregate.window.combines.GlobalAggCombiner;
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceSharedWindowAggProcessor;
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceUnsharedWindowAggProcessor;
-import org.apache.flink.table.runtime.operators.window.combines.RecordsCombiner;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigners.HoppingSliceAssigner;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceSharedAssigner;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceUnsharedAssigner;
-import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowOperator;
-import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.combines.RecordsCombiner;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigners.HoppingSliceAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceSharedAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceUnsharedAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowOperator;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 
@@ -162,6 +162,7 @@ public class SlicingWindowAggOperatorBuilder {
                             bufferFactory,
                             (SliceUnsharedAssigner) assigner,
                             accSerializer,
+                            indexOfCountStart,
                             shiftTimeZone);
         } else {
             throw new IllegalArgumentException(

@@ -19,7 +19,7 @@ package org.apache.calcite.sql2rel;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.planner.calcite.TimestampSchemaVersion;
-import org.apache.flink.table.planner.hint.ClearJoinHintsWithInvalidPropagationShuttle;
+import org.apache.flink.table.planner.hint.ClearQueryHintsWithInvalidPropagationShuttle;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogSnapshotReader;
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
@@ -657,16 +657,16 @@ public class SqlToRelConverter {
         // throughout the entire rel tree but also within subqueries.
         result = FlinkRelOptUtil.propagateRelHints(result, false);
 
-        // replace all join hints with upper case
-        result = FlinkHints.capitalizeJoinHints(result);
+        // replace all query hints with upper case
+        result = FlinkHints.capitalizeQueryHints(result);
 
-        // clear join hints which are propagated into wrong query block
+        // clear query hints which are propagated into wrong query block
         // The hint QueryBlockAlias will be added when building a RelNode tree before. It is used to
         // distinguish the query block in the SQL.
-        result = result.accept(new ClearJoinHintsWithInvalidPropagationShuttle());
+        result = result.accept(new ClearQueryHintsWithInvalidPropagationShuttle());
 
         // clear the hints on some nodes where these hints should not be attached
-        result = FlinkHints.clearJoinHintsOnUnmatchedNodes(result);
+        result = FlinkHints.clearQueryHintsOnUnmatchedNodes(result);
 
         // ----- FLINK MODIFICATION END -----
 
@@ -2293,19 +2293,19 @@ public class SqlToRelConverter {
 
     // ----- FLINK MODIFICATION BEGIN -----
 
-    private boolean containsJoinHint = false;
+    private boolean containsQueryHints = false;
 
     /**
-     * To tell this converter that this SqlNode tree contains join hint and then a query block alias
-     * will be attached to the root node of the query block.
+     * To tell this converter that this SqlNode tree contains query hints and then a query block
+     * alias will be attached to the root node of the query block.
      *
-     * <p>The `containsJoinHint` is false default to be compatible with previous behavior and then
+     * <p>The `containsQueryHints` is false default to be compatible with previous behavior and then
      * planner can reuse some node.
      *
      * <p>TODO At present, it is a relatively hacked way
      */
-    public void containsJoinHint() {
-        containsJoinHint = true;
+    public void containsQueryHints() {
+        containsQueryHints = true;
     }
 
     // ----- FLINK MODIFICATION END -----
@@ -2349,9 +2349,9 @@ public class SqlToRelConverter {
 
                 // Add a query-block alias hint to distinguish different query levels
                 // Due to Calcite will expand the whole SQL Rel Node tree that contains query block,
-                // but sometimes the query block should be perceived such as join hint propagation.
+                // but sometimes the query block should be perceived such as query hint propagation.
                 // TODO add query-block alias hint in SqlNode instead of here
-                if (containsJoinHint) {
+                if (containsQueryHints) {
                     RelNode root = bb.root;
 
                     if (root instanceof Hintable) {

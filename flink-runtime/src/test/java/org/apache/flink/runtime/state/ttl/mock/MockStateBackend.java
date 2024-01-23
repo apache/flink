@@ -18,21 +18,14 @@
 
 package org.apache.flink.runtime.state.ttl.mock;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
-import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SnapshotExecutionType;
@@ -41,12 +34,10 @@ import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend.MockSnapshotSupplier;
 
 import javax.annotation.Nonnull;
 
-import java.util.Collection;
 import java.util.HashMap;
 
 /** mack state backend. */
@@ -62,44 +53,31 @@ public class MockStateBackend extends AbstractStateBackend {
         this.snapshotSupplier = snapshotSupplier;
     }
 
-    @Override
     public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-            Environment env,
-            JobID jobID,
-            String operatorIdentifier,
-            TypeSerializer<K> keySerializer,
-            int numberOfKeyGroups,
-            KeyGroupRange keyGroupRange,
-            TaskKvStateRegistry kvStateRegistry,
-            TtlTimeProvider ttlTimeProvider,
-            MetricGroup metricGroup,
-            @Nonnull Collection<KeyedStateHandle> stateHandles,
-            CloseableRegistry cancelStreamRegistry) {
+            KeyedStateBackendParameters<K> parameters) {
         return new MockKeyedStateBackendBuilder<>(
-                        new KvStateRegistry().createTaskRegistry(jobID, new JobVertexID()),
-                        keySerializer,
-                        env.getUserCodeClassLoader().asClassLoader(),
-                        numberOfKeyGroups,
-                        keyGroupRange,
-                        env.getExecutionConfig(),
-                        ttlTimeProvider,
+                        new KvStateRegistry()
+                                .createTaskRegistry(parameters.getJobID(), new JobVertexID()),
+                        parameters.getKeySerializer(),
+                        parameters.getEnv().getUserCodeClassLoader().asClassLoader(),
+                        parameters.getNumberOfKeyGroups(),
+                        parameters.getKeyGroupRange(),
+                        parameters.getEnv().getExecutionConfig(),
+                        parameters.getTtlTimeProvider(),
                         LatencyTrackingStateConfig.disabled(),
-                        stateHandles,
-                        AbstractStateBackend.getCompressionDecorator(env.getExecutionConfig()),
-                        cancelStreamRegistry,
+                        parameters.getStateHandles(),
+                        AbstractStateBackend.getCompressionDecorator(
+                                parameters.getEnv().getExecutionConfig()),
+                        parameters.getCancelStreamRegistry(),
                         snapshotSupplier)
                 .build();
     }
 
-    @Override
     public OperatorStateBackend createOperatorStateBackend(
-            Environment env,
-            String operatorIdentifier,
-            @Nonnull Collection<OperatorStateHandle> stateHandles,
-            CloseableRegistry cancelStreamRegistry) {
+            OperatorStateBackendParameters parameters) {
         return new DefaultOperatorStateBackend(
-                env.getExecutionConfig(),
-                cancelStreamRegistry,
+                parameters.getEnv().getExecutionConfig(),
+                parameters.getCancelStreamRegistry(),
                 new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),

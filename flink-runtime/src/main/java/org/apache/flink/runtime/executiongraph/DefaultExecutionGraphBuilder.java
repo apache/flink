@@ -114,7 +114,7 @@ public class DefaultExecutionGraphBuilder {
                         jobGraph.getClasspaths());
 
         final int executionHistorySizeLimit =
-                jobManagerConfig.getInteger(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE);
+                jobManagerConfig.get(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE);
 
         final PartitionGroupReleaseStrategy.Factory partitionGroupReleaseStrategyFactory =
                 PartitionGroupReleaseStrategyFactoryLoader.loadPartitionGroupReleaseStrategyFactory(
@@ -254,7 +254,7 @@ public class DefaultExecutionGraphBuilder {
                 rootBackend =
                         StateBackendLoader.fromApplicationOrConfigOrDefault(
                                 applicationConfiguredBackend,
-                                snapshotSettings.isChangelogStateBackendEnabled(),
+                                jobGraph.getJobConfiguration(),
                                 jobManagerConfig,
                                 classLoader,
                                 log);
@@ -287,8 +287,8 @@ public class DefaultExecutionGraphBuilder {
                 rootStorage =
                         CheckpointStorageLoader.load(
                                 applicationConfiguredStorage,
-                                null,
                                 rootBackend,
+                                jobGraph.getJobConfiguration(),
                                 jobManagerConfig,
                                 classLoader,
                                 log);
@@ -330,7 +330,6 @@ public class DefaultExecutionGraphBuilder {
 
             final CheckpointCoordinatorConfiguration chkConfig =
                     snapshotSettings.getCheckpointCoordinatorConfiguration();
-            String changelogStorage = jobManagerConfig.getString(STATE_CHANGE_LOG_STORAGE);
 
             executionGraph.enableCheckpointing(
                     chkConfig,
@@ -341,7 +340,7 @@ public class DefaultExecutionGraphBuilder {
                     rootStorage,
                     checkpointStatsTrackerFactory.get(),
                     checkpointsCleaner,
-                    jobManagerConfig.getString(STATE_CHANGE_LOG_STORAGE));
+                    jobManagerConfig.get(STATE_CHANGE_LOG_STORAGE));
         }
 
         return executionGraph;

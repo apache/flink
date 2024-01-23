@@ -298,7 +298,7 @@ class AsyncFunctionWithoutTimeoutExpired extends RichAsyncFunction[Int, Int] {
 class MyRichAsyncFunction extends RichAsyncFunction[Int, Int] {
 
   override def open(openContext: OpenContext): Unit = {
-    assertEquals(getRuntimeContext.getNumberOfParallelSubtasks, 1)
+    assertEquals(getRuntimeContext.getTaskInfo.getNumberOfParallelSubtasks, 1)
   }
 
   override def asyncInvoke(input: Int, resultFuture: ResultFuture[Int]): Unit = {

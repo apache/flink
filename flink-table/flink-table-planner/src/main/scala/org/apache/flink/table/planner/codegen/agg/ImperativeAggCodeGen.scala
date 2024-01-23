@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.codegen.agg
 import org.apache.flink.table.data.{GenericRowData, RowData, UpdatableRowData}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{FunctionContext, ImperativeAggregateFunction, UserDefinedFunctionHelper}
+import org.apache.flink.table.functions.TableAggregateFunction.RetractableCollector
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateFieldAccess
@@ -69,6 +70,9 @@ import scala.collection.mutable.ArrayBuffer
  *   whether the accumulators state has namespace
  * @param inputFieldCopy
  *   copy input field element if true (only mutable type will be copied)
+ * @param isIncrementalUpdateNeeded
+ *   whether the agg supports emitting incremental update, true for TableAggregateFunction if
+ *   user-defined function implements emitUpdateWithRetract, otherwise false.
  */
 class ImperativeAggCodeGen(
     ctx: CodeGeneratorContext,
@@ -83,7 +87,8 @@ class ImperativeAggCodeGen(
     hasNamespace: Boolean,
     mergedAccOnHeap: Boolean,
     mergedAccExternalType: DataType,
-    inputFieldCopy: Boolean)
+    inputFieldCopy: Boolean,
+    isIncrementalUpdateNeeded: Boolean)
   extends AggCodeGen {
 
   private val SINGLE_ITERABLE = className[SingleElementIterator[_]]
@@ -132,7 +137,7 @@ class ImperativeAggCodeGen(
     } else {
       genToInternalConverter(ctx, externalAccType, s"$functionTerm.createAccumulator()")
     }
-    val accInternal = newName("acc_internal")
+    val accInternal = newName(ctx, "acc_internal")
     val code = s"$accTypeInternalTerm $accInternal = ($accTypeInternalTerm) $accField;"
     Seq(GeneratedExpression(accInternal, "false", code, internalAccType))
   }
@@ -243,7 +248,7 @@ class ImperativeAggCodeGen(
          |$functionTerm.merge($accInternalTerm, $accIterTerm);
        """.stripMargin
     } else {
-      val otherAccExternal = newName("other_acc_external")
+      val otherAccExternal = newName(ctx, "other_acc_external")
       s"""
          |$accTypeExternalTerm $otherAccExternal = ${genToExternalConverter(ctx, mergedAccExternalType, expr.resultTerm)};
          |$accIterTerm.set($otherAccExternal);
@@ -253,11 +258,11 @@ class ImperativeAggCodeGen(
   }
 
   def getValue(generator: ExprCodeGenerator): GeneratedExpression = {
-    val valueExternalTerm = newName("value_external")
+    val valueExternalTerm = newName(ctx, "value_external")
     val valueExternalTypeTerm = typeTerm(externalResultType.getConversionClass)
-    val valueInternalTerm = newName("value_internal")
+    val valueInternalTerm = newName(ctx, "value_internal")
     val valueInternalTypeTerm = boxedTypeTermForType(internalResultType)
-    val nullTerm = newName("valueIsNull")
+    val nullTerm = newName(ctx, "valueIsNull")
     val accTerm = if (isAccTypeInternal) accInternalTerm else accExternalTerm
     val code =
       s"""
@@ -344,7 +349,7 @@ class ImperativeAggCodeGen(
             val converted = exprGenerator.generateConverterResultExpression(
               fieldType,
               classOf[GenericRowData],
-              outRecordTerm = newName("acc"),
+              outRecordTerm = newName(ctx, "acc"),
               reusedOutRow = false,
               fieldCopy = inputFieldCopy)
             val code =
@@ -373,7 +378,7 @@ class ImperativeAggCodeGen(
               GeneratedExpression(newExpr.resultTerm, newExpr.nullTerm, code, newExpr.resultType)
             } else {
               val fieldType = ct.getTypeAt(index)
-              val fieldTerm = newName("field")
+              val fieldTerm = newName(ctx, "field")
               ctx.addReusableMember(s"$UPDATABLE_ROW $fieldTerm;")
               val code =
                 s"""
@@ -488,10 +493,14 @@ class ImperativeAggCodeGen(
     }
 
     if (needEmitValue) {
+      val (emitMethod, collectorClass) =
+        if (isIncrementalUpdateNeeded)
+          (UserDefinedFunctionHelper.TABLE_AGGREGATE_EMIT_RETRACT, classOf[RetractableCollector[_]])
+        else (UserDefinedFunctionHelper.TABLE_AGGREGATE_EMIT, classOf[Collector[_]])
       UserDefinedFunctionHelper.validateClassForRuntime(
         function.getClass,
-        UserDefinedFunctionHelper.TABLE_AGGREGATE_EMIT,
-        accumulatorClass ++ Array(classOf[Collector[_]]),
+        emitMethod,
+        accumulatorClass ++ Array(collectorClass),
         classOf[Unit],
         functionName
       )
@@ -500,7 +509,11 @@ class ImperativeAggCodeGen(
 
   def emitValue: String = {
     val accTerm = if (isAccTypeInternal) accInternalTerm else accExternalTerm
-    s"$functionTerm.emitValue($accTerm, $MEMBER_COLLECTOR_TERM);"
+    val finalEmitMethodName =
+      if (isIncrementalUpdateNeeded) UserDefinedFunctionHelper.TABLE_AGGREGATE_EMIT_RETRACT
+      else UserDefinedFunctionHelper.TABLE_AGGREGATE_EMIT
+
+    s"$functionTerm.$finalEmitMethodName($accTerm, $MEMBER_COLLECTOR_TERM);"
   }
 
   override def setWindowSize(generator: ExprCodeGenerator): String = {

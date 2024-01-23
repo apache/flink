@@ -22,6 +22,8 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
@@ -44,6 +46,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
@@ -75,7 +78,6 @@ import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
@@ -134,6 +136,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     private final JobGraph jobGraph;
 
+    protected final JobInfo jobInfo;
+
     private final ExecutionGraph executionGraph;
 
     private final SchedulingTopology schedulingTopology;
@@ -188,6 +192,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
         this.log = checkNotNull(log);
         this.jobGraph = checkNotNull(jobGraph);
+        this.jobInfo = new JobInfoImpl(jobGraph.getJobID(), jobGraph.getName());
         this.executionGraphFactory = executionGraphFactory;
 
         this.jobManagerJobMetricGroup = checkNotNull(jobManagerJobMetricGroup);
@@ -239,7 +244,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
         this.exceptionHistory =
                 new BoundedFIFOQueue<>(
-                        jobMasterConfiguration.getInteger(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
+                        jobMasterConfiguration.get(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
 
         this.vertexEndOfDataListener = new VertexEndOfDataListener(executionGraph);
     }
@@ -814,12 +819,6 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     }
 
     @Override
-    public JobDetails requestJobDetails() {
-        mainThreadExecutor.assertRunningInMainThread();
-        return JobDetails.createDetailsForJob(executionGraph);
-    }
-
-    @Override
     public KvStateLocation requestKvStateLocation(final JobID jobId, final String registrationName)
             throws UnknownKvStateLocation, FlinkJobNotFoundException {
         mainThreadExecutor.assertRunningInMainThread();
@@ -984,6 +983,12 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     public void reportCheckpointMetrics(
             JobID jobID, ExecutionAttemptID attemptId, long id, CheckpointMetrics metrics) {
         executionGraphHandler.reportCheckpointMetrics(attemptId, id, metrics);
+    }
+
+    @Override
+    public void reportInitializationMetrics(
+            JobID jobId, SubTaskInitializationMetrics initializationMetrics) {
+        executionGraphHandler.reportInitializationMetrics(initializationMetrics);
     }
 
     @Override

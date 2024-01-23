@@ -41,27 +41,31 @@ public class TaskExecutorFileMergingManagerTest {
         SubtaskKey key2 = new SubtaskKey("test-op2", 1, 128);
         Path checkpointDir1 = new Path(testBaseDir.toString(), "job1");
         Path checkpointDir2 = new Path(testBaseDir.toString(), "job2");
+        int writeBufferSize = 4096;
         FileMergingSnapshotManager manager1 =
                 taskExecutorFileMergingManager.fileMergingSnapshotManagerForJob(job1);
         manager1.initFileSystem(
                 checkpointDir1.getFileSystem(),
                 checkpointDir1,
                 new Path(checkpointDir1, "shared"),
-                new Path(checkpointDir1, "taskowned"));
+                new Path(checkpointDir1, "taskowned"),
+                writeBufferSize);
         FileMergingSnapshotManager manager2 =
                 taskExecutorFileMergingManager.fileMergingSnapshotManagerForJob(job1);
         manager2.initFileSystem(
                 checkpointDir1.getFileSystem(),
                 checkpointDir1,
                 new Path(checkpointDir1, "shared"),
-                new Path(checkpointDir1, "taskowned"));
+                new Path(checkpointDir1, "taskowned"),
+                writeBufferSize);
         FileMergingSnapshotManager manager3 =
                 taskExecutorFileMergingManager.fileMergingSnapshotManagerForJob(job2);
         manager3.initFileSystem(
                 checkpointDir2.getFileSystem(),
                 checkpointDir2,
                 new Path(checkpointDir2, "shared"),
-                new Path(checkpointDir2, "taskowned"));
+                new Path(checkpointDir2, "taskowned"),
+                writeBufferSize);
 
         assertThat(manager1).isEqualTo(manager2);
         assertThat(manager1).isNotEqualTo(manager3);

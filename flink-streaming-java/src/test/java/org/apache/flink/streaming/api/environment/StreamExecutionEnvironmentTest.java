@@ -27,17 +27,14 @@ import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.state.CheckpointStorage;
-import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -391,6 +388,44 @@ class StreamExecutionEnvironmentTest {
     }
 
     @Test
+    void testPeriodicMaterializeEnabled() {
+        Configuration config = new Configuration();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.configure(config, this.getClass().getClassLoader());
+        assertThat(env.getConfig().isPeriodicMaterializeEnabled())
+                .isEqualTo(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED.defaultValue());
+
+        config.setBoolean(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED.key(), false);
+        env.configure(config, this.getClass().getClassLoader());
+        assertThat(env.getConfig().isPeriodicMaterializeEnabled()).isFalse();
+    }
+
+    @Test
+    void testPeriodicMaterializeInterval() {
+        Configuration config = new Configuration();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.configure(config, this.getClass().getClassLoader());
+        assertThat(env.getConfig().getPeriodicMaterializeIntervalMillis())
+                .isEqualTo(
+                        StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL
+                                .defaultValue()
+                                .toMillis());
+
+        config.setString(StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL.key(), "60s");
+        env.configure(config, this.getClass().getClassLoader());
+        assertThat(env.getConfig().getPeriodicMaterializeIntervalMillis()).isEqualTo(60 * 1000);
+
+        assertThatThrownBy(
+                        () -> {
+                            config.setString(
+                                    StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL.key(),
+                                    "-1ms");
+                            env.configure(config, this.getClass().getClassLoader());
+                        })
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void testBufferTimeoutByDefault() {
         Configuration config = new Configuration();
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -417,14 +452,12 @@ class StreamExecutionEnvironmentTest {
                 .isEqualTo(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
 
         // Setting execution.buffer-timeout's to 0ms will not take effect.
-        config.setString(ExecutionOptions.BUFFER_TIMEOUT.key(), "0ms");
-        env.configure(config, this.getClass().getClassLoader());
+        env.setBufferTimeout(0);
         assertThat(env.getBufferTimeout())
                 .isEqualTo(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
 
         // Setting execution.buffer-timeout's to -1ms will not take effect.
-        config.setString(ExecutionOptions.BUFFER_TIMEOUT.key(), "-1ms");
-        env.configure(config, this.getClass().getClassLoader());
+        env.setBufferTimeout(-1);
         assertThat(env.getBufferTimeout())
                 .isEqualTo(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
     }
@@ -442,6 +475,7 @@ class StreamExecutionEnvironmentTest {
                         () -> {
                             config.setString(ExecutionOptions.BUFFER_TIMEOUT.key(), "-1ms");
                             env.configure(config, this.getClass().getClassLoader());
+                            env.getBufferTimeout();
                         })
                 .isInstanceOf(IllegalArgumentException.class);
     }
@@ -482,21 +516,6 @@ class StreamExecutionEnvironmentTest {
         for (CheckedThread thread : threads) {
             thread.sync();
         }
-    }
-
-    @Test
-    void testConfigureCheckpointStorage() {
-        Configuration configuration = new Configuration();
-        String path = "file:///valid";
-        configuration.set(CheckpointingOptions.CHECKPOINT_STORAGE, "jobmanager");
-        configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, path);
-        StreamExecutionEnvironment env =
-                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
-
-        CheckpointStorage storage = env.getCheckpointConfig().getCheckpointStorage();
-        assertThat(storage).isInstanceOf(JobManagerCheckpointStorage.class);
-        assertThat(((JobManagerCheckpointStorage) storage).getCheckpointPath())
-                .isEqualTo(new Path(path));
     }
 
     /////////////////////////////////////////////////////////////

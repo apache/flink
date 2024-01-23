@@ -87,7 +87,7 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.util.function.TriFunctionWithException;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -206,7 +206,7 @@ class CheckpointCoordinatorTest {
         testReportStatsAfterFailure(
                 1L,
                 (coordinator, execution, metrics) -> {
-                    coordinator.reportStats(1L, execution.getAttemptId(), metrics);
+                    coordinator.reportCheckpointMetrics(1L, execution.getAttemptId(), metrics);
                     return null;
                 });
     }
@@ -2867,7 +2867,8 @@ class CheckpointCoordinatorTest {
         StandaloneCompletedCheckpointStore store = new StandaloneCompletedCheckpointStore(1);
 
         // set up the coordinator and validate the initial state
-        CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
+        CheckpointStatsTracker tracker =
+                new CheckpointStatsTracker(10, new UnregisteredMetricsGroup());
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
                         .setCompletedCheckpointStore(store)
@@ -2878,7 +2879,7 @@ class CheckpointCoordinatorTest {
         store.addCheckpointAndSubsumeOldestOne(
                 new CompletedCheckpoint(
                         new JobID(),
-                        0,
+                        42,
                         0,
                         0,
                         Collections.<OperatorID, OperatorState>emptyMap(),
@@ -2895,7 +2896,8 @@ class CheckpointCoordinatorTest {
                                 Collections.emptySet(), true))
                 .isTrue();
 
-        verify(tracker, times(1)).reportRestoredCheckpoint(any(RestoredCheckpointStats.class));
+        assertThat(tracker.createSnapshot().getLatestRestoredCheckpoint().getCheckpointId())
+                .isEqualTo(42);
     }
 
     @Test
@@ -3616,7 +3618,7 @@ class CheckpointCoordinatorTest {
                                     public CheckpointStorageAccess createCheckpointStorage(
                                             JobID jobId) throws IOException {
                                         return new MemoryBackendCheckpointStorageAccess(
-                                                jobId, null, null, 100) {
+                                                jobId, null, null, true, 100) {
                                             @Override
                                             public CheckpointStorageLocation
                                                     initializeLocationForCheckpoint(
@@ -4153,7 +4155,7 @@ class CheckpointCoordinatorTest {
     private static class IOExceptionCheckpointStorage extends JobManagerCheckpointStorage {
         @Override
         public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
-            return new MemoryBackendCheckpointStorageAccess(jobId, null, null, 100) {
+            return new MemoryBackendCheckpointStorageAccess(jobId, null, null, true, 100) {
                 @Override
                 public CheckpointStorageLocation initializeLocationForCheckpoint(long checkpointId)
                         throws IOException {

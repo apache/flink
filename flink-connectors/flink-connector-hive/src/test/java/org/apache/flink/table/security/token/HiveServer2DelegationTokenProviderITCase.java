@@ -108,8 +108,8 @@ public class HiveServer2DelegationTokenProviderITCase {
                 new org.apache.flink.configuration.Configuration();
 
         final Path keyTab = Files.createFile(tmpDir.resolve("test.keytab"));
-        configuration.setString(KERBEROS_LOGIN_KEYTAB, keyTab.toAbsolutePath().toString());
-        configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, "test@EXAMPLE.COM");
+        configuration.set(KERBEROS_LOGIN_KEYTAB, keyTab.toAbsolutePath().toString());
+        configuration.set(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, "test@EXAMPLE.COM");
         provider.init(configuration);
         boolean result = provider.delegationTokensRequired();
         assertTrue(result);

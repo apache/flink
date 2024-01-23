@@ -174,9 +174,8 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
     }
 
     public JobGraphGenerator(Configuration config) {
-        this.defaultMaxFan = config.getInteger(AlgorithmOptions.SPILLING_MAX_FAN);
-        this.defaultSortSpillingThreshold =
-                config.getFloat(AlgorithmOptions.SORT_SPILLING_THRESHOLD);
+        this.defaultMaxFan = config.get(AlgorithmOptions.SPILLING_MAX_FAN);
+        this.defaultSortSpillingThreshold = config.get(AlgorithmOptions.SORT_SPILLING_THRESHOLD);
         this.useLargeRecordHandler =
                 config.getBoolean(
                         ConfigConstants.USE_LARGE_RECORD_HANDLER_KEY,

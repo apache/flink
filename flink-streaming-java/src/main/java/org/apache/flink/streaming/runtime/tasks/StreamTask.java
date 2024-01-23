@@ -22,11 +22,9 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.StateChangelogOptionsInternal;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
@@ -36,8 +34,10 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.InitializationStatus;
 import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
@@ -112,7 +112,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TernaryBoolean;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.RunnableWithException;
@@ -143,6 +143,10 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_PERIOD;
+import static org.apache.flink.runtime.metrics.MetricNames.GATE_RESTORE_DURATION;
+import static org.apache.flink.runtime.metrics.MetricNames.INITIALIZE_STATE_DURATION;
+import static org.apache.flink.runtime.metrics.MetricNames.MAILBOX_START_DURATION;
+import static org.apache.flink.runtime.metrics.MetricNames.READ_OUTPUT_DATA_DURATION;
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
@@ -314,6 +318,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private boolean shouldInterruptOnCancel = true;
 
     @Nullable private final AvailabilityProvider changelogWriterAvailabilityProvider;
+
+    private long initializeStateEndTs;
 
     // ------------------------------------------------------------------------
 
@@ -517,24 +523,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private CheckpointStorageAccess applyFileMergingCheckpoint(
             CheckpointStorageAccess checkpointStorageAccess,
             FileMergingSnapshotManager fileMergingSnapshotManager) {
-        if (fileMergingSnapshotManager == null) {
-            return checkpointStorageAccess;
-        }
-
-        try {
-            CheckpointStorageWorkerView mergingCheckpointStorageAccess =
-                    checkpointStorageAccess.toFileMergingStorage(
-                            fileMergingSnapshotManager, environment);
-            return (CheckpointStorageAccess) mergingCheckpointStorageAccess;
-        } catch (IOException e) {
-            LOG.warn(
-                    "Initiating FsMergingCheckpointStorageAccess failed"
-                            + "with exception: {}, falling back to original checkpoint storage access {}.",
-                    e.getMessage(),
-                    checkpointStorageAccess.getClass(),
-                    e);
-            return checkpointStorageAccess;
-        }
+        // TODO (FLINK-32440): enable FileMergingCheckpoint by configuration
+        return checkpointStorageAccess;
     }
 
     private TimerService createTimerService(String timerThreadName) {
@@ -693,12 +683,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     //  Core work methods of the Stream Task
     // ------------------------------------------------------------------------
 
-    public StreamTaskStateInitializer createStreamTaskStateInitializer() {
+    public StreamTaskStateInitializer createStreamTaskStateInitializer(
+            SubTaskInitializationMetricsBuilder initializationMetrics) {
         InternalTimeServiceManager.Provider timerServiceProvider =
                 configuration.getTimerServiceProvider(getUserCodeClassLoader());
         return new StreamTaskStateInitializerImpl(
                 getEnvironment(),
                 stateBackend,
+                initializationMetrics,
                 TtlTimeProvider.DEFAULT,
                 timerServiceProvider != null
                         ? timerServiceProvider
@@ -730,57 +722,88 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         getEnvironment().getMetricGroup().getIOMetricGroup().markTaskInitializationStarted();
         LOG.debug("Initializing {}.", getName());
 
-        operatorChain =
-                getEnvironment().getTaskStateManager().isTaskDeployedAsFinished()
-                        ? new FinishedOperatorChain<>(this, recordWriter)
-                        : new RegularOperatorChain<>(this, recordWriter);
-        mainOperator = operatorChain.getMainOperator();
+        SubTaskInitializationMetricsBuilder initializationMetrics =
+                new SubTaskInitializationMetricsBuilder(
+                        SystemClock.getInstance().absoluteTimeMillis());
+        try {
+            operatorChain =
+                    getEnvironment().getTaskStateManager().isTaskDeployedAsFinished()
+                            ? new FinishedOperatorChain<>(this, recordWriter)
+                            : new RegularOperatorChain<>(this, recordWriter);
+            mainOperator = operatorChain.getMainOperator();
 
-        getEnvironment()
-                .getTaskStateManager()
-                .getRestoreCheckpointId()
-                .ifPresent(restoreId -> latestReportCheckpointId = restoreId);
+            getEnvironment()
+                    .getTaskStateManager()
+                    .getRestoreCheckpointId()
+                    .ifPresent(restoreId -> latestReportCheckpointId = restoreId);
 
-        // task specific initialization
-        init();
-        configuration.clearInitialConfigs();
+            // task specific initialization
+            init();
+            configuration.clearInitialConfigs();
 
-        // save the work of reloading state, etc, if the task is already canceled
-        ensureNotCanceled();
+            // save the work of reloading state, etc, if the task is already canceled
+            ensureNotCanceled();
 
-        // -------- Invoke --------
-        LOG.debug("Invoking {}", getName());
+            // -------- Invoke --------
+            LOG.debug("Invoking {}", getName());
 
-        // we need to make sure that any triggers scheduled in open() cannot be
-        // executed before all operators are opened
-        CompletableFuture<Void> allGatesRecoveredFuture = actionExecutor.call(this::restoreGates);
+            // we need to make sure that any triggers scheduled in open() cannot be
+            // executed before all operators are opened
+            CompletableFuture<Void> allGatesRecoveredFuture =
+                    actionExecutor.call(() -> restoreStateAndGates(initializationMetrics));
 
-        // Run mailbox until all gates will be recovered.
-        mailboxProcessor.runMailboxLoop();
+            // Run mailbox until all gates will be recovered.
+            mailboxProcessor.runMailboxLoop();
 
-        ensureNotCanceled();
+            initializationMetrics.addDurationMetric(
+                    GATE_RESTORE_DURATION,
+                    SystemClock.getInstance().absoluteTimeMillis() - initializeStateEndTs);
 
-        checkState(
-                allGatesRecoveredFuture.isDone(),
-                "Mailbox loop interrupted before recovery was finished.");
+            ensureNotCanceled();
 
-        // we recovered all the gates, we can close the channel IO executor as it is no longer
-        // needed
-        channelIOExecutor.shutdown();
+            checkState(
+                    allGatesRecoveredFuture.isDone(),
+                    "Mailbox loop interrupted before recovery was finished.");
 
-        isRunning = true;
-        isRestoring = false;
+            // we recovered all the gates, we can close the channel IO executor as it is no longer
+            // needed
+            channelIOExecutor.shutdown();
+
+            isRunning = true;
+            isRestoring = false;
+            initializationMetrics.setStatus(InitializationStatus.COMPLETED);
+        } finally {
+            environment
+                    .getTaskStateManager()
+                    .reportInitializationMetrics(initializationMetrics.build());
+        }
     }
 
-    private CompletableFuture<Void> restoreGates() throws Exception {
+    private CompletableFuture<Void> restoreStateAndGates(
+            SubTaskInitializationMetricsBuilder initializationMetrics) throws Exception {
+
+        long mailboxStartTs = SystemClock.getInstance().absoluteTimeMillis();
+        initializationMetrics.addDurationMetric(
+                MAILBOX_START_DURATION,
+                mailboxStartTs - initializationMetrics.getInitializationStartTs());
+
         SequentialChannelStateReader reader =
                 getEnvironment().getTaskStateManager().getSequentialChannelStateReader();
         reader.readOutputData(
                 getEnvironment().getAllWriters(), !configuration.isGraphContainingLoops());
 
-        operatorChain.initializeStateAndOpenOperators(createStreamTaskStateInitializer());
+        long readOutputDataTs = SystemClock.getInstance().absoluteTimeMillis();
+        initializationMetrics.addDurationMetric(
+                READ_OUTPUT_DATA_DURATION, readOutputDataTs - mailboxStartTs);
 
+        operatorChain.initializeStateAndOpenOperators(
+                createStreamTaskStateInitializer(initializationMetrics));
+
+        initializeStateEndTs = SystemClock.getInstance().absoluteTimeMillis();
+        initializationMetrics.addDurationMetric(
+                INITIALIZE_STATE_DURATION, initializeStateEndTs - readOutputDataTs);
         IndexedInputGate[] inputGates = getEnvironment().getAllInputGates();
+
         channelIOExecutor.execute(
                 () -> {
                     try {
@@ -851,7 +874,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 || !environment
                         .getTaskManagerInfo()
                         .getConfiguration()
-                        .getBoolean(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
+                        .get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
             return;
         }
         systemTimerService.registerTimer(
@@ -1492,7 +1515,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 getEnvironment()
                         .getTaskManagerInfo()
                         .getConfiguration()
-                        .getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT_TIMERS);
+                        .get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT_TIMERS);
         tryShutdownTimerService(timeoutMs, timerService);
         tryShutdownTimerService(timeoutMs, systemTimerService);
     }
@@ -1531,19 +1554,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private StateBackend createStateBackend() throws Exception {
         final StateBackend fromApplication =
                 configuration.getStateBackend(getUserCodeClassLoader());
-        final Optional<Boolean> isChangelogEnabledOptional =
-                environment
-                        .getJobConfiguration()
-                        .getOptional(
-                                StateChangelogOptionsInternal.ENABLE_CHANGE_LOG_FOR_APPLICATION);
-        final TernaryBoolean isChangelogStateBackendEnableFromApplication =
-                isChangelogEnabledOptional.isPresent()
-                        ? TernaryBoolean.fromBoolean(isChangelogEnabledOptional.get())
-                        : TernaryBoolean.UNDEFINED;
 
         return StateBackendLoader.fromApplicationOrConfigOrDefault(
                 fromApplication,
-                isChangelogStateBackendEnableFromApplication,
+                getJobConfiguration(),
                 getEnvironment().getTaskManagerInfo().getConfiguration(),
                 getUserCodeClassLoader(),
                 LOG);
@@ -1552,12 +1566,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private CheckpointStorage createCheckpointStorage(StateBackend backend) throws Exception {
         final CheckpointStorage fromApplication =
                 configuration.getCheckpointStorage(getUserCodeClassLoader());
-        final Path savepointDir = configuration.getSavepointDir(getUserCodeClassLoader());
-
         return CheckpointStorageLoader.load(
                 fromApplication,
-                savepointDir,
                 backend,
+                getJobConfiguration(),
                 getEnvironment().getTaskManagerInfo().getConfiguration(),
                 getUserCodeClassLoader(),
                 LOG);

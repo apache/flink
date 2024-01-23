@@ -122,8 +122,8 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
         if (value instanceof CompactionUnit) {
             CompactionUnit unit = (CompactionUnit) value;
             if (unit.isTaskMessage(
-                    getRuntimeContext().getNumberOfParallelSubtasks(),
-                    getRuntimeContext().getIndexOfThisSubtask())) {
+                    getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks(),
+                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask())) {
                 String partition = unit.getPartition();
                 List<Path> paths = unit.getPaths();
                 // create a target file to compact to
@@ -157,8 +157,8 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
                 new StreamRecord<>(
                         new PartitionCommitInfo(
                                 checkpoint,
-                                getRuntimeContext().getIndexOfThisSubtask(),
-                                getRuntimeContext().getNumberOfParallelSubtasks(),
+                                getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                                getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks(),
                                 this.partitions.toArray(new String[0]))));
         this.partitions.clear();
     }

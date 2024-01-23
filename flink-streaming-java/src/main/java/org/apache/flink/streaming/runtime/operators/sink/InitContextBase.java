@@ -18,7 +18,8 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.connector.sink2.InitContext;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
@@ -28,31 +29,15 @@ import java.util.OptionalLong;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Base implementation for the {@link InitContext}. */
-public class InitContextBase implements InitContext {
+class InitContextBase implements InitContext {
 
     private final OptionalLong restoredCheckpointId;
 
     private final StreamingRuntimeContext runtimeContext;
 
-    public InitContextBase(
-            StreamingRuntimeContext runtimeContext, OptionalLong restoredCheckpointId) {
+    InitContextBase(StreamingRuntimeContext runtimeContext, OptionalLong restoredCheckpointId) {
         this.runtimeContext = checkNotNull(runtimeContext);
         this.restoredCheckpointId = restoredCheckpointId;
-    }
-
-    @Override
-    public int getNumberOfParallelSubtasks() {
-        return runtimeContext.getNumberOfParallelSubtasks();
-    }
-
-    @Override
-    public int getAttemptNumber() {
-        return runtimeContext.getAttemptNumber();
-    }
-
-    @Override
-    public int getSubtaskId() {
-        return runtimeContext.getIndexOfThisSubtask();
     }
 
     @Override
@@ -61,8 +46,13 @@ public class InitContextBase implements InitContext {
     }
 
     @Override
-    public JobID getJobId() {
-        return runtimeContext.getJobId();
+    public JobInfo getJobInfo() {
+        return runtimeContext.getJobInfo();
+    }
+
+    @Override
+    public TaskInfo getTaskInfo() {
+        return runtimeContext.getTaskInfo();
     }
 
     RuntimeContext getRuntimeContext() {

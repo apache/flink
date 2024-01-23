@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.disk;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.NettyConnectionReader;
@@ -48,13 +49,15 @@ public class DiskTierConsumerAgent implements TierConsumerAgent {
             TieredStorageNettyService nettyService) {
         for (TieredStorageConsumerSpec tieredStorageConsumerSpec : tieredStorageConsumerSpecs) {
             TieredStoragePartitionId partitionId = tieredStorageConsumerSpec.getPartitionId();
-            TieredStorageSubpartitionId subpartitionId =
-                    tieredStorageConsumerSpec.getSubpartitionId();
-            nettyConnectionReaders
-                    .computeIfAbsent(partitionId, ignore -> new HashMap<>())
-                    .put(
-                            subpartitionId,
-                            nettyService.registerConsumer(partitionId, subpartitionId));
+            for (int subpartitionId : tieredStorageConsumerSpec.getSubpartitionIds().values()) {
+                nettyConnectionReaders
+                        .computeIfAbsent(partitionId, ignore -> new HashMap<>())
+                        .put(
+                                new TieredStorageSubpartitionId(subpartitionId),
+                                nettyService.registerConsumer(
+                                        partitionId,
+                                        new TieredStorageSubpartitionId(subpartitionId)));
+            }
         }
     }
 
@@ -69,6 +72,25 @@ public class DiskTierConsumerAgent implements TierConsumerAgent {
     }
 
     @Override
+    public int peekNextBufferSubpartitionId(
+            TieredStoragePartitionId partitionId, ResultSubpartitionIndexSet indexSet)
+            throws IOException {
+        for (CompletableFuture<NettyConnectionReader> readerFuture :
+                nettyConnectionReaders.get(partitionId).values()) {
+            int subpartitionId;
+            try {
+                subpartitionId = readerFuture.get().peekNextBufferSubpartitionId();
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException("Failed to peek subpartition Id.", e);
+            }
+            if (indexSet.contains(subpartitionId)) {
+                return subpartitionId;
+            }
+        }
+        return -1;
+    }
+
+    @Override
     public Optional<Buffer> getNextBuffer(
             TieredStoragePartitionId partitionId,
             TieredStorageSubpartitionId subpartitionId,
@@ -78,7 +100,7 @@ public class DiskTierConsumerAgent implements TierConsumerAgent {
                     .get(partitionId)
                     .get(subpartitionId)
                     .get()
-                    .readBuffer(segmentId);
+                    .readBuffer(subpartitionId.getSubpartitionId(), segmentId);
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException("Failed to get next buffer.", e);
         }

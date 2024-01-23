@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.runtime.stream.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.core.testutils.{EachCallbackWrapper, FlinkAssertions}
 import org.apache.flink.core.testutils.FlinkAssertions.{anyCauseMatches, assertThatChainOfCauses}
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{DataTypes, TableException}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestingAppendSink, TestingRetractSink}
@@ -113,7 +113,7 @@ class TableSourceITCase extends StreamingTestBase {
 
   @Test
   def testSimpleProject(): Unit = {
-    val result = tEnv.sqlQuery("SELECT a, c FROM MyTable").toAppendStream[Row]
+    val result = tEnv.sqlQuery("SELECT a, c FROM MyTable").toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -145,7 +145,7 @@ class TableSourceITCase extends StreamingTestBase {
         |FROM NestedTable
       """.stripMargin
 
-    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -163,7 +163,7 @@ class TableSourceITCase extends StreamingTestBase {
       """
         |SELECT nestedItem.deepArray[nestedItem.deepMap['Monday']] FROM  NestedTable
         |""".stripMargin
-    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -175,7 +175,7 @@ class TableSourceITCase extends StreamingTestBase {
   @Test
   def testTableSourceWithFilterable(): Unit = {
     val query = "SELECT id, amount, name FROM FilterableTable WHERE amount > 4 AND price < 9"
-    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -188,7 +188,7 @@ class TableSourceITCase extends StreamingTestBase {
   def testTableSourceWithFunctionFilterable(): Unit = {
     val query = "SELECT id, amount, name FROM FilterableTable " +
       "WHERE amount > 4 AND price < 9 AND upper(name) = 'RECORD_5'"
-    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -214,7 +214,7 @@ class TableSourceITCase extends StreamingTestBase {
          |""".stripMargin
     )
 
-    val result = tEnv.sqlQuery("SELECT a, c FROM MyInputFormatTable").toAppendStream[Row]
+    val result = tEnv.sqlQuery("SELECT a, c FROM MyInputFormatTable").toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -245,8 +245,7 @@ class TableSourceITCase extends StreamingTestBase {
          |  `m` TIMESTAMP(9),
          |  `n` TIMESTAMP(9) WITH LOCAL TIME ZONE,
          |  `o` ARRAY<BIGINT>,
-         |  `p` ROW<f1 BIGINT, f2 STRING, f3 DOUBLE>,
-         |  `q` MAP<STRING, INT>
+         |  `p` ROW<f1 BIGINT, f2 STRING, f3 DOUBLE>
          |) WITH (
          |  'connector' = 'values',
          |  'data-id' = '$dataId'
@@ -254,7 +253,7 @@ class TableSourceITCase extends StreamingTestBase {
          |""".stripMargin
     )
 
-    val result = tEnv.sqlQuery("SELECT * FROM T").toAppendStream[Row]
+    val result = tEnv.sqlQuery("SELECT * FROM T").toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -262,15 +261,15 @@ class TableSourceITCase extends StreamingTestBase {
     val expected = Seq(
       "true,127,32767,2147483647,9223372036854775807,-1.123,-1.123,5.10,1234567891012345.1000000000," +
         "1,1,1969-01-01,00:00:00.123,1969-01-01T00:00:00.123456789,1969-01-01T00:00:00.123456789Z," +
-        "[1, 2, 3],1,a,2.3,{k1=1}",
+        "[1, 2, 3],1,a,2.3",
       "false,-128,-32768,-2147483648,-9223372036854775808,3.4,3.4,6.10," +
         "61234567891012345.1000000000,12,12,1970-09-30,01:01:01.123,1970-09-30T01:01:01.123456," +
-        "1970-09-30T01:01:01.123456Z,[4, 5],null,b,4.56,{k4=4, k2=2}",
+        "1970-09-30T01:01:01.123456Z,[4, 5],null,b,4.56",
       "true,0,0,0,0,0.12,0.12,7.10,71234567891012345.1000000000,123,123,1990-12-24,08:10:24.123," +
-        "1990-12-24T08:10:24.123,1990-12-24T08:10:24.123Z,[6, null, 7],3,null,7.86,{k3=null}",
+        "1990-12-24T08:10:24.123,1990-12-24T08:10:24.123Z,[6, null, 7],3,null,7.86",
       "false,5,4,123,1234,1.2345,1.2345,8.12,812345678910123451.0123456789,1234,1234,2020-05-01," +
-        "23:23:23,2020-05-01T23:23:23,2020-05-01T23:23:23Z,[8],4,c,null,{null=3}",
-      "null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null"
+        "23:23:23,2020-05-01T23:23:23,2020-05-01T23:23:23Z,[8],4,c,null",
+      "null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null"
     )
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
       .isEqualTo(expected.sorted.mkString("\n"))
@@ -280,7 +279,7 @@ class TableSourceITCase extends StreamingTestBase {
   def testSimpleMetadataAccess(): Unit = {
     val result = tEnv
       .sqlQuery("SELECT `a`, `b`, `metadata_2` FROM MetadataTable")
-      .toAppendStream[Row]
+      .toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -293,7 +292,7 @@ class TableSourceITCase extends StreamingTestBase {
   def testComplexMetadataAccess(): Unit = {
     val result = tEnv
       .sqlQuery("SELECT `a`, `other_metadata`, `b`, `metadata_2`, `computed` FROM MetadataTable")
-      .toAppendStream[Row]
+      .toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -309,7 +308,7 @@ class TableSourceITCase extends StreamingTestBase {
   def testDuplicateMetadataFromSameKey(): Unit = {
     val result = tEnv
       .sqlQuery("SELECT other_metadata, other_metadata2, metadata_2 FROM MetadataTable")
-      .toAppendStream[Row]
+      .toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -331,7 +330,7 @@ class TableSourceITCase extends StreamingTestBase {
         |FROM NestedTable
       """.stripMargin
 
-    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -377,7 +376,7 @@ class TableSourceITCase extends StreamingTestBase {
         |SELECT id, deepNested.nested1.name AS nestedName FROM NestedTable
         |   WHERE nested.`value` > 20000
     """.stripMargin
-    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -395,7 +394,7 @@ class TableSourceITCase extends StreamingTestBase {
         |   nestedItem.deepArray[2].`value` FROM NestedTable
         |WHERE nestedItem.deepArray[2].`value` > 1
       """.stripMargin
-    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -414,7 +413,7 @@ class TableSourceITCase extends StreamingTestBase {
         |WHERE nestedItem.deepMap['Monday'] = 1
       """.stripMargin
 
-    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()

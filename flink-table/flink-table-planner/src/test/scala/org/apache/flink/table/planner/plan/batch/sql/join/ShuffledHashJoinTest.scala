@@ -28,7 +28,7 @@ class ShuffledHashJoinTest extends JoinTestBase {
   @BeforeEach
   def before(): Unit = {
     util.tableEnv.getConfig.getConfiguration
-      .setLong(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, 1L)
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, Long.box(1L))
     util.tableEnv.getConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
       "SortMergeJoin, NestedLoopJoin, BroadcastHashJoin")

@@ -42,6 +42,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
@@ -513,7 +514,7 @@ public class StreamTaskTest {
     @Test
     void testStateBackendLoadingAndClosing() throws Exception {
         Configuration taskManagerConfig = new Configuration();
-        taskManagerConfig.setString(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
+        taskManagerConfig.set(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
 
         StreamConfig cfg = new StreamConfig(new Configuration());
         cfg.setStateKeySerializer(mock(TypeSerializer.class));
@@ -554,7 +555,7 @@ public class StreamTaskTest {
     @Test
     void testStateBackendClosingOnFailure() throws Exception {
         Configuration taskManagerConfig = new Configuration();
-        taskManagerConfig.setString(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
+        taskManagerConfig.set(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
 
         StreamConfig cfg = new StreamConfig(new Configuration());
         cfg.setStateKeySerializer(mock(TypeSerializer.class));
@@ -1526,7 +1527,7 @@ public class StreamTaskTest {
     void testTaskAvoidHangingAfterSnapshotStateThrownException() throws Exception {
         // given: Configured SourceStreamTask with source which fails on checkpoint.
         Configuration taskManagerConfig = new Configuration();
-        taskManagerConfig.setString(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
+        taskManagerConfig.set(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
 
         StreamConfig cfg = new StreamConfig(new Configuration());
         cfg.setStateKeySerializer(mock(TypeSerializer.class));
@@ -1777,6 +1778,23 @@ public class StreamTaskTest {
             assertThat(mailboxLatencyMetric.getCount()).isGreaterThanOrEqualTo(minMeasurements);
             assertThat(maxMailboxSize).hasValueGreaterThan(0);
             assertThat(mailboxSizeMetric.getValue()).isZero();
+        }
+    }
+
+    @Test
+    void testSubTaskInitializationMetrics() throws Exception {
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(
+                                new TestBoundedOneInputStreamOperator());
+
+        try (StreamTaskMailboxTestHarness<Integer> harness = builder.buildUnrestored()) {
+            harness.streamTask.restore();
+
+            assertThat(harness.getTaskStateManager().getReportedInitializationMetrics())
+                    .isPresent();
         }
     }
 
@@ -2293,9 +2311,10 @@ public class StreamTaskTest {
         protected void cleanUpInternal() throws Exception {}
 
         @Override
-        public StreamTaskStateInitializer createStreamTaskStateInitializer() {
+        public StreamTaskStateInitializer createStreamTaskStateInitializer(
+                SubTaskInitializationMetricsBuilder initializationMetrics) {
             final StreamTaskStateInitializer streamTaskStateManager =
-                    super.createStreamTaskStateInitializer();
+                    super.createStreamTaskStateInitializer(initializationMetrics);
             return (operatorID,
                     operatorClassName,
                     processingTimeService,

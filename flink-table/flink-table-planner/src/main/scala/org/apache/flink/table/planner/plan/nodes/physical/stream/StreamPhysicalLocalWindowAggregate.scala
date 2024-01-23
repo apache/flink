@@ -62,8 +62,10 @@ class StreamPhysicalLocalWindowAggregate(
     unwrapTypeFactory(inputRel),
     FlinkTypeFactory.toLogicalRowType(inputRel.getRowType),
     aggCalls,
+    AggregateUtil.needRetraction(this),
     windowing.getWindow,
-    isStateBackendDataViews = false)
+    isStateBackendDataViews = false
+  )
 
   private lazy val endPropertyName = windowing match {
     case _: WindowAttachedWindowingStrategy => "window_end"
@@ -133,6 +135,7 @@ class StreamPhysicalLocalWindowAggregate(
       grouping,
       aggCalls.toArray,
       windowing,
+      AggregateUtil.needRetraction(this),
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)

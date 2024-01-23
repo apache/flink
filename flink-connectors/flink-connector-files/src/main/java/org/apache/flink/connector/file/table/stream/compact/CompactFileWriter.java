@@ -59,7 +59,7 @@ public class CompactFileWriter<T> extends AbstractStreamingWriter<T, Coordinator
                 new StreamRecord<>(
                         new EndCheckpoint(
                                 checkpointId,
-                                getRuntimeContext().getIndexOfThisSubtask(),
-                                getRuntimeContext().getNumberOfParallelSubtasks())));
+                                getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                                getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks())));
     }
 }

@@ -18,8 +18,15 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
@@ -33,10 +40,13 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Stream;
 
+import static org.apache.flink.yarn.configuration.YarnConfigOptions.YARN_CONTAINER_START_COMMAND_TEMPLATE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -193,6 +203,475 @@ class UtilsTest {
         assertThat(yarnConfig.get(yarnPrefix + k1, null)).isEqualTo(v1);
         assertThat(yarnConfig.get(yarnPrefix + k2, null)).isEqualTo(v2);
         assertThat(yarnConfig.get(yarnPrefix + k3)).isNull();
+    }
+
+    @Test
+    void testGetTaskManagerShellCommand() {
+        final Configuration cfg = new Configuration();
+        final TaskExecutorProcessSpec taskExecutorProcessSpec =
+                new TaskExecutorProcessSpec(
+                        new CPUResource(1.0),
+                        new MemorySize(0), // frameworkHeapSize
+                        new MemorySize(0), // frameworkOffHeapSize
+                        new MemorySize(111), // taskHeapSize
+                        new MemorySize(0), // taskOffHeapSize
+                        new MemorySize(222), // networkMemSize
+                        new MemorySize(0), // managedMemorySize
+                        new MemorySize(333), // jvmMetaspaceSize
+                        new MemorySize(0), // jvmOverheadSize
+                        Collections.emptyList());
+        final ContaineredTaskManagerParameters containeredParams =
+                new ContaineredTaskManagerParameters(taskExecutorProcessSpec, new HashMap<>());
+
+        // no logging, with/out krb5
+        final String java = "$JAVA_HOME/bin/java";
+        final String jvmmem =
+                "-Xmx111 -Xms111 -XX:MaxDirectMemorySize=222 -XX:MaxMetaspaceSize=333";
+        final String defaultJvmOpts = "-DdefaultJvm"; // if set
+        final String jvmOpts = "-Djvm"; // if set
+        final String defaultTmJvmOpts = "-DdefaultTmJvm"; // if set
+        final String tmJvmOpts = "-DtmJvm"; // if set
+        final String logfile = "-Dlog.file=./logs/taskmanager.log"; // if set
+        final String logback = "-Dlogback.configurationFile=file:./conf/logback.xml"; // if set
+        final String log4j =
+                "-Dlog4j.configuration=file:./conf/log4j.properties"
+                        + " -Dlog4j.configurationFile=file:./conf/log4j.properties"; // if set
+        final String mainClass = "org.apache.flink.yarn.UtilsTest";
+        final String dynamicConfigs =
+                TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec).trim();
+        final String basicArgs = "--configDir ./conf";
+        final String mainArgs = "-Djobmanager.rpc.address=host1 -Dkey.a=v1";
+        final String args = dynamicConfigs + " " + basicArgs + " " + mainArgs;
+        final String redirects = "1> ./logs/taskmanager.out 2> ./logs/taskmanager.err";
+
+        assertThat(
+                        Utils.getTaskManagerShellCommand(
+                                cfg,
+                                containeredParams,
+                                "./conf",
+                                "./logs",
+                                false,
+                                false,
+                                false,
+                                this.getClass(),
+                                ""))
+                .isEqualTo(
+                        String.join(
+                                " ",
+                                java,
+                                jvmmem,
+                                Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
+                                mainClass,
+                                dynamicConfigs,
+                                basicArgs,
+                                redirects));
+
+        assertThat(
+                        Utils.getTaskManagerShellCommand(
+                                cfg,
+                                containeredParams,
+                                "./conf",
+                                "./logs",
+                                false,
+                                false,
+                                false,
+                                this.getClass(),
+                                mainArgs))
+                .isEqualTo(
+                        String.join(
+                                " ",
+                                java,
+                                jvmmem,
+                                Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
+                                mainClass,
+                                args,
+                                redirects));
+
+        final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
+        assertThat(
+                        Utils.getTaskManagerShellCommand(
+                                cfg,
+                                containeredParams,
+                                "./conf",
+                                "./logs",
+                                false,
+                                false,
+                                true,
+                                this.getClass(),
+                                mainArgs))
+                .isEqualTo(
+                        String.join(
+                                " ",
+                                java,
+                                jvmmem,
+                                Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
+                                krb5,
+                                mainClass,
+                                args,
+                                redirects));
+
+        // logback only, with/out krb5
+        assertThat(
+                        Utils.getTaskManagerShellCommand(
+                                cfg,
+                                containeredParams,
+                                "./conf",
+                                "./logs",
+                                true,
+                                false,
+                                false,
+                                this.getClass(),
+                                mainArgs))
+                .isEqualTo(
+                        String.join(
+                                " ",
+                                java,
+                                jvmmem,
+                                Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
+                                logfile,
+                                logback,
+                                mainClass,
+                                args,
+                                redirects));
+
+        assertThat(
+                        Utils.getTaskManagerShellCommand(
+                                cfg,
+                                containeredParams,
+                                "./conf",
+                                "./logs",
+                                true,
+                                false,
+                                true,
+                                this.getClass(),
+                                mainArgs))
+                .isEqualTo(
+                        String.join(
+                                " ",
+                                java,
+                                jvmmem,
+                                Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
+                                krb5,
+                                logfile,
+                                logback,
+                                mainClass,
+                                args,
+                                redirects));
+
+        // log4j, with/out krb5
+        assertThat(
+                        Utils.getTaskManagerShellCommand(
+                                cfg,
+                                containeredParams,
+                                "./conf",
+                                "./logs",
+                                false,
+                                true,
+                                false,
+                                this.getClass(),
+                                mainArgs))
+                .isEqualTo(
+                        String.join(
+                                " ",
+                                java,
+                                jvmmem,
+                                Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
+                                logfile,
+                                log4j,
+                                mainClass,
+                                args,
+                                redirects));
+
+        assertThat(
+                        Utils.getTaskManagerShellCommand(
+                                cfg,
+                                containeredParams,
+                                "./conf",
+                                "./logs",
+                                false,
+                                true,
+                                true,
+                                this.getClass(),
+                                mainArgs))
+                .isEqualTo(
+                        String.join(
+                                " ",
+                                java,
+                                jvmmem,
+                                Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
+                                krb5,
+                                logfile,
+                                log4j,
+                                mainClass,
+                                args,
+                                redirects));
+
+        // logback + log4j, with/out krb5
+        assertThat(
+                        Utils.getTaskManagerShellCommand(
+                                cfg,
+                                containeredParams,
+                                "./conf",
+                                "./logs",
+                                true,
+                                true,
+                                false,
+                                this.getClass(),
+                                mainArgs))
+                .isEqualTo(
+                        String.join(
+                                " ",
+                                java,
+                                jvmmem,
+                                Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
+                                logfile,
+                                logback,
+                                log4j,
+                                mainClass,
+                                args,
+                                redirects));
+
+        assertThat(
+                        Utils.getTaskManagerShellCommand(
+                                cfg,
+                                containeredParams,
+                                "./conf",
+                                "./logs",
+                                true,
+                                true,
+                                true,
+                                this.getClass(),
+                                mainArgs))
+                .isEqualTo(
+                        String.join(
+                                " ",
+                                java,
+                                jvmmem,
+                                Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
+                                krb5,
+                                logfile,
+                                logback,
+                                log4j,
+                                mainClass,
+                                args,
+                                redirects));
+
+        // logback + log4j, with/out krb5, different JVM opts
+        cfg.set(CoreOptions.FLINK_DEFAULT_JVM_OPTIONS, defaultJvmOpts);
+        cfg.set(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
+        assertThat(
+                        Utils.getTaskManagerShellCommand(
+                                cfg,
+                                containeredParams,
+                                "./conf",
+                                "./logs",
+                                true,
+                                true,
+                                false,
+                                this.getClass(),
+                                mainArgs))
+                .isEqualTo(
+                        String.join(
+                                " ",
+                                java,
+                                jvmmem,
+                                defaultJvmOpts,
+                                jvmOpts,
+                                Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
+                                logfile,
+                                logback,
+                                log4j,
+                                mainClass,
+                                args,
+                                redirects));
+
+        assertThat(
+                        Utils.getTaskManagerShellCommand(
+                                cfg,
+                                containeredParams,
+                                "./conf",
+                                "./logs",
+                                true,
+                                true,
+                                true,
+                                this.getClass(),
+                                mainArgs))
+                .isEqualTo(
+                        String.join(
+                                " ",
+                                java,
+                                jvmmem,
+                                defaultJvmOpts,
+                                jvmOpts,
+                                Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
+                                krb5,
+                                logfile,
+                                logback,
+                                log4j,
+                                mainClass,
+                                args,
+                                redirects));
+
+        // logback + log4j, with/out krb5, different JVM opts
+        cfg.set(CoreOptions.FLINK_DEFAULT_TM_JVM_OPTIONS, defaultTmJvmOpts);
+        cfg.set(CoreOptions.FLINK_TM_JVM_OPTIONS, tmJvmOpts);
+        assertThat(
+                        Utils.getTaskManagerShellCommand(
+                                cfg,
+                                containeredParams,
+                                "./conf",
+                                "./logs",
+                                true,
+                                true,
+                                false,
+                                this.getClass(),
+                                mainArgs))
+                .isEqualTo(
+                        String.join(
+                                " ",
+                                java,
+                                jvmmem,
+                                defaultJvmOpts,
+                                jvmOpts,
+                                defaultTmJvmOpts,
+                                tmJvmOpts,
+                                Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
+                                logfile,
+                                logback,
+                                log4j,
+                                mainClass,
+                                args,
+                                redirects));
+
+        assertThat(
+                        Utils.getTaskManagerShellCommand(
+                                cfg,
+                                containeredParams,
+                                "./conf",
+                                "./logs",
+                                true,
+                                true,
+                                true,
+                                this.getClass(),
+                                mainArgs))
+                .isEqualTo(
+                        String.join(
+                                " ",
+                                java,
+                                jvmmem,
+                                defaultJvmOpts,
+                                jvmOpts,
+                                defaultTmJvmOpts,
+                                tmJvmOpts,
+                                Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
+                                krb5,
+                                logfile,
+                                logback,
+                                log4j,
+                                mainClass,
+                                args,
+                                redirects));
+
+        // now try some configurations with different yarn.container-start-command-template
+
+        cfg.set(
+                YARN_CONTAINER_START_COMMAND_TEMPLATE,
+                "%java% 1 %jvmmem% 2 %jvmopts% 3 %logging% 4 %class% 5 %args% 6 %redirects%");
+        assertThat(
+                        Utils.getTaskManagerShellCommand(
+                                cfg,
+                                containeredParams,
+                                "./conf",
+                                "./logs",
+                                true,
+                                true,
+                                true,
+                                this.getClass(),
+                                mainArgs))
+                .isEqualTo(
+                        String.join(
+                                " ",
+                                java,
+                                "1",
+                                jvmmem,
+                                "2",
+                                defaultJvmOpts,
+                                jvmOpts,
+                                defaultTmJvmOpts,
+                                tmJvmOpts,
+                                Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
+                                krb5,
+                                "3",
+                                logfile,
+                                logback,
+                                log4j,
+                                "4",
+                                mainClass,
+                                "5",
+                                args,
+                                "6",
+                                redirects));
+
+        cfg.set(
+                YARN_CONTAINER_START_COMMAND_TEMPLATE,
+                "%java% %logging% %jvmopts% %jvmmem% %class% %args% %redirects%");
+        assertThat(
+                        Utils.getTaskManagerShellCommand(
+                                cfg,
+                                containeredParams,
+                                "./conf",
+                                "./logs",
+                                true,
+                                true,
+                                true,
+                                this.getClass(),
+                                mainArgs))
+                .isEqualTo(
+                        String.join(
+                                " ",
+                                java,
+                                logfile,
+                                logback,
+                                log4j,
+                                defaultJvmOpts,
+                                jvmOpts,
+                                defaultTmJvmOpts,
+                                tmJvmOpts,
+                                Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
+                                krb5,
+                                jvmmem,
+                                mainClass,
+                                args,
+                                redirects));
+    }
+
+    @Test
+    void testGenerateJvmOptsString() {
+        final String defaultJvmOpts = "-DdefaultJvm";
+        final String jvmOpts = "-Djvm";
+        final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
+        final Configuration conf = new Configuration();
+        conf.set(CoreOptions.FLINK_DEFAULT_JVM_OPTIONS, defaultJvmOpts);
+        conf.set(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
+        final List<ConfigOption<String>> jvmOptions =
+                Arrays.asList(CoreOptions.FLINK_DEFAULT_JVM_OPTIONS, CoreOptions.FLINK_JVM_OPTIONS);
+        // With Krb5
+        assertThat(Utils.generateJvmOptsString(conf, jvmOptions, true))
+                .isEqualTo(
+                        String.join(
+                                " ",
+                                defaultJvmOpts,
+                                jvmOpts,
+                                Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS,
+                                krb5));
+        // Without Krb5
+        assertThat(Utils.generateJvmOptsString(conf, jvmOptions, false))
+                .isEqualTo(
+                        String.join(
+                                " ",
+                                defaultJvmOpts,
+                                jvmOpts,
+                                Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS));
     }
 
     private static void verifyUnitResourceVariousSchedulers(

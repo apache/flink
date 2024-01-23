@@ -26,6 +26,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributesBuilder;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.KeyedMultiInputStreamOperatorTestHarness;
@@ -126,6 +128,39 @@ public class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
                     "Output was not correct", expectedOutput, testHarness.getOutput());
             testHarness.processWatermarkStatus(2, WatermarkStatus.IDLE);
             expectedOutput.add(WatermarkStatus.IDLE);
+            TestHarnessUtil.assertOutputEquals(
+                    "Output was not correct", expectedOutput, testHarness.getOutput());
+        }
+    }
+
+    @Test
+    public void testRecordAttributesForwarding() throws Exception {
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        try (KeyedMultiInputStreamOperatorTestHarness<Integer, Long> testHarness =
+                new KeyedMultiInputStreamOperatorTestHarness<>(
+                        new WatermarkTestingOperatorFactory(), BasicTypeInfo.INT_TYPE_INFO)) {
+            testHarness.setup();
+            testHarness.open();
+
+            final RecordAttributes backlogRecordAttributes =
+                    new RecordAttributesBuilder(Collections.emptyList()).setBacklog(true).build();
+            final RecordAttributes nonBacklogRecordAttributes =
+                    new RecordAttributesBuilder(Collections.emptyList()).setBacklog(false).build();
+
+            testHarness.processRecordAttributes(0, backlogRecordAttributes);
+            testHarness.processRecordAttributes(1, backlogRecordAttributes);
+            testHarness.processRecordAttributes(2, backlogRecordAttributes);
+            expectedOutput.add(backlogRecordAttributes);
+            expectedOutput.add(backlogRecordAttributes);
+            expectedOutput.add(backlogRecordAttributes);
+
+            testHarness.processRecordAttributes(0, nonBacklogRecordAttributes);
+            testHarness.processRecordAttributes(1, nonBacklogRecordAttributes);
+            testHarness.processRecordAttributes(2, nonBacklogRecordAttributes);
+            expectedOutput.add(backlogRecordAttributes);
+            expectedOutput.add(backlogRecordAttributes);
+            expectedOutput.add(nonBacklogRecordAttributes);
+
             TestHarnessUtil.assertOutputEquals(
                     "Output was not correct", expectedOutput, testHarness.getOutput());
         }

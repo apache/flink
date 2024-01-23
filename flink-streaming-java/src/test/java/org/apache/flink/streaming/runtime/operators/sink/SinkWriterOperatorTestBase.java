@@ -335,8 +335,8 @@ abstract class SinkWriterOperatorTestBase {
                                 SinkV2Assertions.assertThat(((CommittableSummary<?>) cs))
                                         .hasPendingCommittables(committables.size())
                                         .hasCheckpointId(
-                                                org.apache.flink.api.connector.sink2.InitContext
-                                                        .INITIAL_CHECKPOINT_ID)
+                                                org.apache.flink.api.connector.sink2.Sink
+                                                        .InitContext.INITIAL_CHECKPOINT_ID)
                                         .hasOverallCommittables(committables.size())
                                         .hasFailedCommittables(0));
         assertRestoredCommitterCommittable(
@@ -382,8 +382,8 @@ abstract class SinkWriterOperatorTestBase {
 
     @Test
     void testInitContext() throws Exception {
-        final AtomicReference<org.apache.flink.api.connector.sink2.Sink.WriterInitContext>
-                initContext = new AtomicReference<>();
+        final AtomicReference<org.apache.flink.api.connector.sink2.Sink.InitContext> initContext =
+                new AtomicReference<>();
         final org.apache.flink.api.connector.sink2.Sink<String> sink =
                 context -> {
                     initContext.set(context);
@@ -412,14 +412,15 @@ abstract class SinkWriterOperatorTestBase {
         assertThat(initContext.get().getUserCodeClassLoader()).isNotNull();
         assertThat(initContext.get().getMailboxExecutor()).isNotNull();
         assertThat(initContext.get().getProcessingTimeService()).isNotNull();
-        assertThat(initContext.get().getSubtaskId()).isEqualTo(subtaskId);
-        assertThat(initContext.get().getNumberOfParallelSubtasks()).isEqualTo(parallelism);
-        assertThat(initContext.get().getAttemptNumber()).isEqualTo(0);
+        assertThat(initContext.get().getTaskInfo().getIndexOfThisSubtask()).isEqualTo(subtaskId);
+        assertThat(initContext.get().getTaskInfo().getNumberOfParallelSubtasks())
+                .isEqualTo(parallelism);
+        assertThat(initContext.get().getTaskInfo().getAttemptNumber()).isEqualTo(0);
         assertThat(initContext.get().metricGroup()).isNotNull();
         assertThat(initContext.get().getRestoredCheckpointId()).isNotPresent();
         assertThat(initContext.get().isObjectReuseEnabled()).isTrue();
         assertThat(initContext.get().createInputSerializer()).isEqualTo(typeSerializer);
-        assertThat(initContext.get().getJobId()).isEqualTo(jobID);
+        assertThat(initContext.get().getJobInfo().getJobId()).isEqualTo(jobID);
 
         testHarness.close();
     }
@@ -433,8 +434,8 @@ abstract class SinkWriterOperatorTestBase {
                                 SinkV2Assertions.assertThat((CommittableWithLineage<String>) cl)
                                         .hasCommittable(committable)
                                         .hasCheckpointId(
-                                                org.apache.flink.api.connector.sink2.InitContext
-                                                        .INITIAL_CHECKPOINT_ID)
+                                                org.apache.flink.api.connector.sink2.Sink
+                                                        .InitContext.INITIAL_CHECKPOINT_ID)
                                         .hasSubtaskId(0));
     }
 

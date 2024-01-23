@@ -944,8 +944,8 @@ public class TaskTest extends TestLogger {
         final TaskManagerActions taskManagerActions = new ProhibitFatalErrorTaskManagerActions();
 
         final Configuration config = new Configuration();
-        config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, 5);
-        config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 1000);
+        config.set(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, 5L);
+        config.set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 1000L);
 
         final Task task =
                 createTaskBuilder()
@@ -976,7 +976,7 @@ public class TaskTest extends TestLogger {
                         .build();
 
         final Configuration config = new Configuration();
-        config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 10);
+        config.set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 10L);
 
         final Task task =
                 createTaskBuilder()
@@ -1014,8 +1014,8 @@ public class TaskTest extends TestLogger {
                         .build();
 
         final Configuration config = new Configuration();
-        config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, 5);
-        config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 50);
+        config.set(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, 5L);
+        config.set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 50L);
 
         // We need to remember the original object since all changes in  `startTaskThread` applies
         // to it rather than to spy object.
@@ -1054,8 +1054,8 @@ public class TaskTest extends TestLogger {
         long timeout = interval + 19292;
 
         final Configuration config = new Configuration();
-        config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, interval);
-        config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, timeout);
+        config.set(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, interval);
+        config.set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, timeout);
 
         final ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.setTaskCancellationInterval(interval + 1337);

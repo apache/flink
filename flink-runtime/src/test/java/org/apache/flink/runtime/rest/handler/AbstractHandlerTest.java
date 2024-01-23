@@ -87,16 +87,16 @@ class AbstractHandlerTest {
         final String loopbackAddress = InetAddress.getLoopbackAddress().getHostAddress();
 
         final Configuration config = new Configuration();
-        config.setString(RestOptions.BIND_PORT, "0");
-        config.setString(RestOptions.BIND_ADDRESS, loopbackAddress);
-        config.setString(RestOptions.ADDRESS, loopbackAddress);
+        config.set(RestOptions.BIND_PORT, "0");
+        config.set(RestOptions.BIND_ADDRESS, loopbackAddress);
+        config.set(RestOptions.ADDRESS, loopbackAddress);
 
         REST_BASE_CONFIG = config;
     }
 
     private RestClient createRestClient(int serverPort) throws ConfigurationException {
         Configuration config = new Configuration(REST_BASE_CONFIG);
-        config.setInteger(RestOptions.PORT, serverPort);
+        config.set(RestOptions.PORT, serverPort);
 
         return new RestClient(config, Executors.directExecutor());
     }

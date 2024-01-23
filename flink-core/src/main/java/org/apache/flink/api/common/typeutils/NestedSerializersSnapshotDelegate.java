@@ -97,46 +97,6 @@ public class NestedSerializersSnapshotDelegate {
         return nestedSnapshots;
     }
 
-    /**
-     * Resolves the compatibility of the nested serializer snapshots with the nested serializers of
-     * the new outer serializer.
-     *
-     * @deprecated this no method will be removed in the future. Resolving compatibility for nested
-     *     serializers is now handled by {@link CompositeTypeSerializerSnapshot}.
-     */
-    @Deprecated
-    public <T> TypeSerializerSchemaCompatibility<T> resolveCompatibilityWithNested(
-            TypeSerializerSchemaCompatibility<?> outerCompatibility,
-            TypeSerializer<?>... newNestedSerializers) {
-
-        checkArgument(
-                newNestedSerializers.length == nestedSnapshots.length,
-                "Different number of new serializers and existing serializer configuration snapshots");
-
-        // compatibility of the outer serializer's format
-        if (outerCompatibility.isIncompatible()) {
-            return TypeSerializerSchemaCompatibility.incompatible();
-        }
-
-        // check nested serializers for compatibility
-        boolean nestedSerializerRequiresMigration = false;
-        for (int i = 0; i < nestedSnapshots.length; i++) {
-            TypeSerializerSchemaCompatibility<?> compatibility =
-                    resolveCompatibility(newNestedSerializers[i], nestedSnapshots[i]);
-
-            if (compatibility.isIncompatible()) {
-                return TypeSerializerSchemaCompatibility.incompatible();
-            }
-            if (compatibility.isCompatibleAfterMigration()) {
-                nestedSerializerRequiresMigration = true;
-            }
-        }
-
-        return (nestedSerializerRequiresMigration || !outerCompatibility.isCompatibleAsIs())
-                ? TypeSerializerSchemaCompatibility.compatibleAfterMigration()
-                : TypeSerializerSchemaCompatibility.compatibleAsIs();
-    }
-
     // ------------------------------------------------------------------------
     //  Serialization
     // ------------------------------------------------------------------------
@@ -182,17 +142,6 @@ public class NestedSerializersSnapshotDelegate {
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------
-
-    /** Utility method to conjure up a new scope for the generic parameters. */
-    @SuppressWarnings("unchecked")
-    private static <E> TypeSerializerSchemaCompatibility<E> resolveCompatibility(
-            TypeSerializer<?> serializer, TypeSerializerSnapshot<?> snapshot) {
-
-        TypeSerializer<E> typedSerializer = (TypeSerializer<E>) serializer;
-        TypeSerializerSnapshot<E> typedSnapshot = (TypeSerializerSnapshot<E>) snapshot;
-
-        return typedSnapshot.resolveSchemaCompatibility(typedSerializer);
-    }
 
     private static TypeSerializer<?>[] snapshotsToRestoreSerializers(
             TypeSerializerSnapshot<?>... snapshots) {

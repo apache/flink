@@ -36,12 +36,11 @@ import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters
-import org.apache.flink.testutils.junit.utils.TempDirUtils
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{AfterEach, BeforeEach}
 
-import java.io.File
+import java.nio.file.Files
 import java.util
 
 import scala.collection.JavaConversions._
@@ -57,13 +56,13 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
 
   private val classLoader = Thread.currentThread.getContextClassLoader
 
-  var baseCheckpointPath: File = _
-
   @BeforeEach
   override def before(): Unit = {
     super.before()
     // set state backend
-    baseCheckpointPath = tempFolder.toFile
+
+    val baseCheckpointPath = Files.createTempDirectory(getClass.getCanonicalName)
+    baseCheckpointPath.toFile.deleteOnExit();
     state match {
       case HEAP_BACKEND =>
         val conf = new Configuration()
@@ -71,7 +70,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
           new MemoryStateBackend("file://" + baseCheckpointPath, null).configure(conf, classLoader))
       case ROCKSDB_BACKEND =>
         val conf = new Configuration()
-        conf.setBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true)
+        conf.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, Boolean.box(true))
         env.setStateBackend(
           new RocksDBStateBackend("file://" + baseCheckpointPath).configure(conf, classLoader))
     }

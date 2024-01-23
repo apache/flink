@@ -44,7 +44,7 @@ class LocalAggregatePushDownITCase extends BatchTestBase {
         String ddl =
                 "CREATE TABLE AggregatableTable (\n"
                         + "  id int,\n"
-                        + "  age int,\n"
+                        + "  age int not null,\n"
                         + "  name string,\n"
                         + "  height int,\n"
                         + "  gender string,\n"
@@ -163,6 +163,46 @@ class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "FROM\n"
                         + "  AggregatableTable",
                 JavaScalaConversionUtil.toScala(Collections.singletonList(Row.of(177, 1950, 11))),
+                false);
+    }
+
+    @Test
+    public void testCanPushDownLocalHashAggForCount() {
+        checkResult(
+                "SELECT count(*) FROM AggregatableTable",
+                JavaScalaConversionUtil.toScala(Collections.singletonList(Row.of(11))),
+                false);
+    }
+
+    @Test
+    public void testCannotPushDownLocalHashAggForCountWithFilterCondition() {
+        checkResult(
+                "SELECT count(*) FROM AggregatableTable where id > 8",
+                JavaScalaConversionUtil.toScala(Collections.singletonList(Row.of(3))),
+                false);
+    }
+
+    @Test
+    public void testCanPushDownLocalHashAggForCount1() {
+        checkResult(
+                "SELECT count(1) FROM AggregatableTable",
+                JavaScalaConversionUtil.toScala(Collections.singletonList(Row.of(11))),
+                false);
+    }
+
+    @Test
+    public void testCanPushDownLocalHashAggForCountNullableColumn() {
+        checkResult(
+                "SELECT count(id) FROM AggregatableTable",
+                JavaScalaConversionUtil.toScala(Collections.singletonList(Row.of(11))),
+                false);
+    }
+
+    @Test
+    public void testCanPushDownLocalHashAggForCountNotNullColumn() {
+        checkResult(
+                "SELECT count(age) FROM AggregatableTable",
+                JavaScalaConversionUtil.toScala(Collections.singletonList(Row.of(11))),
                 false);
     }
 

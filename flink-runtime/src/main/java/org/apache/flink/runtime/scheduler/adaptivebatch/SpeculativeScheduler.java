@@ -162,7 +162,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
                 forwardGroupsByJobVertexId);
 
         this.maxConcurrentExecutions =
-                jobMasterConfiguration.getInteger(
+                jobMasterConfiguration.get(
                         BatchExecutionOptions.SPECULATIVE_MAX_CONCURRENT_EXECUTIONS);
 
         this.blockSlowNodeDuration =

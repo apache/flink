@@ -36,6 +36,7 @@ KEY_ENV_HBASE_CONF_DIR = "env.hbase.conf.dir"
 KEY_ENV_JAVA_HOME = "env.java.home"
 KEY_ENV_JAVA_OPTS = "env.java.opts.all"
 KEY_ENV_JAVA_OPTS_DEPRECATED = "env.java.opts"
+KEY_ENV_JAVA_DEFAULT_OPTS = "env.java.default-opts.all"
 
 
 def on_windows():
@@ -156,12 +157,14 @@ def construct_log_settings(env):
 
 def get_jvm_opts(env):
     flink_conf_file = os.path.join(env['FLINK_CONF_DIR'], "flink-conf.yaml")
-    jvm_opts = env.get(
-        'FLINK_ENV_JAVA_OPTS',
-        read_from_config(
+    jvm_opts = env.get("FLINK_ENV_JAVA_OPTS")
+    if jvm_opts is None:
+        default_jvm_opts = read_from_config(KEY_ENV_JAVA_DEFAULT_OPTS, "", flink_conf_file)
+        extra_jvm_opts = read_from_config(
             KEY_ENV_JAVA_OPTS,
             read_from_config(KEY_ENV_JAVA_OPTS_DEPRECATED, "", flink_conf_file),
-            flink_conf_file))
+            flink_conf_file)
+        jvm_opts = default_jvm_opts + " " + extra_jvm_opts
 
     # Remove leading and trailing double quotes (if present) of value
     jvm_opts = jvm_opts.strip('"')
@@ -216,17 +219,22 @@ def construct_hadoop_classpath(env):
                  read_from_config(KEY_ENV_HBASE_CONF_DIR, hbase_conf_dir, flink_conf_file))])
 
 
-def construct_test_classpath():
+def construct_test_classpath(env):
     test_jar_patterns = [
         "flink-python/target/test-dependencies/*",
         "flink-python/target/artifacts/testDataStream.jar",
         "flink-python/target/flink-python*-tests.jar",
     ]
     test_jars = []
-    flink_source_root = _find_flink_source_root()
-    for pattern in test_jar_patterns:
-        pattern = pattern.replace("/", os.path.sep)
-        test_jars += glob.glob(os.path.join(flink_source_root, pattern))
+
+    # Connector tests need to add specific jars to the gateway classpath
+    if 'FLINK_TEST_LIBS' in env:
+        test_jars += glob.glob(env['FLINK_TEST_LIBS'])
+    else:
+        flink_source_root = _find_flink_source_root()
+        for pattern in test_jar_patterns:
+            pattern = pattern.replace("/", os.path.sep)
+            test_jars += glob.glob(os.path.join(flink_source_root, pattern))
     return os.path.pathsep.join(test_jars)
 
 
@@ -253,7 +261,7 @@ def launch_gateway_server_process(env, args):
         classpath = os.pathsep.join(
             [construct_flink_classpath(env), construct_hadoop_classpath(env)])
         if "FLINK_TESTING" in env:
-            classpath = os.pathsep.join([classpath, construct_test_classpath()])
+            classpath = os.pathsep.join([classpath, construct_test_classpath(env)])
         command = [
             java_executable,
             *jvm_args,

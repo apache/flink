@@ -95,12 +95,12 @@ public class ChangelogLocalRecoveryITCase extends TestLogger {
     @Before
     public void setup() throws Exception {
         Configuration configuration = new Configuration();
-        configuration.setInteger(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 1);
+        configuration.set(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 1);
 
-        configuration.setString(PROCESS_WORKING_DIR_BASE, workingDir);
-        configuration.setString(JOB_MANAGER_PROCESS_WORKING_DIR_BASE, workingDir);
-        configuration.setString(TASK_MANAGER_PROCESS_WORKING_DIR_BASE, workingDir);
-        configuration.setBoolean(LOCAL_RECOVERY, true);
+        configuration.set(PROCESS_WORKING_DIR_BASE, workingDir);
+        configuration.set(JOB_MANAGER_PROCESS_WORKING_DIR_BASE, workingDir);
+        configuration.set(TASK_MANAGER_PROCESS_WORKING_DIR_BASE, workingDir);
+        configuration.set(LOCAL_RECOVERY, true);
         FsStateChangelogStorageFactory.configure(
                 configuration, TEMPORARY_FOLDER.newFolder(), Duration.ofMillis(1000), 1);
         cluster =
@@ -179,7 +179,7 @@ public class ChangelogLocalRecoveryITCase extends TestLogger {
                 .setExternalizedCheckpointCleanup(
                         CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
         Configuration configuration = new Configuration();
-        configuration.setInteger(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 1);
+        configuration.set(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 1);
         env.configure(configuration);
         return env;
     }

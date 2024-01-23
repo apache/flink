@@ -19,9 +19,12 @@
 package org.apache.flink.table.test.program;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.test.program.FunctionTestStep.FunctionBehavior;
 import org.apache.flink.table.test.program.FunctionTestStep.FunctionPersistence;
+import org.apache.flink.table.test.program.TableApiTestStep.TableEnvAccessor;
 import org.apache.flink.table.test.program.TestStep.TestKind;
 import org.apache.flink.util.Preconditions;
 
@@ -29,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -173,15 +177,40 @@ public class TableTestProgram {
                 .collect(Collectors.toList());
     }
 
+    /** Convenience method to avoid casting. It assumes that the order of steps is not important. */
+    public List<TemporalFunctionTestStep> getSetupTemporalFunctionTestSteps() {
+        return setupSteps.stream()
+                .filter(s -> s.getKind() == TestKind.TEMPORAL_FUNCTION)
+                .map(TemporalFunctionTestStep.class::cast)
+                .collect(Collectors.toList());
+    }
+
     /**
      * Convenience method to avoid boilerplate code. It assumes that only a single SQL statement is
      * tested.
      */
     public SqlTestStep getRunSqlTestStep() {
+        final List<TestStep> sqlSteps =
+                runSteps.stream()
+                        .filter(s -> s.getKind() == TestKind.SQL)
+                        .collect(Collectors.toList());
+        Preconditions.checkArgument(sqlSteps.size() == 1, "Single SQL step expected.");
+        return (SqlTestStep) sqlSteps.get(0);
+    }
+
+    /**
+     * Convenience method to avoid boilerplate code. It assumes only one statement set is tested.
+     */
+    public StatementSetTestStep getRunStatementSetTestStep() {
+        List<TestStep> statementSetSteps =
+                runSteps.stream()
+                        .filter(s -> s.getKind() == TestKind.STATEMENT_SET)
+                        .collect(Collectors.toList());
+
         Preconditions.checkArgument(
-                runSteps.size() == 1 && runSteps.get(0).getKind() == TestKind.SQL,
-                "Single SQL step expected.");
-        return (SqlTestStep) runSteps.get(0);
+                statementSetSteps.size() == 1, "Single StatementSet step expected.");
+
+        return (StatementSetTestStep) statementSetSteps.get(0);
     }
 
     /** Builder pattern for {@link TableTestProgram}. */
@@ -223,6 +252,19 @@ public class TableTestProgram {
                             FunctionBehavior.SYSTEM,
                             name,
                             function));
+            return this;
+        }
+
+        /** Setup step for registering a temporary system function. */
+        public Builder setupTemporarySystemTemporalTableFunction(
+                String name, String table, Expression timeAttribute, Expression primaryKey) {
+            this.setupSteps.add(
+                    new TemporalFunctionTestStep(
+                            TemporalFunctionTestStep.FunctionBehavior.SYSTEM,
+                            name,
+                            table,
+                            timeAttribute,
+                            primaryKey));
             return this;
         }
 
@@ -273,6 +315,11 @@ public class TableTestProgram {
         /** Run step for executing SQL. */
         public Builder runSql(String sql) {
             this.runSteps.add(new SqlTestStep(sql));
+            return this;
+        }
+
+        public Builder runTableApi(Function<TableEnvAccessor, Table> toTable, String sinkName) {
+            this.runSteps.add(new TableApiTestStep(toTable, sinkName));
             return this;
         }
 

@@ -45,6 +45,7 @@ public abstract class MergingWindowAssigner<T, W extends Window> extends WindowA
      * Callback to be used in {@link #mergeWindows(Collection, MergeCallback)} for specifying which
      * windows should be merged.
      */
+    @PublicEvolving
     public interface MergeCallback<W> {
 
         /**

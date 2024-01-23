@@ -376,7 +376,7 @@ result = orders.select(col("a"), col("c").alias('d'))
 {{< /tab >}}
 {{< /tabs >}}
 
-You can use star `(*)` to act as a wild card, selecting all of the columns in the table.
+You can use star `(*)` to act as a wild card, selecting all columns in the table.
 
 {{< tabs "selectstar" >}}
 {{< tab "Java" >}}
@@ -854,7 +854,7 @@ Unsupported
 {{< label "Result Updating" >}}
 
 Similar to a SQL `DISTINCT` clause.
-Returns records with distinct value combinations.
+Return records with distinct value combinations.
 
 {{< tabs "distinct" >}}
 {{< tab "Java" >}}
@@ -1114,7 +1114,7 @@ Temporal tables are tables that track changes over time.
 
 A temporal table function provides access to the state of a temporal table at a specific point in time. The syntax to join a table with a temporal table function is the same as in Inner Join with Table Function.
 
-Currently only inner joins with temporal tables are supported.
+Currently, only inner joins with temporal tables are supported.
 
 {{< tabs "temporaltablefunc" >}}
 {{< tab "Java" >}}
@@ -1396,7 +1396,7 @@ result = left.select(col('a'), col('b'), col('c')).where(col('a').in_(right))
 
 {{< label Batch >}} {{< label Streaming >}}
 
-Similar to a SQL `ORDER BY` clause. Returns records globally sorted across all parallel partitions. For unbounded tables, this operation requires a sorting on a time attribute or a subsequent fetch operation.
+Similar to a SQL `ORDER BY` clause. Return records globally sorted across all parallel partitions. For unbounded tables, this operation requires a sorting on a time attribute or a subsequent fetch operation.
 
 {{< tabs "orderby" >}}
 {{< tab "Java" >}}
@@ -1864,7 +1864,7 @@ Sliding windows are defined by using the `Slide` class as follows:
 
 #### Session (Session Windows)
 
-Session windows do not have a fixed size but their bounds are defined by an interval of inactivity, i.e., a session window is closes if no event appears for a defined gap period. For example a session window with a 30 minute gap starts when a row is observed after 30 minutes inactivity (otherwise the row would be added to an existing window) and is closed if no row is added within 30 minutes. Session windows can work on event-time or processing-time.
+Session windows do not have a fixed size but their bounds are defined by an interval of inactivity, i.e., a session window is closes if no event appears for a defined gap period. For example a session window with a 30-minute gap starts when a row is observed after 30 minutes inactivity (otherwise the row would be added to an existing window) and is closed if no row is added within 30 minutes. Session windows can work on event-time or processing-time.
 
 {{< tabs "58943253-807b-4e4c-b068-0dc1b783b7b5" >}}
 {{< tab "Java" >}}
@@ -1978,7 +1978,7 @@ A session window is defined by using the `Session` class as follows:
 
 ### Over Windows
 
-Over window aggregates are known from standard SQL (`OVER` clause) and defined in the `SELECT` clause of a query. Unlike group windows, which are specified in the `GROUP BY` clause, over windows do not collapse rows. Instead over window aggregates compute an aggregate for each input row over a range of its neighboring rows.
+Over window aggregates are known from standard SQL (`OVER` clause) and defined in the `SELECT` clause of a query. Unlike group windows, which are specified in the `GROUP BY` clause, over windows do not collapse rows. Instead, over window aggregates compute an aggregate for each input row over a range of its neighboring rows.
 
 Over windows are defined using the `window(w: OverWindow*)` clause (using `over_window(*OverWindow)` in Python API) and referenced via an alias in the `select()` method. The following example shows how to define an over window aggregation on a table.
 
@@ -2547,7 +2547,7 @@ t.select(col('b'), col('rowtime')) \
 
 Similar to a **GroupBy Aggregation**. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.
 
-Instead of using emitValue to output results, you can also use the emitUpdateWithRetract method. Different from emitValue, emitUpdateWithRetract is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The emitUpdateWithRetract method will be used in preference to the emitValue method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than emitValue as it can output values incrementally. 
+Instead of using `emitValue` to output results, you can also use the `emitUpdateWithRetract` method. Different from `emitValue`, `emitUpdateWithRetract` is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The emitUpdateWithRetract method will be used in preference to the emitValue method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than emitValue as it can output values incrementally. 
 
 ```java
 /**
@@ -2611,7 +2611,7 @@ Table result = orders
 
 Similar to a **GroupBy Aggregation**. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.
 
-Instead of using emitValue to output results, you can also use the emitUpdateWithRetract method. Different from emitValue, emitUpdateWithRetract is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The emitUpdateWithRetract method will be used in preference to the emitValue method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than emitValue as it can output values incrementally. 
+Instead of using `emitValue` to output results, you can also use the `emitUpdateWithRetract` method. Different from `emitValue`, `emitUpdateWithRetract` is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The `emitUpdateWithRetract` method will be used in preference to the `emitValue` method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than `emitValue` as it can output values incrementally. 
 
 ```scala
 import java.lang.{Integer => JInteger}

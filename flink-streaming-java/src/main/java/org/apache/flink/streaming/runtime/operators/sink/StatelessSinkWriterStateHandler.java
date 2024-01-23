@@ -18,8 +18,8 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.Sink.WriterInitContext;
 import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.runtime.state.StateInitializationContext;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;

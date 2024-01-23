@@ -35,6 +35,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.api.connector.sink2.CommitterInitContext;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
@@ -116,7 +117,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLoggerExtension;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
 
 import org.assertj.core.api.Assertions;
 import org.assertj.core.data.Offset;
@@ -420,6 +421,7 @@ class StreamingJobGraphGeneratorTest {
     void generatorForwardsSavepointRestoreSettings() {
         StreamGraph streamGraph =
                 new StreamGraph(
+                        new Configuration(),
                         new ExecutionConfig(),
                         new CheckpointConfig(),
                         SavepointRestoreSettings.forPath("hello"));
@@ -1458,12 +1460,14 @@ class StreamingJobGraphGeneratorTest {
         assertThat(
                         streamConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(
                                 ManagedMemoryUseCase.STATE_BACKEND,
+                                new Configuration(),
                                 tmConfig,
                                 ClassLoader.getSystemClassLoader()))
                 .isCloseTo(expectedStateBackendFrac, Offset.offset(delta));
         assertThat(
                         streamConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(
                                 ManagedMemoryUseCase.PYTHON,
+                                new Configuration(),
                                 tmConfig,
                                 ClassLoader.getSystemClassLoader()))
                 .isCloseTo(expectedPythonFrac, Offset.offset(delta));
@@ -1471,6 +1475,7 @@ class StreamingJobGraphGeneratorTest {
         assertThat(
                         streamConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(
                                 ManagedMemoryUseCase.OPERATOR,
+                                new Configuration(),
                                 tmConfig,
                                 ClassLoader.getSystemClassLoader()))
                 .isCloseTo(expectedBatchFrac, Offset.offset(delta));
@@ -1808,7 +1813,7 @@ class StreamingJobGraphGeneratorTest {
     @Test
     void testNamingWithIndex() {
         Configuration config = new Configuration();
-        config.setBoolean(PipelineOptions.VERTEX_NAME_INCLUDE_INDEX_PREFIX, true);
+        config.set(PipelineOptions.VERTEX_NAME_INCLUDE_INDEX_PREFIX, true);
         JobGraph job = createStreamGraphForSlotSharingTest(config).getJobGraph();
         List<JobVertex> allVertices = job.getVerticesSortedTopologicallyFromSources();
         assertThat(allVertices).hasSize(4);
@@ -2327,7 +2332,7 @@ class StreamingJobGraphGeneratorTest {
                     WithPostCommitTopology<Integer, Void> {
 
         @Override
-        public PrecommittingSinkWriter<Integer, Void> createWriter(WriterInitContext context)
+        public PrecommittingSinkWriter<Integer, Void> createWriter(InitContext context)
                 throws IOException {
             return new PrecommittingSinkWriter<Integer, Void>() {
                 @Override

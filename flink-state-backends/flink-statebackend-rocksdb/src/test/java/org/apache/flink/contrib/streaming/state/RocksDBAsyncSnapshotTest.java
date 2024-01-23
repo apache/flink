@@ -33,17 +33,19 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackend;
@@ -198,6 +200,10 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
                             ExecutionAttemptID executionAttemptID,
                             long checkpointId,
                             CheckpointException checkpointException) {}
+
+                    @Override
+                    public void reportInitializationMetrics(
+                            JobID jobId, SubTaskInitializationMetrics initializationMetrics) {}
                 };
 
         JobID jobID = new JobID();
@@ -409,19 +415,22 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
         backend.setDbStoragePath(temporaryFolder.newFolder().toURI().toString());
 
-        AbstractKeyedStateBackend<Void> keyedStateBackend =
+        CheckpointableKeyedStateBackend<Void> keyedStateBackend =
                 backend.createKeyedStateBackend(
-                        env,
-                        new JobID(),
-                        "test operator",
-                        VoidSerializer.INSTANCE,
-                        1,
-                        new KeyGroupRange(0, 0),
-                        null,
-                        TtlTimeProvider.DEFAULT,
-                        new UnregisteredMetricsGroup(),
-                        Collections.emptyList(),
-                        new CloseableRegistry());
+                        new KeyedStateBackendParametersImpl<>(
+                                env,
+                                new JobID(),
+                                "test operator",
+                                VoidSerializer.INSTANCE,
+                                1,
+                                new KeyGroupRange(0, 0),
+                                null,
+                                TtlTimeProvider.DEFAULT,
+                                new UnregisteredMetricsGroup(),
+                                (name, value) -> {},
+                                Collections.emptyList(),
+                                new CloseableRegistry(),
+                                1.0));
 
         try {
             // register a state so that the state backend has to checkpoint something

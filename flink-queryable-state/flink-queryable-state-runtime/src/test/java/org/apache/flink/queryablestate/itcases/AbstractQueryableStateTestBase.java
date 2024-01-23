@@ -1107,7 +1107,7 @@ public abstract class AbstractQueryableStateTestBase {
         @Override
         public void run(SourceContext<Tuple2<Integer, Long>> ctx) throws Exception {
             // f0 => key
-            int key = getRuntimeContext().getIndexOfThisSubtask();
+            int key = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             Tuple2<Integer, Long> record = new Tuple2<>(key, 0L);
 
             long currentValue = 0;
@@ -1157,7 +1157,7 @@ public abstract class AbstractQueryableStateTestBase {
         @Override
         public void open(OpenContext openContext) throws Exception {
             super.open(openContext);
-            if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
+            if (getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0) {
                 LATEST_CHECKPOINT_ID.set(0L);
             }
         }
@@ -1188,7 +1188,7 @@ public abstract class AbstractQueryableStateTestBase {
 
         @Override
         public void notifyCheckpointComplete(long checkpointId) throws Exception {
-            if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
+            if (getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0) {
                 LATEST_CHECKPOINT_ID.set(checkpointId);
             }
         }

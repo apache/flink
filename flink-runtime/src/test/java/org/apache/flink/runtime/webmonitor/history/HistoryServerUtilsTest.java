@@ -48,7 +48,7 @@ class HistoryServerUtilsTest {
     @Test
     void testIsSSLEnabledWithoutRestSSL() {
         final Configuration configuration = new Configuration();
-        configuration.setBoolean(HistoryServerOptions.HISTORY_SERVER_WEB_SSL_ENABLED, true);
+        configuration.set(HistoryServerOptions.HISTORY_SERVER_WEB_SSL_ENABLED, true);
 
         assertThat(HistoryServerUtils.isSSLEnabled(configuration)).isFalse();
     }
@@ -56,7 +56,7 @@ class HistoryServerUtilsTest {
     @Test
     void testIsSSLEnabledOnlyRestSSL() {
         final Configuration configuration = new Configuration();
-        configuration.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
+        configuration.set(SecurityOptions.SSL_REST_ENABLED, true);
 
         assertThat(HistoryServerUtils.isSSLEnabled(configuration)).isFalse();
     }
@@ -70,8 +70,8 @@ class HistoryServerUtilsTest {
     }
 
     private void enableSSL(Configuration configuration) {
-        configuration.setBoolean(HistoryServerOptions.HISTORY_SERVER_WEB_SSL_ENABLED, true);
-        configuration.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
+        configuration.set(HistoryServerOptions.HISTORY_SERVER_WEB_SSL_ENABLED, true);
+        configuration.set(SecurityOptions.SSL_REST_ENABLED, true);
     }
 
     @Test
@@ -105,8 +105,8 @@ class HistoryServerUtilsTest {
     @Nonnull
     private Configuration createDefaultConfiguration() {
         final Configuration configuration = new Configuration();
-        configuration.setString(HistoryServerOptions.HISTORY_SERVER_WEB_ADDRESS, HOSTNAME);
-        configuration.setInteger(HistoryServerOptions.HISTORY_SERVER_WEB_PORT, PORT);
+        configuration.set(HistoryServerOptions.HISTORY_SERVER_WEB_ADDRESS, HOSTNAME);
+        configuration.set(HistoryServerOptions.HISTORY_SERVER_WEB_PORT, PORT);
         return configuration;
     }
 }

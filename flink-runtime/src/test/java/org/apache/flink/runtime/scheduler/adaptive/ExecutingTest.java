@@ -961,15 +961,15 @@ public class ExecutingTest extends TestLogger {
             super(
                     new MockInternalExecutionGraphAccessor(),
                     new JobVertex("test"),
-                    new DefaultVertexParallelismInfo(1, 1, max -> Optional.empty()));
+                    new DefaultVertexParallelismInfo(1, 1, max -> Optional.empty()),
+                    new CoordinatorStoreImpl(),
+                    UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
             initialize(
                     1,
                     Time.milliseconds(1L),
                     1L,
-                    new DefaultSubtaskAttemptNumberStore(Collections.emptyList()),
-                    new CoordinatorStoreImpl(),
-                    UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
+                    new DefaultSubtaskAttemptNumberStore(Collections.emptyList()));
             mockExecutionVertex = executionVertexSupplier.apply(this);
         }
 

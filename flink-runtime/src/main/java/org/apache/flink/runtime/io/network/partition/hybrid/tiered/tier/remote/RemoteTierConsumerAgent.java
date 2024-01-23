@@ -23,23 +23,30 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.partition.DeduplicatedQueue;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageInputChannelId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.PartitionFileReader;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.AvailabilityNotifier;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierConsumerAgent;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** The data client is used to fetch data from remote tier. */
-public class RemoteTierConsumerAgent implements TierConsumerAgent {
+public class RemoteTierConsumerAgent implements TierConsumerAgent, AvailabilityNotifier {
 
     private final RemoteStorageScanner remoteStorageScanner;
 
@@ -55,9 +62,19 @@ public class RemoteTierConsumerAgent implements TierConsumerAgent {
                     Map<TieredStorageSubpartitionId, Tuple2<Integer, Integer>>>
             currentBufferIndexAndSegmentIds;
 
+    /** The indexes of all the subpartitions with data available stored in FIFO order. */
+    private final Map<TieredStoragePartitionId, DeduplicatedQueue<TieredStorageSubpartitionId>>
+            availableSubpartitionsQueues = new HashMap<>();
+
     private final int bufferSizeBytes;
 
+    private AvailabilityNotifier notifier;
+
+    private final Map<TieredStoragePartitionId, Set<TieredStorageSubpartitionId>>
+            initSubpartitionIds = new HashMap<>();
+
     public RemoteTierConsumerAgent(
+            List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs,
             RemoteStorageScanner remoteStorageScanner,
             PartitionFileReader partitionFileReader,
             int bufferSizeBytes) {
@@ -65,6 +82,16 @@ public class RemoteTierConsumerAgent implements TierConsumerAgent {
         this.currentBufferIndexAndSegmentIds = new HashMap<>();
         this.partitionFileReader = partitionFileReader;
         this.bufferSizeBytes = bufferSizeBytes;
+        this.remoteStorageScanner.registerAvailabilityAndPriorityNotifier(this);
+        for (TieredStorageConsumerSpec spec : tieredStorageConsumerSpecs) {
+            Set<TieredStorageSubpartitionId> subpartitionIds = new HashSet<>();
+            for (int subpartitionId : spec.getSubpartitionIds().values()) {
+                subpartitionIds.add(new TieredStorageSubpartitionId(subpartitionId));
+            }
+            initSubpartitionIds.put(spec.getPartitionId(), subpartitionIds);
+            availableSubpartitionsQueues.putIfAbsent(
+                    spec.getPartitionId(), new DeduplicatedQueue<>());
+        }
     }
 
     @Override
@@ -73,10 +100,43 @@ public class RemoteTierConsumerAgent implements TierConsumerAgent {
     }
 
     @Override
+    public int peekNextBufferSubpartitionId(
+            TieredStoragePartitionId partitionId, ResultSubpartitionIndexSet indexSet)
+            throws IOException {
+        if (initSubpartitionIds.containsKey(partitionId)) {
+            TieredStorageSubpartitionId subpartitionId =
+                    initSubpartitionIds.get(partitionId).iterator().next();
+            synchronized (availableSubpartitionsQueues) {
+                availableSubpartitionsQueues.get(partitionId).add(subpartitionId);
+            }
+            return subpartitionId.getSubpartitionId();
+        }
+
+        synchronized (availableSubpartitionsQueues) {
+            for (TieredStorageSubpartitionId subpartitionId :
+                    availableSubpartitionsQueues.get(partitionId).values()) {
+                if (indexSet.contains(subpartitionId.getSubpartitionId())) {
+                    return subpartitionId.getSubpartitionId();
+                }
+            }
+            return -1;
+        }
+    }
+
+    @Override
     public Optional<Buffer> getNextBuffer(
             TieredStoragePartitionId partitionId,
             TieredStorageSubpartitionId subpartitionId,
             int segmentId) {
+        if (initSubpartitionIds.containsKey(partitionId)) {
+            Set<TieredStorageSubpartitionId> subpartitionIds = initSubpartitionIds.get(partitionId);
+            if (subpartitionIds.remove(subpartitionId)) {
+                if (subpartitionIds.isEmpty()) {
+                    initSubpartitionIds.remove(partitionId);
+                }
+            }
+        }
+
         // Get current segment id and buffer index.
         Tuple2<Integer, Integer> bufferIndexAndSegmentId =
                 currentBufferIndexAndSegmentIds
@@ -117,16 +177,37 @@ public class RemoteTierConsumerAgent implements TierConsumerAgent {
         } else {
             memorySegment.free();
         }
+        synchronized (availableSubpartitionsQueues) {
+            availableSubpartitionsQueues.get(partitionId).remove(subpartitionId);
+        }
         return Optional.empty();
     }
 
     @Override
     public void registerAvailabilityNotifier(AvailabilityNotifier notifier) {
-        remoteStorageScanner.registerAvailabilityAndPriorityNotifier(notifier);
+        Preconditions.checkState(this.notifier == null);
+        this.notifier = notifier;
     }
 
     @Override
     public void close() throws IOException {
         remoteStorageScanner.close();
+    }
+
+    @Override
+    public void notifyAvailable(
+            TieredStoragePartitionId partitionId, TieredStorageSubpartitionId subpartitionId) {
+        synchronized (availableSubpartitionsQueues) {
+            if (!availableSubpartitionsQueues.get(partitionId).add(subpartitionId)) {
+                return;
+            }
+        }
+        this.notifier.notifyAvailable(partitionId, subpartitionId);
+    }
+
+    @Override
+    public void notifyAvailable(
+            TieredStoragePartitionId partitionId, TieredStorageInputChannelId inputChannelId) {
+        throw new UnsupportedOperationException("This method should not be invoked.");
     }
 }

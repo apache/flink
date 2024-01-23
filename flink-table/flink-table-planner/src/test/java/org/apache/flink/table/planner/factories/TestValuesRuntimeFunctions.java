@@ -178,6 +178,7 @@ final class TestValuesRuntimeFunctions {
             globalUpsertResult.clear();
             globalRetractResult.clear();
             watermarkHistory.clear();
+            localRawResultsObservers.clear();
         }
     }
 
@@ -343,7 +344,7 @@ final class TestValuesRuntimeFunctions {
                     localRawResult.add(value);
                 }
             }
-            int taskId = getRuntimeContext().getIndexOfThisSubtask();
+            int taskId = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             synchronized (LOCK) {
                 globalRawResult
                         .computeIfAbsent(tableName, k -> new HashMap<>())
@@ -365,7 +366,9 @@ final class TestValuesRuntimeFunctions {
                     .forEach(
                             c ->
                                     c.accept(
-                                            getRuntimeContext().getIndexOfThisSubtask(),
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getIndexOfThisSubtask(),
                                             localRawResult));
         }
     }
@@ -457,8 +460,6 @@ final class TestValuesRuntimeFunctions {
             assertThat(row).isNotNull();
 
             synchronized (LOCK) {
-                addLocalRawResult(row);
-
                 Row key = Row.project(row, keyIndices);
                 key.setKind(RowKind.INSERT);
 
@@ -484,6 +485,9 @@ final class TestValuesRuntimeFunctions {
                                         + "This is probably an incorrectly implemented test.");
                     }
                 }
+                // Moving later so that global state is updated first.
+                addLocalRawResult(row);
+
                 receivedNum++;
                 if (expectedSize != -1 && receivedNum == expectedSize) {
                     // some sources are infinite (e.g. kafka),
@@ -536,7 +540,7 @@ final class TestValuesRuntimeFunctions {
                 }
             }
 
-            int taskId = getRuntimeContext().getIndexOfThisSubtask();
+            int taskId = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             synchronized (LOCK) {
                 globalRetractResult
                         .computeIfAbsent(tableName, k -> new HashMap<>())
@@ -559,7 +563,6 @@ final class TestValuesRuntimeFunctions {
             Row row = (Row) converter.toExternal(value);
             assertThat(row).isNotNull();
             synchronized (LOCK) {
-                addLocalRawResult(row);
                 final Row retractRow = Row.copy(row);
                 retractRow.setKind(RowKind.INSERT);
                 if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
@@ -572,6 +575,9 @@ final class TestValuesRuntimeFunctions {
                                         + "This is probably an incorrectly implemented test.");
                     }
                 }
+                // Moving this to the end so that the rawLocalObservers can see update
+                // globalRetracts.
+                addLocalRawResult(row);
             }
         }
     }
@@ -616,7 +622,9 @@ final class TestValuesRuntimeFunctions {
                             .forEach(
                                     c ->
                                             c.accept(
-                                                    getRuntimeContext().getIndexOfThisSubtask(),
+                                                    getRuntimeContext()
+                                                            .getTaskInfo()
+                                                            .getIndexOfThisSubtask(),
                                                     localRawResult));
                 }
             } else {

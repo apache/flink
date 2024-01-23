@@ -130,9 +130,7 @@ public class BatchPhysicalPythonWindowAggregateRule extends RelOptRule {
                         null);
         UserDefinedFunction[] aggFunctions = aggBufferTypesAndFunctions._3();
 
-        int inputTimeFieldIndex =
-                AggregateUtil.timeFieldIndex(
-                        input.getRowType(), call.builder(), window.timeAttribute());
+        int inputTimeFieldIndex = window.timeAttribute().getFieldIndex();
         RelDataType inputTimeFieldType =
                 input.getRowType().getFieldList().get(inputTimeFieldIndex).getType();
         boolean inputTimeIsDate = inputTimeFieldType.getSqlTypeName() == SqlTypeName.DATE;

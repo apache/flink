@@ -52,12 +52,23 @@ public class CollectResultIterator<T> implements CloseableIterator<T> {
     private final CollectResultFetcher<T> fetcher;
     private T bufferedResult;
 
+    private CompletableFuture<OperatorID> operatorIdFuture;
+    private TypeSerializer<T> serializer;
+    private String accumulatorName;
+    private CheckpointConfig checkpointConfig;
+    private long resultFetchTimeout;
+
     public CollectResultIterator(
             CompletableFuture<OperatorID> operatorIdFuture,
             TypeSerializer<T> serializer,
             String accumulatorName,
             CheckpointConfig checkpointConfig,
             long resultFetchTimeout) {
+        this.operatorIdFuture = operatorIdFuture;
+        this.serializer = serializer;
+        this.accumulatorName = accumulatorName;
+        this.checkpointConfig = checkpointConfig;
+        this.resultFetchTimeout = resultFetchTimeout;
         AbstractCollectResultBuffer<T> buffer = createBuffer(serializer, checkpointConfig);
         this.fetcher =
                 new CollectResultFetcher<>(
@@ -130,5 +141,14 @@ public class CollectResultIterator<T> implements CloseableIterator<T> {
         } else {
             return new UncheckpointedCollectResultBuffer<>(serializer, false);
         }
+    }
+
+    public CollectResultIterator<T> copy() {
+        return new CollectResultIterator<>(
+                this.operatorIdFuture,
+                this.serializer,
+                this.accumulatorName,
+                this.checkpointConfig,
+                this.resultFetchTimeout);
     }
 }

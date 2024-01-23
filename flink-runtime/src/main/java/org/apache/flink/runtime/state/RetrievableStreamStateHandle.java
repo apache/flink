@@ -87,6 +87,11 @@ public class RetrievableStreamStateHandle<T extends Serializable>
     }
 
     @Override
+    public void collectSizeStats(StateObjectSizeStatsCollector collector) {
+        wrappedStreamStateHandle.collectSizeStats(collector);
+    }
+
+    @Override
     public void close() throws IOException {
         //		wrappedStreamStateHandle.close();
     }

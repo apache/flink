@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.netty.exception.LocalTransportExcepti
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.testutils.TestingUtils;
@@ -134,10 +135,12 @@ class ClientTransportErrorHandlingTest {
                 .onError(isA(LocalTransportException.class));
 
         // First request is successful
-        requestClient.requestSubpartition(new ResultPartitionID(), 0, rich[0], 0);
+        requestClient.requestSubpartition(
+                new ResultPartitionID(), new ResultSubpartitionIndexSet(0), rich[0], 0);
 
         // Second request is *not* successful
-        requestClient.requestSubpartition(new ResultPartitionID(), 0, rich[1], 0);
+        requestClient.requestSubpartition(
+                new ResultPartitionID(), new ResultSubpartitionIndexSet(0), rich[1], 0);
         // Wait for the notification, and it could confirm all the request operations are done
         assertThat(sync.await(TestingUtils.TESTING_DURATION.toMillis(), TimeUnit.MILLISECONDS))
                 .withFailMessage(
@@ -370,7 +373,7 @@ class ClientTransportErrorHandlingTest {
     // Helpers
     // ---------------------------------------------------------------------------------------------
 
-    private EmbeddedChannel createEmbeddedChannel() {
+    private static EmbeddedChannel createEmbeddedChannel() {
         NettyProtocol protocol =
                 new NettyProtocol(
                         mock(ResultPartitionProvider.class), mock(TaskEventDispatcher.class));
@@ -378,7 +381,7 @@ class ClientTransportErrorHandlingTest {
         return new EmbeddedChannel(protocol.getClientChannelHandlers());
     }
 
-    private RemoteInputChannel addInputChannel(NetworkClientHandler clientHandler)
+    private static RemoteInputChannel addInputChannel(NetworkClientHandler clientHandler)
             throws IOException {
         RemoteInputChannel rich = createRemoteInputChannel();
         clientHandler.addInputChannel(rich);
@@ -386,13 +389,13 @@ class ClientTransportErrorHandlingTest {
         return rich;
     }
 
-    private NetworkClientHandler getClientHandler(Channel ch) {
+    private static NetworkClientHandler getClientHandler(Channel ch) {
         NetworkClientHandler networkClientHandler = ch.pipeline().get(NetworkClientHandler.class);
         networkClientHandler.setConnectionId(CONNECTION_ID);
         return networkClientHandler;
     }
 
-    private RemoteInputChannel createRemoteInputChannel() {
+    private static RemoteInputChannel createRemoteInputChannel() {
         return when(mock(RemoteInputChannel.class).getInputChannelId())
                 .thenReturn(new InputChannelID())
                 .getMock();

@@ -25,12 +25,8 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
-import org.apache.flink.util.TestLogger;
 
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
-import org.hamcrest.TypeSafeMatcher;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -40,16 +36,11 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.not;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.collection.IsEmptyCollection.empty;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link DefaultSlotTracker}. */
-public class DefaultSlotTrackerTest extends TestLogger {
+class DefaultSlotTrackerTest {
 
     private static final TaskExecutorConnection TASK_EXECUTOR_CONNECTION =
             new TaskExecutorConnection(
@@ -62,7 +53,7 @@ public class DefaultSlotTrackerTest extends TestLogger {
     public void testFreeSlotsIsEmptyOnInitially() {
         SlotTracker tracker = new DefaultSlotTracker();
 
-        assertThat(tracker.getFreeSlots(), empty());
+        assertThat(tracker.getFreeSlots()).isEmpty();
     }
 
     @Test
@@ -75,10 +66,8 @@ public class DefaultSlotTrackerTest extends TestLogger {
         tracker.addSlot(slotId1, ResourceProfile.ANY, TASK_EXECUTOR_CONNECTION, null);
         tracker.addSlot(slotId2, ResourceProfile.ANY, TASK_EXECUTOR_CONNECTION, null);
 
-        assertThat(
-                tracker.getFreeSlots(),
-                containsInAnyOrder(
-                        Arrays.asList(infoWithSlotId(slotId1), infoWithSlotId(slotId2))));
+        assertThat(tracker.getFreeSlots().stream().map(TaskManagerSlotInformation::getSlotId))
+                .containsExactlyInAnyOrder(slotId1, slotId2);
     }
 
     @Test
@@ -109,15 +98,14 @@ public class DefaultSlotTrackerTest extends TestLogger {
         // it should be possible to remove slots regardless of their state
         tracker.removeSlots(Arrays.asList(slotId1, slotId2, slotId3));
 
-        assertThat(tracker.getFreeSlots(), empty());
-        assertThat(tracker.areMapsEmpty(), is(true));
+        assertThat(tracker.getFreeSlots()).isEmpty();
+        assertThat(tracker.areMapsEmpty()).isTrue();
 
-        assertThat(
-                stateTransitions,
-                containsInAnyOrder(
+        assertThat(stateTransitions)
+                .containsExactlyInAnyOrder(
                         new SlotStateTransition(slotId2, SlotState.PENDING, SlotState.FREE, jobId),
                         new SlotStateTransition(
-                                slotId3, SlotState.ALLOCATED, SlotState.FREE, jobId)));
+                                slotId3, SlotState.ALLOCATED, SlotState.FREE, jobId));
     }
 
     @Test
@@ -135,23 +123,26 @@ public class DefaultSlotTrackerTest extends TestLogger {
         tracker.addSlot(slotId, ResourceProfile.ANY, TASK_EXECUTOR_CONNECTION, null);
 
         tracker.notifyAllocationStart(slotId, jobId);
-        assertThat(tracker.getFreeSlots(), empty());
-        assertThat(
-                stateTransitions.remove(),
-                is(new SlotStateTransition(slotId, SlotState.FREE, SlotState.PENDING, jobId)));
+        assertThat(tracker.getFreeSlots()).isEmpty();
+        assertThat(stateTransitions.remove())
+                .isEqualTo(
+                        new SlotStateTransition(slotId, SlotState.FREE, SlotState.PENDING, jobId));
 
         tracker.notifyAllocationComplete(slotId, jobId);
-        assertThat(tracker.getFreeSlots(), empty());
-        assertThat(
-                stateTransitions.remove(),
-                is(new SlotStateTransition(slotId, SlotState.PENDING, SlotState.ALLOCATED, jobId)));
+        assertThat(tracker.getFreeSlots()).isEmpty();
+        assertThat(stateTransitions.remove())
+                .isEqualTo(
+                        new SlotStateTransition(
+                                slotId, SlotState.PENDING, SlotState.ALLOCATED, jobId));
 
         tracker.notifyFree(slotId);
 
-        assertThat(tracker.getFreeSlots(), contains(infoWithSlotId(slotId)));
-        assertThat(
-                stateTransitions.remove(),
-                is(new SlotStateTransition(slotId, SlotState.ALLOCATED, SlotState.FREE, jobId)));
+        assertThat(tracker.getFreeSlots().stream().map(TaskManagerSlotInformation::getSlotId))
+                .contains(slotId);
+        assertThat(stateTransitions.remove())
+                .isEqualTo(
+                        new SlotStateTransition(
+                                slotId, SlotState.ALLOCATED, SlotState.FREE, jobId));
     }
 
     @Test
@@ -163,11 +154,9 @@ public class DefaultSlotTrackerTest extends TestLogger {
         tracker.addSlot(slotId, ResourceProfile.ANY, TASK_EXECUTOR_CONNECTION, null);
 
         tracker.notifyAllocationStart(slotId, new JobID());
-        try {
-            tracker.notifyAllocationComplete(slotId, new JobID());
-            fail("Allocations must not be completed for a different job ID.");
-        } catch (IllegalStateException expected) {
-        }
+        assertThatThrownBy(() -> tracker.notifyAllocationComplete(slotId, new JobID()))
+                .withFailMessage("Allocations must not be completed for a different job ID.")
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -185,16 +174,17 @@ public class DefaultSlotTrackerTest extends TestLogger {
         tracker.addSlot(slotId, ResourceProfile.ANY, TASK_EXECUTOR_CONNECTION, null);
 
         tracker.notifyAllocationStart(slotId, jobId);
-        assertThat(tracker.getFreeSlots(), empty());
-        assertThat(
-                stateTransitions.remove(),
-                is(new SlotStateTransition(slotId, SlotState.FREE, SlotState.PENDING, jobId)));
+        assertThat(tracker.getFreeSlots()).isEmpty();
+        assertThat(stateTransitions.remove())
+                .isEqualTo(
+                        new SlotStateTransition(slotId, SlotState.FREE, SlotState.PENDING, jobId));
 
         tracker.notifyFree(slotId);
-        assertThat(tracker.getFreeSlots(), contains(infoWithSlotId(slotId)));
-        assertThat(
-                stateTransitions.remove(),
-                is(new SlotStateTransition(slotId, SlotState.PENDING, SlotState.FREE, jobId)));
+        assertThat(tracker.getFreeSlots().stream().map(TaskManagerSlotInformation::getSlotId))
+                .contains(slotId);
+        assertThat(stateTransitions.remove())
+                .isEqualTo(
+                        new SlotStateTransition(slotId, SlotState.PENDING, SlotState.FREE, jobId));
     }
 
     /**
@@ -213,9 +203,15 @@ public class DefaultSlotTrackerTest extends TestLogger {
         tracker.registerSlotStatusUpdateListener(
                 (slot, previous, current, jobId) -> {
                     if (current == SlotState.FREE) {
-                        assertThat(tracker.getFreeSlots(), contains(infoWithSlotId(slotId)));
+                        assertThat(
+                                        tracker.getFreeSlots().stream()
+                                                .map(TaskManagerSlotInformation::getSlotId))
+                                .contains(slotId);
                     } else {
-                        assertThat(tracker.getFreeSlots(), not(contains(infoWithSlotId(slotId))));
+                        assertThat(
+                                        tracker.getFreeSlots().stream()
+                                                .map(TaskManagerSlotInformation::getSlotId))
+                                .doesNotContain(slotId);
                     }
                 });
 
@@ -234,10 +230,8 @@ public class DefaultSlotTrackerTest extends TestLogger {
         tracker.addSlot(slotId2, ResourceProfile.ANY, TASK_EXECUTOR_CONNECTION, null);
         tracker.addSlot(slotId3, ResourceProfile.ANY, TASK_EXECUTOR_CONNECTION, jobId);
 
-        assertThat(
-                tracker.getFreeSlots(),
-                containsInAnyOrder(
-                        Arrays.asList(infoWithSlotId(slotId1), infoWithSlotId(slotId2))));
+        assertThat(tracker.getFreeSlots().stream().map(TaskManagerSlotInformation::getSlotId))
+                .containsExactlyInAnyOrder(slotId1, slotId2);
 
         // move slot2 to PENDING
         tracker.notifyAllocationStart(slotId2, jobId);
@@ -248,11 +242,12 @@ public class DefaultSlotTrackerTest extends TestLogger {
                         new SlotStatus(slotId2, ResourceProfile.ANY, null, new AllocationID()),
                         new SlotStatus(slotId3, ResourceProfile.ANY, null, new AllocationID()));
 
-        assertThat(tracker.notifySlotStatus(slotReport), is(true));
+        assertThat(tracker.notifySlotStatus(slotReport)).isTrue();
 
         // slot1 should now be allocated; slot2 should continue to be in a pending state; slot3
         // should be freed
-        assertThat(tracker.getFreeSlots(), contains(infoWithSlotId(slotId3)));
+        assertThat(tracker.getFreeSlots().stream().map(TaskManagerSlotInformation::getSlotId))
+                .contains(slotId3);
 
         // if slot2 is not in a pending state, this will fail with an exception
         tracker.notifyAllocationComplete(slotId2, jobId);
@@ -263,7 +258,7 @@ public class DefaultSlotTrackerTest extends TestLogger {
                         new SlotStatus(slotId2, ResourceProfile.ANY, jobId, new AllocationID()),
                         new SlotStatus(slotId3, ResourceProfile.ANY, null, new AllocationID()));
 
-        assertThat(tracker.notifySlotStatus(idempotentSlotReport), is(false));
+        assertThat(tracker.notifySlotStatus(idempotentSlotReport)).isFalse();
     }
 
     @Test
@@ -273,23 +268,21 @@ public class DefaultSlotTrackerTest extends TestLogger {
         final JobID jobId = new JobID();
         final SlotID slotId = new SlotID(TASK_EXECUTOR_CONNECTION.getResourceID(), 0);
 
-        assertThat(tracker.getTaskExecutorsWithAllocatedSlotsForJob(new JobID()), empty());
+        assertThat(tracker.getTaskExecutorsWithAllocatedSlotsForJob(new JobID())).isEmpty();
 
         tracker.addSlot(slotId, ResourceProfile.ANY, TASK_EXECUTOR_CONNECTION, null);
-        assertThat(tracker.getTaskExecutorsWithAllocatedSlotsForJob(new JobID()), empty());
+        assertThat(tracker.getTaskExecutorsWithAllocatedSlotsForJob(new JobID())).isEmpty();
 
         tracker.notifyAllocationStart(slotId, jobId);
-        assertThat(
-                tracker.getTaskExecutorsWithAllocatedSlotsForJob(jobId),
-                contains(TASK_EXECUTOR_CONNECTION));
+        assertThat(tracker.getTaskExecutorsWithAllocatedSlotsForJob(jobId))
+                .contains(TASK_EXECUTOR_CONNECTION);
 
         tracker.notifyAllocationComplete(slotId, jobId);
-        assertThat(
-                tracker.getTaskExecutorsWithAllocatedSlotsForJob(jobId),
-                contains(TASK_EXECUTOR_CONNECTION));
+        assertThat(tracker.getTaskExecutorsWithAllocatedSlotsForJob(jobId))
+                .contains(TASK_EXECUTOR_CONNECTION);
 
         tracker.notifyFree(slotId);
-        assertThat(tracker.getTaskExecutorsWithAllocatedSlotsForJob(new JobID()), empty());
+        assertThat(tracker.getTaskExecutorsWithAllocatedSlotsForJob(new JobID())).isEmpty();
     }
 
     private static class SlotStateTransition {
@@ -334,30 +327,6 @@ public class DefaultSlotTrackerTest extends TestLogger {
                     + ", jobId="
                     + jobId
                     + '}';
-        }
-    }
-
-    private static Matcher<TaskManagerSlotInformation> infoWithSlotId(SlotID slotId) {
-        return new TaskManagerSlotInformationMatcher(slotId);
-    }
-
-    private static class TaskManagerSlotInformationMatcher
-            extends TypeSafeMatcher<TaskManagerSlotInformation> {
-
-        private final SlotID slotId;
-
-        private TaskManagerSlotInformationMatcher(SlotID slotId) {
-            this.slotId = slotId;
-        }
-
-        @Override
-        protected boolean matchesSafely(TaskManagerSlotInformation item) {
-            return item.getSlotId().equals(slotId);
-        }
-
-        @Override
-        public void describeTo(Description description) {
-            description.appendText("a slot information with slotId=").appendValue(slotId);
         }
     }
 }

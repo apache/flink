@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.functions.casting;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.data.binary.BinaryStringDataUtil;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -95,6 +96,7 @@ class CharVarCharTrimPadCastRule
         }
         CastRule<?, ?> castRule =
                 CastRuleProvider.resolve(inputLogicalType, VarCharType.STRING_TYPE);
+        CodeGeneratorContext codeGeneratorContext = context.getCodeGeneratorContext();
 
         // Only used for non-Constructed types - for constructed type and RAW, the trimming/padding
         // is applied on each individual rule, i.e.: ArrayToStringCastRule, RawToStringCastRule
@@ -121,8 +123,10 @@ class CharVarCharTrimPadCastRule
                                             methodCall(stringExpr, "substring", 0, targetLength)),
                             elseWriter -> {
                                 if (couldPad(targetLogicalType, targetLength)) {
-                                    final String padLength = newName("padLength");
-                                    final String padString = newName("padString");
+                                    final String padLength =
+                                            newName(codeGeneratorContext, "padLength");
+                                    final String padString =
+                                            newName(codeGeneratorContext, "padString");
                                     elseWriter.ifStmt(
                                             methodCall(stringExpr, "numChars")
                                                     + " < "
@@ -193,7 +197,8 @@ class CharVarCharTrimPadCastRule
             boolean legacyBehaviour,
             int length,
             String resultStringTerm,
-            String builderTerm) {
+            String builderTerm,
+            CodeGeneratorContext codeGeneratorContext) {
         writer.declStmt(String.class, resultStringTerm)
                 .assignStmt(resultStringTerm, methodCall(builderTerm, "toString"));
 
@@ -219,7 +224,8 @@ class CharVarCharTrimPadCastRule
                                     targetType,
                                     legacyBehaviour,
                                     length,
-                                    resultStringTerm));
+                                    resultStringTerm,
+                                    codeGeneratorContext));
         }
         return writer;
     }
@@ -229,12 +235,13 @@ class CharVarCharTrimPadCastRule
             LogicalType targetType,
             boolean legacyBehaviour,
             int length,
-            String returnTerm) {
+            String returnTerm,
+            CodeGeneratorContext codeGeneratorContext) {
 
         // Pad if needed
         if (!legacyBehaviour && couldPad(targetType, length)) {
-            final String padLength = newName("padLength");
-            final String sbPadding = newName("sbPadding");
+            final String padLength = newName(codeGeneratorContext, "padLength");
+            final String sbPadding = newName(codeGeneratorContext, "sbPadding");
             writer.ifStmt(
                     stringShouldPad(returnTerm, length),
                     thenWriter ->
@@ -250,7 +257,8 @@ class CharVarCharTrimPadCastRule
                                             (idx, loopWriter) ->
                                                     loopWriter.stmt(
                                                             methodCall(
-                                                                    sbPadding, "append", "\" \"")))
+                                                                    sbPadding, "append", "\" \"")),
+                                            codeGeneratorContext)
                                     .assignStmt(
                                             returnTerm,
                                             returnTerm

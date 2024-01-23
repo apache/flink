@@ -20,21 +20,37 @@ package org.apache.flink.runtime.util.bash;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link FlinkConfigLoader}. */
-class FlinkConfigLoaderTest {
+@ExtendWith(ParameterizedTestExtension.class)
+public class FlinkConfigLoaderTest {
+
+    @Parameter public boolean standardYaml;
+
+    @Parameters(name = "standardYaml: {0}")
+    public static Collection<Boolean> parameters() {
+        return Arrays.asList(true, false);
+    }
 
     private static final String TEST_CONFIG_KEY = "test.key";
     private static final String TEST_CONFIG_VALUE = "test_value";
@@ -43,41 +59,57 @@ class FlinkConfigLoaderTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        File flinkConfFile = TempDirUtils.newFile(confDir.toAbsolutePath(), "flink-conf.yaml");
+        File flinkConfFile;
+        if (standardYaml) {
+            flinkConfFile =
+                    TempDirUtils.newFile(
+                            confDir.toAbsolutePath(), GlobalConfiguration.FLINK_CONF_FILENAME);
+        } else {
+            flinkConfFile =
+                    TempDirUtils.newFile(
+                            confDir.toAbsolutePath(),
+                            GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME);
+        }
         FileWriter fw = new FileWriter(flinkConfFile);
         fw.write(TEST_CONFIG_KEY + ": " + TEST_CONFIG_VALUE + "\n");
         fw.close();
     }
 
-    @Test
+    @AfterAll
+    static void after() {
+        // clean the standard yaml flag to avoid impact to other cases.
+        GlobalConfiguration.setStandardYaml(true);
+    }
+
+    @TestTemplate
     void testLoadConfigurationConfigDirLongOpt() throws Exception {
         String[] args = {"--configDir", confDir.toFile().getAbsolutePath()};
         Configuration configuration = FlinkConfigLoader.loadConfiguration(args);
         verifyConfiguration(configuration, TEST_CONFIG_KEY, TEST_CONFIG_VALUE);
     }
 
-    @Test
+    @TestTemplate
     void testLoadConfigurationConfigDirShortOpt() throws Exception {
         String[] args = {"-c", confDir.toFile().getAbsolutePath()};
         Configuration configuration = FlinkConfigLoader.loadConfiguration(args);
         verifyConfiguration(configuration, TEST_CONFIG_KEY, TEST_CONFIG_VALUE);
     }
 
-    @Test
+    @TestTemplate
     void testLoadConfigurationDynamicPropertyWithSpace() throws Exception {
         String[] args = {"--configDir", confDir.toFile().getAbsolutePath(), "-D", "key=value"};
         Configuration configuration = FlinkConfigLoader.loadConfiguration(args);
         verifyConfiguration(configuration, "key", "value");
     }
 
-    @Test
+    @TestTemplate
     void testLoadConfigurationDynamicPropertyWithoutSpace() throws Exception {
         String[] args = {"--configDir", confDir.toFile().getAbsolutePath(), "-Dkey=value"};
         Configuration configuration = FlinkConfigLoader.loadConfiguration(args);
         verifyConfiguration(configuration, "key", "value");
     }
 
-    @Test
+    @TestTemplate
     void testLoadConfigurationIgnoreUnknownToken() throws Exception {
         String[] args = {
             "unknown",

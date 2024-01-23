@@ -37,7 +37,7 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Reference;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -78,11 +78,10 @@ class TaskExecutorLocalStateStoresManagerTest {
                 "__localStateRoot1,__localStateRoot2,__localStateRoot3".replaceAll("__", tmpDir);
 
         // test configuration of the local state directories
-        config.setString(
-                CheckpointingOptions.LOCAL_RECOVERY_TASK_MANAGER_STATE_ROOT_DIRS, rootDirString);
+        config.set(CheckpointingOptions.LOCAL_RECOVERY_TASK_MANAGER_STATE_ROOT_DIRS, rootDirString);
 
         // test configuration of the local state mode
-        config.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, true);
+        config.set(CheckpointingOptions.LOCAL_RECOVERY, true);
 
         final WorkingDirectory workingDirectory =
                 WORKING_DIRECTORY_EXTENSION_WRAPPER

@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.checkpoint.filemerging;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.EntropyInjector;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
@@ -25,6 +26,7 @@ import org.apache.flink.core.fs.OutputStreamAndPath;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.filemerging.LogicalFile.LogicalFileId;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
+import org.apache.flink.runtime.state.filesystem.FileMergingCheckpointStateOutputStream;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
@@ -60,6 +62,9 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     protected Path checkpointDir;
     protected Path sharedStateDir;
     protected Path taskOwnedStateDir;
+
+    /** The buffer size for writing files to the file system. */
+    protected int writeBufferSize;
 
     /**
      * The file system should only be initialized once.
@@ -98,7 +103,8 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
             FileSystem fileSystem,
             Path checkpointBaseDir,
             Path sharedStateDir,
-            Path taskOwnedStateDir)
+            Path taskOwnedStateDir,
+            int writeBufferSize)
             throws IllegalArgumentException {
         if (fileSystemInitiated) {
             Preconditions.checkArgument(
@@ -125,6 +131,7 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
         Path managedExclusivePath = new Path(taskOwnedStateDir, id);
         createManagedDirectory(managedExclusivePath);
         this.managedExclusiveStateDir = managedExclusivePath;
+        this.writeBufferSize = writeBufferSize;
     }
 
     @Override
@@ -145,15 +152,15 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
      * Create a logical file on a physical file.
      *
      * @param physicalFile the underlying physical file.
-     * @param startOffset the offset of the physical file that the logical file start from.
+     * @param startOffset the offset in the physical file that the logical file starts from.
      * @param length the length of the logical file.
      * @param subtaskKey the id of the subtask that the logical file belongs to.
      * @return the created logical file.
      */
     protected LogicalFile createLogicalFile(
             @Nonnull PhysicalFile physicalFile,
-            int startOffset,
-            int length,
+            long startOffset,
+            long length,
             @Nonnull SubtaskKey subtaskKey) {
         LogicalFileId fileID = LogicalFileId.generateRandomId();
         return new LogicalFile(fileID, physicalFile, startOffset, length, subtaskKey);
@@ -206,6 +213,64 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                 "Could not open output stream for state file merging.", latestException);
     }
 
+    @Override
+    public FileMergingCheckpointStateOutputStream createCheckpointStateOutputStream(
+            SubtaskKey subtaskKey, long checkpointId, CheckpointedStateScope scope) {
+
+        return new FileMergingCheckpointStateOutputStream(
+                writeBufferSize,
+                new FileMergingCheckpointStateOutputStream.FileMergingSnapshotManagerProxy() {
+                    PhysicalFile physicalFile;
+                    LogicalFile logicalFile;
+
+                    @Override
+                    public Tuple2<FSDataOutputStream, Path> providePhysicalFile()
+                            throws IOException {
+                        physicalFile =
+                                getOrCreatePhysicalFileForCheckpoint(
+                                        subtaskKey, checkpointId, scope);
+                        return new Tuple2<>(
+                                physicalFile.getOutputStream(), physicalFile.getFilePath());
+                    }
+
+                    @Override
+                    public SegmentFileStateHandle closeStreamAndCreateStateHandle(
+                            Path filePath, long startPos, long stateSize) throws IOException {
+                        if (physicalFile == null) {
+                            return null;
+                        } else {
+                            // deal with logical file
+                            logicalFile =
+                                    createLogicalFile(
+                                            physicalFile, startPos, stateSize, subtaskKey);
+                            logicalFile.advanceLastCheckpointId(checkpointId);
+
+                            // deal with physicalFile file
+                            physicalFile.incSize(stateSize);
+                            returnPhysicalFileForNextReuse(subtaskKey, checkpointId, physicalFile);
+
+                            return new SegmentFileStateHandle(
+                                    physicalFile.getFilePath(), startPos, stateSize, scope);
+                        }
+                    }
+
+                    @Override
+                    public void closeStreamExceptionally() throws IOException {
+                        if (physicalFile != null) {
+                            if (logicalFile != null) {
+                                logicalFile.discardWithCheckpointId(checkpointId);
+                            } else {
+                                // The physical file should be closed anyway. This is because the
+                                // last segmented write on this file is likely to have failed, and
+                                // we want to prevent further reusing of this file.
+                                physicalFile.close();
+                                physicalFile.deleteIfNecessary();
+                            }
+                        }
+                    }
+                });
+    }
+
     private void updateFileCreationMetrics(Path path) {
         // TODO: FLINK-32091 add io metrics
         LOG.debug("Create a new physical file {} for checkpoint file merging.", path);
@@ -248,9 +313,6 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     /**
      * Get a reused physical file or create one. This will be called in checkpoint output stream
      * creation logic.
-     *
-     * <p>TODO (FLINK-32073): Implement a CheckpointStreamFactory for file-merging that uses this
-     * method to create or reuse physical files.
      *
      * <p>Basic logic of file reusing: whenever a physical file is needed, this method is called
      * with necessary information provided for acquiring a file. The file will not be reused until

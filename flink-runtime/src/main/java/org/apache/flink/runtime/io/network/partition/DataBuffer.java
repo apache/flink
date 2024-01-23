@@ -27,8 +27,9 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
- * Data of different channels can be appended to a {@link DataBuffer} and after the {@link
- * DataBuffer} is full or finished, the appended data can be copied from it in channel index order.
+ * Data of different subpartitions can be appended to a {@link DataBuffer} and after the {@link
+ * DataBuffer} is full or finished, the appended data can be copied from it in subpartition index
+ * order.
  *
  * <p>The lifecycle of a {@link DataBuffer} can be: new, write, [read, reset, write], finish, read,
  * release. There can be multiple [read, reset, write] operations before finish.
@@ -36,18 +37,18 @@ import java.nio.ByteBuffer;
 public interface DataBuffer {
 
     /**
-     * Appends data of the specified channel to this {@link DataBuffer} and returns true if this
-     * {@link DataBuffer} is full.
+     * Appends data of the specified subpartition to this {@link DataBuffer} and returns true if
+     * this {@link DataBuffer} is full.
      */
-    boolean append(ByteBuffer source, int targetChannel, Buffer.DataType dataType)
+    boolean append(ByteBuffer source, int targetSubpartition, Buffer.DataType dataType)
             throws IOException;
 
     /**
-     * Copies data in this {@link DataBuffer} to the target {@link MemorySegment} in channel index
-     * order and returns {@link BufferWithChannel} which contains the copied data and the
-     * corresponding channel index.
+     * Copies data in this {@link DataBuffer} to the target {@link MemorySegment} in subpartition
+     * index order and returns {@link BufferWithSubpartition} which contains the copied data and the
+     * corresponding subpartition index.
      */
-    BufferWithChannel getNextBuffer(@Nullable MemorySegment transitBuffer);
+    BufferWithSubpartition getNextBuffer(@Nullable MemorySegment transitBuffer);
 
     /** Returns the total number of records written to this {@link DataBuffer}. */
     long numTotalRecords();

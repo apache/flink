@@ -154,7 +154,7 @@ public class BlobUtils {
     static Reference<File> createBlobStorageDirectory(
             Configuration configuration, @Nullable Reference<File> fallbackStorageDirectory)
             throws IOException {
-        final String basePath = configuration.getString(BlobServerOptions.STORAGE_DIRECTORY);
+        final String basePath = configuration.get(BlobServerOptions.STORAGE_DIRECTORY);
 
         File baseDir = null;
         if (StringUtils.isNullOrWhitespaceOnly(basePath)) {

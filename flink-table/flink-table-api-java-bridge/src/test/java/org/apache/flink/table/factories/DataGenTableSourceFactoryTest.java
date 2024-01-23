@@ -41,6 +41,8 @@ import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.jupiter.api.Test;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -65,6 +67,13 @@ class DataGenTableSourceFactoryTest {
                     Column.physical("f5", DataTypes.VARBINARY(4)),
                     Column.physical("f6", DataTypes.MAP(DataTypes.INT(), DataTypes.STRING())),
                     Column.physical("f7", DataTypes.STRING()));
+    private static final ResolvedSchema LENGTH_CONSTRAINED_SCHEMA =
+            ResolvedSchema.of(
+                    Column.physical("f0", DataTypes.CHAR(50)),
+                    Column.physical("f1", DataTypes.BINARY(40)),
+                    Column.physical("f2", DataTypes.VARCHAR(30)),
+                    Column.physical("f3", DataTypes.VARBINARY(20)),
+                    Column.physical("f4", DataTypes.STRING()));
 
     @Test
     void testDataTypeCoverage() throws Exception {
@@ -172,13 +181,6 @@ class DataGenTableSourceFactoryTest {
         descriptor.putString(
                 DataGenConnectorOptionsUtil.FIELDS + ".f3." + DataGenConnectorOptionsUtil.MAX_PAST,
                 "5s");
-
-        descriptor.putString(
-                DataGenConnectorOptionsUtil.FIELDS + ".f4." + DataGenConnectorOptionsUtil.KIND,
-                DataGenConnectorOptionsUtil.RANDOM);
-        descriptor.putLong(
-                DataGenConnectorOptionsUtil.FIELDS + ".f4." + DataGenConnectorOptionsUtil.LENGTH,
-                2);
         descriptor.putString(
                 DataGenConnectorOptionsUtil.FIELDS + ".f5." + DataGenConnectorOptionsUtil.KIND,
                 DataGenConnectorOptionsUtil.SEQUENCE);
@@ -237,12 +239,10 @@ class DataGenTableSourceFactoryTest {
         for (RowData row : results) {
             assertThat(row.getString(0).toString())
                     .hasSize(RandomGeneratorVisitor.RANDOM_STRING_LENGTH_DEFAULT);
-            assertThat(row.getString(1).toString())
-                    .hasSize(RandomGeneratorVisitor.RANDOM_STRING_LENGTH_DEFAULT);
+            assertThat(row.getString(1).toString()).hasSize(20);
             assertThat(row.getBinary(2))
                     .hasSize(RandomGeneratorVisitor.RANDOM_BYTES_LENGTH_DEFAULT);
-            assertThat(row.getBinary(3))
-                    .hasSize(RandomGeneratorVisitor.RANDOM_BYTES_LENGTH_DEFAULT);
+            assertThat(row.getBinary(3)).hasSize(4);
         }
 
         descriptor.putBoolean(
@@ -283,22 +283,85 @@ class DataGenTableSourceFactoryTest {
         assertThat(sizeVarBinary.size()).isGreaterThan(1);
         assertThat(sizeVarChar.size()).isGreaterThan(1);
 
-        assertThatThrownBy(
-                        () -> {
-                            descriptor.putBoolean(
-                                    DataGenConnectorOptionsUtil.FIELDS
-                                            + ".f4."
-                                            + DataGenConnectorOptionsUtil.VAR_LEN,
-                                    true);
+        assertException(
+                schema,
+                descriptor,
+                "f4",
+                null,
+                true,
+                String.format(
+                        "Only supports specifying '%s' option for variable-length types (VARCHAR/STRING/VARBINARY/BYTES). The type of field '%s' is not within this range.",
+                        DataGenConnectorOptions.FIELD_VAR_LEN.key(), "f4"));
+    }
 
-                            runGenerator(schema, descriptor);
-                        })
-                .satisfies(
-                        anyCauseMatches(
-                                ValidationException.class,
-                                String.format(
-                                        "Only supports specifying '%s' option for variable-length types (varchar, string, varbinary, bytes). The type of field %s is not within this range.",
-                                        DataGenConnectorOptions.FIELD_VAR_LEN.key(), "f4")));
+    @Test
+    void testVariableLengthDataType() throws Exception {
+        DescriptorProperties descriptor = new DescriptorProperties();
+        final int rowsNumber = 200;
+        descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+        descriptor.putLong(DataGenConnectorOptions.NUMBER_OF_ROWS.key(), rowsNumber);
+
+        List<RowData> results = runGenerator(LENGTH_CONSTRAINED_SCHEMA, descriptor);
+        assertThat(results).hasSize(rowsNumber);
+
+        for (RowData row : results) {
+            assertThat(row.getString(2).toString()).hasSize(30);
+            assertThat(row.getBinary(3)).hasSize(20);
+            assertThat(row.getString(4).toString())
+                    .hasSize(RandomGeneratorVisitor.RANDOM_STRING_LENGTH_DEFAULT);
+        }
+
+        descriptor.putString(
+                DataGenConnectorOptionsUtil.FIELDS + ".f2." + DataGenConnectorOptionsUtil.KIND,
+                DataGenConnectorOptionsUtil.RANDOM);
+        descriptor.putLong(
+                DataGenConnectorOptionsUtil.FIELDS + ".f2." + DataGenConnectorOptionsUtil.LENGTH,
+                25);
+        descriptor.putString(
+                DataGenConnectorOptionsUtil.FIELDS + ".f4." + DataGenConnectorOptionsUtil.KIND,
+                DataGenConnectorOptionsUtil.RANDOM);
+        descriptor.putLong(
+                DataGenConnectorOptionsUtil.FIELDS + ".f4." + DataGenConnectorOptionsUtil.LENGTH,
+                9999);
+
+        results = runGenerator(LENGTH_CONSTRAINED_SCHEMA, descriptor);
+
+        for (RowData row : results) {
+            assertThat(row.getString(2).toString()).hasSize(25);
+            assertThat(row.getString(4).toString()).hasSize(9999);
+        }
+
+        assertException(
+                LENGTH_CONSTRAINED_SCHEMA,
+                descriptor,
+                "f3",
+                21,
+                null,
+                "Custom length '21' for variable-length type (VARCHAR/STRING/VARBINARY/BYTES) field 'f3' should be shorter than '20' defined in the schema.");
+    }
+
+    @Test
+    void testFixedLengthDataType() throws Exception {
+        DescriptorProperties descriptor = new DescriptorProperties();
+        final int rowsNumber = 200;
+        descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+        descriptor.putLong(DataGenConnectorOptions.NUMBER_OF_ROWS.key(), rowsNumber);
+
+        List<RowData> results = runGenerator(LENGTH_CONSTRAINED_SCHEMA, descriptor);
+        assertThat(results).hasSize(rowsNumber);
+
+        for (RowData row : results) {
+            assertThat(row.getString(0).toString()).hasSize(50);
+            assertThat(row.getBinary(1)).hasSize(40);
+        }
+
+        assertException(
+                LENGTH_CONSTRAINED_SCHEMA,
+                descriptor,
+                "f0",
+                20,
+                null,
+                "Custom length for fixed-length type (CHAR/BINARY) field 'f0' is not supported.");
     }
 
     private List<RowData> runGenerator(ResolvedSchema schema, DescriptorProperties descriptor)
@@ -516,6 +579,46 @@ class DataGenTableSourceFactoryTest {
                         })
                 .satisfies(
                         anyCauseMatches("Could not parse value 'Wrong' for key 'fields.f0.start'"));
+    }
+
+    private void assertException(
+            ResolvedSchema schema,
+            DescriptorProperties descriptor,
+            String fieldName,
+            @Nullable Integer len,
+            @Nullable Boolean varLen,
+            String expectedMessage) {
+        assertThatThrownBy(
+                        () -> {
+                            descriptor.putString(
+                                    String.join(
+                                            ".",
+                                            DataGenConnectorOptionsUtil.FIELDS,
+                                            fieldName,
+                                            DataGenConnectorOptionsUtil.KIND),
+                                    DataGenConnectorOptionsUtil.RANDOM);
+                            if (len != null) {
+                                descriptor.putLong(
+                                        String.join(
+                                                ".",
+                                                DataGenConnectorOptionsUtil.FIELDS,
+                                                fieldName,
+                                                DataGenConnectorOptionsUtil.LENGTH),
+                                        len);
+                            }
+                            if (varLen != null) {
+                                descriptor.putBoolean(
+                                        String.join(
+                                                ".",
+                                                DataGenConnectorOptionsUtil.FIELDS,
+                                                fieldName,
+                                                DataGenConnectorOptionsUtil.VAR_LEN),
+                                        varLen);
+                            }
+
+                            runGenerator(schema, descriptor);
+                        })
+                .satisfies(anyCauseMatches(ValidationException.class, expectedMessage));
     }
 
     private static class TestContext implements SourceFunction.SourceContext<RowData> {

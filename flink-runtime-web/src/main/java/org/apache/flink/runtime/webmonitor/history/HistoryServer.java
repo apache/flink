@@ -192,12 +192,12 @@ public class HistoryServer {
             this.serverSSLFactory = null;
         }
 
-        webAddress = config.getString(HistoryServerOptions.HISTORY_SERVER_WEB_ADDRESS);
-        webPort = config.getInteger(HistoryServerOptions.HISTORY_SERVER_WEB_PORT);
+        webAddress = config.get(HistoryServerOptions.HISTORY_SERVER_WEB_ADDRESS);
+        webPort = config.get(HistoryServerOptions.HISTORY_SERVER_WEB_PORT);
         webRefreshIntervalMillis =
-                config.getLong(HistoryServerOptions.HISTORY_SERVER_WEB_REFRESH_INTERVAL);
+                config.get(HistoryServerOptions.HISTORY_SERVER_WEB_REFRESH_INTERVAL);
 
-        String webDirectory = config.getString(HistoryServerOptions.HISTORY_SERVER_WEB_DIR);
+        String webDirectory = config.get(HistoryServerOptions.HISTORY_SERVER_WEB_DIR);
         if (webDirectory == null) {
             webDirectory =
                     System.getProperty("java.io.tmpdir")
@@ -208,10 +208,9 @@ public class HistoryServer {
         webDir = new File(webDirectory);
 
         boolean cleanupExpiredArchives =
-                config.getBoolean(HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS);
+                config.get(HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS);
 
-        String refreshDirectories =
-                config.getString(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS);
+        String refreshDirectories = config.get(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS);
         if (refreshDirectories == null) {
             throw new FlinkException(
                     HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS + " was not configured.");
@@ -238,8 +237,8 @@ public class HistoryServer {
         }
 
         refreshIntervalMillis =
-                config.getLong(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL);
-        int maxHistorySize = config.getInteger(HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS);
+                config.get(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL);
+        int maxHistorySize = config.get(HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS);
         if (maxHistorySize == 0 || maxHistorySize < -1) {
             throw new IllegalConfigurationException(
                     "Cannot set %s to 0 or less than -1",

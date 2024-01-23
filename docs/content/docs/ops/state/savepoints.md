@@ -167,6 +167,16 @@ the savepoint should be taken. By default the savepoint will be taken in canonic
 $ bin/flink savepoint --type [native/canonical] :jobId [:targetDirectory]
 ```
 
+When using the above command to trigger a savepoint, the client needs to wait for the savepoint 
+to be completed. Therefore, the client may time out when the state size of the task is large.
+In this case, you can trigger the savepoint in detached mode.
+
+```shell
+$ bin/flink savepoint :jobId [:targetDirectory] -detached
+```
+When using this command, the client returns immediately after getting the trigger id of 
+the savepoint. You can monitor the status of the savepoint through the REST API [rest api]({{< ref "docs/ops/rest_api" >}}/#jobs-jobid-checkpoints-triggerid).
+
 #### Trigger a Savepoint with YARN
 
 ```shell
@@ -185,6 +195,8 @@ This will atomically trigger a savepoint for the job with ID `:jobid` and stop t
 you can specify a target file system directory to store the savepoint in. The directory needs to be
 accessible by the JobManager(s) and TaskManager(s). You can also pass a type in which the savepoint
 should be taken. By default the savepoint will be taken in canonical format.
+
+If you want to trigger the savepoint in detached mode, add option `-detached` to the command.
 
 ### Resuming from Savepoints
 

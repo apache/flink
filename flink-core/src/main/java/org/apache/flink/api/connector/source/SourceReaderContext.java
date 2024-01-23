@@ -19,6 +19,8 @@
 package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
@@ -39,8 +41,19 @@ public interface SourceReaderContext {
      */
     String getLocalHostName();
 
-    /** @return The index of this subtask. */
-    int getIndexOfSubtask();
+    /**
+     * Get the index of this subtask.
+     *
+     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
+     *     provided uniformly by {@link #getTaskInfo()}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
+     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
+     */
+    @Deprecated
+    default int getIndexOfSubtask() {
+        return getTaskInfo().getIndexOfThisSubtask();
+    }
 
     /**
      * Sends a split request to the source's {@link SplitEnumerator}. This will result in a call to
@@ -68,8 +81,22 @@ public interface SourceReaderContext {
      * Get the current parallelism of this Source.
      *
      * @return the parallelism of the Source.
+     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
+     *     provided uniformly by {@link #getTaskInfo()}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
+     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
      */
+    @Deprecated
     default int currentParallelism() {
-        throw new UnsupportedOperationException();
+        return getTaskInfo().getNumberOfParallelSubtasks();
     }
+
+    /**
+     * Get the meta information of current task.
+     *
+     * @return the task meta information.
+     */
+    @PublicEvolving
+    TaskInfo getTaskInfo();
 }

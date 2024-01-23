@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 
 import java.io.IOException;
@@ -43,7 +44,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>For each channel, the consumption life cycle is as follows:
  *
  * <ol>
- *   <li>{@link #requestSubpartition()}
+ *   <li>{@link #requestSubpartitions()}
  *   <li>{@link #getNextBuffer()}
  *   <li>{@link #releaseAllResources()}
  * </ol>
@@ -52,11 +53,11 @@ public abstract class InputChannel {
     /** The info of the input channel to identify it globally within a task. */
     protected final InputChannelInfo channelInfo;
 
-    /** The parent partition of the subpartition consumed by this channel. */
+    /** The parent partition of the subpartitions consumed by this channel. */
     protected final ResultPartitionID partitionId;
 
-    /** The index of the subpartition consumed by this channel. */
-    protected final int consumedSubpartitionIndex;
+    /** The indexes of the subpartitions consumed by this channel. */
+    protected final ResultSubpartitionIndexSet consumedSubpartitionIndexSet;
 
     protected final SingleInputGate inputGate;
 
@@ -76,6 +77,12 @@ public abstract class InputChannel {
 
     protected final Counter numBuffersIn;
 
+    /**
+     * The index of the subpartition if {@link #consumedSubpartitionIndexSet} contains only one
+     * subpartition, or -1.
+     */
+    private final int subpartitionId;
+
     /** The current backoff (in ms). */
     protected int currentBackoff;
 
@@ -83,7 +90,7 @@ public abstract class InputChannel {
             SingleInputGate inputGate,
             int channelIndex,
             ResultPartitionID partitionId,
-            int consumedSubpartitionIndex,
+            ResultSubpartitionIndexSet consumedSubpartitionIndexSet,
             int initialBackoff,
             int maxBackoff,
             Counter numBytesIn,
@@ -100,8 +107,11 @@ public abstract class InputChannel {
         this.channelInfo = new InputChannelInfo(inputGate.getGateIndex(), channelIndex);
         this.partitionId = checkNotNull(partitionId);
 
-        checkArgument(consumedSubpartitionIndex >= 0);
-        this.consumedSubpartitionIndex = consumedSubpartitionIndex;
+        this.consumedSubpartitionIndexSet = consumedSubpartitionIndexSet;
+        this.subpartitionId =
+                consumedSubpartitionIndexSet.size() > 1
+                        ? -1
+                        : consumedSubpartitionIndexSet.values().iterator().next();
 
         this.initialBackoff = initial;
         this.maxBackoff = max;
@@ -132,8 +142,8 @@ public abstract class InputChannel {
         return partitionId;
     }
 
-    public int getConsumedSubpartitionIndex() {
-        return consumedSubpartitionIndex;
+    public ResultSubpartitionIndexSet getConsumedSubpartitionIndexSet() {
+        return consumedSubpartitionIndexSet;
     }
 
     /**
@@ -175,13 +185,30 @@ public abstract class InputChannel {
     // ------------------------------------------------------------------------
 
     /**
-     * Requests the subpartition specified by {@link #partitionId} and {@link
-     * #consumedSubpartitionIndex}.
+     * Requests the subpartitions specified by {@link #partitionId} and {@link
+     * #consumedSubpartitionIndexSet}.
      */
-    abstract void requestSubpartition() throws IOException, InterruptedException;
+    abstract void requestSubpartitions() throws IOException, InterruptedException;
 
     /**
-     * Returns the next buffer from the consumed subpartition or {@code Optional.empty()} if there
+     * Returns the index of the subpartition where the next buffer locates, or -1 if there is no
+     * buffer available and the subpartition to be consumed is not determined.
+     */
+    public int peekNextBufferSubpartitionId() throws IOException {
+        if (subpartitionId >= 0) {
+            return subpartitionId;
+        }
+        return peekNextBufferSubpartitionIdInternal();
+    }
+
+    /**
+     * Returns the index of the subpartition where the next buffer locates, or -1 if there is no
+     * buffer available and the subpartition to be consumed is not determined.
+     */
+    protected abstract int peekNextBufferSubpartitionIdInternal() throws IOException;
+
+    /**
+     * Returns the next buffer from the consumed subpartitions or {@code Optional.empty()} if there
      * is no data to return.
      */
     public abstract Optional<BufferAndAvailability> getNextBuffer()
@@ -314,15 +341,16 @@ public abstract class InputChannel {
     /**
      * Notify the upstream the id of required segment that should be sent to netty connection.
      *
-     * @param segmentId segment id indicates the id of segment.
+     * @param subpartitionId The id of the corresponding subpartition.
+     * @param segmentId The id of required segment.
      */
-    public void notifyRequiredSegmentId(int segmentId) throws IOException {}
+    public void notifyRequiredSegmentId(int subpartitionId, int segmentId) throws IOException {}
 
     // ------------------------------------------------------------------------
 
     /**
      * A combination of a {@link Buffer} and a flag indicating availability of further buffers, and
-     * the backlog length indicating how many non-event buffers are available in the subpartition.
+     * the backlog length indicating how many non-event buffers are available in the subpartitions.
      */
     public static final class BufferAndAvailability {
 

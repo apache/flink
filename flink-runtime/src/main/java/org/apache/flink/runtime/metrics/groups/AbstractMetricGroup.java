@@ -30,6 +30,7 @@ import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
+import org.apache.flink.traces.SpanBuilder;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -342,6 +343,25 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
     }
 
     // -----------------------------------------------------------------------------------------------------------------
+    //  Spans
+    // -----------------------------------------------------------------------------------------------------------------
+
+    @Override
+    public void addSpan(SpanBuilder spanBuilder) {
+        if (spanBuilder == null) {
+            LOG.warn("Ignoring attempted addition of a span due to being null");
+            return;
+        }
+        // add the span only if the group is still open
+        synchronized (this) {
+            if (closed) {
+                return;
+            }
+            registry.addSpan(spanBuilder);
+        }
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
     //  Metrics
     // -----------------------------------------------------------------------------------------------------------------
 
@@ -390,41 +410,43 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
         }
         // add the metric only if the group is still open
         synchronized (this) {
-            if (!closed) {
-                // immediately put without a 'contains' check to optimize the common case (no
-                // collision)
-                // collisions are resolved later
-                Metric prior = metrics.put(name, metric);
+            if (closed) {
+                return;
+            }
 
-                // check for collisions with other metric names
-                if (prior == null) {
-                    // no other metric with this name yet
+            // immediately put without a 'contains' check to optimize the common case (no
+            // collision)
+            // collisions are resolved later
+            Metric prior = metrics.put(name, metric);
 
-                    if (groups.containsKey(name)) {
-                        // we warn here, rather than failing, because metrics are tools that should
-                        // not fail the
-                        // program when used incorrectly
-                        LOG.warn(
-                                "Name collision: Adding a metric with the same name as a metric subgroup: '"
-                                        + name
-                                        + "'. Metric might not get properly reported. "
-                                        + Arrays.toString(scopeComponents));
-                    }
+            // check for collisions with other metric names
+            if (prior == null) {
+                // no other metric with this name yet
 
-                    registry.register(metric, name, this);
-                } else {
-                    // we had a collision. put back the original value
-                    metrics.put(name, prior);
-
-                    // we warn here, rather than failing, because metrics are tools that should not
-                    // fail the
+                if (groups.containsKey(name)) {
+                    // we warn here, rather than failing, because metrics are tools that should
+                    // not fail the
                     // program when used incorrectly
                     LOG.warn(
-                            "Name collision: Group already contains a Metric with the name '"
+                            "Name collision: Adding a metric with the same name as a metric subgroup: '"
                                     + name
-                                    + "'. Metric will not be reported."
+                                    + "'. Metric might not get properly reported. "
                                     + Arrays.toString(scopeComponents));
                 }
+
+                registry.register(metric, name, this);
+            } else {
+                // we had a collision. put back the original value
+                metrics.put(name, prior);
+
+                // we warn here, rather than failing, because metrics are tools that should not
+                // fail the
+                // program when used incorrectly
+                LOG.warn(
+                        "Name collision: Group already contains a Metric with the name '"
+                                + name
+                                + "'. Metric will not be reported."
+                                + Arrays.toString(scopeComponents));
             }
         }
     }

@@ -149,9 +149,10 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
             // the following is the case where we restore
             if (restoredTimersSnapshot != null) {
                 TypeSerializerSchemaCompatibility<K> keySerializerCompatibility =
-                        restoredTimersSnapshot
-                                .getKeySerializerSnapshot()
-                                .resolveSchemaCompatibility(keySerializer);
+                        keySerializer
+                                .snapshotConfiguration()
+                                .resolveSchemaCompatibility(
+                                        restoredTimersSnapshot.getKeySerializerSnapshot());
 
                 if (keySerializerCompatibility.isIncompatible()
                         || keySerializerCompatibility.isCompatibleAfterMigration()) {
@@ -160,9 +161,10 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
                 }
 
                 TypeSerializerSchemaCompatibility<N> namespaceSerializerCompatibility =
-                        restoredTimersSnapshot
-                                .getNamespaceSerializerSnapshot()
-                                .resolveSchemaCompatibility(namespaceSerializer);
+                        namespaceSerializer
+                                .snapshotConfiguration()
+                                .resolveSchemaCompatibility(
+                                        restoredTimersSnapshot.getNamespaceSerializerSnapshot());
 
                 restoredTimersSnapshot = null;
 

@@ -105,6 +105,16 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
     }
 
     @Override
+    public CompletableFuture<String> stopWithDetachedSavepoint(
+            JobID jobId,
+            boolean advanceToEndOfEventTime,
+            @Nullable String savepointDirectory,
+            SavepointFormatType formatType) {
+        return miniCluster.stopWithDetachedSavepoint(
+                jobId, savepointDirectory, advanceToEndOfEventTime, formatType);
+    }
+
+    @Override
     public CompletableFuture<String> triggerSavepoint(
             JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType) {
         return miniCluster.triggerSavepoint(jobId, savepointDirectory, false, formatType);
@@ -113,6 +123,12 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
     @Override
     public CompletableFuture<Long> triggerCheckpoint(JobID jobId, CheckpointType checkpointType) {
         return miniCluster.triggerCheckpoint(jobId, checkpointType);
+    }
+
+    @Override
+    public CompletableFuture<String> triggerDetachedSavepoint(
+            JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType) {
+        return miniCluster.triggerDetachedSavepoint(jobId, savepointDirectory, false, formatType);
     }
 
     @Override

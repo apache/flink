@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.util.Preconditions;
 
@@ -108,7 +109,7 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
     @Override
     public void requestSubpartition(
             final ResultPartitionID partitionId,
-            final int subpartitionIndex,
+            final ResultSubpartitionIndexSet subpartitionIndexSet,
             final RemoteInputChannel inputChannel,
             int delayMs)
             throws IOException {
@@ -117,7 +118,7 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
 
         LOG.debug(
                 "Requesting subpartition {} of partition {} with {} ms delay.",
-                subpartitionIndex,
+                subpartitionIndexSet,
                 partitionId,
                 delayMs);
 
@@ -126,7 +127,7 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
         final PartitionRequest request =
                 new PartitionRequest(
                         partitionId,
-                        subpartitionIndex,
+                        subpartitionIndexSet,
                         inputChannel.getInputChannelId(),
                         inputChannel.getInitialCredit());
 
@@ -223,8 +224,9 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
     }
 
     @Override
-    public void notifyRequiredSegmentId(RemoteInputChannel inputChannel, int segmentId) {
-        sendToChannel(new SegmentIdMessage(inputChannel, segmentId));
+    public void notifyRequiredSegmentId(
+            RemoteInputChannel inputChannel, int subpartitionIndex, int segmentId) {
+        sendToChannel(new SegmentIdMessage(inputChannel, subpartitionIndex, segmentId));
     }
 
     @Override
@@ -343,14 +345,19 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
 
         private final int segmentId;
 
-        private SegmentIdMessage(RemoteInputChannel inputChannel, int segmentId) {
+        private final int subpartitionIndex;
+
+        private SegmentIdMessage(
+                RemoteInputChannel inputChannel, int subpartitionIndex, int segmentId) {
             super(checkNotNull(inputChannel));
+            this.subpartitionIndex = subpartitionIndex;
             this.segmentId = segmentId;
         }
 
         @Override
         Object buildMessage() {
-            return new NettyMessage.SegmentId(segmentId, inputChannel.getInputChannelId());
+            return new NettyMessage.SegmentId(
+                    subpartitionIndex, segmentId, inputChannel.getInputChannelId());
         }
     }
 }

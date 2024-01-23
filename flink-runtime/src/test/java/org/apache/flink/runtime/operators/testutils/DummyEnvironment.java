@@ -20,7 +20,10 @@ package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -62,9 +65,10 @@ import java.util.concurrent.Future;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 
+/** The {@link DummyEnvironment} is used for test purpose. */
 public class DummyEnvironment implements Environment {
 
-    private final JobID jobId = new JobID();
+    private final JobInfo jobInfo = new JobInfoImpl(new JobID(), "DummyJob");
     private final JobVertexID jobVertexId = new JobVertexID();
     private final ExecutionAttemptID executionId;
     private final ExecutionConfig executionConfig = new ExecutionConfig();
@@ -76,7 +80,7 @@ public class DummyEnvironment implements Environment {
     private UserCodeClassLoader userClassLoader;
     private final Configuration taskConfiguration = new Configuration();
     private final ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory =
-            new ChannelStateWriteRequestExecutorFactory(jobId);
+            new ChannelStateWriteRequestExecutorFactory(jobInfo.getJobId());
 
     public DummyEnvironment() {
         this("Test Job", 1, 0, 1);
@@ -94,12 +98,12 @@ public class DummyEnvironment implements Environment {
 
     public DummyEnvironment(
             String taskName, int numSubTasks, int subTaskIndex, int maxParallelism) {
-        this.taskInfo = new TaskInfo(taskName, maxParallelism, subTaskIndex, numSubTasks, 0);
+        this.taskInfo = new TaskInfoImpl(taskName, maxParallelism, subTaskIndex, numSubTasks, 0);
         this.executionId =
                 createExecutionAttemptId(jobVertexId, subTaskIndex, taskInfo.getAttemptNumber());
         this.taskStateManager = new TestTaskStateManager();
         this.aggregateManager = new TestGlobalAggregateManager();
-        this.accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
+        this.accumulatorRegistry = new AccumulatorRegistry(jobInfo.getJobId(), executionId);
     }
 
     public void setKvStateRegistry(KvStateRegistry kvStateRegistry) {
@@ -117,7 +121,7 @@ public class DummyEnvironment implements Environment {
 
     @Override
     public JobID getJobID() {
-        return jobId;
+        return jobInfo.getJobId();
     }
 
     @Override
@@ -211,7 +215,7 @@ public class DummyEnvironment implements Environment {
 
     @Override
     public TaskKvStateRegistry getTaskKvStateRegistry() {
-        return kvStateRegistry.createTaskRegistry(jobId, jobVertexId);
+        return kvStateRegistry.createTaskRegistry(jobInfo.getJobId(), jobVertexId);
     }
 
     @Override
@@ -281,5 +285,10 @@ public class DummyEnvironment implements Environment {
     @Override
     public ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory() {
         return channelStateExecutorFactory;
+    }
+
+    @Override
+    public JobInfo getJobInfo() {
+        return jobInfo;
     }
 }

@@ -66,7 +66,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
           "rtime",
           "ptime"))
 
-    val result = tEnv.sqlQuery("SELECT name, val, id FROM T").toAppendStream[Row]
+    val result = tEnv.sqlQuery("SELECT name, val, id FROM T").toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -104,7 +104,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
           "rtime",
           "ptime"))
 
-    val result = tEnv.sqlQuery("SELECT rtime, name, id FROM T").toAppendStream[Row]
+    val result = tEnv.sqlQuery("SELECT rtime, name, id FROM T").toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -147,7 +147,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
           "ptime"))
 
     val sqlQuery = "SELECT name, id FROM T"
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -185,7 +185,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
           "ptime"))
 
     val sqlQuery = "SELECT COUNT(1) FROM T WHERE ptime > 0"
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -194,6 +194,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
+  @Test
   def testProjectOnlyRowtime(): Unit = {
     val data = Seq(
       Row.of(new JInt(1), new JLong(1), new JLong(10L), "Mary"),
@@ -222,16 +223,16 @@ class LegacyTableSourceITCase extends StreamingTestBase {
           "rtime",
           "ptime"))
 
-    val result = tEnv.sqlQuery("SELECT rtime FROM T").toAppendStream[Row]
+    val result = tEnv.sqlQuery("SELECT rtime FROM T").toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
     val expected = Seq(
-      "1970-01-01 00:00:00.001",
-      "1970-01-01 00:00:00.002",
-      "1970-01-01 00:00:00.002",
-      "1970-01-01 00:00:02.001")
+      "1970-01-01T00:00:00.001",
+      "1970-01-01T00:00:00.002",
+      "1970-01-01T00:00:00.002",
+      "1970-01-01T00:00:02.001")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
@@ -266,7 +267,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
           "ptime",
           mapping))
 
-    val result = tEnv.sqlQuery("SELECT name, rtime, val FROM T").toAppendStream[Row]
+    val result = tEnv.sqlQuery("SELECT name, rtime, val FROM T").toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -343,7 +344,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
         |    deepNested.nested2.num AS nestedNum
         |FROM T
       """.stripMargin
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -361,7 +362,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
       "MyTable")
 
     val sqlQuery = "SELECT id, name FROM MyTable WHERE amount > 4 AND price < 9"
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -375,7 +376,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
     TestPartitionableSourceFactory.createTemporaryTable(tEnv, "PartitionableTable", true)
 
     val sqlQuery = "SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A'"
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -390,7 +391,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
     val sink = new TestingAppendSink()
     tEnv
       .sqlQuery("SELECT id, `first`, `last`, score FROM persons WHERE id < 4 ")
-      .toAppendStream[Row]
+      .toDataStream
       .addSink(sink)
 
     env.execute()
@@ -414,7 +415,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
       """.stripMargin
 
     val sink = new TestingAppendSink()
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
 
     env.execute()
 
@@ -440,7 +441,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
       TestData.smallData3,
       "MyInputFormatTable")
     val sink = new TestingAppendSink()
-    tEnv.sqlQuery("SELECT a, c FROM MyInputFormatTable").toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery("SELECT a, c FROM MyInputFormatTable").toDataStream.addSink(sink)
 
     env.execute()
 
@@ -470,7 +471,10 @@ class LegacyTableSourceITCase extends StreamingTestBase {
     TestDataTypeTableSource.createTemporaryTable(tEnv, tableSchema, "MyInputFormatTable", data.seq)
 
     val sink = new TestingAppendSink()
-    tEnv.sqlQuery("SELECT a, b, c, d FROM MyInputFormatTable").toAppendStream[Row].addSink(sink)
+    tEnv
+      .sqlQuery("SELECT a, b, c, d FROM MyInputFormatTable")
+      .toDataStream
+      .addSink(sink)
 
     env.execute()
 
@@ -504,7 +508,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
 
     TestStreamTableSource.createTemporaryTable(tEnv, tableSchema, "MyInputFormatTable", data)
     val sink = new TestingAppendSink()
-    tEnv.sqlQuery("SELECT a, b, c FROM MyInputFormatTable").toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery("SELECT a, b, c FROM MyInputFormatTable").toDataStream.addSink(sink)
 
     env.execute()
 

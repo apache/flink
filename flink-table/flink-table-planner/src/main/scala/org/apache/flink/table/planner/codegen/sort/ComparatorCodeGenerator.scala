@@ -51,10 +51,10 @@ object ComparatorCodeGenerator {
       name: String,
       inputType: RowType,
       sortSpec: SortSpec): GeneratedRecordComparator = {
-    val className = newName(name)
     val baseClass = classOf[RecordComparator]
 
     val ctx = new CodeGeneratorContext(tableConfig, classLoader)
+    val className = newName(ctx, name)
     val compareCode = GenerateUtils.generateRowCompare(ctx, inputType, sortSpec, "o1", "o2")
 
     val code =

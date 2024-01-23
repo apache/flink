@@ -78,7 +78,7 @@ public class HadoopModule implements SecurityModule {
                 if (HadoopUserUtils.isProxyUser((loginUser))
                         && securityConfig
                                 .getFlinkConfig()
-                                .getBoolean(SecurityOptions.DELEGATION_TOKENS_ENABLED)) {
+                                .get(SecurityOptions.DELEGATION_TOKENS_ENABLED)) {
                     throw new UnsupportedOperationException(
                             "Hadoop Proxy user is supported only when"
                                     + " delegation tokens fetch is managed outside of Flink!"

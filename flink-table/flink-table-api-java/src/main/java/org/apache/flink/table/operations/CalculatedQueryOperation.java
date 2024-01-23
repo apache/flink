@@ -70,6 +70,18 @@ public class CalculatedQueryOperation implements QueryOperation {
     }
 
     @Override
+    public String asSerializableString() {
+        // if we ever add multi-way join in JoinQueryOperation we need to sort out uniqueness of the
+        // table name
+        return String.format(
+                "LATERAL TABLE(%s) T$0(%s)",
+                resolvedFunction
+                        .toCallExpression(arguments, resolvedSchema.toPhysicalRowDataType())
+                        .asSerializableString(),
+                OperationUtils.formatSelectColumns(resolvedSchema));
+    }
+
+    @Override
     public List<QueryOperation> getChildren() {
         return Collections.emptyList();
     }

@@ -132,7 +132,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                                                 "The AdaptiveBatchScheduler requires a SlotPool."));
 
         final boolean enableSpeculativeExecution =
-                jobMasterConfiguration.getBoolean(BatchExecutionOptions.SPECULATIVE_ENABLED);
+                jobMasterConfiguration.get(BatchExecutionOptions.SPECULATIVE_ENABLED);
 
         final HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint =
                 getOrDecideHybridPartitionDataConsumeConstraint(
@@ -151,6 +151,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
         final RestartBackoffTimeStrategy restartBackoffTimeStrategy =
                 RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
                                 executionConfig.getRestartStrategy(),
+                                jobGraph.getJobConfiguration(),
                                 jobMasterConfiguration,
                                 jobGraph.isCheckpointingEnabled())
                         .create();

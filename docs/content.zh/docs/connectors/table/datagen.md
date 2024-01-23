@@ -39,8 +39,13 @@ DataGen 连接器是内置的，不需要额外的依赖项。
 -----
 
 默认情况下，DataGen 表将创建无限数量的行，每列都有一个随机值。
-对于 char、varchar、binary、varbinary、string、array、map 和 multiset 类型，可以指定长度。
 还可以指定总行数，从而生成有界表。
+
+DataGen 连接器可以生成符合其 schema 的数据，应该注意的是，它按如下方式处理长度受限的字段：
+
+* 对于固定长度的数据类型（char、binary），字段长度只能由 schema 定义，且不支持自定义；
+* 对于可变长度数据类型 （varchar、varbinary），字段默认长度由 schema 定义，且自定义长度不能大于 schema 定义；
+* 对于超长字段（string、bytes），字段默认长度为 100，但可以定义为小于 2^31 的长度。
 
 还支持序列生成器，您可以指定序列的起始和结束值。
 如果表中有任一列是序列类型，则该表将是有界的，并在第一个序列完成时结束。
@@ -294,7 +299,12 @@ CREATE TABLE Orders (
       <td>可选</td>
       <td style="word-wrap: break-word;">100</td>
       <td>Integer</td>
-      <td>随机生成器生成字符的长度，适用于 char、varchar、binary、varbinary、string、array、map、multiset。</td>
+      <td>
+          随机生成器生成字符的长度，适用于 varchar、varbinary、string、bytes、array、map、multiset。
+          请注意对于可变长字段（varchar、varbinary），默认长度由 schema 定义，且长度不可设置为大于它；
+          对于超长字段（string、bytes），默认长度是 100 且可设置为小于 2^31 的长度；
+          对于结构化字段（数组、Map、多重集），默认元素数量为 3 且可以自定义。
+      </td>
     </tr>
     <tr>
       <td><h5>fields.#.var-len</h5></td>

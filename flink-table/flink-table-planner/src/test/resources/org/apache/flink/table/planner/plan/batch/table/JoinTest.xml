@@ -29,7 +29,7 @@ LogicalFilter(condition=[>=($0, 0)])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[*org.apache.flink.table.planner.plan.batch.table.JoinTest$Merger$*(c, *org.apache.flink.table.planner.plan.batch.table.JoinTest$Merger$*(c, f)) AS c1], where=[(*org.apache.flink.table.planner.plan.batch.table.JoinTest$Merger$*(c, *org.apache.flink.table.planner.plan.batch.table.JoinTest$Merger$*(c, f)) >= 0)])
-+- HashJoin(joinType=[LeftOuterJoin], where=[(b = e)], select=[b, c, e, f], build=[right])
++- HashJoin(joinType=[LeftOuterJoin], where=[(b = e)], select=[b, c, e, f], build=[left])
    :- Exchange(distribution=[hash[b]])
    :  +- Calc(select=[b, c])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -224,7 +224,7 @@ LogicalProject(b=[$1], x=[$3])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, x])
-+- HashJoin(joinType=[RightOuterJoin], where=[((a = z) AND (x < 2))], select=[a, b, x, z], build=[right])
++- HashJoin(joinType=[RightOuterJoin], where=[((a = z) AND (x < 2))], select=[a, b, x, z], build=[left])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -287,7 +287,7 @@ LogicalJoin(condition=[AND(=($1, $4), =(*org.apache.flink.table.planner.plan.bat
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[((b = e) AND (*org.apache.flink.table.planner.plan.batch.table.JoinTest$Merger$*(a, d) = 10))], select=[a, b, c, d, e, f], build=[right])
+HashJoin(joinType=[InnerJoin], where=[((b = e) AND (*org.apache.flink.table.planner.plan.batch.table.JoinTest$Merger$*(a, d) = 10))], select=[a, b, c, d, e, f], build=[left])
 :- Exchange(distribution=[hash[b]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[e]])

@@ -277,7 +277,7 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
     public static final class RowDataSerializerSnapshot implements TypeSerializerSnapshot<RowData> {
         private static final int CURRENT_VERSION = 3;
 
-        private LogicalType[] previousTypes;
+        private LogicalType[] types;
         private NestedSerializersSnapshotDelegate nestedSerializersSnapshotDelegate;
 
         @SuppressWarnings("unused")
@@ -286,7 +286,7 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
         }
 
         RowDataSerializerSnapshot(LogicalType[] types, TypeSerializer[] serializers) {
-            this.previousTypes = types;
+            this.types = types;
             this.nestedSerializersSnapshotDelegate =
                     new NestedSerializersSnapshotDelegate(serializers);
         }
@@ -298,9 +298,9 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 
         @Override
         public void writeSnapshot(DataOutputView out) throws IOException {
-            out.writeInt(previousTypes.length);
+            out.writeInt(types.length);
             DataOutputViewStream stream = new DataOutputViewStream(out);
-            for (LogicalType previousType : previousTypes) {
+            for (LogicalType previousType : types) {
                 InstantiationUtil.serializeObject(stream, previousType);
             }
             nestedSerializersSnapshotDelegate.writeNestedSerializerSnapshots(out);
@@ -311,11 +311,10 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
                 throws IOException {
             int length = in.readInt();
             DataInputViewStream stream = new DataInputViewStream(in);
-            previousTypes = new LogicalType[length];
+            types = new LogicalType[length];
             for (int i = 0; i < length; i++) {
                 try {
-                    previousTypes[i] =
-                            InstantiationUtil.deserializeObject(stream, userCodeClassLoader);
+                    types[i] = InstantiationUtil.deserializeObject(stream, userCodeClassLoader);
                 } catch (ClassNotFoundException e) {
                     throw new IOException(e);
                 }
@@ -328,27 +327,28 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
         @Override
         public RowDataSerializer restoreSerializer() {
             return new RowDataSerializer(
-                    previousTypes,
-                    nestedSerializersSnapshotDelegate.getRestoredNestedSerializers());
+                    types, nestedSerializersSnapshotDelegate.getRestoredNestedSerializers());
         }
 
         @Override
         public TypeSerializerSchemaCompatibility<RowData> resolveSchemaCompatibility(
-                TypeSerializer<RowData> newSerializer) {
-            if (!(newSerializer instanceof RowDataSerializer)) {
+                TypeSerializerSnapshot<RowData> oldSerializerSnapshot) {
+            if (!(oldSerializerSnapshot instanceof RowDataSerializerSnapshot)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
 
-            RowDataSerializer newRowSerializer = (RowDataSerializer) newSerializer;
-            if (!Arrays.equals(previousTypes, newRowSerializer.types)) {
+            RowDataSerializerSnapshot oldRowDataSerializerSnapshot =
+                    (RowDataSerializerSnapshot) oldSerializerSnapshot;
+            if (!Arrays.equals(types, oldRowDataSerializerSnapshot.types)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
 
             CompositeTypeSerializerUtil.IntermediateCompatibilityResult<RowData>
                     intermediateResult =
                             CompositeTypeSerializerUtil.constructIntermediateCompatibilityResult(
-                                    newRowSerializer.fieldSerializers,
                                     nestedSerializersSnapshotDelegate
+                                            .getNestedSerializerSnapshots(),
+                                    oldRowDataSerializerSnapshot.nestedSerializersSnapshotDelegate
                                             .getNestedSerializerSnapshots());
 
             if (intermediateResult.isCompatibleWithReconfiguredSerializer()) {

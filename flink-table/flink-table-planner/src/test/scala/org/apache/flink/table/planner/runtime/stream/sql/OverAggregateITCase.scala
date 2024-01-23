@@ -90,7 +90,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     tEnv.createTemporaryView("T1", t1)
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List(
@@ -129,7 +129,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     tEnv.createTemporaryView("T1", t1)
     val sink = new TestingAppendSink
 
-    assertThatThrownBy(() => tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink))
+    assertThatThrownBy(() => tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink))
       .hasMessageContaining("LEAD Function is not supported in stream mode")
 
     env.execute()
@@ -143,7 +143,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     val sqlQuery = "SELECT a, ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime()) FROM MyTable"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List(
@@ -179,7 +179,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "FROM MyTable"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List(
@@ -214,7 +214,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "FROM MyTable"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List(
@@ -249,7 +249,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "FROM MyTable"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List(
@@ -289,7 +289,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "FROM MyTable"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List(
@@ -327,7 +327,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "from T1"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List(
@@ -366,7 +366,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List(
@@ -397,7 +397,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "from T1"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List(
@@ -427,7 +427,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "from T1"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List(
@@ -498,7 +498,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       " FROM T1"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List(
@@ -570,7 +570,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "FROM T1"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List(
@@ -646,7 +646,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       " FROM T1"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List(
@@ -713,7 +713,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "FROM T1"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List(
@@ -781,7 +781,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     tEnv.createTemporarySystemFunction("LTCNT", new LargerThanCount)
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List(
@@ -849,7 +849,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     tEnv.createTemporarySystemFunction("LTCNT", classOf[LargerThanCount])
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -908,7 +908,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     tEnv.createTemporaryView("T1", t1)
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = List(
@@ -965,7 +965,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     tEnv.createTemporaryView("T1", t1)
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -1034,7 +1034,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     tEnv.createTemporaryView("T1", t1)
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List(
@@ -1071,7 +1071,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "    PARTITION BY a ORDER BY proctime RANGE UNBOUNDED preceding) " +
       "FROM MyTable"
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -1139,7 +1139,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "FROM " +
       "  MyTable"
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -1203,7 +1203,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "FROM " +
       "  MyTable"
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -1238,7 +1238,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "    PARTITION BY a ORDER BY proctime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW) " +
       "FROM MyTable"
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -1290,7 +1290,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "  PairCount(DISTINCT a, b) OVER (ORDER BY proctime RANGE UNBOUNDED preceding) " +
       "FROM MyTable"
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -1326,7 +1326,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     val sqlQuery = "select sum(d) over (ORDER BY proctime rows between unbounded preceding " +
       "and current row) from T"
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()

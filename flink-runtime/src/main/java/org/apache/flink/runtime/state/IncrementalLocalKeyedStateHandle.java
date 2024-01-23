@@ -95,6 +95,12 @@ public class IncrementalLocalKeyedStateHandle extends AbstractIncrementalStateHa
     }
 
     @Override
+    public void collectSizeStats(StateObjectSizeStatsCollector collector) {
+        metaStateHandle.collectSizeStats(collector);
+        directoryStateHandle.collectSizeStats(collector);
+    }
+
+    @Override
     public String toString() {
         return "IncrementalLocalKeyedStateHandle{"
                 + "directoryStateHandle="

@@ -54,12 +54,11 @@ public class ConfigurationUtils {
      */
     public static Optional<Time> getSystemResourceMetricsProbingInterval(
             Configuration configuration) {
-        if (!configuration.getBoolean(SYSTEM_RESOURCE_METRICS)) {
+        if (!configuration.get(SYSTEM_RESOURCE_METRICS)) {
             return Optional.empty();
         } else {
             return Optional.of(
-                    Time.milliseconds(
-                            configuration.getLong(SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL)));
+                    Time.milliseconds(configuration.get(SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL)));
         }
     }
 
@@ -72,7 +71,7 @@ public class ConfigurationUtils {
      */
     @Nonnull
     public static String[] parseTempDirectories(Configuration configuration) {
-        return splitPaths(configuration.getString(CoreOptions.TMP_DIRS));
+        return splitPaths(configuration.get(CoreOptions.TMP_DIRS));
     }
 
     /**
@@ -106,16 +105,23 @@ public class ConfigurationUtils {
     @Nonnull
     public static String[] parseLocalStateDirectories(Configuration configuration) {
         String configValue =
-                configuration.getString(
+                configuration.get(
                         CheckpointingOptions.LOCAL_RECOVERY_TASK_MANAGER_STATE_ROOT_DIRS, "");
         return splitPaths(configValue);
     }
 
     /**
-     * Parses a string as a map of strings. The expected format of the map is:
+     * Parses a string as a map of strings. The expected format of the map to be parsed` by FLINK
+     * parser is:
      *
      * <pre>
      * key1:value1,key2:value2
+     * </pre>
+     *
+     * <p>The expected format of the map to be parsed by standard YAML parser is:
+     *
+     * <pre>
+     * {key1: value1, key2: value2}
      * </pre>
      *
      * <p>Parts of the string can be escaped by wrapping with single or double quotes.
@@ -123,27 +129,22 @@ public class ConfigurationUtils {
      * @param stringSerializedMap a string to parse
      * @return parsed map
      */
-    public static Map<String, String> parseMap(String stringSerializedMap) {
-        return StructuredOptionsSplitter.splitEscaped(stringSerializedMap, ',').stream()
-                .map(p -> StructuredOptionsSplitter.splitEscaped(p, ':'))
-                .collect(
-                        Collectors.toMap(
-                                arr -> arr.get(0), // key name
-                                arr -> arr.get(1) // value
-                                ));
+    public static Map<String, String> parseStringToMap(String stringSerializedMap) {
+        return convertToProperties(stringSerializedMap, GlobalConfiguration.isStandardYaml());
+    }
+
+    public static String parseMapToString(Map<String, String> map) {
+        return convertToString(map, GlobalConfiguration.isStandardYaml());
     }
 
     public static Time getStandaloneClusterStartupPeriodTime(Configuration configuration) {
         final Time timeout;
         long standaloneClusterStartupPeriodTime =
-                configuration.getLong(
-                        ResourceManagerOptions.STANDALONE_CLUSTER_STARTUP_PERIOD_TIME);
+                configuration.get(ResourceManagerOptions.STANDALONE_CLUSTER_STARTUP_PERIOD_TIME);
         if (standaloneClusterStartupPeriodTime >= 0) {
             timeout = Time.milliseconds(standaloneClusterStartupPeriodTime);
         } else {
-            timeout =
-                    Time.milliseconds(
-                            configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
+            timeout = Time.milliseconds(configuration.get(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
         }
         return timeout;
     }
@@ -348,28 +349,39 @@ public class ConfigurationUtils {
         if (rawValue instanceof List) {
             return (T) rawValue;
         } else if (standardYaml) {
-            List<Object> data = YamlParserUtils.convertToObject(rawValue.toString(), List.class);
-            // The Yaml parser conversion results in data of type List<Map<Object, Object>>, such as
-            // List<Map<Object, Boolean>>. However, ConfigOption currently requires that the data
-            // for Map type be strictly of the type Map<String, String>. Therefore, we convert each
-            // map in the list to Map<String, String>.
-            if (atomicClass == Map.class) {
+            try {
+                List<Object> data =
+                        YamlParserUtils.convertToObject(rawValue.toString(), List.class);
+                // The Yaml parser conversion results in data of type List<Map<Object, Object>>,
+                // such as List<Map<Object, Boolean>>. However, ConfigOption currently requires that
+                // the data for Map type be strictly of the type Map<String, String>. Therefore, we
+                // convert each map in the list to Map<String, String>.
+                if (atomicClass == Map.class) {
+                    return (T)
+                            data.stream()
+                                    .map(map -> convertToStringMap((Map<Object, Object>) map, true))
+                                    .collect(Collectors.toList());
+                }
+
                 return (T)
                         data.stream()
-                                .map(map -> convertToStringMap((Map<Object, Object>) map, true))
+                                .map(s -> convertValue(s, atomicClass, true))
                                 .collect(Collectors.toList());
+            } catch (Exception e) {
+                // Fallback to legacy pattern
+                return convertToListWithLegacyProperties(rawValue, atomicClass);
             }
-
-            return (T)
-                    data.stream()
-                            .map(s -> convertValue(s, atomicClass, true))
-                            .collect(Collectors.toList());
         } else {
-            return (T)
-                    StructuredOptionsSplitter.splitEscaped(rawValue.toString(), ';').stream()
-                            .map(s -> convertValue(s, atomicClass, false))
-                            .collect(Collectors.toList());
+            return convertToListWithLegacyProperties(rawValue, atomicClass);
         }
+    }
+
+    @Nonnull
+    private static <T> T convertToListWithLegacyProperties(Object rawValue, Class<?> atomicClass) {
+        return (T)
+                StructuredOptionsSplitter.splitEscaped(rawValue.toString(), ';').stream()
+                        .map(s -> convertValue(s, atomicClass, false))
+                        .collect(Collectors.toList());
     }
 
     @SuppressWarnings("unchecked")
@@ -377,22 +389,32 @@ public class ConfigurationUtils {
         if (o instanceof Map) {
             return (Map<String, String>) o;
         } else if (standardYaml) {
-            Map<Object, Object> map = YamlParserUtils.convertToObject(o.toString(), Map.class);
-            return convertToStringMap(map, true);
+            try {
+                Map<Object, Object> map = YamlParserUtils.convertToObject(o.toString(), Map.class);
+                return convertToStringMap(map, true);
+            } catch (Exception e) {
+                // Fallback to legacy pattern
+                return convertToPropertiesWithLegacyPattern(o);
+            }
         } else {
-            List<String> listOfRawProperties =
-                    StructuredOptionsSplitter.splitEscaped(o.toString(), ',');
-            return listOfRawProperties.stream()
-                    .map(s -> StructuredOptionsSplitter.splitEscaped(s, ':'))
-                    .peek(
-                            pair -> {
-                                if (pair.size() != 2) {
-                                    throw new IllegalArgumentException(
-                                            "Map item is not a key-value pair (missing ':'?)");
-                                }
-                            })
-                    .collect(Collectors.toMap(a -> a.get(0), a -> a.get(1)));
+            return convertToPropertiesWithLegacyPattern(o);
         }
+    }
+
+    @Nonnull
+    private static Map<String, String> convertToPropertiesWithLegacyPattern(Object o) {
+        List<String> listOfRawProperties =
+                StructuredOptionsSplitter.splitEscaped(o.toString(), ',');
+        return listOfRawProperties.stream()
+                .map(s -> StructuredOptionsSplitter.splitEscaped(s, ':'))
+                .peek(
+                        pair -> {
+                            if (pair.size() != 2) {
+                                throw new IllegalArgumentException(
+                                        "Map item is not a key-value pair (missing ':'?)");
+                            }
+                        })
+                .collect(Collectors.toMap(a -> a.get(0), a -> a.get(1)));
     }
 
     private static Map<String, String> convertToStringMap(

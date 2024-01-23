@@ -91,8 +91,7 @@ public class CheckpointResourcesCleanupRunner implements JobManagerRunner {
 
         this.checkpointsCleaner =
                 new CheckpointsCleaner(
-                        jobManagerConfiguration.getBoolean(
-                                CheckpointingOptions.CLEANER_PARALLEL_MODE));
+                        jobManagerConfiguration.get(CheckpointingOptions.CLEANER_PARALLEL_MODE));
 
         this.resultFuture = new CompletableFuture<>();
         this.cleanupFuture = resultFuture.thenCompose(ignored -> runCleanupAsync());

@@ -43,6 +43,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
+import org.apache.flink.runtime.state.StateBackend.CustomInitializationMetrics;
 import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
@@ -98,6 +99,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
     private final int keyGroupPrefixBytes;
     private final StateSerializerProvider<K> keySerializerProvider;
     private final ClassLoader userCodeClassLoader;
+    private final CustomInitializationMetrics customInitializationMetrics;
     private long lastCompletedCheckpointId;
     private UUID backendUID;
     private final long writeBatchSize;
@@ -120,6 +122,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             RocksDBNativeMetricOptions nativeMetricOptions,
             MetricGroup metricGroup,
+            CustomInitializationMetrics customInitializationMetrics,
             @Nonnull Collection<KeyedStateHandle> restoreStateHandles,
             @Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             @Nonnegative long writeBatchSize,
@@ -141,6 +144,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         this.backendUID = UUID.randomUUID();
         this.writeBatchSize = writeBatchSize;
         this.overlapFractionThreshold = overlapFractionThreshold;
+        this.customInitializationMetrics = customInitializationMetrics;
         this.restoreStateHandles = restoreStateHandles;
         this.cancelStreamRegistry = cancelStreamRegistry;
         this.keyGroupRange = keyGroupRange;
@@ -254,7 +258,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
     private void transferRemoteStateToLocalDirectory(
             Collection<StateHandleDownloadSpec> downloadRequests) throws Exception {
         try (RocksDBStateDownloader rocksDBStateDownloader =
-                new RocksDBStateDownloader(numberOfTransferringThreads)) {
+                new RocksDBStateDownloader(
+                        numberOfTransferringThreads, customInitializationMetrics)) {
             rocksDBStateDownloader.transferAllStateDataToDirectory(
                     downloadRequests, cancelStreamRegistry);
         }

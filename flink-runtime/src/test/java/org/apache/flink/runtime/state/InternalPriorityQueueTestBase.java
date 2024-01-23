@@ -29,7 +29,7 @@ import org.apache.flink.runtime.state.heap.AbstractHeapPriorityQueueElement;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.MathUtils;
 
-import org.apache.flink.shaded.guava31.com.google.common.primitives.UnsignedBytes;
+import org.apache.flink.shaded.guava32.com.google.common.primitives.UnsignedBytes;
 
 import org.junit.jupiter.api.Test;
 
@@ -529,13 +529,13 @@ public abstract class InternalPriorityQueueTestBase {
 
             @Override
             public TypeSerializerSchemaCompatibility<TestElement> resolveSchemaCompatibility(
-                    TypeSerializer<TestElement> newSerializer) {
-                if (!(newSerializer instanceof TestElementSerializer)) {
+                    TypeSerializerSnapshot<TestElement> oldSerializerSnapshot) {
+                if (!(oldSerializerSnapshot instanceof Snapshot)) {
                     return TypeSerializerSchemaCompatibility.incompatible();
                 }
 
-                TestElementSerializer testElementSerializer = (TestElementSerializer) newSerializer;
-                return (revision <= testElementSerializer.getRevision())
+                Snapshot snapshot = (Snapshot) oldSerializerSnapshot;
+                return (snapshot.getRevision() <= revision)
                         ? TypeSerializerSchemaCompatibility.compatibleAsIs()
                         : TypeSerializerSchemaCompatibility.incompatible();
             }

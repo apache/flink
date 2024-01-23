@@ -64,7 +64,7 @@ class BlobClientSslTest extends BlobClientTest {
         Configuration config =
                 SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores(
                         SecurityOptions.SSL_PROVIDER.defaultValue());
-        config.setBoolean(BlobServerOptions.SSL_ENABLED, false);
+        config.set(BlobServerOptions.SSL_ENABLED, false);
 
         blobNonSslServer = TestingBlobUtils.createServer(tempDir.resolve("non_ssl"), config);
         blobNonSslServer.start();

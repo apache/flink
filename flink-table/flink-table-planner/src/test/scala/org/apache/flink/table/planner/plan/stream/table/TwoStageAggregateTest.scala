@@ -34,7 +34,7 @@ class TwoStageAggregateTest extends TableTestBase {
   def before(): Unit = {
     util = streamTestUtil()
     util.tableEnv.getConfig
-      .setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+      .setIdleStateRetention(Duration.ofHours(1))
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))

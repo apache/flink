@@ -27,6 +27,7 @@ import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink.Sink.ProcessingTimeService;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.api.connector.sink2.CommitterInitContext;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.StatefulSink.StatefulSinkWriter;
@@ -71,7 +72,7 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
     }
 
     @Override
-    public SinkWriterV1Adapter<InputT, CommT, WriterStateT> createWriter(WriterInitContext context)
+    public SinkWriterV1Adapter<InputT, CommT, WriterStateT> createWriter(InitContext context)
             throws IOException {
         org.apache.flink.api.connector.sink.SinkWriter<InputT, CommT, WriterStateT> writer =
                 sink.createWriter(new InitContextAdapter(context), Collections.emptyList());
@@ -183,9 +184,9 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
     private static class InitContextAdapter
             implements org.apache.flink.api.connector.sink.Sink.InitContext {
 
-        private final WriterInitContext context;
+        private final InitContext context;
 
-        public InitContextAdapter(WriterInitContext context) {
+        public InitContextAdapter(InitContext context) {
             this.context = context;
         }
 
@@ -206,12 +207,12 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
 
         @Override
         public int getSubtaskId() {
-            return context.getSubtaskId();
+            return context.getTaskInfo().getIndexOfThisSubtask();
         }
 
         @Override
         public int getNumberOfParallelSubtasks() {
-            return context.getNumberOfParallelSubtasks();
+            return context.getTaskInfo().getNumberOfParallelSubtasks();
         }
 
         @Override
@@ -301,8 +302,8 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
     /** Main class to simulate SinkV1 with SinkV2. */
     class PlainSinkAdapter implements Sink<InputT> {
         @Override
-        public SinkWriterV1Adapter<InputT, CommT, WriterStateT> createWriter(
-                WriterInitContext context) throws IOException {
+        public SinkWriterV1Adapter<InputT, CommT, WriterStateT> createWriter(InitContext context)
+                throws IOException {
             return SinkV1Adapter.this.createWriter(context);
         }
 
@@ -316,8 +317,7 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
             implements StatefulSink<InputT, WriterStateT> {
         @Override
         public StatefulSinkWriter<InputT, WriterStateT> restoreWriter(
-                WriterInitContext context, Collection<WriterStateT> recoveredState)
-                throws IOException {
+                InitContext context, Collection<WriterStateT> recoveredState) throws IOException {
             org.apache.flink.api.connector.sink.SinkWriter<InputT, CommT, WriterStateT> writer =
                     sink.createWriter(
                             new InitContextAdapter(context), new ArrayList<>(recoveredState));

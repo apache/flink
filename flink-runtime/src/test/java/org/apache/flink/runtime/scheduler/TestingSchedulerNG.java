@@ -27,6 +27,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -39,7 +40,6 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
@@ -157,12 +157,6 @@ public class TestingSchedulerNG implements SchedulerNG {
     }
 
     @Override
-    public JobDetails requestJobDetails() {
-        failOperation();
-        return null;
-    }
-
-    @Override
     public KvStateLocation requestKvStateLocation(JobID jobId, String registrationName) {
         failOperation();
         return null;
@@ -241,6 +235,10 @@ public class TestingSchedulerNG implements SchedulerNG {
 
     @Override
     public void notifyEndOfData(ExecutionAttemptID executionAttemptID) {}
+
+    @Override
+    public void reportInitializationMetrics(
+            JobID jobId, SubTaskInitializationMetrics initializationMetrics) {}
 
     @Override
     public void reportCheckpointMetrics(

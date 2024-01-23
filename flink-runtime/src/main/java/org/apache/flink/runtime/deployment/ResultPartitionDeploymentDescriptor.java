@@ -80,6 +80,10 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
         return partitionDescriptor.getNumberOfSubpartitions();
     }
 
+    public boolean isNumberOfPartitionConsumerUndefined() {
+        return partitionDescriptor.isNumberOfPartitionConsumerUndefined();
+    }
+
     public int getMaxParallelism() {
         return maxParallelism;
     }

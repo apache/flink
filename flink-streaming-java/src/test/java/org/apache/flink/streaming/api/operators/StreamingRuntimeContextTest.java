@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.SerializerFactory;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -31,6 +32,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
@@ -46,10 +48,13 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -303,7 +308,15 @@ public class StreamingRuntimeContextTest {
         KeyedStateBackend keyedStateBackend = mock(KeyedStateBackend.class);
 
         DefaultKeyedStateStore keyedStateStore =
-                new DefaultKeyedStateStore(keyedStateBackend, config);
+                new DefaultKeyedStateStore(
+                        keyedStateBackend,
+                        new SerializerFactory() {
+                            @Override
+                            public <T> TypeSerializer<T> createSerializer(
+                                    TypeInformation<T> typeInformation) {
+                                return typeInformation.createSerializer(config);
+                            }
+                        });
 
         doAnswer(
                         new Answer<Object>() {
@@ -334,7 +347,15 @@ public class StreamingRuntimeContextTest {
         KeyedStateBackend keyedStateBackend = mock(KeyedStateBackend.class);
 
         DefaultKeyedStateStore keyedStateStore =
-                new DefaultKeyedStateStore(keyedStateBackend, config);
+                new DefaultKeyedStateStore(
+                        keyedStateBackend,
+                        new SerializerFactory() {
+                            @Override
+                            public <T> TypeSerializer<T> createSerializer(
+                                    TypeInformation<T> typeInformation) {
+                                return typeInformation.createSerializer(config);
+                            }
+                        });
 
         when(operatorMock.getExecutionConfig()).thenReturn(config);
 
@@ -348,23 +369,29 @@ public class StreamingRuntimeContextTest {
                                         (ListStateDescriptor<String>)
                                                 invocationOnMock.getArguments()[2];
 
+                                AbstractStateBackend abstractStateBackend =
+                                        new MemoryStateBackend();
+                                Environment env = new DummyEnvironment("test_task", 1, 0);
+                                JobID jobID = new JobID();
+                                KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
+                                TaskKvStateRegistry kvStateRegistry =
+                                        new KvStateRegistry()
+                                                .createTaskRegistry(new JobID(), new JobVertexID());
+                                CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
                                 AbstractKeyedStateBackend<Integer> backend =
-                                        new MemoryStateBackend()
-                                                .createKeyedStateBackend(
-                                                        new DummyEnvironment("test_task", 1, 0),
-                                                        new JobID(),
+                                        abstractStateBackend.createKeyedStateBackend(
+                                                new KeyedStateBackendParametersImpl<>(
+                                                        env,
+                                                        jobID,
                                                         "test_op",
                                                         IntSerializer.INSTANCE,
                                                         1,
-                                                        new KeyGroupRange(0, 0),
-                                                        new KvStateRegistry()
-                                                                .createTaskRegistry(
-                                                                        new JobID(),
-                                                                        new JobVertexID()),
+                                                        keyGroupRange,
+                                                        kvStateRegistry,
                                                         TtlTimeProvider.DEFAULT,
                                                         new UnregisteredMetricsGroup(),
                                                         Collections.emptyList(),
-                                                        new CloseableRegistry());
+                                                        cancelStreamRegistry));
                                 backend.setCurrentKey(0);
                                 return backend.getPartitionedState(
                                         VoidNamespace.INSTANCE,
@@ -390,7 +417,15 @@ public class StreamingRuntimeContextTest {
         KeyedStateBackend keyedStateBackend = mock(KeyedStateBackend.class);
 
         DefaultKeyedStateStore keyedStateStore =
-                new DefaultKeyedStateStore(keyedStateBackend, config);
+                new DefaultKeyedStateStore(
+                        keyedStateBackend,
+                        new SerializerFactory() {
+                            @Override
+                            public <T> TypeSerializer<T> createSerializer(
+                                    TypeInformation<T> typeInformation) {
+                                return typeInformation.createSerializer(config);
+                            }
+                        });
 
         when(operatorMock.getExecutionConfig()).thenReturn(config);
 
@@ -404,23 +439,29 @@ public class StreamingRuntimeContextTest {
                                         (MapStateDescriptor<Integer, String>)
                                                 invocationOnMock.getArguments()[2];
 
+                                AbstractStateBackend abstractStateBackend =
+                                        new MemoryStateBackend();
+                                Environment env = new DummyEnvironment("test_task", 1, 0);
+                                JobID jobID = new JobID();
+                                KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
+                                TaskKvStateRegistry kvStateRegistry =
+                                        new KvStateRegistry()
+                                                .createTaskRegistry(new JobID(), new JobVertexID());
+                                CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
                                 AbstractKeyedStateBackend<Integer> backend =
-                                        new MemoryStateBackend()
-                                                .createKeyedStateBackend(
-                                                        new DummyEnvironment("test_task", 1, 0),
-                                                        new JobID(),
+                                        abstractStateBackend.createKeyedStateBackend(
+                                                new KeyedStateBackendParametersImpl<>(
+                                                        env,
+                                                        jobID,
                                                         "test_op",
                                                         IntSerializer.INSTANCE,
                                                         1,
-                                                        new KeyGroupRange(0, 0),
-                                                        new KvStateRegistry()
-                                                                .createTaskRegistry(
-                                                                        new JobID(),
-                                                                        new JobVertexID()),
+                                                        keyGroupRange,
+                                                        kvStateRegistry,
                                                         TtlTimeProvider.DEFAULT,
                                                         new UnregisteredMetricsGroup(),
                                                         Collections.emptyList(),
-                                                        new CloseableRegistry());
+                                                        cancelStreamRegistry));
                                 backend.setCurrentKey(0);
                                 return backend.getPartitionedState(
                                         VoidNamespace.INSTANCE,

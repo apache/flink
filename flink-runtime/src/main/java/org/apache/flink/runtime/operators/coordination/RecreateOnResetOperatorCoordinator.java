@@ -162,7 +162,6 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 
     // ---------------------
 
-    @VisibleForTesting
     public OperatorCoordinator getInternalCoordinator() throws Exception {
         waitForAllAsyncCallsFinish();
         return coordinator.internalCoordinator;

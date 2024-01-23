@@ -84,7 +84,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
         final long latencyTrackingInterval =
                 getExecutionConfig().isLatencyTrackingConfigured()
                         ? getExecutionConfig().getLatencyTrackingInterval()
-                        : configuration.getLong(MetricOptions.LATENCY_INTERVAL);
+                        : configuration.get(MetricOptions.LATENCY_INTERVAL);
 
         LatencyMarkerEmitter<OUT> latencyEmitter = null;
         if (latencyTrackingInterval > 0) {
@@ -94,11 +94,10 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
                             collector::emitLatencyMarker,
                             latencyTrackingInterval,
                             this.getOperatorID(),
-                            getRuntimeContext().getIndexOfThisSubtask());
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
         }
 
-        final long watermarkInterval =
-                getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval();
+        final long watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
 
         this.ctx =
                 StreamSourceContexts.getSourceContext(

@@ -38,9 +38,7 @@ public class NullAwareMapSerializerSnapshot<K, V>
     private static final int CURRENT_VERSION = 1;
 
     /** Constructor for read instantiation. */
-    public NullAwareMapSerializerSnapshot() {
-        super(NullAwareMapSerializer.class);
-    }
+    public NullAwareMapSerializerSnapshot() {}
 
     /** Constructor to create the snapshot for writing. */
     public NullAwareMapSerializerSnapshot(NullAwareMapSerializer<K, V> mapViewSerializer) {

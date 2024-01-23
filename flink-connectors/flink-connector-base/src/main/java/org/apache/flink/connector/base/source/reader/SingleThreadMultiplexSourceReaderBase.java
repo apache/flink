@@ -76,7 +76,7 @@ public abstract class SingleThreadMultiplexSourceReaderBase<
             SourceReaderContext context) {
         this(
                 new FutureCompletingBlockingQueue<>(
-                        config.getInteger(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY)),
+                        config.get(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY)),
                 splitReaderSupplier,
                 recordEmitter,
                 config,

@@ -124,7 +124,7 @@ public class FailureEnricherUtils {
     @VisibleForTesting
     static Set<String> getIncludedFailureEnrichers(final Configuration configuration) {
         final String includedEnrichersString =
-                configuration.getString(JobManagerOptions.FAILURE_ENRICHERS_LIST, "");
+                configuration.get(JobManagerOptions.FAILURE_ENRICHERS_LIST, "");
         return enricherListPattern
                 .splitAsStream(includedEnrichersString)
                 .filter(r -> !r.isEmpty())

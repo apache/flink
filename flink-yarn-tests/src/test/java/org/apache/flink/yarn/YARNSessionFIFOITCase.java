@@ -222,8 +222,7 @@ class YARNSessionFIFOITCase extends YarnTestBase {
             try {
                 File yarnPropertiesFile =
                         FlinkYarnSessionCli.getYarnPropertiesLocation(
-                                configuration.getString(
-                                        YarnConfigOptions.PROPERTIES_FILE_LOCATION));
+                                configuration.get(YarnConfigOptions.PROPERTIES_FILE_LOCATION));
                 if (yarnPropertiesFile.exists()) {
                     log.info(
                             "testDetachedPerJobYarnClusterInternal: Cleaning up temporary Yarn address reference: {}",

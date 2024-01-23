@@ -191,6 +191,24 @@ $ ./sql-gateway -Dkey=value
             <td>The maximum number of the active session for sql gateway service.</td>
         </tr>
         <tr>
+            <td><h5>sql-gateway.session.plan-cache.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>When it is true, sql gateway will cache and reuse plans for queries per session.</td>
+        </tr>
+        <tr>
+            <td><h5>sql-gateway.session.plan-cache.size</h5></td>
+            <td style="word-wrap: break-word;">100</td>
+            <td>Integer</td>
+            <td>Plan cache size, it takes effect iff `table.optimizer.plan-cache.enabled` is true.</td>
+        </tr>
+        <tr>
+            <td><h5>sql-gateway.session.plan-cache.ttl</h5></td>
+            <td style="word-wrap: break-word;">1 hour</td>
+            <td>Duration</td>
+            <td>TTL for plan cache, it controls how long will the cache expire after write, it takes effect iff `table.optimizer.plan-cache.enabled` is true.</td>
+        </tr>
+        <tr>
             <td><h5>sql-gateway.worker.keepalive-time</h5></td>
             <td style="word-wrap: break-word;">5 min</td>
             <td>Duration</td>

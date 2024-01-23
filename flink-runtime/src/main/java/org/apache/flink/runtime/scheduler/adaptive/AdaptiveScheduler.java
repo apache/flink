@@ -20,6 +20,8 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -43,6 +45,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -80,7 +83,6 @@ import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
@@ -178,6 +180,9 @@ public class AdaptiveScheduler
     private static final Logger LOG = LoggerFactory.getLogger(AdaptiveScheduler.class);
 
     private final JobGraph jobGraph;
+
+    private final JobInfo jobInfo;
+
     private final VertexParallelismStore initialParallelismStore;
 
     private final DeclarativeSlotPool declarativeSlotPool;
@@ -261,6 +266,7 @@ public class AdaptiveScheduler
         assertPreconditions(jobGraph);
 
         this.jobGraph = jobGraph;
+        this.jobInfo = new JobInfoImpl(jobGraph.getJobID(), jobGraph.getName());
         this.executionMode = configuration.get(JobManagerOptions.SCHEDULER_MODE);
 
         VertexParallelismStore vertexParallelismStore =
@@ -328,8 +334,7 @@ public class AdaptiveScheduler
         jobStatusListeners = Collections.unmodifiableCollection(tmpJobStatusListeners);
         this.failureEnrichers = failureEnrichers;
         this.exceptionHistory =
-                new BoundedFIFOQueue<>(
-                        configuration.getInteger(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
+                new BoundedFIFOQueue<>(configuration.get(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
         this.jobManagerJobMetricGroup = jobManagerJobMetricGroup;
         this.slotIdleTimeout =
                 Duration.ofMillis(configuration.get(JobManagerOptions.SLOT_IDLE_TIMEOUT));
@@ -528,11 +533,7 @@ public class AdaptiveScheduler
     public void handleGlobalFailure(Throwable cause) {
         final FailureEnricher.Context ctx =
                 DefaultFailureEnricherContext.forGlobalFailure(
-                        jobInformation.getJobID(),
-                        jobInformation.getName(),
-                        jobManagerJobMetricGroup,
-                        ioExecutor,
-                        userCodeClassLoader);
+                        jobInfo, jobManagerJobMetricGroup, ioExecutor, userCodeClassLoader);
         final CompletableFuture<Map<String, String>> failureLabels =
                 FailureEnricherUtils.labelFailure(
                         cause, ctx, getMainThreadExecutor(), failureEnrichers);
@@ -546,11 +547,7 @@ public class AdaptiveScheduler
             final Throwable cause = taskExecutionStateTransition.getError(userCodeClassLoader);
             final Context ctx =
                     DefaultFailureEnricherContext.forTaskFailure(
-                            jobGraph.getJobID(),
-                            jobGraph.getName(),
-                            jobManagerJobMetricGroup,
-                            ioExecutor,
-                            userCodeClassLoader);
+                            jobInfo, jobManagerJobMetricGroup, ioExecutor, userCodeClassLoader);
             return FailureEnricherUtils.labelFailure(
                     cause, ctx, getMainThreadExecutor(), failureEnrichers);
         }
@@ -612,11 +609,6 @@ public class AdaptiveScheduler
     @Override
     public JobStatus requestJobStatus() {
         return state.getJobStatus();
-    }
-
-    @Override
-    public JobDetails requestJobDetails() {
-        return JobDetails.createDetailsForJob(state.getJob());
     }
 
     @Override
@@ -756,6 +748,16 @@ public class AdaptiveScheduler
                 StateWithExecutionGraph.class,
                 stateWithExecutionGraph -> stateWithExecutionGraph.declineCheckpoint(decline),
                 "declineCheckpoint");
+    }
+
+    @Override
+    public void reportInitializationMetrics(
+            JobID jobId, SubTaskInitializationMetrics initializationMetrics) {
+        state.tryRun(
+                StateWithExecutionGraph.class,
+                stateWithExecutionGraph ->
+                        stateWithExecutionGraph.reportInitializationMetrics(initializationMetrics),
+                "reportCheckpointMetrics");
     }
 
     @Override

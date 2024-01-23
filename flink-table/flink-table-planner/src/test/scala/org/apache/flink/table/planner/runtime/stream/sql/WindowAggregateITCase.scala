@@ -23,8 +23,9 @@ import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.ConcatDistinctAggFunction
-import org.apache.flink.table.planner.runtime.utils.{FailingCollectionSource, StreamingWithStateTestBase, TestData, TestingAppendSink, TestingRetractSink}
+import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy._
@@ -141,9 +142,12 @@ class WindowAggregateITCase(
     env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0))
     FailingCollectionSource.reset()
 
-    val timestampDataId = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
-    val timestampLtzDataId = TestValuesTableFactory
-      .registerData(TestData.windowDataWithLtzInShanghai)
+    val insertOnlyDataId = if (useTimestampLtz) {
+      TestValuesTableFactory
+        .registerData(TestData.windowDataWithLtzInShanghai)
+    } else {
+      TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
+    }
 
     tEnv.executeSql(
       s"""
@@ -160,10 +164,39 @@ class WindowAggregateITCase(
          | WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND
          |) WITH (
          | 'connector' = 'values',
-         | 'data-id' = '${if (useTimestampLtz) timestampLtzDataId else timestampDataId}',
+         | 'data-id' = '$insertOnlyDataId',
          | 'failing-source' = 'true'
          |)
          |""".stripMargin)
+
+    val changelogDataId = if (useTimestampLtz) {
+      TestValuesTableFactory
+        .registerData(TestData.windowChangelogDataWithLtzInShanghai)
+    } else {
+      TestValuesTableFactory.registerData(TestData.windowChangelogDataWithTimestamp)
+    }
+
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE T1_CDC (
+         | `ts` ${if (useTimestampLtz) "BIGINT" else "STRING"},
+         | `int` INT,
+         | `double` DOUBLE,
+         | `float` FLOAT,
+         | `bigdec` DECIMAL(10, 2),
+         | `string` STRING,
+         | `name` STRING,
+         | `rowtime` AS
+         | ${if (useTimestampLtz) "TO_TIMESTAMP_LTZ(`ts`, 3)" else "TO_TIMESTAMP(`ts`)"},
+         | WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND
+         |) WITH (
+         | 'connector' = 'values',
+         | 'data-id' = '$changelogDataId',
+         | 'failing-source' = 'true',
+         | 'changelog-mode' = 'I,UA,UB,D'
+         |)
+         |""".stripMargin)
+
     tEnv.createFunction("concat_distinct_agg", classOf[ConcatDistinctAggFunction])
 
     tEnv.getConfig.setLocalTimeZone(SHANGHAI_ZONE)
@@ -190,7 +223,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -225,7 +258,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -260,7 +293,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected =
@@ -289,7 +322,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -322,7 +355,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -350,7 +383,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -378,7 +411,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -401,7 +434,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = if (useTimestampLtz) {
@@ -446,7 +479,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -476,7 +509,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -508,7 +541,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -553,7 +586,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -593,7 +626,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -629,7 +662,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -657,7 +690,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -685,7 +718,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -716,7 +749,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -764,7 +797,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -801,7 +834,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -841,7 +874,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -873,7 +906,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -905,7 +938,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -926,7 +959,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = if (useTimestampLtz) {
@@ -991,6 +1024,161 @@ class WindowAggregateITCase(
     res.toRetractStream[Row].addSink(sink)
     // do not verify the result due to proctime window aggregate result is non-deterministic
     env.execute()
+  }
+
+  @TestTemplate
+  def testEventTimeTumbleWindowWithCDCSource(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`)
+        |FROM TABLE(
+        |   TUMBLE(TABLE T1_CDC, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |GROUP BY `name`, window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "a,2020-10-10T00:00,2020-10-10T00:00:05,3,29.99,22.0,2.0,2",
+      "a,2020-10-10T00:00:05,2020-10-10T00:00:10,1,3.33,null,3.0,1",
+      "b,2020-10-10T00:00:05,2020-10-10T00:00:10,2,6.66,6.0,3.0,2",
+      "b,2020-10-10T00:00:15,2020-10-10T00:00:20,1,4.44,4.0,4.0,1"
+    )
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
+  }
+
+  @TestTemplate
+  def testEventTimeHopWindowWithCDCSource(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`)
+        |FROM TABLE(
+        |   HOP(TABLE T1_CDC, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND))
+        |GROUP BY `name`, window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "a,2020-10-09T23:59:55,2020-10-10T00:00:05,3,29.99,22.0,2.0,2",
+      "a,2020-10-10T00:00,2020-10-10T00:00:10,5,38.87,22.0,2.0,4",
+      "a,2020-10-10T00:00:05,2020-10-10T00:00:15,1,3.33,null,3.0,1",
+      "b,2020-10-10T00:00,2020-10-10T00:00:10,2,6.66,6.0,3.0,2",
+      "b,2020-10-10T00:00:05,2020-10-10T00:00:15,2,6.66,6.0,3.0,2",
+      "b,2020-10-10T00:00:10,2020-10-10T00:00:20,1,4.44,4.0,4.0,1",
+      "b,2020-10-10T00:00:15,2020-10-10T00:00:25,1,4.44,4.0,4.0,1"
+    )
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
+  }
+
+  @TestTemplate
+  def testEventTimeCumulateWindowWithCDCSource(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`)
+        |FROM TABLE(
+        |   CUMULATE(TABLE T1_CDC, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '15' SECOND))
+        |GROUP BY `name`, window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "a,2020-10-10T00:00,2020-10-10T00:00:05,3,29.99,22.0,2.0,2",
+      "a,2020-10-10T00:00,2020-10-10T00:00:10,5,38.87,22.0,2.0,4",
+      "a,2020-10-10T00:00,2020-10-10T00:00:15,5,38.87,22.0,2.0,4",
+      "b,2020-10-10T00:00,2020-10-10T00:00:10,2,6.66,6.0,3.0,2",
+      "b,2020-10-10T00:00,2020-10-10T00:00:15,2,6.66,6.0,3.0,2",
+      "b,2020-10-10T00:00:15,2020-10-10T00:00:20,1,4.44,4.0,4.0,1",
+      "b,2020-10-10T00:00:15,2020-10-10T00:00:25,1,4.44,4.0,4.0,1",
+      "b,2020-10-10T00:00:15,2020-10-10T00:00:30,1,4.44,4.0,4.0,1"
+    )
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
+  }
+
+  @TestTemplate
+  def testRetractPreviousSlicingStateWithSlicingWindow(): Unit = {
+    val dataId = TestValuesTableFactory.registerData(
+      Seq(
+        changelogRow("+I", "2020-10-10 00:00:01", Int.box(1), "s1", "a"),
+        changelogRow("+I", "2020-10-10 00:00:04", Int.box(1), "s2", "a"),
+        changelogRow("-D", "2020-10-10 00:00:06", Int.box(3), "s3", "a")
+      ))
+    tEnv.executeSql(s"""
+                       |CREATE TABLE MyTable (
+                       | `ts` STRING,
+                       | `int` INT,
+                       | `string` STRING,
+                       | `name` STRING,
+                       | `rowtime` AS TO_TIMESTAMP(`ts`),
+                       | WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND
+                       |) WITH (
+                       | 'connector' = 'values',
+                       | 'data-id' = '$dataId',
+                       | 'failing-source' = 'true',
+                       | 'changelog-mode' = 'I,UA,UB,D'
+                       |)
+                       |""".stripMargin)
+
+    val sql =
+      """
+        |SELECT
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`int`),
+        |  COUNT(DISTINCT `string`)
+        |FROM TABLE(
+        |   HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND))
+        |GROUP BY `name`, window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "a,2020-10-09T23:59:55,2020-10-10T00:00:05,2,2,2",
+      "a,2020-10-10T00:00,2020-10-10T00:00:10,1,-1,2",
+      // TODO align the behavior when receiving single delete after fixing FLINK-33760
+      "a,2020-10-10T00:00:05,2020-10-10T00:00:15,-1,-3,0"
+    )
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 }
 

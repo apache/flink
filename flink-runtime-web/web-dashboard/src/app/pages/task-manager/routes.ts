@@ -55,6 +55,14 @@ export const TASK_MANAGER_ROUTES: Routes = [
         }
       },
       {
+        path: 'profiler',
+        loadComponent: () =>
+          import('./profiler/task-manager-profiler.component').then(m => m.TaskManagerProfilerComponent),
+        data: {
+          path: 'profiler'
+        }
+      },
+      {
         path: 'log-list/:logName',
         loadComponent: () =>
           import('./log-detail/task-manager-log-detail.component').then(m => m.TaskManagerLogDetailComponent),

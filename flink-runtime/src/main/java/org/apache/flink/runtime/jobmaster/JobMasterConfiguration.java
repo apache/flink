@@ -78,7 +78,7 @@ public class JobMasterConfiguration {
                 Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
 
         final Time slotRequestTimeout =
-                Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
+                Time.milliseconds(configuration.get(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
 
         final String tmpDirectory = ConfigurationUtils.parseTempDirectories(configuration)[0];
 

@@ -94,12 +94,12 @@ public class ContextEnvironment extends ExecutionEnvironment {
         checkNotNull(jobClient);
 
         JobExecutionResult jobExecutionResult;
-        if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
+        if (getConfiguration().get(DeploymentOptions.ATTACHED)) {
             CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
                     jobClient.getJobExecutionResult();
 
             ScheduledExecutorService clientHeartbeatService = null;
-            if (getConfiguration().getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
+            if (getConfiguration().get(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
                 Thread shutdownHook =
                         ShutdownHookUtil.addShutdownHook(
                                 () -> {
@@ -119,8 +119,8 @@ public class ContextEnvironment extends ExecutionEnvironment {
                 clientHeartbeatService =
                         ClientUtils.reportHeartbeatPeriodically(
                                 jobClient,
-                                getConfiguration().getLong(ClientOptions.CLIENT_HEARTBEAT_INTERVAL),
-                                getConfiguration().getLong(ClientOptions.CLIENT_HEARTBEAT_TIMEOUT));
+                                getConfiguration().get(ClientOptions.CLIENT_HEARTBEAT_INTERVAL),
+                                getConfiguration().get(ClientOptions.CLIENT_HEARTBEAT_TIMEOUT));
             }
 
             jobExecutionResult = jobExecutionResultFuture.get();

@@ -98,9 +98,9 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                                                 String.format(
                                                         "Configuration option '%s' is not set.",
                                                         KubernetesConfigOptions.CLUSTER_ID.key())));
-        this.namespace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
+        this.namespace = flinkConfig.get(KubernetesConfigOptions.NAMESPACE);
         this.maxRetryAttempts =
-                flinkConfig.getInteger(
+                flinkConfig.get(
                         KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES);
         this.nodePortAddressType =
                 flinkConfig.get(

@@ -92,6 +92,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.rest.messages.LogInfo;
+import org.apache.flink.runtime.rest.messages.ProfilingInfo;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
@@ -134,6 +135,7 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.util.GroupCache;
+import org.apache.flink.runtime.util.profiler.ProfilingService;
 import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.CollectionUtil;
@@ -147,8 +149,8 @@ import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
-import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -305,6 +307,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     private final GroupCache<JobID, PermanentBlobKey, ShuffleDescriptorGroup>
             shuffleDescriptorsCache;
 
+    private final ProfilingService profilingService;
+
     public TaskExecutor(
             RpcService rpcService,
             TaskManagerConfiguration taskManagerConfiguration,
@@ -375,6 +379,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         ScheduledExecutorService sampleExecutor =
                 Executors.newSingleThreadScheduledExecutor(sampleThreadFactory);
         this.threadInfoSampleService = new ThreadInfoSampleService(sampleExecutor);
+        this.profilingService =
+                ProfilingService.getInstance(taskManagerConfiguration.getConfiguration());
 
         this.slotAllocationSnapshotPersistenceService =
                 taskExecutorServices.getSlotAllocationSnapshotPersistenceService();
@@ -1291,14 +1297,30 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<TransientBlobKey> requestFileUploadByName(
-            String fileName, Time timeout) {
+            String fileName, Duration timeout) {
+        return requestFileUploadByNameAndType(fileName, FileType.LOG, timeout);
+    }
+
+    @Override
+    public CompletableFuture<TransientBlobKey> requestFileUploadByNameAndType(
+            String fileName, FileType fileType, Duration timeout) {
         final String filePath;
-        final String logDir = taskManagerConfiguration.getTaskManagerLogDir();
-        if (StringUtils.isNullOrWhitespaceOnly(logDir)
+        final String baseDir;
+        switch (fileType) {
+            case LOG:
+                baseDir = taskManagerConfiguration.getTaskManagerLogDir();
+                break;
+            case PROFILER:
+                baseDir = profilingService.getProfilingResultDir();
+                break;
+            default:
+                baseDir = null;
+        }
+        if (StringUtils.isNullOrWhitespaceOnly(baseDir)
                 || StringUtils.isNullOrWhitespaceOnly(fileName)) {
             filePath = null;
         } else {
-            filePath = new File(logDir, new File(fileName).getName()).getPath();
+            filePath = new File(baseDir, new File(fileName).getName()).getPath();
         }
         return requestFileUploadByFilePath(filePath, fileName);
     }
@@ -1396,6 +1418,18 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             ExceptionUtils.rethrowIfFatalError(t);
             return FutureUtils.completedExceptionally(t);
         }
+    }
+
+    @Override
+    public CompletableFuture<ProfilingInfo> requestProfiling(
+            int duration, ProfilingInfo.ProfilingMode mode, Duration timeout) {
+        return profilingService.requestProfiling(
+                getResourceID().getResourceIdString(), duration, mode);
+    }
+
+    @Override
+    public CompletableFuture<Collection<ProfilingInfo>> requestProfilingList(Duration timeout) {
+        return profilingService.getProfilingList(getResourceID().getResourceIdString());
     }
 
     // ------------------------------------------------------------------------

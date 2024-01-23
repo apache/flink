@@ -153,14 +153,13 @@ public class AutoRescalingITCase extends TestLogger {
             final File checkpointDir = temporaryFolder.newFolder();
             final File savepointDir = temporaryFolder.newFolder();
 
-            config.setString(StateBackendOptions.STATE_BACKEND, currentBackend);
-            config.setBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
-            config.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, true);
-            config.setString(
+            config.set(StateBackendOptions.STATE_BACKEND, currentBackend);
+            config.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
+            config.set(CheckpointingOptions.LOCAL_RECOVERY, true);
+            config.set(
                     CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
-            config.setString(
-                    CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
-            config.setInteger(
+            config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+            config.set(
                     NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, buffersPerChannel);
 
             config.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
@@ -706,18 +705,22 @@ public class AutoRescalingITCase extends TestLogger {
         @Override
         public void run(SourceContext<Integer> ctx) throws Exception {
             RuntimeContext runtimeContext = getRuntimeContext();
-            final int subtaskIndex = runtimeContext.getIndexOfThisSubtask();
+            final int subtaskIndex = runtimeContext.getTaskInfo().getIndexOfThisSubtask();
 
             boolean isRestartedOrRescaled =
-                    runtimeContext.getNumberOfParallelSubtasks() != originalParallelism
-                            || runtimeContext.getAttemptNumber() > 0;
+                    runtimeContext.getTaskInfo().getNumberOfParallelSubtasks()
+                                    != originalParallelism
+                            || runtimeContext.getTaskInfo().getAttemptNumber() > 0;
             while (running) {
                 SOURCE_LATCH.await();
                 if (counter < numberElements) {
                     synchronized (ctx.getCheckpointLock()) {
                         for (int value = subtaskIndex;
                                 value < numberKeys;
-                                value += runtimeContext.getNumberOfParallelSubtasks()) {
+                                value +=
+                                        runtimeContext
+                                                .getTaskInfo()
+                                                .getNumberOfParallelSubtasks()) {
                             ctx.collect(value);
                         }
 
@@ -798,7 +801,8 @@ public class AutoRescalingITCase extends TestLogger {
             sum.update(s);
 
             if (count % numberElements == 0) {
-                out.collect(Tuple2.of(getRuntimeContext().getIndexOfThisSubtask(), s));
+                out.collect(
+                        Tuple2.of(getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(), s));
                 workCompletedLatch.countDown();
             }
         }
@@ -916,12 +920,12 @@ public class AutoRescalingITCase extends TestLogger {
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
 
-            if (getRuntimeContext().getAttemptNumber() == 0) {
+            if (getRuntimeContext().getTaskInfo().getAttemptNumber() == 0) {
                 int[] snapshot =
                         checkCorrectSnapshots.computeIfAbsent(
                                 context.getCheckpointId(),
                                 (x) -> new int[checkCorrectRestore.length]);
-                snapshot[getRuntimeContext().getIndexOfThisSubtask()] = counter;
+                snapshot[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = counter;
             }
 
             counterPartitions.clear();
@@ -959,7 +963,8 @@ public class AutoRescalingITCase extends TestLogger {
                 for (int v : counterPartitions.get()) {
                     counter += v;
                 }
-                checkCorrectRestore[getRuntimeContext().getIndexOfThisSubtask()] = counter;
+                checkCorrectRestore[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] =
+                        counter;
                 context.getRestoredCheckpointId()
                         .ifPresent((id) -> checkCorrectSnapshot = checkCorrectSnapshots.get(id));
             }

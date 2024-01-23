@@ -38,9 +38,7 @@ public class ScalaTrySerializerSnapshot<E>
 
     /** This empty nullary constructor is required for deserializing the configuration. */
     @SuppressWarnings("unused")
-    public ScalaTrySerializerSnapshot() {
-        super(TrySerializer.class);
-    }
+    public ScalaTrySerializerSnapshot() {}
 
     public ScalaTrySerializerSnapshot(TrySerializer<E> trySerializer) {
         super(trySerializer);

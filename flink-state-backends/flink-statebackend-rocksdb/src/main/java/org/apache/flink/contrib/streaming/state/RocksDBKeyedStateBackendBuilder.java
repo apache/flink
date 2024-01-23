@@ -39,16 +39,17 @@ import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
+import org.apache.flink.runtime.state.InternalKeyContext;
+import org.apache.flink.runtime.state.InternalKeyContextImpl;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
-import org.apache.flink.runtime.state.heap.InternalKeyContext;
-import org.apache.flink.runtime.state.heap.InternalKeyContextImpl;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FileUtils;
@@ -110,6 +111,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
     private final File instanceRocksDBPath;
 
     private final MetricGroup metricGroup;
+    private final StateBackend.CustomInitializationMetrics customInitializationMetrics;
 
     /** True if incremental checkpointing is enabled. */
     private boolean enableIncrementalCheckpointing;
@@ -142,6 +144,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             TtlTimeProvider ttlTimeProvider,
             LatencyTrackingStateConfig latencyTrackingStateConfig,
             MetricGroup metricGroup,
+            StateBackend.CustomInitializationMetrics customInitializationMetrics,
             @Nonnull Collection<KeyedStateHandle> stateHandles,
             StreamCompressionDecorator keyGroupCompressionDecorator,
             CloseableRegistry cancelStreamRegistry) {
@@ -168,6 +171,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
         this.instanceBasePath = instanceBasePath;
         this.instanceRocksDBPath = getInstanceRocksDBPath(instanceBasePath);
         this.metricGroup = metricGroup;
+        this.customInitializationMetrics = customInitializationMetrics;
         this.enableIncrementalCheckpointing = false;
         this.nativeMetricOptions = new RocksDBNativeMetricOptions();
         this.numberOfTransferingThreads =
@@ -212,6 +216,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 ttlTimeProvider,
                 latencyTrackingStateConfig,
                 metricGroup,
+                (key, value) -> {},
                 stateHandles,
                 keyGroupCompressionDecorator,
                 cancelStreamRegistry);
@@ -353,10 +358,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             // init snapshot strategy after db is assured to be initialized
             checkpointStrategy =
                     initializeSavepointAndCheckpointStrategies(
-                            cancelStreamRegistryForBackend,
                             rocksDBResourceGuard,
                             kvStateInformation,
-                            registeredPQStates,
                             keyGroupPrefixBytes,
                             db,
                             backendUID,
@@ -474,6 +477,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                     columnFamilyOptionsFactory,
                     nativeMetricOptions,
                     metricGroup,
+                    customInitializationMetrics,
                     restoreStateHandles,
                     ttlCompactFiltersManager,
                     writeBatchSize,
@@ -517,10 +521,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
     }
 
     private RocksDBSnapshotStrategyBase<K, ?> initializeSavepointAndCheckpointStrategies(
-            CloseableRegistry cancelStreamRegistry,
             ResourceGuard rocksDBResourceGuard,
             LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation,
-            LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             int keyGroupPrefixBytes,
             RocksDB db,
             UUID backendUID,
@@ -541,7 +543,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                             keyGroupRange,
                             keyGroupPrefixBytes,
                             localRecoveryConfig,
-                            cancelStreamRegistry,
                             instanceBasePath,
                             backendUID,
                             materializedSstFiles,

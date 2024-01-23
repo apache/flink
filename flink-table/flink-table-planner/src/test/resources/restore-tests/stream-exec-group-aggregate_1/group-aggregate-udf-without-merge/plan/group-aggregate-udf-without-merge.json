@@ -1,0 +1,231 @@
+{
+  "flinkVersion" : "1.19",
+  "nodes" : [ {
+    "id" : 41,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`source_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "INT"
+            }, {
+              "name" : "b",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "c",
+              "dataType" : "INT"
+            }, {
+              "name" : "d",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "e",
+              "dataType" : "BIGINT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 4 ], [ 2 ], [ 0 ] ],
+        "producedType" : "ROW<`e` BIGINT, `c` INT, `a` INT> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`e` BIGINT, `c` INT, `a` INT> NOT NULL"
+      } ]
+    },
+    "outputType" : "ROW<`e` BIGINT, `c` INT, `a` INT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t, project=[e, c, a], metadata=[]]], fields=[e, c, a])",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 42,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "INT"
+    }, {
+      "kind" : "LITERAL",
+      "value" : 10,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "LITERAL",
+      "value" : 5,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 2,
+        "type" : "INT"
+      } ],
+      "type" : "BIGINT"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`e` BIGINT, `c` INT, `$f2` INT NOT NULL, `$f3` INT NOT NULL, `$f4` BIGINT>",
+    "description" : "Calc(select=[e, c, 10 AS $f2, 5 AS $f3, CAST(a AS BIGINT) AS $f4])"
+  }, {
+    "id" : 43,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`e` BIGINT, `c` INT, `$f2` INT NOT NULL, `$f3` INT NOT NULL, `$f4` BIGINT>",
+    "description" : "Exchange(distribution=[hash[e]])"
+  }, {
+    "id" : 44,
+    "type" : "stream-exec-group-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "false",
+      "table.exec.mini-batch.size" : "-1"
+    },
+    "grouping" : [ 0 ],
+    "aggCalls" : [ {
+      "name" : "s1",
+      "systemName" : "my_sum1",
+      "argList" : [ 1, 2 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "BIGINT"
+    }, {
+      "name" : "s2",
+      "systemName" : "my_sum2",
+      "argList" : [ 3, 1 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "BIGINT"
+    }, {
+      "name" : "s3",
+      "catalogName" : "`default_catalog`.`default_database`.`my_avg`",
+      "argList" : [ 0, 4 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "BIGINT"
+    } ],
+    "aggCallNeedRetractions" : [ false, false, false ],
+    "generateUpdateBefore" : false,
+    "needRetraction" : false,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "groupAggregateState"
+    } ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`e` BIGINT, `s1` BIGINT, `s2` BIGINT, `s3` BIGINT>",
+    "description" : "GroupAggregate(groupBy=[e], select=[e, my_sum1(c, $f2) AS s1, my_sum2($f3, c) AS s2, my_avg(e, $f4) AS s3])"
+  }, {
+    "id" : 45,
+    "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "d",
+              "dataType" : "BIGINT NOT NULL"
+            }, {
+              "name" : "s1",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "s2",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "s3",
+              "dataType" : "BIGINT"
+            } ],
+            "watermarkSpecs" : [ ],
+            "primaryKey" : {
+              "name" : "PK_d",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "d" ]
+            }
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER" ],
+    "inputUpsertKey" : [ 0 ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`e` BIGINT, `s1` BIGINT, `s2` BIGINT, `s3` BIGINT>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[e, s1, s2, s3])"
+  } ],
+  "edges" : [ {
+    "source" : 41,
+    "target" : 42,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 42,
+    "target" : 43,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 43,
+    "target" : 44,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 44,
+    "target" : 45,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

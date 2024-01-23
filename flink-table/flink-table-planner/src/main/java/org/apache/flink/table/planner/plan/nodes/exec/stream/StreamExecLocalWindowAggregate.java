@@ -46,7 +46,7 @@ import org.apache.flink.table.runtime.operators.aggregate.window.LocalSlicingWin
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.RecordsWindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.combines.LocalAggCombiner;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
@@ -61,10 +61,13 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.tools.RelBuilder;
 
+import javax.annotation.Nullable;
+
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -94,11 +97,15 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
     @JsonProperty(FIELD_NAME_WINDOWING)
     private final WindowingStrategy windowing;
 
+    @JsonProperty(FIELD_NAME_NEED_RETRACTION)
+    private final boolean needRetraction;
+
     public StreamExecLocalWindowAggregate(
             ReadableConfig tableConfig,
             int[] grouping,
             AggregateCall[] aggCalls,
             WindowingStrategy windowing,
+            Boolean needRetraction,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -110,6 +117,7 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
                 grouping,
                 aggCalls,
                 windowing,
+                needRetraction,
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -123,6 +131,7 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
             @JsonProperty(FIELD_NAME_GROUPING) int[] grouping,
             @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
             @JsonProperty(FIELD_NAME_WINDOWING) WindowingStrategy windowing,
+            @Nullable @JsonProperty(FIELD_NAME_NEED_RETRACTION) Boolean needRetraction,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
@@ -130,6 +139,7 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
         this.grouping = checkNotNull(grouping);
         this.aggCalls = checkNotNull(aggCalls);
         this.windowing = checkNotNull(windowing);
+        this.needRetraction = Optional.ofNullable(needRetraction).orElse(false);
     }
 
     @SuppressWarnings("unchecked")
@@ -152,6 +162,7 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
                         planner.getTypeFactory(),
                         inputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
+                        needRetraction,
                         windowing.getWindow(),
                         false); // isStateBackendDataViews
 
@@ -209,6 +220,10 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
                                 true) // copyInputField
                         .needAccumulate()
                         .needMerge(0, true, null);
+
+        if (needRetraction) {
+            generator.needRetract();
+        }
 
         return generator.generateNamespaceAggsHandler(
                 "LocalWindowAggsHandler",

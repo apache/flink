@@ -107,6 +107,11 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
+  def testGetUniqueKeysOnMiniBatchAssigner(): Unit = {
+    assertEquals(uniqueKeys(Array(0)), mq.getUniqueKeys(streamMiniBatchAssigner).toSet)
+  }
+
+  @Test
   def testGetUniqueKeysOnCalc(): Unit = {
     relBuilder.push(studentLogicalScan)
     // id < 100

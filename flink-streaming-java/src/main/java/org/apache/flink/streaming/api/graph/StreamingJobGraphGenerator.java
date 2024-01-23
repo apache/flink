@@ -30,6 +30,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
@@ -85,6 +86,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -303,8 +305,7 @@ public class StreamingJobGraphGenerator {
                     "Could not serialize the ExecutionConfig."
                             + "This indicates that non-serializable types (like custom serializers) were registered");
         }
-
-        jobGraph.setChangelogStateBackendEnabled(streamGraph.isChangelogStateBackendEnabled());
+        jobGraph.setJobConfiguration(streamGraph.getJobConfiguration());
 
         addVertexIndexPrefixInVertexName();
 
@@ -1112,7 +1113,6 @@ public class StreamingJobGraphGenerator {
 
         config.setStateBackend(streamGraph.getStateBackend());
         config.setCheckpointStorage(streamGraph.getCheckpointStorage());
-        config.setSavepointDir(streamGraph.getSavepointDirectory());
         config.setGraphContainingLoops(streamGraph.isIterative());
         config.setTimerServiceProvider(streamGraph.getTimerServiceProvider());
         config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
@@ -2030,7 +2030,11 @@ public class StreamingJobGraphGenerator {
                                         streamGraph.isEnableCheckpointsAfterTasksFinish())
                                 .build(),
                         serializedStateBackend,
-                        streamGraph.isChangelogStateBackendEnabled(),
+                        streamGraph
+                                .getJobConfiguration()
+                                .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
+                                .map(TernaryBoolean::fromBoolean)
+                                .orElse(TernaryBoolean.UNDEFINED),
                         serializedCheckpointStorage,
                         serializedHooks);
 

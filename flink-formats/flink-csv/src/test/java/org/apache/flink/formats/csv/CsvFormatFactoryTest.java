@@ -289,7 +289,7 @@ public class CsvFormatFactoryTest extends TestLogger {
                 GenericRowData.of(
                         fromString("abc"), fromBigDecimal(new BigDecimal("100000"), 10, 3), false);
         byte[] bytes = runtimeEncoder.serialize(rowData);
-        assertThat(new String(bytes)).isEqualTo("abc;'100000';false");
+        assertThat(new String(bytes)).isEqualTo("abc;'100000.000';false");
     }
 
     @Test

@@ -57,7 +57,7 @@ class InternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
         assertThat(resources).hasSize(1);
 
         assertThat(InternalServiceDecorator.getNamespacedInternalServiceName(CLUSTER_ID, NAMESPACE))
-                .isEqualTo(this.flinkConfig.getString(JobManagerOptions.ADDRESS));
+                .isEqualTo(this.flinkConfig.get(JobManagerOptions.ADDRESS));
 
         final Service internalService = (Service) resources.get(0);
 
@@ -90,7 +90,7 @@ class InternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
 
     @Test
     void testDisableInternalService() throws IOException {
-        this.flinkConfig.setString(
+        this.flinkConfig.set(
                 HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
 
         final List<HasMetadata> resources =

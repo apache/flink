@@ -253,9 +253,9 @@ public class RestClusterClient<T> implements ClusterClient<T> {
         jobmanagerUrl =
                 new URL(
                         SecurityOptions.isRestSSLEnabled(configuration) ? "https" : "http",
-                        configuration.getString(JobManagerOptions.ADDRESS),
-                        configuration.getInteger(JobManagerOptions.PORT),
-                        configuration.getString(RestOptions.PATH));
+                        configuration.get(JobManagerOptions.ADDRESS),
+                        configuration.get(JobManagerOptions.PORT),
+                        configuration.get(RestOptions.PATH));
 
         if (restClient != null) {
             this.restClient = restClient;
@@ -505,41 +505,22 @@ public class RestClusterClient<T> implements ClusterClient<T> {
             final boolean advanceToEndOfTime,
             @Nullable final String savepointDirectory,
             final SavepointFormatType formatType) {
+        return stopWithSavepoint(jobId, advanceToEndOfTime, savepointDirectory, formatType, false);
+    }
 
-        final StopWithSavepointTriggerHeaders stopWithSavepointTriggerHeaders =
-                StopWithSavepointTriggerHeaders.getInstance();
-
-        final SavepointTriggerMessageParameters stopWithSavepointTriggerMessageParameters =
-                stopWithSavepointTriggerHeaders.getUnresolvedMessageParameters();
-        stopWithSavepointTriggerMessageParameters.jobID.resolve(jobId);
-
-        final CompletableFuture<TriggerResponse> responseFuture =
-                sendRequest(
-                        stopWithSavepointTriggerHeaders,
-                        stopWithSavepointTriggerMessageParameters,
-                        new StopWithSavepointRequestBody(
-                                savepointDirectory, advanceToEndOfTime, formatType, null));
-
-        return responseFuture
-                .thenCompose(
-                        savepointTriggerResponseBody -> {
-                            final TriggerId savepointTriggerId =
-                                    savepointTriggerResponseBody.getTriggerId();
-                            return pollSavepointAsync(jobId, savepointTriggerId);
-                        })
-                .thenApply(
-                        savepointInfo -> {
-                            if (savepointInfo.getFailureCause() != null) {
-                                throw new CompletionException(savepointInfo.getFailureCause());
-                            }
-                            return savepointInfo.getLocation();
-                        });
+    @Override
+    public CompletableFuture<String> stopWithDetachedSavepoint(
+            final JobID jobId,
+            final boolean advanceToEndOfTime,
+            @Nullable final String savepointDirectory,
+            final SavepointFormatType formatType) {
+        return stopWithSavepoint(jobId, advanceToEndOfTime, savepointDirectory, formatType, true);
     }
 
     @Override
     public CompletableFuture<String> cancelWithSavepoint(
             JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType) {
-        return triggerSavepoint(jobId, savepointDirectory, true, formatType);
+        return triggerSavepoint(jobId, savepointDirectory, true, formatType, false);
     }
 
     @Override
@@ -547,7 +528,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
             final JobID jobId,
             final @Nullable String savepointDirectory,
             final SavepointFormatType formatType) {
-        return triggerSavepoint(jobId, savepointDirectory, false, formatType);
+        return triggerSavepoint(jobId, savepointDirectory, false, formatType, false);
     }
 
     @Override
@@ -581,6 +562,14 @@ public class RestClusterClient<T> implements ClusterClient<T> {
     }
 
     @Override
+    public CompletableFuture<String> triggerDetachedSavepoint(
+            final JobID jobId,
+            final @Nullable String savepointDirectory,
+            final SavepointFormatType formatType) {
+        return triggerSavepoint(jobId, savepointDirectory, false, formatType, true);
+    }
+
+    @Override
     public CompletableFuture<CoordinationResponse> sendCoordinationRequest(
             JobID jobId, OperatorID operatorId, CoordinationRequest request) {
         ClientCoordinationHeaders headers = ClientCoordinationHeaders.getInstance();
@@ -611,11 +600,36 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                         });
     }
 
+    public CompletableFuture<String> stopWithSavepoint(
+            final JobID jobId,
+            final boolean advanceToEndOfTime,
+            @Nullable final String savepointDirectory,
+            final SavepointFormatType formatType,
+            final boolean isDetachedMode) {
+
+        final StopWithSavepointTriggerHeaders stopWithSavepointTriggerHeaders =
+                StopWithSavepointTriggerHeaders.getInstance();
+
+        final SavepointTriggerMessageParameters stopWithSavepointTriggerMessageParameters =
+                stopWithSavepointTriggerHeaders.getUnresolvedMessageParameters();
+        stopWithSavepointTriggerMessageParameters.jobID.resolve(jobId);
+
+        final CompletableFuture<TriggerResponse> responseFuture =
+                sendRequest(
+                        stopWithSavepointTriggerHeaders,
+                        stopWithSavepointTriggerMessageParameters,
+                        new StopWithSavepointRequestBody(
+                                savepointDirectory, advanceToEndOfTime, formatType, null));
+
+        return getSavepointTriggerFuture(jobId, isDetachedMode, responseFuture);
+    }
+
     private CompletableFuture<String> triggerSavepoint(
             final JobID jobId,
             final @Nullable String savepointDirectory,
             final boolean cancelJob,
-            final SavepointFormatType formatType) {
+            final SavepointFormatType formatType,
+            final boolean isDetachedMode) {
         final SavepointTriggerHeaders savepointTriggerHeaders =
                 SavepointTriggerHeaders.getInstance();
         final SavepointTriggerMessageParameters savepointTriggerMessageParameters =
@@ -629,20 +643,41 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                         new SavepointTriggerRequestBody(
                                 savepointDirectory, cancelJob, formatType, null));
 
-        return responseFuture
-                .thenCompose(
-                        savepointTriggerResponseBody -> {
-                            final TriggerId savepointTriggerId =
-                                    savepointTriggerResponseBody.getTriggerId();
-                            return pollSavepointAsync(jobId, savepointTriggerId);
-                        })
-                .thenApply(
-                        savepointInfo -> {
-                            if (savepointInfo.getFailureCause() != null) {
-                                throw new CompletionException(savepointInfo.getFailureCause());
-                            }
-                            return savepointInfo.getLocation();
-                        });
+        return getSavepointTriggerFuture(jobId, isDetachedMode, responseFuture);
+    }
+
+    private CompletableFuture<String> getSavepointTriggerFuture(
+            JobID jobId,
+            boolean isDetachedMode,
+            CompletableFuture<TriggerResponse> responseFuture) {
+        CompletableFuture<String> futureResult;
+        if (isDetachedMode) {
+            // we just return the savepoint trigger id in detached savepoint,
+            // that means the client could exit immediately
+            futureResult =
+                    responseFuture.thenApply((TriggerResponse tr) -> tr.getTriggerId().toString());
+        } else {
+            // otherwise we need to wait the savepoint to be succeeded
+            // and return the savepoint path
+            futureResult =
+                    responseFuture
+                            .thenCompose(
+                                    savepointTriggerResponseBody -> {
+                                        final TriggerId savepointTriggerId =
+                                                savepointTriggerResponseBody.getTriggerId();
+                                        return pollSavepointAsync(jobId, savepointTriggerId);
+                                    })
+                            .thenApply(
+                                    savepointInfo -> {
+                                        if (savepointInfo.getFailureCause() != null) {
+                                            throw new CompletionException(
+                                                    savepointInfo.getFailureCause());
+                                        }
+                                        return savepointInfo.getLocation();
+                                    });
+        }
+
+        return futureResult;
     }
 
     @Override

@@ -199,7 +199,8 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
                 EventSerializer.toBufferConsumer(event, isPriorityEvent)) {
             totalWrittenBytes += ((long) eventBufferConsumer.getWrittenBytes() * numSubpartitions);
             for (ResultSubpartition subpartition : subpartitions) {
-                // Retain the buffer so that it can be recycled by each channel of targetPartition
+                // Retain the buffer so that it can be recycled by each subpartition of
+                // targetPartition
                 subpartition.add(eventBufferConsumer.copy(), 0);
             }
         }
@@ -226,7 +227,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     }
 
     @Override
-    public ResultSubpartitionView createSubpartitionView(
+    protected ResultSubpartitionView createSubpartitionView(
             int subpartitionIndex, BufferAvailabilityListener availabilityListener)
             throws IOException {
         checkElementIndex(subpartitionIndex, numSubpartitions, "Subpartition not found.");
@@ -461,8 +462,8 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     }
 
     private void finishUnicastBufferBuilders() {
-        for (int channelIndex = 0; channelIndex < numSubpartitions; channelIndex++) {
-            finishUnicastBufferBuilder(channelIndex);
+        for (int subpartition = 0; subpartition < numSubpartitions; subpartition++) {
+            finishUnicastBufferBuilder(subpartition);
         }
     }
 

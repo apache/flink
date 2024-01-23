@@ -35,7 +35,7 @@ import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.KeeperException;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
 
@@ -1123,10 +1123,10 @@ class ZooKeeperStateHandleStoreTest {
         final TestingLongStateHandleHelper longStateStorage = new TestingLongStateHandleHelper();
 
         Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperExtension.getConnectString());
-        configuration.setInteger(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, 100);
-        configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_ROOT, "timeout");
+        configuration.set(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, 100);
+        configuration.set(HighAvailabilityOptions.HA_ZOOKEEPER_ROOT, "timeout");
 
         try (CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
                         ZooKeeperUtils.startCuratorFramework(

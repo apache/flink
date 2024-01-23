@@ -118,7 +118,7 @@ public class YarnTaskExecutorRunner {
         LOG.info("TM: keytab principal obtained {}", keytabPrincipal);
 
         // tell pekko to die in case of an error
-        configuration.setBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
+        configuration.set(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
 
         String keytabPath = Utils.resolveKeytabPath(currDir, localKeytabPath);
 
@@ -130,16 +130,16 @@ public class YarnTaskExecutorRunner {
                 yarnClientUsername);
 
         if (keytabPath != null && keytabPrincipal != null) {
-            configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
-            configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, keytabPrincipal);
+            configuration.set(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
+            configuration.set(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, keytabPrincipal);
         }
 
         // use the hostname passed by job manager
         final String taskExecutorHostname =
                 variables.get(YarnResourceManagerDriver.ENV_FLINK_NODE_ID);
         if (taskExecutorHostname != null) {
-            configuration.setString(TaskManagerOptions.HOST, taskExecutorHostname);
-            configuration.setString(
+            configuration.set(TaskManagerOptions.HOST, taskExecutorHostname);
+            configuration.set(
                     TaskManagerOptionsInternal.TASK_MANAGER_NODE_ID, taskExecutorHostname);
         }
     }

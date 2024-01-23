@@ -1308,7 +1308,7 @@ public class CheckpointCoordinator {
                         "Received message for discarded but non-removed checkpoint "
                                 + checkpointId);
             } else {
-                reportStats(
+                reportCheckpointMetrics(
                         message.getCheckpointId(),
                         message.getTaskExecutionId(),
                         message.getCheckpointMetrics());
@@ -1597,8 +1597,17 @@ public class CheckpointCoordinator {
                     for (ExecutionVertex ev : tasksToAbort) {
                         Execution ee = ev.getCurrentExecutionAttempt();
                         if (ee != null) {
-                            ee.notifyCheckpointAborted(
-                                    checkpointId, latestCompletedCheckpointId, timeStamp);
+                            try {
+                                ee.notifyCheckpointAborted(
+                                        checkpointId, latestCompletedCheckpointId, timeStamp);
+                            } catch (Throwable e) {
+                                LOG.warn(
+                                        "Could not send aborted message of checkpoint {} to task {} belonging to job {}.",
+                                        checkpointId,
+                                        ee.getAttemptId(),
+                                        ee.getVertex().getJobId(),
+                                        e);
+                            }
                         }
                     }
                 });
@@ -1759,6 +1768,8 @@ public class CheckpointCoordinator {
             if (shutdown) {
                 throw new IllegalStateException("CheckpointCoordinator is shut down");
             }
+            long restoreTimestamp = SystemClock.getInstance().absoluteTimeMillis();
+            statsTracker.reportInitializationStartTs(restoreTimestamp);
 
             // Restore from the latest checkpoint
             CompletedCheckpoint latest = completedCheckpointStore.getLatestCheckpoint();
@@ -1784,6 +1795,12 @@ public class CheckpointCoordinator {
 
                 return OptionalLong.empty();
             }
+
+            statsTracker.reportRestoredCheckpoint(
+                    latest.getCheckpointID(),
+                    latest.getProperties(),
+                    latest.getExternalPointer(),
+                    latest.getStateSize());
 
             LOG.info("Restoring job {} from {}.", job, latest);
 
@@ -1819,18 +1836,6 @@ public class CheckpointCoordinator {
             if (operatorCoordinatorRestoreBehavior != OperatorCoordinatorRestoreBehavior.SKIP) {
                 restoreStateToCoordinators(latest.getCheckpointID(), operatorStates);
             }
-
-            // update metrics
-
-            long restoreTimestamp = System.currentTimeMillis();
-            RestoredCheckpointStats restored =
-                    new RestoredCheckpointStats(
-                            latest.getCheckpointID(),
-                            latest.getProperties(),
-                            restoreTimestamp,
-                            latest.getExternalPointer());
-
-            statsTracker.reportRestoredCheckpoint(restored);
 
             return OptionalLong.of(latest.getCheckpointID());
         }
@@ -2148,8 +2153,15 @@ public class CheckpointCoordinator {
         }
     }
 
-    public void reportStats(long id, ExecutionAttemptID attemptId, CheckpointMetrics metrics) {
+    public void reportCheckpointMetrics(
+            long id, ExecutionAttemptID attemptId, CheckpointMetrics metrics) {
         statsTracker.reportIncompleteStats(id, attemptId, metrics);
+    }
+
+    public void reportInitializationMetrics(
+            ExecutionAttemptID executionAttemptID,
+            SubTaskInitializationMetrics initializationMetrics) {
+        statsTracker.reportInitializationMetrics(initializationMetrics);
     }
 
     // ------------------------------------------------------------------------

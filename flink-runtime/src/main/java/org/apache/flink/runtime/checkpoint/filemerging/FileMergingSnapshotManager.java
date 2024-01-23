@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.TaskStateManager;
+import org.apache.flink.runtime.state.filesystem.FileMergingCheckpointStateOutputStream;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 
 import java.io.Closeable;
@@ -31,10 +32,8 @@ import java.io.Closeable;
 /**
  * FileMergingSnapshotManager provides an interface to manage files and meta information for
  * checkpoint files with merging checkpoint files enabled. It manages the files for ONE single task
- * in TM, including all subtasks of this single task that running in this TM. There is one
+ * in TM, including all subtasks of this single task that is running in this TM. There is one
  * FileMergingSnapshotManager for each job per task manager.
- *
- * <p>TODO (FLINK-32073): create output stream.
  *
  * <p>TODO (FLINK-32075): leverage checkpoint notification to delete logical files.
  */
@@ -64,7 +63,7 @@ public interface FileMergingSnapshotManager extends Closeable {
      * <p>The reason why initializing directories in this method instead of the constructor is that
      * the FileMergingSnapshotManager itself belongs to the {@link TaskStateManager}, which is
      * initialized when receiving a task, while the base directories for checkpoint are created by
-     * {@link FsCheckpointStorageAccess} when the state backend initializing per subtask. After the
+     * {@link FsCheckpointStorageAccess} when the state backend initializes per subtask. After the
      * checkpoint directories are initialized, the managed subdirectories are initialized here.
      *
      * <p>Note: This method may be called several times, the implementation should ensure
@@ -76,6 +75,7 @@ public interface FileMergingSnapshotManager extends Closeable {
      * @param sharedStateDir The directory for shared checkpoint data.
      * @param taskOwnedStateDir The name of the directory for state not owned/released by the
      *     master, but by the TaskManagers.
+     * @param writeBufferSize The buffer size for writing files to the file system.
      * @throws IllegalArgumentException thrown if these three paths are not deterministic across
      *     calls.
      */
@@ -83,7 +83,8 @@ public interface FileMergingSnapshotManager extends Closeable {
             FileSystem fileSystem,
             Path checkpointBaseDir,
             Path sharedStateDir,
-            Path taskOwnedStateDir)
+            Path taskOwnedStateDir,
+            int writeBufferSize)
             throws IllegalArgumentException;
 
     /**
@@ -93,6 +94,19 @@ public interface FileMergingSnapshotManager extends Closeable {
      * @see #initFileSystem for layout information.
      */
     void registerSubtaskForSharedStates(SubtaskKey subtaskKey);
+
+    /**
+     * Create a new {@link FileMergingCheckpointStateOutputStream}. According to the file merging
+     * strategy, the streams returned by multiple calls to this function may share the same
+     * underlying physical file, and each stream writes to a segment of the physical file.
+     *
+     * @param subtaskKey The subtask key identifying the subtask.
+     * @param checkpointId ID of the checkpoint.
+     * @param scope The state's scope, whether it is exclusive or shared.
+     * @return An output stream that writes state for the given checkpoint.
+     */
+    FileMergingCheckpointStateOutputStream createCheckpointStateOutputStream(
+            SubtaskKey subtaskKey, long checkpointId, CheckpointedStateScope scope);
 
     /**
      * Get the managed directory of the file-merging snapshot manager, created in {@link

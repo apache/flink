@@ -46,7 +46,7 @@ import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.runtime.groupwindow.WindowProperty;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.aggregate.window.SlicingWindowAggOperatorBuilder;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
@@ -61,10 +61,13 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.tools.RelBuilder;
 
+import javax.annotation.Nullable;
+
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -99,12 +102,16 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
     @JsonProperty(FIELD_NAME_LOCAL_AGG_INPUT_ROW_TYPE)
     private final RowType localAggInputRowType;
 
+    @JsonProperty(FIELD_NAME_NEED_RETRACTION)
+    private final boolean needRetraction;
+
     public StreamExecGlobalWindowAggregate(
             ReadableConfig tableConfig,
             int[] grouping,
             AggregateCall[] aggCalls,
             WindowingStrategy windowing,
             NamedWindowProperty[] namedWindowProperties,
+            Boolean needRetraction,
             InputProperty inputProperty,
             RowType localAggInputRowType,
             RowType outputType,
@@ -118,6 +125,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
                 aggCalls,
                 windowing,
                 namedWindowProperties,
+                needRetraction,
                 Collections.singletonList(inputProperty),
                 localAggInputRowType,
                 outputType,
@@ -134,6 +142,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
             @JsonProperty(FIELD_NAME_WINDOWING) WindowingStrategy windowing,
             @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
                     NamedWindowProperty[] namedWindowProperties,
+            @Nullable @JsonProperty(FIELD_NAME_NEED_RETRACTION) Boolean needRetraction,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_LOCAL_AGG_INPUT_ROW_TYPE) RowType localAggInputRowType,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
@@ -144,6 +153,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
         this.windowing = checkNotNull(windowing);
         this.namedWindowProperties = checkNotNull(namedWindowProperties);
         this.localAggInputRowType = localAggInputRowType;
+        this.needRetraction = Optional.ofNullable(needRetraction).orElse(false);
     }
 
     @SuppressWarnings("unchecked")
@@ -166,6 +176,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
                         planner.getTypeFactory(),
                         localAggInputRowType, // should use original input here
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
+                        needRetraction,
                         windowing.getWindow(),
                         false); // isStateBackendDataViews
 
@@ -174,6 +185,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
                         planner.getTypeFactory(),
                         localAggInputRowType, // should use original input here
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
+                        needRetraction,
                         windowing.getWindow(),
                         true); // isStateBackendDataViews
 

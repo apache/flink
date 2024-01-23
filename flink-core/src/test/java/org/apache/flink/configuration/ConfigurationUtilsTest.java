@@ -22,6 +22,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -68,6 +69,31 @@ public class ConfigurationUtilsTest {
         }
 
         assertThat(configuration.toMap()).hasSize(properties.size());
+    }
+
+    @Test
+    void testStandardYamlSupportLegacyPattern() {
+        List<String> expectedList = Arrays.asList("a", "b", "c");
+        String legacyListPattern = "a;b;c";
+
+        Map<String, String> expectedMap = new HashMap<>();
+        expectedMap.put("k1", "v1");
+        expectedMap.put("k2", "v2");
+        String legacyMapPattern = "k1:v1,k2:v2";
+
+        Configuration configuration = new Configuration(true);
+        configuration.setString("listKey", legacyListPattern);
+        configuration.setString("mapKey", legacyMapPattern);
+
+        assertThat(
+                        configuration.get(
+                                ConfigOptions.key("listKey")
+                                        .stringType()
+                                        .asList()
+                                        .noDefaultValue()))
+                .isEqualTo(expectedList);
+        assertThat(configuration.get(ConfigOptions.key("mapKey").mapType().noDefaultValue()))
+                .isEqualTo(expectedMap);
     }
 
     @TestTemplate

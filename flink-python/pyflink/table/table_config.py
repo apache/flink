@@ -281,6 +281,13 @@ class TableConfig(object):
         """
         self._j_table_config.addConfiguration(configuration._j_configuration)
 
+    def to_map(self) -> dict:
+        """
+        Calls the toMap method of the underlying Java TableConfig to get the configuration map.
+        :return: A Python dictionary containing the configuration key value pairs.
+        """
+        return dict(self._j_table_config.toMap())
+
     def get_sql_dialect(self) -> SqlDialect:
         """
         Returns the current SQL dialect.

@@ -64,7 +64,8 @@ public class PartitionDescriptorBuilder {
                 1,
                 0,
                 isBroadcast,
-                true);
+                true,
+                false);
     }
 
     public static PartitionDescriptorBuilder newBuilder() {

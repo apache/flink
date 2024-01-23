@@ -34,8 +34,7 @@ public class StandaloneClientFactory implements ClusterClientFactory<StandaloneC
     @Override
     public boolean isCompatibleWith(Configuration configuration) {
         checkNotNull(configuration);
-        return RemoteExecutor.NAME.equalsIgnoreCase(
-                configuration.getString(DeploymentOptions.TARGET));
+        return RemoteExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
     }
 
     @Override

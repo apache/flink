@@ -35,7 +35,7 @@ import org.apache.flink.testutils.CustomEqualityMatcher;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
 
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowStreamWriter;
@@ -298,7 +298,7 @@ abstract class ArrowSourceFunctionTestBase {
                 createArrowSourceFunction(
                         ArrowUtils.readArrowBatches(
                                 Channels.newChannel(new ByteArrayInputStream(baos.toByteArray()))));
-        arrowSourceFunction.setRuntimeContext(new MockStreamingRuntimeContext(false, 0, 0));
+        arrowSourceFunction.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
         return arrowSourceFunction;
     }
 

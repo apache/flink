@@ -18,25 +18,18 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Collection;
 import java.util.concurrent.RunnableFuture;
 import java.util.stream.Stream;
 
@@ -71,40 +64,23 @@ public class StateBackendTestUtils {
         }
 
         @Override
+        public boolean useManagedMemory() {
+            return delegatedStataBackend.useManagedMemory();
+        }
+
+        @Override
         public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-                Environment env,
-                JobID jobID,
-                String operatorIdentifier,
-                TypeSerializer<K> keySerializer,
-                int numberOfKeyGroups,
-                KeyGroupRange keyGroupRange,
-                TaskKvStateRegistry kvStateRegistry,
-                TtlTimeProvider ttlTimeProvider,
-                MetricGroup metricGroup,
-                @Nonnull Collection<KeyedStateHandle> stateHandles,
-                CloseableRegistry cancelStreamRegistry)
-                throws IOException {
+                KeyedStateBackendParameters<K> parameters) throws IOException {
             AbstractKeyedStateBackend<K> delegatedKeyedStateBackend =
-                    delegatedStataBackend.createKeyedStateBackend(
-                            env,
-                            jobID,
-                            operatorIdentifier,
-                            keySerializer,
-                            numberOfKeyGroups,
-                            keyGroupRange,
-                            kvStateRegistry,
-                            ttlTimeProvider,
-                            metricGroup,
-                            stateHandles,
-                            cancelStreamRegistry);
+                    delegatedStataBackend.createKeyedStateBackend(parameters);
             return new AbstractKeyedStateBackend<K>(
-                    kvStateRegistry,
-                    keySerializer,
-                    env.getUserCodeClassLoader().asClassLoader(),
-                    env.getExecutionConfig(),
-                    ttlTimeProvider,
+                    parameters.getKvStateRegistry(),
+                    parameters.getKeySerializer(),
+                    parameters.getEnv().getUserCodeClassLoader().asClassLoader(),
+                    parameters.getEnv().getExecutionConfig(),
+                    parameters.getTtlTimeProvider(),
                     delegatedKeyedStateBackend.getLatencyTrackingStateConfig(),
-                    cancelStreamRegistry,
+                    parameters.getCancelStreamRegistry(),
                     delegatedKeyedStateBackend.getKeyContext()) {
                 @Override
                 public void setCurrentKey(K newKey) {
@@ -193,13 +169,8 @@ public class StateBackendTestUtils {
 
         @Override
         public OperatorStateBackend createOperatorStateBackend(
-                Environment env,
-                String operatorIdentifier,
-                @Nonnull Collection<OperatorStateHandle> stateHandles,
-                CloseableRegistry cancelStreamRegistry)
-                throws Exception {
-            return delegatedStataBackend.createOperatorStateBackend(
-                    env, operatorIdentifier, stateHandles, cancelStreamRegistry);
+                OperatorStateBackendParameters parameters) throws Exception {
+            return delegatedStataBackend.createOperatorStateBackend(parameters);
         }
     }
 

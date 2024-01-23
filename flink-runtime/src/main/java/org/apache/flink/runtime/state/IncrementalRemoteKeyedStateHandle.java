@@ -27,8 +27,11 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * The handle to states of an incremental snapshot.
@@ -235,17 +238,21 @@ public class IncrementalRemoteKeyedStateHandle extends AbstractIncrementalStateH
 
     @Override
     public long getStateSize() {
-        long size = StateUtil.getStateSize(metaStateHandle);
+        return streamSubHandles().mapToLong(StateObject::getStateSize).sum();
+    }
 
-        for (HandleAndLocalPath handleAndLocalPath : sharedState) {
-            size += handleAndLocalPath.getStateSize();
-        }
+    @Override
+    public void collectSizeStats(StateObjectSizeStatsCollector collector) {
+        streamSubHandles().forEach(handle -> handle.collectSizeStats(collector));
+    }
 
-        for (HandleAndLocalPath handleAndLocalPath : privateState) {
-            size += handleAndLocalPath.getStateSize();
-        }
-
-        return size;
+    private Stream<StreamStateHandle> streamSubHandles() {
+        return Stream.of(
+                        Stream.of(metaStateHandle),
+                        sharedState.stream().map(HandleAndLocalPath::getHandle),
+                        privateState.stream().map(HandleAndLocalPath::getHandle))
+                .flatMap(Function.identity())
+                .filter(Objects::nonNull);
     }
 
     @Override

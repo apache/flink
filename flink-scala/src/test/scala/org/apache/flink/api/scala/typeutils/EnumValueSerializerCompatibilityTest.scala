@@ -141,7 +141,7 @@ class EnumValueSerializerCompatibilityTest {
     val enum2 = instantiateEnum[Enumeration](classLoader2, enumName)
 
     val enumValueSerializer2 = new EnumValueSerializer(enum2)
-    snapshot2.resolveSchemaCompatibility(enumValueSerializer2)
+    enumValueSerializer2.snapshotConfiguration().resolveSchemaCompatibility(snapshot2)
   }
 }
 

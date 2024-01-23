@@ -37,7 +37,7 @@ import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableMap;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -258,7 +258,7 @@ public class SinkV2MetricsITCase extends TestLogger {
         private long sendTime;
 
         @Override
-        public void init(Sink.WriterInitContext context) {
+        public void init(Sink.InitContext context) {
             this.metricGroup = context.metricGroup();
             metricGroup.setCurrentSendTimeGauge(() -> sendTime);
         }

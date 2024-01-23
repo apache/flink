@@ -46,8 +46,8 @@ import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.runtime.groupwindow.WindowProperty;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.aggregate.window.SlicingWindowAggOperatorBuilder;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceSharedAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceSharedAssigner;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
@@ -61,10 +61,13 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.tools.RelBuilder;
 
+import javax.annotation.Nullable;
+
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -104,12 +107,16 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
     @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
     private final NamedWindowProperty[] namedWindowProperties;
 
+    @JsonProperty(FIELD_NAME_NEED_RETRACTION)
+    private final boolean needRetraction;
+
     public StreamExecWindowAggregate(
             ReadableConfig tableConfig,
             int[] grouping,
             AggregateCall[] aggCalls,
             WindowingStrategy windowing,
             NamedWindowProperty[] namedWindowProperties,
+            Boolean needRetraction,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -121,6 +128,7 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
                 aggCalls,
                 windowing,
                 namedWindowProperties,
+                needRetraction,
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -136,6 +144,7 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
             @JsonProperty(FIELD_NAME_WINDOWING) WindowingStrategy windowing,
             @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
                     NamedWindowProperty[] namedWindowProperties,
+            @Nullable @JsonProperty(FIELD_NAME_NEED_RETRACTION) Boolean needRetraction,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
@@ -144,6 +153,7 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
         this.aggCalls = checkNotNull(aggCalls);
         this.windowing = checkNotNull(windowing);
         this.namedWindowProperties = checkNotNull(namedWindowProperties);
+        this.needRetraction = Optional.ofNullable(needRetraction).orElse(false);
     }
 
     @SuppressWarnings("unchecked")
@@ -161,13 +171,12 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
                         TableConfigUtils.getLocalTimeZone(config));
         final SliceAssigner sliceAssigner = createSliceAssigner(windowing, shiftTimeZone);
 
-        // Hopping window requires additional COUNT(*) to determine whether to register next timer
-        // through whether the current fired window is empty, see SliceSharedWindowAggProcessor.
         final AggregateInfoList aggInfoList =
                 AggregateUtil.deriveStreamWindowAggregateInfoList(
                         planner.getTypeFactory(),
                         inputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
+                        needRetraction,
                         windowing.getWindow(),
                         true); // isStateBackendDataViews
 
@@ -234,6 +243,10 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
 
         if (sliceAssigner instanceof SliceSharedAssigner) {
             generator.needMerge(0, false, null);
+        }
+
+        if (needRetraction) {
+            generator.needRetract();
         }
 
         final List<WindowProperty> windowProperties =
