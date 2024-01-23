@@ -25,6 +25,7 @@ import org.apache.flink.configuration.description.Description;
 import java.time.Duration;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.CoreOptions.DEFAULT_PARALLELISM;
 import static org.apache.flink.configuration.JobManagerOptions.SCHEDULER;
 import static org.apache.flink.configuration.description.TextElement.code;
 
@@ -99,17 +100,22 @@ public class BatchExecutionOptions {
     public static final ConfigOption<Integer> ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM =
             key("execution.batch.adaptive.auto-parallelism.default-source-parallelism")
                     .intType()
-                    .defaultValue(1)
+                    .noDefaultValue()
                     .withDeprecatedKeys(
                             "jobmanager.adaptive-batch-scheduler.default-source-parallelism")
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The default parallelism of source vertices if %s has been set to %s",
+                                            "The default parallelism of source vertices or the upper bound of source parallelism "
+                                                    + "to set adaptively if %s has been set to %s. Note that %s will be used if this configuration is not configured. "
+                                                    + "If %s is not set either, then the default parallelism set via %s will be used instead.",
                                             code(SCHEDULER.key()),
                                             code(
                                                     JobManagerOptions.SchedulerType.AdaptiveBatch
-                                                            .name()))
+                                                            .name()),
+                                            code(ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM.key()),
+                                            code(ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM.key()),
+                                            code(DEFAULT_PARALLELISM.key()))
                                     .build());
 
     @Documentation.Section({Documentation.Sections.EXPERT_SCHEDULING})

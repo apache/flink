@@ -16,9 +16,9 @@
         </tr>
         <tr>
             <td><h5>execution.batch.adaptive.auto-parallelism.default-source-parallelism</h5></td>
-            <td style="word-wrap: break-word;">1</td>
+            <td style="word-wrap: break-word;">(none)</td>
             <td>Integer</td>
-            <td>The default parallelism of source vertices if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
+            <td>The default parallelism of source vertices or the upper bound of source parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code>. Note that <code class="highlighter-rouge">execution.batch.adaptive.auto-parallelism.max-parallelism</code> will be used if this configuration is not configured. If <code class="highlighter-rouge">execution.batch.adaptive.auto-parallelism.max-parallelism</code> is not set either, then the default parallelism set via <code class="highlighter-rouge">parallelism.default</code> will be used instead.</td>
         </tr>
         <tr>
             <td><h5>execution.batch.adaptive.auto-parallelism.enabled</h5></td>
