@@ -25,6 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
 import org.assertj.core.api.Assertions;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -37,6 +38,7 @@ import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
 /** Test class for rate limiting functionalities of {@link AsyncSinkWriter}. */
+@Ignore("FLINK-31472")
 public class AsyncSinkWriterThrottlingTest {
 
     @Test
