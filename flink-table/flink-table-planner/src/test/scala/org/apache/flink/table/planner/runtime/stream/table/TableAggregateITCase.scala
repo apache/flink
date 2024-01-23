@@ -39,16 +39,14 @@ import java.time.Duration
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
+  var myTable: Table = _
+
   @BeforeEach
   override def before(): Unit = {
     super.before()
     tEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
-  }
-
-  @TestTemplate
-  def testFlagAggregateWithOrWithoutIncrementalUpdate(): Unit = {
     // Create a Table from the array of Rows
-    val table = tEnv.fromValues(
+    myTable = tEnv.fromValues(
       DataTypes.ROW(
         DataTypes.FIELD("id", DataTypes.INT),
         DataTypes.FIELD("name", DataTypes.STRING),
@@ -59,12 +57,12 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       row(4, "Mocha", 8: java.lang.Integer),
       row(5, "Tea", 4: java.lang.Integer)
     )
+  }
 
-    // Register the table aggregate function
+  @TestTemplate
+  def testFlatAggregateWithoutIncrementalUpdate(): Unit = {
+    // Register the table aggregate function which does not implement emitUpdateWithRetract
     tEnv.createTemporarySystemFunction("top2", new JavaUserDefinedTableAggFunctions.Top2)
-    tEnv.createTemporarySystemFunction(
-      "incrementalTop2",
-      new JavaUserDefinedTableAggFunctions.IncrementalTop2)
 
     checkRank(
       "top2",
@@ -92,6 +90,13 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
         "(true,6,2)"
       )
     )
+  }
+
+  @TestTemplate
+  def testFlatAggregateWithIncrementalUpdate(): Unit = {
+    tEnv.createTemporarySystemFunction(
+      "incrementalTop2",
+      new JavaUserDefinedTableAggFunctions.IncrementalTop2)
     checkRank(
       "incrementalTop2",
       List(
@@ -109,18 +114,18 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
         "(true,6,2)"
       )
     )
+  }
 
-    def checkRank(func: String, expectedResult: List[String]): Unit = {
-      val resultTable =
-        table
-          .flatAggregate(call(func, $("price")).as("top_price", "rank"))
-          .select($("top_price"), $("rank"))
+  def checkRank(func: String, expectedResult: List[String]): Unit = {
+    val resultTable =
+      myTable
+        .flatAggregate(call(func, $("price")).as("top_price", "rank"))
+        .select($("top_price"), $("rank"))
 
-      val sink = new TestingRetractSink()
-      resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
-      env.execute()
-      assertThat(sink.getRawResults).isEqualTo(expectedResult)
-    }
+    val sink = new TestingRetractSink()
+    resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    assertThat(sink.getRawResults).isEqualTo(expectedResult)
   }
 
   @TestTemplate
