@@ -19,32 +19,37 @@ limitations under the License.
 package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import java.util.Collections;
 import java.util.List;
 
-/** This Transformation is a phantom transformation which used to expose a default parallelism to downstream.
+/**
+ * This Transformation is a phantom transformation which used to expose a default parallelism to
+ * downstream.
  *
- * It is used only when the parallelism of the source transformation differs from the default parallelism,
- * ensuring that the parallelism of downstream operations is not affected.
+ * <p>It is used only when the parallelism of the source transformation differs from the default
+ * parallelism, ensuring that the parallelism of downstream operations is not affected.
  *
- * Moreover, this transformation does not have a corresponding {@link TransformationTranslator}, meaning
- * it will not become a node in the StreamGraph.
+ * <p>Moreover, this transformation does not have a corresponding {@link TransformationTranslator},
+ * meaning it will not become a node in the StreamGraph.
  *
  * @param <T> The type of the elements in the input {@code Transformation}
- * */
+ */
 @Internal
-public class SourceTransformationWrapper<T> extends PhysicalTransformation<T> {
+public class SourceTransformationWrapper<T> extends Transformation<T> {
 
     private final Transformation<T> input;
 
-    public SourceTransformationWrapper(Transformation<T> input, String name, int parallelism) {
-        super(name, input.getOutputType(), parallelism);
+    public SourceTransformationWrapper(Transformation<T> input) {
+        super(
+                "ChangeToDefaultParallel",
+                input.getOutputType(),
+                ExecutionConfig.PARALLELISM_DEFAULT);
         this.input = input;
     }
 
@@ -64,7 +69,4 @@ public class SourceTransformationWrapper<T> extends PhysicalTransformation<T> {
     public List<Transformation<?>> getInputs() {
         return Collections.singletonList(input);
     }
-
-    @Override
-    public void setChainingStrategy(ChainingStrategy strategy) {}
 }

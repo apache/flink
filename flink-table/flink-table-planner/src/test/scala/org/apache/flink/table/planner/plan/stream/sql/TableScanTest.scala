@@ -775,4 +775,44 @@ class TableScanTest extends TableTestBase {
           "expression type is CHAR(0) NOT NULL")
       .isInstanceOf[ValidationException]
   }
+
+  @Test
+  def testSetParallelismForSource(): Unit = {
+    util.addTable("""
+                    |CREATE TABLE src (
+                    |  the_month INT,
+                    |  area STRING,
+                    |  product_id INT
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'bounded' = 'true',
+                    |  'runtime-source' = 'DataStream',
+                    |  'scan.parallelism' = '3',
+                    |  'enable-projection-push-down' = 'false'
+                    |)
+      """.stripMargin)
+
+    util.verifyTransformation("SELECT * FROM src WHERE the_month > 1")
+  }
+
+  @Test
+  def testSetParallelismForChangelogSource(): Unit = {
+    util.addTable("""
+                    |CREATE TABLE src (
+                    |  the_month INT,
+                    |  area STRING,
+                    |  product_id INT,
+                    |  PRIMARY KEY (product_id) NOT ENFORCED
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'bounded' = 'true',
+                    |  'runtime-source' = 'DataStream',
+                    |  'scan.parallelism' = '3',
+                    |  'enable-projection-push-down' = 'false',
+                    |  'changelog-mode' = 'I,UA,D'
+                    |)
+      """.stripMargin)
+
+    util.verifyTransformation("SELECT * FROM src WHERE the_month > 1")
+  }
 }

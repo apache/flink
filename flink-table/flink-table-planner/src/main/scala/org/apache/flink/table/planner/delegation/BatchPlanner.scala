@@ -84,7 +84,7 @@ class BatchPlanner(
     processors
   }
 
-  override protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]] = {
+  override def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]] = {
     beforeTranslation()
     val planner = createDummyPlanner()
 
