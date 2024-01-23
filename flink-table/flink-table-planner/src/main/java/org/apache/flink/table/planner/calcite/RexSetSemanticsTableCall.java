@@ -79,6 +79,9 @@ public class RexSetSemanticsTableCall extends RexCall {
     }
 
     private void appendKeys(int[] keys, String prefix, StringBuilder sb) {
+        if (keys.length == 0) {
+            return;
+        }
         sb.append(
                 Arrays.stream(keys)
                         .mapToObj(key -> "$" + key)

@@ -1592,7 +1592,7 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
   }
 
   @TestTemplate
-  def testSessionWindowTVFWhenCantMerge(): Unit = {
+  def testSessionWindowTVFWithPartitionKeyWhenCantMerge(): Unit = {
     val sql =
       """
         |SELECT
@@ -1610,6 +1610,28 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
         |  WHERE window_start >= TIMESTAMP '2021-01-01 10:10:00.000'
         |)
         |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testSessionWindowTVFWithoutPartitionKeyWhenCantMerge(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM (
+        |  SELECT window_start, rowtime, d, proctime, e, b, c, window_end, window_time, a
+        |  FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE))
+        |  WHERE window_start >= TIMESTAMP '2021-01-01 10:10:00.000'
+        |)
+        |GROUP BY window_start, window_end
       """.stripMargin
     util.verifyRelPlan(sql)
   }

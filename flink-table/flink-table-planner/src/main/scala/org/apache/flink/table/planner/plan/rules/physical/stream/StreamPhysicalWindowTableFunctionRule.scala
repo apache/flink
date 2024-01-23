@@ -17,12 +17,14 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
+import org.apache.flink.table.planner.calcite.RexSetSemanticsTableCall
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWindowTableFunction
 import org.apache.flink.table.planner.plan.utils.WindowUtil
-import org.apache.flink.table.planner.plan.utils.WindowUtil.{convertToWindowingStrategy, getWindowPartitionKeys, validateTimeFieldWithTimeAttribute}
+import org.apache.flink.table.planner.plan.utils.WindowUtil.{convertToWindowingStrategy, validateTimeFieldWithTimeAttribute}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
@@ -44,13 +46,7 @@ class StreamPhysicalWindowTableFunctionRule(config: Config) extends ConverterRul
   def convert(rel: RelNode): RelNode = {
     val scan: FlinkLogicalTableFunctionScan = rel.asInstanceOf[FlinkLogicalTableFunctionScan]
 
-    val partitionKeys: Array[Int] = getWindowPartitionKeys(scan.getCall.asInstanceOf[RexCall])
-    val requiredDistribution = if (!partitionKeys.isEmpty) {
-      FlinkRelDistribution.hash(partitionKeys, requireStrict = true)
-    } else {
-      FlinkRelDistribution.DEFAULT
-    }
-
+    val requiredDistribution = getDistribution(scan.getCall.asInstanceOf[RexCall])
     val requiredTraitSet = rel.getCluster.getPlanner
       .emptyTraitSet()
       .replace(requiredDistribution)
@@ -69,6 +65,21 @@ class StreamPhysicalWindowTableFunctionRule(config: Config) extends ConverterRul
       scan.getRowType,
       convertToWindowingStrategy(windowTableFunction, newInput)
     )
+  }
+
+  private def getDistribution(windowCall: RexCall): FlinkRelDistribution = {
+    windowCall.getOperator match {
+      case FlinkSqlOperatorTable.SESSION =>
+        windowCall match {
+          case setSemanticsTableCall: RexSetSemanticsTableCall =>
+            val partitionKeys = setSemanticsTableCall.getPartitionKeys
+            FlinkRelDistribution.hash(partitionKeys, requireStrict = true)
+          case _ =>
+            FlinkRelDistribution.SINGLETON
+        }
+      case _ =>
+        FlinkRelDistribution.DEFAULT
+    }
   }
 }
 

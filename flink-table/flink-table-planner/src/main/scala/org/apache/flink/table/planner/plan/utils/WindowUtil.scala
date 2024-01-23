@@ -257,24 +257,6 @@ object WindowUtil {
   }
 
   /**
-   * Get the partition keys with the given window.
-   *
-   * Currently only session window maybe have partition keys.
-   */
-  def getWindowPartitionKeys(windowCall: RexCall): Array[Int] = {
-    windowCall.getOperator match {
-      case FlinkSqlOperatorTable.SESSION =>
-        windowCall match {
-          case setSemanticsTableCall: RexSetSemanticsTableCall =>
-            setSemanticsTableCall.getPartitionKeys
-          case _ => Array.empty
-        }
-      case _ =>
-        Array.empty
-    }
-  }
-
-  /**
    * Window TVF based aggregations don't support early-fire and late-fire, throws exception when the
    * configurations are set.
    */
