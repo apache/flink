@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.connector.sink2;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.connector.sink2.Committer;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 
 import javax.annotation.Nullable;
 
@@ -31,7 +30,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Provides metadata. The exposed exchange type between {@link
- * TwoPhaseCommittingSink.PrecommittingSinkWriter} and {@link Committer}.
+ * org.apache.flink.api.connector.sink2.CommittingSinkWriter} and {@link Committer}.
  */
 @Experimental
 public class CommittableWithLineage<CommT> implements CommittableMessage<CommT> {
