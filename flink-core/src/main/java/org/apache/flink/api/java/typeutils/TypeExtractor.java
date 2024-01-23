@@ -136,6 +136,38 @@ public class TypeExtractor {
     }
 
     // --------------------------------------------------------------------------------------------
+    //  TypeInfoFactory registry
+    // --------------------------------------------------------------------------------------------
+
+    private static final Map<Type, Class<? extends TypeInfoFactory<?>>>
+            registeredTypeInfoFactories = new HashMap<>();
+
+    /**
+     * Registers a type information factory globally for a certain type. Every following type
+     * extraction operation will use the provided factory for this type. The factory will have the
+     * highest precedence for this type. In a hierarchy of types the registered factory has higher
+     * precedence than annotations at the same level but lower precedence than factories defined
+     * down the hierarchy.
+     *
+     * @param t type for which a new factory is registered
+     * @param factory type information factory that will produce {@link TypeInformation}
+     */
+    @Internal
+    public static void registerFactory(Type t, Class<? extends TypeInfoFactory<?>> factory) {
+        Preconditions.checkNotNull(t, "Type parameter must not be null.");
+        Preconditions.checkNotNull(factory, "Factory parameter must not be null.");
+
+        if (!TypeInfoFactory.class.isAssignableFrom(factory)) {
+            throw new IllegalArgumentException("Class is not a TypeInfoFactory.");
+        }
+        if (registeredTypeInfoFactories.containsKey(t)) {
+            throw new InvalidTypesException(
+                    "A TypeInfoFactory for type '" + t + "' is already registered.");
+        }
+        registeredTypeInfoFactories.put(t, factory);
+    }
+
+    // --------------------------------------------------------------------------------------------
     //  Function specific methods
     // --------------------------------------------------------------------------------------------
 
@@ -1699,15 +1731,19 @@ public class TypeExtractor {
     @SuppressWarnings("unchecked")
     public static <OUT> TypeInfoFactory<OUT> getTypeInfoFactory(Type t) {
         final Class<?> factoryClass;
-        if (!isClassType(t) || !typeToClass(t).isAnnotationPresent(TypeInfo.class)) {
-            return null;
-        }
-        final TypeInfo typeInfoAnnotation = typeToClass(t).getAnnotation(TypeInfo.class);
-        factoryClass = typeInfoAnnotation.value();
-        // check for valid factory class
-        if (!TypeInfoFactory.class.isAssignableFrom(factoryClass)) {
-            throw new InvalidTypesException(
-                    "TypeInfo annotation does not specify a valid TypeInfoFactory.");
+        if (registeredTypeInfoFactories.containsKey(t)) {
+            factoryClass = registeredTypeInfoFactories.get(t);
+        } else {
+            if (!isClassType(t) || !typeToClass(t).isAnnotationPresent(TypeInfo.class)) {
+                return null;
+            }
+            final TypeInfo typeInfoAnnotation = typeToClass(t).getAnnotation(TypeInfo.class);
+            factoryClass = typeInfoAnnotation.value();
+            // check for valid factory class
+            if (!TypeInfoFactory.class.isAssignableFrom(factoryClass)) {
+                throw new InvalidTypesException(
+                        "TypeInfo annotation does not specify a valid TypeInfoFactory.");
+            }
         }
 
         // instantiate
