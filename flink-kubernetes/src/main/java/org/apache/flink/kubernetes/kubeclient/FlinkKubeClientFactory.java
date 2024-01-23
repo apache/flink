@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes.kubeclient;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.util.FileUtils;
@@ -46,16 +47,8 @@ public class FlinkKubeClientFactory {
         return INSTANCE;
     }
 
-    /**
-     * Create a Flink Kubernetes client with the given configuration.
-     *
-     * @param flinkConfig Flink configuration
-     * @param useCase Flink Kubernetes client use case (e.g. client, resourcemanager,
-     *     kubernetes-ha-services)
-     * @return Return the Flink Kubernetes client with the specified configuration and dedicated IO
-     *     executor.
-     */
-    public FlinkKubeClient fromConfiguration(Configuration flinkConfig, String useCase) {
+    @VisibleForTesting
+    public NamespacedKubernetesClient createFabric8ioKubernetesClient(Configuration flinkConfig) {
         final Config config;
 
         final String kubeContext = flinkConfig.getString(KubernetesConfigOptions.CONTEXT);
@@ -95,11 +88,23 @@ public class FlinkKubeClientFactory {
         config.setUserAgent(userAgent);
         LOG.debug("Setting Kubernetes client namespace: {}, userAgent: {}", namespace, userAgent);
 
-        final NamespacedKubernetesClient client =
-                new KubernetesClientBuilder()
-                        .withConfig(config)
-                        .build()
-                        .adapt(NamespacedKubernetesClient.class);
+        return new KubernetesClientBuilder()
+                .withConfig(config)
+                .build()
+                .adapt(NamespacedKubernetesClient.class);
+    }
+
+    /**
+     * Create a Flink Kubernetes client with the given configuration.
+     *
+     * @param flinkConfig Flink configuration
+     * @param useCase Flink Kubernetes client use case (e.g. client, resourcemanager,
+     *     kubernetes-ha-services)
+     * @return Return the Flink Kubernetes client with the specified configuration and dedicated IO
+     *     executor.
+     */
+    public FlinkKubeClient fromConfiguration(Configuration flinkConfig, String useCase) {
+        final NamespacedKubernetesClient client = createFabric8ioKubernetesClient(flinkConfig);
         final int poolSize =
                 flinkConfig.get(KubernetesConfigOptions.KUBERNETES_CLIENT_IO_EXECUTOR_POOL_SIZE);
         return new Fabric8FlinkKubeClient(
