@@ -56,6 +56,9 @@ public final class SpecificInputTypeStrategies {
     /** See {@link MapInputTypeStrategy}. */
     public static final InputTypeStrategy MAP = new MapInputTypeStrategy();
 
+    /** See {@link MapFromEntriesInputTypeStrategy}. */
+    public static final InputTypeStrategy MAP_FROM_ENTRIES = new MapFromEntriesInputTypeStrategy();
+
     /** See {@link CurrentWatermarkInputTypeStrategy}. */
     public static final InputTypeStrategy CURRENT_WATERMARK =
             new CurrentWatermarkInputTypeStrategy();

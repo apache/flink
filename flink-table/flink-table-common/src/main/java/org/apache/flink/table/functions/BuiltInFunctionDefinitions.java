@@ -195,6 +195,16 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.MapFromArraysFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition MAP_FROM_ENTRIES =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("MAP_FROM_ENTRIES")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.MAP_FROM_ENTRIES)
+                    .outputTypeStrategy(SpecificTypeStrategies.MAP_FROM_ENTRIES)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.MapFromEntriesFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition SOURCE_WATERMARK =
             BuiltInFunctionDefinition.newBuilder()
                     .name("SOURCE_WATERMARK")

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.CollectionDataType;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategy;
@@ -141,6 +142,26 @@ public final class SpecificTypeStrategies {
                                                                             .getArgumentDataTypes()
                                                                             .get(0))
                                                             .getValueDataType()))));
+
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_FROM_ENTRIES}. */
+    public static final TypeStrategy MAP_FROM_ENTRIES =
+            callContext -> {
+                CollectionDataType argType =
+                        (CollectionDataType) callContext.getArgumentDataTypes().get(0);
+                DataType entryRowType = argType.getElementDataType();
+                boolean nullable =
+                        argType.getLogicalType().isNullable()
+                                || entryRowType.getLogicalType().isNullable();
+                // default logical MapType is nullable.
+                DataType resultType =
+                        DataTypes.MAP(
+                                entryRowType.getChildren().get(0),
+                                entryRowType.getChildren().get(1));
+                if (!nullable) {
+                    resultType = resultType.notNull();
+                }
+                return Optional.of(resultType);
+            };
 
     /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_FROM_ARRAYS}. */
     public static final TypeStrategy MAP_FROM_ARRAYS =

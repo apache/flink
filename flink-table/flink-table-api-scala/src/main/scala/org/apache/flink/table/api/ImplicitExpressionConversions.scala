@@ -659,6 +659,11 @@ trait ImplicitExpressionConversions {
     Expressions.mapFromArrays(key, value)
   }
 
+  /** Creates a map from an array of entries (row with two fields). */
+  def mapFromEntries(rows: Expression): Expression = {
+    Expressions.mapFromEntries(rows)
+  }
+
   /** Returns a value that is closer than any other value to pi. */
   def pi(): Expression = {
     Expressions.pi()

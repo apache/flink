@@ -766,6 +766,9 @@ collection:
   - sql: MAP_FROM_ARRAYS(array_of_keys, array_of_values)
     table: mapFromArrays(array_of_keys, array_of_values)
     description: Returns a map created from an arrays of keys and values. Note that the lengths of two arrays should be the same.
+  - sql: MAP_FROM_ENTRIES(array_of_rows)
+    table: mapFromEntries(array_of_rows)
+    description: Returns a map created from an array of rows consisting of two fields.
 
 json:
   - sql: IS JSON [ { VALUE | SCALAR | ARRAY | OBJECT } ]
