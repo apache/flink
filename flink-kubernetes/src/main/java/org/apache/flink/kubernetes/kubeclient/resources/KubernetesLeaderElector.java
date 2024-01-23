@@ -21,7 +21,9 @@ package org.apache.flink.kubernetes.kubeclient.resources;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
@@ -33,6 +35,10 @@ import io.fabric8.kubernetes.client.extended.leaderelection.resourcelock.ConfigM
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.concurrent.GuardedBy;
+
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -59,17 +65,32 @@ public class KubernetesLeaderElector {
 
     private final Object lock = new Object();
 
-    private final ExecutorService executorService =
-            Executors.newFixedThreadPool(
-                    3, new ExecutorThreadFactory("KubernetesLeaderElector-ExecutorService"));
+    private final NamespacedKubernetesClient kubernetesClient;
+    private final LeaderElectionConfig leaderElectionConfig;
+    private final ExecutorService executorService;
 
-    private final LeaderElector internalLeaderElector;
+    private CompletableFuture<?> currentLeaderElectionSession = FutureUtils.completedVoidFuture();
 
     public KubernetesLeaderElector(
             NamespacedKubernetesClient kubernetesClient,
             KubernetesLeaderElectionConfiguration leaderConfig,
             LeaderCallbackHandler leaderCallbackHandler) {
-        final LeaderElectionConfig leaderElectionConfig =
+        this(
+                kubernetesClient,
+                leaderConfig,
+                leaderCallbackHandler,
+                Executors.newSingleThreadExecutor(
+                        new ExecutorThreadFactory("KubernetesLeaderElector-ExecutorService")));
+    }
+
+    @VisibleForTesting
+    public KubernetesLeaderElector(
+            NamespacedKubernetesClient kubernetesClient,
+            KubernetesLeaderElectionConfiguration leaderConfig,
+            LeaderCallbackHandler leaderCallbackHandler,
+            ExecutorService executorService) {
+        this.kubernetesClient = kubernetesClient;
+        this.leaderElectionConfig =
                 new LeaderElectionConfigBuilder()
                         .withName(leaderConfig.getConfigMapName())
                         .withLeaseDuration(leaderConfig.getLeaseDuration())
@@ -88,6 +109,7 @@ public class KubernetesLeaderElector {
                                         leaderConfig.getLockIdentity()))
                         .withRenewDeadline(leaderConfig.getRenewDeadline())
                         .withRetryPeriod(leaderConfig.getRetryPeriod())
+                        .withReleaseOnCancel(true)
                         .withLeaderCallbacks(
                                 new LeaderCallbacks(
                                         leaderCallbackHandler::isLeader,
@@ -98,12 +120,27 @@ public class KubernetesLeaderElector {
                                                         newLeader,
                                                         leaderConfig.getConfigMapName())))
                         .build();
-        internalLeaderElector =
-                new LeaderElector(kubernetesClient, leaderElectionConfig, executorService);
+        this.executorService = executorService;
+
         LOG.info(
-                "Create KubernetesLeaderElector {} with lock identity {}.",
-                leaderConfig.getConfigMapName(),
-                leaderConfig.getLockIdentity());
+                "Create KubernetesLeaderElector on lock {}.",
+                leaderElectionConfig.getLock().describe());
+    }
+
+    @GuardedBy("lock")
+    private void resetInternalLeaderElector() {
+        cancelCurrentLeaderElectionSession();
+
+        currentLeaderElectionSession =
+                new LeaderElector(kubernetesClient, leaderElectionConfig, executorService).start();
+
+        LOG.info(
+                "Triggered leader election on lock {}.", leaderElectionConfig.getLock().describe());
+    }
+
+    @GuardedBy("lock")
+    private void cancelCurrentLeaderElectionSession() {
+        currentLeaderElectionSession.cancel(true);
     }
 
     public void run() {
@@ -112,14 +149,21 @@ public class KubernetesLeaderElector {
                 LOG.debug(
                         "Ignoring KubernetesLeaderElector.run call because the leader elector has already been shut down.");
             } else {
-                executorService.execute(internalLeaderElector::run);
+                resetInternalLeaderElector();
             }
         }
     }
 
     public void stop() {
         synchronized (lock) {
-            executorService.shutdownNow();
+            // cancelling the current session needs to happen explicitly to allow the execution of
+            // code that handles the leader loss
+            cancelCurrentLeaderElectionSession();
+
+            final List<Runnable> outstandingTasks = executorService.shutdownNow();
+            Preconditions.checkState(
+                    outstandingTasks.isEmpty(),
+                    "All tasks that handle the leadership revocation should have been executed.");
         }
     }
 
