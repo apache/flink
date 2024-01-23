@@ -85,7 +85,7 @@ public class RexSetSemanticsTableCall extends RexCall {
         sb.append(
                 Arrays.stream(keys)
                         .mapToObj(key -> "$" + key)
-                        .collect(Collectors.joining(",", prefix + "(", "), ")));
+                        .collect(Collectors.joining(", ", prefix + "(", "), ")));
     }
 
     public RexSetSemanticsTableCall copy(

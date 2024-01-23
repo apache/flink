@@ -2617,6 +2617,66 @@ Calc(select=[window_start, window_end, a, EXPR$3, EXPR$4, EXPR$5, wAvg, uv])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSessionWindowWithTwoPartitionKeys[aggPhaseEnforcer=ONE_PHASE]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$1], b=[$0], window_start=[$2], window_end=[$3], EXPR$4=[$4], EXPR$5=[$5], EXPR$6=[$6], wAvg=[$7], uv=[$8])
++- LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT()], EXPR$5=[SUM($4)], EXPR$6=[MAX($4) FILTER $5], wAvg=[weightedAvg($0, $6)], uv=[COUNT(DISTINCT $7)])
+   +- LogicalProject(b=[$1], a=[$0], window_start=[$7], window_end=[$8], d=[$3], $f5=[IS TRUE(>($1, 1000))], e=[$4], c=[$2])
+      +- LogicalTableFunctionScan(invocation=[SESSION(PARTITION BY($1, $0), DESCRIPTOR($5), 300000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+            +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Calc(select=[a, b, window_start, window_end, EXPR$4, EXPR$5, EXPR$6, wAvg, uv])
++- WindowAggregate(groupBy=[b, a], window=[SESSION(time_col=[rowtime], gap=[5 min], partition keys=[a, b])], select=[b, a, COUNT(*) AS EXPR$4, SUM(d) AS EXPR$5, MAX(d) FILTER $f5 AS EXPR$6, weightedAvg(b, e) AS wAvg, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end])
+   +- Exchange(distribution=[hash[b, a]])
+      +- Calc(select=[b, a, d, IS TRUE(>(b, 1000)) AS $f5, e, c, rowtime])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+
+== Optimized Execution Plan ==
+Calc(select=[a, b, window_start, window_end, EXPR$4, EXPR$5, EXPR$6, wAvg, uv])
++- WindowAggregate(groupBy=[b, a], window=[SESSION(time_col=[rowtime], gap=[5 min], partition keys=[a, b])], select=[b, a, COUNT(*) AS EXPR$4, SUM(d) AS EXPR$5, MAX(d) FILTER $f5 AS EXPR$6, weightedAvg(b, e) AS wAvg, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end])
+   +- Exchange(distribution=[hash[b, a]])
+      +- Calc(select=[b, a, d, (b > 1000) IS TRUE AS $f5, e, c, rowtime])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSessionWindowWithTwoPartitionKeys[aggPhaseEnforcer=TWO_PHASE]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$1], b=[$0], window_start=[$2], window_end=[$3], EXPR$4=[$4], EXPR$5=[$5], EXPR$6=[$6], wAvg=[$7], uv=[$8])
++- LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT()], EXPR$5=[SUM($4)], EXPR$6=[MAX($4) FILTER $5], wAvg=[weightedAvg($0, $6)], uv=[COUNT(DISTINCT $7)])
+   +- LogicalProject(b=[$1], a=[$0], window_start=[$7], window_end=[$8], d=[$3], $f5=[IS TRUE(>($1, 1000))], e=[$4], c=[$2])
+      +- LogicalTableFunctionScan(invocation=[SESSION(PARTITION BY($1, $0), DESCRIPTOR($5), 300000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+            +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Calc(select=[a, b, window_start, window_end, EXPR$4, EXPR$5, EXPR$6, wAvg, uv])
++- WindowAggregate(groupBy=[b, a], window=[SESSION(time_col=[rowtime], gap=[5 min], partition keys=[a, b])], select=[b, a, COUNT(*) AS EXPR$4, SUM(d) AS EXPR$5, MAX(d) FILTER $f5 AS EXPR$6, weightedAvg(b, e) AS wAvg, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end])
+   +- Exchange(distribution=[hash[b, a]])
+      +- Calc(select=[b, a, d, IS TRUE(>(b, 1000)) AS $f5, e, c, rowtime])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+
+== Optimized Execution Plan ==
+Calc(select=[a, b, window_start, window_end, EXPR$4, EXPR$5, EXPR$6, wAvg, uv])
++- WindowAggregate(groupBy=[b, a], window=[SESSION(time_col=[rowtime], gap=[5 min], partition keys=[a, b])], select=[b, a, COUNT(*) AS EXPR$4, SUM(d) AS EXPR$5, MAX(d) FILTER $f5 AS EXPR$6, weightedAvg(b, e) AS wAvg, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end])
+   +- Exchange(distribution=[hash[b, a]])
+      +- Calc(select=[b, a, d, (b > 1000) IS TRUE AS $f5, e, c, rowtime])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testTumble_CalcOnTVF[aggPhaseEnforcer=ONE_PHASE]">
     <Resource name="sql">
       <![CDATA[

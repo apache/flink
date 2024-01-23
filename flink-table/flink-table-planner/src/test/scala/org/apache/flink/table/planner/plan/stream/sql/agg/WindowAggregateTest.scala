@@ -1499,6 +1499,28 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
   }
 
   @TestTemplate
+  def testSessionWindowWithTwoPartitionKeys(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  SESSION(TABLE MyTable PARTITION BY (b, a), DESCRIPTOR(rowtime), INTERVAL '5' MINUTE))
+        |GROUP BY b, a, window_start, window_end
+      """.stripMargin
+
+    util.verifyExplain(sql)
+  }
+
+  @TestTemplate
   def testGroupKeyMoreThanPartitionKeyInSessionWindow(): Unit = {
     // the aggregate will not be converted to window aggregate
     // TODO Support session window table function in ExecWindowTableFunction. See
