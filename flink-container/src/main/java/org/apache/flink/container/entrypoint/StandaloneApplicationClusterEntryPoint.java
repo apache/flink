@@ -29,6 +29,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -61,6 +62,16 @@ public final class StandaloneApplicationClusterEntryPoint extends ApplicationClu
                         StandaloneApplicationClusterEntryPoint.class);
 
         Configuration configuration = loadConfigurationFromClusterConfig(clusterConfiguration);
+        if (clusterConfiguration
+                .getSavepointRestoreSettings()
+                .getRestoreMode()
+                .equals(RestoreMode.LEGACY)) {
+            LOG.warn(
+                    "The {} restore mode is deprecated, please use {} or {} mode instead.",
+                    RestoreMode.LEGACY,
+                    RestoreMode.CLAIM,
+                    RestoreMode.NO_CLAIM);
+        }
         PackagedProgram program = null;
         try {
             program = getPackagedProgram(clusterConfiguration, configuration);

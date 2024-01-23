@@ -141,8 +141,8 @@ public class CliFrontendParser {
                             + "[claim - claim ownership of the savepoint and delete once it is"
                             + " subsumed, no_claim (default) - do not claim ownership, the first"
                             + " checkpoint will not reuse any files from the restored one, legacy "
-                            + "- the old behaviour, do not assume ownership of the savepoint files,"
-                            + " but can reuse some shared files.");
+                            + "(deprecated) - the old behaviour, do not assume ownership of the "
+                            + "savepoint files, but can reuse some shared files.");
 
     static final Option SAVEPOINT_DISPOSE_OPTION =
             new Option("d", "dispose", true, "Path of savepoint to dispose.");
