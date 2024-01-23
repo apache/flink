@@ -155,6 +155,13 @@ public class JarRunHandler
                                 () ->
                                         effectiveConfiguration.get(
                                                 SavepointConfigOptions.RESTORE_MODE));
+        if (restoreMode.equals(RestoreMode.LEGACY)) {
+            log.warn(
+                    "The {} restore mode is deprecated, please use {} or {} mode instead.",
+                    RestoreMode.LEGACY,
+                    RestoreMode.CLAIM,
+                    RestoreMode.NO_CLAIM);
+        }
         final SavepointRestoreSettings savepointRestoreSettings;
         if (savepointPath != null) {
             savepointRestoreSettings =
