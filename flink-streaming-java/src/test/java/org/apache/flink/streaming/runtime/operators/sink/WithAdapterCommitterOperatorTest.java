@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.api.connector.sink2.SupportsCommitter;
 
 import java.util.Collections;
 import java.util.List;
@@ -29,7 +29,7 @@ class WithAdapterCommitterOperatorTest extends CommitterOperatorTestBase {
     SinkAndCounters sinkWithPostCommit() {
         ForwardingCommitter committer = new ForwardingCommitter();
         return new SinkAndCounters(
-                (TwoPhaseCommittingSink<?, String>)
+                (SupportsCommitter<String>)
                         TestSink.newBuilder()
                                 .setCommitter(committer)
                                 .setDefaultGlobalCommitter()
@@ -43,7 +43,7 @@ class WithAdapterCommitterOperatorTest extends CommitterOperatorTestBase {
     @Override
     SinkAndCounters sinkWithPostCommitWithRetry() {
         return new SinkAndCounters(
-                (TwoPhaseCommittingSink<?, String>)
+                (SupportsCommitter<String>)
                         TestSink.newBuilder()
                                 .setCommitter(new TestSink.RetryOnceCommitter())
                                 .setDefaultGlobalCommitter()
@@ -58,7 +58,7 @@ class WithAdapterCommitterOperatorTest extends CommitterOperatorTestBase {
     SinkAndCounters sinkWithoutPostCommit() {
         ForwardingCommitter committer = new ForwardingCommitter();
         return new SinkAndCounters(
-                (TwoPhaseCommittingSink<?, String>)
+                (SupportsCommitter<String>)
                         TestSink.newBuilder()
                                 .setCommitter(committer)
                                 .setCommittableSerializer(
