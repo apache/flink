@@ -56,7 +56,7 @@
   }, {
     "id" : 2,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "BIGINT"
@@ -65,13 +65,30 @@
       "inputIndex" : 1,
       "type" : "VARCHAR(2147483647)"
     }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
       "kind" : "CALL",
       "internalName" : "$TO_TIMESTAMP$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 2,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 2,
         "type" : "VARCHAR(2147483647)"
       } ],
+      "type" : "TIMESTAMP(3)"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
       "type" : "TIMESTAMP(3)"
     } ],
     "condition" : null,
@@ -208,7 +225,7 @@
   }, {
     "id" : 6,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "VARCHAR(2147483647) NOT NULL"
@@ -217,13 +234,30 @@
       "inputIndex" : 1,
       "type" : "BIGINT"
     }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
       "kind" : "CALL",
       "internalName" : "$TO_TIMESTAMP$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 2,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 2,
         "type" : "VARCHAR(2147483647)"
       } ],
+      "type" : "TIMESTAMP(3)"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "VARCHAR(2147483647) NOT NULL"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
       "type" : "TIMESTAMP(3)"
     } ],
     "condition" : null,
@@ -359,19 +393,32 @@
   }, {
     "id" : 10,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : "BIGINT"
+    }, {
       "kind" : "CALL",
       "syntax" : "BINARY",
       "internalName" : "$*$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 0,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 0,
         "type" : "BIGINT"
       }, {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 4,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 1,
         "type" : "BIGINT"
       } ],
+      "type" : "BIGINT"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
       "type" : "BIGINT"
     } ],
     "condition" : null,

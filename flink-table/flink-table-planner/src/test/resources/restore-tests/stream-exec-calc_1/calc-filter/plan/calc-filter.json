@@ -37,7 +37,7 @@
   }, {
     "id" : 2,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "BIGINT"
@@ -53,20 +53,45 @@
       "kind" : "INPUT_REF",
       "inputIndex" : 3,
       "type" : "VARCHAR(2147483647)"
-    } ],
-    "condition" : {
+    }, {
+      "kind" : "LITERAL",
+      "value" : 0,
+      "type" : "INT NOT NULL"
+    }, {
       "kind" : "CALL",
       "syntax" : "BINARY",
       "internalName" : "$>$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 1,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 1,
         "type" : "INT"
       }, {
-        "kind" : "LITERAL",
-        "value" : 0,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 4,
         "type" : "INT NOT NULL"
       } ],
+      "type" : "BOOLEAN"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "INT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
+      "type" : "DOUBLE"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "condition" : {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 5,
       "type" : "BOOLEAN"
     },
     "inputProperties" : [ {

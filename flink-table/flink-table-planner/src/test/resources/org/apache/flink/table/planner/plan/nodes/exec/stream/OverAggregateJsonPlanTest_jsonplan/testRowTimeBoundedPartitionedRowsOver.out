@@ -213,15 +213,24 @@
     },
     "description" : "OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 5 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])"
   }, {
-    "id" : 5,
+    "id": 5,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
       "type" : "BIGINT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 3,
+      "type" : "BIGINT NOT NULL"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
       "type" : "BIGINT NOT NULL"
     } ],
     "condition" : null,

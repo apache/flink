@@ -93,9 +93,9 @@
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, c], metadata=[]]], fields=[b, c])",
     "inputProperties" : [ ]
   }, {
-    "id" : 2,
+    "id": 2,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "BIGINT"
@@ -117,10 +117,32 @@
       "kind" : "CALL",
       "internalName" : "$TO_TIMESTAMP$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 1,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 1,
         "type" : "VARCHAR(2147483647)"
       } ],
+      "type" : "TIMESTAMP(3)"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
+      "type" : {
+        "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+        "nullable" : false,
+        "precision" : 3,
+        "kind" : "PROCTIME"
+      }
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
       "type" : "TIMESTAMP(3)"
     } ],
     "condition" : null,
@@ -206,9 +228,9 @@
     },
     "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])"
   }, {
-    "id" : 4,
+    "id": 4,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "BIGINT"
@@ -219,6 +241,24 @@
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
+      "type" : {
+        "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+        "nullable" : false,
+        "precision" : 3,
+        "kind" : "PROCTIME"
+      }
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
       "type" : {
         "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
         "nullable" : false,
@@ -357,15 +397,24 @@
     "outputType" : "ROW<`b` BIGINT, `EXPR$1` BIGINT NOT NULL, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL>",
     "description" : "WindowAggregate(groupBy=[b], window=[CUMULATE(time_col=[proctime], max_size=[15 s], step=[5 s])], select=[b, COUNT(c) AS EXPR$1, start('w$) AS window_start, end('w$) AS window_end])"
   }, {
-    "id" : 7,
+    "id": 7,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "BIGINT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
+      "type" : "BIGINT NOT NULL"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
       "type" : "BIGINT NOT NULL"
     } ],
     "condition" : null,

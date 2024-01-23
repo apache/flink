@@ -32,6 +32,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
@@ -50,8 +51,9 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
 
     public StreamExecCalc(
             ReadableConfig tableConfig,
-            List<RexNode> projection,
-            @Nullable RexNode condition,
+            List<RexNode> expression,
+            List<RexLocalRef> projection,
+            @Nullable RexLocalRef condition,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -59,6 +61,7 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecCalc.class),
                 ExecNodeContext.newPersistedConfig(StreamExecCalc.class, tableConfig),
+                expression,
                 projection,
                 condition,
                 Collections.singletonList(inputProperty),
@@ -71,8 +74,9 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
             @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
-            @JsonProperty(FIELD_NAME_PROJECTION) List<RexNode> projection,
-            @JsonProperty(FIELD_NAME_CONDITION) @Nullable RexNode condition,
+            @JsonProperty(FIELD_NAME_EXPRESSION) List<RexNode> expression,
+            @JsonProperty(FIELD_NAME_PROJECTION) List<RexLocalRef> projection,
+            @JsonProperty(FIELD_NAME_CONDITION) @Nullable RexLocalRef condition,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
@@ -80,6 +84,7 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
                 id,
                 context,
                 persistedConfig,
+                expression,
                 projection,
                 condition,
                 TableStreamOperator.class,

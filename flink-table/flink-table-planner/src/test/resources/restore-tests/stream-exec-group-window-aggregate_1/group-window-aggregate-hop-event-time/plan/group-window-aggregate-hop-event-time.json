@@ -104,18 +104,31 @@
   }, {
     "id" : 9,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
       "type" : "VARCHAR(2147483647)"
     }, {
       "kind" : "CALL",
       "internalName" : "$TO_TIMESTAMP$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 1,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 1,
         "type" : "VARCHAR(2147483647)"
       } ],
+      "type" : "TIMESTAMP(3)"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
       "type" : "TIMESTAMP(3)"
     } ],
     "condition" : null,

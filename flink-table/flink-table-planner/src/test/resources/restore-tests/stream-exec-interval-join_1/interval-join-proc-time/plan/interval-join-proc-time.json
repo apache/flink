@@ -44,7 +44,7 @@
   }, {
     "id" : 13,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "INT"
@@ -56,6 +56,24 @@
       "kind" : "CALL",
       "internalName" : "$PROCTIME$1",
       "operands" : [ ],
+      "type" : {
+        "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+        "nullable" : false,
+        "precision" : 3,
+        "kind" : "PROCTIME"
+      }
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
       "type" : {
         "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
         "nullable" : false,
@@ -176,7 +194,7 @@
   }, {
     "id" : 16,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "INT"
@@ -188,6 +206,24 @@
       "kind" : "CALL",
       "internalName" : "$PROCTIME$1",
       "operands" : [ ],
+      "type" : {
+        "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+        "nullable" : false,
+        "precision" : 3,
+        "kind" : "PROCTIME"
+      }
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
       "type" : {
         "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
         "nullable" : false,
@@ -320,7 +356,7 @@
   }, {
     "id" : 19,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "INT"
@@ -331,6 +367,19 @@
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 4,
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
       "type" : "VARCHAR(2147483647)"
     } ],
     "condition" : null,

@@ -52,6 +52,7 @@ import org.apache.calcite.rex.RexCorrelVariable;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexPatternFieldRef;
 import org.apache.calcite.sql.SqlOperator;
@@ -102,7 +103,12 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
 
     // FIELD_ACCESS
     static final String KIND_FIELD_ACCESS = "FIELD_ACCESS";
+
     static final String FIELD_NAME_EXPR = "expr";
+
+    // LOCAL_REF
+    static final String KIND_LOCAL_REF = "LOCAL_REF";
+    static final String FIELD_NAME_LOCAL_REF_INDEX = "localRefIndex";
 
     // CORREL_VARIABLE
     static final String KIND_CORREL_VARIABLE = "CORREL_VARIABLE";
@@ -152,6 +158,9 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
             case PATTERN_INPUT_REF:
                 serializePatternFieldRef(
                         (RexPatternFieldRef) rexNode, jsonGenerator, serializerProvider);
+                break;
+            case LOCAL_REF:
+                serializeLocalRef((RexLocalRef) rexNode, jsonGenerator, serializerProvider);
                 break;
             default:
                 if (rexNode instanceof RexCall) {
@@ -320,6 +329,17 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
         gen.writeStringField(FIELD_NAME_KIND, KIND_CORREL_VARIABLE);
         gen.writeStringField(FIELD_NAME_CORREL, variable.getName());
         serializerProvider.defaultSerializeField(FIELD_NAME_TYPE, variable.getType(), gen);
+        gen.writeEndObject();
+    }
+
+    private static void serializeLocalRef(
+            RexLocalRef localRef, JsonGenerator gen, SerializerProvider serializerProvider)
+            throws IOException {
+        gen.writeStartObject();
+        gen.writeStringField(FIELD_NAME_KIND, KIND_LOCAL_REF);
+
+        gen.writeNumberField(FIELD_NAME_LOCAL_REF_INDEX, localRef.getIndex());
+        serializerProvider.defaultSerializeField(FIELD_NAME_TYPE, localRef.getType(), gen);
         gen.writeEndObject();
     }
 

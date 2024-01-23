@@ -30,7 +30,7 @@
   }, {
     "id" : 9,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "INT"
@@ -39,13 +39,30 @@
       "inputIndex" : 1,
       "type" : "BIGINT"
     }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
       "kind" : "CALL",
       "catalogName" : "`default_catalog`.`default_database`.`ndf`",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 2,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 2,
         "type" : "VARCHAR(2147483647)"
       } ],
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
       "type" : "VARCHAR(2147483647)"
     } ],
     "condition" : null,

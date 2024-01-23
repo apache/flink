@@ -131,7 +131,9 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
    *   instance of GeneratedExpression
    */
   def generateExpression(rex: RexNode): GeneratedExpression = {
-    rex.accept(this)
+    val expr = rex.accept(this)
+    ctx.reusableExpr(rex) = expr
+    expr
   }
 
   /**
@@ -406,6 +408,10 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   }
 
   override def visitLiteral(literal: RexLiteral): GeneratedExpression = {
+    // this case is handled by visitCall (SqlKind.SEARCH)
+    if (literal.getTypeName == SqlTypeName.SARG) {
+      return null
+    }
     val res = RexLiteralUtil.toFlinkInternalValue(literal)
     generateLiteral(ctx, res.f0, res.f1)
   }
@@ -414,8 +420,10 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     GeneratedExpression(input1Term, NEVER_NULL, NO_CODE, input1Type)
   }
 
-  override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression =
-    throw new CodeGenException("RexLocalRef are not supported yet.")
+  override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression = {
+    val nonLocalRefExpr = ctx.allExpressions(localRef.getIndex)
+    ctx.reusableExpr(nonLocalRefExpr)
+  }
 
   def visitRexFieldVariable(variable: RexFieldVariable): GeneratedExpression = {
     val internalType = FlinkTypeFactory.toLogicalType(variable.dataType)
@@ -459,10 +467,27 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   override def visitCall(call: RexCall): GeneratedExpression = {
     val resultType = FlinkTypeFactory.toLogicalType(call.getType)
     if (call.getKind == SqlKind.SEARCH) {
-      return generateSearch(
-        ctx,
-        generateExpression(call.getOperands.get(0)),
-        call.getOperands.get(1).asInstanceOf[RexLiteral])
+      val op0 = call.getOperands.get(0)
+
+      val generatedExpression0 = op0 match {
+        case localRef: RexLocalRef => ctx.reusableExpr(ctx.allExpressions(localRef.getIndex))
+        case _ => {
+          if (ctx.reusableExpr.contains(op0)) {
+            ctx.reusableExpr(op0)
+          } else {
+            val generatedExpression = generateExpression(op0);
+            ctx.reusableExpr(op0) = generatedExpression
+            generatedExpression
+          }
+
+        }
+      }
+
+      val op1 = call.getOperands.get(1) match {
+        case localRef: RexLocalRef => ctx.allExpressions(localRef.getIndex)
+        case _ => call.getOperands.get(1)
+      }
+      return generateSearch(ctx, generatedExpression0, op1.asInstanceOf[RexLiteral])
     }
 
     // convert operands and help giving untyped NULL literals a type

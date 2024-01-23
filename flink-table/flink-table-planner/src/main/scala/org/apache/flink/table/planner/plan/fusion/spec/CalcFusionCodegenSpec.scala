@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.plan.fusion.FusionCodegenUtil.{evaluateReq
 import org.apache.flink.table.planner.plan.fusion.OpFusionCodegenSpecBase
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.{toJava, toScala}
 
-import org.apache.calcite.rex.{RexInputRef, RexNode}
+import org.apache.calcite.rex.{RexInputRef, RexLocalRef, RexNode}
 
 import java.util
 
@@ -32,8 +32,9 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 /** The operator fusion codegen spec for Calc. */
 class CalcFusionCodegenSpec(
     opCodegenCtx: CodeGeneratorContext,
-    projection: Seq[RexNode],
-    condition: Option[RexNode])
+    expr: Seq[RexNode],
+    projection: Seq[RexLocalRef],
+    condition: Option[RexLocalRef])
   extends OpFusionCodegenSpecBase(opCodegenCtx) {
 
   override def variablePrefix: String = "calc"

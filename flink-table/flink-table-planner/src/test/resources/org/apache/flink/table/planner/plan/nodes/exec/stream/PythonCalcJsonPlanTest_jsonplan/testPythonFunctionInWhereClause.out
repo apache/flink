@@ -49,7 +49,7 @@
   }, {
     "id" : 2,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "BIGINT"
@@ -58,18 +58,35 @@
       "inputIndex" : 1,
       "type" : "INT NOT NULL"
     }, {
+      "kind" : "LITERAL",
+      "value" : 1,
+      "type" : "INT NOT NULL"
+    }, {
       "kind" : "CALL",
       "syntax" : "BINARY",
       "internalName" : "$+$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 1,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 1,
         "type" : "INT NOT NULL"
       }, {
-        "kind" : "LITERAL",
-        "value" : 1,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 2,
         "type" : "INT NOT NULL"
       } ],
+      "type" : "INT NOT NULL"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
       "type" : "INT NOT NULL"
     } ],
     "condition" : null,
@@ -119,7 +136,7 @@
   }, {
     "id" : 4,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "BIGINT"
@@ -127,10 +144,23 @@
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
       "type" : "INT NOT NULL"
-    } ],
-    "condition" : {
+    }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
+      "type" : "BOOLEAN NOT NULL"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "INT NOT NULL"
+    } ],
+    "condition" : {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
       "type" : "BOOLEAN NOT NULL"
     },
     "inputProperties" : [ {

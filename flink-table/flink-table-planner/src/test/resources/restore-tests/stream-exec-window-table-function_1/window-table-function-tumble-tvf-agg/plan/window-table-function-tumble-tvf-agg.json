@@ -92,18 +92,31 @@
   }, {
     "id" : 36,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "DECIMAL(10, 2)"
     }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
       "kind" : "CALL",
       "internalName" : "$TO_TIMESTAMP$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 1,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 1,
         "type" : "VARCHAR(2147483647)"
       } ],
+      "type" : "TIMESTAMP(3)"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "DECIMAL(10, 2)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
       "type" : "TIMESTAMP(3)"
     } ],
     "condition" : null,
@@ -188,6 +201,7 @@
       "timeAttributeIndex" : 1,
       "isRowtime" : true
     },
+    "needRetraction" : false,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -267,6 +281,7 @@
         }
       }
     } ],
+    "needRetraction" : false,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -293,13 +308,25 @@
   }, {
     "id" : 41,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "DECIMAL(38, 2)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "TIMESTAMP(3) NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "TIMESTAMP(3) NOT NULL"
+    }, {
       "kind" : "CALL",
       "syntax" : "SPECIAL",
       "internalName" : "$CAST$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 1,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 1,
         "type" : "TIMESTAMP(3) NOT NULL"
       } ],
       "type" : "TIMESTAMP(3)"
@@ -308,8 +335,8 @@
       "syntax" : "SPECIAL",
       "internalName" : "$CAST$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 2,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 2,
         "type" : "TIMESTAMP(3) NOT NULL"
       } ],
       "type" : "TIMESTAMP(3)"
@@ -318,10 +345,23 @@
       "syntax" : "SPECIAL",
       "internalName" : "$CAST$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 0,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 0,
         "type" : "DECIMAL(38, 2)"
       } ],
+      "type" : "DECIMAL(10, 2)"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
+      "type" : "TIMESTAMP(3)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 4,
+      "type" : "TIMESTAMP(3)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 5,
       "type" : "DECIMAL(10, 2)"
     } ],
     "condition" : null,

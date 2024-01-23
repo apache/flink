@@ -49,7 +49,7 @@ import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rex.RexNode
+import org.apache.calcite.rex.{RexLocalRef, RexNode}
 
 import java.util
 
@@ -517,8 +517,9 @@ object LookupJoinCodeGenerator {
   def generateCalcMapFunction(
       tableConfig: ReadableConfig,
       classLoader: ClassLoader,
-      projection: Seq[RexNode],
-      condition: RexNode,
+      expr: Seq[RexNode],
+      projection: Seq[RexLocalRef],
+      condition: RexLocalRef,
       outputType: RelDataType,
       tableSourceRowType: RowType): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
     CalcCodeGenerator.generateFunction(
@@ -526,6 +527,7 @@ object LookupJoinCodeGenerator {
       "TableCalcMapFunction",
       FlinkTypeFactory.toLogicalRowType(outputType),
       classOf[GenericRowData],
+      expr,
       projection,
       Option(condition),
       tableConfig,

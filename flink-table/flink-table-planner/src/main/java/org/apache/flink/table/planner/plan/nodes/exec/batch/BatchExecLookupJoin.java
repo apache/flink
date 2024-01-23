@@ -35,6 +35,7 @@ import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
 
@@ -54,8 +55,9 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin
             @Nullable RexNode remainingJoinCondition,
             TemporalTableSourceSpec temporalTableSourceSpec,
             Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
-            @Nullable List<RexNode> projectionOnTemporalTable,
-            @Nullable RexNode filterOnTemporalTable,
+            @Nullable List<RexNode> exprOnTemporalTable,
+            @Nullable List<RexLocalRef> projectionOnTemporalTable,
+            @Nullable RexLocalRef filterOnTemporalTable,
             @Nullable LookupJoinUtil.AsyncLookupOptions asyncLookupOptions,
             InputProperty inputProperty,
             RowType outputType,
@@ -69,6 +71,7 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin
                 remainingJoinCondition,
                 temporalTableSourceSpec,
                 lookupKeys,
+                exprOnTemporalTable,
                 projectionOnTemporalTable,
                 filterOnTemporalTable,
                 asyncLookupOptions,

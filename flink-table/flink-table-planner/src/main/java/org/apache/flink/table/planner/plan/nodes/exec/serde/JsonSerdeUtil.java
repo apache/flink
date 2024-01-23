@@ -65,6 +65,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexWindowBound;
 
@@ -174,6 +175,7 @@ public class JsonSerdeUtil {
         module.addDeserializer(RelDataType.class, new RelDataTypeJsonDeserializer());
         module.addDeserializer(RexNode.class, new RexNodeJsonDeserializer());
         module.addDeserializer(RexLiteral.class, (StdDeserializer) new RexNodeJsonDeserializer());
+        module.addDeserializer(RexLocalRef.class, (StdDeserializer) new RexNodeJsonDeserializer());
         module.addDeserializer(AggregateCall.class, new AggregateCallJsonDeserializer());
         module.addDeserializer(ChangelogMode.class, new ChangelogModeJsonDeserializer());
         module.addDeserializer(LogicalWindow.class, new LogicalWindowJsonDeserializer());

@@ -114,6 +114,7 @@
         "index" : 1
       }
     },
+    "exprOnTemporalTable" : null,
     "projectionOnTemporalTable" : null,
     "filterOnTemporalTable" : null,
     "lookupKeyContainsPrimaryKey" : true,
@@ -130,7 +131,7 @@
   }, {
     "id" : 3,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "INT"
@@ -157,6 +158,35 @@
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 7,
+      "type" : "INT"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "DOUBLE"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 4,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 5,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 6,
       "type" : "INT"
     } ],
     "condition" : null,

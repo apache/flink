@@ -86,22 +86,39 @@
   }, {
     "id" : 2,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT NOT NULL"
+    }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
       "type" : "BIGINT"
     }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
       "kind" : "CALL",
       "internalName" : "$TO_TIMESTAMP$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 2,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 2,
         "type" : "VARCHAR(2147483647)"
       } ],
       "type" : "TIMESTAMP(3)"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "BIGINT"
     }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 0,
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
+      "type" : "TIMESTAMP(3)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
       "type" : "INT NOT NULL"
     } ],
     "condition" : null,
@@ -161,7 +178,7 @@
   }, {
     "id" : 4,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "BIGINT"
@@ -178,18 +195,43 @@
       "inputIndex" : 2,
       "type" : "INT NOT NULL"
     }, {
+      "kind" : "LITERAL",
+      "value" : 1,
+      "type" : "INT NOT NULL"
+    }, {
       "kind" : "CALL",
       "syntax" : "BINARY",
       "internalName" : "$+$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 2,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 2,
         "type" : "INT NOT NULL"
       }, {
-        "kind" : "LITERAL",
-        "value" : 1,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 3,
         "type" : "INT NOT NULL"
       } ],
+      "type" : "INT NOT NULL"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : {
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "precision" : 3,
+        "kind" : "ROWTIME"
+      }
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 4,
       "type" : "INT NOT NULL"
     } ],
     "condition" : null,

@@ -37,38 +37,46 @@
   }, {
     "id" : 2,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "BIGINT"
-    }, {
-      "kind" : "CALL",
-      "syntax" : "SPECIAL",
-      "internalName" : "$CAST$1",
-      "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 0,
-        "type" : "BIGINT"
-      } ],
-      "type" : "VARCHAR(2147483647)"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
       "type" : "INT NOT NULL"
     }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "TIMESTAMP(3)"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 0,
+        "type" : "BIGINT"
+      } ],
+      "type" : "VARCHAR(2147483647)"
+    }, {
       "kind" : "CALL",
       "catalogName" : "`default_catalog`.`default_database`.`udf2`",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 1,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 1,
         "type" : "INT NOT NULL"
       }, {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 1,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 1,
         "type" : "INT NOT NULL"
       }, {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 3,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 3,
         "type" : "TIMESTAMP(3)"
       } ],
       "type" : "VARCHAR(2147483647)"
@@ -76,12 +84,37 @@
       "kind" : "CALL",
       "systemName" : "udf3",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 2,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 2,
         "type" : "VARCHAR(2147483647)"
       }, {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 1,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 1,
+        "type" : "INT NOT NULL"
+      } ],
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LITERAL",
+      "value" : 1,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "LITERAL",
+      "value" : 5,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "CALL",
+      "internalName" : "$SUBSTRING$1",
+      "operands" : [ {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 2,
+        "type" : "VARCHAR(2147483647)"
+      }, {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 7,
+        "type" : "INT NOT NULL"
+      }, {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 8,
         "type" : "INT NOT NULL"
       } ],
       "type" : "VARCHAR(2147483647)"
@@ -89,106 +122,167 @@
       "kind" : "CALL",
       "systemName" : "udf4",
       "operands" : [ {
-        "kind" : "CALL",
-        "internalName" : "$SUBSTRING$1",
-        "operands" : [ {
-          "kind" : "INPUT_REF",
-          "inputIndex" : 2,
-          "type" : "VARCHAR(2147483647)"
-        }, {
-          "kind" : "LITERAL",
-          "value" : 1,
-          "type" : "INT NOT NULL"
-        }, {
-          "kind" : "LITERAL",
-          "value" : 5,
-          "type" : "INT NOT NULL"
-        } ],
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 9,
         "type" : "VARCHAR(2147483647)"
       } ],
       "type" : "VARCHAR(2147483647)"
     }, {
+      "kind" : "LITERAL",
+      "value" : 1000,
+      "type" : "INT NOT NULL"
+    }, {
       "kind" : "CALL",
       "catalogName" : "`default_catalog`.`default_database`.`udf5`",
+      "class" : "org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$JavaFunc5",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 3,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 3,
         "type" : "TIMESTAMP(3)"
       }, {
-        "kind" : "LITERAL",
-        "value" : 1000,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 11,
         "type" : "INT NOT NULL"
       } ],
       "type" : "TIMESTAMP(3)"
-    } ],
-    "condition" : {
+    }, {
+      "kind" : "CALL",
+      "catalogName" : "`default_catalog`.`default_database`.`udf1`",
+      "operands" : [ {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 0,
+        "type" : "BIGINT"
+      } ],
+      "type" : "BIGINT NOT NULL"
+    }, {
+      "kind" : "LITERAL",
+      "value" : 0,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$>$1",
+      "operands" : [ {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 13,
+        "type" : "BIGINT NOT NULL"
+      }, {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 14,
+        "type" : "INT NOT NULL"
+      } ],
+      "type" : "BOOLEAN NOT NULL"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$*$1",
+      "operands" : [ {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 0,
+        "type" : "BIGINT"
+      }, {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 1,
+        "type" : "INT NOT NULL"
+      } ],
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LITERAL",
+      "value" : 100,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$<$1",
+      "operands" : [ {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 16,
+        "type" : "BIGINT"
+      }, {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 17,
+        "type" : "INT NOT NULL"
+      } ],
+      "type" : "BOOLEAN"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$OR$1",
+      "operands" : [ {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 15,
+        "type" : "BOOLEAN NOT NULL"
+      }, {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 18,
+        "type" : "BOOLEAN"
+      } ],
+      "type" : "BOOLEAN"
+    }, {
+      "kind" : "LITERAL",
+      "value" : 10,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$>$1",
+      "operands" : [ {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 1,
+        "type" : "INT NOT NULL"
+      }, {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 20,
+        "type" : "INT NOT NULL"
+      } ],
+      "type" : "BOOLEAN NOT NULL"
+    }, {
       "kind" : "CALL",
       "syntax" : "BINARY",
       "internalName" : "$AND$1",
       "operands" : [ {
-        "kind" : "CALL",
-        "syntax" : "BINARY",
-        "internalName" : "$OR$1",
-        "operands" : [ {
-          "kind" : "CALL",
-          "syntax" : "BINARY",
-          "internalName" : "$>$1",
-          "operands" : [ {
-            "kind" : "CALL",
-            "catalogName" : "`default_catalog`.`default_database`.`udf1`",
-            "operands" : [ {
-              "kind" : "INPUT_REF",
-              "inputIndex" : 0,
-              "type" : "BIGINT"
-            } ],
-            "type" : "BIGINT NOT NULL"
-          }, {
-            "kind" : "LITERAL",
-            "value" : 0,
-            "type" : "INT NOT NULL"
-          } ],
-          "type" : "BOOLEAN NOT NULL"
-        }, {
-          "kind" : "CALL",
-          "syntax" : "BINARY",
-          "internalName" : "$<$1",
-          "operands" : [ {
-            "kind" : "CALL",
-            "syntax" : "BINARY",
-            "internalName" : "$*$1",
-            "operands" : [ {
-              "kind" : "INPUT_REF",
-              "inputIndex" : 0,
-              "type" : "BIGINT"
-            }, {
-              "kind" : "INPUT_REF",
-              "inputIndex" : 1,
-              "type" : "INT NOT NULL"
-            } ],
-            "type" : "BIGINT"
-          }, {
-            "kind" : "LITERAL",
-            "value" : 100,
-            "type" : "INT NOT NULL"
-          } ],
-          "type" : "BOOLEAN"
-        } ],
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 19,
         "type" : "BOOLEAN"
       }, {
-        "kind" : "CALL",
-        "syntax" : "BINARY",
-        "internalName" : "$>$1",
-        "operands" : [ {
-          "kind" : "INPUT_REF",
-          "inputIndex" : 1,
-          "type" : "INT NOT NULL"
-        }, {
-          "kind" : "LITERAL",
-          "value" : 10,
-          "type" : "INT NOT NULL"
-        } ],
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 21,
         "type" : "BOOLEAN NOT NULL"
       } ],
+      "type" : "BOOLEAN"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 4,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 5,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 6,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 10,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 12,
+      "type" : "TIMESTAMP(3)"
+    } ],
+    "condition" : {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 22,
       "type" : "BOOLEAN"
     },
     "inputProperties" : [ {

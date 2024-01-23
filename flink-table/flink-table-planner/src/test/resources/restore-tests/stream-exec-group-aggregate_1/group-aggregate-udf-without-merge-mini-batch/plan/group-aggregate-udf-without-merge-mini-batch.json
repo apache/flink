@@ -61,13 +61,17 @@
   }, {
     "id" : 48,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "BIGINT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
+      "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
       "type" : "INT"
     }, {
       "kind" : "LITERAL",
@@ -82,10 +86,31 @@
       "syntax" : "SPECIAL",
       "internalName" : "$CAST$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 2,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 2,
         "type" : "INT"
       } ],
+      "type" : "BIGINT"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "INT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 4,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 5,
       "type" : "BIGINT"
     } ],
     "condition" : null,
@@ -140,6 +165,7 @@
     }, {
       "name" : "s3",
       "catalogName" : "`default_catalog`.`default_database`.`my_avg`",
+      "class" : "org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvg",
       "argList" : [ 0, 4 ],
       "filterArg" : -1,
       "distinct" : false,

@@ -46,7 +46,7 @@
   }, {
     "id" : 2,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "INT NOT NULL"
@@ -59,18 +59,39 @@
       "inputIndex" : 2,
       "type" : "INT NOT NULL"
     }, {
+      "kind" : "LITERAL",
+      "value" : 1,
+      "type" : "INT NOT NULL"
+    }, {
       "kind" : "CALL",
       "syntax" : "BINARY",
       "internalName" : "$>$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 0,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 0,
         "type" : "INT NOT NULL"
       }, {
-        "kind" : "LITERAL",
-        "value" : 1,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 3,
         "type" : "INT NOT NULL"
       } ],
+      "type" : "BOOLEAN NOT NULL"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 4,
       "type" : "BOOLEAN NOT NULL"
     } ],
     "condition" : null,
@@ -125,19 +146,32 @@
   }, {
     "id" : 5,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "BIGINT"
+    }, {
       "kind" : "CALL",
       "syntax" : "SPECIAL",
       "internalName" : "$CAST$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 0,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 0,
         "type" : "INT NOT NULL"
       } ],
       "type" : "BIGINT"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
+      "type" : "BIGINT"
     }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 1,
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
       "type" : "BIGINT"
     } ],
     "condition" : null,

@@ -69,7 +69,11 @@
   }, {
     "id" : 2,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "VARCHAR(2147483647)"
+    }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
       "type" : "VARCHAR(2147483647)"
@@ -85,10 +89,27 @@
       "kind" : "CALL",
       "internalName" : "$TO_TIMESTAMP$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 0,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 0,
         "type" : "VARCHAR(2147483647)"
       } ],
+      "type" : "TIMESTAMP(3)"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
+      "type" : "INT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 4,
       "type" : "TIMESTAMP(3)"
     } ],
     "condition" : null,
@@ -248,7 +269,7 @@
   }, {
     "id" : 6,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "VARCHAR(2147483647)"
@@ -267,6 +288,27 @@
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 5,
+      "type" : "TIMESTAMP(3) NOT NULL"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "INT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
+      "type" : "TIMESTAMP(3) NOT NULL"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 4,
       "type" : "TIMESTAMP(3) NOT NULL"
     } ],
     "condition" : null,
@@ -361,7 +403,11 @@
   }, {
     "id" : 9,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "VARCHAR(2147483647)"
+    }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
       "type" : "VARCHAR(2147483647)"
@@ -377,10 +423,27 @@
       "kind" : "CALL",
       "internalName" : "$TO_TIMESTAMP$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 0,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 0,
         "type" : "VARCHAR(2147483647)"
       } ],
+      "type" : "TIMESTAMP(3)"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
+      "type" : "INT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 4,
       "type" : "TIMESTAMP(3)"
     } ],
     "condition" : null,
@@ -540,7 +603,7 @@
   }, {
     "id" : 13,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "VARCHAR(2147483647)"
@@ -559,6 +622,27 @@
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 5,
+      "type" : "TIMESTAMP(3) NOT NULL"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "INT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
+      "type" : "TIMESTAMP(3) NOT NULL"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 4,
       "type" : "TIMESTAMP(3) NOT NULL"
     } ],
     "condition" : null,
@@ -645,19 +729,7 @@
   }, {
     "id" : 16,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 3,
-      "type" : "TIMESTAMP(3) NOT NULL"
-    }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 4,
-      "type" : "TIMESTAMP(3) NOT NULL"
-    }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 2,
-      "type" : "VARCHAR(2147483647)"
-    }, {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "VARCHAR(2147483647)"
@@ -667,11 +739,52 @@
       "type" : "INT"
     }, {
       "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "TIMESTAMP(3) NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : "TIMESTAMP(3) NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
       "inputIndex" : 5,
       "type" : "VARCHAR(2147483647)"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 6,
+      "type" : "INT"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
+      "type" : "TIMESTAMP(3) NOT NULL"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 4,
+      "type" : "TIMESTAMP(3) NOT NULL"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "INT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 5,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 6,
       "type" : "INT"
     } ],
     "condition" : null,

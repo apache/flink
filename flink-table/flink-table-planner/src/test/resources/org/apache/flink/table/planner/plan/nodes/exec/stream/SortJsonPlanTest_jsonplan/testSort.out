@@ -75,15 +75,20 @@
     "outputType" : "ROW<`a` BIGINT, `b` INT NOT NULL>",
     "description" : "Sort(orderBy=[b ASC])"
   }, {
-    "id" : 4,
+    "id": 4,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "BIGINT"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "BIGINT"
     }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 0,
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
       "type" : "BIGINT"
     } ],
     "condition" : null,

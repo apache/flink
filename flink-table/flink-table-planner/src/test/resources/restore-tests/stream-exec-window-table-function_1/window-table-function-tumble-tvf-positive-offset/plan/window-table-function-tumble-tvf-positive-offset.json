@@ -83,7 +83,11 @@
   }, {
     "id" : 44,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "VARCHAR(2147483647)"
+    }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
       "type" : "DECIMAL(10, 2)"
@@ -95,10 +99,23 @@
       "kind" : "CALL",
       "internalName" : "$TO_TIMESTAMP$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 0,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 0,
         "type" : "VARCHAR(2147483647)"
       } ],
+      "type" : "TIMESTAMP(3)"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "DECIMAL(10, 2)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
       "type" : "TIMESTAMP(3)"
     } ],
     "condition" : null,
@@ -218,21 +235,7 @@
   }, {
     "id" : 47,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
-      "kind" : "CALL",
-      "syntax" : "SPECIAL",
-      "internalName" : "$CAST$1",
-      "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 2,
-        "type" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "precision" : 3,
-          "kind" : "ROWTIME"
-        }
-      } ],
-      "type" : "TIMESTAMP(3)"
-    }, {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "DECIMAL(10, 2)"
@@ -241,12 +244,51 @@
       "inputIndex" : 1,
       "type" : "VARCHAR(2147483647)"
     }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : {
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "precision" : 3,
+        "kind" : "ROWTIME"
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "TIMESTAMP(3) NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : "TIMESTAMP(3) NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 5,
+      "type" : {
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "nullable" : false,
+        "precision" : 3,
+        "kind" : "ROWTIME"
+      }
+    }, {
       "kind" : "CALL",
       "syntax" : "SPECIAL",
       "internalName" : "$CAST$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 3,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 2,
+        "type" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ],
+      "type" : "TIMESTAMP(3)"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 3,
         "type" : "TIMESTAMP(3) NOT NULL"
       } ],
       "type" : "TIMESTAMP(3)"
@@ -255,8 +297,8 @@
       "syntax" : "SPECIAL",
       "internalName" : "$CAST$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 4,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 4,
         "type" : "TIMESTAMP(3) NOT NULL"
       } ],
       "type" : "TIMESTAMP(3)"
@@ -265,21 +307,50 @@
       "syntax" : "SPECIAL",
       "internalName" : "$CAST$1",
       "operands" : [ {
-        "kind" : "CALL",
-        "syntax" : "SPECIAL",
-        "internalName" : "$CAST$1",
-        "operands" : [ {
-          "kind" : "INPUT_REF",
-          "inputIndex" : 5,
-          "type" : {
-            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-            "nullable" : false,
-            "precision" : 3,
-            "kind" : "ROWTIME"
-          }
-        } ],
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 5,
+        "type" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ],
+      "type" : "TIMESTAMP(3) NOT NULL"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 9,
         "type" : "TIMESTAMP(3) NOT NULL"
       } ],
+      "type" : "TIMESTAMP(6) WITH LOCAL TIME ZONE"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 6,
+      "type" : "TIMESTAMP(3)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "DECIMAL(10, 2)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 7,
+      "type" : "TIMESTAMP(3)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 8,
+      "type" : "TIMESTAMP(3)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 10,
       "type" : "TIMESTAMP(6) WITH LOCAL TIME ZONE"
     } ],
     "condition" : null,

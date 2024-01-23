@@ -23,7 +23,7 @@ import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.functions.sql.SqlTryCastFunction
 import org.apache.flink.table.planner.plan.utils.ExpressionDetail.ExpressionDetail
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
-import org.apache.flink.table.planner.utils.{ShortcutUtils, TableConfigUtils}
+import org.apache.flink.table.planner.utils.{JavaScalaConversionUtil, ShortcutUtils, TableConfigUtils}
 
 import com.google.common.base.Function
 import com.google.common.collect.{ImmutableList, Lists}
@@ -46,6 +46,7 @@ import java.util.function.Predicate
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 /** Utility methods concerning [[RexNode]]. */
 object FlinkRexUtil {
@@ -366,6 +367,70 @@ object FlinkRexUtil {
       None
     }
     (projection, filter)
+  }
+
+  /**
+   * Eliminate unnecessary expressions by checking RexLocalRef expressions and reconstruct
+   * RexLocalRefs and overall expression lists
+   *
+   * @param program
+   *   RexProgram to be optimized
+   * @return
+   *   Return a triple consisting of new expression list, project list, and condition.
+   */
+  def optimizeExpressions(program: RexProgram): (Seq[RexNode], Seq[RexLocalRef], RexLocalRef) = {
+    val accessFinder = new AccessedLocalRefsFinder(program.getExprList)
+    val origExpresion = program.getExprList
+    val origProject = program.getProjectList
+    val origCondition = program.getCondition
+
+    origProject.forEach(e => e.accept(accessFinder))
+    if (program.getCondition != null) {
+      origCondition.accept(accessFinder)
+    }
+    val usedExprIndexes = accessFinder.getAccessedLocalRefs
+
+    val newIndexMapping = usedExprIndexes.zipWithIndex.toMap
+
+    def updateRexNode(node: RexNode): RexNode = node match {
+      case localRef: RexLocalRef =>
+        val newIdx = newIndexMapping(localRef.getIndex)
+        new RexLocalRef(newIdx, localRef.getType)
+      case call: RexCall =>
+        val updatedOperands = call.getOperands.map(updateRexNode)
+        call.clone(call.getType, updatedOperands)
+      case _ => node
+    }
+
+    val newExprs = origExpresion.zipWithIndex
+      .collect {
+        case (element, index) if newIndexMapping.contains(index) => element
+      }
+      .map(e => updateRexNode(e))
+
+    val newProjects = origProject.map(e => updateRexNode(e).asInstanceOf[RexLocalRef])
+    val newCondition =
+      if (origCondition == null) null else updateRexNode(origCondition).asInstanceOf[RexLocalRef]
+
+    (newExprs, newProjects, newCondition)
+  }
+
+  class AccessedLocalRefsFinder(expressions: java.util.List[RexNode])
+    extends RexVisitorImpl[Unit](true) {
+    private val accessedLocalRefs: scala.collection.mutable.ListBuffer[Int] =
+      scala.collection.mutable.ListBuffer()
+    override def visitLocalRef(localRef: RexLocalRef): Unit = {
+      val idx = localRef.getIndex
+      accessedLocalRefs += idx
+      val accessExpr = expressions(idx)
+      accessExpr.accept(this)
+    }
+
+    def getAccessedLocalRefs: Seq[Int] = {
+      val array = accessedLocalRefs.toArray
+      scala.util.Sorting.quickSort(array)
+      return ListBuffer(array.distinct: _*)
+    }
   }
 
   /** Expands the SEARCH into normal disjunctions recursively. */

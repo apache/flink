@@ -121,24 +121,41 @@
   }, {
     "id" : 15,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "INT"
-    } ],
-    "condition" : {
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LITERAL",
+      "value" : 2,
+      "type" : "BIGINT NOT NULL"
+    }, {
       "kind" : "CALL",
       "syntax" : "BINARY",
       "internalName" : "$=$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 1,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 1,
         "type" : "BIGINT"
       }, {
-        "kind" : "LITERAL",
-        "value" : 2,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 2,
         "type" : "BIGINT NOT NULL"
       } ],
+      "type" : "BOOLEAN"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "INT"
+    } ],
+    "condition" : {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
       "type" : "BOOLEAN"
     },
     "inputProperties" : [ {

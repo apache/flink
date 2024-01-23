@@ -28,45 +28,58 @@
   }, {
     "id" : 2,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "INT"
-    } ],
-    "condition" : {
+    }, {
+      "kind" : "LITERAL",
+      "sarg" : {
+        "ranges" : [ {
+          "lower" : {
+            "value" : 1,
+            "boundType" : "CLOSED"
+          },
+          "upper" : {
+            "value" : 1,
+            "boundType" : "CLOSED"
+          }
+        }, {
+          "lower" : {
+            "value" : 2,
+            "boundType" : "CLOSED"
+          },
+          "upper" : {
+            "value" : 2,
+            "boundType" : "CLOSED"
+          }
+        } ],
+        "nullAs" : "TRUE"
+      },
+      "type" : "INT NOT NULL"
+    }, {
       "kind" : "CALL",
       "syntax" : "INTERNAL",
       "internalName" : "$SEARCH$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 0,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 0,
         "type" : "INT"
       }, {
-        "kind" : "LITERAL",
-        "sarg" : {
-          "ranges" : [ {
-            "lower" : {
-              "value" : 1,
-              "boundType" : "CLOSED"
-            },
-            "upper" : {
-              "value" : 1,
-              "boundType" : "CLOSED"
-            }
-          }, {
-            "lower" : {
-              "value" : 2,
-              "boundType" : "CLOSED"
-            },
-            "upper" : {
-              "value" : 2,
-              "boundType" : "CLOSED"
-            }
-          } ],
-          "nullAs" : "TRUE"
-        },
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 1,
         "type" : "INT NOT NULL"
       } ],
+      "type" : "BOOLEAN NOT NULL"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "INT"
+    } ],
+    "condition" : {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
       "type" : "BOOLEAN NOT NULL"
     },
     "inputProperties" : [ {

@@ -63,13 +63,22 @@
   }, {
     "id" : 2,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "INT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
       "type" : "VARCHAR(2147483647)"
     } ],
     "condition" : null,

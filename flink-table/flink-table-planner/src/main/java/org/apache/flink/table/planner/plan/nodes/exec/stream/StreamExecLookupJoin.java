@@ -57,6 +57,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInc
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
 
@@ -104,8 +105,9 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
             @Nullable RexNode remainingJoinCondition,
             TemporalTableSourceSpec temporalTableSourceSpec,
             Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
-            @Nullable List<RexNode> projectionOnTemporalTable,
-            @Nullable RexNode filterOnTemporalTable,
+            @Nullable List<RexNode> exprOnTemporalTable,
+            @Nullable List<RexLocalRef> projectionOnTemporalTable,
+            @Nullable RexLocalRef filterOnTemporalTable,
             boolean lookupKeyContainsPrimaryKey,
             boolean upsertMaterialize,
             @Nullable LookupJoinUtil.AsyncLookupOptions asyncLookupOptions,
@@ -123,6 +125,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
                 remainingJoinCondition,
                 temporalTableSourceSpec,
                 lookupKeys,
+                exprOnTemporalTable,
                 projectionOnTemporalTable,
                 filterOnTemporalTable,
                 lookupKeyContainsPrimaryKey,
@@ -151,10 +154,12 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
             @JsonProperty(FIELD_NAME_TEMPORAL_TABLE)
                     TemporalTableSourceSpec temporalTableSourceSpec,
             @JsonProperty(FIELD_NAME_LOOKUP_KEYS) Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
+            @JsonProperty(FIELD_NAME_EXPR_ON_TEMPORAL_TABLE) @Nullable
+                    List<RexNode> exprOnTemporalTable,
             @JsonProperty(FIELD_NAME_PROJECTION_ON_TEMPORAL_TABLE) @Nullable
-                    List<RexNode> projectionOnTemporalTable,
+                    List<RexLocalRef> projectionOnTemporalTable,
             @JsonProperty(FIELD_NAME_FILTER_ON_TEMPORAL_TABLE) @Nullable
-                    RexNode filterOnTemporalTable,
+                    RexLocalRef filterOnTemporalTable,
             @JsonProperty(FIELD_NAME_LOOKUP_KEY_CONTAINS_PRIMARY_KEY)
                     boolean lookupKeyContainsPrimaryKey,
             @JsonProperty(FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE) boolean upsertMaterialize,
@@ -177,6 +182,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
                 remainingJoinCondition,
                 temporalTableSourceSpec,
                 lookupKeys,
+                exprOnTemporalTable,
                 projectionOnTemporalTable,
                 filterOnTemporalTable,
                 asyncLookupOptions,

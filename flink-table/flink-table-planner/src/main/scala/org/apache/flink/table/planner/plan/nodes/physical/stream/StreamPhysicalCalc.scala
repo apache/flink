@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -44,17 +45,13 @@ class StreamPhysicalCalc(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
-    val projection = calcProgram.getProjectList.map(calcProgram.expandLocalRef)
-    val condition = if (calcProgram.getCondition != null) {
-      calcProgram.expandLocalRef(calcProgram.getCondition)
-    } else {
-      null
-    }
+    val optimizedExprs = FlinkRexUtil.optimizeExpressions(calcProgram)
 
     new StreamExecCalc(
       unwrapTableConfig(this),
-      projection,
-      condition,
+      optimizedExprs._1,
+      optimizedExprs._2,
+      optimizedExprs._3,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)

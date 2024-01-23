@@ -34,7 +34,7 @@
   }, {
     "id" : 12,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "INT"
@@ -46,20 +46,41 @@
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
       "type" : "INT"
-    } ],
-    "condition" : {
+    }, {
+      "kind" : "LITERAL",
+      "value" : 3,
+      "type" : "INT NOT NULL"
+    }, {
       "kind" : "CALL",
       "syntax" : "BINARY",
       "internalName" : "$>=$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 0,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 0,
         "type" : "INT"
       }, {
-        "kind" : "LITERAL",
-        "value" : 3,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 3,
         "type" : "INT NOT NULL"
       } ],
+      "type" : "BOOLEAN"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
+      "type" : "INT"
+    } ],
+    "condition" : {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 4,
       "type" : "BOOLEAN"
     },
     "inputProperties" : [ {
@@ -105,7 +126,7 @@
   }, {
     "id" : 14,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "INT"
@@ -117,20 +138,41 @@
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
       "type" : "INT"
-    } ],
-    "condition" : {
+    }, {
+      "kind" : "LITERAL",
+      "value" : 3,
+      "type" : "INT NOT NULL"
+    }, {
       "kind" : "CALL",
       "syntax" : "BINARY",
       "internalName" : "$<=$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 0,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 0,
         "type" : "INT"
       }, {
-        "kind" : "LITERAL",
-        "value" : 3,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 3,
         "type" : "INT NOT NULL"
       } ],
+      "type" : "BOOLEAN"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
+      "type" : "INT"
+    } ],
+    "condition" : {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 4,
       "type" : "BOOLEAN"
     },
     "inputProperties" : [ {

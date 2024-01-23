@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
@@ -47,8 +48,9 @@ public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowDa
 
     public BatchExecCalc(
             ReadableConfig tableConfig,
-            List<RexNode> projection,
-            @Nullable RexNode condition,
+            List<RexNode> expression,
+            List<RexLocalRef> projection,
+            @Nullable RexLocalRef condition,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -56,6 +58,7 @@ public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowDa
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecCalc.class),
                 ExecNodeContext.newPersistedConfig(BatchExecCalc.class, tableConfig),
+                expression,
                 projection,
                 condition,
                 TableStreamOperator.class,
@@ -84,6 +87,7 @@ public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowDa
                                         config,
                                         planner.getFlinkContext().getClassLoader(),
                                         parentCtx),
+                                JavaScalaConversionUtil.toScala(expression),
                                 JavaScalaConversionUtil.toScala(projection),
                                 JavaScalaConversionUtil.toScala(Optional.ofNullable(condition))));
         input.addOutput(1, calcGenerator);

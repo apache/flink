@@ -24,24 +24,37 @@
   }, {
     "id" : 2,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "INT"
     }, {
       "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 0,
+        "type" : "INT"
+      } ],
+      "type" : "BIGINT"
+    }, {
+      "kind" : "CALL",
       "catalogName" : "`default_catalog`.`default_database`.`udf1`",
       "operands" : [ {
-        "kind" : "CALL",
-        "syntax" : "SPECIAL",
-        "internalName" : "$CAST$1",
-        "operands" : [ {
-          "kind" : "INPUT_REF",
-          "inputIndex" : 0,
-          "type" : "INT"
-        } ],
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 1,
         "type" : "BIGINT"
       } ],
+      "type" : "BIGINT NOT NULL"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
       "type" : "BIGINT NOT NULL"
     } ],
     "condition" : null,

@@ -30,14 +30,10 @@
   }, {
     "id" : 2,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "INT"
-    }, {
-      "kind" : "LITERAL",
-      "value" : 2,
-      "type" : "BIGINT NOT NULL"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
@@ -45,6 +41,27 @@
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LITERAL",
+      "value" : 2,
+      "type" : "BIGINT NOT NULL"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
+      "type" : "BIGINT NOT NULL"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
       "type" : "VARCHAR(2147483647)"
     } ],
     "condition" : null,

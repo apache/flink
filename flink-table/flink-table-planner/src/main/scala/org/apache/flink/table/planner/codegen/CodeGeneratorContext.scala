@@ -35,12 +35,15 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.util.InstantiationUtil
 
+import org.apache.calcite.rex.{RexLocalRef, RexNode}
+
 import java.time.ZoneId
 import java.util.TimeZone
 import java.util.concurrent.atomic.AtomicLong
 import java.util.function.{Supplier => JSupplier}
 
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 /**
  * The context for code generator, maintaining various reusable statements that could be insert into
@@ -121,6 +124,13 @@ class CodeGeneratorContext(
   private val reusableConstructorStatements: mutable.LinkedHashSet[(String, String)] =
     mutable.LinkedHashSet[(String, String)]()
 
+  // mapping between RexNode and GeneratedExpressions
+  val reusableExpr: mutable.Map[RexNode, GeneratedExpression] =
+    mutable.Map[RexNode, GeneratedExpression]()
+
+  // list of all expressions
+  val allExpressions: mutable.MutableList[RexNode] = mutable.MutableList[RexNode]()
+
   // set of inner class definition statements that will be added only once
   private val reusableInnerClassDefinitionStatements: mutable.Map[String, String] =
     mutable.Map[String, String]()
@@ -167,6 +177,12 @@ class CodeGeneratorContext(
   // Getter
   // ---------------------------------------------------------------------------------
 
+  def getReusableRexNodeExpr(rexNode: RexNode): GeneratedExpression = {
+    rexNode match {
+      case localRef: RexLocalRef => reusableExpr(allExpressions(localRef.getIndex))
+      case _ => reusableExpr(rexNode)
+    }
+  }
   def getReusableInputUnboxingExprs(inputTerm: String, index: Int): Option[GeneratedExpression] =
     reusableInputUnboxingExprs.get((inputTerm, index))
 

@@ -38,6 +38,7 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
@@ -54,14 +55,18 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
 
     public static final String CALC_TRANSFORMATION = "calc";
 
+    public static final String FIELD_NAME_EXPRESSION = "expression";
     public static final String FIELD_NAME_PROJECTION = "projection";
     public static final String FIELD_NAME_CONDITION = "condition";
 
+    @JsonProperty(FIELD_NAME_EXPRESSION)
+    protected final List<RexNode> expression;
+
     @JsonProperty(FIELD_NAME_PROJECTION)
-    protected final List<RexNode> projection;
+    protected final List<RexLocalRef> projection;
 
     @JsonProperty(FIELD_NAME_CONDITION)
-    protected final @Nullable RexNode condition;
+    protected final @Nullable RexLocalRef condition;
 
     private final Class<?> operatorBaseClass;
     private final boolean retainHeader;
@@ -70,8 +75,9 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
             int id,
             ExecNodeContext context,
             ReadableConfig persistedConfig,
-            List<RexNode> projection,
-            @Nullable RexNode condition,
+            List<RexNode> expression,
+            List<RexLocalRef> projection,
+            @Nullable RexLocalRef condition,
             Class<?> operatorBaseClass,
             boolean retainHeader,
             List<InputProperty> inputProperties,
@@ -79,6 +85,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
             String description) {
         super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
+        this.expression = expression;
         this.projection = checkNotNull(projection);
         this.condition = condition;
         this.operatorBaseClass = checkNotNull(operatorBaseClass);
@@ -101,6 +108,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
                         ctx,
                         inputTransform,
                         (RowType) getOutputType(),
+                        JavaScalaConversionUtil.toScala(expression),
                         JavaScalaConversionUtil.toScala(projection),
                         JavaScalaConversionUtil.toScala(Optional.ofNullable(this.condition)),
                         retainHeader,

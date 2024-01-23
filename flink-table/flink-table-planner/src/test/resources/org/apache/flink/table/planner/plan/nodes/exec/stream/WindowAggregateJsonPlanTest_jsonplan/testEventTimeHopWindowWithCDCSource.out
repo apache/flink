@@ -85,9 +85,9 @@
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyCDCTable]], fields=[a, b, c])",
     "inputProperties" : [ ]
   }, {
-    "id" : 2,
+    "id": 2,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "INT"
@@ -103,10 +103,27 @@
       "kind" : "CALL",
       "internalName" : "$TO_TIMESTAMP$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 2,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 2,
         "type" : "VARCHAR(2147483647)"
       } ],
+      "type" : "TIMESTAMP(3)"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
       "type" : "TIMESTAMP(3)"
     } ],
     "condition" : null,
@@ -167,9 +184,13 @@
     },
     "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])"
   }, {
-    "id" : 4,
+    "id": 4,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT"
+    }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
       "type" : "BIGINT"
@@ -179,11 +200,28 @@
       "type" : "VARCHAR(2147483647)"
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 0,
+      "inputIndex" : 3,
+      "type" : {
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "precision" : 3,
+        "kind" : "ROWTIME"
+      }
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
       "type" : "INT"
     }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 3,
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
       "type" : {
         "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
         "precision" : 3,
@@ -384,9 +422,9 @@
     "outputType" : "ROW<`b` BIGINT, `EXPR$1` BIGINT NOT NULL, `EXPR$2` INT, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL>",
     "description" : "GlobalWindowAggregate(groupBy=[b], window=[HOP(slice_end=[$slice_end], size=[10 s], slide=[5 s])], select=[b, COUNT_RETRACT(count$0) AS EXPR$1, SUM_RETRACT((sum$1, count$2)) AS EXPR$2, COUNT_RETRACT(count1$3) AS window_start, start('w$) AS window_end])"
   }, {
-    "id" : 8,
+    "id": 8,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "BIGINT"
@@ -397,6 +435,19 @@
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
+      "type" : "INT"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "BIGINT NOT NULL"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
       "type" : "INT"
     } ],
     "condition" : null,

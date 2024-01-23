@@ -65,13 +65,15 @@ class BatchPhysicalLookupJoin(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
-    val (projectionOnTemporalTable, filterOnTemporalTable) = calcOnTemporalTable match {
-      case Some(program) =>
-        val (projection, filter) = FlinkRexUtil.expandRexProgram(program)
-        (JavaScalaConversionUtil.toJava(projection), filter.orNull)
-      case _ =>
-        (null, null)
-    }
+
+    val (exprOnTemporalTable, projectionOnTemporalTable, filterOnTemporalTable) =
+      calcOnTemporalTable match {
+        case Some(program) =>
+          val optimizedExprs = FlinkRexUtil.optimizeExpressions(program)
+          (optimizedExprs._1, optimizedExprs._2, optimizedExprs._3)
+        case _ =>
+          (null, null, null)
+      }
 
     new BatchExecLookupJoin(
       tableConfig,
@@ -80,7 +82,8 @@ class BatchPhysicalLookupJoin(
       finalRemainingCondition.orNull,
       new TemporalTableSourceSpec(temporalTable),
       allLookupKeys.map(item => (Int.box(item._1), item._2)).asJava,
-      projectionOnTemporalTable,
+      JavaScalaConversionUtil.toJava(exprOnTemporalTable),
+      JavaScalaConversionUtil.toJava(projectionOnTemporalTable),
       filterOnTemporalTable,
       asyncOptions.orNull,
       InputProperty.DEFAULT,

@@ -138,9 +138,14 @@
   }, {
     "id" : 96,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
       "type" : "VARCHAR(2147483647)"
     } ],
     "condition" : null,

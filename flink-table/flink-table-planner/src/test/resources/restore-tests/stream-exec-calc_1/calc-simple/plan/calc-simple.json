@@ -27,23 +27,40 @@
   }, {
     "id" : 2,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
-      "kind" : "CALL",
-      "syntax" : "BINARY",
-      "internalName" : "$+$1",
-      "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 0,
-        "type" : "BIGINT"
-      }, {
-        "kind" : "LITERAL",
-        "value" : 1,
-        "type" : "INT NOT NULL"
-      } ],
+    "expression" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
       "type" : "BIGINT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
+      "type" : "DOUBLE"
+    }, {
+      "kind" : "LITERAL",
+      "value" : 1,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$+$1",
+      "operands" : [ {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 0,
+        "type" : "BIGINT"
+      }, {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 2,
+        "type" : "INT NOT NULL"
+      } ],
+      "type" : "BIGINT"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
       "type" : "DOUBLE"
     } ],
     "condition" : null,

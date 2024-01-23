@@ -109,9 +109,9 @@
     },
     "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])"
   }, {
-    "id" : 3,
+    "id": 3,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "INT"
@@ -124,8 +124,8 @@
       "syntax" : "SPECIAL",
       "internalName" : "$CAST$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 0,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 0,
         "type" : "INT"
       } ],
       "type" : "BIGINT"
@@ -133,6 +133,28 @@
       "kind" : "CALL",
       "internalName" : "$PROCTIME$1",
       "operands" : [ ],
+      "type" : {
+        "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+        "nullable" : false,
+        "precision" : 3,
+        "kind" : "PROCTIME"
+      }
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
       "type" : {
         "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
         "nullable" : false,
@@ -307,43 +329,76 @@
     },
     "description" : "OverAggregate(partitionBy=[a], orderBy=[$3 ASC], window=[ ROWS BETWEEN 4 PRECEDING AND CURRENT ROW], select=[a, c, $2, $3, COUNT(c) AS w0$o0, $SUM0(c) AS w0$o1, MIN(c) AS w0$o2])"
   }, {
-    "id" : 6,
+    "id": 6,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : "BIGINT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 5,
+      "type" : "BIGINT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 6,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LITERAL",
+      "value" : 0,
+      "type" : "BIGINT NOT NULL"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$>$1",
+      "operands" : [ {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 1,
+        "type" : "BIGINT NOT NULL"
+      }, {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 4,
+        "type" : "BIGINT NOT NULL"
+      } ],
+      "type" : "BOOLEAN NOT NULL"
+    }, {
+      "kind" : "LITERAL",
+      "value" : null,
       "type" : "BIGINT"
     }, {
       "kind" : "CALL",
       "syntax" : "SPECIAL",
       "internalName" : "$CASE$1",
       "operands" : [ {
-        "kind" : "CALL",
-        "syntax" : "BINARY",
-        "internalName" : "$>$1",
-        "operands" : [ {
-          "kind" : "INPUT_REF",
-          "inputIndex" : 4,
-          "type" : "BIGINT NOT NULL"
-        }, {
-          "kind" : "LITERAL",
-          "value" : 0,
-          "type" : "BIGINT NOT NULL"
-        } ],
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 5,
         "type" : "BOOLEAN NOT NULL"
       }, {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 5,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 2,
         "type" : "BIGINT NOT NULL"
       }, {
-        "kind" : "LITERAL",
-        "value" : null,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 6,
         "type" : "BIGINT"
       } ],
       "type" : "BIGINT"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "BIGINT"
     }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 6,
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 7,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
       "type" : "BIGINT"
     } ],
     "condition" : null,

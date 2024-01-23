@@ -84,6 +84,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.tools.RelBuilder;
@@ -96,6 +97,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
@@ -149,6 +151,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
     public static final String FIELD_NAME_REMAINING_JOIN_CONDITION = "joinCondition";
     public static final String FIELD_NAME_TEMPORAL_TABLE = "temporalTable";
     public static final String FIELD_NAME_LOOKUP_KEYS = "lookupKeys";
+    public static final String FIELD_NAME_EXPR_ON_TEMPORAL_TABLE = "exprOnTemporalTable";
     public static final String FIELD_NAME_PROJECTION_ON_TEMPORAL_TABLE =
             "projectionOnTemporalTable";
     public static final String FIELD_NAME_FILTER_ON_TEMPORAL_TABLE = "filterOnTemporalTable";
@@ -171,11 +174,14 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
     @JsonProperty(FIELD_NAME_TEMPORAL_TABLE)
     private final TemporalTableSourceSpec temporalTableSourceSpec;
 
+    @JsonProperty(FIELD_NAME_EXPR_ON_TEMPORAL_TABLE)
+    private final @Nullable List<RexNode> exprOnTemporalTable;
+
     @JsonProperty(FIELD_NAME_PROJECTION_ON_TEMPORAL_TABLE)
-    private final @Nullable List<RexNode> projectionOnTemporalTable;
+    private final @Nullable List<RexLocalRef> projectionOnTemporalTable;
 
     @JsonProperty(FIELD_NAME_FILTER_ON_TEMPORAL_TABLE)
-    private final @Nullable RexNode filterOnTemporalTable;
+    private final @Nullable RexLocalRef filterOnTemporalTable;
 
     /** pre-filter condition on left input except lookup keys. */
     @JsonProperty(FIELD_NAME_PRE_FILTER_CONDITION)
@@ -207,8 +213,9 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
             // TODO: refactor this into TableSourceTable, once legacy TableSource is removed
             TemporalTableSourceSpec temporalTableSourceSpec,
             Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
-            @Nullable List<RexNode> projectionOnTemporalTable,
-            @Nullable RexNode filterOnTemporalTable,
+            @Nullable List<RexNode> exprOnTemporalTable,
+            @Nullable List<RexLocalRef> projectionOnTemporalTable,
+            @Nullable RexLocalRef filterOnTemporalTable,
             @Nullable LookupJoinUtil.AsyncLookupOptions asyncLookupOptions,
             @Nullable LookupJoinUtil.RetryLookupOptions retryOptions,
             ChangelogMode inputChangelogMode,
@@ -222,6 +229,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
         this.remainingJoinCondition = remainingJoinCondition;
         this.lookupKeys = Collections.unmodifiableMap(checkNotNull(lookupKeys));
         this.temporalTableSourceSpec = checkNotNull(temporalTableSourceSpec);
+        this.exprOnTemporalTable = exprOnTemporalTable;
         this.projectionOnTemporalTable = projectionOnTemporalTable;
         this.filterOnTemporalTable = filterOnTemporalTable;
         this.inputChangelogMode = inputChangelogMode;
@@ -434,6 +442,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                     LookupJoinCodeGenerator.generateCalcMapFunction(
                             config,
                             classLoader,
+                            JavaScalaConversionUtil.toScala(exprOnTemporalTable),
                             JavaScalaConversionUtil.toScala(projectionOnTemporalTable),
                             filterOnTemporalTable,
                             projectionOutputRelDataType,
@@ -502,9 +511,16 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
     }
 
     protected RelDataType getProjectionOutputRelDataType(RelBuilder relBuilder) {
-        return projectionOnTemporalTable != null
-                ? RexUtil.createStructType(unwrapTypeFactory(relBuilder), projectionOnTemporalTable)
-                : null;
+        if (projectionOnTemporalTable == null) {
+            return null;
+        } else {
+            List<RexNode> projectRexNodes =
+                    projectionOnTemporalTable.stream()
+                            .map(localRef -> exprOnTemporalTable.get(localRef.getIndex()))
+                            .collect(Collectors.toList());
+
+            return RexUtil.createStructType(unwrapTypeFactory(relBuilder), projectRexNodes);
+        }
     }
 
     protected RowType getRightOutputRowType(
@@ -570,6 +586,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                     LookupJoinCodeGenerator.generateCalcMapFunction(
                             config,
                             classLoader,
+                            JavaScalaConversionUtil.toScala(exprOnTemporalTable),
                             JavaScalaConversionUtil.toScala(projectionOnTemporalTable),
                             filterOnTemporalTable,
                             projectionOutputRelDataType,

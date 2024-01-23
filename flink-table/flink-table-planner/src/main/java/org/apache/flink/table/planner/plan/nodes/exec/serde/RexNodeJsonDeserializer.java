@@ -90,6 +90,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSe
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_INPUT_INDEX;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_INTERNAL_NAME;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_KIND;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_LOCAL_REF_INDEX;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_NAME;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_NULL_AS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_OPERANDS;
@@ -106,6 +107,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSe
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.KIND_FIELD_ACCESS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.KIND_INPUT_REF;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.KIND_LITERAL;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.KIND_LOCAL_REF;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.KIND_PATTERN_INPUT_REF;
 import static org.apache.flink.table.planner.typeutils.SymbolUtil.serializableToCalcite;
 
@@ -146,6 +148,8 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
                 return deserializePatternFieldRef(jsonNode, serdeContext);
             case KIND_CALL:
                 return deserializeCall(jsonNode, serdeContext);
+            case KIND_LOCAL_REF:
+                return deserializeLocalRef(jsonNode, serdeContext);
             default:
                 throw new TableException("Cannot convert to RexNode: " + jsonNode.toPrettyString());
         }
@@ -157,6 +161,14 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
         final RelDataType fieldType =
                 RelDataTypeJsonDeserializer.deserialize(logicalTypeNode, serdeContext);
         return serdeContext.getRexBuilder().makeInputRef(fieldType, inputIndex);
+    }
+
+    private static RexNode deserializeLocalRef(JsonNode jsonNode, SerdeContext serdeContext) {
+        final int localRedInputIndex = jsonNode.required(FIELD_NAME_LOCAL_REF_INDEX).intValue();
+        final JsonNode logicalTypeNode = jsonNode.required(FIELD_NAME_TYPE);
+        final RelDataType fieldType =
+                RelDataTypeJsonDeserializer.deserialize(logicalTypeNode, serdeContext);
+        return serdeContext.getRexBuilder().makeLocalRef(fieldType, localRedInputIndex);
     }
 
     private static RexNode deserializeLiteral(JsonNode jsonNode, SerdeContext serdeContext) {

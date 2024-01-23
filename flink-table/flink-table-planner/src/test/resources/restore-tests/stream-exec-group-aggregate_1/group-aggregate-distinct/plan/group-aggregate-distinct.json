@@ -45,7 +45,7 @@
   }, {
     "id" : 16,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "BIGINT"
@@ -54,32 +54,61 @@
       "inputIndex" : 1,
       "type" : "INT"
     }, {
-      "kind" : "CALL",
-      "syntax" : "POSTFIX",
-      "internalName" : "$IS TRUE$1",
-      "operands" : [ {
-        "kind" : "CALL",
-        "syntax" : "BINARY",
-        "internalName" : "$>$1",
-        "operands" : [ {
-          "kind" : "INPUT_REF",
-          "inputIndex" : 2,
-          "type" : "BIGINT"
-        }, {
-          "kind" : "LITERAL",
-          "value" : 10,
-          "type" : "INT NOT NULL"
-        } ],
-        "type" : "BOOLEAN"
-      } ],
-      "type" : "BOOLEAN NOT NULL"
-    }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
       "type" : "BIGINT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 3,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "LITERAL",
+      "value" : 10,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$>$1",
+      "operands" : [ {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 2,
+        "type" : "BIGINT"
+      }, {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 4,
+        "type" : "INT NOT NULL"
+      } ],
+      "type" : "BOOLEAN"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "POSTFIX",
+      "internalName" : "$IS TRUE$1",
+      "operands" : [ {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 5,
+        "type" : "BOOLEAN"
+      } ],
+      "type" : "BOOLEAN NOT NULL"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 1,
+      "type" : "INT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 6,
+      "type" : "BOOLEAN NOT NULL"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 2,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 3,
       "type" : "VARCHAR(2147483647)"
     } ],
     "condition" : null,
@@ -191,51 +220,71 @@
   }, {
     "id" : 19,
     "type" : "stream-exec-calc_1",
-    "projection" : [ {
+    "expression" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "BIGINT"
     }, {
-      "kind" : "CALL",
-      "syntax" : "SPECIAL",
-      "internalName" : "$CAST$1",
-      "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 1,
-        "type" : "BIGINT NOT NULL"
-      } ],
-      "type" : "BIGINT"
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "BIGINT NOT NULL"
     }, {
-      "kind" : "CALL",
-      "syntax" : "SPECIAL",
-      "internalName" : "$CAST$1",
-      "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 2,
-        "type" : "BIGINT NOT NULL"
-      } ],
-      "type" : "BIGINT"
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "BIGINT NOT NULL"
     }, {
-      "kind" : "CALL",
-      "syntax" : "SPECIAL",
-      "internalName" : "$CAST$1",
-      "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 3,
-        "type" : "INT"
-      } ],
-      "type" : "BIGINT"
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "INT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 4,
       "type" : "BIGINT"
     }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 5,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 6,
+      "type" : "BIGINT NOT NULL"
+    }, {
       "kind" : "CALL",
       "syntax" : "SPECIAL",
       "internalName" : "$CAST$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 5,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 1,
+        "type" : "BIGINT NOT NULL"
+      } ],
+      "type" : "BIGINT"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 2,
+        "type" : "BIGINT NOT NULL"
+      } ],
+      "type" : "BIGINT"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 3,
+        "type" : "INT"
+      } ],
+      "type" : "BIGINT"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 5,
         "type" : "BIGINT"
       } ],
       "type" : "DOUBLE"
@@ -244,10 +293,39 @@
       "syntax" : "SPECIAL",
       "internalName" : "$CAST$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 6,
+        "kind" : "LOCAL_REF",
+        "localRefIndex" : 6,
         "type" : "BIGINT NOT NULL"
       } ],
+      "type" : "BIGINT"
+    } ],
+    "projection" : [ {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 7,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 8,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 9,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 4,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 10,
+      "type" : "DOUBLE"
+    }, {
+      "kind" : "LOCAL_REF",
+      "localRefIndex" : 11,
       "type" : "BIGINT"
     } ],
     "condition" : null,
