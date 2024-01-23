@@ -33,7 +33,6 @@ import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.planner.plan.logical.SessionWindowSpec;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
-import org.apache.flink.table.planner.plan.logical.WindowSpec;
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -170,8 +169,10 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
     @Override
     protected Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
-        if (shouldFallbackToGroupWindowAgg(windowing.getWindow())) {
-            return fallbackToGroupWindowAggregate(planner, config);
+        // TODO Currently, the operator of WindowAggregate does not support Session Window, and it
+        //  needs to fall back to the legacy GroupWindowAggregate. See more at FLINK-34048.
+        if (windowing.getWindow() instanceof SessionWindowSpec) {
+            return fallbackToLegacyGroupWindowAggregate(planner, config);
         }
 
         final ExecEdge inputEdge = getInputEdges().get(0);
@@ -277,15 +278,7 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
                 shiftTimeZone);
     }
 
-    /**
-     * TODO Currently, the operator of WindowAggregate does not support Session Window, and it needs
-     * to fall back to the legacy GroupWindowAggregate. See more at FLINK-34048.
-     */
-    private boolean shouldFallbackToGroupWindowAgg(WindowSpec windowSpec) {
-        return windowSpec instanceof SessionWindowSpec;
-    }
-
-    private Transformation<RowData> fallbackToGroupWindowAggregate(
+    private Transformation<RowData> fallbackToLegacyGroupWindowAggregate(
             PlannerBase planner, ExecNodeConfig config) {
         Preconditions.checkState(windowing.getWindow() instanceof SessionWindowSpec);
 

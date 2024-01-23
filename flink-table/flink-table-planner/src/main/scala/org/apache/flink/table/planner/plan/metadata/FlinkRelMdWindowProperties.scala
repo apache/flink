@@ -94,8 +94,7 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
     }
 
     val windowSpec = childProps.getWindowSpec
-    // if the window a
-    if (!validateWindowProperties(windowSpec, mapInToOutPos)) {
+    if (!validWindowProperties(windowSpec, mapInToOutPos)) {
       // If the window becomes illegal after passing through calc or project,
       // return no window properties
       return null
@@ -112,10 +111,10 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
   /**
    * Validate the window properties when passing through calc or project.
    *
-   * This method only checks the window that contains partition keys like session window. See more
+   * This method only checks the window like session window that contains partition keys. See more
    * at [[WindowUtil.validatePartitionKeyIfNecessary]]
    */
-  private def validateWindowProperties(
+  private def validWindowProperties(
       windowSpec: WindowSpec,
       mapInToOutPos: JHashMap[Int, JList[Int]]): Boolean = {
     windowSpec match {
@@ -136,7 +135,7 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
         val newPartitionKeys = oldPartitionKeys.map(
           oldPartitionKey => {
             val newPartitionKey = mapInToOutPos.get(oldPartitionKey)
-            Preconditions.checkState(newPartitionKey.size == 1)
+            Preconditions.checkArgument(newPartitionKey.size == 1)
             newPartitionKey.head
           })
         new SessionWindowSpec(session.getGap, newPartitionKeys)

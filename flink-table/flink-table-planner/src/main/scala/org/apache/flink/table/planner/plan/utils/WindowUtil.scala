@@ -245,7 +245,7 @@ object WindowUtil {
             val gap = getOperandAsLong(windowCall.operands(1))
             new SessionWindowSpec(
               Duration.ofMillis(gap),
-              windowCall.asInstanceOf[RexSetSemanticsTableCall].getPartitionKeys.toArray)
+              windowCall.asInstanceOf[RexSetSemanticsTableCall].getPartitionKeys)
           // without syntax partition key
           case _ =>
             val gap = getOperandAsLong(windowCall.operands(1))
@@ -266,7 +266,7 @@ object WindowUtil {
       case FlinkSqlOperatorTable.SESSION =>
         windowCall match {
           case setSemanticsTableCall: RexSetSemanticsTableCall =>
-            setSemanticsTableCall.getPartitionKeys.toArray
+            setSemanticsTableCall.getPartitionKeys
           case _ => Array.empty
         }
       case _ =>
@@ -354,13 +354,13 @@ object WindowUtil {
    * For proctime window, we should also check if it exists a neighbour windowTableFunctionCall.
    *
    * If the window is a session window, we should also check if the partition keys are the same as
-   * the group keys. See more at [[WindowUtil.validateGroupKeyPartitionKeyIfNecessary()]].
+   * the group keys. See more at [[WindowUtil.validGroupKeyPartitionKey()]].
    */
   def isValidWindowAggregate(agg: FlinkLogicalAggregate): Boolean = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(agg.getCluster.getMetadataQuery)
     val windowProperties = fmq.getRelWindowProperties(agg.getInput)
     val grouping = agg.getGroupSet
-    if (!validateGroupKeyPartitionKeyIfNecessary(grouping, windowProperties)) {
+    if (!validGroupKeyPartitionKey(grouping, windowProperties)) {
       return false
     }
     if (WindowUtil.groupingContainsWindowStartEnd(grouping, windowProperties)) {
@@ -435,7 +435,7 @@ object WindowUtil {
   }
 
   /**
-   * This method only checks the window that contains partition keys like session window. The
+   * This method only checks the window like session window that contains partition keys. The
    * partition keys in session window should be the same as the group keys in aggregate. If they are
    * different, the downstream will not be able to use window-related optimizations, and the window
    * table function scan will always be an isolated node.
@@ -468,7 +468,7 @@ object WindowUtil {
    * finally, because the data from source has been split, resolved and aggregated in different
    * subtasks in FlinkLogicalTableSourceScan with different partition keys.
    */
-  private def validateGroupKeyPartitionKeyIfNecessary(
+  private def validGroupKeyPartitionKey(
       grouping: ImmutableBitSet,
       windowProp: RelWindowProperties): Boolean = {
     if (windowProp == null) {

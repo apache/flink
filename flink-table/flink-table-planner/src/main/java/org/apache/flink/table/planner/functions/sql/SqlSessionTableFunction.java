@@ -43,8 +43,8 @@ import java.util.Map;
  *   <li>an interval parameter to specify a inactive activity gap to break sessions
  * </ol>
  *
- * <p>Mainly copy from [[{@link org.apache.calcite.sql.SqlSessionTableFunction}]]. FLINK
- * modifications are the following:
+ * <p>Mainly copy from {@link org.apache.calcite.sql.SqlSessionTableFunction}. FLINK modifications
+ * are the following:
  *
  * <ol>
  *   <li>Add some attributes required for PTF.

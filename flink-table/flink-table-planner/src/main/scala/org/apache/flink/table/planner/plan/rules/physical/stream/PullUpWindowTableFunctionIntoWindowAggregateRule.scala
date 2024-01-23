@@ -31,6 +31,7 @@ import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.{RelCollations, RelNode}
 import org.apache.calcite.util.ImmutableBitSet
 
+import scala.annotation.tailrec
 import scala.collection.JavaConversions._
 
 /**
@@ -153,6 +154,7 @@ class PullUpWindowTableFunctionIntoWindowAggregateRule
     call.transformTo(newWindowAgg)
   }
 
+  @tailrec
   private def unwrapRel(rel: RelNode): RelNode = {
     rel match {
       case relSubset: RelSubset =>

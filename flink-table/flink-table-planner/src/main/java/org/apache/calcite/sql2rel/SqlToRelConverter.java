@@ -240,7 +240,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   <li>Added in FLINK-28682: Lines 2376 ~ 2404
  *   <li>Added in FLINK-32474: Lines 2874 ~ 2886
  *   <li>Added in FLINK-32474: Lines 2986 ~ 3020
- *   <li>Added in FLINK-20873: Lines 5522 ~ 5531
+ *   <li>Added in FLINK-20873: Lines 5518 ~ 5527
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
@@ -1432,12 +1432,12 @@ public class SqlToRelConverter {
                 return;
             case SET_SEMANTICS_TABLE:
                 // ----- FLINK MODIFICATION BEGIN -----
-                // For two reasons, we always expand SET SEMANTICS TABLE
-                // 1. Calcite has a bug when not expanding the SET SEMANTICS TABLE. See more in
-                // CALCITE-6204.
-                // 2. Currently, Flink’s built-in Session Window TVF is the only SET SEMANTICS
-                // TABLE. We will expand it by default like other built-in window TVFs to reuse some
-                // subsequent processing logic and optimization logic.
+                // We always expand the SET SEMANTICS TABLE for two reasons:
+                // 1. Calcite has a bug when not expanding the SET SEMANTICS TABLE. For more
+                // information, see CALCITE-6204.
+                // 2. Currently, Flink’s built-in Session Window TVF is the only PTF with SET
+                // SEMANTICS. We will expand it by default, like other built-in window TVFs, to
+                // reuse some subsequent processing and optimization logic.
                 // if (!config.isExpand()) {
                 //     return;
                 // }
@@ -5364,11 +5364,6 @@ public class SqlToRelConverter {
                         root = convertQueryRecursive(query, false, null);
                         return RexSubQuery.multiset(root.rel);
 
-                        //                    case SET_SEMANTICS_TABLE:
-                        //                        call = (SqlCall) expr;
-                        //                        query = call.operand(0);
-                        //                        root = convertQueryRecursive(query, false, null);
-                        //                        return RexSubQuery.setSemanticsTable(root.rel);
                     default:
                         break;
                 }

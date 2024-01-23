@@ -43,6 +43,7 @@ import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -90,9 +91,7 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
         if (windowingStrategy.getWindow() instanceof SessionWindowSpec) {
             SessionWindowSpec sessionWindowSpec = (SessionWindowSpec) windowingStrategy.getWindow();
             int[] partitionKeyIndices = sessionWindowSpec.getPartitionKeyIndices();
-            for (int partitionKeyIndex : partitionKeyIndices) {
-                toPushFields = toPushFields.set(partitionKeyIndex);
-            }
+            toPushFields = toPushFields.union(ImmutableBitSet.of(partitionKeyIndices));
         }
         if (toPushFields.cardinality() == scanInputFieldCount) {
             return;
@@ -180,14 +179,10 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
         }
         if (windowCall instanceof RexSetSemanticsTableCall) {
             RexSetSemanticsTableCall originalCall = (RexSetSemanticsTableCall) windowCall;
-            ImmutableBitSet newPartitionKeys =
-                    originalCall.getPartitionKeys().toList().stream()
-                            .map(mapping::get)
-                            .collect(ImmutableBitSet.toImmutableBitSet());
-            ImmutableBitSet newOrderKeys =
-                    originalCall.getOrderKeys().toList().stream()
-                            .map(mapping::get)
-                            .collect(ImmutableBitSet.toImmutableBitSet());
+            int[] newPartitionKeys =
+                    Arrays.stream(originalCall.getPartitionKeys()).map(mapping::get).toArray();
+            int[] newOrderKeys =
+                    Arrays.stream(originalCall.getOrderKeys()).map(mapping::get).toArray();
             return originalCall.copy(newOperands, newPartitionKeys, newOrderKeys);
         }
         return relBuilder.call(windowCall.getOperator(), newOperands);

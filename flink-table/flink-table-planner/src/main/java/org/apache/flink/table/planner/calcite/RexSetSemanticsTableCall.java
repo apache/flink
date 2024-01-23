@@ -23,8 +23,8 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSyntax;
-import org.apache.calcite.util.ImmutableBitSet;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -34,42 +34,40 @@ import java.util.stream.Collectors;
  */
 public class RexSetSemanticsTableCall extends RexCall {
 
-    private final ImmutableBitSet partitionKeys;
+    private final int[] partitionKeys;
 
-    private final ImmutableBitSet orderKeys;
+    private final int[] orderKeys;
 
     public RexSetSemanticsTableCall(
             RelDataType type,
             SqlOperator operator,
             List<? extends RexNode> operands,
-            ImmutableBitSet partitionKeys,
-            ImmutableBitSet orderKeys) {
+            int[] partitionKeys,
+            int[] orderKeys) {
         super(type, operator, operands);
         this.partitionKeys = partitionKeys;
         this.orderKeys = orderKeys;
     }
 
-    public ImmutableBitSet getPartitionKeys() {
+    public int[] getPartitionKeys() {
         return partitionKeys;
     }
 
-    public ImmutableBitSet getOrderKeys() {
+    public int[] getOrderKeys() {
         return orderKeys;
     }
 
     @Override
     protected String computeDigest(boolean withType) {
-        final StringBuilder sb = new StringBuilder(op.getName());
         if ((operands.isEmpty()) && (op.getSyntax() == SqlSyntax.FUNCTION_ID)) {
-            // Don't print params for empty arg list. For example, we want
-            // "SYSTEM_USER", not "SYSTEM_USER()".
-        } else {
-            sb.append("(");
-            appendPartitionKeys(sb);
-            appendOrderKeys(sb);
-            appendOperands(sb);
-            sb.append(")");
+            return super.computeDigest(withType);
         }
+        final StringBuilder sb = new StringBuilder(op.getName());
+        sb.append("(");
+        appendKeys(partitionKeys, "PARTITION BY", sb);
+        appendKeys(orderKeys, "ORDER BY", sb);
+        appendOperands(sb);
+        sb.append(")");
         if (withType) {
             sb.append(":");
 
@@ -80,34 +78,15 @@ public class RexSetSemanticsTableCall extends RexCall {
         return sb.toString();
     }
 
-    private void appendPartitionKeys(StringBuilder sb) {
-        if (partitionKeys.isEmpty()) {
-            return;
-        }
-        sb.append("PARTITION BY(");
+    private void appendKeys(int[] keys, String prefix, StringBuilder sb) {
         sb.append(
-                partitionKeys.toList().stream()
-                        .map(key -> "$" + key)
-                        .collect(Collectors.joining(", ")));
-        sb.append("), ");
-    }
-
-    private void appendOrderKeys(StringBuilder sb) {
-        if (orderKeys.isEmpty()) {
-            return;
-        }
-        sb.append("ORDER BY(");
-        sb.append(
-                orderKeys.toList().stream()
-                        .map(key -> "$" + key)
-                        .collect(Collectors.joining(", ")));
-        sb.append("), ");
+                Arrays.stream(keys)
+                        .mapToObj(key -> "$" + key)
+                        .collect(Collectors.joining(",", prefix + "(", "), ")));
     }
 
     public RexSetSemanticsTableCall copy(
-            List<? extends RexNode> newOperands,
-            ImmutableBitSet newPartitionKeys,
-            ImmutableBitSet newOrderKeys) {
+            List<? extends RexNode> newOperands, int[] newPartitionKeys, int[] newOrderKeys) {
         return new RexSetSemanticsTableCall(type, op, newOperands, newPartitionKeys, newOrderKeys);
     }
 }
