@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
-import org.apache.flink.table.planner.hint.JoinStrategy
+import org.apache.flink.table.planner.hint.{FlinkHints, JoinStrategy}
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical._
@@ -81,7 +81,11 @@ object BatchPhysicalLookupJoinRule {
       .filter(hint => JoinStrategy.isShuffleHashHint(hint.hintName))
       .findFirst()
     // if partitioning enabled, use the join key as partition key
-    if (partitionJoinHint.isPresent && !joinInfo.pairs().isEmpty) {
+    if (
+      partitionJoinHint.isPresent &&
+      partitionJoinHint.get().listOptions.contains(FlinkHints.RIGHT_INPUT) &&
+      !joinInfo.pairs().isEmpty
+    ) {
       requiredTrait = requiredTrait.plus(FlinkRelDistribution.hash(joinInfo.leftKeys))
     }
     val convInput = RelOptRule.convert(input, requiredTrait)

@@ -330,7 +330,7 @@ In the example above, the Orders table is enriched with data from the Customers 
 Some lookup source connectors use cache to reduce RPC call times. In order to raise cache hit ratio for those connectors, user could use a hint to enable partitioned lookup join which enforces input of lookup join to hash shuffle by look up keys.
 
 ```sql
--- enable partitioned lookup join by shuffle hash hint
+-- enable partitioned lookup join by SHUFFLE_HASH hint
 SELECT /*+ SHUFFLE_HASH('c') */ o.order_id, o.total, c.country, c.zip
 FROM Orders AS o
   JOIN Customers FOR SYSTEM_TIME AS OF o.proc_time AS c ON o.customer_id = c.id

@@ -1002,6 +1002,15 @@ class LookupJoinTest(legacyTableSource: Boolean, partitionedJoin: Boolean)
     )
   }
 
+  @TestTemplate
+  def testIgnoreLeftSideShuffleHashHint(): Unit = {
+    assumeThat(partitionedJoin).isTrue
+    val sql = s"SELECT /*+ SHUFFLE_HASH('T') */ * FROM MyTable AS T JOIN LookupTable " +
+      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+
+    util.verifyExecPlan(sql)
+  }
+
   // ==========================================================================================
 
   private def createLookupTable(tableName: String, lookupFunction: UserDefinedFunction): Unit = {

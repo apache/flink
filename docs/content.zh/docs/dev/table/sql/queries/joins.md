@@ -327,7 +327,7 @@ FROM Orders AS o
 ### Hash Shuffle Lookup Join
 一些Lookup join source使用缓存来减少访问维表的次数。为了提高这些连接器的缓存命中率，用户可以使用一个SQL Hint来启用预分区能力，这会强制在Lookup Join之前，按Join key进行一次hash。
 ```sql
--- 使用shuffle hash hint开启 partitioned lookup join
+-- 使用SHUFFLE_HASH hint开启 partitioned lookup join
 SELECT /*+ SHUFFLE_HASH('c') */ o.order_id, o.total, c.country, c.zip
 FROM Orders AS o
   JOIN Customers FOR SYSTEM_TIME AS OF o.proc_time AS c ON o.customer_id = c.id
