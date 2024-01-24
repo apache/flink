@@ -21,6 +21,8 @@ package org.apache.flink.test.streaming.api.environment;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.client.cli.AbstractCustomCommandLine;
+import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.ClusterClientJobClientAdapter;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
@@ -34,6 +36,7 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.JobResult.Builder;
@@ -46,6 +49,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.commons.cli.CommandLine;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
@@ -116,6 +120,44 @@ public class RemoteStreamEnvironmentTest extends TestLogger {
         assertThat(actualResult.getJobID(), is(jobID));
         assertThat(
                 testExecutorServiceLoader.getActualSavepointRestoreSettings(), is(restoreSettings));
+    }
+
+    @Test
+    public void testRemoteExecutionWithSavepointSettingByDynamicProperties() throws Exception {
+        String savepointPath = "fakeRestoreSavepointPath";
+        RestoreMode restoreMode = RestoreMode.CLAIM;
+        boolean allowNonRestoredState = true;
+
+        SavepointRestoreSettings restoreSettings =
+                SavepointRestoreSettings.forPath(savepointPath, allowNonRestoredState, restoreMode);
+
+        final String[] args = {
+            String.format("-Dexecution.savepoint.ignore-unclaimed-state=%s", allowNonRestoredState),
+            String.format("-Dexecution.savepoint-restore-mode=%s", restoreMode),
+            String.format("-Dexecution.savepoint.path=%s", savepointPath)
+        };
+
+        final AbstractCustomCommandLine defaultCLI = new DefaultCLI();
+        final CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
+        Configuration clientConfiguration = defaultCLI.toConfiguration(commandLine);
+
+        JobID jobId = new JobID();
+        TestExecutorServiceLoader testExecutorServiceLoader = new TestExecutorServiceLoader(jobId);
+        final StreamExecutionEnvironment env =
+                new RemoteStreamEnvironment(
+                        testExecutorServiceLoader,
+                        "fakeHost",
+                        99,
+                        clientConfiguration,
+                        null,
+                        null,
+                        null);
+        env.fromData(1).map(x -> x * 2);
+
+        env.execute("fakeJobName");
+        SavepointRestoreSettings actualSavepointRestoreSettings =
+                testExecutorServiceLoader.getActualSavepointRestoreSettings();
+        assertThat(actualSavepointRestoreSettings, is(restoreSettings));
     }
 
     private static final class TestExecutorServiceLoader implements PipelineExecutorServiceLoader {

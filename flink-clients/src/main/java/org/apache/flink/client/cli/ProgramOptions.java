@@ -181,7 +181,17 @@ public class ProgramOptions extends CommandLineOptions {
         configuration.set(DeploymentOptions.SHUTDOWN_IF_ATTACHED, isShutdownOnAttachedExit());
         ConfigUtils.encodeCollectionToConfig(
                 configuration, PipelineOptions.CLASSPATHS, getClasspaths(), URL::toString);
-        SavepointRestoreSettings.toConfiguration(getSavepointRestoreSettings(), configuration);
+
+        SavepointRestoreSettings savepointRestoreSettings = getSavepointRestoreSettings();
+        // If users use "-s" option to set SavepointRestoreSettings, here we will translate the
+        // related config to the configuration map, these configs have higher priority than those
+        // in dynamic properties.
+        // However, if the CLI has no "-s" option, that is, the savepointRestoreSettings is none,
+        // we could not set the default config to the configuration, since users may set
+        // SavepointRestoreSettings by dynamic properties.
+        if (!SavepointRestoreSettings.none().equals(savepointRestoreSettings)) {
+            SavepointRestoreSettings.toConfiguration(savepointRestoreSettings, configuration);
+        }
     }
 
     public static ProgramOptions create(CommandLine line) throws CliArgsException {

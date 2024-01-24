@@ -21,7 +21,10 @@ package org.apache.flink.client.cli;
 import org.apache.flink.client.deployment.executors.LocalExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import org.junit.jupiter.api.AfterEach;
@@ -109,6 +112,108 @@ class CliFrontendITCase {
     }
 
     @Test
+    void commandlineForSettingSavepointRestoreParamsInDynamicProperties() throws Exception {
+        Configuration config = new Configuration();
+
+        // we use GenericCli because it allows specifying arbitrary options via "-Dfoo=bar" syntax
+        CustomCommandLine commandLine = new GenericCLI(config, "/dev/null");
+
+        CliFrontend cliFrontend = new CliFrontend(config, Collections.singletonList(commandLine));
+
+        String savepointPath = "execution.savepoint.path=expectedSavepointPath";
+        String allowNonState = "execution.savepoint.ignore-unclaimed-state=true";
+        String restoreMode = "execution.savepoint-restore-mode=CLAIM";
+        cliFrontend.parseAndRun(
+                new String[] {
+                    "run",
+                    "-t",
+                    LocalExecutor.NAME,
+                    "-c",
+                    TestingJob.class.getName(),
+                    "-D" + savepointPath,
+                    "-D" + allowNonState,
+                    "-D" + restoreMode,
+                    CliFrontendTestUtils.getTestJarPath()
+                });
+        assertThat(getStdoutString()).contains(savepointPath);
+        assertThat(getStdoutString()).contains(allowNonState);
+        assertThat(getStdoutString()).contains(restoreMode);
+    }
+
+    @Test
+    void commandlineForSettingSavepointRestoreParamsByOptions() throws Exception {
+        Configuration config = new Configuration();
+
+        // we use GenericCli because it allows specifying arbitrary options via "-Dfoo=bar" syntax
+        CustomCommandLine commandLine = new GenericCLI(config, "/dev/null");
+
+        CliFrontend cliFrontend = new CliFrontend(config, Collections.singletonList(commandLine));
+
+        String savepointPath = "expectedSavepointPath";
+        cliFrontend.parseAndRun(
+                new String[] {
+                    "run",
+                    "-t",
+                    LocalExecutor.NAME,
+                    "-s",
+                    savepointPath,
+                    "-allowNonRestoredState",
+                    "-c",
+                    TestingJob.class.getName(),
+                    CliFrontendTestUtils.getTestJarPath()
+                });
+
+        String expectedSavepointPathString = "execution.savepoint.path=expectedSavepointPath";
+        String expectedAllowNonState = "execution.savepoint.ignore-unclaimed-state=true";
+        String expectedDefaultRestoreMode = "execution.savepoint-restore-mode=NO_CLAIM";
+        assertThat(getStdoutString()).contains(expectedSavepointPathString);
+        assertThat(getStdoutString()).contains(expectedAllowNonState);
+        assertThat(getStdoutString()).contains(expectedDefaultRestoreMode);
+    }
+
+    @Test
+    void commandlineForSettingSavepointRestoreParamsByOptionsAndDynamicProperties()
+            throws Exception {
+        Configuration config = new Configuration();
+
+        // we use GenericCli because it allows specifying arbitrary options via "-Dfoo=bar" syntax
+        CustomCommandLine commandLine = new GenericCLI(config, "/dev/null");
+
+        CliFrontend cliFrontend = new CliFrontend(config, Collections.singletonList(commandLine));
+
+        String savepointPathByDynamicProperties = "execution.savepoint.path=expectedSavepointPath";
+        String allowNonStateByDynamicProperties = "execution.savepoint.ignore-unclaimed-state=true";
+        String restoreModeByDynamicProperties = "execution.savepoint-restore-mode=NO_CLAIM";
+
+        String savepointPathForSavepointOptions = "expectedSavepointPathForSavepointOptions";
+        cliFrontend.parseAndRun(
+                new String[] {
+                    "run",
+                    "-t",
+                    LocalExecutor.NAME,
+                    "-s",
+                    savepointPathForSavepointOptions,
+                    "-rm",
+                    "CLAIM",
+                    "-c",
+                    TestingJob.class.getName(),
+                    "-D" + savepointPathByDynamicProperties,
+                    "-D" + allowNonStateByDynamicProperties,
+                    "-D" + restoreModeByDynamicProperties,
+                    CliFrontendTestUtils.getTestJarPath()
+                });
+
+        // CLI options has higher priority than dynamic properties
+        String expectedSavepointPath =
+                "execution.savepoint.path=expectedSavepointPathForSavepointOptions";
+        String expectedAllowNonState = "execution.savepoint.ignore-unclaimed-state=false";
+        String expectedDefaultRestoreMode = "execution.savepoint-restore-mode=CLAIM";
+        assertThat(getStdoutString()).contains(expectedSavepointPath);
+        assertThat(getStdoutString()).contains(expectedAllowNonState);
+        assertThat(getStdoutString()).contains(expectedDefaultRestoreMode);
+    }
+
+    @Test
     void mainShouldPrintHelpWithoutArgs(@TempDir Path tempFolder) throws Exception {
         Map<String, String> originalEnv = System.getenv();
         try {
@@ -138,6 +243,32 @@ class CliFrontendITCase {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             System.out.println(
                     "Watermark interval is " + env.getConfig().getAutoWatermarkInterval());
+            printSavepointRestoreSettings(env.getConfiguration());
+        }
+
+        private static void printSavepointRestoreSettings(ReadableConfig config) {
+            String savepointPath = config.get(SavepointConfigOptions.SAVEPOINT_PATH);
+            if (savepointPath != null) {
+                System.out.println(
+                        String.format(
+                                "%s=%s",
+                                SavepointConfigOptions.SAVEPOINT_PATH.key(), savepointPath));
+            }
+            Boolean ignoreUnclaimedState =
+                    config.get(SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE);
+            if (ignoreUnclaimedState != null) {
+                System.out.println(
+                        String.format(
+                                "%s=%s",
+                                SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE.key(),
+                                ignoreUnclaimedState));
+            }
+            RestoreMode restoreMode = config.get(SavepointConfigOptions.RESTORE_MODE);
+            if (restoreMode != null) {
+                System.out.println(
+                        String.format(
+                                "%s=%s", SavepointConfigOptions.RESTORE_MODE.key(), restoreMode));
+            }
         }
     }
 }

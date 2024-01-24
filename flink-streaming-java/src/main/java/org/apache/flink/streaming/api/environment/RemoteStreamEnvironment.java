@@ -28,6 +28,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
@@ -201,8 +202,26 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
             SavepointRestoreSettings.toConfiguration(
                     savepointRestoreSettings, effectiveConfiguration);
         } else {
-            SavepointRestoreSettings.toConfiguration(
-                    SavepointRestoreSettings.none(), effectiveConfiguration);
+            // Savepoint restore settings in dynamic properties should have higher priority than
+            // the default settings.
+            SavepointRestoreSettings restoreSettings = SavepointRestoreSettings.none();
+            String restoredSavepointPath =
+                    baseConfiguration.get(
+                            SavepointConfigOptions.SAVEPOINT_PATH,
+                            restoreSettings.getRestorePath());
+            if (restoredSavepointPath != null) {
+                restoreSettings =
+                        SavepointRestoreSettings.forPath(
+                                restoredSavepointPath,
+                                baseConfiguration.get(
+                                        SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE,
+                                        restoreSettings.allowNonRestoredState()),
+                                baseConfiguration.get(
+                                        SavepointConfigOptions.RESTORE_MODE,
+                                        restoreSettings.getRestoreMode()));
+            }
+
+            SavepointRestoreSettings.toConfiguration(restoreSettings, effectiveConfiguration);
         }
 
         // these should be set in the end to overwrite any values from the client config provided in
