@@ -36,7 +36,6 @@ public class AvroFormatOptions {
                     .stringType()
                     .defaultValue(SNAPPY_CODEC)
                     .withDescription("The compression codec for avro");
-
     public static final ConfigOption<AvroEncoding> AVRO_ENCODING =
             ConfigOptions.key("encoding")
                     .enumType(AvroEncoding.class)
@@ -70,6 +69,19 @@ public class AvroFormatOptions {
             return description;
         }
     }
+
+    public static final ConfigOption<Boolean> AVRO_TIMESTAMP_LEGACY_MAPPING =
+            ConfigOptions.key("timestamp_mapping.legacy")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Use the legacy mapping of timestamp in avro. "
+                                    + "Before 1.19, The default behavior of Flink wrongly mapped "
+                                    + "both SQL TIMESTAMP and TIMESTAMP_LTZ type to AVRO TIMESTAMP. "
+                                    + "The correct behavior is Flink SQL TIMESTAMP maps Avro LOCAL "
+                                    + "TIMESTAMP and Flink SQL TIMESTAMP_LTZ maps Avro TIMESTAMP, "
+                                    + "you can obtain the correct mapping by disable using this legacy mapping."
+                                    + " Use legacy behavior by default for compatibility consideration.");
 
     private AvroFormatOptions() {}
 }

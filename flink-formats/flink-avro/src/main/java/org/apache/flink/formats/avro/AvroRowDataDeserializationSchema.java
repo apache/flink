@@ -59,18 +59,18 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
     private final AvroToRowDataConverters.AvroToRowDataConverter runtimeConverter;
 
     /**
-     * Creates a Avro deserialization schema for the given logical type.
+     * Creates an Avro deserialization schema for the given logical type.
      *
      * @param rowType The logical type used to deserialize the data.
      * @param typeInfo The TypeInformation to be used by {@link
      *     AvroRowDataDeserializationSchema#getProducedType()}.
      */
     public AvroRowDataDeserializationSchema(RowType rowType, TypeInformation<RowData> typeInfo) {
-        this(rowType, typeInfo, AvroEncoding.BINARY);
+        this(rowType, typeInfo, AvroEncoding.BINARY, true);
     }
 
     /**
-     * Creates a Avro deserialization schema for the given logical type.
+     * Creates an Avro deserialization schema for the given logical type.
      *
      * @param rowType The logical type used to deserialize the data.
      * @param typeInfo The TypeInformation to be used by {@link
@@ -83,6 +83,28 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
                 AvroDeserializationSchema.forGeneric(
                         AvroSchemaConverter.convertToSchema(rowType), encoding),
                 AvroToRowDataConverters.createRowConverter(rowType),
+                typeInfo);
+    }
+
+    /**
+     * Creates an Avro deserialization schema for the given logical type.
+     *
+     * @param rowType The logical type used to deserialize the data.
+     * @param typeInfo The TypeInformation to be used by {@link
+     *     AvroRowDataDeserializationSchema#getProducedType()}.
+     * @param encoding The serialization approach used to deserialize the data.
+     * @param legacyTimestampMapping Whether to use legacy timestamp mapping.
+     */
+    public AvroRowDataDeserializationSchema(
+            RowType rowType,
+            TypeInformation<RowData> typeInfo,
+            AvroEncoding encoding,
+            boolean legacyTimestampMapping) {
+        this(
+                AvroDeserializationSchema.forGeneric(
+                        AvroSchemaConverter.convertToSchema(rowType, legacyTimestampMapping),
+                        encoding),
+                AvroToRowDataConverters.createRowConverter(rowType, legacyTimestampMapping),
                 typeInfo);
     }
 

@@ -73,6 +73,23 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
     }
 
     /**
+     * Creates an Avro serialization schema with the given record row type and legacy timestamp
+     * mapping flag.
+     *
+     * @param encoding The serialization approach used to serialize the data.
+     * @param legacyTimestampMapping Use the legacy timestamp mapping.
+     */
+    public AvroRowDataSerializationSchema(
+            RowType rowType, AvroEncoding encoding, boolean legacyTimestampMapping) {
+        this(
+                rowType,
+                AvroSerializationSchema.forGeneric(
+                        AvroSchemaConverter.convertToSchema(rowType, legacyTimestampMapping),
+                        encoding),
+                RowDataToAvroConverters.createConverter(rowType, legacyTimestampMapping));
+    }
+
+    /**
      * Creates an Avro serialization schema with the given record row type, nested schema and
      * runtime converters.
      */
