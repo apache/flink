@@ -51,7 +51,7 @@ import org.junit.jupiter.api.extension.ExtendWith
  * [[org.apache.flink.table.connector.source.LookupTableSource]] should be identical.
  */
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class LookupJoinTest(legacyTableSource: Boolean, partitionedJoin: Boolean)
+class LookupJoinTest(legacyTableSource: Boolean, shuffleHashJoin: Boolean)
   extends TableTestBase
   with Serializable {
 
@@ -121,7 +121,7 @@ class LookupJoinTest(legacyTableSource: Boolean, partitionedJoin: Boolean)
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(4))
 
-    if (partitionedJoin) {
+    if (shuffleHashJoin) {
       tableDHashShuffleHintLine = " SHUFFLE_HASH('D'),\n          "
       tableDHashShuffleHint = " SHUFFLE_HASH('D'),"
       tableDHashShuffleCompleteHint = " /*+ SHUFFLE_HASH('D') */"
@@ -581,17 +581,17 @@ class LookupJoinTest(legacyTableSource: Boolean, partitionedJoin: Boolean)
       """.stripMargin
     val actual = util.tableEnv.explainSql(sql, ExplainDetail.JSON_EXECUTION_PLAN)
     val expected = if (legacyTableSource) {
-      if (partitionedJoin) {
+      if (shuffleHashJoin) {
         readFromResource(
-          "explain/stream/join/lookup/testAggAndAllConstantLookupKeyWithTryResolveMode_newSourcePartitionJoin.out")
+          "explain/stream/join/lookup/testAggAndAllConstantLookupKeyWithTryResolveMode_newSourceShuffleHashJoin.out")
       } else {
         readFromResource(
           "explain/stream/join/lookup/testAggAndAllConstantLookupKeyWithTryResolveMode.out")
       }
     } else {
-      if (partitionedJoin) {
+      if (shuffleHashJoin) {
         readFromResource(
-          "explain/stream/join/lookup/testAggAndAllConstantLookupKeyWithTryResolveMode_partitionJoin.out")
+          "explain/stream/join/lookup/testAggAndAllConstantLookupKeyWithTryResolveMode_shuffleHashJoin.out")
       } else {
         readFromResource(
           "explain/stream/join/lookup/testAggAndAllConstantLookupKeyWithTryResolveMode_newSource.out")
@@ -762,7 +762,7 @@ class LookupJoinTest(legacyTableSource: Boolean, partitionedJoin: Boolean)
 
   @TestTemplate
   def testJoinHintWithTableNameOnly(): Unit = {
-    val shuffleHint = if (partitionedJoin) {
+    val shuffleHint = if (shuffleHashJoin) {
       " SHUFFLE_HASH('LookupTable'),"
     } else {
       ""
@@ -776,7 +776,7 @@ class LookupJoinTest(legacyTableSource: Boolean, partitionedJoin: Boolean)
   @TestTemplate
   def testMultipleJoinHintsWithSameTableName(): Unit = {
     // only the first hint will take effect
-    val hashShuffleHint = if (partitionedJoin) {
+    val hashShuffleHint = if (shuffleHashJoin) {
       " SHUFFLE_HASH('AsyncLookupTable'),\n          "
     } else {
       ""
@@ -824,7 +824,7 @@ class LookupJoinTest(legacyTableSource: Boolean, partitionedJoin: Boolean)
   @TestTemplate
   def testMultipleJoinHintsWithDifferentTableAlias(): Unit = {
     // both hints on corresponding tables will take effect
-    val hashShuffleHint = if (partitionedJoin) {
+    val hashShuffleHint = if (shuffleHashJoin) {
       " SHUFFLE_HASH('D', 'D1'),\n          "
     } else {
       ""
@@ -1004,7 +1004,7 @@ class LookupJoinTest(legacyTableSource: Boolean, partitionedJoin: Boolean)
 
   @TestTemplate
   def testIgnoreLeftSideShuffleHashHint(): Unit = {
-    assumeThat(partitionedJoin).isTrue
+    assumeThat(shuffleHashJoin).isTrue
     val sql = s"SELECT /*+ SHUFFLE_HASH('T') */ * FROM MyTable AS T JOIN LookupTable " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
 
@@ -1051,7 +1051,7 @@ class LookupJoinTest(legacyTableSource: Boolean, partitionedJoin: Boolean)
 }
 
 object LookupJoinTest {
-  @Parameters(name = "LegacyTableSource={0}, partitionedJoin={1}")
+  @Parameters(name = "LegacyTableSource={0}, shuffleHashJoin={1}")
   def parameters(): JCollection[Array[Object]] = {
     Seq[Array[AnyRef]](
       Array(JBoolean.FALSE, JBoolean.TRUE),

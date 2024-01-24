@@ -40,7 +40,7 @@ import org.junit.jupiter.api.extension.ExtendWith
  * [[org.apache.flink.table.connector.source.LookupTableSource]] should be identical.
  */
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class LookupJoinTest(legacyTableSource: Boolean, partitionedJoin: Boolean) extends TableTestBase {
+class LookupJoinTest(legacyTableSource: Boolean, shuffleHashJoin: Boolean) extends TableTestBase {
   private val testUtil = batchTestUtil()
   private var tableDHashShuffleHint: String = _
 
@@ -78,7 +78,7 @@ class LookupJoinTest(legacyTableSource: Boolean, partitionedJoin: Boolean) exten
                           |""".stripMargin)
     }
 
-    if (partitionedJoin) {
+    if (shuffleHashJoin) {
       tableDHashShuffleHint = " /*+ SHUFFLE_HASH('D') */"
     } else {
       tableDHashShuffleHint = ""
@@ -360,7 +360,7 @@ class LookupJoinTest(legacyTableSource: Boolean, partitionedJoin: Boolean) exten
 
   @TestTemplate
   def testIgnoreLeftSideShuffleHashHint(): Unit = {
-    assumeThat(partitionedJoin).isTrue
+    assumeThat(shuffleHashJoin).isTrue
     val sql = s"SELECT /*+ SHUFFLE_HASH('T') */ * FROM MyTable AS T JOIN LookupTable " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
 
@@ -388,7 +388,7 @@ class LookupJoinTest(legacyTableSource: Boolean, partitionedJoin: Boolean) exten
 }
 
 object LookupJoinTest {
-  @Parameters(name = "LegacyTableSource={0}, partitionedJoin={1}")
+  @Parameters(name = "LegacyTableSource={0}, shuffleHashJoin={1}")
   def parameters(): JCollection[Array[Object]] = {
     Seq[Array[AnyRef]](
       Array(JBoolean.FALSE, JBoolean.TRUE),

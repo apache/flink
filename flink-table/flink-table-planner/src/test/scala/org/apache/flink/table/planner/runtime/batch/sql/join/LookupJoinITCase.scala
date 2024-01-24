@@ -52,7 +52,7 @@ class LookupJoinITCase extends BatchTestBase {
   var cacheType: LookupCacheType = _
 
   @Parameter(value = 3)
-  var partitionedJoin: Boolean = _
+  var shuffleHashJoin: Boolean = _
 
   private var tableDHashShuffleHint: String = _
 
@@ -95,7 +95,7 @@ class LookupJoinITCase extends BatchTestBase {
 
     // TODO: enable object reuse until [FLINK-12351] is fixed.
     env.getConfig.disableObjectReuse()
-    if (partitionedJoin) {
+    if (shuffleHashJoin) {
       tableDHashShuffleHint = " /*+ SHUFFLE_HASH('D') */"
     } else {
       tableDHashShuffleHint = ""
@@ -449,27 +449,27 @@ object LookupJoinITCase {
   val DYNAMIC_TABLE_SOURCE: JBoolean = JBoolean.FALSE;
   val ASYNC_MODE: JBoolean = JBoolean.TRUE;
   val SYNC_MODE: JBoolean = JBoolean.FALSE;
-  val PARTITION_JOIN_MODE: JBoolean = JBoolean.TRUE;
-  val NO_PARTITION_JOIN_MODE: JBoolean = JBoolean.FALSE;
+  val SHUFFLE_HASH_JOIN_MODE: JBoolean = JBoolean.TRUE;
+  val NO_SHUFFLE_HASH_JOIN_MODE: JBoolean = JBoolean.FALSE;
 
   @Parameters(
-    name = "LegacyTableSource={0}, isAsyncMode = {1}, cacheType = {2}, partitionedJoin={3}")
+    name = "LegacyTableSource={0}, isAsyncMode = {1}, cacheType = {2}, shuffleHashJoin={3}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
-      Array(LEGACY_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.NONE, NO_PARTITION_JOIN_MODE),
-      Array(LEGACY_TABLE_SOURCE, SYNC_MODE, LookupCacheType.NONE, NO_PARTITION_JOIN_MODE),
-      Array(DYNAMIC_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.NONE, NO_PARTITION_JOIN_MODE),
-      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.NONE, NO_PARTITION_JOIN_MODE),
-      Array(DYNAMIC_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.PARTIAL, NO_PARTITION_JOIN_MODE),
-      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.PARTIAL, NO_PARTITION_JOIN_MODE),
-      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.FULL, NO_PARTITION_JOIN_MODE),
-      Array(LEGACY_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.NONE, PARTITION_JOIN_MODE),
-      Array(LEGACY_TABLE_SOURCE, SYNC_MODE, LookupCacheType.NONE, PARTITION_JOIN_MODE),
-      Array(DYNAMIC_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.NONE, PARTITION_JOIN_MODE),
-      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.NONE, PARTITION_JOIN_MODE),
-      Array(DYNAMIC_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.PARTIAL, PARTITION_JOIN_MODE),
-      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.PARTIAL, PARTITION_JOIN_MODE),
-      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.FULL, PARTITION_JOIN_MODE)
+      Array(LEGACY_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.NONE, NO_SHUFFLE_HASH_JOIN_MODE),
+      Array(LEGACY_TABLE_SOURCE, SYNC_MODE, LookupCacheType.NONE, NO_SHUFFLE_HASH_JOIN_MODE),
+      Array(DYNAMIC_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.NONE, NO_SHUFFLE_HASH_JOIN_MODE),
+      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.NONE, NO_SHUFFLE_HASH_JOIN_MODE),
+      Array(DYNAMIC_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.PARTIAL, NO_SHUFFLE_HASH_JOIN_MODE),
+      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.PARTIAL, NO_SHUFFLE_HASH_JOIN_MODE),
+      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.FULL, NO_SHUFFLE_HASH_JOIN_MODE),
+      Array(LEGACY_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.NONE, SHUFFLE_HASH_JOIN_MODE),
+      Array(LEGACY_TABLE_SOURCE, SYNC_MODE, LookupCacheType.NONE, SHUFFLE_HASH_JOIN_MODE),
+      Array(DYNAMIC_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.NONE, SHUFFLE_HASH_JOIN_MODE),
+      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.NONE, SHUFFLE_HASH_JOIN_MODE),
+      Array(DYNAMIC_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.PARTIAL, SHUFFLE_HASH_JOIN_MODE),
+      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.PARTIAL, SHUFFLE_HASH_JOIN_MODE),
+      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.FULL, SHUFFLE_HASH_JOIN_MODE)
     )
   }
 }

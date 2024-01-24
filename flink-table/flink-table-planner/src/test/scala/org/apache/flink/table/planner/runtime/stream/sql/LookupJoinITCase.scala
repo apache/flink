@@ -48,7 +48,7 @@ import scala.collection.JavaConversions._
 class LookupJoinITCase(
     legacyTableSource: Boolean,
     cacheType: LookupCacheType,
-    partitionedJoin: Boolean)
+    shuffleHashJoin: Boolean)
   extends StreamingTestBase {
 
   private var tableDHashShuffleHint: String = _
@@ -97,7 +97,7 @@ class LookupJoinITCase(
     // lookup will start from the 3rd time, first lookup will always get null result
     createLookupTable("user_table_with_lookup_threshold3", userData, 3)
     createLookupTableWithComputedColumn("userTableWithComputedColumn", userData)
-    if (partitionedJoin) {
+    if (shuffleHashJoin) {
       tableDHashShuffleHint = " /*+ SHUFFLE_HASH('D') */"
     } else {
       tableDHashShuffleHint = ""
@@ -794,7 +794,7 @@ class LookupJoinITCase(
   }
 
   private def getRetryLookupHint(lookupTable: String, maxAttempts: Int): String = {
-    val shuffleHashHint = if (partitionedJoin) {
+    val shuffleHashHint = if (shuffleHashJoin) {
       " SHUFFLE_HASH('D'),"
     } else {
       ""
@@ -894,20 +894,20 @@ object LookupJoinITCase {
 
   val LEGACY_TABLE_SOURCE: JBoolean = JBoolean.TRUE;
   val DYNAMIC_TABLE_SOURCE: JBoolean = JBoolean.FALSE;
-  val PARTITION_JOIN: JBoolean = JBoolean.TRUE;
-  val NO_PARTITION_JOIN: JBoolean = JBoolean.FALSE;
+  val SHUFFLE_HASH_JOIN: JBoolean = JBoolean.TRUE;
+  val NO_SHUFFLE_HASH_JOIN: JBoolean = JBoolean.FALSE;
 
   @Parameters(name = "LegacyTableSource={0}, cacheType={1}")
   def parameters(): JCollection[Array[Object]] = {
     Seq[Array[AnyRef]](
-      Array(LEGACY_TABLE_SOURCE, LookupCacheType.NONE, NO_PARTITION_JOIN),
-      Array(DYNAMIC_TABLE_SOURCE, LookupCacheType.NONE, NO_PARTITION_JOIN),
-      Array(DYNAMIC_TABLE_SOURCE, LookupCacheType.PARTIAL, NO_PARTITION_JOIN),
-      Array(DYNAMIC_TABLE_SOURCE, LookupCacheType.FULL, NO_PARTITION_JOIN),
-      Array(LEGACY_TABLE_SOURCE, LookupCacheType.NONE, PARTITION_JOIN),
-      Array(DYNAMIC_TABLE_SOURCE, LookupCacheType.NONE, PARTITION_JOIN),
-      Array(DYNAMIC_TABLE_SOURCE, LookupCacheType.PARTIAL, PARTITION_JOIN),
-      Array(DYNAMIC_TABLE_SOURCE, LookupCacheType.FULL, PARTITION_JOIN)
+      Array(LEGACY_TABLE_SOURCE, LookupCacheType.NONE, NO_SHUFFLE_HASH_JOIN),
+      Array(DYNAMIC_TABLE_SOURCE, LookupCacheType.NONE, NO_SHUFFLE_HASH_JOIN),
+      Array(DYNAMIC_TABLE_SOURCE, LookupCacheType.PARTIAL, NO_SHUFFLE_HASH_JOIN),
+      Array(DYNAMIC_TABLE_SOURCE, LookupCacheType.FULL, NO_SHUFFLE_HASH_JOIN),
+      Array(LEGACY_TABLE_SOURCE, LookupCacheType.NONE, SHUFFLE_HASH_JOIN),
+      Array(DYNAMIC_TABLE_SOURCE, LookupCacheType.NONE, SHUFFLE_HASH_JOIN),
+      Array(DYNAMIC_TABLE_SOURCE, LookupCacheType.PARTIAL, SHUFFLE_HASH_JOIN),
+      Array(DYNAMIC_TABLE_SOURCE, LookupCacheType.FULL, SHUFFLE_HASH_JOIN)
     )
   }
 }

@@ -50,7 +50,7 @@ class AsyncLookupJoinITCase(
     objectReuse: Boolean,
     asyncOutputMode: AsyncOutputMode,
     enableCache: Boolean,
-    partitionedJoin: Boolean)
+    shuffleHashJoin: Boolean)
   extends StreamingWithStateTestBase(backend) {
 
   private var tableDHashShuffleHint: String = _
@@ -87,7 +87,7 @@ class AsyncLookupJoinITCase(
     // lookup will start from the 3rd time, first lookup will always get null result
     createLookupTable("user_table_with_lookup_threshold3", userData, 3)
 
-    if (partitionedJoin) {
+    if (shuffleHashJoin) {
       tableDHashShuffleHint = " /*+ SHUFFLE_HASH('D') */"
     } else {
       tableDHashShuffleHint = ""
@@ -152,7 +152,7 @@ class AsyncLookupJoinITCase(
 
   // TODO a base class or utility class is better to reuse code for this and LookupJoinITCase
   private def getAsyncRetryLookupHint(lookupTable: String, maxAttempts: Int): String = {
-    val shuffleHashHint = if (partitionedJoin) {
+    val shuffleHashHint = if (shuffleHashJoin) {
       " SHUFFLE_HASH('D'),"
     } else {
       ""
@@ -536,12 +536,12 @@ object AsyncLookupJoinITCase {
   val DISABLE_OBJECT_REUSE: JBoolean = JBoolean.FALSE;
   val ENABLE_CACHE: JBoolean = JBoolean.TRUE;
   val DISABLE_CACHE: JBoolean = JBoolean.FALSE;
-  val NO_PARTITION_JOIN: JBoolean = JBoolean.FALSE;
-  val PARTITION_JOIN: JBoolean = JBoolean.TRUE;
+  val NO_SHUFFLE_HASH_JOIN: JBoolean = JBoolean.FALSE;
+  val SHUFFLE_HASH_JOIN: JBoolean = JBoolean.TRUE;
 
   @Parameters(
     name =
-      "LegacyTableSource={0}, StateBackend={1}, ObjectReuse={2}, AsyncOutputMode={3}, EnableCache={4}, partitionedJoin={5}")
+      "LegacyTableSource={0}, StateBackend={1}, ObjectReuse={2}, AsyncOutputMode={3}, EnableCache={4}, shuffleHashJoin={5}")
   def parameters(): JCollection[Array[Object]] = {
     Seq[Array[AnyRef]](
       Array(
@@ -550,112 +550,112 @@ object AsyncLookupJoinITCase {
         ENABLE_OBJECT_REUSE,
         AsyncOutputMode.ALLOW_UNORDERED,
         DISABLE_CACHE,
-        NO_PARTITION_JOIN),
+        NO_SHUFFLE_HASH_JOIN),
       Array(
         LEGACY_TABLE_SOURCE,
         ROCKSDB_BACKEND,
         DISABLE_OBJECT_REUSE,
         AsyncOutputMode.ORDERED,
         DISABLE_CACHE,
-        NO_PARTITION_JOIN),
+        NO_SHUFFLE_HASH_JOIN),
       Array(
         DYNAMIC_TABLE_SOURCE,
         HEAP_BACKEND,
         DISABLE_OBJECT_REUSE,
         AsyncOutputMode.ORDERED,
         DISABLE_CACHE,
-        NO_PARTITION_JOIN),
+        NO_SHUFFLE_HASH_JOIN),
       Array(
         DYNAMIC_TABLE_SOURCE,
         HEAP_BACKEND,
         ENABLE_OBJECT_REUSE,
         AsyncOutputMode.ORDERED,
         DISABLE_CACHE,
-        NO_PARTITION_JOIN),
+        NO_SHUFFLE_HASH_JOIN),
       Array(
         DYNAMIC_TABLE_SOURCE,
         ROCKSDB_BACKEND,
         DISABLE_OBJECT_REUSE,
         AsyncOutputMode.ALLOW_UNORDERED,
         DISABLE_CACHE,
-        NO_PARTITION_JOIN),
+        NO_SHUFFLE_HASH_JOIN),
       Array(
         DYNAMIC_TABLE_SOURCE,
         ROCKSDB_BACKEND,
         ENABLE_OBJECT_REUSE,
         AsyncOutputMode.ALLOW_UNORDERED,
         DISABLE_CACHE,
-        NO_PARTITION_JOIN),
+        NO_SHUFFLE_HASH_JOIN),
       Array(
         DYNAMIC_TABLE_SOURCE,
         HEAP_BACKEND,
         DISABLE_OBJECT_REUSE,
         AsyncOutputMode.ORDERED,
         ENABLE_CACHE,
-        NO_PARTITION_JOIN),
+        NO_SHUFFLE_HASH_JOIN),
       Array(
         DYNAMIC_TABLE_SOURCE,
         HEAP_BACKEND,
         ENABLE_OBJECT_REUSE,
         AsyncOutputMode.ALLOW_UNORDERED,
         ENABLE_CACHE,
-        NO_PARTITION_JOIN),
+        NO_SHUFFLE_HASH_JOIN),
       Array(
         LEGACY_TABLE_SOURCE,
         HEAP_BACKEND,
         ENABLE_OBJECT_REUSE,
         AsyncOutputMode.ALLOW_UNORDERED,
         DISABLE_CACHE,
-        PARTITION_JOIN),
+        SHUFFLE_HASH_JOIN),
       Array(
         LEGACY_TABLE_SOURCE,
         ROCKSDB_BACKEND,
         DISABLE_OBJECT_REUSE,
         AsyncOutputMode.ORDERED,
         DISABLE_CACHE,
-        PARTITION_JOIN),
+        SHUFFLE_HASH_JOIN),
       Array(
         DYNAMIC_TABLE_SOURCE,
         HEAP_BACKEND,
         DISABLE_OBJECT_REUSE,
         AsyncOutputMode.ORDERED,
         DISABLE_CACHE,
-        PARTITION_JOIN),
+        SHUFFLE_HASH_JOIN),
       Array(
         DYNAMIC_TABLE_SOURCE,
         HEAP_BACKEND,
         ENABLE_OBJECT_REUSE,
         AsyncOutputMode.ORDERED,
         DISABLE_CACHE,
-        PARTITION_JOIN),
+        SHUFFLE_HASH_JOIN),
       Array(
         DYNAMIC_TABLE_SOURCE,
         ROCKSDB_BACKEND,
         DISABLE_OBJECT_REUSE,
         AsyncOutputMode.ALLOW_UNORDERED,
         DISABLE_CACHE,
-        PARTITION_JOIN),
+        SHUFFLE_HASH_JOIN),
       Array(
         DYNAMIC_TABLE_SOURCE,
         ROCKSDB_BACKEND,
         ENABLE_OBJECT_REUSE,
         AsyncOutputMode.ALLOW_UNORDERED,
         DISABLE_CACHE,
-        PARTITION_JOIN),
+        SHUFFLE_HASH_JOIN),
       Array(
         DYNAMIC_TABLE_SOURCE,
         HEAP_BACKEND,
         DISABLE_OBJECT_REUSE,
         AsyncOutputMode.ORDERED,
         ENABLE_CACHE,
-        PARTITION_JOIN),
+        SHUFFLE_HASH_JOIN),
       Array(
         DYNAMIC_TABLE_SOURCE,
         HEAP_BACKEND,
         ENABLE_OBJECT_REUSE,
         AsyncOutputMode.ALLOW_UNORDERED,
         ENABLE_CACHE,
-        PARTITION_JOIN)
+        SHUFFLE_HASH_JOIN)
     )
   }
 }

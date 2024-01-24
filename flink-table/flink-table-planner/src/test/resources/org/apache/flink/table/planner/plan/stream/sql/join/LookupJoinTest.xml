@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testAggAndLeftJoinAllowUnordered[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testAggAndLeftJoinAllowUnordered[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
@@ -141,7 +141,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAggAndLeftJoinAllowUnordered[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testAggAndLeftJoinAllowUnordered[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
@@ -266,7 +266,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAsyncJoinWithDefaultParams[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testAsyncJoinWithDefaultParams[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
@@ -360,7 +360,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAsyncJoinWithDefaultParams[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testAsyncJoinWithDefaultParams[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
@@ -454,7 +454,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAvoidAggregatePushDown[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testAvoidAggregatePushDown[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT b, count(a), sum(c), sum(d)
@@ -500,7 +500,7 @@ GroupAggregate(groupBy=[b], select=[b, COUNT_RETRACT(a) AS EXPR$1, SUM_RETRACT(c
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAvoidAggregatePushDown[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testAvoidAggregatePushDown[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT b, count(a), sum(c), sum(d)
@@ -546,7 +546,7 @@ GroupAggregate(groupBy=[b], select=[b, COUNT_RETRACT(a) AS EXPR$1, SUM_RETRACT(c
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinAsyncTableWithAsyncHint[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinAsyncTableWithAsyncHint[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ SHUFFLE_HASH('D'), LOOKUP('table'='D', 'async'='true') */ * FROM MyTable AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -569,7 +569,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinAsyncTableWithAsyncHint[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinAsyncTableWithAsyncHint[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ SHUFFLE_HASH('D'), LOOKUP('table'='D', 'async'='true') */ * FROM MyTable AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -592,7 +592,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinAsyncTableWithSyncHint[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinAsyncTableWithSyncHint[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ SHUFFLE_HASH('D'), LOOKUP('table'='D', 'async'='false') */ * FROM MyTable AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -615,7 +615,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinAsyncTableWithSyncHint[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinAsyncTableWithSyncHint[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ SHUFFLE_HASH('D'), LOOKUP('table'='D', 'async'='false') */ * FROM MyTable AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -638,7 +638,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinHintWithNoPropagatingToSubQuery[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinHintWithNoPropagatingToSubQuery[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D'),
@@ -680,7 +680,7 @@ Calc(select=[a])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinHintWithNoPropagatingToSubQuery[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinHintWithNoPropagatingToSubQuery[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D'),
@@ -722,7 +722,7 @@ Calc(select=[a])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinHintWithTableAlias[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinHintWithTableAlias[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ SHUFFLE_HASH('D'), LOOKUP('table'='D', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -745,7 +745,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinHintWithTableAlias[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinHintWithTableAlias[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ SHUFFLE_HASH('D'), LOOKUP('table'='D', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -768,7 +768,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinHintWithTableNameOnly[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinHintWithTableNameOnly[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ SHUFFLE_HASH('LookupTable'), LOOKUP('table'='LookupTable') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime ON T.a = LookupTable.id]]>
     </Resource>
@@ -791,7 +791,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinHintWithTableNameOnly[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinHintWithTableNameOnly[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ SHUFFLE_HASH('LookupTable'), LOOKUP('table'='LookupTable') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime ON T.a = LookupTable.id]]>
     </Resource>
@@ -814,7 +814,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinSyncTableWithAsyncHint[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinSyncTableWithAsyncHint[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ SHUFFLE_HASH('D'), LOOKUP('table'='D', 'async'='true') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -837,7 +837,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinSyncTableWithAsyncHint[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinSyncTableWithAsyncHint[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ SHUFFLE_HASH('D'), LOOKUP('table'='D', 'async'='true') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -860,7 +860,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTable[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTable[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ SHUFFLE_HASH('D') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -883,7 +883,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTable[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTable[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ SHUFFLE_HASH('D') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -906,7 +906,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithCalcPushDown[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithCalcPushDown[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D') */ * FROM MyTable AS T
@@ -935,7 +935,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithAsyncAndRetryHint[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinWithAsyncAndRetryHint[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
@@ -1029,7 +1029,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithCalcPushDown[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithCalcPushDown[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D') */ * FROM MyTable AS T
@@ -1058,7 +1058,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithComputedColumn[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithComputedColumn[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D') */
@@ -1089,7 +1089,7 @@ Calc(select=[a, b, c, name, age, nominal_age])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithComputedColumnAndPushDown[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithComputedColumnAndPushDown[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D') */
@@ -1120,7 +1120,7 @@ Calc(select=[a, b, c, name, age, nominal_age])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithCTE[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithCTE[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 WITH MyLookupTable AS (SELECT * FROM MyTable),
@@ -1152,7 +1152,7 @@ Calc(select=[b])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithCTE[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithCTE[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 WITH MyLookupTable AS (SELECT * FROM MyTable),
@@ -1184,7 +1184,7 @@ Calc(select=[b])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithFilterPushDown[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithFilterPushDown[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D') */ * FROM MyTable AS T
@@ -1214,7 +1214,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithFilterPushDown[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithFilterPushDown[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D') */ * FROM MyTable AS T
@@ -1244,7 +1244,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithFunctionAndConstantCondition[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithFunctionAndConstantCondition[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D') */ * FROM MyTable AS T
@@ -1271,7 +1271,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithFunctionAndConstantCondition[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithFunctionAndConstantCondition[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D') */ * FROM MyTable AS T
@@ -1298,7 +1298,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithFunctionAndReferenceCondition[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithFunctionAndReferenceCondition[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D') */ * FROM MyTable AS T
@@ -1327,7 +1327,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithFunctionAndReferenceCondition[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithFunctionAndReferenceCondition[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D') */ * FROM MyTable AS T
@@ -1356,7 +1356,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithMultiConditionOnSameDimField[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithMultiConditionOnSameDimField[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ SHUFFLE_HASH('D') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id and CAST(T.c as INT) = D.id]]>
     </Resource>
@@ -1380,7 +1380,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithMultiConditionOnSameDimField[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithMultiConditionOnSameDimField[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ SHUFFLE_HASH('D') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id and CAST(T.c as INT) = D.id]]>
     </Resource>
@@ -1404,7 +1404,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithMultiFunctionAndConstantCondition[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithMultiFunctionAndConstantCondition[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D') */ * FROM MyTable AS T
@@ -1431,7 +1431,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithMultiFunctionAndConstantCondition[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithMultiFunctionAndConstantCondition[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D') */ * FROM MyTable AS T
@@ -1458,7 +1458,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithMultiIndexColumn[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithMultiIndexColumn[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D') */ * FROM MyTable AS T
@@ -1488,7 +1488,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, C
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithMultiIndexColumn[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithMultiIndexColumn[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D') */ * FROM MyTable AS T
@@ -1518,7 +1518,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, C
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithNestedQuery[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithNestedQuery[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ SHUFFLE_HASH('D') */ * FROM (SELECT a, b, proctime FROM MyTable WHERE c > 1000) AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -1544,7 +1544,7 @@ Calc(select=[a, b, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithProjectionPushDown[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithProjectionPushDown[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D') */ T.*, D.id
@@ -1572,7 +1572,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithProjectionPushDown[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithProjectionPushDown[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D') */ T.*, D.id
@@ -1600,7 +1600,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithUdfEqualFilter[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithUdfEqualFilter[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D') */
@@ -1631,7 +1631,7 @@ Calc(select=[a, b, c, name])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithUdfEqualFilter[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithUdfEqualFilter[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D') */
@@ -1662,7 +1662,7 @@ Calc(select=[a, b, c, name])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithAsyncAndRetryHint[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinWithAsyncAndRetryHint[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
@@ -1756,7 +1756,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithAsyncHint[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinWithAsyncHint[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
@@ -1850,7 +1850,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithNestedQuery[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinTemporalTableWithNestedQuery[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ SHUFFLE_HASH('D') */ * FROM (SELECT a, b, proctime FROM MyTable WHERE c > 1000) AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -1876,7 +1876,7 @@ Calc(select=[a, b, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithAsyncHint[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinWithAsyncHint[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
@@ -1970,7 +1970,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithMixedCaseJoinHint[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinWithMixedCaseJoinHint[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D'),
@@ -2004,7 +2004,7 @@ Calc(select=[a])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithMixedCaseJoinHint[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinWithMixedCaseJoinHint[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D'),
@@ -2038,7 +2038,7 @@ Calc(select=[a])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithRetryHint[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testJoinWithRetryHint[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
@@ -2132,7 +2132,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithRetryHint[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testJoinWithRetryHint[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
@@ -2226,7 +2226,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testLeftJoinTemporalTable[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testLeftJoinTemporalTable[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ SHUFFLE_HASH('D') */ * FROM MyTable AS T LEFT JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -2249,7 +2249,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultipleJoinHintsWithSameTableName[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testMultipleJoinHintsWithSameTableName[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('AsyncLookupTable'),
@@ -2279,7 +2279,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testLeftJoinTemporalTable[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testLeftJoinTemporalTable[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ SHUFFLE_HASH('D') */ * FROM MyTable AS T LEFT JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -2302,7 +2302,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultipleJoinHintsWithDifferentTableAlias[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testMultipleJoinHintsWithDifferentTableAlias[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D', 'D1'),
@@ -2340,7 +2340,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultipleJoinHintsWithDifferentTableName[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testMultipleJoinHintsWithDifferentTableName[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D'),
@@ -2376,7 +2376,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultipleJoinHintsWithDifferentTableName[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testMultipleJoinHintsWithDifferentTableName[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D'),
@@ -2412,7 +2412,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultipleJoinHintsWithSameTableAlias[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testMultipleJoinHintsWithSameTableAlias[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D'),
@@ -2442,7 +2442,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultipleJoinHintsWithSameTableAlias[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testMultipleJoinHintsWithSameTableAlias[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D'),
@@ -2472,7 +2472,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultipleJoinHintsWithDifferentTableAlias[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testMultipleJoinHintsWithDifferentTableAlias[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('D', 'D1'),
@@ -2510,7 +2510,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultipleJoinHintsWithSameTableName[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testMultipleJoinHintsWithSameTableName[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ SHUFFLE_HASH('AsyncLookupTable'),
@@ -2540,7 +2540,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testIgnoreLeftSideShuffleHashHint[LegacyTableSource=false, partitionedJoin=true]">
+  <TestCase name="testIgnoreLeftSideShuffleHashHint[LegacyTableSource=false, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ SHUFFLE_HASH('T') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -2562,7 +2562,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testIgnoreLeftSideShuffleHashHint[LegacyTableSource=true, partitionedJoin=true]">
+  <TestCase name="testIgnoreLeftSideShuffleHashHint[LegacyTableSource=true, shuffleHashJoin=true]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ SHUFFLE_HASH('T') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -2584,7 +2584,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAggAndLeftJoinAllowUnordered[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testAggAndLeftJoinAllowUnordered[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
@@ -2707,7 +2707,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAggAndLeftJoinAllowUnordered[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testAggAndLeftJoinAllowUnordered[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
@@ -2830,7 +2830,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAsyncJoinWithDefaultParams[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testAsyncJoinWithDefaultParams[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
@@ -2922,7 +2922,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAsyncJoinWithDefaultParams[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testAsyncJoinWithDefaultParams[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
@@ -3014,7 +3014,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAvoidAggregatePushDown[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testAvoidAggregatePushDown[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT b, count(a), sum(c), sum(d)
@@ -3059,7 +3059,7 @@ GroupAggregate(groupBy=[b], select=[b, COUNT_RETRACT(a) AS EXPR$1, SUM_RETRACT(c
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAvoidAggregatePushDown[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testAvoidAggregatePushDown[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT b, count(a), sum(c), sum(d)
@@ -3104,7 +3104,7 @@ GroupAggregate(groupBy=[b], select=[b, COUNT_RETRACT(a) AS EXPR$1, SUM_RETRACT(c
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinAsyncTableWithAsyncHint[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinAsyncTableWithAsyncHint[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ LOOKUP('table'='D', 'async'='true') */ * FROM MyTable AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -3126,7 +3126,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinAsyncTableWithAsyncHint[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinAsyncTableWithAsyncHint[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ LOOKUP('table'='D', 'async'='true') */ * FROM MyTable AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -3148,7 +3148,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinAsyncTableWithSyncHint[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinAsyncTableWithSyncHint[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ LOOKUP('table'='D', 'async'='false') */ * FROM MyTable AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -3170,7 +3170,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinAsyncTableWithSyncHint[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinAsyncTableWithSyncHint[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ LOOKUP('table'='D', 'async'='false') */ * FROM MyTable AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -3192,7 +3192,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinHintWithNoPropagatingToSubQuery[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinHintWithNoPropagatingToSubQuery[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ LOOKUP('table'='D', 'output-mode'='ordered','capacity'='200') */ T1.a
@@ -3232,7 +3232,7 @@ Calc(select=[a])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinHintWithNoPropagatingToSubQuery[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinHintWithNoPropagatingToSubQuery[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ LOOKUP('table'='D', 'output-mode'='ordered','capacity'='200') */ T1.a
@@ -3272,7 +3272,7 @@ Calc(select=[a])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinHintWithTableAlias[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinHintWithTableAlias[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ LOOKUP('table'='D', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -3294,7 +3294,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinHintWithTableAlias[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinHintWithTableAlias[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ LOOKUP('table'='D', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -3316,7 +3316,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinHintWithTableNameOnly[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinHintWithTableNameOnly[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ LOOKUP('table'='LookupTable') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime ON T.a = LookupTable.id]]>
     </Resource>
@@ -3338,7 +3338,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinHintWithTableNameOnly[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinHintWithTableNameOnly[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ LOOKUP('table'='LookupTable') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime ON T.a = LookupTable.id]]>
     </Resource>
@@ -3360,7 +3360,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinSyncTableWithAsyncHint[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinSyncTableWithAsyncHint[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ LOOKUP('table'='D', 'async'='true') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -3382,7 +3382,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinSyncTableWithAsyncHint[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinSyncTableWithAsyncHint[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[SELECT /*+ LOOKUP('table'='D', 'async'='true') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -3404,7 +3404,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTable[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTable[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -3426,7 +3426,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTable[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTable[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -3448,7 +3448,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithCalcPushDown[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithCalcPushDown[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM MyTable AS T
@@ -3476,7 +3476,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithAsyncAndRetryHint[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinWithAsyncAndRetryHint[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
@@ -3568,7 +3568,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithCalcPushDown[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithCalcPushDown[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM MyTable AS T
@@ -3596,7 +3596,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithComputedColumn[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithComputedColumn[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT
@@ -3626,7 +3626,7 @@ Calc(select=[a, b, c, name, age, nominal_age])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithComputedColumnAndPushDown[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithComputedColumnAndPushDown[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT
@@ -3656,7 +3656,7 @@ Calc(select=[a, b, c, name, age, nominal_age])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithCTE[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithCTE[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 WITH MyLookupTable AS (SELECT * FROM MyTable),
@@ -3687,7 +3687,7 @@ Calc(select=[b])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithCTE[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithCTE[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 WITH MyLookupTable AS (SELECT * FROM MyTable),
@@ -3718,7 +3718,7 @@ Calc(select=[b])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithFilterPushDown[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithFilterPushDown[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM MyTable AS T
@@ -3747,7 +3747,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithFilterPushDown[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithFilterPushDown[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM MyTable AS T
@@ -3776,7 +3776,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithFunctionAndConstantCondition[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithFunctionAndConstantCondition[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM MyTable AS T
@@ -3802,7 +3802,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithFunctionAndConstantCondition[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithFunctionAndConstantCondition[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM MyTable AS T
@@ -3828,7 +3828,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithFunctionAndReferenceCondition[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithFunctionAndReferenceCondition[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM MyTable AS T
@@ -3856,7 +3856,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithFunctionAndReferenceCondition[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithFunctionAndReferenceCondition[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM MyTable AS T
@@ -3884,7 +3884,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithMultiConditionOnSameDimField[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithMultiConditionOnSameDimField[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id and CAST(T.c as INT) = D.id]]>
     </Resource>
@@ -3907,7 +3907,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithMultiConditionOnSameDimField[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithMultiConditionOnSameDimField[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id and CAST(T.c as INT) = D.id]]>
     </Resource>
@@ -3930,7 +3930,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithMultiFunctionAndConstantCondition[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithMultiFunctionAndConstantCondition[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM MyTable AS T
@@ -3956,7 +3956,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithMultiFunctionAndConstantCondition[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithMultiFunctionAndConstantCondition[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM MyTable AS T
@@ -3982,7 +3982,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithMultiIndexColumn[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithMultiIndexColumn[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM MyTable AS T
@@ -4011,7 +4011,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, C
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithMultiIndexColumn[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithMultiIndexColumn[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM MyTable AS T
@@ -4040,7 +4040,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, C
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithNestedQuery[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithNestedQuery[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM (SELECT a, b, proctime FROM MyTable WHERE c > 1000) AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -4065,7 +4065,7 @@ Calc(select=[a, b, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithProjectionPushDown[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithProjectionPushDown[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT T.*, D.id
@@ -4092,7 +4092,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithProjectionPushDown[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithProjectionPushDown[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT T.*, D.id
@@ -4119,7 +4119,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithUdfEqualFilter[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithUdfEqualFilter[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT
@@ -4149,7 +4149,7 @@ Calc(select=[a, b, c, name])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithUdfEqualFilter[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithUdfEqualFilter[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT
@@ -4179,7 +4179,7 @@ Calc(select=[a, b, c, name])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithAsyncAndRetryHint[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinWithAsyncAndRetryHint[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
@@ -4271,7 +4271,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithAsyncHint[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinWithAsyncHint[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
@@ -4363,7 +4363,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithNestedQuery[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinTemporalTableWithNestedQuery[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM (SELECT a, b, proctime FROM MyTable WHERE c > 1000) AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -4388,7 +4388,7 @@ Calc(select=[a, b, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithAsyncHint[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinWithAsyncHint[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
@@ -4480,7 +4480,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithMixedCaseJoinHint[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinWithMixedCaseJoinHint[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ LookuP('table'='D', 'retry-predicate'='lookup_miss',
@@ -4512,7 +4512,7 @@ Calc(select=[a])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithMixedCaseJoinHint[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinWithMixedCaseJoinHint[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ LookuP('table'='D', 'retry-predicate'='lookup_miss',
@@ -4544,7 +4544,7 @@ Calc(select=[a])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithRetryHint[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testJoinWithRetryHint[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
@@ -4636,7 +4636,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithRetryHint[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testJoinWithRetryHint[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
@@ -4728,7 +4728,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testLeftJoinTemporalTable[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testLeftJoinTemporalTable[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable AS T LEFT JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -4750,7 +4750,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultipleJoinHintsWithSameTableName[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testMultipleJoinHintsWithSameTableName[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'output-mode'='allow_unordered'),
@@ -4778,7 +4778,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testLeftJoinTemporalTable[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testLeftJoinTemporalTable[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable AS T LEFT JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
@@ -4800,7 +4800,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultipleJoinHintsWithDifferentTableAlias[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testMultipleJoinHintsWithDifferentTableAlias[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ LOOKUP('table'='D', 'output-mode'='allow_unordered'),
@@ -4835,7 +4835,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultipleJoinHintsWithDifferentTableName[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testMultipleJoinHintsWithDifferentTableName[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'output-mode'='allow_unordered'),
@@ -4870,7 +4870,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultipleJoinHintsWithDifferentTableName[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testMultipleJoinHintsWithDifferentTableName[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'output-mode'='allow_unordered'),
@@ -4905,7 +4905,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultipleJoinHintsWithSameTableAlias[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testMultipleJoinHintsWithSameTableAlias[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ LOOKUP('table'='D', 'output-mode'='allow_unordered'),
@@ -4933,7 +4933,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultipleJoinHintsWithSameTableAlias[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testMultipleJoinHintsWithSameTableAlias[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ LOOKUP('table'='D', 'output-mode'='allow_unordered'),
@@ -4961,7 +4961,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultipleJoinHintsWithDifferentTableAlias[LegacyTableSource=true, partitionedJoin=false]">
+  <TestCase name="testMultipleJoinHintsWithDifferentTableAlias[LegacyTableSource=true, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ LOOKUP('table'='D', 'output-mode'='allow_unordered'),
@@ -4996,7 +4996,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultipleJoinHintsWithSameTableName[LegacyTableSource=false, partitionedJoin=false]">
+  <TestCase name="testMultipleJoinHintsWithSameTableName[LegacyTableSource=false, shuffleHashJoin=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'output-mode'='allow_unordered'),
