@@ -19,6 +19,7 @@ package org.apache.flink.connector.base.sink.writer;
 
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration;
 import org.apache.flink.connector.base.sink.writer.strategy.AIMDScalingStrategy;
 import org.apache.flink.connector.base.sink.writer.strategy.CongestionControlRateLimitingStrategy;
@@ -1202,6 +1203,11 @@ public class AsyncSinkWriterTest {
             return this;
         }
 
+        private AsyncSinkWriterImplBuilder context(WriterInitContext context) {
+            this.context = new Sink.InitContextWrapper(context);
+            return this;
+        }
+
         private AsyncSinkWriterImplBuilder maxBatchSize(int maxBatchSize) {
             this.maxBatchSize = maxBatchSize;
             return this;
@@ -1283,6 +1289,20 @@ public class AsyncSinkWriterTest {
         private final CountDownLatch blockedThreadLatch;
         private final CountDownLatch delayedStartLatch;
         private final boolean blockForLimitedTime;
+
+        public AsyncSinkReleaseAndBlockWriterImpl(
+                WriterInitContext context,
+                int maxInFlightRequests,
+                CountDownLatch blockedThreadLatch,
+                CountDownLatch delayedStartLatch,
+                boolean blockForLimitedTime) {
+            this(
+                    new Sink.InitContextWrapper(context),
+                    maxInFlightRequests,
+                    blockedThreadLatch,
+                    delayedStartLatch,
+                    blockForLimitedTime);
+        }
 
         public AsyncSinkReleaseAndBlockWriterImpl(
                 Sink.InitContext context,

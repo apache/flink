@@ -144,7 +144,7 @@ public interface Sink<InputT> extends Serializable {
     class InitContextWrapper implements InitContext {
         private final WriterInitContext wrapped;
 
-        InitContextWrapper(WriterInitContext wrapped) {
+        public InitContextWrapper(WriterInitContext wrapped) {
             this.wrapped = wrapped;
         }
 
