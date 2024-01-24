@@ -49,6 +49,13 @@ public class FlinkConfigLoader {
                 BashJavaUtils.class.getSimpleName());
     }
 
+    public static List<String> migrateLegacyConfigurationToStandardYaml(String[] args)
+            throws FlinkException {
+        return ConfigurationParserUtils.migrateLegacyConfigurationToStandardYaml(
+                filterCmdArgs(args, ClusterConfigurationParserFactory.options()),
+                BashJavaUtils.class.getSimpleName());
+    }
+
     private static String[] filterCmdArgs(String[] args, Options options) {
         final List<String> filteredArgs = new ArrayList<>();
         final Iterator<String> iter = Arrays.asList(args).iterator();

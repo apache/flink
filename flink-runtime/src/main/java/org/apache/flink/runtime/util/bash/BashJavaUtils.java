@@ -68,6 +68,8 @@ public class BashJavaUtils {
                 return getJmResourceParams(FlinkConfigLoader.loadConfiguration(commandArgs));
             case UPDATE_AND_GET_FLINK_CONFIGURATION:
                 return FlinkConfigLoader.loadAndModifyConfiguration(commandArgs);
+            case MIGRATE_LEGACY_FLINK_CONFIGURATION_TO_STANDARD_YAML:
+                return FlinkConfigLoader.migrateLegacyConfigurationToStandardYaml(commandArgs);
             default:
                 // unexpected, Command#valueOf should fail if a unknown command is passed in
                 throw new RuntimeException("Unexpected, something is wrong.");
@@ -179,6 +181,9 @@ public class BashJavaUtils {
         GET_JM_RESOURCE_PARAMS,
 
         /** Update and get configuration from conf file and dynamic configs of the FLINK cluster. */
-        UPDATE_AND_GET_FLINK_CONFIGURATION
+        UPDATE_AND_GET_FLINK_CONFIGURATION,
+
+        /** Load configuration from legacy conf file and return standard yaml config file. */
+        MIGRATE_LEGACY_FLINK_CONFIGURATION_TO_STANDARD_YAML
     }
 }

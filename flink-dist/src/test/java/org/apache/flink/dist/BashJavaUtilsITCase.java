@@ -145,6 +145,69 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
     }
 
     @Test
+    void testMigrateLegacyConfigToStandardYaml() throws Exception {
+        int expectedResultLines = 31;
+        String[] commands = {
+            RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+            BashJavaUtils.Command.MIGRATE_LEGACY_FLINK_CONFIGURATION_TO_STANDARD_YAML.toString(),
+            String.valueOf(expectedResultLines)
+        };
+        List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+        assertThat(lines)
+                .containsExactlyInAnyOrder(
+                        "taskmanager:",
+                        "  memory:",
+                        "    process:",
+                        "      size: 1728m",
+                        "  bind-host: localhost",
+                        "  host: localhost",
+                        "  numberOfTaskSlots: '1'",
+                        "jobmanager:",
+                        "  execution:",
+                        "    failover-strategy: region",
+                        "  rpc:",
+                        "    address: localhost",
+                        "    port: '6123'",
+                        "  memory:",
+                        "    process:",
+                        "      size: 1600m",
+                        "  bind-host: localhost",
+                        "rest:",
+                        "  bind-address: localhost",
+                        "  address: localhost",
+                        "parallelism:",
+                        "  default: '1'",
+                        "env:",
+                        "  java:",
+                        "    opts:",
+                        "      all: --add-exports=java.base/sun.net.util=ALL-UNNAMED "
+                                + "--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED "
+                                + "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED "
+                                + "--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED "
+                                + "--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED "
+                                + "--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED "
+                                + "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED "
+                                + "--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.lang=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.net=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.io=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.nio=ALL-UNNAMED "
+                                + "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.text=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.time=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.util=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.util.concurrent.locks=ALL-UNNAMED",
+                        "list: a;b;c",
+                        "map: a:b,c:d",
+                        "listMap: a:b,c:d;e:f",
+                        "escape:",
+                        "  key: '*'");
+    }
+
+    @Test
     void testGetConfigurationRemoveKey() throws Exception {
         int expectedResultLines = 24;
         String[] commands = {

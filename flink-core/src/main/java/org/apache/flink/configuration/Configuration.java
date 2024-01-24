@@ -89,7 +89,8 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
     }
 
     @VisibleForTesting
-    Configuration(boolean standardYaml) {
+    @Internal
+    public Configuration(boolean standardYaml) {
         this.confData = new HashMap<>();
         this.standardYaml = standardYaml;
     }

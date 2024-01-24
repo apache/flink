@@ -134,6 +134,15 @@ updateAndGetFlinkConfiguration() {
     echo "$command_result"
 }
 
+migrateLegacyFlinkConfigToStandardYaml() {
+    local FLINK_CONF_DIR="$1"
+    local FLINK_BIN_DIR="$2"
+    local FLINK_LIB_DIR="$3"
+    local command_result
+    command_result=$(parseConfigurationAndExportLogs "$FLINK_CONF_DIR" "$FLINK_BIN_DIR" "$FLINK_LIB_DIR" "MIGRATE_LEGACY_FLINK_CONFIGURATION_TO_STANDARD_YAML")
+    echo "$command_result"
+}
+
 parseConfigurationAndExportLogs() {
     local FLINK_CONF_DIR="$1"
     local FLINK_BIN_DIR="$2"
