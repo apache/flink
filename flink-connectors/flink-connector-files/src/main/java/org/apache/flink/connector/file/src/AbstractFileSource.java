@@ -69,7 +69,7 @@ public abstract class AbstractFileSource<T, SplitT extends FileSourceSplit>
 
     private static final long serialVersionUID = 1L;
 
-    private final Path[] inputPaths;
+    final Path[] inputPaths;
 
     private final FileEnumerator.Provider enumeratorFactory;
 
@@ -99,6 +99,10 @@ public abstract class AbstractFileSource<T, SplitT extends FileSourceSplit>
     // ------------------------------------------------------------------------
     //  Getters
     // ------------------------------------------------------------------------
+
+    FileEnumerator.Provider getEnumeratorFactory() {
+        return enumeratorFactory;
+    }
 
     public FileSplitAssigner.Provider getAssignerFactory() {
         return assignerFactory;
