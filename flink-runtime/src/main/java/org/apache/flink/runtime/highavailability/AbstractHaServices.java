@@ -112,22 +112,22 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
 
     @Override
     public LeaderElection getResourceManagerLeaderElection() {
-        return leaderElectionService.createLeaderElection(getLeaderPathForResourceManager());
+        return leaderElectionService.createLeaderElection(getLeaderPathForResourceManager(), true);
     }
 
     @Override
     public LeaderElection getDispatcherLeaderElection() {
-        return leaderElectionService.createLeaderElection(getLeaderPathForDispatcher());
+        return leaderElectionService.createLeaderElection(getLeaderPathForDispatcher(), true);
     }
 
     @Override
     public LeaderElection getJobManagerLeaderElection(JobID jobID) {
-        return leaderElectionService.createLeaderElection(getLeaderPathForJobManager(jobID));
+        return leaderElectionService.createLeaderElection(getLeaderPathForJobManager(jobID), false);
     }
 
     @Override
     public LeaderElection getClusterRestEndpointLeaderElection() {
-        return leaderElectionService.createLeaderElection(getLeaderPathForRestServer());
+        return leaderElectionService.createLeaderElection(getLeaderPathForRestServer(), true);
     }
 
     @Override

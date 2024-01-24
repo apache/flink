@@ -176,7 +176,8 @@ class ZooKeeperLeaderElectionTest {
                 final LeaderElectionDriverFactory driverFactory =
                         new ZooKeeperLeaderElectionDriverFactory(createZooKeeperClient());
                 leaderElectionService[i] = new DefaultLeaderElectionService(driverFactory);
-                leaderElections[i] = leaderElectionService[i].createLeaderElection(COMPONENT_ID);
+                leaderElections[i] =
+                        leaderElectionService[i].createLeaderElection(COMPONENT_ID, true);
                 contenders[i] = new TestingContender(createAddress(i), leaderElections[i]);
 
                 LOG.debug("Start leader election service for contender #{}.", i);
@@ -276,7 +277,8 @@ class ZooKeeperLeaderElectionTest {
                 final LeaderElectionDriverFactory driverFactory =
                         new ZooKeeperLeaderElectionDriverFactory(createZooKeeperClient());
                 leaderElectionService[i] = new DefaultLeaderElectionService(driverFactory);
-                leaderElections[i] = leaderElectionService[i].createLeaderElection(COMPONENT_ID);
+                leaderElections[i] =
+                        leaderElectionService[i].createLeaderElection(COMPONENT_ID, true);
                 contenders[i] =
                         new TestingContender(LEADER_ADDRESS + "_" + i + "_0", leaderElections[i]);
 
@@ -311,7 +313,7 @@ class ZooKeeperLeaderElectionTest {
                             new ZooKeeperLeaderElectionDriverFactory(createZooKeeperClient());
                     leaderElectionService[index] = new DefaultLeaderElectionService(driverFactory);
                     leaderElections[index] =
-                            leaderElectionService[index].createLeaderElection(COMPONENT_ID);
+                            leaderElectionService[index].createLeaderElection(COMPONENT_ID, true);
 
                     contenders[index] =
                             new TestingContender(

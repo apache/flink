@@ -31,8 +31,10 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -60,6 +62,9 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
 
     @GuardedBy("lock")
     private final Map<String, LeaderContender> leaderContenderRegistry = new HashMap<>();
+
+    @GuardedBy("lock")
+    private final Set<String> contendersToPublishInfo = new HashSet<>();
 
     /**
      * Saves the session ID which was issued by the {@link LeaderElectionDriver} if and only if the
@@ -146,7 +151,7 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
     }
 
     @Override
-    public LeaderElection createLeaderElection(String componentId) {
+    public LeaderElection createLeaderElection(String componentId, boolean publishInformation) {
         synchronized (lock) {
             Preconditions.checkState(
                     !leadershipOperationExecutor.isShutdown(),
@@ -155,6 +160,9 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                     !leaderContenderRegistry.containsKey(componentId),
                     "There shouldn't be any contender registered under the passed component '%s'.",
                     componentId);
+            if (publishInformation) {
+                contendersToPublishInfo.add(componentId);
+            }
             return new DefaultLeaderElection(this, componentId);
         }
     }
@@ -229,6 +237,7 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                     componentId);
 
             final LeaderContender leaderContender = leaderContenderRegistry.remove(componentId);
+            final boolean publishInformation = contendersToPublishInfo.remove(componentId);
             Preconditions.checkNotNull(
                     leaderContender,
                     "There should be a LeaderContender registered under the given component '%s'.",
@@ -239,7 +248,7 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                         "The contender associated with component '{}' is deregistered while the service has the leadership acquired. The revoke event is forwarded to the LeaderContender.",
                         componentId);
 
-                if (leaderElectionDriver.hasLeadership()) {
+                if (leaderElectionDriver.hasLeadership() && publishInformation) {
                     leaderElectionDriver.deleteLeaderInformation(componentId);
                     LOG.debug(
                             "Leader information is cleaned up while deregistering the contender for component '{}' from the service.",
@@ -340,8 +349,10 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                                 confirmedLeaderInformation,
                                 componentId,
                                 newConfirmedLeaderInformation);
-                leaderElectionDriver.publishLeaderInformation(
-                        componentId, newConfirmedLeaderInformation);
+                if (contendersToPublishInfo.contains(componentId)) {
+                    leaderElectionDriver.publishLeaderInformation(
+                            componentId, newConfirmedLeaderInformation);
+                }
             } else {
                 if (!leaderSessionID.equals(this.issuedLeaderSessionID)) {
                     LOG.debug(
@@ -521,7 +532,9 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                     LeaderElectionUtils.convertToString(externallyChangedLeaderInformation));
         }
 
-        leaderElectionDriver.publishLeaderInformation(componentId, confirmedLeaderInformation);
+        if (contendersToPublishInfo.contains(componentId)) {
+            leaderElectionDriver.publishLeaderInformation(componentId, confirmedLeaderInformation);
+        }
     }
 
     private void runInLeaderEventThread(String leaderElectionEventName, Runnable callback) {

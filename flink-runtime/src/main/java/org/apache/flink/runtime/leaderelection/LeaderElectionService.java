@@ -41,6 +41,7 @@ public interface LeaderElectionService {
      *
      * @param componentId a unique identifier that refers to the stored leader information that the
      *     newly created {@link LeaderElection} manages.
+     * @param publishInformation whether to publish the information of itself.
      */
-    LeaderElection createLeaderElection(String componentId);
+    LeaderElection createLeaderElection(String componentId, boolean publishInformation);
 }

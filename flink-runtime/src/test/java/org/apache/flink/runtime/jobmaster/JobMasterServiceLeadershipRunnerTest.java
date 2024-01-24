@@ -721,7 +721,7 @@ class JobMasterServiceLeadershipRunnerTest {
                         .build();
         final String componentId = "random-component-id";
         final LeaderElection leaderElection =
-                defaultLeaderElectionService.createLeaderElection(componentId);
+                defaultLeaderElectionService.createLeaderElection(componentId, true);
         try (final JobMasterServiceLeadershipRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .setClassLoaderLease(

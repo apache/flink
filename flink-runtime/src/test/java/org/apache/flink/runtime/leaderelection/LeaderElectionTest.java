@@ -200,7 +200,7 @@ public class LeaderElectionTest {
 
         @Override
         public LeaderElection createLeaderElection() {
-            return leaderElectionService.createLeaderElection("random-component-id");
+            return leaderElectionService.createLeaderElection("random-component-id", true);
         }
     }
 

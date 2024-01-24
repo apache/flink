@@ -192,10 +192,10 @@ public class DefaultJobLeaderService implements JobLeaderService {
         LOG.info("Add job {} for job leader monitoring.", jobId);
 
         final LeaderRetrievalService leaderRetrievalService =
-                highAvailabilityServices.getJobManagerLeaderRetriever(jobId, defaultTargetAddress);
+                highAvailabilityServices.getResourceManagerLeaderRetriever();
 
         DefaultJobLeaderService.JobManagerLeaderListener jobManagerLeaderListener =
-                new JobManagerLeaderListener(jobId);
+                new JobManagerLeaderListener(jobId, defaultTargetAddress);
 
         final Tuple2<LeaderRetrievalService, JobManagerLeaderListener> oldEntry =
                 jobLeaderServices.put(
@@ -232,6 +232,8 @@ public class DefaultJobLeaderService implements JobLeaderService {
         /** Job id identifying the job to look for a leader. */
         private final JobID jobId;
 
+        private final String jobAddress;
+
         /** Rpc connection to the job leader. */
         @GuardedBy("lock")
         @Nullable
@@ -250,8 +252,9 @@ public class DefaultJobLeaderService implements JobLeaderService {
         /** State of the listener. */
         private volatile boolean stopped;
 
-        private JobManagerLeaderListener(JobID jobId) {
+        private JobManagerLeaderListener(JobID jobId, String jobAddress) {
             this.jobId = Preconditions.checkNotNull(jobId);
+            this.jobAddress = Preconditions.checkNotNull(jobAddress);
 
             stopped = false;
             rpcConnection = null;
@@ -324,7 +327,7 @@ public class DefaultJobLeaderService implements JobLeaderService {
                                     jobId);
                         } else {
                             closeRpcConnection();
-                            openRpcConnectionTo(leaderAddress, jobMasterId);
+                            openRpcConnectionTo(jobAddress, jobMasterId);
                         }
                     }
                 }

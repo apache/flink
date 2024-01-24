@@ -123,7 +123,8 @@ class DefaultLeaderElectionServiceTest {
                                 assertThatThrownBy(
                                                 () ->
                                                         leaderElectionService.createLeaderElection(
-                                                                contenderContext0.componentId))
+                                                                contenderContext0.componentId,
+                                                                true))
                                         .isInstanceOf(IllegalStateException.class));
             }
         };
@@ -164,7 +165,8 @@ class DefaultLeaderElectionServiceTest {
                         driverFactory, fatalErrorHandlerExtension.getTestingFatalErrorHandler())) {
 
             // creating the LeaderElection is necessary to instantiate the driver
-            final LeaderElection leaderElection = testInstance.createLeaderElection("component-id");
+            final LeaderElection leaderElection =
+                    testInstance.createLeaderElection("component-id", true);
             leaderElection.startLeaderElection(TestingGenericLeaderContender.newBuilder().build());
 
             final TestingLeaderElectionDriver driver =
@@ -238,7 +240,7 @@ class DefaultLeaderElectionServiceTest {
                     .isFalse();
 
             try (final LeaderElection leaderElection =
-                    testInstance.createLeaderElection("component-id")) {
+                    testInstance.createLeaderElection("component-id", true)) {
                 assertThat(driverCreated)
                         .as(
                                 "The driver shouldn't have been created during LeaderElection creation.")
@@ -265,7 +267,7 @@ class DefaultLeaderElectionServiceTest {
         // This results in the close method not having any effect.
         testInstance.close();
 
-        assertThatThrownBy(() -> testInstance.createLeaderElection("component-id"))
+        assertThatThrownBy(() -> testInstance.createLeaderElection("component-id", true))
                 .as(
                         "Registering a contender on a closed service should have resulted in an IllegalStateException.")
                 .isInstanceOf(IllegalStateException.class);
@@ -293,7 +295,7 @@ class DefaultLeaderElectionServiceTest {
                 assertThat(closeCount).hasValue(i - 1);
 
                 try (final LeaderElection leaderElection =
-                        testInstance.createLeaderElection(componentId)) {
+                        testInstance.createLeaderElection(componentId, true)) {
                     leaderElection.startLeaderElection(
                             TestingGenericLeaderContender.newBuilder().build());
                 }
@@ -343,7 +345,7 @@ class DefaultLeaderElectionServiceTest {
                         Executors.newDirectExecutorService())) {
 
             final LeaderElection leaderElection =
-                    testInstance.createLeaderElection(createRandomComponentId());
+                    testInstance.createLeaderElection(createRandomComponentId(), true);
             final TestingContender testingContender =
                     new TestingContender("unused-address", leaderElection);
             testingContender.startLeaderElection();
@@ -383,7 +385,7 @@ class DefaultLeaderElectionServiceTest {
                                     ignoredSessionID -> secondContenderReceivedGrant.set(true))
                             .build();
             try (final LeaderElection firstLeaderElection =
-                    leaderElectionService.createLeaderElection("component_id_0")) {
+                    leaderElectionService.createLeaderElection("component_id_0", true)) {
                 firstLeaderElection.startLeaderElection(firstContender);
 
                 assertThat(driverFactory.getCreatedDriverCount())
@@ -394,7 +396,7 @@ class DefaultLeaderElectionServiceTest {
                 assertThat(firstContenderReceivedGrant).isFalse();
 
                 try (final LeaderElection secondLeaderElection =
-                        leaderElectionService.createLeaderElection("component_id_1")) {
+                        leaderElectionService.createLeaderElection("component_id_1", true)) {
                     secondLeaderElection.startLeaderElection(secondContender);
 
                     assertThat(secondContenderReceivedGrant).isFalse();
@@ -428,7 +430,7 @@ class DefaultLeaderElectionServiceTest {
                                             leadershipGrantForwardedToContender.set(true))
                             .build();
             try (final LeaderElection leaderElection =
-                    leaderElectionService.createLeaderElection("component_id")) {
+                    leaderElectionService.createLeaderElection("component_id", true)) {
                 leaderElection.startLeaderElection(leaderContender);
 
                 assertThat(driverFactory.getCreatedDriverCount())
@@ -455,7 +457,7 @@ class DefaultLeaderElectionServiceTest {
 
                             final LeaderElection leaderElection =
                                     leaderElectionService.createLeaderElection(
-                                            createRandomComponentId());
+                                            createRandomComponentId(), true);
 
                             final AtomicInteger revokeCallCount = new AtomicInteger();
                             final LeaderContender contender =
@@ -1235,7 +1237,7 @@ class DefaultLeaderElectionServiceTest {
                         driverFactory, fatalErrorHandlerExtension.getTestingFatalErrorHandler());
 
         final LeaderElection leaderElection =
-                testInstance.createLeaderElection(createRandomComponentId());
+                testInstance.createLeaderElection(createRandomComponentId(), true);
         leaderElection.startLeaderElection(contender);
 
         listenerAction.accept(leadershipGranted, testInstance);
@@ -1367,7 +1369,7 @@ class DefaultLeaderElectionServiceTest {
             final String address = String.format("address-%d-%s", id, randomSuffix);
 
             final LeaderElection leaderElection =
-                    leaderElectionService.createLeaderElection(componentId);
+                    leaderElectionService.createLeaderElection(componentId, true);
             final TestingContender contender = new TestingContender(address, leaderElection);
             contender.startLeaderElection();
 
