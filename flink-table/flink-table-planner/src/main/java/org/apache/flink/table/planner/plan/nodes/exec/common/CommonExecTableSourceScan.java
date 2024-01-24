@@ -133,7 +133,12 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
                             outputTypeInfo,
                             sourceParallelism,
                             sourceParallelismConfigured);
-            return meta.fill(sourceTransform);
+            if (function instanceof ParallelSourceFunction && sourceParallelismConfigured) {
+                meta.fill(sourceTransform);
+                return new SourceTransformationWrapper<>(sourceTransform);
+            } else {
+                return meta.fill(sourceTransform);
+            }
         } else if (provider instanceof InputFormatProvider) {
             final InputFormat<RowData, ?> inputFormat =
                     ((InputFormatProvider) provider).createInputFormat();
@@ -228,12 +233,23 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         Transformation<RowData> sourceTransformationWrapper =
                 new SourceTransformationWrapper<>(sourceTransform);
 
-        final ResolvedSchema schema = tableSourceSpec.getContextResolvedTable().getResolvedSchema();
-        final RowType physicalRowType = getPhysicalRowType(schema);
-        final int[] primaryKeys = getPrimaryKeyIndices(physicalRowType, schema);
-        final boolean hasPk = primaryKeys.length > 0;
-
-        if (hasPk && !changelogMode.containsOnly(RowKind.INSERT)) {
+        if (!changelogMode.containsOnly(RowKind.INSERT)) {
+            final ResolvedSchema schema =
+                    tableSourceSpec.getContextResolvedTable().getResolvedSchema();
+            final RowType physicalRowType = getPhysicalRowType(schema);
+            final int[] primaryKeys = getPrimaryKeyIndices(physicalRowType, schema);
+            final boolean hasPk = primaryKeys.length > 0;
+            if (!hasPk) {
+                throw new TableException(
+                        String.format(
+                                "Configured parallelism %s for upsert table '%s' while can not find primary key field. "
+                                        + "This is a bug, please file an issue.",
+                                sourceParallelism,
+                                tableSourceSpec
+                                        .getContextResolvedTable()
+                                        .getIdentifier()
+                                        .asSummaryString()));
+            }
             final RowDataKeySelector selector =
                     KeySelectorUtil.getRowDataSelector(classLoader, primaryKeys, outputTypeInfo);
             final KeyGroupStreamPartitioner<RowData, RowData> partitioner =
