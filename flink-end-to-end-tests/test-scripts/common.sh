@@ -56,6 +56,8 @@ if [[ -z "${FLINK_CONF_DIR:-}" ]]; then
     FLINK_CONF_DIR="$FLINK_DIR/conf"
 fi
 FLINK_CONF=${FLINK_CONF_DIR}/config.yaml
+# Flatten the configuration file config.yaml to enable end-to-end test cases can modify 
+# it directly through shell scripts.
 output=$(updateAndGetFlinkConfiguration "${FLINK_CONF_DIR}" "${FLINK_DIR}/bin" "${FLINK_DIR}/lib" -flatten)
 echo "$output" > $FLINK_CONF
 

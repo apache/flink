@@ -48,8 +48,7 @@ function build_image() {
     local server_pid=$!
 
     echo "Preparing Dockeriles"
-    # TODO only for test, after FLINK-34205 we should revert this change
-    retry_times_with_exponential_backoff 5 git clone https://github.com/JunRuiLee/flink-docker.git --branch using_bash_java_utils --single-branch
+    retry_times_with_exponential_backoff 5 git clone https://github.com/apache/flink-docker.git --branch dev-master --single-branch
 
     local java_version=8
     if [[ ${PROFILE} == *"jdk11"* ]]; then
