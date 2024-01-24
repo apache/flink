@@ -76,8 +76,7 @@ public final class SerializerConfig implements Serializable {
     private LinkedHashSet<Class<?>> registeredPojoTypes = new LinkedHashSet<>();
 
     // Order is not required as we will traverse the type hierarchy up to find the closest type
-    // information factory
-    // when extracting the type information.
+    // information factory when extracting the type information.
     private Map<Class<?>, Class<? extends TypeInfoFactory<?>>> registeredTypeInfoFactories =
             new HashMap<>();
 
@@ -460,6 +459,9 @@ public final class SerializerConfig implements Serializable {
             Class<?> type = entry.getKey();
             Map<String, String> config = entry.getValue();
             String configType = config.get("type");
+            if (configType == null) {
+                throw new IllegalArgumentException("Serializer type not specified for " + type);
+            }
             switch (configType) {
                 case "pojo":
                     registerPojoType(type);
@@ -471,7 +473,9 @@ public final class SerializerConfig implements Serializable {
                     parseAndRegisterTypeFactory(classLoader, type, config);
                     break;
                 default:
-                    throw new IllegalArgumentException("Unsupported type: " + configType);
+                    throw new IllegalArgumentException(
+                            String.format(
+                                    "Unsupported serializer type %s for %s", configType, type));
             }
         }
     }
@@ -510,8 +514,8 @@ public final class SerializerConfig implements Serializable {
         Class<? extends TypeInfoFactory<?>> factoryClass =
                 loadClass(m.get("class"), classLoader, "Could not load TypeInfoFactory's class");
         // Register in the global static factory map of TypeExtractor for now so that it can be
-        // accessed from
-        // the static methods of TypeExtractor where SerializerConfig is currently not accessible
+        // accessed from the static methods of TypeExtractor where SerializerConfig is currently
+        // not accessible
         TypeExtractor.registerFactory(t, factoryClass);
         // Register inside SerializerConfig only for testing purpose for now
         registerTypeWithTypeInfoFactory(t, factoryClass);

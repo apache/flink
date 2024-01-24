@@ -267,12 +267,23 @@ class SerializerConfigTest {
 
     @Test
     void testLoadingIllegalSerializationConfig() {
+        String nullTypeConfigStr =
+                "{org.apache.flink.api.common.serialization.SerializerConfigTest:"
+                        + " {class: org.apache.flink.api.common.serialization.SerializerConfigTest$TestTypeInfoFactory}}";
+        assertThatThrownBy(() -> getConfiguredSerializerConfig(nullTypeConfigStr))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasRootCauseMessage(
+                        "Serializer type not specified for"
+                                + " class org.apache.flink.api.common.serialization.SerializerConfigTest");
+
         String unsupportedTypeConfigStr =
                 "{org.apache.flink.api.common.serialization.SerializerConfigTest:"
                         + " {type: random}}";
         assertThatThrownBy(() -> getConfiguredSerializerConfig(unsupportedTypeConfigStr))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasRootCauseMessage("Unsupported type: random");
+                .hasRootCauseMessage(
+                        "Unsupported serializer type random for"
+                                + " class org.apache.flink.api.common.serialization.SerializerConfigTest");
     }
 
     private SerializerConfig getConfiguredSerializerConfig(String serializationConfigStr) {
