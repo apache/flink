@@ -41,6 +41,8 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
@@ -880,6 +882,33 @@ class ResultPartitionTest {
         assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(0);
     }
 
+    @Test
+    void testReleaseAllResourcesAtFailure() {
+        final int maxNumSubpartitions = 4;
+        final ResultSubpartitionIndexSet indexSet =
+                new ResultSubpartitionIndexSet(0, maxNumSubpartitions);
+        final BufferAvailabilityListener availabilityListener = (ResultSubpartitionView view) -> {};
+
+        for (int numSubpartitions = 1; numSubpartitions < maxNumSubpartitions; numSubpartitions++) {
+            List<ResultSubpartitionView> views = new ArrayList<>();
+            for (int i = 0; i < numSubpartitions; i++) {
+                views.add(new NoOpResultSubpartitionViewWithReleaseListener());
+            }
+
+            ResultPartition partition =
+                    TestingResultPartition.newBuilder()
+                            .setCreateSubpartitionViewFunction(
+                                    (index, listener) -> views.get(index))
+                            .build();
+
+            assertThatThrownBy(
+                            () -> partition.createSubpartitionView(indexSet, availabilityListener))
+                    .isInstanceOf(IndexOutOfBoundsException.class);
+
+            assertThat(views).allMatch(ResultSubpartitionView::isReleased);
+        }
+    }
+
     @NotNull
     private BufferBuilder getFinishedBufferBuilder(
             PipelinedResultPartition resultPartition, int bufferSize) throws Exception {
@@ -887,5 +916,20 @@ class ResultPartitionTest {
         bufferBuilder.appendAndCommit(ByteBuffer.allocate(bufferSize));
         bufferBuilder.finish();
         return bufferBuilder;
+    }
+
+    private static class NoOpResultSubpartitionViewWithReleaseListener
+            extends NoOpResultSubpartitionView {
+        private boolean isReleased = false;
+
+        @Override
+        public void releaseAllResources() {
+            isReleased = true;
+        }
+
+        @Override
+        public boolean isReleased() {
+            return isReleased;
+        }
     }
 }

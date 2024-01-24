@@ -177,6 +177,13 @@ public class UnionResultSubpartitionView
         for (ResultSubpartitionView view : allViews.values()) {
             view.releaseAllResources();
         }
+        allViews.clear();
+
+        for (Tuple2<ResultSubpartition.BufferAndBacklog, Integer> tuple2 : cachedBuffers) {
+            tuple2.f0.buffer().recycleBuffer();
+        }
+        cachedBuffers.clear();
+
         isReleased = true;
     }
 
