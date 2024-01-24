@@ -158,7 +158,7 @@ class RelTreeWriterImpl(
                 RelExplainUtil.hintsToString(aggHints, ignoreKeyOnKVHints = true)))
           }
         case agg: StreamPhysicalGroupAggregateBase =>
-          val aggHints = agg.hints
+          val aggHints = FlinkHints.getAllStateTtlHints(agg.hints)
           if (aggHints.nonEmpty) {
             printValues.add(
               Pair.of(
