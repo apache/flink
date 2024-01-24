@@ -2631,7 +2631,7 @@ LogicalProject(a=[$1], b=[$0], window_start=[$2], window_end=[$3], EXPR$4=[$4], 
 
 == Optimized Physical Plan ==
 Calc(select=[a, b, window_start, window_end, EXPR$4, EXPR$5, EXPR$6, wAvg, uv])
-+- WindowAggregate(groupBy=[b, a], window=[SESSION(time_col=[rowtime], gap=[5 min], partition keys=[a, b])], select=[b, a, COUNT(*) AS EXPR$4, SUM(d) AS EXPR$5, MAX(d) FILTER $f5 AS EXPR$6, weightedAvg(b, e) AS wAvg, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end])
++- WindowAggregate(groupBy=[b, a], window=[SESSION(time_col=[rowtime], gap=[5 min], partition keys=[b, a])], select=[b, a, COUNT(*) AS EXPR$4, SUM(d) AS EXPR$5, MAX(d) FILTER $f5 AS EXPR$6, weightedAvg(b, e) AS wAvg, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end])
    +- Exchange(distribution=[hash[b, a]])
       +- Calc(select=[b, a, d, IS TRUE(>(b, 1000)) AS $f5, e, c, rowtime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
@@ -2639,7 +2639,7 @@ Calc(select=[a, b, window_start, window_end, EXPR$4, EXPR$5, EXPR$6, wAvg, uv])
 
 == Optimized Execution Plan ==
 Calc(select=[a, b, window_start, window_end, EXPR$4, EXPR$5, EXPR$6, wAvg, uv])
-+- WindowAggregate(groupBy=[b, a], window=[SESSION(time_col=[rowtime], gap=[5 min], partition keys=[a, b])], select=[b, a, COUNT(*) AS EXPR$4, SUM(d) AS EXPR$5, MAX(d) FILTER $f5 AS EXPR$6, weightedAvg(b, e) AS wAvg, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end])
++- WindowAggregate(groupBy=[b, a], window=[SESSION(time_col=[rowtime], gap=[5 min], partition keys=[b, a])], select=[b, a, COUNT(*) AS EXPR$4, SUM(d) AS EXPR$5, MAX(d) FILTER $f5 AS EXPR$6, weightedAvg(b, e) AS wAvg, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end])
    +- Exchange(distribution=[hash[b, a]])
       +- Calc(select=[b, a, d, (b > 1000) IS TRUE AS $f5, e, c, rowtime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
@@ -2661,7 +2661,7 @@ LogicalProject(a=[$1], b=[$0], window_start=[$2], window_end=[$3], EXPR$4=[$4], 
 
 == Optimized Physical Plan ==
 Calc(select=[a, b, window_start, window_end, EXPR$4, EXPR$5, EXPR$6, wAvg, uv])
-+- WindowAggregate(groupBy=[b, a], window=[SESSION(time_col=[rowtime], gap=[5 min], partition keys=[a, b])], select=[b, a, COUNT(*) AS EXPR$4, SUM(d) AS EXPR$5, MAX(d) FILTER $f5 AS EXPR$6, weightedAvg(b, e) AS wAvg, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end])
++- WindowAggregate(groupBy=[b, a], window=[SESSION(time_col=[rowtime], gap=[5 min], partition keys=[b, a])], select=[b, a, COUNT(*) AS EXPR$4, SUM(d) AS EXPR$5, MAX(d) FILTER $f5 AS EXPR$6, weightedAvg(b, e) AS wAvg, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end])
    +- Exchange(distribution=[hash[b, a]])
       +- Calc(select=[b, a, d, IS TRUE(>(b, 1000)) AS $f5, e, c, rowtime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
@@ -2669,7 +2669,7 @@ Calc(select=[a, b, window_start, window_end, EXPR$4, EXPR$5, EXPR$6, wAvg, uv])
 
 == Optimized Execution Plan ==
 Calc(select=[a, b, window_start, window_end, EXPR$4, EXPR$5, EXPR$6, wAvg, uv])
-+- WindowAggregate(groupBy=[b, a], window=[SESSION(time_col=[rowtime], gap=[5 min], partition keys=[a, b])], select=[b, a, COUNT(*) AS EXPR$4, SUM(d) AS EXPR$5, MAX(d) FILTER $f5 AS EXPR$6, weightedAvg(b, e) AS wAvg, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end])
++- WindowAggregate(groupBy=[b, a], window=[SESSION(time_col=[rowtime], gap=[5 min], partition keys=[b, a])], select=[b, a, COUNT(*) AS EXPR$4, SUM(d) AS EXPR$5, MAX(d) FILTER $f5 AS EXPR$6, weightedAvg(b, e) AS wAvg, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end])
    +- Exchange(distribution=[hash[b, a]])
       +- Calc(select=[b, a, d, (b > 1000) IS TRUE AS $f5, e, c, rowtime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
