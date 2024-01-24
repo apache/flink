@@ -288,8 +288,6 @@ public class PipelineOptions {
                                                     code("com.esotericsoftware.kryo.Serializer"),
                                                     code(
                                                             "org.apache.flink.api.common.typeinfo.TypeInfoFactory")))
-                                    .linebreak()
-                                    .linebreak()
                                     .text("Example:")
                                     .linebreak()
                                     .add(
