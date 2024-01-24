@@ -26,6 +26,7 @@ import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.Cum
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.GroupWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.SlidingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.TumblingWindowAssigner;
+import org.apache.flink.types.RowKind;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -271,6 +272,64 @@ public class AlignedWindowTableFunctionOperatorTest extends WindowTableFunctionO
         expectedOutput.add(
                 insertRecord(
                         "key2", 1, Long.MAX_VALUE, localMills(3000L), localMills(6000L), 5999L));
+        ASSERTER.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
+    @Test
+    public void testConsumingChangelogRecords() throws Exception {
+        final TumblingWindowAssigner assigner = TumblingWindowAssigner.of(Duration.ofSeconds(3));
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(assigner, shiftTimeZone);
+        testHarness.setup(OUT_SERIALIZER);
+        testHarness.open();
+
+        // process elements
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        testHarness.processElement(binaryRecord(RowKind.INSERT, "key1", 1, 20L));
+        testHarness.processElement(binaryRecord(RowKind.UPDATE_BEFORE, "key1", 1, 30L));
+        testHarness.processElement(binaryRecord(RowKind.UPDATE_AFTER, "key1", 1, 40L));
+        testHarness.processWatermark(new Watermark(999));
+        // append 3 fields: window_start, window_end, window_time
+        expectedOutput.add(
+                binaryRecord(
+                        RowKind.INSERT, "key1", 1, 20L, localMills(0L), localMills(3000L), 2999L));
+        expectedOutput.add(
+                binaryRecord(
+                        RowKind.UPDATE_BEFORE,
+                        "key1",
+                        1,
+                        30L,
+                        localMills(0L),
+                        localMills(3000L),
+                        2999L));
+        expectedOutput.add(
+                binaryRecord(
+                        RowKind.UPDATE_AFTER,
+                        "key1",
+                        1,
+                        40L,
+                        localMills(0L),
+                        localMills(3000L),
+                        2999L));
+        expectedOutput.add(new Watermark(999));
+
+        ASSERTER.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+
+        testHarness.processWatermark(new Watermark(9999));
+        expectedOutput.add(new Watermark(9999));
+
+        ASSERTER.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+
+        // late records would not be dropped
+        testHarness.processElement(binaryRecord(RowKind.DELETE, "key1", 1, 200L));
+
+        expectedOutput.add(
+                binaryRecord(
+                        RowKind.DELETE, "key1", 1, 200L, localMills(0L), localMills(3000L), 2999L));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
         testHarness.close();

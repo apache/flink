@@ -113,7 +113,9 @@ public abstract class WindowTableFunctionOperatorBase extends TableStreamOperato
                     2,
                     TimestampData.fromEpochMillis(
                             toEpochMills(window.maxTimestamp(), shiftTimeZone)));
-            collector.collect(outRow.replace(inputRow, windowProperties));
+            outRow.replace(inputRow, windowProperties);
+            outRow.setRowKind(inputRow.getRowKind());
+            collector.collect(outRow);
         }
     }
 
