@@ -29,9 +29,9 @@ import java.time.Duration;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
 
-/** Akka configuration options. */
+/** RPC configuration options. */
 @PublicEvolving
-public class AkkaOptions {
+public class RpcOptions {
 
     @Internal
     @Documentation.ExcludeFromDocumentation("Internal use only")

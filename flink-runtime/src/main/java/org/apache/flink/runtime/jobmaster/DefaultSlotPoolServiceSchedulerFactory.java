@@ -21,10 +21,10 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobWriter;
@@ -153,7 +153,7 @@ public final class DefaultSlotPoolServiceSchedulerFactory
             Configuration configuration, JobType jobType, boolean isDynamicGraph) {
 
         final Time rpcTimeout =
-                Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
+                Time.fromDuration(configuration.get(RpcOptions.ASK_TIMEOUT_DURATION));
         final Time slotIdleTimeout =
                 Time.milliseconds(configuration.get(JobManagerOptions.SLOT_IDLE_TIMEOUT));
         final Time batchSlotTimeout =

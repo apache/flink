@@ -17,8 +17,8 @@
 
 package org.apache.flink.runtime.rpc.pekko;
 
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcSystem;
@@ -225,7 +225,7 @@ class PekkoUtilsTest {
     @Test
     void getConfigDefaultsStartupTimeoutTo10TimesOfAskTimeout() {
         final Configuration configuration = new Configuration();
-        configuration.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMillis(100));
+        configuration.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofMillis(100));
 
         final Config config =
                 PekkoUtils.getConfig(configuration, new HostAndPort("localhost", 31337));

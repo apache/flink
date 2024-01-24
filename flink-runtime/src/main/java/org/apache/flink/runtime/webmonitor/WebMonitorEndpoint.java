@@ -21,10 +21,10 @@ package org.apache.flink.runtime.webmonitor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
@@ -267,7 +267,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
     }
 
     private VertexThreadInfoTracker initializeThreadInfoTracker(ScheduledExecutorService executor) {
-        final Duration askTimeout = clusterConfiguration.get(AkkaOptions.ASK_TIMEOUT_DURATION);
+        final Duration askTimeout = clusterConfiguration.get(RpcOptions.ASK_TIMEOUT_DURATION);
 
         final Duration flameGraphCleanUpInterval =
                 clusterConfiguration.get(RestOptions.FLAMEGRAPH_CLEANUP_INTERVAL);

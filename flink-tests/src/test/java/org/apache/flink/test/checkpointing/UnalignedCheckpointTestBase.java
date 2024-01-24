@@ -42,11 +42,11 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.InputStatus;
@@ -785,7 +785,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             // amount of buffers
             conf.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.ofMebiBytes(32));
             conf.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.ofMebiBytes(32));
-            conf.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(1));
+            conf.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(1));
             return conf;
         }
 

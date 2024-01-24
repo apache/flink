@@ -23,12 +23,12 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.core.testutils.EachCallbackWrapper;
@@ -110,7 +110,7 @@ class ProcessFailureCancelingITCase {
 
         Configuration config = new Configuration();
         config.set(JobManagerOptions.ADDRESS, "localhost");
-        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(100));
+        config.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(100));
         config.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
         config.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
