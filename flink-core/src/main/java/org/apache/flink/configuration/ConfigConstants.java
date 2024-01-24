@@ -853,14 +853,14 @@ public final class ConfigConstants {
     /**
      * Timeout for all blocking calls on the cluster side.
      *
-     * @deprecated Use {@link RpcOptions#ASK_TIMEOUT} instead.
+     * @deprecated Use {@link RpcOptions#ASK_TIMEOUT_DURATION} instead.
      */
     @Deprecated public static final String AKKA_ASK_TIMEOUT = "akka.ask.timeout";
 
     /**
      * Timeout for all blocking calls that look up remote actors.
      *
-     * @deprecated Use {@link RpcOptions#LOOKUP_TIMEOUT} instead.
+     * @deprecated Use {@link RpcOptions#LOOKUP_TIMEOUT_DURATION} instead.
      */
     @Deprecated public static final String AKKA_LOOKUP_TIMEOUT = "akka.lookup.timeout";
 
@@ -1568,10 +1568,10 @@ public final class ConfigConstants {
     /** @deprecated Use {@link RpcOptions#FRAMESIZE} instead. */
     @Deprecated public static final String DEFAULT_AKKA_FRAMESIZE = "10485760b";
 
-    /** @deprecated Use {@link RpcOptions#ASK_TIMEOUT} instead. */
+    /** @deprecated Use {@link RpcOptions#ASK_TIMEOUT_DURATION} instead. */
     @Deprecated public static final String DEFAULT_AKKA_ASK_TIMEOUT = "10 s";
 
-    /** @deprecated Use {@link RpcOptions#LOOKUP_TIMEOUT} instead. */
+    /** @deprecated Use {@link RpcOptions#LOOKUP_TIMEOUT_DURATION} instead. */
     @Deprecated public static final String DEFAULT_AKKA_LOOKUP_TIMEOUT = "10 s";
 
     /** @deprecated Use {@code ClientOptions#CLIENT_TIMEOUT} instead. */

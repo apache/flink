@@ -22,11 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
-import org.apache.flink.util.TimeUtils;
 
 import java.time.Duration;
 
-import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
 
 /** RPC configuration options. */
@@ -79,15 +77,6 @@ public class RpcOptions {
                             "Timeout used for all futures and blocking Pekko calls. If Flink fails due to timeouts then you"
                                     + " should try to increase this value. Timeouts can be caused by slow machines or a congested network. The"
                                     + " timeout value requires a time-unit specifier (ms/s/min/h/d).");
-
-    /** @deprecated Use {@link #ASK_TIMEOUT_DURATION} */
-    @Deprecated
-    public static final ConfigOption<String> ASK_TIMEOUT =
-            ConfigOptions.key(ASK_TIMEOUT_DURATION.key())
-                    .stringType()
-                    .defaultValue(
-                            TimeUtils.formatWithHighestUnit(ASK_TIMEOUT_DURATION.defaultValue()))
-                    .withDescription(ASK_TIMEOUT_DURATION.description());
 
     /** The Pekko tcp connection timeout. */
     public static final ConfigOption<String> TCP_TIMEOUT =
@@ -157,29 +146,6 @@ public class RpcOptions {
                     .withDescription(
                             "Timeout used for the lookup of the JobManager. The timeout value has to contain a time-unit"
                                     + " specifier (ms/s/min/h/d).");
-
-    /** @deprecated use {@link #LOOKUP_TIMEOUT_DURATION} */
-    @Deprecated
-    public static final ConfigOption<String> LOOKUP_TIMEOUT =
-            ConfigOptions.key(LOOKUP_TIMEOUT_DURATION.key())
-                    .stringType()
-                    .defaultValue(
-                            TimeUtils.formatWithHighestUnit(LOOKUP_TIMEOUT_DURATION.defaultValue()))
-                    .withDescription(LOOKUP_TIMEOUT_DURATION.description());
-
-    /**
-     * Timeout for all blocking calls on the client side.
-     *
-     * @deprecated Use the {@code ClientOptions.CLIENT_TIMEOUT} instead.
-     */
-    @Deprecated
-    public static final ConfigOption<String> CLIENT_TIMEOUT =
-            ConfigOptions.key("akka.client.timeout")
-                    .stringType()
-                    .defaultValue("60 s")
-                    .withDescription(
-                            "DEPRECATED: Use the \"client.timeout\" instead."
-                                    + " Timeout for all blocking calls on the client side.");
 
     /** Exit JVM on fatal Pekko errors. */
     public static final ConfigOption<Boolean> JVM_EXIT_ON_FATAL_ERROR =
@@ -343,75 +309,5 @@ public class RpcOptions {
                                                     + " using the following formula: ceil(available processors * factor)."
                                                     + " Resulting size is then bounded by the pool-size-min and"
                                                     + " pool-size-max values.")
-                                    .build());
-
-    // ==================================================
-    // Deprecated options
-    // ==================================================
-
-    /**
-     * The Akka death watch heartbeat interval.
-     *
-     * @deprecated Don't use this option anymore. It has no effect on Flink.
-     */
-    @Deprecated
-    public static final ConfigOption<String> WATCH_HEARTBEAT_INTERVAL =
-            ConfigOptions.key("akka.watch.heartbeat.interval")
-                    .stringType()
-                    .defaultValue(ASK_TIMEOUT.defaultValue())
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Heartbeat interval for Akka’s DeathWatch mechanism to detect dead TaskManagers. If"
-                                                    + " TaskManagers are wrongly marked dead because of lost or delayed heartbeat messages, then you"
-                                                    + " should decrease this value or increase akka.watch.heartbeat.pause. A thorough description of"
-                                                    + " Akka’s DeathWatch can be found %s",
-                                            link(
-                                                    "https://pekko.apache.org/docs/pekko/current/remoting-artery.html#failure-detector",
-                                                    "here"))
-                                    .build());
-
-    /**
-     * The maximum acceptable Akka death watch heartbeat pause.
-     *
-     * @deprecated Don't use this option anymore. It has no effect on Flink.
-     */
-    @Deprecated
-    public static final ConfigOption<String> WATCH_HEARTBEAT_PAUSE =
-            ConfigOptions.key("akka.watch.heartbeat.pause")
-                    .stringType()
-                    .defaultValue("60 s")
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Acceptable heartbeat pause for Akka’s DeathWatch mechanism. A low value does not allow an"
-                                                    + " irregular heartbeat. If TaskManagers are wrongly marked dead because of lost or delayed"
-                                                    + " heartbeat messages, then you should increase this value or decrease akka.watch.heartbeat.interval."
-                                                    + " Higher value increases the time to detect a dead TaskManager. A thorough description of Akka’s"
-                                                    + " DeathWatch can be found %s",
-                                            link(
-                                                    "https://pekko.apache.org/docs/pekko/current/remoting-artery.html#failure-detector",
-                                                    "here"))
-                                    .build());
-
-    /**
-     * Detection threshold for the phi accrual watch failure detector.
-     *
-     * @deprecated Don't use this option anymore. It has no effect on Flink.
-     */
-    @Deprecated
-    public static final ConfigOption<Integer> WATCH_THRESHOLD =
-            ConfigOptions.key("akka.watch.threshold")
-                    .intType()
-                    .defaultValue(12)
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Threshold for the DeathWatch failure detector. A low value is prone to false positives whereas"
-                                                    + " a high value increases the time to detect a dead TaskManager. A thorough description of Akka’s"
-                                                    + " DeathWatch can be found %s",
-                                            link(
-                                                    "https://pekko.apache.org/docs/pekko/current/remoting-artery.html#failure-detector",
-                                                    "here"))
                                     .build());
 }
