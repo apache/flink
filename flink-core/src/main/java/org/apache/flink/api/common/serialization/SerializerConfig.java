@@ -432,7 +432,7 @@ public final class SerializerConfig implements Serializable {
     }
 
     private void parseSerializationConfigWithExceptionHandling(
-            ClassLoader classLoader, Map<String, String> serializationConfigs) {
+            ClassLoader classLoader, List<String> serializationConfigs) {
         try {
             parseSerializationConfig(classLoader, serializationConfigs);
         } catch (Exception e) {
@@ -443,9 +443,11 @@ public final class SerializerConfig implements Serializable {
     }
 
     private void parseSerializationConfig(
-            ClassLoader classLoader, Map<String, String> serializationConfigs) {
-        final Map<Class<?>, Map<String, String>> serializationConfigByClass =
-                serializationConfigs.entrySet().stream()
+            ClassLoader classLoader, List<String> serializationConfigs) {
+        final LinkedHashMap<Class<?>, Map<String, String>> serializationConfigByClass =
+                serializationConfigs.stream()
+                        .map(ConfigurationUtils::parseStringToMap)
+                        .flatMap(m -> m.entrySet().stream())
                         .collect(
                                 Collectors.toMap(
                                         e ->
@@ -453,7 +455,12 @@ public final class SerializerConfig implements Serializable {
                                                         e.getKey(),
                                                         classLoader,
                                                         "Could not load class for serialization config"),
-                                        e -> ConfigurationUtils.parseStringToMap(e.getValue())));
+                                        e -> ConfigurationUtils.parseStringToMap(e.getValue()),
+                                        (v1, v2) -> {
+                                            throw new IllegalArgumentException(
+                                                    "Duplicated serializer for the same class.");
+                                        },
+                                        LinkedHashMap::new));
         for (Map.Entry<Class<?>, Map<String, String>> entry :
                 serializationConfigByClass.entrySet()) {
             Class<?> type = entry.getKey();

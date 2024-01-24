@@ -204,14 +204,17 @@ class SerializerConfigTest {
     @Test
     void testLoadingPojoTypesFromSerializationConfig() {
         String serializationConfigStr =
-                "{org.apache.flink.api.common.serialization.SerializerConfigTest:"
+                "[org.apache.flink.api.common.serialization.SerializerConfigTest:"
                         + " {type: pojo},"
                         + " org.apache.flink.api.common.serialization.SerializerConfigTest$TestSerializer1:"
-                        + " {type: pojo}}";
+                        + " {type: pojo},"
+                        + " org.apache.flink.api.common.serialization.SerializerConfigTest$TestSerializer2:"
+                        + " {type: pojo}]";
         SerializerConfig serializerConfig = getConfiguredSerializerConfig(serializationConfigStr);
 
         assertThat(serializerConfig.getRegisteredPojoTypes())
-                .containsExactly(SerializerConfigTest.class, TestSerializer1.class);
+                .containsExactly(
+                        SerializerConfigTest.class, TestSerializer1.class, TestSerializer2.class);
     }
 
     @Test
@@ -267,6 +270,15 @@ class SerializerConfigTest {
 
     @Test
     void testLoadingIllegalSerializationConfig() {
+        String duplicateClassConfigStr =
+                "[org.apache.flink.api.common.serialization.SerializerConfigTest:"
+                        + " {type: pojo},"
+                        + " org.apache.flink.api.common.serialization.SerializerConfigTest:"
+                        + " {type: pojo}]";
+        assertThatThrownBy(() -> getConfiguredSerializerConfig(duplicateClassConfigStr))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasRootCauseMessage("Duplicated serializer for the same class.");
+
         String nullTypeConfigStr =
                 "{org.apache.flink.api.common.serialization.SerializerConfigTest:"
                         + " {class: org.apache.flink.api.common.serialization.SerializerConfigTest$TestTypeInfoFactory}}";

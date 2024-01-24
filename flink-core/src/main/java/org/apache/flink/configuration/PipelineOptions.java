@@ -256,28 +256,30 @@ public class PipelineOptions {
                                                     + " sure that only tags are written.")
                                     .build());
 
-    public static final ConfigOption<Map<String, String>> SERIALIZATION_CONFIG =
+    public static final ConfigOption<List<String>> SERIALIZATION_CONFIG =
             key("pipeline.serialization-config")
-                    .mapType()
+                    .stringType()
+                    .asList()
                     .noDefaultValue()
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Map of pairs of class names and serializer configs to be used."
+                                            "List of pairs of class names and serializer configs to be used."
                                                     + " There is a %s field in the serializer config and each type has its own configuration."
-                                                    + " Note: only standard YAML config parser is supported, please use \"config.yaml\" as the config file.",
+                                                    + " Note: only standard YAML config parser is supported, please use \"config.yaml\" as the config file."
+                                                    + " The fields involved are:",
                                             code("type"))
                                     .list(
                                             text(
                                                     "%s: the serializer type which could be \"pojo\", \"kryo\" or \"typeinfo\"."
                                                             + " If the serializer type is \"pojo\" or \"kryo\" without field %s,"
-                                                            + " it means the data type will use pojo or kryo serializer directly.",
+                                                            + " it means the data type will use POJO or Kryo serializer directly.",
                                                     code("type"), code("kryo-type")),
                                             text(
-                                                    "%s: the kryo serializer type which could be \"default\" or \"registered\"."
-                                                            + " The kryo serializer will use the serializer for the data type "
+                                                    "%s: the Kryo serializer type which could be \"default\" or \"registered\"."
+                                                            + " The Kryo serializer will use the serializer for the data type "
                                                             + " as default serializers when the kryo-type is \"default\", and register"
-                                                            + " the data type and its serializer to kryo serializer when the kryo-type is registered."
+                                                            + " the data type and its serializer to Kryo serializer when the kryo-type is registered."
                                                             + " When the field exists, there must be a field %s to specify the serializer class name.",
                                                     code("kryo-type"), code("class")),
                                             text(
@@ -292,11 +294,11 @@ public class PipelineOptions {
                                     .linebreak()
                                     .add(
                                             TextElement.code(
-                                                    "{org.example.ExampleClass1: {type: pojo},"
+                                                    "[org.example.ExampleClass1: {type: pojo},"
                                                             + " org.example.ExampleClass2: {type: kryo},"
                                                             + " org.example.ExampleClass3: {type: kryo, kryo-type: default, class: org.example.Class3KryoSerializer},"
                                                             + " org.example.ExampleClass4: {type: kryo, kryo-type: registered, class: org.example.Class4KryoSerializer},"
-                                                            + " org.example.ExampleClass5: {type: typeinfo, class: org.example.Class5TypeInfoFactory}}"))
+                                                            + " org.example.ExampleClass5: {type: typeinfo, class: org.example.Class5TypeInfoFactory}]"))
                                     .build());
 
     public static final ConfigOption<Boolean> OPERATOR_CHAINING =
