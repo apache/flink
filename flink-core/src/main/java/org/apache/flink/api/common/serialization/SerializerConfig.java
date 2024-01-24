@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.util.Preconditions;
@@ -32,6 +33,7 @@ import org.apache.flink.util.Preconditions;
 import com.esotericsoftware.kryo.Serializer;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -73,8 +75,11 @@ public final class SerializerConfig implements Serializable {
 
     private LinkedHashSet<Class<?>> registeredPojoTypes = new LinkedHashSet<>();
 
-    private LinkedHashMap<Class<?>, Class<? extends TypeInfoFactory<?>>>
-            registeredTypeInfoFactories = new LinkedHashMap<>();
+    // Order is not required as we will traverse the type hierarchy up to find the closest type
+    // information factory
+    // when extracting the type information.
+    private Map<Class<?>, Class<? extends TypeInfoFactory<?>>> registeredTypeInfoFactories =
+            new HashMap<>();
 
     // --------------------------------------------------------------------------------------------
 
@@ -233,8 +238,7 @@ public final class SerializerConfig implements Serializable {
     }
 
     /** Returns the registered type info factories. */
-    public LinkedHashMap<Class<?>, Class<? extends TypeInfoFactory<?>>>
-            getRegisteredTypeInfoFactories() {
+    public Map<Class<?>, Class<? extends TypeInfoFactory<?>>> getRegisteredTypeInfoFactories() {
         return registeredTypeInfoFactories;
     }
 
@@ -358,9 +362,19 @@ public final class SerializerConfig implements Serializable {
                 .map(c -> loadClasses(c, classLoader, "Could not load kryo type to be registered."))
                 .ifPresent(c -> this.registeredKryoTypes = c);
 
-        configuration
-                .getOptional(PipelineOptions.SERIALIZATION_CONFIG)
-                .ifPresent(c -> parseSerializationConfigWithExceptionHandling(classLoader, c));
+        try {
+            configuration
+                    .getOptional(PipelineOptions.SERIALIZATION_CONFIG)
+                    .ifPresent(c -> parseSerializationConfigWithExceptionHandling(classLoader, c));
+        } catch (Exception e) {
+            if (!GlobalConfiguration.isStandardYaml()) {
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "%s is only supported with the standard YAML config parser, please use \"config.yaml\" as the config file.",
+                                PipelineOptions.SERIALIZATION_CONFIG.key()));
+            }
+            throw e;
+        }
     }
 
     private LinkedHashSet<Class<?>> loadClasses(
@@ -419,7 +433,7 @@ public final class SerializerConfig implements Serializable {
     }
 
     private void parseSerializationConfigWithExceptionHandling(
-            ClassLoader classLoader, List<String> serializationConfigs) {
+            ClassLoader classLoader, Map<String, String> serializationConfigs) {
         try {
             parseSerializationConfig(classLoader, serializationConfigs);
         } catch (Exception e) {
@@ -430,11 +444,9 @@ public final class SerializerConfig implements Serializable {
     }
 
     private void parseSerializationConfig(
-            ClassLoader classLoader, List<String> serializationConfigs) {
-        final LinkedHashMap<Class<?>, Map<String, String>> serializationConfigByClass =
-                serializationConfigs.stream()
-                        .map(ConfigurationUtils::parseStringToMap)
-                        .flatMap(m -> m.entrySet().stream())
+            ClassLoader classLoader, Map<String, String> serializationConfigs) {
+        final Map<Class<?>, Map<String, String>> serializationConfigByClass =
+                serializationConfigs.entrySet().stream()
                         .collect(
                                 Collectors.toMap(
                                         e ->
@@ -442,12 +454,7 @@ public final class SerializerConfig implements Serializable {
                                                         e.getKey(),
                                                         classLoader,
                                                         "Could not load class for serialization config"),
-                                        e -> ConfigurationUtils.parseStringToMap(e.getValue()),
-                                        (m1, m2) -> {
-                                            throw new IllegalArgumentException(
-                                                    "Duplicated class configured");
-                                        },
-                                        LinkedHashMap::new));
+                                        e -> ConfigurationUtils.parseStringToMap(e.getValue())));
         for (Map.Entry<Class<?>, Map<String, String>> entry :
                 serializationConfigByClass.entrySet()) {
             Class<?> type = entry.getKey();

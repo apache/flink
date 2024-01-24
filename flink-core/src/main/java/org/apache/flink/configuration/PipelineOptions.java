@@ -256,16 +256,16 @@ public class PipelineOptions {
                                                     + " sure that only tags are written.")
                                     .build());
 
-    public static final ConfigOption<List<String>> SERIALIZATION_CONFIG =
+    public static final ConfigOption<Map<String, String>> SERIALIZATION_CONFIG =
             key("pipeline.serialization-config")
-                    .stringType()
-                    .asList()
+                    .mapType()
                     .noDefaultValue()
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Semicolon separated list of pairs of class names and serializer configs to be used."
-                                                    + " There is a %s field in the serializer config and each type has its own configuration.",
+                                            "Map of pairs of class names and serializer configs to be used."
+                                                    + " There is a %s field in the serializer config and each type has its own configuration."
+                                                    + " Note: only standard YAML config parser is supported, please use \"config.yaml\" as the config file.",
                                             code("type"))
                                     .list(
                                             text(
@@ -294,11 +294,11 @@ public class PipelineOptions {
                                     .linebreak()
                                     .add(
                                             TextElement.code(
-                                                    "org.example.ExampleClass1: {type: pojo};"
-                                                            + " org.example.ExampleClass2: {type: kryo};"
-                                                            + " org.example.ExampleClass3: {type: kryo, kryo-type: default, class: org.example.Class3KryoSerializer};"
-                                                            + " org.example.ExampleClass4: {type: kryo, kryo-type: registered, class: org.example.Class4KryoSerializer};"
-                                                            + " org.example.ExampleClass5: {type: typeinfo, class: org.example.Class5TypeInfoFactory}"))
+                                                    "{org.example.ExampleClass1: {type: pojo},"
+                                                            + " org.example.ExampleClass2: {type: kryo},"
+                                                            + " org.example.ExampleClass3: {type: kryo, kryo-type: default, class: org.example.Class3KryoSerializer},"
+                                                            + " org.example.ExampleClass4: {type: kryo, kryo-type: registered, class: org.example.Class4KryoSerializer},"
+                                                            + " org.example.ExampleClass5: {type: typeinfo, class: org.example.Class5TypeInfoFactory}}"))
                                     .build());
 
     public static final ConfigOption<Boolean> OPERATOR_CHAINING =

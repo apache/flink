@@ -21,6 +21,7 @@ package org.apache.flink.api.common.serialization;
 import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.PipelineOptions;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -203,10 +204,10 @@ class SerializerConfigTest {
     @Test
     void testLoadingPojoTypesFromSerializationConfig() {
         String serializationConfigStr =
-                "org.apache.flink.api.common.serialization.SerializerConfigTest: "
-                        + "{type: pojo};"
-                        + "org.apache.flink.api.common.serialization.SerializerConfigTest$TestSerializer1: "
-                        + "{type: pojo}";
+                "{org.apache.flink.api.common.serialization.SerializerConfigTest:"
+                        + " {type: pojo},"
+                        + " org.apache.flink.api.common.serialization.SerializerConfigTest$TestSerializer1:"
+                        + " {type: pojo}}";
         SerializerConfig serializerConfig = getConfiguredSerializerConfig(serializationConfigStr);
 
         assertThat(serializerConfig.getRegisteredPojoTypes())
@@ -216,12 +217,12 @@ class SerializerConfigTest {
     @Test
     void testLoadingKryoTypesFromSerializationConfig() {
         String serializationConfigStr =
-                "org.apache.flink.api.common.serialization.SerializerConfigTest: "
-                        + "{type: kryo};"
-                        + "org.apache.flink.api.common.serialization.SerializerConfigTest$TestSerializer1: "
-                        + "{type: kryo, kryo-type: default, class: org.apache.flink.api.common.serialization.SerializerConfigTest$TestSerializer2};"
-                        + "org.apache.flink.api.common.serialization.SerializerConfigTest$TestSerializer2: "
-                        + "{type: kryo, kryo-type: registered, class: org.apache.flink.api.common.serialization.SerializerConfigTest$TestSerializer3}";
+                "{org.apache.flink.api.common.serialization.SerializerConfigTest:"
+                        + " {type: kryo},"
+                        + " org.apache.flink.api.common.serialization.SerializerConfigTest$TestSerializer1:"
+                        + " {type: kryo, kryo-type: default, class: org.apache.flink.api.common.serialization.SerializerConfigTest$TestSerializer2},"
+                        + " org.apache.flink.api.common.serialization.SerializerConfigTest$TestSerializer2:"
+                        + " {type: kryo, kryo-type: registered, class: org.apache.flink.api.common.serialization.SerializerConfigTest$TestSerializer3}}";
         SerializerConfig serializerConfig = getConfiguredSerializerConfig(serializationConfigStr);
 
         assertThat(serializerConfig.getRegisteredKryoTypes())
@@ -239,8 +240,8 @@ class SerializerConfigTest {
     @Test
     void testLoadingTypeInfoFactoriesFromSerializationConfig() {
         String serializationConfigStr =
-                "org.apache.flink.api.common.serialization.SerializerConfigTest: "
-                        + "{type: typeinfo, class: org.apache.flink.api.common.serialization.SerializerConfigTest$TestTypeInfoFactory}";
+                "{org.apache.flink.api.common.serialization.SerializerConfigTest:"
+                        + " {type: typeinfo, class: org.apache.flink.api.common.serialization.SerializerConfigTest$TestTypeInfoFactory}}";
         SerializerConfig serializerConfig = getConfiguredSerializerConfig(serializationConfigStr);
 
         assertThat(serializerConfig.getRegisteredTypeInfoFactories())
@@ -250,42 +251,25 @@ class SerializerConfigTest {
     }
 
     @Test
-    void testLoadingSerializationConfig() {
+    void testLoadingSerializationConfigWithLegacyParser() {
+        GlobalConfiguration.setStandardYaml(false);
         String serializationConfigStr =
-                "org.apache.flink.api.common.serialization.SerializerConfigTest: "
-                        + "{type: kryo};"
-                        + "org.apache.flink.api.common.serialization.SerializerConfigTest$TestSerializer1: "
-                        + "{type: kryo, kryo-type: default, class: org.apache.flink.api.common.serialization.SerializerConfigTest$TestSerializer2};"
-                        + "org.apache.flink.api.common.serialization.SerializerConfigTest$TestSerializer2: "
-                        + "{type: kryo, kryo-type: registered, class: org.apache.flink.api.common.serialization.SerializerConfigTest$TestSerializer3}";
-        SerializerConfig serializerConfig = getConfiguredSerializerConfig(serializationConfigStr);
+                "{org.apache.flink.api.common.serialization.SerializerConfigTest:"
+                        + " {type: pojo},"
+                        + " org.apache.flink.api.common.serialization.SerializerConfigTest$TestSerializer1:"
+                        + " {type: pojo}}";
+        assertThatThrownBy(() -> getConfiguredSerializerConfig(serializationConfigStr))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        assertThat(serializerConfig.getRegisteredKryoTypes())
-                .containsExactly(SerializerConfigTest.class);
-        assertThat(serializerConfig.getDefaultKryoSerializerClasses())
-                .containsExactly(
-                        new AbstractMap.SimpleEntry<>(
-                                TestSerializer1.class, TestSerializer2.class));
-        assertThat(serializerConfig.getRegisteredTypesWithKryoSerializerClasses())
-                .containsExactly(
-                        new AbstractMap.SimpleEntry<>(
-                                TestSerializer2.class, TestSerializer3.class));
+        // Clear the standard yaml flag to avoid impact to other cases.
+        GlobalConfiguration.setStandardYaml(true);
     }
 
     @Test
     void testLoadingIllegalSerializationConfig() {
-        String duplicatedClassConfigStr =
-                "org.apache.flink.api.common.serialization.SerializerConfigTest: "
-                        + "{type: pojo};"
-                        + "org.apache.flink.api.common.serialization.SerializerConfigTest: "
-                        + "{type: kryo}";
-        assertThatThrownBy(() -> getConfiguredSerializerConfig(duplicatedClassConfigStr))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasRootCauseMessage("Duplicated class configured");
-
         String unsupportedTypeConfigStr =
-                "org.apache.flink.api.common.serialization.SerializerConfigTest: "
-                        + "{type: random}";
+                "{org.apache.flink.api.common.serialization.SerializerConfigTest:"
+                        + " {type: random}}";
         assertThatThrownBy(() -> getConfiguredSerializerConfig(unsupportedTypeConfigStr))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasRootCauseMessage("Unsupported type: random");
