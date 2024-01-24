@@ -36,6 +36,7 @@ import org.apache.flink.streaming.api.transformations.SourceTransformationWrappe
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
@@ -62,6 +63,7 @@ import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.types.RowKind;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -174,6 +176,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
                     planner.getFlinkContext().getClassLoader(),
                     outputTypeInfo,
                     config,
+                    tableSource.getChangelogMode(),
                     sourceParallelism);
         } else {
             return sourceTransform;
@@ -219,6 +222,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
             ClassLoader classLoader,
             InternalTypeInfo<RowData> outputTypeInfo,
             ExecNodeConfig config,
+            ChangelogMode changelogMode,
             int sourceParallelism) {
         sourceTransform.setParallelism(sourceParallelism, true);
         Transformation<RowData> sourceTransformationWrapper =
@@ -229,7 +233,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         final int[] primaryKeys = getPrimaryKeyIndices(physicalRowType, schema);
         final boolean hasPk = primaryKeys.length > 0;
 
-        if (hasPk) {
+        if (hasPk && !changelogMode.containsOnly(RowKind.INSERT)) {
             final RowDataKeySelector selector =
                     KeySelectorUtil.getRowDataSelector(classLoader, primaryKeys, outputTypeInfo);
             final KeyGroupStreamPartitioner<RowData, RowData> partitioner =

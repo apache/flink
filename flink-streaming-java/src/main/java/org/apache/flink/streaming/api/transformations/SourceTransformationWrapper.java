@@ -29,7 +29,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * This Transformation is a phantom transformation which used to expose a default parallelism to
+ * This Transformation is a phantom transformation which is used to expose a default parallelism to
  * downstream.
  *
  * <p>It is used only when the parallelism of the source transformation differs from the default
