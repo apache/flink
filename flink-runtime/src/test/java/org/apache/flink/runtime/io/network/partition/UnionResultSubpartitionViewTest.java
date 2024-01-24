@@ -123,12 +123,19 @@ class UnionResultSubpartitionViewTest {
         assertThat(view.isReleased()).isFalse();
         assertThat(view0.isReleased()).isFalse();
         assertThat(view1.isReleased()).isFalse();
+        assertThat(buffers0).allMatch(x -> !x.isRecycled());
+        assertThat(buffers1).allMatch(x -> !x.isRecycled());
+
+        // Verifies that cached buffers are also recycled.
+        view0.notifyDataAvailable();
 
         view.releaseAllResources();
 
         assertThat(view.isReleased()).isTrue();
         assertThat(view0.isReleased()).isTrue();
         assertThat(view1.isReleased()).isTrue();
+        assertThat(buffers0).allMatch(Buffer::isRecycled);
+        assertThat(buffers1).allMatch(Buffer::isRecycled);
     }
 
     private static class TestingResultSubpartitionView extends NoOpResultSubpartitionView {
@@ -174,6 +181,8 @@ class UnionResultSubpartitionViewTest {
 
         @Override
         public void releaseAllResources() {
+            buffers.forEach(Buffer::recycleBuffer);
+            buffers.clear();
             isReleased = true;
         }
 
