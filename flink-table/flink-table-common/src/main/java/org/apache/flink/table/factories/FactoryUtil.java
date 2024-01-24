@@ -556,6 +556,15 @@ public final class FactoryUtil {
                                     .sorted()
                                     .collect(Collectors.joining("\n"))));
         }
+
+        String classpath = System.getProperty("java.class.path");
+        String[] classpathEntries = classpath.split(System.getProperty("path.separator"));
+
+        System.out.println("Classpath entries:");
+        for (String entry : classpathEntries) {
+            System.out.println(entry);
+        }
+
         if (matchingFactories.size() > 1) {
             throw new ValidationException(
                     String.format(
