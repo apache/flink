@@ -18,26 +18,35 @@
 
 package org.apache.flink.table.runtime.operators.join.stream.bundle;
 
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec;
 
 import javax.annotation.Nullable;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 /**
- * A {@link AbstractBufferBundle} is a bundle to buffer the input records in memory and fold data
- * based on specified pattern to reduce state access. The bundle is used in
- * MiniBatchStreamingJoinOperator. The structure of the bundle varies depending on the {@link
- * JoinInputSideSpec}.
+ * A {@link BufferBundle} is a bundle to buffer the input records in memory and fold data based on
+ * specified pattern to reduce state access. The bundle is used in MiniBatchStreamingJoinOperator.
+ * The structure of the bundle varies depending on the {@link JoinInputSideSpec}.
  */
-public abstract class AbstractBufferBundle<T> {
+public abstract class BufferBundle<T> {
+
+    protected final Map<RowData, T> bundle;
 
     protected int count;
 
     protected int actualSize;
+
+    public BufferBundle() {
+        this.bundle = new HashMap<>();
+        this.count = 0;
+        this.actualSize = 0;
+    }
 
     /** Check if this bufferBundle is empty. */
     public boolean isEmpty() {
@@ -49,11 +58,18 @@ public abstract class AbstractBufferBundle<T> {
         return count - actualSize;
     }
 
+    /** Clear this bufferBundle. */
+    public void clear() {
+        bundle.clear();
+        count = 0;
+        actualSize = 0;
+    }
+
     /**
      * Get the joinKeys in bufferBundle. Whether to override this method is based on the
      * implementing class.
      */
-    public Set<T> getJoinKeys() {
+    public Set<RowData> getJoinKeys() {
         return Collections.emptySet();
     }
 
@@ -66,14 +82,14 @@ public abstract class AbstractBufferBundle<T> {
      * @param record The record to add.
      * @return number of processed by current bundle.
      */
-    public abstract int addRecord(T joinKey, @Nullable T uniqueKey, T record);
+    public abstract int addRecord(RowData joinKey, @Nullable RowData uniqueKey, RowData record);
 
     /**
      * Get records associated with joinKeys from bufferBundle.
      *
      * @return a map whose key is joinKey and value is list of records.
      */
-    public abstract Map<T, List<T>> getRecords() throws Exception;
+    public abstract Map<RowData, List<RowData>> getRecords() throws Exception;
 
     /**
      * Get records associated with joinKeys from bufferBundle. And this function is different from
@@ -83,8 +99,6 @@ public abstract class AbstractBufferBundle<T> {
      * @param joinKey one of joinKeys stored in this bundle.
      * @return a map whose key is uniqueKey and value is a list of records.
      */
-    public abstract Map<T, List<T>> getRecordsWithJoinKey(T joinKey) throws Exception;
-
-    /** Clear this bufferBundle. */
-    public abstract void clear();
+    public abstract Map<RowData, List<RowData>> getRecordsWithJoinKey(RowData joinKey)
+            throws Exception;
 }

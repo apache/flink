@@ -31,22 +31,10 @@ import java.util.Optional;
 import java.util.Set;
 
 /** For the case that input has uniqueKey which is not contained by joinKey. */
-public class InputSideHasUniqueKeyBundle extends AbstractBufferBundle<RowData> {
-
-    // The first-level key is joinKey and the Second key is uniqueKey
-    private final Map<RowData, Map<RowData, List<RowData>>> bundle;
+public class InputSideHasUniqueKeyBundle extends BufferBundle<Map<RowData, List<RowData>>> {
 
     public InputSideHasUniqueKeyBundle() {
-        this.bundle = new HashMap<>();
-        this.count = 0;
-        this.actualSize = 0;
-    }
-
-    @Override
-    public void clear() {
-        bundle.clear();
-        count = 0;
-        actualSize = 0;
+        super();
     }
 
     @Override

@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.join.stream;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.operators.join.stream.bundle.AbstractBufferBundle;
+import org.apache.flink.table.runtime.operators.join.stream.bundle.BufferBundle;
 import org.apache.flink.table.runtime.operators.join.stream.bundle.InputSideHasNoUniqueKeyBundle;
 import org.apache.flink.table.runtime.operators.join.stream.bundle.InputSideHasUniqueKeyBundle;
 import org.apache.flink.table.runtime.operators.join.stream.bundle.JoinKeyContainsUniqueKeyBundle;
@@ -57,7 +57,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 /** Test for MiniBatch buffer only which verify the logic of folding in MiniBatch. */
 public class BufferBundleTest {
 
-    private AbstractBufferBundle<RowData> buffer;
+    private BufferBundle<?> buffer;
 
     private final InternalTypeInfo<RowData> inputTypeInfo =
             InternalTypeInfo.of(

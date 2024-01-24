@@ -25,7 +25,6 @@ import org.apache.flink.types.RowKind;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -34,21 +33,10 @@ import java.util.Optional;
  * For the case that input has joinKey contains uniqueKey. The size of records in state is not
  * bigger than 1.
  */
-public class JoinKeyContainsUniqueKeyBundle extends AbstractBufferBundle<RowData> {
-
-    private final Map<RowData, List<RowData>> bundle;
+public class JoinKeyContainsUniqueKeyBundle extends BufferBundle<List<RowData>> {
 
     public JoinKeyContainsUniqueKeyBundle() {
-        this.bundle = new HashMap<>();
-        this.count = 0;
-        this.actualSize = 0;
-    }
-
-    @Override
-    public void clear() {
-        bundle.clear();
-        count = 0;
-        actualSize = 0;
+        super();
     }
 
     @Override

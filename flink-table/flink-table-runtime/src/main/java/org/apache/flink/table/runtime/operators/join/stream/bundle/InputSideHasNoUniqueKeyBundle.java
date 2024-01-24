@@ -31,7 +31,11 @@ import java.util.ListIterator;
 import java.util.Map;
 
 /** For the case that input has no uniqueKey. */
-public class InputSideHasNoUniqueKeyBundle extends AbstractBufferBundle<RowData> {
+public class InputSideHasNoUniqueKeyBundle extends BufferBundle<Map<Integer, List<RowData>>> {
+
+    public InputSideHasNoUniqueKeyBundle() {
+        super();
+    }
 
     /**
      * The structure of the bundle: first-level key is the joinKey while the second-level key is the
@@ -39,21 +43,6 @@ public class InputSideHasNoUniqueKeyBundle extends AbstractBufferBundle<RowData>
      * only stores the accumulated records.When the retract record occurs it would find the
      * corresponding records(accumulated) and remove it.
      */
-    private final Map<RowData, Map<Integer, List<RowData>>> bundle;
-
-    public InputSideHasNoUniqueKeyBundle() {
-        this.bundle = new HashMap<>();
-        this.count = 0;
-        this.actualSize = 0;
-    }
-
-    @Override
-    public void clear() {
-        count = 0;
-        actualSize = 0;
-        bundle.clear();
-    }
-
     @Override
     public int addRecord(RowData joinKey, @Nullable RowData uniqueKey, RowData record) {
         bundle.computeIfAbsent(joinKey, k -> new HashMap<>());
