@@ -220,7 +220,7 @@ In addition, there are several related configuration options that may need adjus
   - [`execution.batch.adaptive.auto-parallelism.min-parallelism`]({{< ref "docs/deployment/config" >}}#execution-batch-adaptive-auto-parallelism-min-parallelism): The lower bound of allowed parallelism to set adaptively.
   - [`execution.batch.adaptive.auto-parallelism.max-parallelism`]({{< ref "docs/deployment/config" >}}#execution-batch-adaptive-auto-parallelism-max-parallelism): The upper bound of allowed parallelism to set adaptively. The default parallelism set via [`parallelism.default`]({{< ref "docs/deployment/config" >}}) or `StreamExecutionEnvironment#setParallelism()` will be used as upper bound of allowed parallelism if this configuration is not configured.
   - [`execution.batch.adaptive.auto-parallelism.avg-data-volume-per-task`]({{< ref "docs/deployment/config" >}}#execution-batch-adaptive-auto-parallelism-avg-data-volume-per-ta): The average size of data volume to expect each task instance to process. Note that when data skew occurs, or the decided parallelism reaches the max parallelism (due to too much data), the data actually processed by some tasks may far exceed this value.
-  - [`execution.batch.adaptive.auto-parallelism.default-source-parallelism`]({{< ref "docs/deployment/config" >}}#execution-batch-adaptive-auto-parallelism-default-source-paralle): The default parallelism of data source.
+  - [`execution.batch.adaptive.auto-parallelism.default-source-parallelism`]({{< ref "docs/deployment/config" >}}#execution-batch-adaptive-auto-parallelism-default-source-paralle): The default parallelism of data source or the upper bound of source parallelism to set adaptively. The upper bound of allowed parallelism set via [`execution.batch.adaptive.auto-parallelism.max-parallelism`]({{< ref "docs/deployment/config" >}}#execution-batch-adaptive-auto-parallelism-max-parallelism) will be used if this configuration is not configured. If the upper bound of allowed parallelism is also not configured, the default parallelism set via [`parallelism.default`]({{< ref "docs/deployment/config" >}}) or `StreamExecutionEnvironment#setParallelism()` will be used instead.
 
 - Avoid setting the parallelism of operators:
 
@@ -229,6 +229,22 @@ In addition, there are several related configuration options that may need adjus
     In addition, the following configurations are required for DataSet jobs:
   - Set `parallelism.default: -1`.
   - Don't call `setParallelism()` on `ExecutionEnvironment`.
+
+#### Enable dynamic parallelism inference support for Sources
+New {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java" name="Source" >}} 
+can implement the interface {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/source/DynamicParallelismInference.java" name="DynamicParallelismInference" >}} to enable dynamic parallelism inference.
+```java
+public interface DynamicParallelismInference {
+    int inferParallelism(Context context);
+}
+```
+The Context will provide the upper bound for the inferred parallelism, the expected average data size to be processed by each task, and dynamic filtering information to assist with parallelism inference.
+
+The Adaptive Batch Scheduler will invoke the interface before scheduling the source vertices, and it should be noted that implementations should avoid time-consuming operations as much as possible.
+
+If the Source does not implement the interface, the configuration setting [`execution.batch.adaptive.auto-parallelism.default-source-parallelism`]({{< ref "docs/deployment/config" >}}#execution-batch-adaptive-auto-parallelism-default-source-paralle) will be used as the parallelism of the source vertices.
+
+Note that the dynamic source parallelism inference only decides the parallelism for source operators which do not already have a specified parallelism.
 
 #### Performance tuning
 
