@@ -17,32 +17,33 @@
 # limitations under the License.
 ################################################################################
 
-# Wrapper script to compare the TM heap size calculation of config.sh with Java
-USAGE="Usage: runBashJavaUtilsCmd.sh <command> [dynamic args...]"
-
-COMMAND=$1
-EXPECTED_LINES=$2
-DYNAMIC_OPTS=${@:3}
-
-if [[ -z "${COMMAND}" ]]; then
-  echo "$USAGE"
-  exit 1
-fi
-
-bin=`dirname "$0"`
-bin=`cd "$bin"; pwd`
+echo "Starting configuration migration..."
   
-if [ "$COMMAND" = "MIGRATE_LEGACY_FLINK_CONFIGURATION_TO_STANDARD_YAML" ]; then
-  FLINK_CONF_DIR="${bin}/../resources"
-else
-  FLINK_CONF_DIR="${bin}/../../main/resources"
-fi
-FLINK_TARGET_DIR=${bin}/../../../target
-FLINK_DIST_JARS=(`find ${FLINK_TARGET_DIR} -maxdepth 1 -name 'flink-dist*.jar'`)
-FLINK_DIST_CLASSPATH=`echo ${FLINK_DIST_JARS[@]} | tr ' ' ':'`
-
-. ${bin}/../../main/flink-bin/bin/bash-java-utils.sh > /dev/null
+FLINK_BIN_DIR=`dirname "$0"`
+FLINK_BIN_DIR=`cd "$FLINK_BIN_DIR"; pwd`
+  
+. "$FLINK_BIN_DIR"/bash-java-utils.sh
+  
+FLINK_CONF_DIR="$FLINK_BIN_DIR"/../conf
+echo "Using Flink configuration directory: $FLINK_CONF_DIR"
 setJavaRun "$FLINK_CONF_DIR"
 
-output=$(runBashJavaUtilsCmd ${COMMAND} ${FLINK_CONF_DIR} "$FLINK_TARGET_DIR/bash-java-utils.jar:${FLINK_DIST_CLASSPATH}" $DYNAMIC_OPTS)
-extractExecutionResults "${output}" ${EXPECTED_LINES}
+FLINK_LIB_DIR="$FLINK_BIN_DIR"/../lib
+echo "Using Flink library directory: $FLINK_LIB_DIR"
+
+echo "Running migration..."
+result=$(migrateLegacyFlinkConfigToStandardYaml "$FLINK_CONF_DIR" "$FLINK_BIN_DIR" "$FLINK_LIB_DIR")
+  
+if [[ $? -ne 0 ]]; then
+  echo "[ERROR] Could not migrate configurations properly, the result is:"
+  echo "$result"
+  exit 1
+fi
+  
+CONF_FILE="$FLINK_CONF_DIR/config.yaml"
+echo "Migration completed successfully. Writing configuration to $CONF_FILE"
+  
+# Output the result
+echo "${result}" > "$CONF_FILE";
+
+echo "Configuration migration finished. New configuration file is located at: $CONF_FILE"

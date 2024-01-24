@@ -18,9 +18,12 @@
 
 package org.apache.flink.runtime.util.bash;
 
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
@@ -28,6 +31,7 @@ import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -38,6 +42,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -324,6 +329,62 @@ public class FlinkConfigLoaderTest {
         String[] args = {"-c", confDir.toFile().getAbsolutePath(), "-flatten"};
         List<String> list = FlinkConfigLoader.loadAndModifyConfiguration(args);
         assertThat(list).containsExactly(TEST_CONFIG_KEY + ": " + TEST_CONFIG_VALUE);
+    }
+
+    @Test
+    void testMigrateLegacyConfigToStandardYaml() throws Exception {
+        try (FileWriter fw =
+                new FileWriter(
+                        new File(
+                                confDir.toFile(),
+                                GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME))) {
+            fw.write(TEST_CONFIG_KEY + ": " + TEST_CONFIG_VALUE + "\n");
+            fw.write(
+                    "pipeline.cached-files"
+                            + ": "
+                            + "name:file1,path:'file:///tmp/file1';name:file2,path:'hdfs:///tmp/file2'"
+                            + "\n");
+            fw.write(
+                    "pipeline.default-kryo-serializers"
+                            + ": "
+                            + "class:org.example.ExampleClass,serializer:org.example.ExampleSerializer1;"
+                            + " class:org.example.ExampleClass2,serializer:org.example.ExampleSerializer2"
+                            + "\n");
+        }
+        Configuration configuration = GlobalConfiguration.loadConfiguration(confDir.toString());
+
+        File newConfigFolder = TempDirUtils.newFolder(confDir);
+        try (FileWriter fw =
+                new FileWriter(
+                        TempDirUtils.newFile(
+                                newConfigFolder.toPath(),
+                                GlobalConfiguration.FLINK_CONF_FILENAME))) {
+            String[] args = {"-c", confDir.toFile().getAbsolutePath()};
+            for (String line : FlinkConfigLoader.migrateLegacyConfigurationToStandardYaml(args)) {
+                fw.write(line + "\n");
+            }
+        }
+
+        Configuration standardYamlConfig =
+                GlobalConfiguration.loadConfiguration(newConfigFolder.toString());
+        assertThat(configuration.getString(TEST_CONFIG_KEY, null))
+                .isEqualTo(standardYamlConfig.getString(TEST_CONFIG_KEY, null));
+
+        assertThat(
+                        configuration.get(PipelineOptions.KRYO_DEFAULT_SERIALIZERS).stream()
+                                .map(ConfigurationUtils::parseStringToMap)
+                                .collect(Collectors.toList()))
+                .isEqualTo(
+                        standardYamlConfig.get(PipelineOptions.KRYO_DEFAULT_SERIALIZERS).stream()
+                                .map(ConfigurationUtils::parseStringToMap)
+                                .collect(Collectors.toList()));
+
+        assertThat(
+                        DistributedCache.parseCachedFilesFromString(
+                                configuration.get(PipelineOptions.CACHED_FILES)))
+                .isEqualTo(
+                        DistributedCache.parseCachedFilesFromString(
+                                standardYamlConfig.get(PipelineOptions.CACHED_FILES)));
     }
 
     private void verifyConfiguration(Configuration config, String key, String expectedValue) {

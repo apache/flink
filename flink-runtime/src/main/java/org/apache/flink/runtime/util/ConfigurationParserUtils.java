@@ -37,11 +37,13 @@ import org.apache.flink.util.MathUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
 import static org.apache.flink.util.MathUtils.checkedDownCast;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Utility class to extract related parameters from {@link Configuration} and to sanity check them.
@@ -211,5 +213,34 @@ public class ConfigurationParserUtils {
         removeKeys.forEach(configuration::removeKey);
         return ConfigurationUtils.convertConfigToWritableLines(
                 configuration, modifiableClusterConfiguration.flattenConfig());
+    }
+
+    public static List<String> migrateLegacyConfigurationToStandardYaml(
+            String[] args, String cmdLineSyntax) throws FlinkParseException {
+        final CommandLineParser<ClusterConfiguration> commandLineParser =
+                new CommandLineParser<>(new ClusterConfigurationParserFactory());
+
+        final ClusterConfiguration clusterConfiguration;
+
+        try {
+            clusterConfiguration = commandLineParser.parse(args);
+        } catch (FlinkParseException e) {
+            LOG.error("Could not parse the command line options.", e);
+            commandLineParser.printHelp(cmdLineSyntax);
+            throw e;
+        }
+
+        checkState(
+                new File(
+                                clusterConfiguration.getConfigDir(),
+                                GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME)
+                        .exists());
+        Configuration configuration =
+                GlobalConfiguration.loadConfiguration(clusterConfiguration.getConfigDir(), null);
+
+        Configuration standardYamlConfig = new Configuration(true);
+        standardYamlConfig.addAll(configuration);
+
+        return ConfigurationUtils.convertConfigToWritableLines(standardYamlConfig, false);
     }
 }
