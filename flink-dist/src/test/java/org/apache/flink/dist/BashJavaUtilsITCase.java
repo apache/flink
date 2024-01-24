@@ -18,15 +18,24 @@
 
 package org.apache.flink.dist;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.util.bash.BashJavaUtils;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -48,6 +57,8 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
             "src/test/bin/runBashJavaUtilsCmd.sh";
     private static final String RUN_EXTRACT_LOGGING_OUTPUTS_SCRIPT =
             "src/test/bin/runExtractLoggingOutputs.sh";
+
+    @TempDir private Path tmpDir;
 
     @Test
     void testGetTmResourceParamsConfigs() throws Exception {
@@ -146,8 +157,8 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
         List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
         assertThat(lines).hasSize(expectedResultLines);
-
-        assertThat(lines).doesNotContainSequence(Arrays.asList("parallelism:", "  default: 1"));
+        Configuration configuration = loadConfiguration(lines);
+        assertThat(configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM)).isEmpty();
     }
 
     @Test
@@ -163,7 +174,8 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
         List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
         assertThat(lines).hasSize(expectedResultLines);
-        assertThat(lines).doesNotContainSequence(Arrays.asList("parallelism:", "  default: 1"));
+        Configuration configuration = loadConfiguration(lines);
+        assertThat(configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM)).isEmpty();
     }
 
     @Test
@@ -179,7 +191,8 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
         List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
         assertThat(lines).hasSize(expectedResultLines);
-        assertThat(lines).containsSequence(Arrays.asList("parallelism:", "  default: 1"));
+        Configuration configuration = loadConfiguration(lines);
+        assertThat(configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM)).hasValue(1);
     }
 
     @Test
@@ -195,8 +208,8 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
         List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
         assertThat(lines).hasSize(expectedResultLines);
-        assertThat(lines).doesNotContainSequence(Arrays.asList("parallelism:", "  default: 1"));
-        assertThat(lines).containsSequence(Arrays.asList("parallelism:", "  default: '2'"));
+        Configuration configuration = loadConfiguration(lines);
+        assertThat(configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM)).hasValue(2);
     }
 
     @Test
@@ -212,8 +225,8 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
         List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
         assertThat(lines).hasSize(expectedResultLines);
-        assertThat(lines).containsSequence(Arrays.asList("parallelism:", "  default: 1"));
-        assertThat(lines).doesNotContainSequence(Arrays.asList("parallelism:", "  default: '3'"));
+        Configuration configuration = loadConfiguration(lines);
+        assertThat(configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM)).hasValue(1);
     }
 
     private static Map<String, String> parseAndAssertDynamicParameters(
@@ -275,5 +288,17 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
                 Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
         assertThat(actualOutput).isEqualTo(expectedOutput);
+    }
+
+    private Configuration loadConfiguration(List<String> lines) throws IOException {
+        File file =
+                TempDirUtils.newFile(
+                        tmpDir.toAbsolutePath(), GlobalConfiguration.FLINK_CONF_FILENAME);
+        try (final PrintWriter pw = new PrintWriter(file)) {
+            for (String line : lines) {
+                pw.println(line);
+            }
+        }
+        return GlobalConfiguration.loadConfiguration(tmpDir.toAbsolutePath().toString());
     }
 }
