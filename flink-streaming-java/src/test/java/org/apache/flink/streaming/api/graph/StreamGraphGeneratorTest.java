@@ -74,7 +74,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.translators.CacheTransformationTranslator;
 import org.apache.flink.streaming.util.NoOpIntMap;
 import org.apache.flink.streaming.util.TestExpandingSink;
-import org.apache.flink.streaming.util.TestExpandingSinkWithMixin;
+import org.apache.flink.streaming.util.TestExpandingSinkDeprecated;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
@@ -887,8 +887,12 @@ public class StreamGraphGeneratorTest extends TestLogger {
                                         .isEqualTo(StreamExchangeMode.UNDEFINED));
     }
 
+    /**
+     * Should be removed along {@link org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink}.
+     */
+    @Deprecated
     @Test
-    public void testAutoParallelismForExpandedTransformations() {
+    public void testAutoParallelismForExpandedTransformationsDeprecated() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         env.setParallelism(2);
@@ -896,7 +900,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
         DataStream<Integer> sourceDataStream = env.fromData(1, 2, 3);
         // Parallelism is set to -1 (default parallelism identifier) to imitate the behavior of
         // the table planner. Parallelism should be set automatically after translating.
-        sourceDataStream.sinkTo(new TestExpandingSink()).setParallelism(-1);
+        sourceDataStream.sinkTo(new TestExpandingSinkDeprecated()).setParallelism(-1);
 
         StreamGraph graph = env.getStreamGraph();
 
@@ -910,7 +914,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
     }
 
     @Test
-    public void testAutoParallelismForExpandedTransformationsWithMixin() {
+    public void testAutoParallelismForExpandedTransformations() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         env.setParallelism(2);
@@ -918,7 +922,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
         DataStream<Integer> sourceDataStream = env.fromData(1, 2, 3);
         // Parallelism is set to -1 (default parallelism identifier) to imitate the behavior of
         // the table planner. Parallelism should be set automatically after translating.
-        sourceDataStream.sinkTo(new TestExpandingSinkWithMixin()).setParallelism(-1);
+        sourceDataStream.sinkTo(new TestExpandingSink()).setParallelism(-1);
 
         StreamGraph graph = env.getStreamGraph();
 
