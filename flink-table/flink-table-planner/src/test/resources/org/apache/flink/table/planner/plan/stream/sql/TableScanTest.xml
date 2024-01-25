@@ -730,56 +730,42 @@ Calc(select=[ts, a, b], where=[>(a, 1)], changelogMode=[I,UB,UA,D])
 
   <TestCase name="testSetParallelismForSource">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM src WHERE the_month > 1]]>
+      <![CDATA[SELECT * FROM src LEFT JOIN changelog_src on src.id = changelog_src.id WHERE src.c > 1]]>
     </Resource>
 	<Resource name="ast">
       <![CDATA[
-LogicalProject(the_month=[$0], area=[$1], product_id=[$2])
-+- LogicalFilter(condition=[>($0, 1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, src]])
+LogicalProject(id=[$0], b=[$1], c=[$2], id0=[$3], a=[$4])
++- LogicalFilter(condition=[>($2, 1)])
+   +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, src]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, changelog_src]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[the_month, area, product_id], where=[(the_month > 1)])
-+- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[the_month, area, product_id])
+Join(joinType=[LeftOuterJoin], where=[(id = id0)], select=[id, b, c, id0, a], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+:- Exchange(distribution=[hash[id]])
+:  +- Calc(select=[id, b, c], where=[(c > 1)])
+:     +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[id, b, c])
++- Exchange(distribution=[hash[id]])
+   +- ChangelogNormalize(key=[id])
+      +- Exchange(distribution=[hash[id]])
+         +- TableSourceScan(table=[[default_catalog, default_database, changelog_src]], fields=[id, a])
 ]]>
 	</Resource>
 	<Resource name="transformation">
       <![CDATA[
-OneInputTransformation{id=3, name='Calc[4]', outputType=ROW<`the_month` INT, `area` STRING, `product_id` INT>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
-+- SourceTransformationWrapper{id=2, name='ChangeToDefaultParallel', outputType=ROW<`the_month` INT, `area` STRING, `product_id` INT>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
-	+- LegacySourceTransformation{id=1, name='src[3]', outputType=ROW<`the_month` INT, `area` STRING, `product_id` INT>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=3}
-]]>
-	</Resource>
-  </TestCase>
-  <TestCase name="testSetParallelismForChangelogSource">
-	<Resource name="sql">
-      <![CDATA[SELECT * FROM src WHERE the_month > 1]]>
-	</Resource>
-	<Resource name="ast">
-      <![CDATA[
-LogicalProject(the_month=[$0], area=[$1], product_id=[$2])
-+- LogicalFilter(condition=[>($0, 1)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
-]]>
-	</Resource>
-	<Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[the_month, area, product_id], where=[(the_month > 1)])
-+- ChangelogNormalize(key=[product_id])
-   +- Exchange(distribution=[hash[product_id]])
-      +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[the_month, area, product_id])
-]]>
-	</Resource>
-	<Resource name="transformation">
-      <![CDATA[
-OneInputTransformation{id=6, name='Calc[8]', outputType=ROW<`the_month` INT, `area` STRING, `product_id` INT NOT NULL>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
-	+- OneInputTransformation{id=5, name='ChangelogNormalize[7]', outputType=ROW<`the_month` INT, `area` STRING, `product_id` INT NOT NULL>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
-		+- PartitionTransformation{id=4, name='Exchange[6]', outputType=ROW<`the_month` INT, `area` STRING, `product_id` INT NOT NULL>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
-			+- PartitionTransformation{id=3, name='Partitioner[5]', outputType=ROW<`the_month` INT, `area` STRING, `product_id` INT NOT NULL>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
-				+- SourceTransformationWrapper{id=2, name='ChangeToDefaultParallel', outputType=ROW<`the_month` INT, `area` STRING, `product_id` INT NOT NULL>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
-					+- LegacySourceTransformation{id=1, name='src[5]', outputType=ROW<`the_month` INT, `area` STRING, `product_id` INT NOT NULL>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=3}
+TwoInputTransformation{id=11, name='Join(joinType=[LeftOuterJoin], where=[(id = id0)], select=[id, b, c, id0, a], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])', outputType=ROW<`id` INT, `b` STRING, `c` INT, `id0` INT, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
+	+- PartitionTransformation{id=4, name='Exchange(distribution=[hash[id]])', outputType=ROW<`id` INT, `b` STRING, `c` INT>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
+		+- OneInputTransformation{id=3, name='Calc(select=[id, b, c], where=[(c > 1)])', outputType=ROW<`id` INT, `b` STRING, `c` INT>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
+			+- SourceTransformationWrapper{id=2, name='ChangeToDefaultParallel', outputType=ROW<`id` INT, `b` STRING, `c` INT>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
+				+- LegacySourceTransformation{id=1, name='TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[id, b, c])', outputType=ROW<`id` INT, `b` STRING, `c` INT>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=3}
+	+- PartitionTransformation{id=10, name='Exchange(distribution=[hash[id]])', outputType=ROW<`id` INT NOT NULL, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
+		+- OneInputTransformation{id=9, name='ChangelogNormalize(key=[id])', outputType=ROW<`id` INT NOT NULL, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
+			+- PartitionTransformation{id=8, name='Exchange(distribution=[hash[id]])', outputType=ROW<`id` INT NOT NULL, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
+				+- PartitionTransformation{id=7, name='Partitioner', outputType=ROW<`id` INT NOT NULL, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
+					+- SourceTransformationWrapper{id=6, name='ChangeToDefaultParallel', outputType=ROW<`id` INT NOT NULL, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
+						+- LegacySourceTransformation{id=5, name='TableSourceScan(table=[[default_catalog, default_database, changelog_src]], fields=[id, a])', outputType=ROW<`id` INT NOT NULL, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=5}
 ]]>
 	</Resource>
   </TestCase>
