@@ -208,6 +208,13 @@ public class PipelineOptions {
                                     + " data to user-code functions will be reused. Keep in mind that this can lead to bugs when the"
                                     + " user-code function of an operation is not aware of this behaviour.");
 
+    /**
+     * @deprecated The config is subsumed by {@link #SERIALIZATION_CONFIG}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
+     */
+    @Deprecated
     public static final ConfigOption<List<String>> KRYO_DEFAULT_SERIALIZERS =
             key("pipeline.default-kryo-serializers")
                     .stringType()
@@ -228,6 +235,13 @@ public class PipelineOptions {
                                                             + " class:org.example.ExampleClass2,serializer:org.example.ExampleSerializer2"))
                                     .build());
 
+    /**
+     * @deprecated The config is subsumed by {@link #SERIALIZATION_CONFIG}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
+     */
+    @Deprecated
     public static final ConfigOption<List<String>> KRYO_REGISTERED_CLASSES =
             key("pipeline.registered-kryo-types")
                     .stringType()
@@ -242,6 +256,13 @@ public class PipelineOptions {
                                                     + " sure that only tags are written.")
                                     .build());
 
+    /**
+     * @deprecated The config is subsumed by {@link #SERIALIZATION_CONFIG}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
+     */
+    @Deprecated
     public static final ConfigOption<List<String>> POJO_REGISTERED_CLASSES =
             key("pipeline.registered-pojo-types")
                     .stringType()
