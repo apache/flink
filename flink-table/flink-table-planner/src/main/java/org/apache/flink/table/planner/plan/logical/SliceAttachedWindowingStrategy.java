@@ -54,7 +54,7 @@ public class SliceAttachedWindowingStrategy extends WindowingStrategy {
     public String toSummaryString(String[] inputFieldNames) {
         checkArgument(sliceEnd < inputFieldNames.length);
         String windowing = String.format("slice_end=[%s]", inputFieldNames[sliceEnd]);
-        return window.toSummaryString(windowing);
+        return window.toSummaryString(windowing, inputFieldNames);
     }
 
     public int getSliceEnd() {

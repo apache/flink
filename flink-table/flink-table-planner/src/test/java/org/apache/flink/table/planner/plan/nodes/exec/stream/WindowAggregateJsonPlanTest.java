@@ -449,4 +449,80 @@ class WindowAggregateJsonPlanTest extends TableTestBase {
                         + "   CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR)) "
                         + "GROUP BY a, window_start, window_end");
     }
+
+    @Test
+    void testProcTimeSessionWindowWithoutPartitionKey() {
+        String sinkTableDdl =
+                "CREATE TABLE MySink (\n"
+                        + " window_end TIMESTAMP(3),\n"
+                        + " cnt BIGINT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values')\n";
+        tEnv.executeSql(sinkTableDdl);
+        util.verifyJsonPlan(
+                "insert into MySink select\n"
+                        + "  window_end,\n"
+                        + "  COUNT(*)\n"
+                        + "FROM TABLE(\n"
+                        + "   SESSION(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))\n"
+                        + "GROUP BY window_start, window_end");
+    }
+
+    @Test
+    void testProcTimeSessionWindowWithPartitionKey() {
+        String sinkTableDdl =
+                "CREATE TABLE MySink (\n"
+                        + " b BIGINT,\n"
+                        + " window_end TIMESTAMP(3),\n"
+                        + " cnt BIGINT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values')\n";
+        tEnv.executeSql(sinkTableDdl);
+        util.verifyJsonPlan(
+                "insert into MySink select\n"
+                        + "  b,\n"
+                        + "  window_end,\n"
+                        + "  COUNT(*)\n"
+                        + "FROM TABLE(\n"
+                        + "   SESSION(TABLE MyTable PARTITION BY b, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))\n"
+                        + "GROUP BY b, window_start, window_end");
+    }
+
+    @Test
+    void testEventTimeSessionWindowWithoutPartitionKey() {
+        String sinkTableDdl =
+                "CREATE TABLE MySink (\n"
+                        + " window_end TIMESTAMP(3),\n"
+                        + " cnt BIGINT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values')\n";
+        tEnv.executeSql(sinkTableDdl);
+        util.verifyJsonPlan(
+                "insert into MySink select\n"
+                        + "  window_end,\n"
+                        + "  COUNT(*)\n"
+                        + "FROM TABLE(\n"
+                        + "   SESSION(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))\n"
+                        + "GROUP BY window_start, window_end");
+    }
+
+    @Test
+    void testEventTimeSessionWindowWithPartitionKey() {
+        String sinkTableDdl =
+                "CREATE TABLE MySink (\n"
+                        + " b BIGINT,\n"
+                        + " window_end TIMESTAMP(3),\n"
+                        + " cnt BIGINT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values')\n";
+        tEnv.executeSql(sinkTableDdl);
+        util.verifyJsonPlan(
+                "insert into MySink select\n"
+                        + "  b,\n"
+                        + "  window_end,\n"
+                        + "  COUNT(*)\n"
+                        + "FROM TABLE(\n"
+                        + "   SESSION(TABLE MyTable PARTITION BY b, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))\n"
+                        + "GROUP BY b, window_start, window_end");
+    }
 }

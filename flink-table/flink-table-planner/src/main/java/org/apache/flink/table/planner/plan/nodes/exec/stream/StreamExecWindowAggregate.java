@@ -25,9 +25,14 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.logical.LogicalWindow;
+import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
+import org.apache.flink.table.planner.plan.logical.SessionWindowSpec;
+import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -44,6 +49,7 @@ import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.runtime.groupwindow.WindowProperty;
+import org.apache.flink.table.runtime.groupwindow.WindowReference;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.aggregate.window.SlicingWindowAggOperatorBuilder;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
@@ -54,6 +60,7 @@ import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -69,6 +76,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis;
+import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -160,6 +169,12 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
     @Override
     protected Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
+        // TODO Currently, the operator of WindowAggregate does not support Session Window, and it
+        //  needs to fall back to the legacy GroupWindowAggregate. See more at FLINK-34048.
+        if (windowing.getWindow() instanceof SessionWindowSpec) {
+            return fallbackToLegacyGroupWindowAggregate(planner, config);
+        }
+
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
@@ -261,5 +276,48 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
                 JavaScalaConversionUtil.toScala(windowProperties),
                 sliceAssigner,
                 shiftTimeZone);
+    }
+
+    private Transformation<RowData> fallbackToLegacyGroupWindowAggregate(
+            PlannerBase planner, ExecNodeConfig config) {
+        Preconditions.checkState(windowing.getWindow() instanceof SessionWindowSpec);
+
+        if (windowing instanceof TimeAttributeWindowingStrategy) {
+            LogicalType timeAttributeType = windowing.getTimeAttributeType();
+            LogicalWindow logicalWindow =
+                    new SessionGroupWindow(
+                            new WindowReference("w$", timeAttributeType),
+                            new FieldReferenceExpression(
+                                    // mock an empty time field name here
+                                    "",
+                                    fromLogicalTypeToDataType(timeAttributeType),
+                                    0,
+                                    ((TimeAttributeWindowingStrategy) windowing)
+                                            .getTimeAttributeIndex()),
+                            intervalOfMillis(
+                                    ((SessionWindowSpec) windowing.getWindow())
+                                            .getGap()
+                                            .toMillis()));
+
+            StreamExecGroupWindowAggregate groupWindowAggregate =
+                    new StreamExecGroupWindowAggregate(
+                            planner.getTableConfig(),
+                            grouping,
+                            aggCalls,
+                            logicalWindow,
+                            namedWindowProperties,
+                            needRetraction,
+                            InputProperty.DEFAULT,
+                            (RowType) getOutputType(),
+                            getDescription());
+
+            groupWindowAggregate.setInputEdges(getInputEdges());
+            return groupWindowAggregate.translateToPlanInternal(planner, config);
+        }
+
+        throw new UnsupportedOperationException(
+                String.format(
+                        "Unsupported windowing strategy: %s for session window.",
+                        windowing.getClass()));
     }
 }
