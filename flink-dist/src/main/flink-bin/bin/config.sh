@@ -213,6 +213,7 @@ export FLINK_LIB_DIR
 export FLINK_OPT_DIR
 
 source "${FLINK_BIN_DIR}/bash-java-utils.sh"
+setJavaRun "$FLINK_CONF_DIR"
 YAML_CONF=$(updateAndGetFlinkConfiguration "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}" ${FLINK_LIB_DIR} -flatten)
 
 ########################################################################################################################

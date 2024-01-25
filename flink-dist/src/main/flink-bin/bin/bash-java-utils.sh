@@ -17,16 +17,60 @@
 # limitations under the License.
 ################################################################################
 
-UNAME=$(uname -s)
-if [ "${UNAME:0:6}" == "CYGWIN" ]; then
-    JAVA_RUN=java
-else
-    if [[ -d "$JAVA_HOME" ]]; then
-        JAVA_RUN="$JAVA_HOME"/bin/java
-    else
-        JAVA_RUN=java
+readFromConfigFile() {
+    local key=$1
+    local defaultValue=$2
+    local configFile=$3
+
+    # first extract the value with the given key (1st sed), then trim the result (2nd sed)
+    # if a key exists multiple times, take the "last" one (tail)
+    local value=`sed -n "s/^[ ]*${key}[ ]*: \([^#]*\).*$/\1/p" "${configFile}" | sed "s/^ *//;s/ *$//" | tail -n 1`
+
+    [ -z "$value" ] && echo "$defaultValue" || echo "$value"
+}
+
+
+setJavaHome() {
+    # read JAVA_HOME from config with no default value
+    # NOTE: we need to obtain JAVA_HOME before using BashJavaUtils, so the value for env.java.home must
+    # be in a flattened format, rather than nested, allowing us to retrieve the corresponding value via
+    # shell script.
+    CONF_FILE="$1/flink-conf.yaml"
+    if [ ! -e "$1/flink-conf.yaml" ]; then
+        CONF_FILE="$1/config.yaml"
+    fi;
+    
+    KEY_ENV_JAVA_HOME="env.java.home"
+    MY_JAVA_HOME=$(readFromConfigFile ${KEY_ENV_JAVA_HOME} "" "${CONF_FILE}")
+    # check if config specified JAVA_HOME
+    if [ -z "${MY_JAVA_HOME}" ]; then
+        # config did not specify JAVA_HOME. Use system JAVA_HOME
+        MY_JAVA_HOME="${JAVA_HOME}"
     fi
-fi
+    # check if we have a valid JAVA_HOME and if java is not available
+    if [ -z "${MY_JAVA_HOME}" ] && ! type java > /dev/null 2> /dev/null; then
+        echo "Please specify JAVA_HOME. Either in Flink config ./conf/config.yaml or as system-wide JAVA_HOME."
+        exit 1
+    else
+        export JAVA_HOME="${MY_JAVA_HOME}"
+    fi
+}
+  
+setJavaRun() {
+    setJavaHome "$1"
+
+    UNAME=$(uname -s)
+    if [ "${UNAME:0:6}" == "CYGWIN" ]; then
+        JAVA_RUN=java
+    else
+        if [[ -d "$JAVA_HOME" ]]; then
+            JAVA_RUN="$JAVA_HOME"/bin/java
+        else
+            JAVA_RUN=java
+        fi
+    fi
+    export JAVA_RUN
+}
 
 manglePathList() {
     UNAME=$(uname -s)
