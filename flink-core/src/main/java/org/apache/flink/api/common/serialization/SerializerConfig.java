@@ -20,18 +20,24 @@ package org.apache.flink.api.common.serialization;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.util.Preconditions;
 
 import com.esotericsoftware.kryo.Serializer;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -69,8 +75,10 @@ public final class SerializerConfig implements Serializable {
 
     private LinkedHashSet<Class<?>> registeredPojoTypes = new LinkedHashSet<>();
 
-    private LinkedHashMap<Class<?>, Class<TypeInfoFactory<?>>> registeredTypeFactories =
-            new LinkedHashMap<>();
+    // Order is not required as we will traverse the type hierarchy up to find the closest type
+    // information factory when extracting the type information.
+    private Map<Class<?>, Class<? extends TypeInfoFactory<?>>> registeredTypeInfoFactories =
+            new HashMap<>();
 
     // --------------------------------------------------------------------------------------------
 
@@ -229,8 +237,8 @@ public final class SerializerConfig implements Serializable {
     }
 
     /** Returns the registered type info factories. */
-    public LinkedHashMap<Class<?>, Class<TypeInfoFactory<?>>> getRegisteredTypeFactories() {
-        return registeredTypeFactories;
+    public Map<Class<?>, Class<? extends TypeInfoFactory<?>>> getRegisteredTypeInfoFactories() {
+        return registeredTypeInfoFactories;
     }
 
     /**
@@ -279,7 +287,7 @@ public final class SerializerConfig implements Serializable {
                     && defaultKryoSerializerClasses.equals(other.defaultKryoSerializerClasses)
                     && registeredKryoTypes.equals(other.registeredKryoTypes)
                     && registeredPojoTypes.equals(other.registeredPojoTypes)
-                    && registeredTypeFactories.equals(other.registeredTypeFactories);
+                    && registeredTypeInfoFactories.equals(other.registeredTypeInfoFactories);
 
         } else {
             return false;
@@ -296,7 +304,7 @@ public final class SerializerConfig implements Serializable {
                 defaultKryoSerializerClasses,
                 registeredKryoTypes,
                 registeredPojoTypes,
-                registeredTypeFactories);
+                registeredTypeInfoFactories);
     }
 
     @Override
@@ -317,7 +325,7 @@ public final class SerializerConfig implements Serializable {
                 + ", registeredPojoTypes="
                 + registeredPojoTypes
                 + ", registeredTypeFactories="
-                + registeredTypeFactories
+                + registeredTypeInfoFactories
                 + '}';
     }
 
@@ -352,6 +360,20 @@ public final class SerializerConfig implements Serializable {
                 .getOptional(PipelineOptions.KRYO_REGISTERED_CLASSES)
                 .map(c -> loadClasses(c, classLoader, "Could not load kryo type to be registered."))
                 .ifPresent(c -> this.registeredKryoTypes = c);
+
+        try {
+            configuration
+                    .getOptional(PipelineOptions.SERIALIZATION_CONFIG)
+                    .ifPresent(c -> parseSerializationConfigWithExceptionHandling(classLoader, c));
+        } catch (Exception e) {
+            if (!GlobalConfiguration.isStandardYaml()) {
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "%s is only supported with the standard YAML config parser, please use \"config.yaml\" as the config file.",
+                                PipelineOptions.SERIALIZATION_CONFIG.key()));
+            }
+            throw e;
+        }
     }
 
     private LinkedHashSet<Class<?>> loadClasses(
@@ -407,5 +429,117 @@ public final class SerializerConfig implements Serializable {
         } catch (ClassNotFoundException e) {
             throw new IllegalArgumentException(errorMessage, e);
         }
+    }
+
+    private void parseSerializationConfigWithExceptionHandling(
+            ClassLoader classLoader, List<String> serializationConfigs) {
+        try {
+            parseSerializationConfig(classLoader, serializationConfigs);
+        } catch (Exception e) {
+            throw new IllegalArgumentException(
+                    String.format("Could not configure serializers from %s.", serializationConfigs),
+                    e);
+        }
+    }
+
+    private void parseSerializationConfig(
+            ClassLoader classLoader, List<String> serializationConfigs) {
+        final LinkedHashMap<Class<?>, Map<String, String>> serializationConfigByClass =
+                serializationConfigs.stream()
+                        .map(ConfigurationUtils::parseStringToMap)
+                        .flatMap(m -> m.entrySet().stream())
+                        .collect(
+                                Collectors.toMap(
+                                        e ->
+                                                loadClass(
+                                                        e.getKey(),
+                                                        classLoader,
+                                                        "Could not load class for serialization config"),
+                                        e -> ConfigurationUtils.parseStringToMap(e.getValue()),
+                                        (v1, v2) -> {
+                                            throw new IllegalArgumentException(
+                                                    "Duplicated serializer for the same class.");
+                                        },
+                                        LinkedHashMap::new));
+        for (Map.Entry<Class<?>, Map<String, String>> entry :
+                serializationConfigByClass.entrySet()) {
+            Class<?> type = entry.getKey();
+            Map<String, String> config = entry.getValue();
+            String configType = config.get("type");
+            if (configType == null) {
+                throw new IllegalArgumentException("Serializer type not specified for " + type);
+            }
+            switch (configType) {
+                case "pojo":
+                    registerPojoType(type);
+                    break;
+                case "kryo":
+                    parseAndRegisterKryoType(classLoader, type, config);
+                    break;
+                case "typeinfo":
+                    parseAndRegisterTypeFactory(classLoader, type, config);
+                    break;
+                default:
+                    throw new IllegalArgumentException(
+                            String.format(
+                                    "Unsupported serializer type %s for %s", configType, type));
+            }
+        }
+    }
+
+    private void parseAndRegisterKryoType(
+            ClassLoader classLoader, Class<?> t, Map<String, String> m) {
+        String kryoType = m.get("kryo-type");
+        if (kryoType == null) {
+            registerKryoType(t);
+        } else {
+            switch (kryoType) {
+                case "default":
+                    addDefaultKryoSerializer(
+                            t,
+                            loadClass(
+                                    m.get("class"),
+                                    classLoader,
+                                    "Could not load serializer's class"));
+                    break;
+                case "registered":
+                    registerTypeWithKryoSerializer(
+                            t,
+                            loadClass(
+                                    m.get("class"),
+                                    classLoader,
+                                    "Could not load serializer's class"));
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    private void parseAndRegisterTypeFactory(
+            ClassLoader classLoader, Class<?> t, Map<String, String> m) {
+        Class<? extends TypeInfoFactory<?>> factoryClass =
+                loadClass(m.get("class"), classLoader, "Could not load TypeInfoFactory's class");
+        // Register in the global static factory map of TypeExtractor for now so that it can be
+        // accessed from the static methods of TypeExtractor where SerializerConfig is currently
+        // not accessible
+        TypeExtractor.registerFactory(t, factoryClass);
+        // Register inside SerializerConfig only for testing purpose for now
+        registerTypeWithTypeInfoFactory(t, factoryClass);
+    }
+
+    private void registerTypeWithTypeInfoFactory(
+            Class<?> t, Class<? extends TypeInfoFactory<?>> factory) {
+        Preconditions.checkNotNull(t, "Type parameter must not be null.");
+        Preconditions.checkNotNull(factory, "Factory parameter must not be null.");
+
+        if (!TypeInfoFactory.class.isAssignableFrom(factory)) {
+            throw new IllegalArgumentException("Class is not a TypeInfoFactory.");
+        }
+        if (registeredTypeInfoFactories.containsKey(t)) {
+            throw new InvalidTypesException(
+                    "A TypeInfoFactory for type '" + t + "' is already registered.");
+        }
+        registeredTypeInfoFactories.put(t, factory);
     }
 }
