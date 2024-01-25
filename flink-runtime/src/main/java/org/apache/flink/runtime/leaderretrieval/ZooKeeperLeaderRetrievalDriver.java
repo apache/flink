@@ -40,7 +40,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
 import java.util.UUID;
 
-import static org.apache.flink.runtime.util.ZooKeeperUtils.RESOURCE_MANAGER_NODE;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -69,7 +68,26 @@ public class ZooKeeperLeaderRetrievalDriver implements LeaderRetrievalDriver {
 
     private final FatalErrorHandler fatalErrorHandler;
 
+    private final RemoveAllWatchers removeAllWatchersPredicate;
+
     private volatile boolean running;
+
+    @VisibleForTesting
+    ZooKeeperLeaderRetrievalDriver(
+            CuratorFramework client,
+            String path,
+            LeaderRetrievalEventHandler leaderRetrievalEventHandler,
+            LeaderInformationClearancePolicy leaderInformationClearancePolicy,
+            FatalErrorHandler fatalErrorHandler)
+            throws Exception {
+        this(
+                client,
+                path,
+                leaderRetrievalEventHandler,
+                leaderInformationClearancePolicy,
+                AlwaysRemoveAllWatchers.INSTANCE,
+                fatalErrorHandler);
+    }
 
     /**
      * Creates a leader retrieval service which uses ZooKeeper to retrieve the leader information.
@@ -79,6 +97,8 @@ public class ZooKeeperLeaderRetrievalDriver implements LeaderRetrievalDriver {
      * @param leaderRetrievalEventHandler Handler to notify the leader changes.
      * @param leaderInformationClearancePolicy leaderInformationClearancePolicy controls when the
      *     leader information is being cleared
+     * @param removeAllWatchersPredicate A predicate for determining whether a cleanup of the
+     *     watchers can be initiated when closing this driver.
      * @param fatalErrorHandler Fatal error handler
      */
     public ZooKeeperLeaderRetrievalDriver(
@@ -86,6 +106,7 @@ public class ZooKeeperLeaderRetrievalDriver implements LeaderRetrievalDriver {
             String path,
             LeaderRetrievalEventHandler leaderRetrievalEventHandler,
             LeaderInformationClearancePolicy leaderInformationClearancePolicy,
+            RemoveAllWatchers removeAllWatchersPredicate,
             FatalErrorHandler fatalErrorHandler)
             throws Exception {
         this.client = checkNotNull(client, "CuratorFramework client");
@@ -99,6 +120,7 @@ public class ZooKeeperLeaderRetrievalDriver implements LeaderRetrievalDriver {
         this.leaderRetrievalEventHandler = checkNotNull(leaderRetrievalEventHandler);
         this.leaderInformationClearancePolicy = leaderInformationClearancePolicy;
         this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
+        this.removeAllWatchersPredicate = removeAllWatchersPredicate;
 
         cache.start();
 
@@ -126,17 +148,18 @@ public class ZooKeeperLeaderRetrievalDriver implements LeaderRetrievalDriver {
 
         cache.close();
 
-        try {
-            if (client.getZookeeperClient().isConnected()
-                    && !connectionInformationPath.contains(RESOURCE_MANAGER_NODE)) {
+        removeAllWatchersPredicate.closeCalled();
+        if (client.getZookeeperClient().isConnected()
+                && removeAllWatchersPredicate.shouldRemoveAllWatchers()) {
+            try {
                 client.watchers()
                         .removeAll()
                         .ofType(Watcher.WatcherType.Any)
                         .forPath(connectionInformationPath);
+            } catch (KeeperException.NoWatcherException e) {
+                // Ignore the no watcher exception as it's just a safetynet to fix watcher leak
+                // issue. For more details, please refer to FLINK-33053.
             }
-        } catch (KeeperException.NoWatcherException e) {
-            // Ignore the no watcher exception as it's just a safetynet to fix watcher leak issue.
-            // For more details, please refer to FLINK-33053.
         }
     }
 
@@ -223,5 +246,36 @@ public class ZooKeeperLeaderRetrievalDriver implements LeaderRetrievalDriver {
 
         // clear the leader information only once the ZK connection is lost
         ON_LOST_CONNECTION
+    }
+
+    /**
+     * Maintains the state that determines whether all watchers should be removed when closing the
+     * driver.
+     */
+    interface RemoveAllWatchers {
+
+        /** Notifies the state about the close call. */
+        void closeCalled();
+
+        /**
+         * Returns {@code true} if all watchers shall be removed by the client; otherwise {@code
+         * false}.
+         */
+        boolean shouldRemoveAllWatchers();
+    }
+
+    private static class AlwaysRemoveAllWatchers implements RemoveAllWatchers {
+
+        private static final AlwaysRemoveAllWatchers INSTANCE = new AlwaysRemoveAllWatchers();
+
+        @Override
+        public void closeCalled() {
+            // nothing to do
+        }
+
+        @Override
+        public boolean shouldRemoveAllWatchers() {
+            return true;
+        }
     }
 }
