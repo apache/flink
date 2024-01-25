@@ -1156,9 +1156,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       transformation: Transformation[_],
       level: Int): Unit = {
     if (level == 0) {
-      printWriter.println(transformation.toString)
+      printWriter.println(transformation.toStringWithoutId)
     } else {
-      printWriter.println(("\t" * level) + "+- " + transformation.toString)
+      printWriter.println(("\t" * level) + "+- " + transformation.toStringWithoutId)
     }
     transformation.getInputs.foreach(child => getTransformation(printWriter, child, level + 1))
   }
