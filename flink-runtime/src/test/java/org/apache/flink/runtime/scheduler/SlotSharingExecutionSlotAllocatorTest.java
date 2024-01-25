@@ -329,7 +329,6 @@ class SlotSharingExecutionSlotAllocatorTest {
         context.allocateSlotsFor(EV1, EV3);
         PhysicalSlotRequestBulk bulk = bulkChecker.getBulk();
 
-        assertThat(bulk.getPendingRequests()).hasSize(2);
         assertThat(bulk.getPendingRequests())
                 .containsExactlyInAnyOrder(RESOURCE_PROFILE.multiply(2), RESOURCE_PROFILE);
         assertThat(bulk.getAllocationIdsOfFulfilledRequests()).isEmpty();
@@ -348,9 +347,7 @@ class SlotSharingExecutionSlotAllocatorTest {
                 fulfilOneOfTwoSlotRequestsAndGetPendingProfile(context, allocationId);
         PhysicalSlotRequestBulk bulk = bulkChecker.getBulk();
 
-        assertThat(bulk.getPendingRequests()).hasSize(1);
         assertThat(bulk.getPendingRequests()).containsExactly(pendingSlotResourceProfile);
-        assertThat(bulk.getAllocationIdsOfFulfilledRequests()).hasSize(1);
         assertThat(bulk.getAllocationIdsOfFulfilledRequests()).containsExactly(allocationId);
     }
 

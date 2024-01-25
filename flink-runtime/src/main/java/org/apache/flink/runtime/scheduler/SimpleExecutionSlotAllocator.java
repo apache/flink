@@ -100,7 +100,7 @@ public class SimpleExecutionSlotAllocator implements ExecutionSlotAllocator {
                 final SlotProfile slotProfile =
                         SlotProfile.priorAllocation(
                                 resourceProfile,
-                                resourceProfile,
+                                resourceProfile.toEmptyLoadable(),
                                 preferredLocations,
                                 Collections.emptyList(),
                                 Collections.emptySet());

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
@@ -51,13 +52,16 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
             return Optional.empty();
         }
 
-        final ResourceProfile resourceProfile = slotProfile.getPhysicalSlotResourceProfile();
+        final LoadableResourceProfile loadableResourceProfile =
+                slotProfile.getLoadablePhysicalSlotResourceProfile();
 
         // if we have no location preferences, we can only filter by the additional requirements.
         return locationPreferences.isEmpty()
-                ? selectWithoutLocationPreference(freeSlotInfoTracker, resourceProfile)
+                ? selectWithoutLocationPreference(freeSlotInfoTracker, loadableResourceProfile)
                 : selectWithLocationPreference(
-                        freeSlotInfoTracker, locationPreferences, resourceProfile);
+                        freeSlotInfoTracker,
+                        locationPreferences,
+                        loadableResourceProfile.getResourceProfile());
     }
 
     @Nonnull
@@ -122,7 +126,7 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
     @Nonnull
     protected abstract Optional<SlotInfoAndLocality> selectWithoutLocationPreference(
             @Nonnull FreeSlotInfoTracker freeSlotInfoTracker,
-            @Nonnull ResourceProfile resourceProfile);
+            @Nonnull LoadableResourceProfile loadableResourceProfile);
 
     protected abstract double calculateCandidateScore(
             int localWeigh, int hostLocalWeigh, Supplier<Double> taskExecutorUtilizationSupplier);
@@ -137,5 +141,9 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
 
     public static LocationPreferenceSlotSelectionStrategy createEvenlySpreadOut() {
         return new EvenlySpreadOutLocationPreferenceSlotSelectionStrategy();
+    }
+
+    public static LocationPreferenceSlotSelectionStrategy createBalancedTasks() {
+        return new TasksBalancedLocationPreferenceSlotSelectionStrategy();
     }
 }

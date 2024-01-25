@@ -19,19 +19,25 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.WeightLoadable;
+import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-final class PendingRequest {
+final class PendingRequest implements WeightLoadable {
 
     private final SlotRequestId slotRequestId;
 
-    private final ResourceProfile resourceProfile;
+    private final LoadableResourceProfile loadableResourceProfile;
 
     private final HashSet<AllocationID> preferredAllocations;
 
@@ -43,11 +49,11 @@ final class PendingRequest {
 
     private PendingRequest(
             SlotRequestId slotRequestId,
-            ResourceProfile resourceProfile,
+            LoadableResourceProfile loadableResourceProfile,
             Collection<AllocationID> preferredAllocations,
             boolean isBatchRequest) {
         this.slotRequestId = slotRequestId;
-        this.resourceProfile = resourceProfile;
+        this.loadableResourceProfile = Preconditions.checkNotNull(loadableResourceProfile);
         this.preferredAllocations = new HashSet<>(preferredAllocations);
         this.isBatchRequest = isBatchRequest;
         this.slotFuture = new CompletableFuture<>();
@@ -56,16 +62,18 @@ final class PendingRequest {
 
     static PendingRequest createBatchRequest(
             SlotRequestId slotRequestId,
-            ResourceProfile resourceProfile,
+            LoadableResourceProfile loadableResourceProfile,
             Collection<AllocationID> preferredAllocations) {
-        return new PendingRequest(slotRequestId, resourceProfile, preferredAllocations, true);
+        return new PendingRequest(
+                slotRequestId, loadableResourceProfile, preferredAllocations, true);
     }
 
     static PendingRequest createNormalRequest(
             SlotRequestId slotRequestId,
-            ResourceProfile resourceProfile,
+            LoadableResourceProfile loadableResourceProfile,
             Collection<AllocationID> preferredAllocations) {
-        return new PendingRequest(slotRequestId, resourceProfile, preferredAllocations, false);
+        return new PendingRequest(
+                slotRequestId, loadableResourceProfile, preferredAllocations, false);
     }
 
     SlotRequestId getSlotRequestId() {
@@ -73,7 +81,7 @@ final class PendingRequest {
     }
 
     ResourceProfile getResourceProfile() {
-        return resourceProfile;
+        return loadableResourceProfile.getResourceProfile();
     }
 
     Set<AllocationID> getPreferredAllocations() {
@@ -82,6 +90,10 @@ final class PendingRequest {
 
     CompletableFuture<PhysicalSlot> getSlotFuture() {
         return slotFuture;
+    }
+
+    LoadableResourceProfile getLoadableResourceProfile() {
+        return loadableResourceProfile;
     }
 
     void failRequest(Exception cause) {
@@ -111,6 +123,10 @@ final class PendingRequest {
     }
 
     boolean fulfill(PhysicalSlot slot) {
+        // The loading weight of slot was set when reserving free slot at slot pool side.
+        Preconditions.checkState(
+                slot.getLoading().equals(getLoading()),
+                "Unexpected loading weight, it may be a bug.");
         return slotFuture.complete(slot);
     }
 
@@ -119,8 +135,8 @@ final class PendingRequest {
         return "PendingRequest{"
                 + "slotRequestId="
                 + slotRequestId
-                + ", resourceProfile="
-                + resourceProfile
+                + ", loadableResourceProfile="
+                + loadableResourceProfile
                 + ", preferredAllocations="
                 + preferredAllocations
                 + ", isBatchRequest="
@@ -128,5 +144,10 @@ final class PendingRequest {
                 + ", unfulfillableSince="
                 + unfulfillableSince
                 + '}';
+    }
+
+    @Override
+    public @Nonnull LoadingWeight getLoading() {
+        return loadableResourceProfile.getLoading();
     }
 }

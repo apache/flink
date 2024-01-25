@@ -43,6 +43,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.RequestSlotMatchingStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SimpleRequestSlotMatchingStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolServiceFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.TasksBalancedRequestSlotMatchingStrategy;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
@@ -289,10 +290,16 @@ public final class DefaultSlotPoolServiceSchedulerFactory
             Configuration configuration, JobType jobType) {
         final boolean isLocalRecoveryEnabled =
                 configuration.get(StateRecoveryOptions.LOCAL_RECOVERY);
+        TaskManagerLoadBalanceMode mode =
+                TaskManagerLoadBalanceMode.loadFromConfiguration(configuration);
 
         if (isLocalRecoveryEnabled) {
             if (jobType == JobType.STREAMING) {
-                return PreferredAllocationRequestSlotMatchingStrategy.INSTANCE;
+                RequestSlotMatchingStrategy rollback =
+                        mode == TaskManagerLoadBalanceMode.TASKS
+                                ? TasksBalancedRequestSlotMatchingStrategy.INSTANCE
+                                : SimpleRequestSlotMatchingStrategy.INSTANCE;
+                return PreferredAllocationRequestSlotMatchingStrategy.create(rollback);
             } else {
                 LOG.warn(
                         "Batch jobs do not support local recovery. Falling back for request slot matching strategy to {}.",
@@ -300,6 +307,9 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                 return SimpleRequestSlotMatchingStrategy.INSTANCE;
             }
         } else {
+            if (jobType == JobType.STREAMING && mode == TaskManagerLoadBalanceMode.TASKS) {
+                return TasksBalancedRequestSlotMatchingStrategy.INSTANCE;
+            }
             return SimpleRequestSlotMatchingStrategy.INSTANCE;
         }
     }

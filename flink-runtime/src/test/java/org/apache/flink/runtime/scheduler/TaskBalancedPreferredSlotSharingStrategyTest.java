@@ -25,8 +25,8 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingExecutionVertex;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
-import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
 
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.Test;

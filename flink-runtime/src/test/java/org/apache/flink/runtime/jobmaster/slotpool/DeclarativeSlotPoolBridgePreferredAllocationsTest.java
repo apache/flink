@@ -58,7 +58,8 @@ class DeclarativeSlotPoolBridgePreferredAllocationsTest {
                         TestingUtils.infiniteTime(),
                         TestingUtils.infiniteTime(),
                         TestingUtils.infiniteTime(),
-                        PreferredAllocationRequestSlotMatchingStrategy.INSTANCE,
+                        PreferredAllocationRequestSlotMatchingStrategy.create(
+                                SimpleRequestSlotMatchingStrategy.INSTANCE),
                         Duration.ZERO,
                         slotBatchAllocatable,
                         forMainThread());
@@ -100,6 +101,9 @@ class DeclarativeSlotPoolBridgePreferredAllocationsTest {
             DeclarativeSlotPoolBridge declarativeSlotPoolBridge,
             Set<AllocationID> preferredAllocations) {
         return declarativeSlotPoolBridge.requestNewAllocatedSlot(
-                new SlotRequestId(), ResourceProfile.UNKNOWN, preferredAllocations, null);
+                new SlotRequestId(),
+                ResourceProfile.UNKNOWN.toEmptyLoadable(),
+                preferredAllocations,
+                null);
     }
 }
