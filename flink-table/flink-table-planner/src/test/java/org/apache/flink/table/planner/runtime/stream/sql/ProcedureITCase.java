@@ -88,7 +88,7 @@ class ProcedureITCase extends StreamingTestBase {
                         tEnv().executeSql("show procedures in `system`").collect());
         assertThat(rows.toString())
                 .isEqualTo(
-                        "[+I[generate_n], +I[generate_user], +I[get_year], +I[named_args], +I[named_args_overload], +I[sum_n]]");
+                        "[+I[generate_n], +I[generate_user], +I[get_year], +I[named_args], +I[named_args_optional], +I[named_args_overload], +I[sum_n]]");
 
         // show procedure with like
         rows =
@@ -115,7 +115,8 @@ class ProcedureITCase extends StreamingTestBase {
                         tEnv().executeSql("show procedures in `system` not like 'generate%'")
                                 .collect());
         assertThat(rows.toString())
-                .isEqualTo("[+I[get_year], +I[named_args], +I[named_args_overload], +I[sum_n]]");
+                .isEqualTo(
+                        "[+I[get_year], +I[named_args], +I[named_args_optional], +I[named_args_overload], +I[sum_n]]");
 
         // show procedure with not ilike
         rows =
@@ -123,7 +124,8 @@ class ProcedureITCase extends StreamingTestBase {
                         tEnv().executeSql("show procedures in `system` not ilike 'generaTe%'")
                                 .collect());
         assertThat(rows.toString())
-                .isEqualTo("[+I[get_year], +I[named_args], +I[named_args_overload], +I[sum_n]]");
+                .isEqualTo(
+                        "[+I[get_year], +I[named_args], +I[named_args_optional], +I[named_args_overload], +I[sum_n]]");
     }
 
     @Test
@@ -200,12 +202,12 @@ class ProcedureITCase extends StreamingTestBase {
     }
 
     @Test
-    void testNamedArgumentsWithDefaultValue() {
-        // default value
-        Assertions.assertThatThrownBy(
-                        () -> tEnv().executeSql("call `system`.named_args(c => 'yuxia')"))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("No match found for function signature named_args");
+    void testNamedArgumentsWithOptionalArguments() {
+        TableResult tableResult = tEnv().executeSql("call `system`.named_args_optional(d => 19)");
+        verifyTableResult(
+                tableResult,
+                Collections.singletonList(Row.of("null, 19")),
+                ResolvedSchema.of(Column.physical("result", DataTypes.STRING())));
     }
 
     private void verifyTableResult(

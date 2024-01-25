@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.functions.sql.SqlSessionTableFunction;
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -45,6 +46,7 @@ import org.apache.calcite.sql2rel.StandardConvertletTable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -67,6 +69,10 @@ public class FlinkConvertletTable implements SqlRexConvertletTable {
 
         if (isSetSemanticsWindowTableFunction(call)) {
             return this::convertSetSemanticsWindowTableFunction;
+        }
+
+        if (isContainsDefaultNode(call)) {
+            return this::convertSqlCallWithDefaultNode;
         }
 
         return StandardConvertletTable.INSTANCE.get(call);
@@ -111,6 +117,12 @@ public class FlinkConvertletTable implements SqlRexConvertletTable {
         }
         List<SqlNode> operands = call.getOperandList();
         return !operands.isEmpty() && operands.get(0).getKind() == SqlKind.SET_SEMANTICS_TABLE;
+    }
+
+    private boolean isContainsDefaultNode(SqlCall call) {
+        return call.getOperandList().stream()
+                .filter(Objects::nonNull)
+                .anyMatch(operand -> operand.getKind() == SqlKind.DEFAULT);
     }
 
     /**
@@ -201,5 +213,19 @@ public class FlinkConvertletTable implements SqlRexConvertletTable {
         }
         // should not happen
         throw new TableException("Unsupported partition key with type: " + e.getKind());
+    }
+
+    /**
+     * When the SqlCall contains a default operator, the type of the default node to ANY after
+     * converted to rel node. However, the ANY type cannot pass various checks well and cannot adapt
+     * well to types in flink. Therefore, we replace the ANY type with the argument type obtained
+     * from the operator.
+     */
+    private RexNode convertSqlCallWithDefaultNode(SqlRexContext cx, final SqlCall call) {
+        RexNode rexCall = StandardConvertletTable.INSTANCE.convertCall(cx, call);
+        if (rexCall instanceof RexCall) {
+            return FlinkRexUtil.fixRexCallType((RexCall) rexCall, cx.getValidator());
+        }
+        return rexCall;
     }
 }

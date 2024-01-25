@@ -22,14 +22,12 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlCallBinding;
-import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorBinding;
 
 import javax.annotation.Nullable;
@@ -67,27 +65,14 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
                 new AbstractList<DataType>() {
                     @Override
                     public DataType get(int pos) {
-                        if (binding instanceof SqlCallBinding) {
-                            SqlCallBinding sqlCallBinding = (SqlCallBinding) binding;
-                            List<SqlNode> operands = sqlCallBinding.operands();
-                            final RelDataType relDataType =
-                                    sqlCallBinding
-                                            .getValidator()
-                                            .deriveType(
-                                                    sqlCallBinding.getScope(), operands.get(pos));
-                            final LogicalType logicalType =
-                                    FlinkTypeFactory.toLogicalType(relDataType);
-                            return TypeConversions.fromLogicalToDataType(logicalType);
-                        } else {
-                            final LogicalType logicalType =
-                                    toLogicalType(binding.getOperandType(pos));
-                            return fromLogicalToDataType(logicalType);
-                        }
+                        RelDataType relDataType = FlinkRexUtil.resolveCallOperandType(binding, pos);
+                        LogicalType logicalType = FlinkTypeFactory.toLogicalType(relDataType);
+                        return fromLogicalToDataType(logicalType);
                     }
 
                     @Override
                     public int size() {
-                        return binding.getOperandCount();
+                        return FlinkRexUtil.getCallBingOperandCount(binding);
                     }
                 };
         this.outputDataType =

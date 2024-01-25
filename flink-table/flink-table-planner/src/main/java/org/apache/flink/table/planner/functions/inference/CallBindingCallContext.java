@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -69,16 +70,14 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
                 new AbstractList<DataType>() {
                     @Override
                     public DataType get(int pos) {
-                        final RelDataType relDataType =
-                                binding.getValidator()
-                                        .deriveType(binding.getScope(), adaptedArguments.get(pos));
+                        RelDataType relDataType = FlinkRexUtil.resolveCallOperandType(binding, pos);
                         final LogicalType logicalType = FlinkTypeFactory.toLogicalType(relDataType);
                         return TypeConversions.fromLogicalToDataType(logicalType);
                     }
 
                     @Override
                     public int size() {
-                        return binding.getOperandCount();
+                        return adaptedArguments.size();
                     }
                 };
         this.outputType = convertOutputType(binding, outputType);

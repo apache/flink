@@ -35,6 +35,7 @@ import org.apache.calcite.sql.SqlMatchRecognize;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlPostfixOperator;
 import org.apache.calcite.sql.SqlPrefixOperator;
+import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.InferTypes;
@@ -1286,4 +1287,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                     .operandTypeChecker(OperandTypes.NILADIC)
                     .notDeterministic()
                     .build();
+
+    // DEFAULT FUNCTION
+    // The default operator is used to fill in missing parameters when using named parameter,
+    // which is used during code generation and not exposed to the user by default.
+    public static final SqlSpecialOperator DEFAULT = SqlStdOperatorTable.DEFAULT;
 }

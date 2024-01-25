@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.hint.ClearQueryHintsWithInvalidPropagation
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogSnapshotReader;
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import com.google.common.base.Preconditions;
@@ -241,7 +242,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   <li>Added in FLINK-32474: Lines 2875 ~ 2887
  *   <li>Added in FLINK-32474: Lines 2987 ~ 3021
  *   <li>Added in FLINK-20873: Lines 5519 ~ 5528
- *   <li>Added in FLINK-34057: Lines 6089 ~ 6092
+ *   <li>Added in FLINK-34057, FLINK-34058: Lines 6090 ~ 6113
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
@@ -6087,10 +6088,10 @@ public class SqlToRelConverter {
                 // switch out of agg mode
                 bb.agg = null;
                 // ----- FLINK MODIFICATION BEGIN -----
-                for (SqlNode operand :
-                        new SqlCallBinding(validator(), aggregatingSelectScope, call).operands())
-                // ----- FLINK MODIFICATION END -----
-                {
+                List<SqlNode> sqlNodes =
+                        new SqlCallBinding(validator(), aggregatingSelectScope, call).operands();
+                for (int i = 0; i < sqlNodes.size(); i++) {
+                    SqlNode operand = sqlNodes.get(i);
                     // special case for COUNT(*):  delete the *
                     if (operand instanceof SqlIdentifier) {
                         SqlIdentifier id = (SqlIdentifier) operand;
@@ -6101,8 +6102,12 @@ public class SqlToRelConverter {
                         }
                     }
                     RexNode convertedExpr = bb.convertExpression(operand);
+                    convertedExpr =
+                            FlinkRexUtil.fixRexNodeType(
+                                    convertedExpr, call.getOperator(), i, validator);
                     args.add(lookupOrCreateGroupExpr(convertedExpr));
                 }
+                // ----- FLINK MODIFICATION END -----
 
                 if (filter != null) {
                     RexNode convertedExpr = bb.convertExpression(filter);

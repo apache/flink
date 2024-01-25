@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.factories;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.ProcedureHint;
 import org.apache.flink.table.catalog.Catalog;
@@ -90,6 +91,9 @@ public class TestProcedureCatalogFactory implements CatalogFactory {
             PROCEDURE_MAP.put(
                     ObjectPath.fromString("system.named_args_overload"),
                     new NamedArgumentsProcedureWithOverload());
+            PROCEDURE_MAP.put(
+                    ObjectPath.fromString("system.named_args_optional"),
+                    new NamedArgumentsProcedureWithOptionalArguments());
         }
 
         public CatalogWithBuiltInProcedure(String name) {
@@ -208,6 +212,20 @@ public class TestProcedureCatalogFactory implements CatalogFactory {
                 output = @DataTypeHint("STRING"),
                 argumentNames = {"c", "d"})
         public String[] call(ProcedureContext procedureContext, String arg1, String arg2) {
+            return new String[] {arg1 + ", " + arg2};
+        }
+    }
+
+    /** A procedure with named arguments and optional arguments. */
+    public static class NamedArgumentsProcedureWithOptionalArguments implements Procedure {
+
+        @ProcedureHint(
+                output = @DataTypeHint("STRING"),
+                argument = {
+                    @ArgumentHint(type = @DataTypeHint("STRING"), name = "c", isOptional = true),
+                    @ArgumentHint(type = @DataTypeHint("INT"), name = "d", isOptional = true)
+                })
+        public String[] call(ProcedureContext procedureContext, String arg1, Integer arg2) {
             return new String[] {arg1 + ", " + arg2};
         }
     }

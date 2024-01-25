@@ -46,6 +46,8 @@ public final class TypeInference {
 
     private final @Nullable List<String> namedArguments;
 
+    private final @Nullable List<Boolean> optionalArguments;
+
     private final @Nullable List<DataType> typedArguments;
 
     private final InputTypeStrategy inputTypeStrategy;
@@ -56,11 +58,13 @@ public final class TypeInference {
 
     private TypeInference(
             @Nullable List<String> namedArguments,
+            @Nullable List<Boolean> optionalArguments,
             @Nullable List<DataType> typedArguments,
             InputTypeStrategy inputTypeStrategy,
             @Nullable TypeStrategy accumulatorTypeStrategy,
             TypeStrategy outputTypeStrategy) {
         this.namedArguments = namedArguments;
+        this.optionalArguments = optionalArguments;
         this.typedArguments = typedArguments;
         this.inputTypeStrategy = inputTypeStrategy;
         this.accumulatorTypeStrategy = accumulatorTypeStrategy;
@@ -88,6 +92,10 @@ public final class TypeInference {
         return Optional.ofNullable(typedArguments);
     }
 
+    public Optional<List<Boolean>> getOptionalArguments() {
+        return Optional.ofNullable(optionalArguments);
+    }
+
     public InputTypeStrategy getInputTypeStrategy() {
         return inputTypeStrategy;
     }
@@ -107,6 +115,8 @@ public final class TypeInference {
     public static class Builder {
 
         private @Nullable List<String> namedArguments;
+
+        private @Nullable List<Boolean> optionalArguments;
 
         private @Nullable List<DataType> typedArguments;
 
@@ -138,6 +148,21 @@ public final class TypeInference {
         /** @see #namedArguments(List) */
         public Builder namedArguments(String... argumentNames) {
             return namedArguments(Arrays.asList(argumentNames));
+        }
+
+        /**
+         * Sets the list of argument optionals for specifying optional arguments in the input
+         * signature explicitly.
+         *
+         * <p>This information is useful for SQL's concept of named arguments using the assignment
+         * operator. The optionals are used to determine whether an argument is optional or required
+         * in the function call.
+         */
+        public Builder optionalArguments(List<Boolean> optionalArguments) {
+            this.optionalArguments =
+                    Preconditions.checkNotNull(
+                            optionalArguments, "List of argument optionals must not be null.");
+            return this;
         }
 
         /**
@@ -198,6 +223,7 @@ public final class TypeInference {
         public TypeInference build() {
             return new TypeInference(
                     namedArguments,
+                    optionalArguments,
                     typedArguments,
                     inputTypeStrategy,
                     accumulatorTypeStrategy,
