@@ -35,12 +35,16 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -60,21 +64,21 @@ public class EmbeddedLeaderService {
 
     private final Executor notificationExecutor;
 
-    private final Set<EmbeddedLeaderElection> allLeaderContenders;
+    private final Map<String, Set<EmbeddedLeaderElection>> allLeaderContenders;
 
-    private final Set<EmbeddedLeaderRetrievalService> listeners;
+    private final Map<String, Set<EmbeddedLeaderRetrievalService>> listeners;
 
     /** proposed leader, which has been notified of leadership grant, but has not confirmed. */
-    private EmbeddedLeaderElection currentLeaderProposed;
+    private Map<String, EmbeddedLeaderElection> currentLeaderProposed;
 
     /** actual leader that has confirmed leadership and of which listeners have been notified. */
-    private EmbeddedLeaderElection currentLeaderConfirmed;
+    private Map<String, EmbeddedLeaderElection> currentLeaderConfirmed;
 
     /** fencing UID for the current leader (or proposed leader). */
     private volatile UUID currentLeaderSessionId;
 
     /** the cached address of the current leader. */
-    private String currentLeaderAddress;
+    private Map<String, String> currentLeaderAddress;
 
     /** flag marking the service as terminated. */
     private boolean shutdown;
@@ -83,8 +87,11 @@ public class EmbeddedLeaderService {
 
     public EmbeddedLeaderService(Executor notificationsDispatcher) {
         this.notificationExecutor = checkNotNull(notificationsDispatcher);
-        this.allLeaderContenders = new HashSet<>();
-        this.listeners = new HashSet<>();
+        this.allLeaderContenders = new HashMap<>();
+        this.listeners = new HashMap<>();
+        this.currentLeaderProposed = new HashMap<>();
+        this.currentLeaderConfirmed = new HashMap<>();
+        this.currentLeaderAddress = new HashMap<>();
     }
 
     // ------------------------------------------------------------------------
@@ -129,19 +136,25 @@ public class EmbeddedLeaderService {
 
         if (!shutdown) {
             // clear all leader status
-            currentLeaderProposed = null;
-            currentLeaderConfirmed = null;
+            currentLeaderProposed.clear();
+            currentLeaderConfirmed.clear();
             currentLeaderSessionId = null;
-            currentLeaderAddress = null;
+            currentLeaderAddress.clear();
 
             // fail all registered listeners
-            for (EmbeddedLeaderElection leaderElection : allLeaderContenders) {
+            for (EmbeddedLeaderElection leaderElection :
+                    allLeaderContenders.values().stream()
+                            .flatMap(Collection::stream)
+                            .collect(Collectors.toList())) {
                 leaderElection.shutdown(exceptionForHandlers);
             }
             allLeaderContenders.clear();
 
             // fail all registered listeners
-            for (EmbeddedLeaderRetrievalService service : listeners) {
+            for (EmbeddedLeaderRetrievalService service :
+                    listeners.values().stream()
+                            .flatMap(Collection::stream)
+                            .collect(Collectors.toList())) {
                 service.shutdown(exceptionForHandlers);
             }
             listeners.clear();
@@ -159,9 +172,9 @@ public class EmbeddedLeaderService {
         return new EmbeddedLeaderElection(componentId);
     }
 
-    public LeaderRetrievalService createLeaderRetrievalService() {
+    public LeaderRetrievalService createLeaderRetrievalService(String componentId) {
         checkState(!shutdown, "leader election service is shut down");
-        return new EmbeddedLeaderRetrievalService();
+        return new EmbeddedLeaderRetrievalService(componentId);
     }
 
     // ------------------------------------------------------------------------
@@ -176,7 +189,10 @@ public class EmbeddedLeaderService {
             checkState(!embeddedLeaderElection.running, "leader election is already started");
 
             try {
-                if (!allLeaderContenders.add(embeddedLeaderElection)) {
+                if (!allLeaderContenders
+                        .computeIfAbsent(
+                                embeddedLeaderElection.componentId, ignored -> new HashSet<>())
+                        .add(embeddedLeaderElection)) {
                     throw new IllegalStateException(
                             "leader election was added to this service multiple times");
                 }
@@ -184,7 +200,7 @@ public class EmbeddedLeaderService {
                 embeddedLeaderElection.contender = contender;
                 embeddedLeaderElection.running = true;
 
-                updateLeader()
+                updateLeader(embeddedLeaderElection.componentId)
                         .whenComplete(
                                 (aVoid, throwable) -> {
                                     if (throwable != null) {
@@ -206,7 +222,9 @@ public class EmbeddedLeaderService {
             }
 
             try {
-                if (!allLeaderContenders.remove(embeddedLeaderElection)) {
+                if (!allLeaderContenders
+                        .get(embeddedLeaderElection.componentId)
+                        .remove(embeddedLeaderElection)) {
                     throw new IllegalStateException(
                             "leader election does not belong to this service");
                 }
@@ -220,17 +238,17 @@ public class EmbeddedLeaderService {
                 embeddedLeaderElection.isLeader = false;
 
                 // if that was the current leader, unset its status
-                if (currentLeaderConfirmed == embeddedLeaderElection) {
-                    currentLeaderConfirmed = null;
-                    currentLeaderSessionId = null;
-                    currentLeaderAddress = null;
+                if (currentLeaderConfirmed.get(embeddedLeaderElection.componentId)
+                        == embeddedLeaderElection) {
+                    currentLeaderConfirmed.remove(embeddedLeaderElection.componentId);
+                    currentLeaderAddress.remove(embeddedLeaderElection.componentId);
                 }
-                if (currentLeaderProposed == embeddedLeaderElection) {
-                    currentLeaderProposed = null;
-                    currentLeaderSessionId = null;
+                if (currentLeaderProposed.get(embeddedLeaderElection.componentId)
+                        == embeddedLeaderElection) {
+                    currentLeaderProposed.remove(embeddedLeaderElection.componentId);
                 }
 
-                updateLeader()
+                updateLeader(embeddedLeaderElection.componentId)
                         .whenComplete(
                                 (aVoid, throwable) -> {
                                     if (throwable != null) {
@@ -256,7 +274,8 @@ public class EmbeddedLeaderService {
 
             try {
                 // check if the confirmation is for the same grant, or whether it is a stale grant
-                if (embeddedLeaderElection == currentLeaderProposed
+                if (embeddedLeaderElection
+                                == currentLeaderProposed.get(embeddedLeaderElection.componentId)
                         && currentLeaderSessionId.equals(leaderSessionId)) {
                     LOG.info(
                             "Received confirmation of leadership for leader {} , session={}",
@@ -264,12 +283,14 @@ public class EmbeddedLeaderService {
                             leaderSessionId);
 
                     // mark leadership
-                    currentLeaderConfirmed = embeddedLeaderElection;
-                    currentLeaderAddress = leaderAddress;
-                    currentLeaderProposed = null;
+                    currentLeaderConfirmed.put(
+                            embeddedLeaderElection.componentId, embeddedLeaderElection);
+                    currentLeaderAddress.put(embeddedLeaderElection.componentId, leaderAddress);
+                    currentLeaderProposed.remove(embeddedLeaderElection.componentId);
 
                     // notify all listeners
-                    notifyAllListeners(leaderAddress, leaderSessionId);
+                    notifyAllListeners(
+                            leaderAddress, leaderSessionId, embeddedLeaderElection.componentId);
                 } else {
                     LOG.debug(
                             "Received confirmation of leadership for a stale leadership grant. Ignoring.");
@@ -280,11 +301,13 @@ public class EmbeddedLeaderService {
         }
     }
 
-    private CompletableFuture<Void> notifyAllListeners(String address, UUID leaderSessionId) {
+    private CompletableFuture<Void> notifyAllListeners(
+            String address, UUID leaderSessionId, String componentId) {
         final List<CompletableFuture<Void>> notifyListenerFutures =
                 new ArrayList<>(listeners.size());
 
-        for (EmbeddedLeaderRetrievalService listener : listeners) {
+        for (EmbeddedLeaderRetrievalService listener :
+                listeners.getOrDefault(componentId, new HashSet<>())) {
             notifyListenerFutures.add(notifyListener(address, leaderSessionId, listener.listener));
         }
 
@@ -292,24 +315,26 @@ public class EmbeddedLeaderService {
     }
 
     @GuardedBy("lock")
-    private CompletableFuture<Void> updateLeader() {
+    private CompletableFuture<Void> updateLeader(String componentId) {
         // this must be called under the lock
         Preconditions.checkState(Thread.holdsLock(lock));
 
-        if (currentLeaderConfirmed == null && currentLeaderProposed == null) {
+        if (currentLeaderConfirmed.get(componentId) == null
+                && currentLeaderProposed.get(componentId) == null) {
             // we need a new leader
-            if (allLeaderContenders.isEmpty()) {
+            if (allLeaderContenders.get(componentId).isEmpty()) {
                 // no new leader available, tell everyone that there is no leader currently
-                return notifyAllListeners(null, null);
+                return notifyAllListeners(null, null, componentId);
             } else {
                 // propose a leader and ask it
-                final UUID leaderSessionId = UUID.randomUUID();
+                final UUID leaderSessionId =
+                        currentLeaderSessionId == null ? UUID.randomUUID() : currentLeaderSessionId;
                 EmbeddedLeaderElection embeddedLeaderElection =
-                        allLeaderContenders.iterator().next();
+                        allLeaderContenders.get(componentId).iterator().next();
 
                 currentLeaderSessionId = leaderSessionId;
-                currentLeaderProposed = embeddedLeaderElection;
-                currentLeaderProposed.isLeader = true;
+                currentLeaderProposed.put(componentId, embeddedLeaderElection);
+                currentLeaderProposed.get(componentId).isLeader = true;
 
                 LOG.info(
                         "Proposing leadership to the contender that is registered under component ID '{}'.",
@@ -334,13 +359,17 @@ public class EmbeddedLeaderService {
     }
 
     private void addListener(
-            EmbeddedLeaderRetrievalService service, LeaderRetrievalListener listener) {
+            EmbeddedLeaderRetrievalService service,
+            LeaderRetrievalListener listener,
+            String componentId) {
         synchronized (lock) {
             checkState(!shutdown, "leader election service is shut down");
             checkState(!service.running, "leader retrieval service is already started");
 
             try {
-                if (!listeners.add(service)) {
+                if (!listeners
+                        .computeIfAbsent(componentId, ignored -> new HashSet<>())
+                        .add(service)) {
                     throw new IllegalStateException(
                             "leader retrieval service was added to this service multiple times");
                 }
@@ -349,8 +378,11 @@ public class EmbeddedLeaderService {
                 service.running = true;
 
                 // if we already have a leader, immediately notify this new listener
-                if (currentLeaderConfirmed != null) {
-                    notifyListener(currentLeaderAddress, currentLeaderSessionId, listener);
+                if (currentLeaderConfirmed.get(componentId) != null) {
+                    notifyListener(
+                            currentLeaderAddress.get(componentId),
+                            currentLeaderSessionId,
+                            listener);
                 }
             } catch (Throwable t) {
                 fatalError(t);
@@ -358,7 +390,7 @@ public class EmbeddedLeaderService {
         }
     }
 
-    private void removeListener(EmbeddedLeaderRetrievalService service) {
+    private void removeListener(EmbeddedLeaderRetrievalService service, String componentId) {
         synchronized (lock) {
             // if the service was not even started, simply do nothing
             if (!service.running || shutdown) {
@@ -366,7 +398,7 @@ public class EmbeddedLeaderService {
             }
 
             try {
-                if (!listeners.remove(service)) {
+                if (!listeners.get(componentId).remove(service)) {
                     throw new IllegalStateException(
                             "leader retrieval service does not belong to this service");
                 }
@@ -381,13 +413,13 @@ public class EmbeddedLeaderService {
     }
 
     @VisibleForTesting
-    CompletableFuture<Void> grantLeadership() {
+    CompletableFuture<Void> grantLeadership(String componentId) {
         synchronized (lock) {
             if (shutdown) {
                 return getShutDownFuture();
             }
 
-            return updateLeader();
+            return updateLeader(componentId);
         }
     }
 
@@ -397,19 +429,20 @@ public class EmbeddedLeaderService {
     }
 
     @VisibleForTesting
-    CompletableFuture<Void> revokeLeadership() {
+    CompletableFuture<Void> revokeLeadership(String componentId) {
         synchronized (lock) {
             if (shutdown) {
                 return getShutDownFuture();
             }
 
-            if (currentLeaderProposed != null || currentLeaderConfirmed != null) {
+            if (currentLeaderProposed.get(componentId) != null
+                    || currentLeaderConfirmed.get(componentId) != null) {
                 final EmbeddedLeaderElection embeddedLeaderElection;
 
-                if (currentLeaderConfirmed != null) {
-                    embeddedLeaderElection = currentLeaderConfirmed;
+                if (currentLeaderConfirmed.get(componentId) != null) {
+                    embeddedLeaderElection = currentLeaderConfirmed.get(componentId);
                 } else {
-                    embeddedLeaderElection = currentLeaderProposed;
+                    embeddedLeaderElection = currentLeaderProposed.get(componentId);
                 }
 
                 LOG.info("Revoking leadership of {}.", embeddedLeaderElection.contender);
@@ -417,12 +450,12 @@ public class EmbeddedLeaderService {
                 CompletableFuture<Void> revokeLeadershipCallFuture =
                         execute(new RevokeLeadershipCall(embeddedLeaderElection.contender));
 
-                CompletableFuture<Void> notifyAllListenersFuture = notifyAllListeners(null, null);
+                CompletableFuture<Void> notifyAllListenersFuture =
+                        notifyAllListeners(null, null, componentId);
 
-                currentLeaderProposed = null;
-                currentLeaderConfirmed = null;
-                currentLeaderAddress = null;
-                currentLeaderSessionId = null;
+                currentLeaderProposed.remove(componentId);
+                currentLeaderConfirmed.remove(componentId);
+                currentLeaderAddress.remove(componentId);
 
                 return CompletableFuture.allOf(
                         revokeLeadershipCallFuture, notifyAllListenersFuture);
@@ -489,20 +522,25 @@ public class EmbeddedLeaderService {
     // ------------------------------------------------------------------------
 
     private class EmbeddedLeaderRetrievalService implements LeaderRetrievalService {
+        private final String componentId;
 
         volatile LeaderRetrievalListener listener;
 
         volatile boolean running;
 
+        private EmbeddedLeaderRetrievalService(String componentId) {
+            this.componentId = componentId;
+        }
+
         @Override
         public void start(LeaderRetrievalListener listener) throws Exception {
             checkNotNull(listener);
-            addListener(this, listener);
+            addListener(this, listener, componentId);
         }
 
         @Override
         public void stop() throws Exception {
-            removeListener(this);
+            removeListener(this, componentId);
         }
 
         public void shutdown(Exception cause) {

@@ -26,9 +26,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
-import javax.annotation.concurrent.GuardedBy;
 
-import java.util.HashMap;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -45,20 +43,11 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
 
     private final Executor executor;
 
-    private final EmbeddedLeaderService resourceManagerLeaderService;
-
-    private final EmbeddedLeaderService dispatcherLeaderService;
-
-    private final HashMap<JobID, EmbeddedLeaderService> jobManagerLeaderServices;
-
-    private final EmbeddedLeaderService clusterRestEndpointLeaderService;
+    private final EmbeddedLeaderService clusterLeaderService;
 
     public EmbeddedHaServices(Executor executor) {
         this.executor = Preconditions.checkNotNull(executor);
-        this.resourceManagerLeaderService = createEmbeddedLeaderService(executor);
-        this.dispatcherLeaderService = createEmbeddedLeaderService(executor);
-        this.jobManagerLeaderServices = new HashMap<>();
-        this.clusterRestEndpointLeaderService = createEmbeddedLeaderService(executor);
+        this.clusterLeaderService = createEmbeddedLeaderService(executor);
     }
 
     // ------------------------------------------------------------------------
@@ -67,33 +56,28 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
 
     @Override
     public LeaderRetrievalService getResourceManagerLeaderRetriever() {
-        return resourceManagerLeaderService.createLeaderRetrievalService();
+        return clusterLeaderService.createLeaderRetrievalService("resource_manager");
     }
 
     @Override
     public LeaderRetrievalService getDispatcherLeaderRetriever() {
-        return dispatcherLeaderService.createLeaderRetrievalService();
+        return clusterLeaderService.createLeaderRetrievalService("dispatcher");
     }
 
     @Override
     public LeaderElection getResourceManagerLeaderElection() {
-        return resourceManagerLeaderService.createLeaderElectionService("resource_manager");
+        return clusterLeaderService.createLeaderElectionService("resource_manager");
     }
 
     @Override
     public LeaderElection getDispatcherLeaderElection() {
-        return dispatcherLeaderService.createLeaderElectionService("dispatcher");
+        return clusterLeaderService.createLeaderElectionService("dispatcher");
     }
 
     @Override
     public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
         checkNotNull(jobID);
-
-        synchronized (lock) {
-            checkNotShutdown();
-            EmbeddedLeaderService service = getOrCreateJobManagerService(jobID);
-            return service.createLeaderRetrievalService();
-        }
+        return clusterLeaderService.createLeaderRetrievalService("job-" + jobID);
     }
 
     @Override
@@ -104,54 +88,43 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
 
     @Override
     public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
-        return clusterRestEndpointLeaderService.createLeaderRetrievalService();
+        return clusterLeaderService.createLeaderRetrievalService("rest_server");
     }
 
     @Override
     public LeaderElection getJobManagerLeaderElection(JobID jobID) {
         checkNotNull(jobID);
-
-        synchronized (lock) {
-            checkNotShutdown();
-            EmbeddedLeaderService service = getOrCreateJobManagerService(jobID);
-            return service.createLeaderElectionService("job-" + jobID);
-        }
+        return clusterLeaderService.createLeaderElectionService("job-" + jobID);
     }
 
     @Override
     public LeaderElection getClusterRestEndpointLeaderElection() {
-        return clusterRestEndpointLeaderService.createLeaderElectionService("rest_server");
+        return clusterLeaderService.createLeaderElectionService("rest_server");
     }
 
     // ------------------------------------------------------------------------
     // internal
     // ------------------------------------------------------------------------
 
+    EmbeddedLeaderService getClusterLeaderService() {
+        return clusterLeaderService;
+    }
+
     EmbeddedLeaderService getDispatcherLeaderService() {
-        return dispatcherLeaderService;
+        return clusterLeaderService;
     }
 
     EmbeddedLeaderService getJobManagerLeaderService(JobID jobId) {
-        return jobManagerLeaderServices.get(jobId);
+        return clusterLeaderService;
     }
 
     EmbeddedLeaderService getResourceManagerLeaderService() {
-        return resourceManagerLeaderService;
+        return clusterLeaderService;
     }
 
     @Nonnull
     private EmbeddedLeaderService createEmbeddedLeaderService(Executor executor) {
         return new EmbeddedLeaderService(executor);
-    }
-
-    @GuardedBy("lock")
-    private EmbeddedLeaderService getOrCreateJobManagerService(JobID jobID) {
-        EmbeddedLeaderService service = jobManagerLeaderServices.get(jobID);
-        if (service == null) {
-            service = createEmbeddedLeaderService(executor);
-            jobManagerLeaderServices.put(jobID, service);
-        }
-        return service;
     }
 
     // ------------------------------------------------------------------------
@@ -162,15 +135,7 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
     public void close() throws Exception {
         synchronized (lock) {
             if (!isShutDown()) {
-                // stop all job manager leader services
-                for (EmbeddedLeaderService service : jobManagerLeaderServices.values()) {
-                    service.shutdown();
-                }
-                jobManagerLeaderServices.clear();
-
-                resourceManagerLeaderService.shutdown();
-
-                clusterRestEndpointLeaderService.shutdown();
+                clusterLeaderService.shutdown();
             }
 
             super.close();

@@ -174,10 +174,10 @@ public class EmbeddedHaServicesTest extends TestLogger {
 
         assertThat(leaderElection.hasLeadership(oldLeaderSessionId), is(true));
 
-        embeddedHaServices.getDispatcherLeaderService().revokeLeadership().get();
+        embeddedHaServices.getDispatcherLeaderService().revokeLeadership("dispatcher").get();
         assertThat(leaderElection.hasLeadership(oldLeaderSessionId), is(false));
 
-        embeddedHaServices.getDispatcherLeaderService().grantLeadership();
+        embeddedHaServices.getDispatcherLeaderService().grantLeadership("dispatcher");
         final UUID newLeaderSessionId = leaderContender.getLeaderSessionFuture().get();
 
         assertThat(leaderElection.hasLeadership(newLeaderSessionId), is(true));

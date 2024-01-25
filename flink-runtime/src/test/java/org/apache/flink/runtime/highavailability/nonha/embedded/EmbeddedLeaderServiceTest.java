@@ -87,7 +87,7 @@ class EmbeddedLeaderServiceTest {
             contender.getLeaderSessionFuture().get();
 
             final CompletableFuture<Void> revokeLeadershipFuture =
-                    embeddedLeaderService.revokeLeadership();
+                    embeddedLeaderService.revokeLeadership("component_id");
             leaderElection.close();
 
             assertThat(revokeLeadershipFuture)

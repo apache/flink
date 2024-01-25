@@ -73,40 +73,40 @@ public class EmbeddedHaServicesWithLeadershipControl extends EmbeddedHaServices
 
     @Override
     public CompletableFuture<Void> revokeDispatcherLeadership() {
-        final EmbeddedLeaderService dispatcherLeaderService = getDispatcherLeaderService();
-        return dispatcherLeaderService.revokeLeadership();
+        final EmbeddedLeaderService dispatcherLeaderService = getClusterLeaderService();
+        return dispatcherLeaderService.revokeLeadership("dispatcher");
     }
 
     @Override
     public CompletableFuture<Void> grantDispatcherLeadership() {
-        final EmbeddedLeaderService dispatcherLeaderService = getDispatcherLeaderService();
-        return dispatcherLeaderService.grantLeadership();
+        final EmbeddedLeaderService dispatcherLeaderService = getClusterLeaderService();
+        return dispatcherLeaderService.grantLeadership("dispatcher");
     }
 
     @Override
     public CompletableFuture<Void> revokeJobMasterLeadership(JobID jobId) {
-        final EmbeddedLeaderService jobMasterLeaderService = getJobManagerLeaderService(jobId);
-        return jobMasterLeaderService.revokeLeadership();
+        final EmbeddedLeaderService jobMasterLeaderService = getClusterLeaderService();
+        return jobMasterLeaderService.revokeLeadership("job-" + jobId);
     }
 
     @Override
     public CompletableFuture<Void> grantJobMasterLeadership(JobID jobId) {
-        final EmbeddedLeaderService jobMasterLeaderService = getJobManagerLeaderService(jobId);
-        return jobMasterLeaderService.grantLeadership();
+        final EmbeddedLeaderService jobMasterLeaderService = getClusterLeaderService();
+        return jobMasterLeaderService.grantLeadership("job-" + jobId);
     }
 
     @Override
     public CompletableFuture<Void> revokeResourceManagerLeadership() {
         final EmbeddedLeaderService resourceManagerLeaderService =
                 getResourceManagerLeaderService();
-        return resourceManagerLeaderService.revokeLeadership();
+        return resourceManagerLeaderService.revokeLeadership("resource_manager");
     }
 
     @Override
     public CompletableFuture<Void> grantResourceManagerLeadership() {
         final EmbeddedLeaderService resourceManagerLeaderService =
                 getResourceManagerLeaderService();
-        return resourceManagerLeaderService.grantLeadership();
+        return resourceManagerLeaderService.grantLeadership("resource_manager");
     }
 
     @Override
