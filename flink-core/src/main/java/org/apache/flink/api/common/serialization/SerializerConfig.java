@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.serialization;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
@@ -45,18 +46,26 @@ public interface SerializerConfig extends Serializable {
      * java.io.Serializable), because it may be distributed to the worker nodes by java
      * serialization.
      *
+     * <p>The method will be converted to private in the next Flink major version after removing its
+     * deprecated caller methods.
+     *
      * @param type The class of the types serialized with the given serializer.
      * @param serializer The serializer to use.
      */
+    @Internal
     <T extends Serializer<?> & Serializable> void addDefaultKryoSerializer(
             Class<?> type, T serializer);
 
     /**
      * Adds a new Kryo default serializer to the Runtime.
      *
+     * <p>The method will be converted to private in the next Flink major version after removing its
+     * deprecated caller methods.
+     *
      * @param type The class of the types serialized with the given serializer.
      * @param serializerClass The class of the serializer to use.
      */
+    @Internal
     void addDefaultKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass);
 
     /**
@@ -66,9 +75,13 @@ public interface SerializerConfig extends Serializable {
      * java.io.Serializable), because it may be distributed to the worker nodes by java
      * serialization.
      *
+     * <p>The method will be converted to private in the next Flink major version after removing its
+     * deprecated caller methods.
+     *
      * @param type The class of the types serialized with the given serializer.
      * @param serializer The serializer to use.
      */
+    @Internal
     <T extends Serializer<?> & Serializable> void registerTypeWithKryoSerializer(
             Class<?> type, T serializer);
 
@@ -76,9 +89,13 @@ public interface SerializerConfig extends Serializable {
      * Registers the given Serializer via its class as a serializer for the given type at the
      * KryoSerializer.
      *
+     * <p>The method will be converted to private in the next Flink major version after removing its
+     * deprecated caller methods.
+     *
      * @param type The class of the types serialized with the given serializer.
      * @param serializerClass The class of the serializer to use.
      */
+    @Internal
     @SuppressWarnings("rawtypes")
     void registerTypeWithKryoSerializer(Class<?> type, Class<? extends Serializer> serializerClass);
 
@@ -88,8 +105,12 @@ public interface SerializerConfig extends Serializable {
      * serialized with Kryo, then it will be registered at Kryo to make sure that only tags are
      * written.
      *
+     * <p>The method will be converted to private in the next Flink major version after removing its
+     * deprecated caller methods.
+     *
      * @param type The class of the type to register.
      */
+    @Internal
     void registerPojoType(Class<?> type);
 
     /**
@@ -98,11 +119,22 @@ public interface SerializerConfig extends Serializable {
      * serialized with Kryo, then it will be registered at Kryo to make sure that only tags are
      * written.
      *
+     * <p>The method will be converted to private in the next Flink major version after removing its
+     * deprecated caller methods.
+     *
      * @param type The class of the type to register.
      */
+    @Internal
     void registerKryoType(Class<?> type);
 
-    /** Returns the registered types with Kryo Serializers. */
+    /**
+     * Returns the registered types with Kryo Serializers.
+     *
+     * @deprecated The method is deprecated because instance-type Kryo serializer definition based
+     *     on {@link ExecutionConfig.SerializableSerializer} is deprecated. Use class-type Kryo
+     *     serializers instead.
+     */
+    @Deprecated
     LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>>
             getRegisteredTypesWithKryoSerializers();
 
@@ -110,7 +142,13 @@ public interface SerializerConfig extends Serializable {
     LinkedHashMap<Class<?>, Class<? extends Serializer<?>>>
             getRegisteredTypesWithKryoSerializerClasses();
 
-    /** Returns the registered default Kryo Serializers. */
+    /**
+     * Returns the registered default Kryo Serializers.
+     *
+     * @deprecated The method is deprecated because {@link ExecutionConfig.SerializableSerializer}
+     *     is deprecated.
+     */
+    @Deprecated
     LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>> getDefaultKryoSerializers();
 
     /** Returns the registered default Kryo Serializer classes. */
@@ -133,16 +171,31 @@ public interface SerializerConfig extends Serializable {
      */
     boolean hasGenericTypesDisabled();
 
+    /**
+     * The method will be converted to private in the next Flink major version after removing its
+     * deprecated caller methods.
+     */
+    @Internal
     void setGenericTypes(boolean genericTypes);
 
     /** Returns whether Kryo is the serializer for POJOs. */
     boolean isForceKryoEnabled();
 
+    /**
+     * The method will be converted to private in the next Flink major version after removing its
+     * deprecated caller methods.
+     */
+    @Internal
     void setForceKryo(boolean forceKryo);
 
     /** Returns whether the Apache Avro is the serializer for POJOs. */
     boolean isForceAvroEnabled();
 
+    /**
+     * The method will be converted to private in the next Flink major version after removing its
+     * deprecated caller methods.
+     */
+    @Internal
     void setForceAvro(boolean forceAvro);
 
     /**

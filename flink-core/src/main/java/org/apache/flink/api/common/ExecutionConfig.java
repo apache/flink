@@ -631,16 +631,36 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * Force TypeExtractor to use Kryo serializer for POJOS even though we could analyze as POJO. In
      * some cases this might be preferable. For example, when using interfaces with subclasses that
      * cannot be analyzed as POJO.
+     *
+     * @deprecated Configure serialization behavior through hard codes is deprecated, because you
+     *     need to modify the codes when upgrading job version. You should configure this by config
+     *     option {@link PipelineOptions#FORCE_KRYO}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
      */
+    @Deprecated
     public void enableForceKryo() {
         serializerConfig.setForceKryo(true);
     }
 
-    /** Disable use of Kryo serializer for all POJOs. */
+    /**
+     * Disable use of Kryo serializer for all POJOs.
+     *
+     * @deprecated Configure serialization behavior through hard codes is deprecated, because you
+     *     need to modify the codes when upgrading job version. You should configure this by config
+     *     option {@link PipelineOptions#FORCE_KRYO}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
+     */
+    @Deprecated
     public void disableForceKryo() {
         serializerConfig.setForceKryo(false);
     }
 
+    /** @deprecated Use {@link SerializerConfig#isForceKryoEnabled}. */
+    @Deprecated
     public boolean isForceKryoEnabled() {
         return serializerConfig.isForceKryoEnabled();
     }
@@ -650,8 +670,15 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      *
      * <p>Generic types are enabled by default.
      *
+     * @deprecated Configure serialization behavior through hard codes is deprecated, because you
+     *     need to modify the codes when upgrading job version. You should configure this by config
+     *     option {@link PipelineOptions#GENERIC_TYPES}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
      * @see #disableGenericTypes()
      */
+    @Deprecated
     public void enableGenericTypes() {
         serializerConfig.setGenericTypes(true);
     }
@@ -670,8 +697,15 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * input data may be such that new, previously unseen, types occur at some point. In that case,
      * setting this option would cause the program to fail.
      *
+     * @deprecated Configure serialization behavior through hard codes is deprecated, because you
+     *     need to modify the codes when upgrading job version. You should configure this by config
+     *     option {@link PipelineOptions#GENERIC_TYPES}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
      * @see #enableGenericTypes()
      */
+    @Deprecated
     public void disableGenericTypes() {
         serializerConfig.setGenericTypes(false);
     }
@@ -682,9 +716,11 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      *
      * <p>Generic types are enabled by default.
      *
+     * @deprecated Use {@link SerializerConfig#hasGenericTypesDisabled}.
      * @see #enableGenericTypes()
      * @see #disableGenericTypes()
      */
+    @Deprecated
     public boolean hasGenericTypesDisabled() {
         return serializerConfig.hasGenericTypesDisabled();
     }
@@ -731,17 +767,40 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * Forces Flink to use the Apache Avro serializer for POJOs.
      *
      * <p><b>Important:</b> Make sure to include the <i>flink-avro</i> module.
+     *
+     * @deprecated Configure serialization behavior through hard codes is deprecated, because you
+     *     need to modify the codes when upgrading job version. You should configure this by config
+     *     option {@link PipelineOptions#FORCE_AVRO}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
      */
+    @Deprecated
     public void enableForceAvro() {
         serializerConfig.setForceAvro(true);
     }
 
-    /** Disables the Apache Avro serializer as the forced serializer for POJOs. */
+    /**
+     * Disables the Apache Avro serializer as the forced serializer for POJOs.
+     *
+     * @deprecated Configure serialization behavior through hard codes is deprecated, because you
+     *     need to modify the codes when upgrading job version. You should configure this by config
+     *     option {@link PipelineOptions#FORCE_AVRO}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
+     */
+    @Deprecated
     public void disableForceAvro() {
         serializerConfig.setForceAvro(false);
     }
 
-    /** Returns whether the Apache Avro is the default serializer for POJOs. */
+    /**
+     * Returns whether the Apache Avro is the default serializer for POJOs.
+     *
+     * @deprecated Use {@link SerializerConfig#isForceAvroEnabled}.
+     */
+    @Deprecated
     public boolean isForceAvroEnabled() {
         return serializerConfig.isForceAvroEnabled();
     }
@@ -807,7 +866,14 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      *
      * @param type The class of the types serialized with the given serializer.
      * @param serializer The serializer to use.
+     * @deprecated Register data types and serializers through hard codes is deprecated, because you
+     *     need to modify the codes when upgrading job version. You should configure this by config
+     *     option {@link PipelineOptions#SERIALIZATION_CONFIG}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
      */
+    @Deprecated
     public <T extends Serializer<?> & Serializable> void addDefaultKryoSerializer(
             Class<?> type, T serializer) {
         serializerConfig.addDefaultKryoSerializer(type, serializer);
@@ -818,7 +884,14 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      *
      * @param type The class of the types serialized with the given serializer.
      * @param serializerClass The class of the serializer to use.
+     * @deprecated Register data types and serializers through hard codes is deprecated, because you
+     *     need to modify the codes when upgrading job version. You should configure this by config
+     *     option {@link PipelineOptions#SERIALIZATION_CONFIG}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
      */
+    @Deprecated
     public void addDefaultKryoSerializer(
             Class<?> type, Class<? extends Serializer<?>> serializerClass) {
         serializerConfig.addDefaultKryoSerializer(type, serializerClass);
@@ -833,7 +906,14 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      *
      * @param type The class of the types serialized with the given serializer.
      * @param serializer The serializer to use.
+     * @deprecated Register data types and serializers through hard codes is deprecated, because you
+     *     need to modify the codes when upgrading job version. You should configure this by config
+     *     option {@link PipelineOptions#SERIALIZATION_CONFIG}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
      */
+    @Deprecated
     public <T extends Serializer<?> & Serializable> void registerTypeWithKryoSerializer(
             Class<?> type, T serializer) {
         serializerConfig.registerTypeWithKryoSerializer(type, serializer);
@@ -841,11 +921,18 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
     /**
      * Registers the given Serializer via its class as a serializer for the given type at the
-     * KryoSerializer
+     * KryoSerializer.
      *
      * @param type The class of the types serialized with the given serializer.
      * @param serializerClass The class of the serializer to use.
+     * @deprecated Register data types and serializers through hard codes is deprecated, because you
+     *     need to modify the codes when upgrading job version. You should configure this by config
+     *     option {@link PipelineOptions#SERIALIZATION_CONFIG}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
      */
+    @Deprecated
     @SuppressWarnings("rawtypes")
     public void registerTypeWithKryoSerializer(
             Class<?> type, Class<? extends Serializer> serializerClass) {
@@ -859,7 +946,14 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * written.
      *
      * @param type The class of the type to register.
+     * @deprecated Register data types and serializers through hard codes is deprecated, because you
+     *     need to modify the codes when upgrading job version. You should configure this by config
+     *     option {@link PipelineOptions#SERIALIZATION_CONFIG}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
      */
+    @Deprecated
     public void registerPojoType(Class<?> type) {
         serializerConfig.registerPojoType(type);
     }
@@ -871,40 +965,77 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * written.
      *
      * @param type The class of the type to register.
+     * @deprecated Register data types and serializers through hard codes is deprecated, because you
+     *     need to modify the codes when upgrading job version. You should configure this by config
+     *     option {@link PipelineOptions#SERIALIZATION_CONFIG}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
      */
+    @Deprecated
     public void registerKryoType(Class<?> type) {
         serializerConfig.registerKryoType(type);
     }
 
-    /** Returns the registered types with Kryo Serializers. */
+    /**
+     * Returns the registered types with Kryo Serializers.
+     *
+     * @deprecated Use {@link SerializerConfig#getRegisteredTypesWithKryoSerializers}.
+     */
+    @Deprecated
     public LinkedHashMap<Class<?>, SerializableSerializer<?>>
             getRegisteredTypesWithKryoSerializers() {
         return serializerConfig.getRegisteredTypesWithKryoSerializers();
     }
 
-    /** Returns the registered types with their Kryo Serializer classes. */
+    /**
+     * Returns the registered types with their Kryo Serializer classes.
+     *
+     * @deprecated Use {@link SerializerConfig#getRegisteredTypesWithKryoSerializerClasses}.
+     */
+    @Deprecated
     public LinkedHashMap<Class<?>, Class<? extends Serializer<?>>>
             getRegisteredTypesWithKryoSerializerClasses() {
         return serializerConfig.getRegisteredTypesWithKryoSerializerClasses();
     }
 
-    /** Returns the registered default Kryo Serializers. */
+    /**
+     * Returns the registered default Kryo Serializers.
+     *
+     * @deprecated Use {@link SerializerConfig#getDefaultKryoSerializers}.
+     */
+    @Deprecated
     public LinkedHashMap<Class<?>, SerializableSerializer<?>> getDefaultKryoSerializers() {
         return serializerConfig.getDefaultKryoSerializers();
     }
 
-    /** Returns the registered default Kryo Serializer classes. */
+    /**
+     * Returns the registered default Kryo Serializer classes.
+     *
+     * @deprecated Use {@link SerializerConfig#getDefaultKryoSerializerClasses}.
+     */
+    @Deprecated
     public LinkedHashMap<Class<?>, Class<? extends Serializer<?>>>
             getDefaultKryoSerializerClasses() {
         return serializerConfig.getDefaultKryoSerializerClasses();
     }
 
-    /** Returns the registered Kryo types. */
+    /**
+     * Returns the registered Kryo types.
+     *
+     * @deprecated Use {@link SerializerConfig#getRegisteredKryoTypes}.
+     */
+    @Deprecated
     public LinkedHashSet<Class<?>> getRegisteredKryoTypes() {
         return serializerConfig.getRegisteredKryoTypes();
     }
 
-    /** Returns the registered POJO types. */
+    /**
+     * Returns the registered POJO types.
+     *
+     * @deprecated Use {@link SerializerConfig#getRegisteredPojoTypes}.
+     */
+    @Deprecated
     public LinkedHashSet<Class<?>> getRegisteredPojoTypes() {
         return serializerConfig.getRegisteredPojoTypes();
     }
@@ -1009,6 +1140,17 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
     // ------------------------------ Utilities  ----------------------------------
 
+    /**
+     * @deprecated The class is deprecated because instance-type serializer definition where
+     *     serializers are serialized and written into the snapshot and deserialized for use is
+     *     deprecated. Use class-type serializer definition instead, where only the class name is
+     *     written into the snapshot and new instance of the serializer is created for use. This is
+     *     a breaking change, and it will be removed in Flink 2.0.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
+     */
+    @Deprecated
     @Public
     public static class SerializableSerializer<T extends Serializer<?> & Serializable>
             implements Serializable {
