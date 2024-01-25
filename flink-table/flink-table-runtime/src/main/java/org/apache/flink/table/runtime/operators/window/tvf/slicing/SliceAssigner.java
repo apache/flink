@@ -30,7 +30,7 @@ import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner
  * <p>Note: {@link SliceAssigner} servers as a base interface. Concrete assigners should implement
  * interface {@link SliceSharedAssigner} or {@link SliceUnsharedAssigner}.
  *
- * @see SlicingWindowOperator for more definition of slice.
+ * @see SlicingWindowProcessor for more definition of slice.
  */
 @Internal
 public interface SliceAssigner extends WindowAssigner {

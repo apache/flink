@@ -22,6 +22,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.GroupWindowAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
 
 import java.time.ZoneId;
 import java.util.Collection;
@@ -31,8 +32,7 @@ import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampM
 /**
  * The operator for aligned window table function.
  *
- * <p>See more details about aligned window and unaligned window in {@link
- * org.apache.flink.table.runtime.operators.window.tvf.common.WindowOperatorBase}.
+ * <p>See more details about aligned window and unaligned window in {@link WindowAggOperator}.
  *
  * <p>Note: The operator only applies for Window TVF with row semantics (e.g TUMBLE/HOP/CUMULATE)
  * instead of set semantics (e.g SESSION).

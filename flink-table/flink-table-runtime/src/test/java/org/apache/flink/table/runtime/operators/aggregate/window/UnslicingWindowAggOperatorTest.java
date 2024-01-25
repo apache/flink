@@ -25,9 +25,9 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
 import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnsliceAssigner;
 import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnsliceAssigners;
-import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnslicingWindowOperator;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
@@ -67,15 +67,14 @@ public class UnslicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
 
         final UnslicingSumAndCountAggsFunction aggsFunction =
                 new UnslicingSumAndCountAggsFunction();
-        UnslicingWindowOperator<RowData, ?> operator =
-                (UnslicingWindowOperator<RowData, ?>)
-                        WindowAggOperatorBuilder.builder()
-                                .inputSerializer(INPUT_ROW_SER)
-                                .shiftTimeZone(shiftTimeZone)
-                                .keySerializer(KEY_SER)
-                                .assigner(assigner)
-                                .aggregate(createGeneratedAggsHandle(aggsFunction), ACC_SER)
-                                .build();
+        WindowAggOperator<RowData, ?> operator =
+                WindowAggOperatorBuilder.builder()
+                        .inputSerializer(INPUT_ROW_SER)
+                        .shiftTimeZone(shiftTimeZone)
+                        .keySerializer(KEY_SER)
+                        .assigner(assigner)
+                        .aggregate(createGeneratedAggsHandle(aggsFunction), ACC_SER)
+                        .build();
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createTestHarness(operator);
@@ -175,16 +174,15 @@ public class UnslicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
 
         final UnslicingSumAndCountAggsFunction aggsFunction =
                 new UnslicingSumAndCountAggsFunction();
-        UnslicingWindowOperator<RowData, ?> operator =
-                (UnslicingWindowOperator<RowData, ?>)
-                        WindowAggOperatorBuilder.builder()
-                                .inputSerializer(INPUT_ROW_SER)
-                                .shiftTimeZone(shiftTimeZone)
-                                .keySerializer(KEY_SER)
-                                .assigner(assigner)
-                                .aggregate(createGeneratedAggsHandle(aggsFunction), ACC_SER)
-                                .countStarIndex(1)
-                                .build();
+        WindowAggOperator<RowData, ?> operator =
+                WindowAggOperatorBuilder.builder()
+                        .inputSerializer(INPUT_ROW_SER)
+                        .shiftTimeZone(shiftTimeZone)
+                        .keySerializer(KEY_SER)
+                        .assigner(assigner)
+                        .aggregate(createGeneratedAggsHandle(aggsFunction), ACC_SER)
+                        .countStarIndex(1)
+                        .build();
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createTestHarness(operator);
@@ -305,15 +303,14 @@ public class UnslicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
 
         final UnslicingSumAndCountAggsFunction aggsFunction =
                 new UnslicingSumAndCountAggsFunction();
-        UnslicingWindowOperator<RowData, ?> operator =
-                (UnslicingWindowOperator<RowData, ?>)
-                        WindowAggOperatorBuilder.builder()
-                                .inputSerializer(INPUT_ROW_SER)
-                                .shiftTimeZone(shiftTimeZone)
-                                .keySerializer(KEY_SER)
-                                .assigner(assigner)
-                                .aggregate(createGeneratedAggsHandle(aggsFunction), ACC_SER)
-                                .build();
+        WindowAggOperator<RowData, ?> operator =
+                WindowAggOperatorBuilder.builder()
+                        .inputSerializer(INPUT_ROW_SER)
+                        .shiftTimeZone(shiftTimeZone)
+                        .keySerializer(KEY_SER)
+                        .assigner(assigner)
+                        .aggregate(createGeneratedAggsHandle(aggsFunction), ACC_SER)
+                        .build();
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createTestHarness(operator);
@@ -398,16 +395,15 @@ public class UnslicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
 
         final UnslicingSumAndCountAggsFunction aggsFunction =
                 new UnslicingSumAndCountAggsFunction();
-        UnslicingWindowOperator<RowData, ?> operator =
-                (UnslicingWindowOperator<RowData, ?>)
-                        WindowAggOperatorBuilder.builder()
-                                .inputSerializer(INPUT_ROW_SER)
-                                .shiftTimeZone(shiftTimeZone)
-                                .keySerializer(KEY_SER)
-                                .assigner(assigner)
-                                .aggregate(createGeneratedAggsHandle(aggsFunction), ACC_SER)
-                                .countStarIndex(1)
-                                .build();
+        WindowAggOperator<RowData, ?> operator =
+                WindowAggOperatorBuilder.builder()
+                        .inputSerializer(INPUT_ROW_SER)
+                        .shiftTimeZone(shiftTimeZone)
+                        .keySerializer(KEY_SER)
+                        .assigner(assigner)
+                        .aggregate(createGeneratedAggsHandle(aggsFunction), ACC_SER)
+                        .countStarIndex(1)
+                        .build();
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createTestHarness(operator);
@@ -543,17 +539,16 @@ public class UnslicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
         final EmptyRowDataKeySelector keySelector = EmptyRowDataKeySelector.INSTANCE;
         final UnslicingSumAndCountAggsFunction aggsFunction =
                 new UnslicingSumAndCountAggsFunction();
-        UnslicingWindowOperator<RowData, ?> operator =
-                (UnslicingWindowOperator<RowData, ?>)
-                        WindowAggOperatorBuilder.builder()
-                                .inputSerializer(INPUT_ROW_SER)
-                                .shiftTimeZone(shiftTimeZone)
-                                .keySerializer(
-                                        (PagedTypeSerializer<RowData>)
-                                                keySelector.getProducedType().toSerializer())
-                                .assigner(assigner)
-                                .aggregate(createGeneratedAggsHandle(aggsFunction), ACC_SER)
-                                .build();
+        WindowAggOperator<RowData, ?> operator =
+                WindowAggOperatorBuilder.builder()
+                        .inputSerializer(INPUT_ROW_SER)
+                        .shiftTimeZone(shiftTimeZone)
+                        .keySerializer(
+                                (PagedTypeSerializer<RowData>)
+                                        keySelector.getProducedType().toSerializer())
+                        .assigner(assigner)
+                        .aggregate(createGeneratedAggsHandle(aggsFunction), ACC_SER)
+                        .build();
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 new KeyedOneInputStreamOperatorTestHarness<>(
