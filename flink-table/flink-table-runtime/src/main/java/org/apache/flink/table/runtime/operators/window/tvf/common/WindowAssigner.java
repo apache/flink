@@ -30,7 +30,7 @@ import java.io.Serializable;
  * window assigner is translated from the new window TVF syntax, but the other is from the legacy
  * GROUP WINDOW FUNCTION syntax. In the long future, {@link GroupWindowAssigner} will be dropped.
  *
- * <p>See more details in {@link WindowOperatorBase}.
+ * <p>See more details in {@link WindowAggOperator}.
  */
 @Internal
 public interface WindowAssigner extends Serializable {

@@ -44,6 +44,8 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnslicingWindowProcessor;
 
 import java.util.Collections;
 
@@ -85,11 +87,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * </pre>
  *
- * <p>Note: currently, {@link WindowOperatorBase} doesn't support early-fire and late-arrival. Thus
+ * <p>Note: currently, {@link WindowAggOperator} doesn't support early-fire and late-arrival. Thus
  * late elements (elements belong to emitted windows) will be simply dropped.
+ *
+ * <p>See more in {@link SlicingWindowProcessor} and {@link UnslicingWindowProcessor}.
  */
 @Internal
-public abstract class WindowOperatorBase<K, W> extends TableStreamOperator<RowData>
+public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
         implements OneInputStreamOperator<RowData, RowData>, Triggerable<K, W>, KeyContext {
 
     private static final long serialVersionUID = 1L;
@@ -123,7 +127,7 @@ public abstract class WindowOperatorBase<K, W> extends TableStreamOperator<RowDa
     protected transient Meter lateRecordsDroppedRate;
     protected transient Gauge<Long> watermarkLatency;
 
-    public WindowOperatorBase(WindowProcessor<W> windowProcessor) {
+    public WindowAggOperator(WindowProcessor<W> windowProcessor) {
         this.windowProcessor = windowProcessor;
         setChainingStrategy(ChainingStrategy.ALWAYS);
     }

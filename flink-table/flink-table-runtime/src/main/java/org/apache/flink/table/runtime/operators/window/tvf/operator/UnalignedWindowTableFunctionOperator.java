@@ -49,6 +49,7 @@ import org.apache.flink.table.runtime.operators.window.groupwindow.internal.Merg
 import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.EventTimeTriggers;
 import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.ProcessingTimeTriggers;
 import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.Trigger;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.BiConsumerWithException;
@@ -67,8 +68,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * The operator for unaligned window table function.
  *
- * <p>See more details about aligned window and unaligned window in {@link
- * org.apache.flink.table.runtime.operators.window.tvf.common.WindowOperatorBase}.
+ * <p>See more details about aligned window and unaligned window in {@link WindowAggOperator}.
  *
  * <p>Note: The operator only applies for Window TVF with set semantics (e.g SESSION) instead of row
  * semantics (e.g TUMBLE/HOP/CUMULATE).

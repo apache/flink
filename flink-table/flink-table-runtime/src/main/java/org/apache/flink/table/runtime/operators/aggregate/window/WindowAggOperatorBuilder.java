@@ -29,16 +29,16 @@ import org.apache.flink.table.runtime.operators.aggregate.window.processors.Slic
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.UnsliceWindowAggProcessor;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.tvf.combines.RecordsCombiner;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner;
-import org.apache.flink.table.runtime.operators.window.tvf.common.WindowOperatorBase;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigners.HoppingSliceAssigner;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceSharedAssigner;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceUnsharedAssigner;
-import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowOperator;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnsliceAssigner;
-import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnslicingWindowOperator;
+import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnslicingWindowProcessor;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 
@@ -48,8 +48,8 @@ import java.util.function.Supplier;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The {@link WindowAggOperatorBuilder} is used to build a {@link SlicingWindowOperator} with
- * slicing window or a {@link UnslicingWindowOperator} for with unslicing window.
+ * The {@link WindowAggOperatorBuilder} is used to build a {@link WindowAggOperator} with {@link
+ * SlicingWindowProcessor} or a {@link UnslicingWindowProcessor}.
  *
  * <pre>
  * WindowAggOperatorBuilder.builder()
@@ -140,22 +140,24 @@ public class WindowAggOperatorBuilder {
         return this;
     }
 
-    public WindowOperatorBase<RowData, ?> build() {
+    public WindowAggOperator<RowData, ?> build() {
         checkNotNull(assigner);
         checkNotNull(inputSerializer);
         checkNotNull(keySerializer);
         checkNotNull(accSerializer);
         checkNotNull(generatedAggregateFunction);
 
+        final WindowProcessor<?> windowProcessor;
         if (assigner instanceof SliceAssigner) {
-            return buildSlicingWindowOperator();
+            windowProcessor = buildSlicingWindowProcessor();
         } else {
-            return buildUnslicingWindowOperator();
+            windowProcessor = buildUnslicingWindowProcessor();
         }
+        return new WindowAggOperator<>(windowProcessor);
     }
 
     @SuppressWarnings("unchecked")
-    protected WindowOperatorBase<RowData, ?> buildSlicingWindowOperator() {
+    private SlicingWindowProcessor<Long> buildSlicingWindowProcessor() {
 
         boolean isGlobalAgg =
                 localGeneratedAggregateFunction != null && globalGeneratedAggregateFunction != null;
@@ -200,19 +202,16 @@ public class WindowAggOperatorBuilder {
             throw new IllegalArgumentException(
                     "assigner must be instance of SliceUnsharedAssigner or SliceSharedAssigner.");
         }
-        return new SlicingWindowOperator<>(windowProcessor);
+        return windowProcessor;
     }
 
     @SuppressWarnings("unchecked")
-    private WindowOperatorBase<RowData, ?> buildUnslicingWindowOperator() {
-        final UnsliceWindowAggProcessor windowProcessor =
-                new UnsliceWindowAggProcessor(
-                        (GeneratedNamespaceAggsHandleFunction<TimeWindow>)
-                                generatedAggregateFunction,
-                        (UnsliceAssigner<TimeWindow>) assigner,
-                        accSerializer,
-                        indexOfCountStart,
-                        shiftTimeZone);
-        return new UnslicingWindowOperator<>(windowProcessor);
+    private UnsliceWindowAggProcessor buildUnslicingWindowProcessor() {
+        return new UnsliceWindowAggProcessor(
+                (GeneratedNamespaceAggsHandleFunction<TimeWindow>) generatedAggregateFunction,
+                (UnsliceAssigner<TimeWindow>) assigner,
+                accSerializer,
+                indexOfCountStart,
+                shiftTimeZone);
     }
 }
