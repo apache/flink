@@ -377,9 +377,6 @@ public class SingleInputGate extends IndexedInputGate {
                         inputChannelsForCurrentPartition.put(
                                 realInputChannel.getChannelInfo(), realInputChannel);
                         channels[inputChannel.getChannelIndex()] = realInputChannel;
-                        if (enabledTieredStorage()) {
-                            queueChannel(realInputChannel, null, false);
-                        }
                     } catch (Throwable t) {
                         inputChannel.setError(t);
                         return;

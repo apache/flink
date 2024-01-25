@@ -320,7 +320,7 @@ public abstract class ResultPartition implements ResultPartitionWriter {
                     indexSet.values().iterator().next(), availabilityListener);
         } else {
             UnionResultSubpartitionView unionView =
-                    new UnionResultSubpartitionView(availabilityListener);
+                    new UnionResultSubpartitionView(availabilityListener, indexSet.size());
             try {
                 for (int i : indexSet.values()) {
                     ResultSubpartitionView view = createSubpartitionView(i, unionView);

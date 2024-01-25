@@ -47,7 +47,7 @@ class UnionResultSubpartitionViewTest {
 
     @BeforeEach
     void before() {
-        view = new UnionResultSubpartitionView((ResultSubpartitionView x) -> {});
+        view = new UnionResultSubpartitionView((ResultSubpartitionView x) -> {}, 2);
 
         buffers0 =
                 Arrays.asList(
@@ -140,10 +140,13 @@ class UnionResultSubpartitionViewTest {
 
     @Test
     public void testDataAvailableBeforeRegistration() {
-        view = new UnionResultSubpartitionView((ResultSubpartitionView x) -> {});
+        TestAvailabilityListener listener = new TestAvailabilityListener();
+        view = new UnionResultSubpartitionView(listener, 2);
         view0 = new TestingResultSubpartitionView(view, buffers0);
+        view1 = new TestingResultSubpartitionView(view, buffers1);
 
         view0.notifyDataAvailable();
+        assertThat(listener.isDataAvailable()).isFalse();
 
         ResultSubpartitionView.AvailabilityWithBacklog availabilityAndBacklog1 =
                 view.getAvailabilityAndBacklog(true);
@@ -151,6 +154,10 @@ class UnionResultSubpartitionViewTest {
         assertThat(availabilityAndBacklog1.isAvailable()).isFalse();
 
         view.notifyViewCreated(0, view0);
+        assertThat(listener.isDataAvailable()).isFalse();
+
+        view.notifyViewCreated(1, view1);
+        assertThat(listener.isDataAvailable()).isTrue();
 
         ResultSubpartitionView.AvailabilityWithBacklog availabilityAndBacklog2 =
                 view.getAvailabilityAndBacklog(true);
@@ -209,6 +216,19 @@ class UnionResultSubpartitionViewTest {
         @Override
         public boolean isReleased() {
             return isReleased;
+        }
+    }
+
+    private static class TestAvailabilityListener implements BufferAvailabilityListener {
+        private boolean isDataAvailable = false;
+
+        @Override
+        public void notifyDataAvailable(ResultSubpartitionView view) {
+            isDataAvailable = true;
+        }
+
+        boolean isDataAvailable() {
+            return isDataAvailable;
         }
     }
 }
