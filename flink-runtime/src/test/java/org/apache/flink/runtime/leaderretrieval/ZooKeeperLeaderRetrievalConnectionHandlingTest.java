@@ -78,6 +78,52 @@ class ZooKeeperLeaderRetrievalConnectionHandlingTest {
     }
 
     @Test
+    void testWatcherCleanupWithOneDriver() throws Exception {
+        final String path = "/";
+        final ZooKeeperLeaderRetrievalDriverFactory driverFactory =
+                ZooKeeperUtils.createLeaderRetrievalDriverFactory(zooKeeperClient, path);
+
+        final ZooKeeperLeaderRetrievalDriver driver0 =
+                driverFactory.createLeaderRetrievalDriver(
+                        new QueueLeaderElectionListener(1),
+                        fatalErrorHandlerResource.getTestingFatalErrorHandler());
+
+        final ZooKeeperLeaderRetrievalDriver driver1 =
+                driverFactory.createLeaderRetrievalDriver(
+                        new QueueLeaderElectionListener(1),
+                        fatalErrorHandlerResource.getTestingFatalErrorHandler());
+
+        // TODO: why do we need the sleep to make this test stable?
+        Thread.sleep(100);
+
+        // admin command for getting the watcher path per session
+        final String adminCmd = "wchc";
+        final String expectedWatchEntry =
+                String.format(
+                        "\t%s",
+                        ZooKeeperUtils.generateConnectionInformationPath(
+                                zooKeeperClient.getNamespace()));
+        try (final AutoCloseable adminCommandContext =
+                getZooKeeper().whitelistAdminCommand(adminCmd)) {
+            assertThat(getZooKeeper().executeCommand(adminCmd))
+                    .as("There should be a watcher on the connection_info zNode.")
+                    .contains(expectedWatchEntry);
+
+            driver0.close();
+
+            assertThat(getZooKeeper().executeCommand(adminCmd))
+                    .as("There should be still a watch on the connection_info zNode.")
+                    .contains(expectedWatchEntry);
+
+            driver1.close();
+
+            assertThat(getZooKeeper().executeCommand(adminCmd))
+                    .as("The watcher on the connection_info zNode should be released.")
+                    .doesNotContain(expectedWatchEntry);
+        }
+    }
+
+    @Test
     void testConnectionSuspendedHandlingDuringInitialization() throws Exception {
         testWithQueueLeaderElectionListener(
                 queueLeaderElectionListener ->
