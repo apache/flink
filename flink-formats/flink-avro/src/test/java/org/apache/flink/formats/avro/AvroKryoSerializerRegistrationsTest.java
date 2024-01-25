@@ -87,9 +87,9 @@ class AvroKryoSerializerRegistrationsTest {
     }
 
     @Test
-    void testEnableForceAvroKryoRegister() {
+    void testEnableForceKryoAvroRegister() {
         ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.getSerializerConfig().setForceAvroKryo(true);
+        executionConfig.getSerializerConfig().setForceKryoAvro(true);
         final Kryo kryo = new KryoSerializer<>(Integer.class, executionConfig).getKryo();
         kryo.setRegistrationRequired(true);
         assertThatCode(() -> kryo.getRegistration(GenericData.Array.class))
@@ -97,7 +97,7 @@ class AvroKryoSerializerRegistrationsTest {
     }
 
     @Test
-    void testDefaultForceAvroKryoRegister() {
+    void testDefaultForceKryoAvroRegister() {
         ExecutionConfig executionConfig = new ExecutionConfig();
         final Kryo kryo = new KryoSerializer<>(Integer.class, executionConfig).getKryo();
         kryo.setRegistrationRequired(true);
@@ -106,7 +106,7 @@ class AvroKryoSerializerRegistrationsTest {
     }
 
     @Test
-    void testDisableForceAvroKryoRegister() {
+    void testDisableForceKryoAvroRegister() {
         Configuration configuration = new Configuration();
         configuration.set(PipelineOptions.FORCE_KRYO_AVRO, false);
         ExecutionConfig executionConfig = new ExecutionConfig(configuration);

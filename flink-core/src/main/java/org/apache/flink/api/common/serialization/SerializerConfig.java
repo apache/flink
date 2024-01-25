@@ -274,11 +274,12 @@ public final class SerializerConfig implements Serializable {
         configuration.set(PipelineOptions.FORCE_AVRO, forceAvro);
     }
 
-    public void setForceAvroKryo(boolean forceAvroKryo) {
-        configuration.set(PipelineOptions.FORCE_KRYO_AVRO, forceAvroKryo);
+    @Internal
+    public void setForceKryoAvro(boolean forceKryoAvro) {
+        configuration.set(PipelineOptions.FORCE_KRYO_AVRO, forceKryoAvro);
     }
 
-    public Optional<Boolean> isForceAvroKryo() {
+    public Optional<Boolean> isForceKryoAvro() {
         return configuration.getOptional(PipelineOptions.FORCE_KRYO_AVRO);
     }
 
@@ -354,6 +355,9 @@ public final class SerializerConfig implements Serializable {
         configuration.getOptional(PipelineOptions.GENERIC_TYPES).ifPresent(this::setGenericTypes);
         configuration.getOptional(PipelineOptions.FORCE_KRYO).ifPresent(this::setForceKryo);
         configuration.getOptional(PipelineOptions.FORCE_AVRO).ifPresent(this::setForceAvro);
+        configuration
+                .getOptional(PipelineOptions.FORCE_KRYO_AVRO)
+                .ifPresent(this::setForceKryoAvro);
 
         configuration
                 .getOptional(PipelineOptions.KRYO_DEFAULT_SERIALIZERS)
@@ -383,10 +387,6 @@ public final class SerializerConfig implements Serializable {
             }
             throw e;
         }
-
-        configuration
-                .getOptional(PipelineOptions.FORCE_KRYO_AVRO)
-                .ifPresent(this::setForceAvroKryo);
     }
 
     private LinkedHashSet<Class<?>> loadClasses(

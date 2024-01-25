@@ -143,13 +143,12 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
 
                 executionConfig
                         .getSerializerConfig()
-                        .isForceAvroKryo()
-                        .filter(isForceAvroKryo -> isForceAvroKryo)
+                        .isForceKryoAvro()
                         .ifPresent(
-                                ignore ->
+                                isForceKryoAvro ->
                                         newExecutionConfig
                                                 .getSerializerConfig()
-                                                .setForceAvroKryo(true));
+                                                .setForceKryoAvro(isForceKryoAvro));
 
                 executionConfig
                         .getDefaultKryoSerializers()

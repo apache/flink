@@ -188,7 +188,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
                         executionConfig.getRegisteredKryoTypes(),
                         executionConfig.getRegisteredTypesWithKryoSerializerClasses(),
                         executionConfig.getRegisteredTypesWithKryoSerializers(),
-                        executionConfig.getSerializerConfig().isForceAvroKryo());
+                        executionConfig.getSerializerConfig().isForceKryoAvro());
     }
 
     /**

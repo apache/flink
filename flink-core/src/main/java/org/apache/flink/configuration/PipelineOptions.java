@@ -152,7 +152,8 @@ public class PipelineOptions {
                     .noDefaultValue()
                     .withDescription(
                             Description.builder()
-                                    .text("Force register avro classes in kryo serializer. ")
+                                    .text(
+                                            "Forces Flink to register avro classes in kryo serializer.")
                                     .linebreak()
                                     .linebreak()
                                     .text(
@@ -160,7 +161,7 @@ public class PipelineOptions {
                                                     + " Otherwise, nothing will be registered. For backward compatibility,"
                                                     + " the default value is empty to conform to the behavior of the older version."
                                                     + " That is, always register avro with kryo, and if flink-avro is not in the class"
-                                                    + " path, register a dummy Serializer. In flink-2.0, we will set the default value to true")
+                                                    + " path, register a dummy serializer. In Flink-2.0, we will set the default value to true.")
                                     .build());
 
     public static final ConfigOption<Boolean> GENERIC_TYPES =
