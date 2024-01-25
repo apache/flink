@@ -106,17 +106,8 @@ class TableConfig(object):
         jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
         classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
         if key in [jars_key, classpaths_key]:
-            isStandardYaml = jvm.org.apache.flink.configuration. \
-                GlobalConfiguration.isStandardYaml()
-            if isStandardYaml:
-                import yaml
-                jar_urls_list = yaml.safe_load(value)
-                if isinstance(jar_urls_list, list):
-                    add_jars_to_context_class_loader(jar_urls_list)
-                else:
-                    add_jars_to_context_class_loader(value.split(";"))
-            else:
-                add_jars_to_context_class_loader(value.split(";"))
+            jar_urls = Configuration.parse_jars_value(value, jvm)
+            add_jars_to_context_class_loader(jar_urls)
         return self
 
     def get_local_timezone(self) -> str:
