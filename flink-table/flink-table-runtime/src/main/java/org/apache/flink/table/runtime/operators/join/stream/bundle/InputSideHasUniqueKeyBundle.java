@@ -33,10 +33,6 @@ import java.util.Set;
 /** For the case that input has uniqueKey which is not contained by joinKey. */
 public class InputSideHasUniqueKeyBundle extends BufferBundle<Map<RowData, List<RowData>>> {
 
-    public InputSideHasUniqueKeyBundle() {
-        super();
-    }
-
     @Override
     public int addRecord(RowData joinKey, RowData uniqueKey, RowData record) {
         bundle.computeIfAbsent(joinKey, k -> new HashMap<>())

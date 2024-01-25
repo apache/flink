@@ -35,10 +35,6 @@ import java.util.Optional;
  */
 public class JoinKeyContainsUniqueKeyBundle extends BufferBundle<List<RowData>> {
 
-    public JoinKeyContainsUniqueKeyBundle() {
-        super();
-    }
-
     @Override
     public int addRecord(RowData joinKey, @Nullable RowData uniqueKey, RowData record) {
         bundle.computeIfAbsent(joinKey, key -> new ArrayList<>());

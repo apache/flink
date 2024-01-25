@@ -33,10 +33,6 @@ import java.util.Map;
 /** For the case that input has no uniqueKey. */
 public class InputSideHasNoUniqueKeyBundle extends BufferBundle<Map<Integer, List<RowData>>> {
 
-    public InputSideHasNoUniqueKeyBundle() {
-        super();
-    }
-
     /**
      * The structure of the bundle: first-level key is the joinKey while the second-level key is the
      * hash value of the record. And the value of the second hash is a list of records. The bundle
