@@ -60,17 +60,6 @@ public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
 
     @Override
     public SinkWriter<String> createWriter(WriterInitContext context) throws IOException {
-        return createWriter(new InitContextWrapper(context));
-    }
-
-    /**
-     * Should be removed along {@link
-     * org.apache.flink.api.connector.sink2.StatefulSink.StatefulSinkWriter}.
-     */
-    @Deprecated
-    @Override
-    public StatefulSinkWriter<String, BufferedRequestState<Integer>> createWriter(
-            InitContext context) throws IOException {
         return new AsyncSinkWriter<String, Integer>(
                 getElementConverter(),
                 context,
@@ -100,6 +89,12 @@ public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
                 return 4;
             }
         };
+    }
+
+    @Override
+    public StatefulSinkWriter<String, BufferedRequestState<Integer>> createWriter(
+            InitContext context) throws IOException {
+        throw new UnsupportedOperationException("Not supported");
     }
 
     @Override
