@@ -35,7 +35,6 @@ under the License.
 
 	<properties>
 		<arrow.version>13.0.0</arrow.version>
-		<kafka.version>3.2.3</kafka.version>
 		<surefire.module.config><!--
 			CommonTestUtils#setEnv
 			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
