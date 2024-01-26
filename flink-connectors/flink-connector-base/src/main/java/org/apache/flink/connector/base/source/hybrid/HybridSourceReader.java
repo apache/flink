@@ -87,7 +87,7 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
             // trap END_OF_INPUT unless all sources have finished
             LOG.info(
                     "End of input subtask={} sourceIndex={} {}",
-                    readerContext.getTaskInfo().getIndexOfThisSubtask(),
+                    readerContext.getIndexOfSubtask(),
                     currentSourceIndex,
                     currentReader);
             // Signal the coordinator that this reader has consumed all input and the
@@ -140,7 +140,7 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
     public void addSplits(List<HybridSourceSplit> splits) {
         LOG.info(
                 "Adding splits subtask={} sourceIndex={} currentReader={} {}",
-                readerContext.getTaskInfo().getIndexOfThisSubtask(),
+                readerContext.getIndexOfSubtask(),
                 currentSourceIndex,
                 currentReader,
                 splits);
@@ -168,7 +168,7 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
         }
         LOG.debug(
                 "No more splits for subtask={} sourceIndex={} currentReader={}",
-                readerContext.getTaskInfo().getIndexOfThisSubtask(),
+                readerContext.getIndexOfSubtask(),
                 currentSourceIndex,
                 currentReader);
     }
@@ -179,7 +179,7 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
             SwitchSourceEvent sse = (SwitchSourceEvent) sourceEvent;
             LOG.info(
                     "Switch source event: subtask={} sourceIndex={} source={}",
-                    readerContext.getTaskInfo().getIndexOfThisSubtask(),
+                    readerContext.getIndexOfSubtask(),
                     sse.sourceIndex(),
                     sse.source());
             switchedSources.put(sse.sourceIndex(), sse.source());
@@ -197,7 +197,7 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
         }
         LOG.debug(
                 "Reader closed: subtask={} sourceIndex={} currentReader={}",
-                readerContext.getTaskInfo().getIndexOfThisSubtask(),
+                readerContext.getIndexOfSubtask(),
                 currentSourceIndex,
                 currentReader);
     }
@@ -212,7 +212,7 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
             }
             LOG.debug(
                     "Reader closed: subtask={} sourceIndex={} currentReader={}",
-                    readerContext.getTaskInfo().getIndexOfThisSubtask(),
+                    readerContext.getIndexOfSubtask(),
                     currentSourceIndex,
                     currentReader);
         }
@@ -230,7 +230,7 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
         availabilityFuture.complete(null);
         LOG.debug(
                 "Reader started: subtask={} sourceIndex={} {}",
-                readerContext.getTaskInfo().getIndexOfThisSubtask(),
+                readerContext.getIndexOfSubtask(),
                 currentSourceIndex,
                 reader);
         // add restored splits

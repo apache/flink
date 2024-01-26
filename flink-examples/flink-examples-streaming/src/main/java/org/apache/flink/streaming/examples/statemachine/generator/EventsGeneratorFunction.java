@@ -44,9 +44,8 @@ public class EventsGeneratorFunction implements GeneratorFunction<Long, Event> {
 
     @Override
     public void open(SourceReaderContext readerContext) throws Exception {
-        final int range =
-                Integer.MAX_VALUE / readerContext.getTaskInfo().getNumberOfParallelSubtasks();
-        min = range * readerContext.getTaskInfo().getIndexOfThisSubtask();
+        final int range = Integer.MAX_VALUE / readerContext.currentParallelism();
+        min = range * readerContext.getIndexOfSubtask();
         max = min + range;
         generator = new EventsGenerator(errorProbability);
     }

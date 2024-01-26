@@ -247,7 +247,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         @Override
         public SourceReader<Long, LongSplit> createReader(SourceReaderContext readerContext) {
             return new LongSourceReader(
-                    readerContext.getTaskInfo().getIndexOfThisSubtask(),
+                    readerContext.getIndexOfSubtask(),
                     minCheckpoints,
                     expectedRestarts,
                     checkpointingInterval,

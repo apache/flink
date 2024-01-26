@@ -18,7 +18,6 @@
 
 package org.apache.flink.connector.datagen.source;
 
-import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.source.ReaderOutput;
@@ -30,7 +29,6 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorContext;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.testutils.source.TestingTaskInfo;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -185,6 +183,11 @@ class DataGeneratorSourceTest {
         }
 
         @Override
+        public int getIndexOfSubtask() {
+            return 0;
+        }
+
+        @Override
         public void sendSplitRequest() {}
 
         @Override
@@ -196,14 +199,8 @@ class DataGeneratorSourceTest {
         }
 
         @Override
-        public TaskInfo getTaskInfo() {
-            return new TestingTaskInfo.Builder()
-                    .setTaskName("DummyTask")
-                    .setMaxNumberOfParallelSubtasks(1)
-                    .setIndexOfThisSubtask(0)
-                    .setNumberOfParallelSubtasks(1)
-                    .setAttemptNumber(0)
-                    .build();
+        public int currentParallelism() {
+            return 1;
         }
     }
 

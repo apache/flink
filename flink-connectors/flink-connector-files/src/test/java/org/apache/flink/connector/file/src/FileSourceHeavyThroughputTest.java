@@ -18,7 +18,6 @@
 
 package org.apache.flink.connector.file.src;
 
-import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -31,7 +30,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.reader.SimpleStreamFormat;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.connector.file.src.testutils.TestingFileSystem;
-import org.apache.flink.connector.testutils.source.TestingTaskInfo;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.InputStatus;
@@ -197,15 +195,6 @@ class FileSourceHeavyThroughputTest {
 
     private static final class NoOpReaderContext implements SourceReaderContext {
 
-        private final TaskInfo taskInfo =
-                new TestingTaskInfo.Builder()
-                        .setTaskName("NoOpTask")
-                        .setMaxNumberOfParallelSubtasks(1)
-                        .setIndexOfThisSubtask(0)
-                        .setAttemptNumber(0)
-                        .setNumberOfParallelSubtasks(1)
-                        .build();
-
         @Override
         public SourceReaderMetricGroup metricGroup() {
             return UnregisteredMetricsGroup.createSourceReaderMetricGroup();
@@ -222,6 +211,11 @@ class FileSourceHeavyThroughputTest {
         }
 
         @Override
+        public int getIndexOfSubtask() {
+            return 0;
+        }
+
+        @Override
         public void sendSplitRequest() {}
 
         @Override
@@ -233,8 +227,8 @@ class FileSourceHeavyThroughputTest {
         }
 
         @Override
-        public TaskInfo getTaskInfo() {
-            return taskInfo;
+        public int currentParallelism() {
+            return 1;
         }
     }
 
