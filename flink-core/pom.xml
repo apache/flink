@@ -98,6 +98,13 @@ under the License.
 
 		<!-- standard utilities -->
 		<dependency>
+			<groupId>org.snakeyaml</groupId>
+			<artifactId>snakeyaml-engine</artifactId>
+			<version>2.6</version>
+		</dependency>
+
+		<!-- standard utilities -->
+		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-text</artifactId>
 			<!-- managed version -->

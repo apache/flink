@@ -20,11 +20,10 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.util.ExceptionUtils;
 
-import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.error.YAMLException;
-
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.snakeyaml.engine.v2.exceptions.YamlEngineException;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -55,6 +54,9 @@ class YamlParserUtilsTest {
             pw.println("key5: '*'");
             pw.println("key6: true");
             pw.println("key7: 'true'");
+            pw.println(
+                    "key8: Yes"); // This value will be interpreted as True in YAML 1.1, whereas in
+            // YAML 1.2, it is treated as the string "Yes".
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         }
@@ -73,6 +75,7 @@ class YamlParserUtilsTest {
         assertThat(yamlData.get("key5")).isEqualTo("*");
         assertThat((Boolean) yamlData.get("key6")).isTrue();
         assertThat(yamlData.get("key7")).isEqualTo("true");
+        assertThat(yamlData.get("key8")).isEqualTo("Yes");
     }
 
     @Test
@@ -92,7 +95,7 @@ class YamlParserUtilsTest {
             throw new RuntimeException(e);
         }
         assertThatThrownBy(() -> YamlParserUtils.loadYamlFile(confFile))
-                .isInstanceOf(YAMLException.class)
+                .isInstanceOf(YamlEngineException.class)
                 .satisfies(
                         e ->
                                 Assertions.assertThat(ExceptionUtils.stringifyException(e))
@@ -109,7 +112,7 @@ class YamlParserUtilsTest {
             throw new RuntimeException(e);
         }
         assertThatThrownBy(() -> YamlParserUtils.loadYamlFile(confFile))
-                .isInstanceOf(YAMLException.class)
+                .isInstanceOf(YamlEngineException.class)
                 .satisfies(
                         e ->
                                 Assertions.assertThat(ExceptionUtils.stringifyException(e))

@@ -78,8 +78,9 @@ class Configuration:
     def parse_jars_value(value: str, jvm):
         is_standard_yaml = jvm.org.apache.flink.configuration.GlobalConfiguration.isStandardYaml()
         if is_standard_yaml:
-            import yaml
-            jar_urls_list = yaml.safe_load(value)
+            from ruamel.yaml import YAML
+            yaml = YAML(typ='safe')
+            jar_urls_list = yaml.load(value)
             if isinstance(jar_urls_list, list):
                 return jar_urls_list
         return value.split(";")
