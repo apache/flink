@@ -144,7 +144,7 @@ With list hints, Flink resolves conflicts by adopting a first-accept strategy. T
 first specified hint in the list will take precedence and be effective.
 For example, consider the following SQL query with conflicting BROADCAST hints:
 ```sql
-SELECT /*+ BROADCAST(t2, t1), BROADCAST(t1, t2) */ * FROM t1;
+SELECT /*+ BROADCAST(t2, t1), BROADCAST(t1, t2) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
 ```
 
 In this scenario, Flink will choose the BROADCAST hint that is listed first. 

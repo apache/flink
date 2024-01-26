@@ -116,7 +116,7 @@ Key-value 类型的查询提示使用如下语法：
 hintName '(' optionKey '=' optionVal [, optionKey '=' optionVal ]* ')'
 ```
 
-当 Key-value 类型的查询提示发生冲突时，Flink 会按顺序用后定义的查询提示覆盖前面定义的同名查询提示。
+在一个 Key-value 类型的查询提示中存在重复的 key 时，Flink 会按顺序用后面的 value 覆盖前面的 value。
 对于下面的例子，包含同相同 key 的查询提示 'max-attempts'：
 
 ```sql
@@ -136,7 +136,7 @@ hintName '(' hintOption [, hintOption ]* ')'
 对于 List 类型的查询提示，Flink 会选择最先被采纳的查询提示。如下面具有相同 BROADCAST 提示的例子：
 
 ```sql
-SELECT /*+ BROADCAST(t2, t1), BROADCAST(t1, t2) */ * FROM t1;
+SELECT /*+ BROADCAST(t2, t1), BROADCAST(t1, t2) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
 ```
 
 Flink 会选择 BROADCAST(t2, t1)，因为它是最先被采纳的。
