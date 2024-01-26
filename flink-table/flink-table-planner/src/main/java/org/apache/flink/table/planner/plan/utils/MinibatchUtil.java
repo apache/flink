@@ -55,7 +55,7 @@ public class MinibatchUtil {
      * @param config config
      * @return MiniBatch trigger
      */
-    public static CoBundleTrigger<RowData, RowData> createCoMiniBatchTrigger(
+    public static CoBundleTrigger<RowData, RowData> createMiniBatchCoTrigger(
             ReadableConfig config) {
         long size = miniBatchSize(config);
         return new CountCoBundleTrigger<>(size);

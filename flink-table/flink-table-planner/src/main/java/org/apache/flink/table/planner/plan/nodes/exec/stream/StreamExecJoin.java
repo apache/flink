@@ -228,7 +228,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                                 joinSpec.getFilterNulls(),
                                 leftStateRetentionTime,
                                 rightStateRetentionTime,
-                                MinibatchUtil.createCoMiniBatchTrigger(config));
+                                MinibatchUtil.createMiniBatchCoTrigger(config));
             } else {
                 operator =
                         new StreamingJoinOperator(
