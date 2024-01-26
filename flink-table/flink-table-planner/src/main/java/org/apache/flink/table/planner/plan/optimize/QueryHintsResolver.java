@@ -469,8 +469,8 @@ public class QueryHintsResolver extends QueryHintsRelShuttle {
         for (RelHint hint : hints) {
             String hintName = hint.hintName;
 
-            // if the hint is a join hint, add it directly
-            if (JoinStrategy.isJoinStrategy(hintName)) {
+            // if the hint is a join hint or alias hint, add it directly
+            if (JoinStrategy.isJoinStrategy(hintName) || FlinkHints.isAliasHint(hintName)) {
                 result.add(hint);
                 continue;
             }

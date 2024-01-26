@@ -266,4 +266,9 @@ public abstract class FlinkHints {
     public static boolean isQueryHint(String hintName) {
         return JoinStrategy.isJoinStrategy(hintName) || StateTtlHint.isStateTtlHint(hintName);
     }
+
+    /** Check if the hint is a alias hint. */
+    public static boolean isAliasHint(String hintName) {
+        return FlinkHints.HINT_ALIAS.equalsIgnoreCase(hintName);
+    }
 }

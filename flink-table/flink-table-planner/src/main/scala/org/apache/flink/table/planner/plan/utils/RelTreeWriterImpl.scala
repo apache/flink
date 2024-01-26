@@ -149,15 +149,16 @@ class RelTreeWriterImpl(
           if (stateTtlHints.nonEmpty) {
             printValues.add(Pair.of("stateTtlHints", RelExplainUtil.hintsToString(stateTtlHints)))
           }
-        case agg: Aggregate =>
-          val aggHints = FlinkHints.getAllStateTtlHints(agg.getHints)
-          if (aggHints.nonEmpty) {
-            printValues.add(Pair.of("stateTtlHints", RelExplainUtil.hintsToString(aggHints)))
-          }
-        case agg: StreamPhysicalGroupAggregateBase =>
-          val aggHints = FlinkHints.getAllStateTtlHints(agg.hints)
-          if (aggHints.nonEmpty) {
-            printValues.add(Pair.of("stateTtlHints", RelExplainUtil.hintsToString(aggHints)))
+
+        case _: Aggregate | _: StreamPhysicalGroupAggregateBase =>
+          val aggHints =
+            rel match {
+              case aggregate: Aggregate => aggregate.getHints
+              case _ => rel.asInstanceOf[StreamPhysicalGroupAggregateBase].hints
+            }
+          val stateTtlHints = FlinkHints.getAllStateTtlHints(aggHints)
+          if (stateTtlHints.nonEmpty) {
+            printValues.add(Pair.of("stateTtlHints", RelExplainUtil.hintsToString(stateTtlHints)))
           }
         case _ => // ignore
       }
