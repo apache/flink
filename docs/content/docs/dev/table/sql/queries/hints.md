@@ -686,41 +686,12 @@ Note:
   If users need to set a specific TTL value for the left state of the second join operator, the query needs to be split into query blocks like 
   ```sql
   CREATE TEMPORARY VIEW V AS 
-  SELECT /*+ STATE_TTL('A' = '${ttl_A}', 'B' = '${ttl_B}')*/ * FROM A JOIN B ON...;
-  SELECT /*+ STATE_TTL('V' = '${ttl_V}', 'C' = '${ttl_C}')*/ * FROM V JOIN C ON ...;
+  SELECT /*+ STATE_TTL('A' = '1d', 'B' = '12h')*/ * FROM A JOIN B ON...;
+  SELECT /*+ STATE_TTL('V' = '1d', 'C' = '3d')*/ * FROM V JOIN C ON ...;
   ```
 - STATE_TTL hint only applies on the underlying query block.
-  {{< /hint >}}
-
-#### Different ways to configure state TTL for SQL pipeline
-<table class="table table-bordered">
-<thead>
-<tr>
-	<th class="text-left">configuration</th>
-	<th class="text-left">granularity</th>
-	<th class="text-left">priority</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-	<td>SET 'table.exec.state.ttl' = '...' </td>
-	<td>The value applies to the whole pipeline, all stateful operators will use the value as state TTL by default. </td>
-	<td>This is the default state TTL configuration and can be overridden by enabling the STATE_TTL hint or modifying the value of the serialized CompiledPlan.</td>
-</tr>
-<tr>
-	<td>SELECT /*+ STATE_TTL(...) */ ... </td>
-	<td>The value only applies to some certain operators (join and group aggregate at present).</td>
-	<td>The hint precedes the default table.exec.state.ttl. This value will be serialized to the CompiledPlan during the plan translation phase.</td>
-</tr>
-<tr>
-	<td>Modify serialized JSON content of CompiledPlan </td>
-	<td>The TTL for each stateful operator is explicitly serialized as an entry of the JSON. Modifying the JSON file can change the TTL for any stateful operator.</td>
-	<td>The TTL in CompiledPlan derives from either table.exec.state.ttl or STATE_TTL hint. If the job is submitted via CompiledPlan, 
-the ultimate TTL value is decided by the last modified state metadata. See more at <a href="{{< ref "docs/dev/table/concepts/overview" >}}#configure-operator-level-state-ttl">Configure Operator-level State TTL</a>. </td>
-</tr>
-</tbody>
-</table>
-
+- When the `STATE_TTL` hint key is duplicated, the last value is applied from the last occurrence. For example, in cases like `SELECT /*+ STATE_TTL('A' = '1d', 'A' = '2d')*/ * FROM ...` or `SELECT /*+ STATE_TTL('A' = '1d'), STATE_TTL('A' = '3d')*/ * FROM ...`, the TTL values should be taken as 2d and 3d, respectively.
+{{< /hint >}}
 
 ### What are query blocks ?
 

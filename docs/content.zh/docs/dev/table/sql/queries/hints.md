@@ -553,7 +553,7 @@ SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.
 
 {{< label Streaming >}}
 
-对于有状态计算的[流连接]({{< ref "docs/dev/table/sql/queries/joins" >}}#regular-joins)和[分组聚合]({{< ref "docs/dev/table/sql/queries/group-agg" >}})操作，用户可以通过 `STATE_TTL` 来指定算子粒度的[空闲状态维持时间]({{< ref "docs/dev/table/concepts/overview" >}}#idle-state-retention-time)，该方式能够使得在上述状态算子中使用与 [table.exec.state.ttl]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl) 不同的值。
+对于有状态计算的[流连接]({{< ref "docs/dev/table/sql/queries/joins" >}}#regular-joins)和[分组聚合]({{< ref "docs/dev/table/sql/queries/group-agg" >}})操作，用户可以通过 `STATE_TTL` 来指定算子粒度的[空闲状态维持时间]({{< ref "docs/dev/table/concepts/overview" >}}#idle-state-retention-time)，该方式能够使得在上述状态算子中使用与作业级别 [table.exec.state.ttl]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl) 不同的值。
 
 ##### 流连接示例
 
@@ -631,40 +631,12 @@ GROUP BY o_orderkey;
 - 对于多流连接场景，直接指定每张表的生命周期只会在第一个连接算子的左右流和第二个连接算子的右流上生效（因为流上关联操作是二元的）。如果想为每个连接算子的左右流都指定不同生命周期，需要将查询拆成多个查询块，如下所示。
   ```sql
   CREATE TEMPORARY VIEW V AS 
-  SELECT /*+ STATE_TTL('A' = '${ttl_A}', 'B' = '${ttl_B}')*/ * FROM A JOIN B ON...;
-  SELECT /*+ STATE_TTL('V' = '${ttl_V}', 'C' = '${ttl_C}')*/ * FROM V JOIN C ON ...;
+  SELECT /*+ STATE_TTL('A' = '1d', 'B' = '12h')*/ * FROM A JOIN B ON...;
+  SELECT /*+ STATE_TTL('V' = '1d', 'C' = '3d')*/ * FROM V JOIN C ON ...;
   ```
-- STATE_TTL 提示仅作用在当前查询块上。
-  {{< /hint >}}
-
-#### SQL 作业指定状态生命周期的不同方式
-<table class="table table-bordered">
-<thead>
-<tr>
-	<th class="text-left">配置方式</th>
-	<th class="text-left">生效范围</th>
-	<th class="text-left">优先级</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-	<td>SET 'table.exec.state.ttl' = '...' </td>
-	<td>作业粒度,默认情况下所有状态算子都会使用该值控制状态生命周期</td>
-	<td>默认配置, 可被覆盖</td>
-</tr>
-<tr>
-	<td>SELECT /*+ STATE_TTL(...) */ ... </td>
-	<td>有限算子粒度, 当前支持连接和分组聚合算子</td>
-	<td>该值将会优先作用于相应算子的状态生命周期</td>
-</tr>
-<tr>
-	<td>修改序列化为 JSON 的 CompiledPlan </td>
-	<td>通用算子粒度, 可修改任一状态算子的生命周期</td>
-	<td>table.exec.state.ttl 和 STATE_TTL 的值将会序列化到 CompiledPlan, 如果作业使用 CompiledPlan 提交, 则最终生效的生命周期由最后一次修改的状态元数据决定。
-查阅<a href="{{< ref "docs/dev/table/concepts/overview" >}}#配置算子粒度的状态-ttl">配置算子粒度的状态 TTL</a> 获取更多信息。</td>
-</tr>
-</tbody>
-</table>
+- `STATE_TTL` 提示仅作用在当前查询块上。
+- 当 `STATE_TTL` 提示键重复时取最后一个值。举例来说，在出现 `SELECT /*+ STATE_TTL('A' = '1d', 'A' = '2d')*/ * FROM ...` 或  `SELECT /*+ STATE_TTL('A' = '1d'), STATE_TTL('A' = '3d')*/ * FROM ...` 时，TTL 值分别取 2d，3d。
+{{< /hint >}}
 
 ### 什么是查询块？
 

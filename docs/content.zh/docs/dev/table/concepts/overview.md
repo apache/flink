@@ -124,6 +124,39 @@ SELECT * FROM upsert_kakfa;
 
 通过移除状态的键，连续查询会完全忘记它曾经见过这个键。如果一个状态带有曾被移除状态的键被处理了，这条记录将被认为是对应键的第一条记录。上述例子中意味着 `cnt` 会再次从 `0` 开始计数。
 
+#### 指定状态生命周期的不同方式
+<table class="table table-bordered">
+<thead>
+<tr>
+	<th class="text-left">配置方式</th>
+	<th class="text-left">TableAPI/SQL 支持</th>
+	<th class="text-left">生效范围</th>
+	<th class="text-left">优先级</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+	<td>SET 'table.exec.state.ttl' = '...' </td>
+	<td>{{<label TableAPI>}}{{<label SQL>}}</td>
+	<td>作业粒度，默认情况下所有状态算子都会使用该值控制状态生命周期</td>
+	<td>默认配置，可被覆盖</td>
+</tr>
+<tr>
+	<td>SELECT /*+ STATE_TTL(...) */ ... </td>
+	<td>{{<label SQL>}}</td>
+	<td>有限算子粒度，当前支持连接和分组聚合算子</td>
+	<td>该值将会优先作用于相应算子的状态生命周期。查阅<a href="{{< ref "docs/dev/table/sql/queries/hints" >}}#状态生命周期提示">状态生命周期提示</a>获取更多信息。</td>
+</tr>
+<tr>
+	<td>修改序列化为 JSON 的 CompiledPlan </td>
+	<td>{{<label TableAPI>}}{{<label SQL>}}</td>
+	<td>通用算子粒度, 可修改任一状态算子的生命周期</td>
+	<td>table.exec.state.ttl 和 STATE_TTL 的值将会序列化到 CompiledPlan，如果作业使用 CompiledPlan 提交，则最终生效的生命周期由最后一次修改的状态元数据决定。</td>
+</tr>
+</tbody>
+</table>
+
+
 #### 配置算子粒度的状态 TTL
 --------------------------
 {{< hint warning >}}
