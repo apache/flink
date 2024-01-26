@@ -197,7 +197,7 @@ class StateTtlHintTest extends TableTestBase {
         assertThatThrownBy(() -> verify(sql))
                 .isInstanceOf(AssertionError.class)
                 .hasMessageContaining(
-                        "Invalid hint about STATE_TTL, expecting at least one key-value options specified.");
+                        "Invalid STATE_TTL hint, expecting at least one key-value options specified.");
     }
 
     @Test
@@ -294,7 +294,7 @@ class StateTtlHintTest extends TableTestBase {
         assertThatThrownBy(() -> verify(sql))
                 .isInstanceOf(AssertionError.class)
                 .hasMessageContaining(
-                        "Invalid hint about STATE_TTL, expecting at least one key-value options specified.");
+                        "Invalid STATE_TTL hint, expecting at least one key-value options specified.");
     }
 
     private void verify(String sql) {

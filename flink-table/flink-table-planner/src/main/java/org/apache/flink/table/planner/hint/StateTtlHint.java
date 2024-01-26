@@ -27,7 +27,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 /**
  * Hint strategy to configure different {@link
@@ -100,19 +100,13 @@ public enum StateTtlHint {
      */
     @Nullable
     public static Long getStateTtlFromHintOnSingleRel(List<RelHint> hints) {
-        AtomicReference<Long> stateTtlFromHint = new AtomicReference<>(null);
-        hints.stream()
-                .filter(hint -> StateTtlHint.isStateTtlHint(hint.hintName))
-                .forEach(
-                        hint ->
-                                hint.kvOptions.forEach(
-                                        (input, ttl) -> {
-                                            if (FlinkHints.INPUT.equals(input)) {
-                                                stateTtlFromHint.set(
-                                                        TimeUtils.parseDuration(ttl).toMillis());
-                                            }
-                                        }));
+        List<Long> allStateTtl =
+                hints.stream()
+                        .filter(hint -> StateTtlHint.isStateTtlHint(hint.hintName))
+                        .flatMap(hint -> hint.listOptions.stream())
+                        .map(ttl -> TimeUtils.parseDuration(ttl).toMillis())
+                        .collect(Collectors.toList());
 
-        return stateTtlFromHint.get();
+        return allStateTtl.isEmpty() ? null : allStateTtl.get(0);
     }
 }

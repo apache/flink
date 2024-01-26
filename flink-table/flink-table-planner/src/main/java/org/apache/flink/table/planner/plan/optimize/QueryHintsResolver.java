@@ -98,11 +98,11 @@ public class QueryHintsResolver extends QueryHintsRelShuttle {
             BiRel biRel = (BiRel) node;
             Optional<String> leftName = extractAliasOrTableName(biRel.getLeft());
             Optional<String> rightName = extractAliasOrTableName(biRel.getRight());
-            newHints = validateAndGetNewHintsFromBiRel(leftName, rightName, oldHints);
+            newHints = validateAndGetNewHints(leftName, rightName, oldHints);
         } else if (node instanceof SingleRel) {
             SingleRel singleRel = (SingleRel) node;
             Optional<String> tableName = extractAliasOrTableName(singleRel.getInput());
-            newHints = validateAndGetNewHintsFromSingleRel(tableName, oldHints);
+            newHints = validateAndGetNewHints(tableName, oldHints);
         } else {
             throw new TableException(
                     String.format(
@@ -124,7 +124,7 @@ public class QueryHintsResolver extends QueryHintsRelShuttle {
      * @param rightName right table name, view name or alias name
      * @param oldHints old hints in this node
      */
-    private List<RelHint> validateAndGetNewHintsFromBiRel(
+    private List<RelHint> validateAndGetNewHints(
             Optional<String> leftName, Optional<String> rightName, List<RelHint> oldHints) {
         Set<RelHint> existentKVHints = new HashSet<>();
 
@@ -197,7 +197,7 @@ public class QueryHintsResolver extends QueryHintsRelShuttle {
      * @param inputName the input table name, view name or alias name
      * @param oldHints old hints in this node
      */
-    private List<RelHint> validateAndGetNewHintsFromSingleRel(
+    private List<RelHint> validateAndGetNewHints(
             Optional<String> inputName, List<RelHint> oldHints) {
         Set<RelHint> existentKVHints = new HashSet<>();
 
@@ -207,14 +207,14 @@ public class QueryHintsResolver extends QueryHintsRelShuttle {
             if (StateTtlHint.isStateTtlHint(hint.hintName)) {
                 List<String> definedTables = new ArrayList<>(hint.kvOptions.keySet());
                 initOptionInfoAboutQueryHintsForCheck(hint.hintName, definedTables);
-                // the declared table name or query block name is replaced by
-                // FlinkHints#SINGLE_INPUT
-                Map<String, String> newKvOptions =
+                // the kv options will be converted to list options
+                List<String> newListOptions =
                         getNewStateTtlHintOptions(inputName, hint.kvOptions, hint.hintName);
-                if (!newKvOptions.isEmpty()) {
+                if (!newListOptions.isEmpty()) {
                     // only accept a matched hint
                     validHints.add(trimInheritPath(hint));
-                    newHints.add(RelHint.builder(hint.hintName).hintOptions(newKvOptions).build());
+                    newHints.add(
+                            RelHint.builder(hint.hintName).hintOptions(newListOptions).build());
                 }
             } else {
                 if (!existentKVHints.contains(hint)) {
@@ -290,17 +290,17 @@ public class QueryHintsResolver extends QueryHintsRelShuttle {
         return newOptions;
     }
 
-    private Map<String, String> getNewStateTtlHintOptions(
+    /** The state ttl hint for {@link SingleRel} will be converted to a list option. */
+    private List<String> getNewStateTtlHintOptions(
             Optional<String> inputName, Map<String, String> kvOptions, String hintName) {
         updateInfoForOptionCheck(hintName, inputName);
-        Map<String, String> newOptions = new HashMap<>();
-        kvOptions.forEach(
-                (input, ttl) -> {
-                    if (inputName.isPresent() && matchIdentifier(input, inputName.get())) {
-                        newOptions.put(FlinkHints.INPUT, ttl);
-                    }
-                });
-        return newOptions;
+        return kvOptions.entrySet().stream()
+                .filter(
+                        entry ->
+                                inputName.isPresent()
+                                        && matchIdentifier(entry.getKey(), inputName.get()))
+                .map(Map.Entry::getValue)
+                .collect(Collectors.toList());
     }
 
     private void validateHints() {
@@ -464,31 +464,52 @@ public class QueryHintsResolver extends QueryHintsRelShuttle {
     private List<RelHint> mergeQueryHintsIfNecessary(List<RelHint> hints) {
         List<RelHint> result = new ArrayList<>();
         Map<String, Map<String, String>> kvHintsMap = new HashMap<>();
+        Map<String, String> listHintsMap = new HashMap<>();
 
         for (RelHint hint : hints) {
             String hintName = hint.hintName;
 
-            // if the hint is not KV hint, add it directly
-            if (!FlinkHints.isKVQueryHint(hintName)) {
+            // if the hint is a join hint, add it directly
+            if (JoinStrategy.isJoinStrategy(hintName)) {
                 result.add(hint);
                 continue;
             }
 
-            // if the hint is KV hint, merge it with the existing hints
-            Map<String, String> kvOptions = new HashMap<>(hint.kvOptions);
-            if (kvHintsMap.containsKey(hintName)) {
-                Map<String, String> existingOptions = kvHintsMap.get(hintName);
-                for (String key : kvOptions.keySet()) {
-                    // if the key is same, choose the first hint to take effect
-                    existingOptions.computeIfAbsent(key, k -> kvOptions.get(key));
+            if (!hint.kvOptions.isEmpty()) {
+                // if the hint is KV hint like lookup hint and state ttl hint on BiRel, merge it
+                // with the existing hints
+                Map<String, String> kvOptions = new HashMap<>(hint.kvOptions);
+                if (kvHintsMap.containsKey(hintName)) {
+                    Map<String, String> existingOptions = kvHintsMap.get(hintName);
+                    for (String key : kvOptions.keySet()) {
+                        // if the key is same, choose the first hint to take effect
+                        existingOptions.computeIfAbsent(key, k -> kvOptions.get(key));
+                    }
+                } else {
+                    kvHintsMap.put(hintName, kvOptions);
                 }
+            } else if (!hint.listOptions.isEmpty()) {
+                // if the hint is LIST hint like state ttl hint on SingleRel, choose the first hint
+                // to take effect
+                listHintsMap.computeIfAbsent(hintName, k -> hint.listOptions.get(0));
             } else {
-                kvHintsMap.put(hintName, kvOptions);
+                // throw an exception again although empty options may be checked by different
+                // checkers in FlinkHintStrategies before
+                throw new ValidationException(
+                        String.format(
+                                "Invalid %s hint, the key-value options and list options are all empty",
+                                hintName));
             }
         }
 
         for (String kvHintName : kvHintsMap.keySet()) {
             result.add(RelHint.builder(kvHintName).hintOptions(kvHintsMap.get(kvHintName)).build());
+        }
+        for (String listHintName : listHintsMap.keySet()) {
+            result.add(
+                    RelHint.builder(listHintName)
+                            .hintOptions(Collections.singletonList(listHintsMap.get(listHintName)))
+                            .build());
         }
         return result;
     }

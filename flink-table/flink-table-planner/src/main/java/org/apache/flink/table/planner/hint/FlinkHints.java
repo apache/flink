@@ -56,9 +56,6 @@ public abstract class FlinkHints {
     public static final String LEFT_INPUT = "LEFT";
     public static final String RIGHT_INPUT = "RIGHT";
 
-    // ~ Option name for hints on SingleRel like aggregate
-    public static final String INPUT = "INPUT";
-
     /**
      * Internal hint that JSON aggregation function arguments have been wrapped already. See {@link
      * WrapJsonAggFunctionArgumentsRule}.
@@ -268,13 +265,5 @@ public abstract class FlinkHints {
     /** Check if the hint is a query hint. */
     public static boolean isQueryHint(String hintName) {
         return JoinStrategy.isJoinStrategy(hintName) || StateTtlHint.isStateTtlHint(hintName);
-    }
-
-    /**
-     * Currently, lookup join hints and state ttl hints are KV hints. And regular join hints are
-     * LIST hints.
-     */
-    public static boolean isKVQueryHint(String hintName) {
-        return JoinStrategy.isLookupHint(hintName) || StateTtlHint.isStateTtlHint(hintName);
     }
 }

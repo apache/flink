@@ -253,7 +253,7 @@ public abstract class FlinkHintStrategies {
 
                 litmus.check(
                         ttlHint.kvOptions.size() > 0,
-                        "Invalid hint about STATE_TTL, expecting at least one key-value options specified.");
+                        "Invalid STATE_TTL hint, expecting at least one key-value options specified.");
 
                 // validate the hint value
                 ttlHint.kvOptions

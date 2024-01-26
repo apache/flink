@@ -129,7 +129,7 @@ public class ClearStateTtlHintsWithInvalidPropagationShuttleTest
         //          FROM t4 GROUP BY t4.a, t4.b
         //  ) tmp GROUP BY tmp.a
         Map<String, String> hintOptions = new HashMap<>();
-        hintOptions.put("t1", "1d");
+        hintOptions.put("t4", "1d");
 
         RelHint stateTtlHint = RelHint.builder("StaTe_TtL").hintOptions(hintOptions).build();
 
@@ -159,7 +159,7 @@ public class ClearStateTtlHintsWithInvalidPropagationShuttleTest
         //          FROM t4 GROUP BY t4.a, t4.b
         //  ) tmp GROUP BY tmp.a
         Map<String, String> hintOptionsInner = new HashMap<>();
-        hintOptionsInner.put("t1", "1d");
+        hintOptionsInner.put("t4", "1d");
 
         RelHint stateTtlHintInner =
                 RelHint.builder("StaTe_TtL").hintOptions(hintOptionsInner).build();

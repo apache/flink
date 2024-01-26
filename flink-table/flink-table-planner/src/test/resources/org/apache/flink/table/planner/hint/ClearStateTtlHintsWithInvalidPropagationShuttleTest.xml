@@ -19,33 +19,33 @@ limitations under the License.
   <TestCase name="testClearStateTtlHintOnAggregate">
     <Resource name="beforePropagatingHints">
       <![CDATA[
-LogicalAggregate(group=[{0}], max=[MAX($1)], stateTtlHints=[[[StaTe_TtL options:[2d]]]]), rowType=[RecordType(BIGINT a, BIGINT max)]
+LogicalAggregate(group=[{0}], max=[MAX($1)], stateTtlHints=[[[StaTe_TtL options:{tmp=2d}]]]), rowType=[RecordType(BIGINT a, BIGINT max)]
 +- LogicalProject(a=[$0], cnt=[$2]), rowType=[RecordType(BIGINT a, BIGINT cnt)]
-   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)], stateTtlHints=[[[StaTe_TtL options:[1d]]]], hints=[[[ALIAS options:[tmp]]]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT cnt)]
+   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)], stateTtlHints=[[[StaTe_TtL options:{t4=1d}]]], hints=[[[ALIAS options:[tmp]]]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT cnt)]
       +- LogicalTableScan(table=[[builtin, default, t4]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT c)]
 ]]>
     </Resource>
     <Resource name="afterPropagatingHints">
       <![CDATA[
-LogicalAggregate(group=[{0}], max=[MAX($1)], stateTtlHints=[[[StaTe_TtL options:[2d]]]]), rowType=[RecordType(BIGINT a, BIGINT max)]
+LogicalAggregate(group=[{0}], max=[MAX($1)], stateTtlHints=[[[StaTe_TtL options:{tmp=2d}]]]), rowType=[RecordType(BIGINT a, BIGINT max)]
 +- LogicalProject(a=[$0], cnt=[$2]), rowType=[RecordType(BIGINT a, BIGINT cnt)]
-   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)], stateTtlHints=[[[StaTe_TtL options:[1d]][StaTe_TtL inheritPath:[0, 0] options:[2d]]]], hints=[[[ALIAS options:[tmp]]]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT cnt)]
+   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)], stateTtlHints=[[[StaTe_TtL options:{t4=1d}][StaTe_TtL inheritPath:[0, 0] options:{tmp=2d}]]], hints=[[[ALIAS options:[tmp]]]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT cnt)]
       +- LogicalTableScan(table=[[builtin, default, t4]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT c)]
 ]]>
     </Resource>
     <Resource name="afterCapitalizeJoinHints">
       <![CDATA[
-LogicalAggregate(group=[{0}], max=[MAX($1)], stateTtlHints=[[[STATE_TTL options:[2d]]]]), rowType=[RecordType(BIGINT a, BIGINT max)]
+LogicalAggregate(group=[{0}], max=[MAX($1)], stateTtlHints=[[[STATE_TTL options:{tmp=2d}]]]), rowType=[RecordType(BIGINT a, BIGINT max)]
 +- LogicalProject(a=[$0], cnt=[$2]), rowType=[RecordType(BIGINT a, BIGINT cnt)]
-   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)], stateTtlHints=[[[STATE_TTL options:[1d]][STATE_TTL inheritPath:[0, 0] options:[2d]]]], hints=[[[ALIAS options:[tmp]]]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT cnt)]
+   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)], stateTtlHints=[[[STATE_TTL options:{t4=1d}][STATE_TTL inheritPath:[0, 0] options:{tmp=2d}]]], hints=[[[ALIAS options:[tmp]]]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT cnt)]
       +- LogicalTableScan(table=[[builtin, default, t4]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT c)]
 ]]>
     </Resource>
     <Resource name="afterClearingJoinHints">
       <![CDATA[
-LogicalAggregate(group=[{0}], max=[MAX($1)], stateTtlHints=[[[STATE_TTL options:[2d]]]]), rowType=[RecordType(BIGINT a, BIGINT max)]
+LogicalAggregate(group=[{0}], max=[MAX($1)], stateTtlHints=[[[STATE_TTL options:{tmp=2d}]]]), rowType=[RecordType(BIGINT a, BIGINT max)]
 +- LogicalProject(a=[$0], cnt=[$2]), rowType=[RecordType(BIGINT a, BIGINT cnt)]
-   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)], stateTtlHints=[[[STATE_TTL options:[1d]]]], hints=[[[ALIAS options:[tmp]]]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT cnt)]
+   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)], stateTtlHints=[[[STATE_TTL options:{t4=1d}]]], hints=[[[ALIAS options:[tmp]]]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT cnt)]
       +- LogicalTableScan(table=[[builtin, default, t4]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT c)]
 ]]>
     </Resource>
@@ -147,7 +147,7 @@ LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
       <![CDATA[
 LogicalAggregate(group=[{0}], max=[MAX($1)]), rowType=[RecordType(BIGINT a, BIGINT max)]
 +- LogicalProject(a=[$0], cnt=[$2]), rowType=[RecordType(BIGINT a, BIGINT cnt)]
-   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)], stateTtlHints=[[[StaTe_TtL options:[1d]]]], hints=[[[ALIAS options:[tmp]]]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT cnt)]
+   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)], stateTtlHints=[[[StaTe_TtL options:{t4=1d}]]], hints=[[[ALIAS options:[tmp]]]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT cnt)]
       +- LogicalTableScan(table=[[builtin, default, t4]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT c)]
 ]]>
     </Resource>
@@ -155,7 +155,7 @@ LogicalAggregate(group=[{0}], max=[MAX($1)]), rowType=[RecordType(BIGINT a, BIGI
       <![CDATA[
 LogicalAggregate(group=[{0}], max=[MAX($1)]), rowType=[RecordType(BIGINT a, BIGINT max)]
 +- LogicalProject(a=[$0], cnt=[$2]), rowType=[RecordType(BIGINT a, BIGINT cnt)]
-   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)], stateTtlHints=[[[StaTe_TtL options:[1d]]]], hints=[[[ALIAS options:[tmp]]]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT cnt)]
+   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)], stateTtlHints=[[[StaTe_TtL options:{t4=1d}]]], hints=[[[ALIAS options:[tmp]]]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT cnt)]
       +- LogicalTableScan(table=[[builtin, default, t4]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT c)]
 ]]>
     </Resource>
@@ -163,7 +163,7 @@ LogicalAggregate(group=[{0}], max=[MAX($1)]), rowType=[RecordType(BIGINT a, BIGI
       <![CDATA[
 LogicalAggregate(group=[{0}], max=[MAX($1)]), rowType=[RecordType(BIGINT a, BIGINT max)]
 +- LogicalProject(a=[$0], cnt=[$2]), rowType=[RecordType(BIGINT a, BIGINT cnt)]
-   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)], stateTtlHints=[[[STATE_TTL options:[1d]]]], hints=[[[ALIAS options:[tmp]]]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT cnt)]
+   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)], stateTtlHints=[[[STATE_TTL options:{t4=1d}]]], hints=[[[ALIAS options:[tmp]]]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT cnt)]
       +- LogicalTableScan(table=[[builtin, default, t4]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT c)]
 ]]>
     </Resource>
@@ -171,7 +171,7 @@ LogicalAggregate(group=[{0}], max=[MAX($1)]), rowType=[RecordType(BIGINT a, BIGI
       <![CDATA[
 LogicalAggregate(group=[{0}], max=[MAX($1)]), rowType=[RecordType(BIGINT a, BIGINT max)]
 +- LogicalProject(a=[$0], cnt=[$2]), rowType=[RecordType(BIGINT a, BIGINT cnt)]
-   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)], stateTtlHints=[[[STATE_TTL options:[1d]]]], hints=[[[ALIAS options:[tmp]]]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT cnt)]
+   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)], stateTtlHints=[[[STATE_TTL options:{t4=1d}]]], hints=[[[ALIAS options:[tmp]]]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT cnt)]
       +- LogicalTableScan(table=[[builtin, default, t4]]), rowType=[RecordType(BIGINT a, BIGINT b, BIGINT c)]
 ]]>
     </Resource>

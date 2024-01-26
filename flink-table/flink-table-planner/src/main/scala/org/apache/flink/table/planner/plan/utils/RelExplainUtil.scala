@@ -931,7 +931,7 @@ object RelExplainUtil {
     subset.map { case (k, v) => s"$k = (${v.mkString(", ")})" }.mkString(", ")
 
   /** Converts [[RelHint]]s to String. */
-  def hintsToString(hints: util.List[RelHint], ignoreKeyOnKVHints: Boolean = false): String = {
+  def hintsToString(hints: util.List[RelHint]): String = {
     val sb = new StringBuilder
     sb.append("[")
     hints.foreach {
@@ -945,11 +945,7 @@ object RelExplainUtil {
           if (hint.listOptions.size > 0) {
             sb.append(hint.listOptions.toString)
           } else {
-            if (ignoreKeyOnKVHints) {
-              sb.append(hint.kvOptions.values().toString)
-            } else {
-              sb.append(hint.kvOptions.toString)
-            }
+            sb.append(hint.kvOptions.toString)
           }
         }
         sb.append("]")
