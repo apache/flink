@@ -57,8 +57,11 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OperatorAttributes;
+import org.apache.flink.streaming.api.operators.OperatorAttributesBuilder;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
@@ -525,6 +528,16 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
             // need to make sure to update the merging state in state
             mergingWindows.persist();
         }
+    }
+
+    @Override
+    public OperatorAttributes getOperatorAttributes() {
+        boolean isOutputOnlyAfterEndOfStream =
+                windowAssigner instanceof GlobalWindows
+                        && trigger instanceof GlobalWindows.EndOfStreamTrigger;
+        return new OperatorAttributesBuilder()
+                .setOutputOnlyAfterEndOfStream(isOutputOnlyAfterEndOfStream)
+                .build();
     }
 
     /**
