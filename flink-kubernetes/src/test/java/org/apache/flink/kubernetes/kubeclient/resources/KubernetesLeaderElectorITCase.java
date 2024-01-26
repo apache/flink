@@ -24,6 +24,8 @@ import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfigu
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -43,14 +45,27 @@ class KubernetesLeaderElectorITCase {
 
     private final FlinkKubeClientFactory kubeClientFactory = new FlinkKubeClientFactory();
 
-    private static final String LEADER_CONFIGMAP_NAME_PREFIX = "leader-test-cluster";
+    private String configMapName;
+
+    @BeforeEach
+    void initializeConfigMapName() {
+        this.configMapName =
+                String.format(
+                        "%s-configmap-%s",
+                        // needs to comply to RFC-1123
+                        KubernetesLeaderElectorITCase.class.getSimpleName().toLowerCase(),
+                        UUID.randomUUID());
+    }
+
+    @AfterEach
+    void deleteConfigMapName() {
+        kubernetesExtension.getFlinkKubeClient().deleteConfigMap(this.configMapName).join();
+    }
 
     @Test
     void testMultipleKubernetesLeaderElectors() throws Exception {
         final Configuration configuration = kubernetesExtension.getConfiguration();
 
-        final String leaderConfigMapName =
-                LEADER_CONFIGMAP_NAME_PREFIX + System.currentTimeMillis();
         final int leaderNum = 3;
 
         final KubernetesLeaderElector[] leaderElectors = new KubernetesLeaderElector[leaderNum];
@@ -66,7 +81,7 @@ class KubernetesLeaderElectorITCase {
                         new TestingLeaderCallbackHandler(UUID.randomUUID().toString());
                 final KubernetesLeaderElectionConfiguration leaderConfig =
                         new KubernetesLeaderElectionConfiguration(
-                                leaderConfigMapName,
+                                configMapName,
                                 leaderCallbackHandlers[i].getLockIdentity(),
                                 configuration);
                 leaderElectors[i] =
@@ -109,7 +124,6 @@ class KubernetesLeaderElectorITCase {
                     kubeClients[i].close();
                 }
             }
-            kubernetesExtension.getFlinkKubeClient().deleteConfigMap(leaderConfigMapName).get();
         }
     }
 
@@ -117,16 +131,11 @@ class KubernetesLeaderElectorITCase {
     void testClusterConfigMapLabelsAreSet() throws Exception {
         final Configuration configuration = kubernetesExtension.getConfiguration();
 
-        final String leaderConfigMapName =
-                LEADER_CONFIGMAP_NAME_PREFIX + System.currentTimeMillis();
-
         final TestingLeaderCallbackHandler leaderCallbackHandler =
                 new TestingLeaderCallbackHandler(UUID.randomUUID().toString());
         final KubernetesLeaderElectionConfiguration leaderConfig =
                 new KubernetesLeaderElectionConfiguration(
-                        leaderConfigMapName,
-                        leaderCallbackHandler.getLockIdentity(),
-                        configuration);
+                        configMapName, leaderCallbackHandler.getLockIdentity(), configuration);
 
         try (FlinkKubeClient kubeClient =
                 kubeClientFactory.fromConfiguration(configuration, "testing")) {
@@ -137,7 +146,7 @@ class KubernetesLeaderElectorITCase {
 
                 TestingLeaderCallbackHandler.waitUntilNewLeaderAppears();
 
-                assertThat(kubeClient.getConfigMap(leaderConfigMapName))
+                assertThat(kubeClient.getConfigMap(configMapName))
                         .hasValueSatisfying(
                                 configMap ->
                                         assertThat(configMap.getLabels())
@@ -148,8 +157,6 @@ class KubernetesLeaderElectorITCase {
             } finally {
                 leaderElector.stop();
             }
-        } finally {
-            kubernetesExtension.getFlinkKubeClient().deleteConfigMap(leaderConfigMapName).get();
         }
     }
 }
