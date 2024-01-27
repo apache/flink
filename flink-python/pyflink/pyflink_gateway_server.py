@@ -69,10 +69,23 @@ def read_from_config(key, default_value, flink_conf_directory):
             # If config.yaml exists, use YAML parser to read the value
             with open(os.path.realpath(config_file), "r") as f:
                 config = yaml.safe_load(f)
-                return config.get(key, default_value)
+                flat_config = flatten_config(config)
+                return flat_config.get(key, default_value)
 
     # If neither file exists, return the default value
     return default_value
+
+
+def flatten_config(config, parent_key=''):
+    items = []
+    sep = '.'
+    for k, v in config.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_config(v, new_key).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
 
 def find_java_executable():
