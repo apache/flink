@@ -188,30 +188,6 @@ under the License.
 						</configuration>
 					</execution>
 
-					<!-- Async I/O -->
-					<execution>
-						<id>AsyncIO</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>AsyncIO</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.async.AsyncIOExample</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/streaming/examples/async/*.class</include>
-								<include>META-INF/LICENSE</include>
-								<include>META-INF/NOTICE</include>
-							</includes>
-						</configuration>
-					</execution>
-
 					<!-- WordCount -->
 					<execution>
 						<id>WordCount</id>
@@ -274,6 +250,42 @@ under the License.
 					<createDependencyReducedPom>false</createDependencyReducedPom>
 				</configuration>
 				<executions>
+					<!-- Async I/O -->
+					<execution>
+						<id>AsyncIO</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<finalName>AsyncIO</finalName>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>AsyncIO</shadedClassifierName>
+							<artifactSet>
+								<includes>
+									<include>org.apache.flink:flink-connector-datagen</include>
+								</includes>
+							</artifactSet>
+							<filters>
+								<filter>
+									<artifact>org.apache.flink:*</artifact>
+									<includes>
+										<include>org/apache/flink/connector/datagen/**</include>
+										<include>org/apache/flink/streaming/examples/async/*.class</include>
+										<include>META-INF/LICENSE</include>
+										<include>META-INF/NOTICE</include>
+									</includes>
+								</filter>
+							</filters>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.examples.async.AsyncIOExample</mainClass>
+								</transformer>
+							</transformers>
+						</configuration>
+					</execution>
+
 					<!-- MatrixVectorMul. It is not bundled with Flink dist, nor deployed in Maven repo,
 					as it is platform-dependent. Users are expected to compile and run it with custom
 					jcuda version specified by themselves with the "jcuda.version" property.-->
