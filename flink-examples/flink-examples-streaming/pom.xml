@@ -312,6 +312,8 @@ under the License.
 						<configuration>
 							<shadeTestJar>false</shadeTestJar>
 							<finalName>Iteration</finalName>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>Iteration</shadedClassifierName>
 							<artifactSet>
 								<includes>
 									<include>org.apache.flink:flink-connector-datagen</include>
@@ -346,6 +348,8 @@ under the License.
 						<configuration>
 							<shadeTestJar>false</shadeTestJar>
 							<finalName>TopSpeedWindowing</finalName>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>TopSpeedWindowing</shadedClassifierName>
 							<artifactSet>
 								<includes>
 									<include>org.apache.flink:flink-connector-datagen</include>
@@ -383,6 +387,8 @@ under the License.
 						<configuration>
 							<shadeTestJar>false</shadeTestJar>
 							<finalName>SessionWindowing</finalName>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>SessionWindowing</shadedClassifierName>
 							<artifactSet>
 								<includes>
 									<include>org.apache.flink:flink-connector-datagen</include>
