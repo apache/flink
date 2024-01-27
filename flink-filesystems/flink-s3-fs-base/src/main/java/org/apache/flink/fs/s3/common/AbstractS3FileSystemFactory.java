@@ -41,6 +41,24 @@ import java.net.URI;
 /** Base class for file system factories that create S3 file systems. */
 public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
 
+    public static final ConfigOption<String> ACCESS_KEY =
+            ConfigOptions.key("s3.access-key")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("This optionally defines S3 access key.");
+
+    public static final ConfigOption<String> SECRET_KEY =
+            ConfigOptions.key("s3.secret-key")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("This optionally defines S3 secret key.");
+
+    public static final ConfigOption<String> ENDPOINT =
+            ConfigOptions.key("s3.endpoint")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("This optionally defines S3 endpoint.");
+
     public static final ConfigOption<Long> PART_UPLOAD_MIN_SIZE =
             ConfigOptions.key("s3.upload.min.part.size")
                     .longType()
