@@ -21,6 +21,7 @@ package org.apache.flink.fs.s3presto;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory;
 import org.apache.flink.runtime.fs.hdfs.AbstractHadoopFileSystemITTest;
 import org.apache.flink.testutils.s3.S3TestCredentials;
 
@@ -110,8 +111,8 @@ public class PrestoS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
         {
             Configuration conf = new Configuration();
             conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
-            conf.setString("s3.access-key", S3TestCredentials.getS3AccessKey());
-            conf.setString("s3.secret-key", S3TestCredentials.getS3SecretKey());
+            conf.set(AbstractS3FileSystemFactory.ACCESS_KEY, S3TestCredentials.getS3AccessKey());
+            conf.set(AbstractS3FileSystemFactory.SECRET_KEY, S3TestCredentials.getS3SecretKey());
 
             FileSystem.initialize(conf);
             path.getFileSystem().exists(path);
