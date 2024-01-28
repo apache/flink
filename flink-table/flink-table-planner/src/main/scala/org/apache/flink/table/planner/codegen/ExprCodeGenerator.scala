@@ -132,7 +132,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
    */
   def generateExpression(rex: RexNode): GeneratedExpression = {
     val expr = rex.accept(this)
-    ctx.addReusableExpr(rex, expr)
+    ctx.addReusableExpr(rex, expr, alreadyUsed = false)
     expr
   }
 
@@ -421,7 +421,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   }
 
   override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression = {
-    ctx.getReusableRexNodeExpr(localRef).getOrElse(throw new RuntimeException("Unexpected access to RexLocalRef"))
+    val r = ctx.getReusableRexNodeExpr(localRef).get //.getOrElse(throw new RuntimeException("Unexpected access to RexLocalRef"))
+    r
   }
 
   def visitRexFieldVariable(variable: RexFieldVariable): GeneratedExpression = {
@@ -473,7 +474,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         case Some(expr) => expr
         case _ =>
           val generatedExpression = generateExpression(op0)
-          ctx.addReusableExpr(op0, generatedExpression)
+          ctx.addReusableExpr(op0, generatedExpression, alreadyUsed = true)
           generatedExpression
       }
 

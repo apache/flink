@@ -172,11 +172,10 @@ object CalcCodeGenerator {
          |""".stripMargin
     }
 
-    expr.map(
+    val tt = expr.map(
       p => {
-//      println(p)
+      println(p)
         exprGenerator.generateExpression(p)
-//      println("asd")
       })
     if (condition.isEmpty && onlyFilter) {
       throw new TableException(
