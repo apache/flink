@@ -235,15 +235,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Added in FLINK-29081, FLINK-28682, FLINK-33395: Lines 655 ~ 673
- *   <li>Added in Flink-24024: Lines 1437 ~ 1447, Lines 1461 ~ 1503
- *   <li>Added in FLINK-28682: Lines 2325 ~ 2342
- *   <li>Added in FLINK-28682: Lines 2379 ~ 2407
- *   <li>Added in FLINK-32474: Lines 2877 ~ 2889
- *   <li>Added in FLINK-32474: Lines 2989 ~ 3023
- *   <li>Added in FLINK-20873: Lines 5521 ~ 5530
- *   <li>Added in FLINK-34312: Lines 5641 ~ 5644
- *   <li>Added in FLINK-34057, FLINK-34058, FLINK-34312: Lines 6093 ~ 6111
+ *   <li>Added in FLINK-29081, FLINK-28682, FLINK-33395: Lines 658 ~ 675
+ *   <li>Added in Flink-24024: Lines 1439 ~ 1449
+ *   <li>Added in Flink-24024: Lines 1463 ~ 1506
+ *   <li>Added in FLINK-28682: Lines 2328 ~ 2345
+ *   <li>Added in FLINK-28682: Lines 2382 ~ 2410
+ *   <li>Added in FLINK-32474: Lines 2462 ~ 2464
+ *   <li>Added in FLINK-32474: Lines 2468 ~ 2470
+ *   <li>Added in FLINK-32474: Lines 2481 ~ 2483
+ *   <li>Added in FLINK-32474: Lines 2886 ~ 2898
+ *   <li>Added in FLINK-32474: Lines 2998 ~ 3032
+ *   <li>Added in FLINK-20873: Lines 5529 ~ 5538
+ *   <li>Added in FLINK-34057, FLINK-34058: Lines 6099 ~ 6102
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
@@ -2457,11 +2460,15 @@ public class SqlToRelConverter {
 
             case TABLE_REF:
                 call = (SqlCall) from;
+                // ----- FLINK MODIFICATION BEGIN -----
                 convertIdentifier(bb, call.operand(0), null, call.operand(1), null);
+                // ----- FLINK MODIFICATION END -----
                 return;
 
             case IDENTIFIER:
+                // ----- FLINK MODIFICATION BEGIN -----
                 convertIdentifier(bb, (SqlIdentifier) from, null, null, null);
+                // ----- FLINK MODIFICATION END -----
                 return;
 
             case EXTEND:
@@ -2472,7 +2479,9 @@ public class SqlToRelConverter {
                                 ? ((SqlCall) operand0).operand(0)
                                 : (SqlIdentifier) operand0;
                 SqlNodeList extendedColumns = (SqlNodeList) call.getOperandList().get(1);
+                // ----- FLINK MODIFICATION BEGIN -----
                 convertIdentifier(bb, id, extendedColumns, null, null);
+                // ----- FLINK MODIFICATION END -----
                 return;
 
             case SNAPSHOT:
