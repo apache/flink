@@ -127,9 +127,13 @@ object CalcCodeGenerator {
     // according to the SQL standard, every table function should also be a scalar function
     // but we don't allow that for now
     expr.foreach(_.accept(ScalarFunctionsValidator))
-    condition.foreach(_.accept(ScalarFunctionsValidator))
+    val conditionExpr = condition match {
+      case Some(c) => Some(expr(c.getIndex))
+      case _ => None
+    }
+    conditionExpr.foreach(_.accept(ScalarFunctionsValidator))
 
-    expr.foreach(e => ctx.allExpressions += e)
+    ctx.initExpressions(expr)
 
     val exprGenerator = new ExprCodeGenerator(ctx, false)
       .bindInput(inputType, inputTerm = inputTerm)
@@ -143,9 +147,13 @@ object CalcCodeGenerator {
     }
 
     def produceProjectionCode: String = {
-      val projectionExprs = expr.map(p => exprGenerator.generateExpression(p))
+//      val projectionExprs = expr.map(p => {
+//        println(p)
+//        exprGenerator.generateExpression(p)
+//        println("asd")
+//      })
 
-      val projectGeneratedExpr = projection.map(p => ctx.getReusableRexNodeExpr(p))
+      val projectGeneratedExpr = projection.map(p => ctx.getReusableRexNodeExpr(p).get)
       val projectionExpression =
         exprGenerator.generateResultExpression(projectGeneratedExpr, outRowType, outRowClass)
 
@@ -164,6 +172,12 @@ object CalcCodeGenerator {
          |""".stripMargin
     }
 
+    expr.map(
+      p => {
+//      println(p)
+        exprGenerator.generateExpression(p)
+//      println("asd")
+      })
     if (condition.isEmpty && onlyFilter) {
       throw new TableException(
         "This calc has no useful projection and no filter. " +
@@ -177,7 +191,7 @@ object CalcCodeGenerator {
     } else {
       // only filter
       if (onlyFilter) {
-        val filterCondition = exprGenerator.generateExpression(condition.get)
+        val filterCondition = exprGenerator.generateExpression(conditionExpr.get)
         s"""
            |${if (eagerInputUnboxingCode) ctx.reuseInputUnboxingCode() else ""}
            |${filterCondition.code}
@@ -189,7 +203,7 @@ object CalcCodeGenerator {
 
         // if any filter conditions, projection code will enter an new scope
         val projectionCode = produceProjectionCode
-        val filterCondition = exprGenerator.generateExpression(condition.get)
+        val filterCondition = exprGenerator.generateExpression(conditionExpr.get)
         val filterInputCode = ctx.reuseInputUnboxingCode()
         val filterInputSet = Set(ctx.reusableInputUnboxingExprs.keySet.toSeq: _*)
 

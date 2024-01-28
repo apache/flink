@@ -378,12 +378,14 @@ object FlinkRexUtil {
    * @return
    *   Return a triple consisting of new expression list, project list, and condition.
    */
-  def optimizeExpressions(program: RexProgram): (Seq[RexNode], Seq[RexLocalRef], RexLocalRef) = {
-    val accessFinder = new AccessedLocalRefsFinder(program.getExprList)
+  def optimizeExpressions(
+      program: RexProgram,
+      rexBuilder: RexBuilder): (Seq[RexNode], Seq[RexLocalRef], RexLocalRef) = {
     val origExpresion = program.getExprList
     val origProject = program.getProjectList
     val origCondition = program.getCondition
 
+    val accessFinder = new AccessedLocalRefsFinder(origExpresion)
     origProject.forEach(e => e.accept(accessFinder))
     if (program.getCondition != null) {
       origCondition.accept(accessFinder)
@@ -399,6 +401,10 @@ object FlinkRexUtil {
       case call: RexCall =>
         val updatedOperands = call.getOperands.map(updateRexNode)
         call.clone(call.getType, updatedOperands)
+
+      case fieldAccess: RexFieldAccess =>
+        val updatedExpr = updateRexNode(fieldAccess.getReferenceExpr)
+        rexBuilder.makeFieldAccess(updatedExpr, fieldAccess.getField.getIndex)
       case _ => node
     }
 
@@ -406,7 +412,11 @@ object FlinkRexUtil {
       .collect {
         case (element, index) if newIndexMapping.contains(index) => element
       }
-      .map(e => updateRexNode(e))
+      .map(
+        e => {
+//        println(e)
+          updateRexNode(e)
+        })
 
     val newProjects = origProject.map(e => updateRexNode(e).asInstanceOf[RexLocalRef])
     val newCondition =

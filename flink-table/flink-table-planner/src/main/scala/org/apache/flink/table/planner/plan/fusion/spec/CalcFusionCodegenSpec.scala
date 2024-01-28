@@ -32,7 +32,7 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 /** The operator fusion codegen spec for Calc. */
 class CalcFusionCodegenSpec(
     opCodegenCtx: CodeGeneratorContext,
-    expr: Seq[RexNode],
+    expression: Seq[RexNode],
     projection: Seq[RexLocalRef],
     condition: Option[RexLocalRef])
   extends OpFusionCodegenSpecBase(opCodegenCtx) {
@@ -56,6 +56,13 @@ class CalcFusionCodegenSpec(
             rexNode.isInstanceOf[RexInputRef] && rexNode.asInstanceOf[RexInputRef].getIndex == index
         }
 
+    opCodegenCtx.initExpressions(expression)
+    expression.map(
+      p => {
+              println(p)
+        getExprCodeGenerator.generateExpression(p)
+              println("asd")
+      })
     val projectionUsedColumns =
       extractRefInputFields(projection, fusionContext.getInputFusionContexts.head.getOutputType)
     if (condition.isEmpty && onlyFilter) {

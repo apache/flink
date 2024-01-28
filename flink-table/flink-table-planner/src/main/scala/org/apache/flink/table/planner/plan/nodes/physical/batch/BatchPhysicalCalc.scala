@@ -45,7 +45,7 @@ class BatchPhysicalCalc(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
-    val optimizedExprs = FlinkRexUtil.optimizeExpressions(calcProgram)
+    val optimizedExprs = FlinkRexUtil.optimizeExpressions(calcProgram, cluster.getRexBuilder)
 
     new BatchExecCalc(
       unwrapTableConfig(this),

@@ -125,11 +125,11 @@ class CodeGeneratorContext(
     mutable.LinkedHashSet[(String, String)]()
 
   // mapping between RexNode and GeneratedExpressions
-  val reusableExpr: mutable.Map[RexNode, GeneratedExpression] =
+  private val reusableExpr: mutable.Map[RexNode, GeneratedExpression] =
     mutable.Map[RexNode, GeneratedExpression]()
 
   // list of all expressions
-  val allExpressions: mutable.MutableList[RexNode] = mutable.MutableList[RexNode]()
+  private val allExpressions: mutable.MutableList[RexNode] = mutable.MutableList[RexNode]()
 
   // set of inner class definition statements that will be added only once
   private val reusableInnerClassDefinitionStatements: mutable.Map[String, String] =
@@ -177,12 +177,25 @@ class CodeGeneratorContext(
   // Getter
   // ---------------------------------------------------------------------------------
 
-  def getReusableRexNodeExpr(rexNode: RexNode): GeneratedExpression = {
-    rexNode match {
-      case localRef: RexLocalRef => reusableExpr(allExpressions(localRef.getIndex))
-      case _ => reusableExpr(rexNode)
+  def getReusableExpr(idx: Int): RexNode = {
+    allExpressions(idx)
+  }
+  def getReusableRexNodeExpr(rexNode: RexNode): Option[GeneratedExpression] = {
+    if (allExpressions.isEmpty) {
+      return None
+    }
+    val nonLocalRefNode = rexNode match {
+      case localRef: RexLocalRef => allExpressions(localRef.getIndex)
+      case _ => rexNode
+      }
+
+    if (reusableExpr.contains(nonLocalRefNode)) {
+      Some(reusableExpr(nonLocalRefNode))
+    } else {
+      None
     }
   }
+
   def getReusableInputUnboxingExprs(inputTerm: String, index: Int): Option[GeneratedExpression] =
     reusableInputUnboxingExprs.get((inputTerm, index))
 
@@ -196,8 +209,16 @@ class CodeGeneratorContext(
    * @param comment
    *   The comment to add for class header
    */
+
   def addReusableHeaderComment(comment: String): Unit = {
     reusableHeaderComments.add(comment)
+  }
+
+  def addReusableExpr(op: RexNode, generatedExpression: GeneratedExpression): Unit = {
+    reusableExpr(op) = generatedExpression
+  }
+  def initExpressions(expr: Seq[RexNode]): Unit = {
+    expr.foreach(e => allExpressions += e)
   }
 
   // ---------------------------------------------------------------------------------

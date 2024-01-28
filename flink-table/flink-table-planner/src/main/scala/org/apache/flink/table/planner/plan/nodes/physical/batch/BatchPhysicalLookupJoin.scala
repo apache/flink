@@ -69,7 +69,7 @@ class BatchPhysicalLookupJoin(
     val (exprOnTemporalTable, projectionOnTemporalTable, filterOnTemporalTable) =
       calcOnTemporalTable match {
         case Some(program) =>
-          val optimizedExprs = FlinkRexUtil.optimizeExpressions(program)
+          val optimizedExprs = FlinkRexUtil.optimizeExpressions(program, cluster.getRexBuilder)
           (optimizedExprs._1, optimizedExprs._2, optimizedExprs._3)
         case _ =>
           (null, null, null)

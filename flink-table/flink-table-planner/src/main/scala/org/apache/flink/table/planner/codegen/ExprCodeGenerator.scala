@@ -132,7 +132,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
    */
   def generateExpression(rex: RexNode): GeneratedExpression = {
     val expr = rex.accept(this)
-    ctx.reusableExpr(rex) = expr
+    ctx.addReusableExpr(rex, expr)
     expr
   }
 
@@ -421,8 +421,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   }
 
   override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression = {
-    val nonLocalRefExpr = ctx.allExpressions(localRef.getIndex)
-    ctx.reusableExpr(nonLocalRefExpr)
+    ctx.getReusableRexNodeExpr(localRef).getOrElse(throw new RuntimeException("Unexpected access to RexLocalRef"))
   }
 
   def visitRexFieldVariable(variable: RexFieldVariable): GeneratedExpression = {
@@ -469,22 +468,17 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     if (call.getKind == SqlKind.SEARCH) {
       val op0 = call.getOperands.get(0)
 
-      val generatedExpression0 = op0 match {
-        case localRef: RexLocalRef => ctx.reusableExpr(ctx.allExpressions(localRef.getIndex))
-        case _ => {
-          if (ctx.reusableExpr.contains(op0)) {
-            ctx.reusableExpr(op0)
-          } else {
-            val generatedExpression = generateExpression(op0);
-            ctx.reusableExpr(op0) = generatedExpression
-            generatedExpression
-          }
-
-        }
+      val checkExistingExpression0 = ctx.getReusableRexNodeExpr(op0)
+      val generatedExpression0 = checkExistingExpression0 match {
+        case Some(expr) => expr
+        case _ =>
+          val generatedExpression = generateExpression(op0)
+          ctx.addReusableExpr(op0, generatedExpression)
+          generatedExpression
       }
 
       val op1 = call.getOperands.get(1) match {
-        case localRef: RexLocalRef => ctx.allExpressions(localRef.getIndex)
+        case localRef: RexLocalRef => ctx.getReusableExpr(localRef.getIndex)
         case _ => call.getOperands.get(1)
       }
       return generateSearch(ctx, generatedExpression0, op1.asInstanceOf[RexLiteral])
@@ -503,7 +497,12 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case (o @ _, _) => o.accept(this)
     }
 
-    generateCallExpression(ctx, call, operands, resultType)
+    val callOperandsWithoutLocalRef = call.getOperands.map {
+      case localRef: RexLocalRef => ctx.getReusableExpr(localRef.getIndex)
+      case op => op
+    }
+    val callWithoutLocalRef = call.clone(call.getType, callOperandsWithoutLocalRef)
+    generateCallExpression(ctx, callWithoutLocalRef, operands, resultType)
   }
 
   override def visitOver(over: RexOver): GeneratedExpression =

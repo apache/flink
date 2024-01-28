@@ -45,7 +45,7 @@ class StreamPhysicalCalc(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
-    val optimizedExprs = FlinkRexUtil.optimizeExpressions(calcProgram)
+    val optimizedExprs = FlinkRexUtil.optimizeExpressions(calcProgram, cluster.getRexBuilder)
 
     new StreamExecCalc(
       unwrapTableConfig(this),
