@@ -100,11 +100,14 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
 
     @Override
     public void processElement(StreamRecord<RowData> element) throws Exception {
-        if (idleTimeout > 0 && currentStatus.equals(WatermarkStatus.IDLE)) {
-            // mark the channel active
-            emitWatermarkStatus(WatermarkStatus.ACTIVE);
+        if (idleTimeout > 0) {
+            if (currentStatus.equals(WatermarkStatus.IDLE)) {
+                // mark the channel active
+                emitWatermarkStatus(WatermarkStatus.ACTIVE);
+            }
             lastRecordTime = getProcessingTimeService().getCurrentProcessingTime();
         }
+
         RowData row = element.getValue();
         if (row.isNullAt(rowtimeFieldIndex)) {
             throw new RuntimeException(
