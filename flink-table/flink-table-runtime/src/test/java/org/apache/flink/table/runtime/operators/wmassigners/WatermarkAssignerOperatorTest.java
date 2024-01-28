@@ -85,6 +85,31 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
     }
 
     @Test
+    public void testIdleStateAvoidanceWithConsistentDataFlow() throws Exception {
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(0, WATERMARK_GENERATOR, 1000);
+        testHarness.getExecutionConfig().setAutoWatermarkInterval(50);
+        testHarness.open();
+
+        ConcurrentLinkedQueue<Object> output = testHarness.getOutput();
+        List<Object> expectedOutput = new ArrayList<>();
+
+        // Process elements at intervals less than idleTimeout (1000ms)
+        for (long i = 1; i <= 10; i++) {
+            long timestamp = i * 900;
+            testHarness.processElement(new StreamRecord<>(GenericRowData.of(timestamp), timestamp));
+            testHarness.setProcessingTime(timestamp);
+
+            // Expect a watermark for each element, lagging by 1
+            expectedOutput.add(new Watermark(timestamp - 1));
+        }
+
+        // Check if the status ever becomes IDLE (it shouldn't)
+        assertThat(extractWatermarkStatuses(output)).doesNotContain(WatermarkStatus.IDLE);
+        assertThat(filterOutRecords(output)).isEqualTo(expectedOutput);
+    }
+
+    @Test
     public void testWatermarkAssignerOperator() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createTestHarness(0, WATERMARK_GENERATOR, -1);
