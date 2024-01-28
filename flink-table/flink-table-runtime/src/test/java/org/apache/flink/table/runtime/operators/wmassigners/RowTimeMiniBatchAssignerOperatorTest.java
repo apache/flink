@@ -32,12 +32,12 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests of {@link RowTimeMiniBatchAssginerOperator}. */
-public class RowTimeMiniBatchAssginerOperatorTest extends WatermarkAssignerOperatorTestBase {
+/** Tests of {@link RowTimeMiniBatchAssignerOperator}. */
+public class RowTimeMiniBatchAssignerOperatorTest extends WatermarkAssignerOperatorTestBase {
 
     @Test
     public void testRowTimeWatermarkAssigner() throws Exception {
-        final RowTimeMiniBatchAssginerOperator operator = new RowTimeMiniBatchAssginerOperator(5);
+        final RowTimeMiniBatchAssignerOperator operator = new RowTimeMiniBatchAssignerOperator(5);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 new OneInputStreamOperatorTestHarness<>(operator);
         testHarness.open();
@@ -86,7 +86,7 @@ public class RowTimeMiniBatchAssginerOperatorTest extends WatermarkAssignerOpera
 
     @Test
     public void testEndWatermarkIsForwarded() throws Exception {
-        final RowTimeMiniBatchAssginerOperator operator = new RowTimeMiniBatchAssginerOperator(50);
+        final RowTimeMiniBatchAssignerOperator operator = new RowTimeMiniBatchAssignerOperator(50);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 new OneInputStreamOperatorTestHarness<>(operator);
         testHarness.open();
