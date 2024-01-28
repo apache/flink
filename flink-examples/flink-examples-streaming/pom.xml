@@ -274,7 +274,9 @@ under the License.
 					<createDependencyReducedPom>false</createDependencyReducedPom>
 				</configuration>
 				<executions>
-					<!-- MatrixVectorMul -->
+					<!-- MatrixVectorMul. It is not bundled with Flink dist, nor deployed in Maven repo,
+					as it is platform-dependent. Users are expected to compile and run it with custom
+					jcuda version specified by themselves with the "jcuda.version" property.-->
 					<execution>
 						<id>MatrixVectorMul</id>
 						<phase>package</phase>
