@@ -87,7 +87,7 @@ import static java.util.Objects.requireNonNull;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Port fix of CALCITE-6317 (Calcite 1.37.0): Lines 328~351, 396~398
+ *   <li>Port fix of CALCITE-6317 (Calcite 1.37.0): Lines 333~357, 402~404
  * </ol>
  *
  * <p>This is currently used by {@link
@@ -274,6 +274,11 @@ public class RelMdPredicates implements MetadataHandler<BuiltInMetadata.Predicat
         }
         // Cannot weaken to anything non-trivial
         return rexBuilder.makeLiteral(true);
+    }
+
+    /** Infers predicates for a correlate node. */
+    public RelOptPredicateList getPredicates(Correlate correlate, RelMetadataQuery mq) {
+        return mq.getPulledUpPredicates(correlate.getLeft());
     }
 
     /** Add the Filter condition to the pulledPredicates list from the input. */
