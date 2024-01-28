@@ -27,8 +27,10 @@ public interface RemoteCalcCallFinder {
 
     // If the node contains directly or indirectly a remote call.
     boolean containsRemoteCall(RexNode node);
+
     // If the node contains directly or indirectly a non-remote call.
     boolean containsNonRemoteCall(RexNode node);
+
     // If the node contains directly a remote call.
     boolean isRemoteCall(RexNode node);
 

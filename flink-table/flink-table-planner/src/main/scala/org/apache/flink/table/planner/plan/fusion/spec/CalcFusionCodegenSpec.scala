@@ -59,9 +59,9 @@ class CalcFusionCodegenSpec(
     opCodegenCtx.initExpressions(expression)
     expression.map(
       p => {
-              println(p)
+//              println(p)
         getExprCodeGenerator.generateExpression(p)
-              println("asd")
+//              println("asd")
       })
     val projectionUsedColumns =
       extractRefInputFields(projection, fusionContext.getInputFusionContexts.head.getOutputType)

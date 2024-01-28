@@ -34,13 +34,14 @@ import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.util.InstantiationUtil
+
 import org.apache.calcite.rex.{RexLocalRef, RexNode}
-import org.apache.flink.table.planner.codegen.GeneratedExpression.NO_CODE
 
 import java.time.ZoneId
 import java.util.TimeZone
 import java.util.concurrent.atomic.AtomicLong
 import java.util.function.{Supplier => JSupplier}
+
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
@@ -124,8 +125,12 @@ class CodeGeneratorContext(
     mutable.LinkedHashSet[(String, String)]()
 
   // mapping between RexNode and GeneratedExpressions
-  private val reusableExpr: mutable.Map[RexNode, (GeneratedExpression, Boolean)] =
-    mutable.Map[RexNode, (GeneratedExpression, Boolean)]()
+  val cachedExprs: mutable.Map[Int, Boolean] =
+    mutable.Map[Int, Boolean]()
+
+  // mapping between RexNode and GeneratedExpressions
+  private val reusableExpr: mutable.Map[RexNode, GeneratedExpression] =
+    mutable.Map[RexNode, GeneratedExpression]()
 
   // list of all expressions
   private val allExpressions: mutable.MutableList[RexNode] = mutable.MutableList[RexNode]()
@@ -186,18 +191,10 @@ class CodeGeneratorContext(
     val nonLocalRefNode = rexNode match {
       case localRef: RexLocalRef => allExpressions(localRef.getIndex)
       case _ => rexNode
-      }
+    }
 
     if (reusableExpr.contains(nonLocalRefNode)) {
-      val res = reusableExpr(nonLocalRefNode)
-      val isAlreadyAccessed = res._2
-      val expr = res._1
-      if (isAlreadyAccessed) {
-        Some(new GeneratedExpression(expr.resultTerm, expr.nullTerm, NO_CODE, expr.resultType))
-      } else {
-        reusableExpr(nonLocalRefNode) = (expr, true)
-        Some(expr)
-      }
+      Some(reusableExpr(nonLocalRefNode))
     } else {
       None
     }
@@ -221,8 +218,8 @@ class CodeGeneratorContext(
     reusableHeaderComments.add(comment)
   }
 
-  def addReusableExpr(op: RexNode, generatedExpression: GeneratedExpression, alreadyUsed: Boolean): Unit = {
-    reusableExpr(op) = (generatedExpression, alreadyUsed)
+  def addReusableExpr(op: RexNode, generatedExpression: GeneratedExpression): Unit = {
+    reusableExpr(op) = generatedExpression
   }
   def initExpressions(expr: Seq[RexNode]): Unit = {
     expr.foreach(e => allExpressions += e)

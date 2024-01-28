@@ -29,8 +29,9 @@ import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
-
 import org.apache.calcite.rex._
+
+import scala.collection.mutable
 
 object CalcCodeGenerator {
 
@@ -110,6 +111,15 @@ object CalcCodeGenerator {
       collectorTerm = collectorTerm)
   }
 
+  class AccessedLocalRefsFinder(localRefAccessCount: mutable.Map[Int, Int])
+    extends RexVisitorImpl[Unit](true) {
+    override def visitLocalRef(localRef: RexLocalRef): Unit = {
+      val idx = localRef.getIndex
+      localRefAccessCount(idx) = localRefAccessCount.getOrElse(idx, 0) + 1
+
+    }
+  }
+
   private[flink] def generateProcessCode(
       ctx: CodeGeneratorContext,
       inputType: RowType,
@@ -153,6 +163,7 @@ object CalcCodeGenerator {
 //        println("asd")
 //      })
 
+//      ctx.accessedLocalRefs.clear()
       val projectGeneratedExpr = projection.map(p => ctx.getReusableRexNodeExpr(p).get)
       val projectionExpression =
         exprGenerator.generateResultExpression(projectGeneratedExpr, outRowType, outRowClass)
@@ -172,11 +183,25 @@ object CalcCodeGenerator {
          |""".stripMargin
     }
 
+    val localRefAccessCount: mutable.Map[Int, Int] = mutable.Map[Int, Int]()
     val tt = expr.map(
       p => {
-      println(p)
+        val acc = new AccessedLocalRefsFinder(localRefAccessCount = localRefAccessCount)
+        p.accept(acc)
+        //      println(p)
+
+      })
+
+    val keysWithFrequencyGreaterThanOne = localRefAccessCount.filter { case (_, freq) => freq > 1 }.keys.toList.sorted
+    keysWithFrequencyGreaterThanOne.foreach(key => ctx.cachedExprs(key) = false)
+//    println(localRefAccessCount)
+
+    val tt2 = expr.map(
+      p => {
         exprGenerator.generateExpression(p)
       })
+
+
     if (condition.isEmpty && onlyFilter) {
       throw new TableException(
         "This calc has no useful projection and no filter. " +
