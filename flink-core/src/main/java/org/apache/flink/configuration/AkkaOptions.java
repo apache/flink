@@ -18,9 +18,7 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.util.TimeUtils;
 
@@ -36,11 +34,6 @@ import static org.apache.flink.configuration.description.LinkElement.link;
 @PublicEvolving
 @Deprecated // since 1.19.0
 public class AkkaOptions {
-
-    @Internal
-    @Documentation.ExcludeFromDocumentation("Internal use only")
-    public static final ConfigOption<Boolean> FORCE_RPC_INVOCATION_SERIALIZATION =
-            RpcOptions.FORCE_RPC_INVOCATION_SERIALIZATION;
 
     public static boolean isForceRpcInvocationSerializationEnabled(Configuration config) {
         return RpcOptions.isForceRpcInvocationSerializationEnabled(config);
