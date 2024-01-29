@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
@@ -44,19 +45,24 @@ final class FunctionSignatureTemplate {
 
     final @Nullable String[] argumentNames;
 
+    final Boolean[] argumentOptionals;
+
     private FunctionSignatureTemplate(
             List<FunctionArgumentTemplate> argumentTemplates,
             boolean isVarArgs,
-            @Nullable String[] argumentNames) {
+            @Nullable String[] argumentNames,
+            Boolean[] argumentOptionals) {
         this.argumentTemplates = argumentTemplates;
         this.isVarArgs = isVarArgs;
         this.argumentNames = argumentNames;
+        this.argumentOptionals = argumentOptionals;
     }
 
     static FunctionSignatureTemplate of(
             List<FunctionArgumentTemplate> argumentTemplates,
             boolean isVarArgs,
-            @Nullable String[] argumentNames) {
+            @Nullable String[] argumentNames,
+            Boolean[] argumentOptionals) {
         if (argumentNames != null && argumentNames.length != argumentTemplates.size()) {
             throw extractionError(
                     "Mismatch between number of argument names '%s' and argument types '%s'.",
@@ -67,7 +73,25 @@ final class FunctionSignatureTemplate {
             throw extractionError(
                     "Argument name conflict, there are at least two argument names that are the same.");
         }
-        return new FunctionSignatureTemplate(argumentTemplates, isVarArgs, argumentNames);
+        if (argumentOptionals != null && argumentOptionals.length != argumentTemplates.size()) {
+            throw extractionError(
+                    "Mismatch between number of argument optionals '%s' and argument types '%s'.",
+                    argumentOptionals.length, argumentTemplates.size());
+        }
+        if (argumentOptionals != null) {
+            for (int i = 0; i < argumentTemplates.size(); i++) {
+                DataType dataType = argumentTemplates.get(i).dataType;
+                if (dataType != null
+                        && !dataType.getLogicalType().isNullable()
+                        && argumentOptionals[i]) {
+                    throw extractionError(
+                            "Argument at position %s is optional but its type doesn't accept null value.",
+                            i);
+                }
+            }
+        }
+        return new FunctionSignatureTemplate(
+                argumentTemplates, isVarArgs, argumentNames, argumentOptionals);
     }
 
     InputTypeStrategy toInputTypeStrategy() {

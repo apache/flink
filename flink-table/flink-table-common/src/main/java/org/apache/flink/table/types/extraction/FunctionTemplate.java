@@ -194,14 +194,17 @@ final class FunctionTemplate {
                     "Argument and input hints cannot be declared in the same function hint.");
         }
 
+        Boolean[] argumentOptionals = null;
         if (argumentHints != null) {
             argumentHintNames = new String[argumentHints.length];
             argumentHintTypes = new DataTypeHint[argumentHints.length];
+            argumentOptionals = new Boolean[argumentHints.length];
             boolean allArgumentNameNotSet = true;
             for (int i = 0; i < argumentHints.length; i++) {
                 ArgumentHint argumentHint = argumentHints[i];
                 argumentHintNames[i] = defaultAsNull(argumentHint, ArgumentHint::name);
                 argumentHintTypes[i] = defaultAsNull(argumentHint, ArgumentHint::type);
+                argumentOptionals[i] = argumentHint.isOptional();
                 if (argumentHintTypes[i] == null) {
                     throw extractionError("The type of the argument at position %d is not set.", i);
                 }
@@ -216,12 +219,13 @@ final class FunctionTemplate {
                 argumentHintNames = null;
             }
         } else {
+            if (inputs == null) {
+                return null;
+            }
             argumentHintTypes = inputs;
             argumentHintNames = argumentNames;
-        }
-
-        if (argumentHintTypes == null) {
-            return null;
+            argumentOptionals = new Boolean[inputs.length];
+            Arrays.fill(argumentOptionals, false);
         }
 
         return FunctionSignatureTemplate.of(
@@ -229,7 +233,8 @@ final class FunctionTemplate {
                         .map(dataTypeHint -> createArgumentTemplate(typeFactory, dataTypeHint))
                         .collect(Collectors.toList()),
                 isVarArg,
-                argumentHintNames);
+                argumentHintNames,
+                argumentOptionals);
     }
 
     private static FunctionArgumentTemplate createArgumentTemplate(

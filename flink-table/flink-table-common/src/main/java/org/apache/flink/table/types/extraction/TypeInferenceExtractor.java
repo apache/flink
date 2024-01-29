@@ -229,6 +229,7 @@ public final class TypeInferenceExtractor {
         final TypeInference.Builder builder = TypeInference.newBuilder();
 
         configureNamedArguments(builder, outputMapping);
+        configureOptionalArguments(builder, outputMapping);
         configureTypedArguments(builder, outputMapping);
 
         builder.inputTypeStrategy(translateInputTypeStrategy(outputMapping));
@@ -268,6 +269,24 @@ public final class TypeInferenceExtractor {
         builder.namedArguments(argumentNames.iterator().next());
     }
 
+    private static void configureOptionalArguments(
+            TypeInference.Builder builder,
+            Map<FunctionSignatureTemplate, FunctionResultTemplate> outputMapping) {
+        final Set<FunctionSignatureTemplate> signatures = outputMapping.keySet();
+        if (signatures.stream().anyMatch(s -> s.isVarArgs || s.argumentNames == null)) {
+            return;
+        }
+        final List<List<Boolean>> argumentOptional =
+                signatures.stream()
+                        .filter(s -> s.argumentOptionals != null)
+                        .map(s -> Arrays.asList(s.argumentOptionals))
+                        .collect(Collectors.toList());
+        if (argumentOptional.size() != 1 || argumentOptional.size() != signatures.size()) {
+            return;
+        }
+        builder.optionalArguments(argumentOptional.get(0));
+    }
+
     private static void configureTypedArguments(
             TypeInference.Builder builder,
             Map<FunctionSignatureTemplate, FunctionResultTemplate> outputMapping) {
@@ -291,7 +310,8 @@ public final class TypeInferenceExtractor {
                         .collect(
                                 Collectors.toMap(
                                         e -> e.getKey().toInputTypeStrategy(),
-                                        e -> e.getValue().toTypeStrategy()));
+                                        e -> e.getValue().toTypeStrategy(),
+                                        (t1, t2) -> t2));
         return TypeStrategies.mapping(mappings);
     }
 

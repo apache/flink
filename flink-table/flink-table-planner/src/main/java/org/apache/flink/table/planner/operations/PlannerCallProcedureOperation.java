@@ -131,7 +131,9 @@ public class PlannerCallProcedureOperation implements CallProcedureOperation {
         argumentVal[0] = new DefaultProcedureContext(env);
         for (int i = 0; i < internalInputArguments.length; i++) {
             argumentVal[i + 1] =
-                    toExternal(internalInputArguments[i], inputTypes[i], userClassLoader);
+                    (internalInputArguments[i] != null)
+                            ? toExternal(internalInputArguments[i], inputTypes[i], userClassLoader)
+                            : null;
         }
         return argumentVal;
     }
