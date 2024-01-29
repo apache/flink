@@ -241,19 +241,19 @@ class SqlCreateTableConverter {
             Map<SqlTableLike.FeatureOption, SqlTableLike.MergingStrategy> mergingStrategies) {
 
         Optional<CatalogTable.TableDistribution> derivedTabledDistribution = Optional.empty();
-        if (sqlCreateTable.getSqlDistribution() != null) {
+        if (sqlCreateTable.getDistribution() != null) {
             CatalogTable.TableDistribution.Kind kind =
                     CatalogTable.TableDistribution.Kind.valueOf(
-                            sqlCreateTable.getSqlDistribution().getDistributionKind());
+                            sqlCreateTable.getDistribution().getDistributionKind());
             Integer bucketCount = null;
-            SqlNumericLiteral count = sqlCreateTable.getSqlDistribution().getBucketCount();
+            SqlNumericLiteral count = sqlCreateTable.getDistribution().getBucketCount();
             if (count != null && count.isInteger()) {
                 bucketCount = ((BigDecimal) (count).getValue()).intValue();
             }
 
             List<String> bucketColumns = Collections.emptyList();
 
-            SqlNodeList columns = sqlCreateTable.getSqlDistribution().getBucketColumns();
+            SqlNodeList columns = sqlCreateTable.getDistribution().getBucketColumns();
             if (columns != null) {
                 bucketColumns =
                         columns.getList().stream()

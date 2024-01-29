@@ -40,8 +40,6 @@ import java.util.Map;
 
 /** A converter for {@link SqlReplaceTableAs}. */
 public class SqlReplaceTableAsConverter implements SqlNodeConverter<SqlReplaceTableAs> {
-
-    // TODO Update this converter if and when DISTRIBUTED BY is supported in REPLACE TABLE AS.
     @Override
     public Operation convertSqlNode(SqlReplaceTableAs sqlReplaceTableAs, ConvertContext context) {
         CatalogManager catalogManager = context.getCatalogManager();

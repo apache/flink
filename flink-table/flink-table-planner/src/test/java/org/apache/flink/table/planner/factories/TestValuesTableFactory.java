@@ -442,6 +442,7 @@ public final class TestValuesTableFactory
                     .defaultValue(false)
                     .withDescription(
                             "Option to determine whether or not to require the distribution bucket count");
+
     private static final ConfigOption<Integer> SOURCE_NUM_ELEMENT_TO_SKIP =
             ConfigOptions.key("source.num-element-to-skip")
                     .intType()

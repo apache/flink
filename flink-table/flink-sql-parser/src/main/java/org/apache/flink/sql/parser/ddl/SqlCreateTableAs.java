@@ -79,7 +79,7 @@ public class SqlCreateTableAs extends SqlCreateTable {
             SqlNodeList columnList,
             List<SqlTableConstraint> tableConstraints,
             SqlNodeList propertyList,
-            SqlDistribution sqlDistribution,
+            SqlDistribution distribution,
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
             @Nullable SqlCharStringLiteral comment,
@@ -93,7 +93,7 @@ public class SqlCreateTableAs extends SqlCreateTable {
                 columnList,
                 tableConstraints,
                 propertyList,
-                sqlDistribution,
+                distribution,
                 partitionKeyList,
                 watermark,
                 comment,
@@ -136,7 +136,7 @@ public class SqlCreateTableAs extends SqlCreateTable {
                     getParserPosition(),
                     "CREATE TABLE AS SELECT syntax does not support to specify explicit watermark yet.");
         }
-        if (getSqlDistribution() != null) {
+        if (getDistribution() != null) {
             throw new SqlValidateException(
                     getParserPosition(),
                     "CREATE TABLE AS SELECT syntax does not support creating distributed tables yet.");

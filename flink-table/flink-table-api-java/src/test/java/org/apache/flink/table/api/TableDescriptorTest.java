@@ -63,7 +63,7 @@ class TableDescriptorTest {
         assertThat(descriptor.getSchema()).isPresent();
         assertThat(descriptor.getSchema().get()).isEqualTo(schema);
 
-        assertThat(descriptor.getTableDistribution())
+        assertThat(descriptor.getDistribution())
                 .isEqualTo(
                         CatalogTable.TableDistribution.ofHash(Collections.singletonList("f0"), 1));
 

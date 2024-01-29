@@ -958,9 +958,7 @@ public final class DynamicSinkUtils {
             ResolvedCatalogTable table,
             List<SinkAbilitySpec> sinkAbilitySpecs) {
         table.getDistribution()
-                .ifPresent(
-                        tableDistribution ->
-                                validateBucketing(tableDebugName, sink, tableDistribution));
+                .ifPresent(distribution -> validateBucketing(tableDebugName, sink, distribution));
 
         validatePartitioning(tableDebugName, staticPartitions, sink, table.getPartitionKeys());
 
@@ -1040,7 +1038,7 @@ public final class DynamicSinkUtils {
     private static void validateBucketing(
             String tableDebugName,
             DynamicTableSink sink,
-            CatalogTable.TableDistribution tableDistribution) {
+            CatalogTable.TableDistribution distribution) {
         if (!(sink instanceof SupportsBucketing)) {
             throw new TableException(
                     String.format(
@@ -1051,21 +1049,20 @@ public final class DynamicSinkUtils {
                             SupportsBucketing.class.getSimpleName()));
         }
         SupportsBucketing sinkWithBucketing = (SupportsBucketing) sink;
-        if (sinkWithBucketing.requiresBucketCount()
-                && !tableDistribution.getBucketCount().isPresent()) {
+        if (sinkWithBucketing.requiresBucketCount() && !distribution.getBucketCount().isPresent()) {
             throw new ValidationException(
                     String.format(
                             "Table '%s' is a bucketed table, but the underlying %s requires the number of buckets to be set.",
                             tableDebugName, DynamicTableSink.class.getSimpleName()));
         }
-        if (tableDistribution.getKind() != CatalogTable.TableDistribution.Kind.UNKNOWN
-                && !sinkWithBucketing.listAlgorithms().contains(tableDistribution.getKind())) {
+        if (distribution.getKind() != CatalogTable.TableDistribution.Kind.UNKNOWN
+                && !sinkWithBucketing.listAlgorithms().contains(distribution.getKind())) {
             throw new ValidationException(
                     String.format(
                             "Table '%s' is a bucketed table and it supports %s, but %s was requested.",
                             tableDebugName,
                             sinkWithBucketing.listAlgorithms(),
-                            tableDistribution.getKind()));
+                            distribution.getKind()));
         }
     }
 

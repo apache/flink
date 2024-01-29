@@ -205,7 +205,7 @@ public class ShowCreateUtil {
         }
         CatalogTable.TableDistribution distribution = catalogTable.getDistribution().get();
 
-        return Optional.of(distribution.toSqlString());
+        return Optional.of(distribution.asSerializableString());
     }
 
     static Optional<String> extractFormattedPartitionedInfo(ResolvedCatalogTable catalogTable) {

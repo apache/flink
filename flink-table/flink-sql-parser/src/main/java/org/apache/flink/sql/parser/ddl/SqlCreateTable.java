@@ -63,11 +63,11 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
     private final List<SqlTableConstraint> tableConstraints;
 
-    public SqlDistribution getSqlDistribution() {
-        return sqlDistribution;
+    public SqlDistribution getDistribution() {
+        return distribution;
     }
 
-    private final SqlDistribution sqlDistribution;
+    private final SqlDistribution distribution;
 
     private final SqlNodeList partitionKeyList;
 
@@ -83,7 +83,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             SqlNodeList columnList,
             List<SqlTableConstraint> tableConstraints,
             SqlNodeList propertyList,
-            SqlDistribution sqlDistribution,
+            SqlDistribution distribution,
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
             @Nullable SqlCharStringLiteral comment,
@@ -96,7 +96,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
                 columnList,
                 tableConstraints,
                 propertyList,
-                sqlDistribution,
+                distribution,
                 partitionKeyList,
                 watermark,
                 comment,
@@ -111,7 +111,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             SqlNodeList columnList,
             List<SqlTableConstraint> tableConstraints,
             SqlNodeList propertyList,
-            @Nullable SqlDistribution sqlDistribution,
+            @Nullable SqlDistribution distribution,
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
             @Nullable SqlCharStringLiteral comment,
@@ -123,7 +123,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
         this.tableConstraints =
                 requireNonNull(tableConstraints, "table constraints should not be null");
         this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
-        this.sqlDistribution = sqlDistribution;
+        this.distribution = distribution;
         this.partitionKeyList =
                 requireNonNull(partitionKeyList, "partitionKeyList should not be null");
         this.watermark = watermark;
@@ -266,8 +266,8 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             comment.unparse(writer, leftPrec, rightPrec);
         }
 
-        if (this.sqlDistribution != null) {
-            sqlDistribution.unparse(writer, leftPrec, rightPrec);
+        if (this.distribution != null) {
+            distribution.unparse(writer, leftPrec, rightPrec);
         }
 
         if (this.partitionKeyList.size() > 0) {

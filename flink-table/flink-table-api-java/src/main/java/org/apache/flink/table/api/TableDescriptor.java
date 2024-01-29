@@ -55,19 +55,19 @@ public class TableDescriptor {
 
     private final @Nullable Schema schema;
     private final Map<String, String> options;
-    private final CatalogTable.TableDistribution tableDistribution;
+    private final CatalogTable.TableDistribution distribution;
     private final List<String> partitionKeys;
     private final @Nullable String comment;
 
     protected TableDescriptor(
             @Nullable Schema schema,
             Map<String, String> options,
-            CatalogTable.TableDistribution tableDistribution,
+            CatalogTable.TableDistribution distribution,
             List<String> partitionKeys,
             @Nullable String comment) {
         this.schema = schema;
         this.options = Collections.unmodifiableMap(options);
-        this.tableDistribution = tableDistribution;
+        this.distribution = distribution;
         this.partitionKeys = Collections.unmodifiableList(partitionKeys);
         this.comment = comment;
     }
@@ -104,8 +104,8 @@ public class TableDescriptor {
         return options;
     }
 
-    public CatalogTable.TableDistribution getTableDistribution() {
-        return tableDistribution;
+    public CatalogTable.TableDistribution getDistribution() {
+        return distribution;
     }
 
     public List<String> getBucketKeys() {
@@ -152,7 +152,7 @@ public class TableDescriptor {
                         .collect(Collectors.joining(", "));
 
         final String distributedBy =
-                tableDistribution == null ? "" : tableDistribution.toSqlString();
+                distribution == null ? "" : distribution.asSerializableString();
 
         final String partitionedBy =
                 !partitionKeys.isEmpty()
@@ -208,20 +208,20 @@ public class TableDescriptor {
 
         private @Nullable Schema schema;
         private final Map<String, String> options;
-        private @Nullable CatalogTable.TableDistribution tableDistribution;
+        private @Nullable CatalogTable.TableDistribution distribution;
         private final List<String> partitionKeys;
         private @Nullable String comment;
 
         protected Builder() {
             this.options = new HashMap<>();
-            this.tableDistribution = null;
+            this.distribution = null;
             this.partitionKeys = new ArrayList<>();
         }
 
         protected Builder(TableDescriptor descriptor) {
             this.schema = descriptor.getSchema().orElse(null);
             this.options = new HashMap<>(descriptor.getOptions());
-            this.tableDistribution = descriptor.getTableDistribution();
+            this.distribution = descriptor.getDistribution();
             this.partitionKeys = new ArrayList<>(descriptor.getPartitionKeys());
             this.comment = descriptor.getComment().orElse(null);
         }
@@ -353,8 +353,8 @@ public class TableDescriptor {
         }
 
         /** Define which columns this table is distributed by. */
-        public Builder distributedBy(CatalogTable.TableDistribution tableDistribution) {
-            this.tableDistribution = tableDistribution;
+        public Builder distributedBy(CatalogTable.TableDistribution distribution) {
+            this.distribution = distribution;
             return this;
         }
 
@@ -372,7 +372,7 @@ public class TableDescriptor {
 
         /** Returns an immutable instance of {@link TableDescriptor}. */
         public TableDescriptor build() {
-            return new TableDescriptor(schema, options, tableDistribution, partitionKeys, comment);
+            return new TableDescriptor(schema, options, distribution, partitionKeys, comment);
         }
     }
 }

@@ -246,7 +246,7 @@ public interface CatalogTable extends CatalogBaseTable {
             return Optional.ofNullable(bucketCount);
         }
 
-        public String toSqlString() {
+        public String asSerializableString() {
             if (getBucketKeys().isEmpty()
                     && getBucketCount().isPresent()
                     && getBucketCount().get() != 0) {

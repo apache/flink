@@ -37,9 +37,7 @@ public class DefaultCatalogTable implements CatalogTable {
 
     private final Schema schema;
     private final @Nullable String comment;
-
-    private final Optional<TableDistribution> tableDistribution;
-
+    private final Optional<TableDistribution> distribution;
     private final List<String> partitionKeys;
     private final Map<String, String> options;
 
@@ -59,13 +57,13 @@ public class DefaultCatalogTable implements CatalogTable {
             List<String> partitionKeys,
             Map<String, String> options,
             @Nullable Long snapshot,
-            Optional<TableDistribution> tableDistribution) {
+            Optional<TableDistribution> distribution) {
         this.schema = checkNotNull(schema, "Schema must not be null.");
         this.comment = comment;
         this.partitionKeys = checkNotNull(partitionKeys, "Partition keys must not be null.");
         this.options = checkNotNull(options, "Options must not be null.");
         this.snapshot = snapshot;
-        this.tableDistribution = tableDistribution;
+        this.distribution = distribution;
 
         checkArgument(
                 options.entrySet().stream()
@@ -95,7 +93,7 @@ public class DefaultCatalogTable implements CatalogTable {
 
     @Override
     public Optional<TableDistribution> getDistribution() {
-        return tableDistribution;
+        return distribution;
     }
 
     @Override
@@ -106,13 +104,13 @@ public class DefaultCatalogTable implements CatalogTable {
     @Override
     public CatalogBaseTable copy() {
         return new DefaultCatalogTable(
-                schema, comment, partitionKeys, options, snapshot, tableDistribution);
+                schema, comment, partitionKeys, options, snapshot, distribution);
     }
 
     @Override
     public CatalogTable copy(Map<String, String> options) {
         return new DefaultCatalogTable(
-                schema, comment, partitionKeys, options, snapshot, tableDistribution);
+                schema, comment, partitionKeys, options, snapshot, distribution);
     }
 
     @Override
