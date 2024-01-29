@@ -635,7 +635,8 @@ GROUP BY o_orderkey;
   SELECT /*+ STATE_TTL('V' = '1d', 'C' = '3d')*/ * FROM V JOIN C ON ...;
   ```
 - `STATE_TTL` 提示仅作用在当前查询块上。
-- 当 `STATE_TTL` 提示键重复时取最后一个值。举例来说，在出现 `SELECT /*+ STATE_TTL('A' = '1d', 'A' = '2d')*/ * FROM ...` 或  `SELECT /*+ STATE_TTL('A' = '1d'), STATE_TTL('A' = '3d')*/ * FROM ...` 时，TTL 值分别取 2d，3d。
+- 当 `STATE_TTL` 提示键重复时取最后一个值。举例来说，在出现 `SELECT /*+ STATE_TTL('A' = '1d', 'A' = '2d')*/ * FROM ...` 时，输入 A 的 TTL 值将会取 2d。
+- 当出现多个 `STATE_TTL` 且提示键重复时取第一个值。举例来说，在出现 `SELECT /*+ STATE_TTL('A' = '1d', 'B' = '2d'), STATE_TTL('C' = '12h', 'A' = '6h')*/ * FROM ...` 时，输入 A 的 TTL 值将会取 1d。
 {{< /hint >}}
 
 ### 什么是查询块？

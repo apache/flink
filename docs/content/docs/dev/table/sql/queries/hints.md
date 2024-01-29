@@ -690,7 +690,8 @@ Note:
   SELECT /*+ STATE_TTL('V' = '1d', 'C' = '3d')*/ * FROM V JOIN C ON ...;
   ```
 - STATE_TTL hint only applies on the underlying query block.
-- When the `STATE_TTL` hint key is duplicated, the last value is applied from the last occurrence. For example, in cases like `SELECT /*+ STATE_TTL('A' = '1d', 'A' = '2d')*/ * FROM ...` or `SELECT /*+ STATE_TTL('A' = '1d'), STATE_TTL('A' = '3d')*/ * FROM ...`, the TTL values should be taken as 2d and 3d, respectively.
+- When the `STATE_TTL` hint key is duplicated, the value is applied from the last occurrence. For example, in cases like `SELECT /*+ STATE_TTL('A' = '1d', 'A' = '2d')*/ * FROM ...`, the TTL for input A will be taken as 2d.
+- When there are multiple `STATE_TTL` hints appear with duplicated hint key, the value is applied from the first occurrence. For example, in cases like `SELECT /*+ STATE_TTL('A' = '1d', 'B' = '2d'), STATE_TTL('C' = '12h', 'A' = '6h')*/ * FROM ...`, the TTL for input A will be taken as 1d.
 {{< /hint >}}
 
 ### What are query blocks ?
