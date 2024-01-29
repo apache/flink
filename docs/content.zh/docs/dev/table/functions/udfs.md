@@ -1892,7 +1892,10 @@ tab
 {{< /tabs >}}
 
 
-下面的例子展示了如何使用 `emitUpdateWithRetract` 方法来只发送更新的数据。为了只发送更新的结果，accumulator 保存了上一次的最大的2个值，也保存了当前最大的2个值。注意：如果 TopN 中的 n 非常大，这种既保存上次的结果，也保存当前的结果的方式不太高效。一种解决这种问题的方式是把输入数据直接存储到 `accumulator` 中，然后在调用 `emitUpdateWithRetract` 方法时再进行计算。
+下面的例子展示了如何使用 `emitUpdateWithRetract` 方法来只发送更新的数据。为了只发送更新的结果，accumulator 保存了上一次的最大的2个值，也保存了当前最大的2个值。
+{{< hint info >}}
+注意：请不要在 `emitUpdateWithRetract` 方法中更新 accumulator，因为 `GroupTableAggFunction` 在调用过 `function#emitValue` 方法后，不会再次调用 `function#getAccumulators`。
+{{< /hint >}}
 
 {{< tabs "e0d841fe-8d95-4706-9e19-e76141171966" >}}
 {{< tab "Java" >}}
@@ -1923,6 +1926,8 @@ public static class Top2 extends TableAggregateFunction<Tuple2<Integer, Integer>
     }
 
     public void accumulate(Top2Accum acc, Integer v) {
+        acc.oldFirst = acc.first;
+        acc.oldSecond = acc.second;
         if (v > acc.first) {
             acc.second = acc.first;
             acc.first = v;
@@ -1938,7 +1943,6 @@ public static class Top2 extends TableAggregateFunction<Tuple2<Integer, Integer>
                 out.retract(Tuple2.of(acc.oldFirst, 1));
             }
             out.collect(Tuple2.of(acc.first, 1));
-            acc.oldFirst = acc.first;
         }
 
         if (!acc.second.equals(acc.oldSecond)) {
@@ -1947,7 +1951,6 @@ public static class Top2 extends TableAggregateFunction<Tuple2<Integer, Integer>
                 out.retract(Tuple2.of(acc.oldSecond, 2));
             }
             out.collect(Tuple2.of(acc.second, 2));
-            acc.oldSecond = acc.second;
         }
     }
 }
@@ -1997,6 +2000,8 @@ class Top2 extends TableAggregateFunction[JTuple2[JInteger, JInteger], Top2Accum
   }
 
   def accumulate(acc: Top2Accum, v: Int) {
+    acc.oldFirst = acc.first
+    acc.oldSecond = acc.second
     if (v > acc.first) {
       acc.second = acc.first
       acc.first = v
@@ -2015,7 +2020,6 @@ class Top2 extends TableAggregateFunction[JTuple2[JInteger, JInteger], Top2Accum
         out.retract(JTuple2.of(acc.oldFirst, 1))
       }
       out.collect(JTuple2.of(acc.first, 1))
-      acc.oldFirst = acc.first
     }
     if (acc.second != acc.oldSecond) {
       // if there is an update, retract old value then emit new value.
@@ -2023,7 +2027,6 @@ class Top2 extends TableAggregateFunction[JTuple2[JInteger, JInteger], Top2Accum
         out.retract(JTuple2.of(acc.oldSecond, 2))
       }
       out.collect(JTuple2.of(acc.second, 2))
-      acc.oldSecond = acc.second
     }
   }
 }
