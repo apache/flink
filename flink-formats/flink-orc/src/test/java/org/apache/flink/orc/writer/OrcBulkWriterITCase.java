@@ -18,7 +18,9 @@
 
 package org.apache.flink.orc.writer;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.connector.datagen.source.TestDataGenerators;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.data.Record;
 import org.apache.flink.orc.util.OrcBulkWriterTestUtil;
@@ -27,7 +29,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
-import org.apache.flink.streaming.util.FiniteTestSource;
 
 import org.apache.hadoop.conf.Configuration;
 import org.junit.jupiter.api.Test;
@@ -59,7 +60,12 @@ class OrcBulkWriterITCase {
         env.enableCheckpointing(100);
 
         DataStream<Record> stream =
-                env.addSource(new FiniteTestSource<>(testData), TypeInformation.of(Record.class));
+                env.fromSource(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
+                                testData, TypeInformation.of(Record.class)),
+                        WatermarkStrategy.noWatermarks(),
+                        "Test Source");
+
         stream.map(str -> str)
                 .addSink(
                         StreamingFileSink.forBulkFormat(new Path(outDir.toURI()), factory)

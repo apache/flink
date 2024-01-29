@@ -142,7 +142,7 @@ public class DataGeneratorSource<OUT>
                 rateLimiterStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
     }
 
-    private DataGeneratorSource(
+    DataGeneratorSource(
             SourceReaderFactory<OUT, NumberSequenceSplit> sourceReaderFactory,
             GeneratorFunction<Long, OUT> generatorFunction,
             long count,
