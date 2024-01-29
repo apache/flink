@@ -173,6 +173,11 @@ public class ProgramOptions extends CommandLineOptions {
     }
 
     public void applyToConfiguration(Configuration configuration) {
+        this.applyToConfiguration(configuration, true);
+    }
+
+    public void applyToConfiguration(
+            Configuration configuration, boolean mergeDefaultRestoreSettings) {
         if (hasParallelismOpt) {
             configuration.set(CoreOptions.DEFAULT_PARALLELISM, getParallelism());
         }
@@ -189,7 +194,8 @@ public class ProgramOptions extends CommandLineOptions {
         // However, if the CLI has no "-s" option, that is, the savepointRestoreSettings is none,
         // we could not set the default config to the configuration, since users may set
         // SavepointRestoreSettings by dynamic properties.
-        if (!SavepointRestoreSettings.none().equals(savepointRestoreSettings)) {
+        if (mergeDefaultRestoreSettings
+                || !SavepointRestoreSettings.none().equals(savepointRestoreSettings)) {
             SavepointRestoreSettings.toConfiguration(savepointRestoreSettings, configuration);
         }
     }

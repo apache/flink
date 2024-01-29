@@ -56,12 +56,19 @@ public class ExecutionConfigAccessor {
      */
     public static <T> ExecutionConfigAccessor fromProgramOptions(
             final ProgramOptions options, final List<T> jobJars) {
+        return fromProgramOptions(options, jobJars, true);
+    }
+
+    public static <T> ExecutionConfigAccessor fromProgramOptions(
+            final ProgramOptions options,
+            final List<T> jobJars,
+            boolean mergeDefaultRestoreSettings) {
         checkNotNull(options);
         checkNotNull(jobJars);
 
         final Configuration configuration = new Configuration();
 
-        options.applyToConfiguration(configuration);
+        options.applyToConfiguration(configuration, mergeDefaultRestoreSettings);
         ConfigUtils.encodeCollectionToConfig(
                 configuration, PipelineOptions.JARS, jobJars, Object::toString);
 
