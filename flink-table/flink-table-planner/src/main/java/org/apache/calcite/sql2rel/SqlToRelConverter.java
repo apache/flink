@@ -18,7 +18,7 @@ package org.apache.calcite.sql2rel;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.planner.calcite.FlinkOperatorBinding;
+import org.apache.flink.table.planner.calcite.FlinkSqlCallBinding;
 import org.apache.flink.table.planner.calcite.TimestampSchemaVersion;
 import org.apache.flink.table.planner.hint.ClearQueryHintsWithInvalidPropagationShuttle;
 import org.apache.flink.table.planner.hint.FlinkHints;
@@ -5638,7 +5638,7 @@ public class SqlToRelConverter {
                 }
             }
             return exprConverter.convertCall(
-                    this, new SqlCallBinding(validator(), scope, call).permutedCall());
+                    this, new FlinkSqlCallBinding(validator(), scope, call).permutedCall());
         }
 
         @Override
@@ -6088,11 +6088,9 @@ public class SqlToRelConverter {
                 // switch out of agg mode
                 bb.agg = null;
                 // ----- FLINK MODIFICATION BEGIN -----
-                SqlCallBinding sqlCallBinding =
-                        new SqlCallBinding(validator(), aggregatingSelectScope, call);
-                List<SqlNode> sqlNodes = sqlCallBinding.operands();
-                FlinkOperatorBinding flinkOperatorBinding =
-                        new FlinkOperatorBinding(sqlCallBinding);
+                FlinkSqlCallBinding binding =
+                        new FlinkSqlCallBinding(validator(), aggregatingSelectScope, call);
+                List<SqlNode> sqlNodes = binding.operands();
                 for (int i = 0; i < sqlNodes.size(); i++) {
                     SqlNode operand = sqlNodes.get(i);
                     // special case for COUNT(*):  delete the *
@@ -6105,12 +6103,6 @@ public class SqlToRelConverter {
                         }
                     }
                     RexNode convertedExpr = bb.convertExpression(operand);
-                    if (convertedExpr.getKind() == SqlKind.DEFAULT) {
-                        RelDataType relDataType = flinkOperatorBinding.getOperandType(i);
-                        convertedExpr =
-                                ((RexCall) convertedExpr)
-                                        .clone(relDataType, ((RexCall) convertedExpr).operands);
-                    }
                     args.add(lookupOrCreateGroupExpr(convertedExpr));
                 }
                 // ----- FLINK MODIFICATION END -----

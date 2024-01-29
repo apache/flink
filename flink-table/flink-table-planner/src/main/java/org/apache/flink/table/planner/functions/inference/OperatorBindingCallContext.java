@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.functions.inference;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.planner.calcite.FlinkOperatorBinding;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
@@ -43,7 +42,7 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
 @Internal
 public final class OperatorBindingCallContext extends AbstractSqlCallContext {
 
-    private final SqlOperatorBinding binding;
+    private final OperatorBindingDecorator binding;
 
     private final List<DataType> argumentDataTypes;
 
@@ -60,7 +59,7 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
                 sqlOperatorBinding.getOperator().getNameAsId().toString(),
                 sqlOperatorBinding.getGroupCount() > 0);
 
-        this.binding = new FlinkOperatorBinding(sqlOperatorBinding);
+        this.binding = new OperatorBindingDecorator(sqlOperatorBinding);
         this.argumentDataTypes =
                 new AbstractList<DataType>() {
                     @Override
