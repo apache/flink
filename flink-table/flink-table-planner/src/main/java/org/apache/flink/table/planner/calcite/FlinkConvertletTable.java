@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.functions.sql.SqlSessionTableFunction;
-import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -31,6 +30,7 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.SqlKind;
@@ -44,6 +44,7 @@ import org.apache.calcite.sql2rel.SqlRexConvertlet;
 import org.apache.calcite.sql2rel.SqlRexConvertletTable;
 import org.apache.calcite.sql2rel.StandardConvertletTable;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -223,8 +224,20 @@ public class FlinkConvertletTable implements SqlRexConvertletTable {
      */
     private RexNode convertSqlCallWithDefaultNode(SqlRexContext cx, final SqlCall call) {
         RexNode rexCall = StandardConvertletTable.INSTANCE.convertCall(cx, call);
+        SqlCallBinding sqlCallBinding = new SqlCallBinding(cx.getValidator(), null, call);
+        FlinkOperatorBinding flinkOperatorBinding = new FlinkOperatorBinding(sqlCallBinding);
         if (rexCall instanceof RexCall) {
-            return FlinkRexUtil.fixRexCallType((RexCall) rexCall, cx.getValidator());
+            List<RexNode> operands = new ArrayList<>(((RexCall) rexCall).operands);
+            for (int i = 0; i < operands.size(); i++) {
+                RexNode rexNode = operands.get(i);
+                if (rexNode.getKind() == SqlKind.DEFAULT && rexNode instanceof RexCall) {
+                    RelDataType relDataType = flinkOperatorBinding.getOperandType(i);
+                    operands.set(
+                            i,
+                            ((RexCall) rexNode).clone(relDataType, ((RexCall) rexNode).operands));
+                }
+            }
+            return ((RexCall) rexCall).clone(rexCall.getType(), operands);
         }
         return rexCall;
     }

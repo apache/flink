@@ -29,14 +29,13 @@ import com.google.common.base.Function
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.plan.{RelOptPredicateList, RelOptUtil}
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.`type`.{ReturnTypes, SqlOperandMetadata, SqlTypeName}
-import org.apache.calcite.sql.{SqlAsOperator, SqlCall, SqlCallBinding, SqlKind, SqlNode, SqlOperator, SqlOperatorBinding}
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.{SqlAsOperator, SqlKind, SqlOperator}
 import org.apache.calcite.sql.fun.{SqlCastFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.apache.calcite.sql.validate.SqlValidator
 import org.apache.calcite.util._
 
 import java.lang.{Iterable => JIterable}
@@ -46,7 +45,6 @@ import java.util.{Optional, TimeZone}
 import java.util.function.Predicate
 
 import scala.collection.JavaConversions._
-import scala.collection.JavaConverters.{asScalaBufferConverter, seqAsJavaListConverter}
 import scala.collection.mutable
 
 /** Utility methods concerning [[RexNode]]. */
@@ -654,120 +652,6 @@ object FlinkRexUtil {
       maxCnfNodeCount,
       rexBuilder,
       converter);
-  }
-
-  /** Fixes the type of a RexCall by replacing DEFAULT nodes with the default argument type. */
-  def fixRexCallType(rexCall: RexCall, sqlValidator: SqlValidator): RexCall = {
-    if (!rexCall.getOperands.exists(_.getKind == SqlKind.DEFAULT)) {
-      return rexCall
-    }
-
-    rexCall.clone(
-      rexCall.getType,
-      fixRexNodesType(rexCall.operands, rexCall.getOperator, sqlValidator))
-  }
-
-  /** Fixes the type of a rexNode list by replacing DEFAULT nodes with the default argument type. */
-  def fixRexNodesType(
-      rexNodes: java.util.List[RexNode],
-      sqlOperator: SqlOperator,
-      sqlValidator: SqlValidator): java.util.List[RexNode] = {
-    if (!rexNodes.exists(_.getKind == SqlKind.DEFAULT)) {
-      return rexNodes
-    }
-
-    val defaultTypes = extractDefaultTypes(sqlOperator, sqlValidator.getTypeFactory)
-    rexNodes.asScala.zipWithIndex
-      .map {
-        case (rexNode: RexCall, index) if rexNode.getKind == SqlKind.DEFAULT =>
-          rexNode.clone(defaultTypes(index), rexNode.operands)
-        case (o, _) => o
-      }
-      .toList
-      .asJava
-  }
-
-  /**
-   * Fixes the type of a rexNode list by replacing the type of DEFAULT nodes with the default
-   * argument type.
-   */
-  def fixRexNodeType(
-      rexNode: RexNode,
-      sqlOperator: SqlOperator,
-      pos: Int,
-      sqlValidator: SqlValidator
-  ): RexNode = {
-    if (rexNode.getKind != SqlKind.DEFAULT) {
-      return rexNode
-    }
-    val defaultTypes = extractDefaultTypes(sqlOperator, sqlValidator.getTypeFactory)
-
-    rexNode.asInstanceOf[RexCall].clone(defaultTypes(pos), rexNode.asInstanceOf[RexCall].operands)
-  }
-
-  /**
-   * Resolves the operand type for a specific position in a SqlOperatorBinding. If the operand is a
-   * DEFAULT node, use the operator's argument type as the fill-in
-   */
-  def resolveCallOperandType(opBing: SqlOperatorBinding, pos: Int): RelDataType = {
-    var relDataType: RelDataType = null
-    opBing match {
-      case binding: SqlCallBinding => return resolveCallOperandType(binding, pos)
-      case binding: RexCallBinding => return resolveCallOperandType(binding, pos)
-      case _ => relDataType = opBing.getOperandType(pos)
-    }
-    relDataType
-  }
-
-  /** Gets the count of operands for the operator binding. */
-  def getCallBingOperandCount(opBind: SqlOperatorBinding): Int = {
-    opBind match {
-      case sqlCallBinding: SqlCallBinding => sqlCallBinding.operands.size
-      case rexCallBinding: RexCallBinding => rexCallBinding.operands.size
-      case _ => opBind.getOperandCount
-    }
-  }
-
-  /**
-   * Resolves the operand type for a specific position in a SqlCallBinding. If the operand is a
-   * DEFAULT node, use the operator's argument type as the fill-in
-   */
-  def resolveCallOperandType(sqlCallBinding: SqlCallBinding, pos: Int): RelDataType = {
-    var relDataType: RelDataType = null
-    val operands = sqlCallBinding.operands
-    val operand = operands.get(pos)
-    if (operand.getKind eq SqlKind.DEFAULT) {
-      val defaultTypes =
-        FlinkRexUtil.extractDefaultTypes(sqlCallBinding.getOperator, sqlCallBinding.getTypeFactory)
-      relDataType = defaultTypes(pos)
-    } else relDataType = sqlCallBinding.getValidator.deriveType(sqlCallBinding.getScope, operand)
-    relDataType
-  }
-
-  /**
-   * Resolves the operand type for a specific position in a RexCallBinding. If the operand is a
-   * DEFAULT node, use the operator's argument type as the fill-in
-   */
-  def resolveCallOperandType(rexCallBinding: RexCallBinding, pos: Int): RelDataType = {
-    var relDataType: RelDataType = null
-    val rexNode = rexCallBinding.operands.get(pos)
-    if (rexNode.getKind eq SqlKind.DEFAULT) {
-      val defaultTypes =
-        FlinkRexUtil.extractDefaultTypes(rexCallBinding.getOperator, rexCallBinding.getTypeFactory)
-      relDataType = defaultTypes(pos)
-    } else relDataType = rexCallBinding.getOperandType(pos)
-    relDataType
-  }
-
-  /** Extracts the default types of operands for a given SqlOperator that uses named arguments. */
-  private def extractDefaultTypes(
-      sqlOperator: SqlOperator,
-      typeFactory: RelDataTypeFactory): Array[RelDataType] = {
-    sqlOperator.getOperandTypeChecker
-      .asInstanceOf[SqlOperandMetadata]
-      .paramTypes(typeFactory)
-      .asScala
-      .toArray
   }
 }
 

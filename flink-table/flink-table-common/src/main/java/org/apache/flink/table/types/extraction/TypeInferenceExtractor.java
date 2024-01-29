@@ -310,7 +310,8 @@ public final class TypeInferenceExtractor {
                         .collect(
                                 Collectors.toMap(
                                         e -> e.getKey().toInputTypeStrategy(),
-                                        e -> e.getValue().toTypeStrategy()));
+                                        e -> e.getValue().toTypeStrategy(),
+                                        (t1, t2) -> t2));
         return TypeStrategies.mapping(mappings);
     }
 

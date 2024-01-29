@@ -1828,7 +1828,7 @@ class TypeInferenceExtractorTest {
                             name = "local_f2",
                             isOptional = true)
                 })
-        public int[] call(Object procedureContext, String f1, int f2) {
+        public int[] call(Object procedureContext, String f1, Integer f2) {
             return null;
         }
     }
@@ -1891,7 +1891,7 @@ class TypeInferenceExtractorTest {
                                 name = "parameter_f1",
                                 isOptional = false)
                         String f1,
-                int f2) {
+                Integer f2) {
             return null;
         }
     }

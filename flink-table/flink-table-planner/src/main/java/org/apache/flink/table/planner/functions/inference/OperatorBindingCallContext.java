@@ -21,8 +21,8 @@ package org.apache.flink.table.planner.functions.inference;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.planner.calcite.FlinkOperatorBinding;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -52,27 +52,27 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
     public OperatorBindingCallContext(
             DataTypeFactory dataTypeFactory,
             FunctionDefinition definition,
-            SqlOperatorBinding binding,
+            SqlOperatorBinding sqlOperatorBinding,
             RelDataType returnRelDataType) {
         super(
                 dataTypeFactory,
                 definition,
-                binding.getOperator().getNameAsId().toString(),
-                binding.getGroupCount() > 0);
+                sqlOperatorBinding.getOperator().getNameAsId().toString(),
+                sqlOperatorBinding.getGroupCount() > 0);
 
-        this.binding = binding;
+        this.binding = new FlinkOperatorBinding(sqlOperatorBinding);
         this.argumentDataTypes =
                 new AbstractList<DataType>() {
                     @Override
                     public DataType get(int pos) {
-                        RelDataType relDataType = FlinkRexUtil.resolveCallOperandType(binding, pos);
-                        LogicalType logicalType = FlinkTypeFactory.toLogicalType(relDataType);
+                        LogicalType logicalType =
+                                FlinkTypeFactory.toLogicalType(binding.getOperandType(pos));
                         return fromLogicalToDataType(logicalType);
                     }
 
                     @Override
                     public int size() {
-                        return FlinkRexUtil.getCallBingOperandCount(binding);
+                        return binding.getOperandCount();
                     }
                 };
         this.outputDataType =

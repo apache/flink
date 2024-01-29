@@ -21,8 +21,8 @@ package org.apache.flink.table.planner.functions.inference;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.planner.calcite.FlinkOperatorBinding;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -32,6 +32,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -52,35 +53,38 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
 
     private final List<DataType> argumentDataTypes;
 
+    private final SqlOperatorBinding binding;
+
     private final @Nullable DataType outputType;
 
     public CallBindingCallContext(
             DataTypeFactory dataTypeFactory,
             FunctionDefinition definition,
-            SqlCallBinding binding,
+            SqlCallBinding sqlCallBinding,
             @Nullable RelDataType outputType) {
         super(
                 dataTypeFactory,
                 definition,
-                binding.getOperator().getNameAsId().toString(),
-                binding.getGroupCount() > 0);
+                sqlCallBinding.getOperator().getNameAsId().toString(),
+                sqlCallBinding.getGroupCount() > 0);
 
-        this.adaptedArguments = binding.operands(); // reorders the operands
+        this.adaptedArguments = sqlCallBinding.operands(); // reorders the operands
+        this.binding = new FlinkOperatorBinding(sqlCallBinding);
         this.argumentDataTypes =
                 new AbstractList<DataType>() {
                     @Override
                     public DataType get(int pos) {
-                        RelDataType relDataType = FlinkRexUtil.resolveCallOperandType(binding, pos);
-                        final LogicalType logicalType = FlinkTypeFactory.toLogicalType(relDataType);
+                        final LogicalType logicalType =
+                                FlinkTypeFactory.toLogicalType(binding.getOperandType(pos));
                         return TypeConversions.fromLogicalToDataType(logicalType);
                     }
 
                     @Override
                     public int size() {
-                        return adaptedArguments.size();
+                        return binding.getOperandCount();
                     }
                 };
-        this.outputType = convertOutputType(binding, outputType);
+        this.outputType = convertOutputType(sqlCallBinding, outputType);
     }
 
     @Override

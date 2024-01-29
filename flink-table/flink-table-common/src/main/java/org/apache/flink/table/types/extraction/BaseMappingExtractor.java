@@ -335,21 +335,23 @@ abstract class BaseMappingExtractor {
                 .forEach(
                         signature -> {
                             Boolean[] argumentOptional = signature.argumentOptionals;
+                            // Here we restrict that the argument must contain optional parameters
+                            // in order to obtain the FunctionSignatureTemplate of the method for
+                            // verification. Therefore, the extract method will only be called once.
+                            // If no function hint is set, this verify will not be executed.
                             if (argumentOptional != null
                                     && Arrays.stream(argumentOptional)
                                             .anyMatch(Boolean::booleanValue)) {
                                 FunctionSignatureTemplate functionResultTemplate =
                                         signatureExtraction.extract(this, method);
                                 for (int i = 0; i < argumentOptional.length; i++) {
-                                    Class<?> converionClass =
-                                            functionResultTemplate
-                                                    .argumentTemplates
-                                                    .get(i)
-                                                    .dataType
-                                                    .getConversionClass();
-                                    if (argumentOptional[i]
-                                            && converionClass != null
-                                            && converionClass.isPrimitive()) {
+                                    DataType dataType =
+                                            functionResultTemplate.argumentTemplates.get(i)
+                                                    .dataType;
+                                    if (dataType != null
+                                            && argumentOptional[i]
+                                            && dataType.getConversionClass() != null
+                                            && dataType.getConversionClass().isPrimitive()) {
                                         throw extractionError(
                                                 "Argument at position %d is optional but a primitive type doesn't accept null value.",
                                                 i);
