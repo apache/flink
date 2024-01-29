@@ -44,6 +44,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WatermarkSpec;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.RuntimeConverter;
@@ -2160,8 +2161,8 @@ public final class TestValuesTableFactory
         @Override
         public void applyOverwrite(boolean overwrite) {}
 
-        public Set<CatalogTable.TableDistribution.Kind> listAlgorithms() {
-            return Collections.singleton(CatalogTable.TableDistribution.Kind.HASH);
+        public Set<TableDistribution.Kind> listAlgorithms() {
+            return Collections.singleton(TableDistribution.Kind.HASH);
         }
 
         @Override

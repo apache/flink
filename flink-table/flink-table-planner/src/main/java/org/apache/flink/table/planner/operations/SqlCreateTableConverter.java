@@ -31,6 +31,7 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.Operation;
@@ -129,7 +130,7 @@ class SqlCreateTableConverter {
     private CatalogTable createCatalogTable(SqlCreateTable sqlCreateTable) {
 
         final Schema sourceTableSchema;
-        final Optional<CatalogTable.TableDistribution> sourceTableDistribution;
+        final Optional<TableDistribution> sourceTableDistribution;
         final List<String> sourcePartitionKeys;
         final List<SqlTableLike.SqlTableLikeOption> likeOptions;
         final Map<String, String> sourceProperties;
@@ -171,7 +172,7 @@ class SqlCreateTableConverter {
                                 .orElseGet(Collections::emptyList),
                         primaryKey.orElse(null));
 
-        Optional<CatalogTable.TableDistribution> mergedTableDistribution =
+        Optional<TableDistribution> mergedTableDistribution =
                 mergeDistribution(sourceTableDistribution, sqlCreateTable, mergingStrategies);
 
         List<String> partitionKeys =
@@ -235,15 +236,15 @@ class SqlCreateTableConverter {
         }
     }
 
-    private Optional<CatalogTable.TableDistribution> mergeDistribution(
-            Optional<CatalogTable.TableDistribution> sourceTableDistribution,
+    private Optional<TableDistribution> mergeDistribution(
+            Optional<TableDistribution> sourceTableDistribution,
             SqlCreateTable sqlCreateTable,
             Map<SqlTableLike.FeatureOption, SqlTableLike.MergingStrategy> mergingStrategies) {
 
-        Optional<CatalogTable.TableDistribution> derivedTabledDistribution = Optional.empty();
+        Optional<TableDistribution> derivedTabledDistribution = Optional.empty();
         if (sqlCreateTable.getDistribution() != null) {
-            CatalogTable.TableDistribution.Kind kind =
-                    CatalogTable.TableDistribution.Kind.valueOf(
+            TableDistribution.Kind kind =
+                    TableDistribution.Kind.valueOf(
                             sqlCreateTable
                                     .getDistribution()
                                     .getDistributionKind()
@@ -264,8 +265,7 @@ class SqlCreateTableConverter {
                                 .collect(Collectors.toList());
             }
             derivedTabledDistribution =
-                    Optional.of(
-                            new CatalogTable.TableDistribution(kind, bucketCount, bucketColumns));
+                    Optional.of(new TableDistribution(kind, bucketCount, bucketColumns));
         }
 
         return mergeTableLikeUtil.mergeDistribution(

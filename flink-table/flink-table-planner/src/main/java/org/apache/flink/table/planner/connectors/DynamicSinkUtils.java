@@ -30,7 +30,6 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
 import org.apache.flink.table.catalog.ContextResolvedTable;
@@ -38,6 +37,7 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ExternalCatalogTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.connector.RowLevelModificationScanContext;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -1036,9 +1036,7 @@ public final class DynamicSinkUtils {
     }
 
     private static void validateBucketing(
-            String tableDebugName,
-            DynamicTableSink sink,
-            CatalogTable.TableDistribution distribution) {
+            String tableDebugName, DynamicTableSink sink, TableDistribution distribution) {
         if (!(sink instanceof SupportsBucketing)) {
             throw new TableException(
                     String.format(
@@ -1055,7 +1053,7 @@ public final class DynamicSinkUtils {
                             "Table '%s' is a bucketed table, but the underlying %s requires the number of buckets to be set.",
                             tableDebugName, DynamicTableSink.class.getSimpleName()));
         }
-        if (distribution.getKind() != CatalogTable.TableDistribution.Kind.UNKNOWN
+        if (distribution.getKind() != TableDistribution.Kind.UNKNOWN
                 && !sinkWithBucketing.listAlgorithms().contains(distribution.getKind())) {
             throw new ValidationException(
                     String.format(

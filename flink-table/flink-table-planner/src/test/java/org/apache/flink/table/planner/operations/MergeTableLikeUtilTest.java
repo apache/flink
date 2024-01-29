@@ -31,8 +31,8 @@ import org.apache.flink.sql.parser.ddl.constraint.SqlUniqueSpec;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.utils.PlannerMocks;
@@ -756,10 +756,9 @@ class MergeTableLikeUtilTest {
 
     @Test
     void mergeDistributionFromBaseTable() {
-        Optional<CatalogTable.TableDistribution> sourceDistribution =
-                Optional.of(
-                        CatalogTable.TableDistribution.ofHash(Collections.singletonList("a"), 3));
-        Optional<CatalogTable.TableDistribution> mergePartitions =
+        Optional<TableDistribution> sourceDistribution =
+                Optional.of(TableDistribution.ofHash(Collections.singletonList("a"), 3));
+        Optional<TableDistribution> mergePartitions =
                 util.mergeDistribution(
                         getDefaultMergingStrategies().get(FeatureOption.DISTRIBUTION),
                         sourceDistribution,
@@ -770,10 +769,9 @@ class MergeTableLikeUtilTest {
 
     @Test
     void mergeDistributionFromDerivedTable() {
-        Optional<CatalogTable.TableDistribution> derivedDistribution =
-                Optional.of(
-                        CatalogTable.TableDistribution.ofHash(Collections.singletonList("a"), 3));
-        Optional<CatalogTable.TableDistribution> mergePartitions =
+        Optional<TableDistribution> derivedDistribution =
+                Optional.of(TableDistribution.ofHash(Collections.singletonList("a"), 3));
+        Optional<TableDistribution> mergePartitions =
                 util.mergeDistribution(
                         getDefaultMergingStrategies().get(FeatureOption.DISTRIBUTION),
                         Optional.empty(),
@@ -784,12 +782,10 @@ class MergeTableLikeUtilTest {
 
     @Test
     void mergeIncludingDistributionFailsOnDuplicate() {
-        Optional<CatalogTable.TableDistribution> sourceDistribution =
-                Optional.of(
-                        CatalogTable.TableDistribution.ofHash(Collections.singletonList("a"), 3));
-        Optional<CatalogTable.TableDistribution> derivedDistribution =
-                Optional.of(
-                        CatalogTable.TableDistribution.ofHash(Collections.singletonList("b"), 3));
+        Optional<TableDistribution> sourceDistribution =
+                Optional.of(TableDistribution.ofHash(Collections.singletonList("a"), 3));
+        Optional<TableDistribution> derivedDistribution =
+                Optional.of(TableDistribution.ofHash(Collections.singletonList("b"), 3));
 
         assertThatThrownBy(
                         () ->
@@ -805,14 +801,12 @@ class MergeTableLikeUtilTest {
 
     @Test
     void mergeExcludingDistributionOnDuplicate() {
-        Optional<CatalogTable.TableDistribution> sourceDistribution =
-                Optional.of(
-                        CatalogTable.TableDistribution.ofHash(Collections.singletonList("a"), 3));
-        Optional<CatalogTable.TableDistribution> derivedDistribution =
-                Optional.of(
-                        CatalogTable.TableDistribution.ofHash(Collections.singletonList("b"), 3));
+        Optional<TableDistribution> sourceDistribution =
+                Optional.of(TableDistribution.ofHash(Collections.singletonList("a"), 3));
+        Optional<TableDistribution> derivedDistribution =
+                Optional.of(TableDistribution.ofHash(Collections.singletonList("b"), 3));
 
-        Optional<CatalogTable.TableDistribution> mergedPartitions =
+        Optional<TableDistribution> mergedPartitions =
                 util.mergeDistribution(
                         MergingStrategy.EXCLUDING, sourceDistribution, derivedDistribution);
 

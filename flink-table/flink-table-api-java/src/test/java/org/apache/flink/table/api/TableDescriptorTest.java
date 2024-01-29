@@ -20,7 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
-import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.TableDistribution;
 
 import org.junit.jupiter.api.Test;
 
@@ -53,9 +53,7 @@ class TableDescriptorTest {
         final TableDescriptor descriptor =
                 TableDescriptor.forConnector("test-connector")
                         .schema(schema)
-                        .distributedBy(
-                                CatalogTable.TableDistribution.ofHash(
-                                        Collections.singletonList("f0"), 1))
+                        .distributedBy(TableDistribution.ofHash(Collections.singletonList("f0"), 1))
                         .partitionedBy("f0")
                         .comment("Test Comment")
                         .build();
@@ -64,8 +62,7 @@ class TableDescriptorTest {
         assertThat(descriptor.getSchema().get()).isEqualTo(schema);
 
         assertThat(descriptor.getDistribution())
-                .isEqualTo(
-                        CatalogTable.TableDistribution.ofHash(Collections.singletonList("f0"), 1));
+                .isEqualTo(TableDistribution.ofHash(Collections.singletonList("f0"), 1));
 
         assertThat(descriptor.getPartitionKeys()).hasSize(1);
         assertThat(descriptor.getPartitionKeys().get(0)).isEqualTo("f0");
@@ -145,8 +142,7 @@ class TableDescriptorTest {
                 TableDescriptor.forConnector("test-connector")
                         .schema(schema)
                         .distributedBy(
-                                CatalogTable.TableDistribution.ofRange(
-                                        Collections.singletonList("f0"), 3))
+                                TableDistribution.ofRange(Collections.singletonList("f0"), 3))
                         .partitionedBy("f0")
                         .option(OPTION_A, true)
                         .format(formatDescriptor)

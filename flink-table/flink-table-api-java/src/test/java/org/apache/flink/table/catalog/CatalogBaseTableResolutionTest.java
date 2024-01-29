@@ -212,14 +212,13 @@ class CatalogBaseTableResolutionTest {
                         Collections.emptyMap(),
                         null,
                         Optional.of(
-                                CatalogTable.TableDistribution.ofHash(
-                                        Collections.singletonList("county"), 6)));
+                                TableDistribution.ofHash(Collections.singletonList("county"), 6)));
         final ResolvedCatalogTable resolvedTable =
                 resolveCatalogBaseTable(ResolvedCatalogTable.class, catalogTable);
         assertThat(resolvedTable.getDistribution().get().getBucketKeys())
                 .isEqualTo(Collections.singletonList("county"));
         assertThat(resolvedTable.getDistribution().get().getKind())
-                .isEqualTo(CatalogTable.TableDistribution.Kind.HASH);
+                .isEqualTo(TableDistribution.Kind.HASH);
     }
 
     @Test
@@ -232,7 +231,7 @@ class CatalogBaseTableResolutionTest {
                         Collections.emptyMap(),
                         null,
                         Optional.of(
-                                CatalogTable.TableDistribution.ofHash(
+                                TableDistribution.ofHash(
                                         Collections.singletonList("countyINVALID"), 6)));
         try {
             resolveCatalogBaseTable(ResolvedCatalogTable.class, catalogTable);

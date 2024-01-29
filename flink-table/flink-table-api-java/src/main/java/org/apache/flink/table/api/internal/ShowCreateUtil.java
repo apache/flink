@@ -21,13 +21,13 @@ package org.apache.flink.table.api.internal;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.utils.EncodingUtils;
 
@@ -203,7 +203,7 @@ public class ShowCreateUtil {
         if (!catalogTable.getDistribution().isPresent()) {
             return Optional.empty();
         }
-        CatalogTable.TableDistribution distribution = catalogTable.getDistribution().get();
+        TableDistribution distribution = catalogTable.getDistribution().get();
 
         return Optional.of(distribution.asSerializableString());
     }

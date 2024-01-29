@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.connector.format.Format;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.utils.EncodingUtils;
@@ -55,14 +56,14 @@ public class TableDescriptor {
 
     private final @Nullable Schema schema;
     private final Map<String, String> options;
-    private final CatalogTable.TableDistribution distribution;
+    private final TableDistribution distribution;
     private final List<String> partitionKeys;
     private final @Nullable String comment;
 
     protected TableDescriptor(
             @Nullable Schema schema,
             Map<String, String> options,
-            CatalogTable.TableDistribution distribution,
+            TableDistribution distribution,
             List<String> partitionKeys,
             @Nullable String comment) {
         this.schema = schema;
@@ -104,12 +105,8 @@ public class TableDescriptor {
         return options;
     }
 
-    public CatalogTable.TableDistribution getDistribution() {
+    public TableDistribution getDistribution() {
         return distribution;
-    }
-
-    public List<String> getBucketKeys() {
-        return partitionKeys;
     }
 
     public List<String> getPartitionKeys() {
@@ -208,7 +205,7 @@ public class TableDescriptor {
 
         private @Nullable Schema schema;
         private final Map<String, String> options;
-        private @Nullable CatalogTable.TableDistribution distribution;
+        private @Nullable TableDistribution distribution;
         private final List<String> partitionKeys;
         private @Nullable String comment;
 
@@ -353,7 +350,7 @@ public class TableDescriptor {
         }
 
         /** Define which columns this table is distributed by. */
-        public Builder distributedBy(CatalogTable.TableDistribution distribution) {
+        public Builder distributedBy(TableDistribution distribution) {
             this.distribution = distribution;
             return this;
         }

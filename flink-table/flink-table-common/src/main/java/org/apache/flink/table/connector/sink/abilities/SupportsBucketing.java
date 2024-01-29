@@ -19,7 +19,7 @@
 package org.apache.flink.table.connector.sink.abilities;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.catalog.CatalogTable.TableDistribution;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 
 import java.util.Set;

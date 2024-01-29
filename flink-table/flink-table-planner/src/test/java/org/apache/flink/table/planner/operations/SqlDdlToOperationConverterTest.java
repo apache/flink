@@ -41,6 +41,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableChange;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.expressions.SqlCallExpression;
@@ -525,9 +526,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                 .watermark("f1", "`f1` - interval '1' second")
                                 .build(),
                         null,
-                        Optional.of(
-                                CatalogTable.TableDistribution.ofHash(
-                                        Collections.singletonList("f0"), 3)),
+                        Optional.of(TableDistribution.ofHash(Collections.singletonList("f0"), 3)),
                         Arrays.asList("f0", "f1"),
                         sourceProperties,
                         null);
@@ -559,9 +558,8 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                 isCreateTableOperation(
                                         withDistribution(
                                                 Optional.of(
-                                                        new CatalogTable.TableDistribution(
-                                                                CatalogTable.TableDistribution.Kind
-                                                                        .UNKNOWN,
+                                                        new TableDistribution(
+                                                                TableDistribution.Kind.UNKNOWN,
                                                                 null,
                                                                 Arrays.asList("a", "f0")))),
                                         withSchema(
@@ -588,9 +586,8 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                 isCreateTableOperation(
                                         withDistribution(
                                                 Optional.of(
-                                                        new CatalogTable.TableDistribution(
-                                                                CatalogTable.TableDistribution.Kind
-                                                                        .UNKNOWN,
+                                                        new TableDistribution(
+                                                                TableDistribution.Kind.UNKNOWN,
                                                                 null,
                                                                 Collections.singletonList(
                                                                         "a")))))));
@@ -621,9 +618,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                 .watermark("f1", "`f1` - interval '1' second")
                                 .build(),
                         null,
-                        Optional.of(
-                                CatalogTable.TableDistribution.ofHash(
-                                        Collections.singletonList("f0"), 3)),
+                        Optional.of(TableDistribution.ofHash(Collections.singletonList("f0"), 3)),
                         Arrays.asList("f0", "f1"),
                         sourceProperties,
                         null);
@@ -671,9 +666,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                 .watermark("f1", "`f1` - interval '1' second")
                                 .build(),
                         null,
-                        Optional.of(
-                                CatalogTable.TableDistribution.ofHash(
-                                        Collections.singletonList("f0"), 3)),
+                        Optional.of(TableDistribution.ofHash(Collections.singletonList("f0"), 3)),
                         Arrays.asList("f0", "f1"),
                         sourceProperties,
                         null);

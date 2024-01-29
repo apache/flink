@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.catalog.CatalogTable.TableDistribution;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 

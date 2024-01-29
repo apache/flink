@@ -36,8 +36,8 @@ import org.apache.flink.table.api.Schema.UnresolvedPhysicalColumn;
 import org.apache.flink.table.api.Schema.UnresolvedPrimaryKey;
 import org.apache.flink.table.api.Schema.UnresolvedWatermarkSpec;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -171,10 +171,10 @@ class MergeTableLikeUtil {
      * of it. Therefore, it is not possible to use {@link MergingStrategy#INCLUDING} with a
      * distribution defined in both source and derived table.
      */
-    public Optional<CatalogTable.TableDistribution> mergeDistribution(
+    public Optional<TableDistribution> mergeDistribution(
             MergingStrategy mergingStrategy,
-            Optional<CatalogTable.TableDistribution> sourceTableDistribution,
-            Optional<CatalogTable.TableDistribution> derivedTabledDistribution) {
+            Optional<TableDistribution> sourceTableDistribution,
+            Optional<TableDistribution> derivedTabledDistribution) {
 
         if (derivedTabledDistribution.isPresent()
                 && sourceTableDistribution.isPresent()
