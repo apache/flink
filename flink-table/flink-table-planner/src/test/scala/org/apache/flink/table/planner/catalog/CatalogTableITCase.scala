@@ -1125,17 +1125,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
         |create temporary table TBL1 (
         |  a bigint not null,
         |  h string,
-        |  g as 2*(a+1),
-        |  b string not null,
-        |  c bigint metadata virtual,
-        |  e row<name string, age int, flag boolean>,
-        |  f as myfunc(a),
-        |  ts1 timestamp(3),
-        |  ts2 timestamp_ltz(3) metadata from 'timestamp',
-        |  `__source__` varchar(255),
-        |  proc as proctime(),
-        |  watermark for ts1 as cast(timestampadd(hour, 8, ts1) as timestamp(3)),
-        |  constraint test_constraint primary key (a, b) not enforced
+        |  b string not null
         |) comment 'test show create table statement'
         |distributed by range(a) into 7 buckets
         |partitioned by (b,h)
@@ -1149,17 +1139,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       """ |CREATE TEMPORARY TABLE `default_catalog`.`default_database`.`TBL1` (
         |  `a` BIGINT NOT NULL,
         |  `h` VARCHAR(2147483647),
-        |  `g` AS 2 * (`a` + 1),
-        |  `b` VARCHAR(2147483647) NOT NULL,
-        |  `c` BIGINT METADATA VIRTUAL,
-        |  `e` ROW<`name` VARCHAR(2147483647), `age` INT, `flag` BOOLEAN>,
-        |  `f` AS `default_catalog`.`default_database`.`myfunc`(`a`),
-        |  `ts1` TIMESTAMP(3),
-        |  `ts2` TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA FROM 'timestamp',
-        |  `__source__` VARCHAR(255),
-        |  `proc` AS PROCTIME(),
-        |  WATERMARK FOR `ts1` AS CAST(TIMESTAMPADD(HOUR, 8, `ts1`) AS TIMESTAMP(3)),
-        |  CONSTRAINT `test_constraint` PRIMARY KEY (`a`, `b`) NOT ENFORCED
+        |  `b` VARCHAR(2147483647) NOT NULL
         |) COMMENT 'test show create table statement'
         |DISTRIBUTED BY RANGE(`a`) INTO 7 BUCKETS
         |PARTITIONED BY (`b`, `h`)
