@@ -44,7 +44,8 @@ def on_windows():
 
 
 def read_from_config(key, default_value, flink_conf_directory):
-    import yaml
+    from ruamel.yaml import YAML
+    yaml = YAML(typ='safe')
     # try to find flink-conf.yaml file in flink_conf_directory
     flink_conf_file = os.path.join(flink_conf_directory, "flink-conf.yaml")
     if os.path.isfile(flink_conf_file):
@@ -68,7 +69,7 @@ def read_from_config(key, default_value, flink_conf_directory):
         if os.path.isfile(config_file):
             # If config.yaml exists, use YAML parser to read the value
             with open(os.path.realpath(config_file), "r") as f:
-                config = yaml.safe_load(f)
+                config = yaml.load(f)
                 flat_config = flatten_config(config)
                 return flat_config.get(key, default_value)
 
