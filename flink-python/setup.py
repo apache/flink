@@ -326,7 +326,7 @@ try:
                         'pyarrow>=5.0.0',
                         'pemja==0.4.1;platform_system != "Windows"',
                         'httplib2>=0.19.0',
-                        'pyyaml>=6.0.1',
+                        'ruamel.yaml>=0.18.4',
                         apache_flink_libraries_dependency]
 
     setup(

@@ -20,11 +20,10 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.util.ExceptionUtils;
 
-import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.error.YAMLException;
-
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.snakeyaml.engine.v2.exceptions.YamlEngineException;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -75,6 +74,62 @@ class YamlParserUtilsTest {
         assertThat(yamlData.get("key7")).isEqualTo("true");
     }
 
+    /**
+     * Tests to avoid potential unexpected behavior changes for FLINK configuration due to
+     * differences between YAML 1.2 and its predecessor YAML 1.1. This test case is based on the
+     * YAML Changes page <a href="https://yaml.org/spec/1.2.2/ext/changes">YAML Changes</a>.
+     */
+    @SuppressWarnings("unchecked")
+    @Test
+    void testYaml12Features() {
+        // In YAML 1.2, only true and false strings are parsed as booleans (including True and
+        // TRUE); y, yes, on, and their negative counterparts are parsed as strings.
+        String booleanRepresentation = "key1: Yes\n" + "key2: y\n" + "key3: on";
+        Map<String, String> expectedBooleanRepresentation = new HashMap<>();
+        expectedBooleanRepresentation.put(
+                "key1", "Yes"); // the value is expected to Boolean#True in YAML 1.1
+        expectedBooleanRepresentation.put(
+                "key2", "y"); // the value is expected to Boolean#True in YAML 1.1
+        expectedBooleanRepresentation.put(
+                "key3", "on"); // the value is expected to Boolean#True in YAML 1.1
+        assertThat(YamlParserUtils.convertToObject(booleanRepresentation, Map.class))
+                .containsAllEntriesOf(expectedBooleanRepresentation);
+
+        // In YAML 1.2, underlines '_' cannot be used within numerical values.
+        String underlineInNumber = "key1: 1_000";
+        assertThat(YamlParserUtils.convertToObject(underlineInNumber, Map.class))
+                .containsEntry(
+                        "key1",
+                        "1_000"); // In YAML 1.1, the expected value is number 1000 not a string.
+
+        // In YAML 1.2, Octal values need a 0o prefix; e.g. 010 is now parsed with the value 10
+        // rather than 8.
+        String octalNumber1 = "octal: 010";
+        assertThat(YamlParserUtils.convertToObject(octalNumber1, Map.class))
+                .containsEntry("octal", 10); // In YAML 1.1, the expected value is number 8.
+        String octalNumber2 = "octal: 0o10";
+        assertThat(YamlParserUtils.convertToObject(octalNumber2, Map.class))
+                .containsEntry("octal", 8);
+
+        // In YAML 1.2, the binary and sexagesimal integer formats have been dropped.
+        String binaryNumber = "binary: 0b101";
+        assertThat(YamlParserUtils.convertToObject(binaryNumber, Map.class))
+                .containsEntry(
+                        "binary",
+                        "0b101"); // In YAML 1.1, the expected value is number 5 not a string.
+        String sexagesimalNumber = "sexagesimal: 1:00";
+        assertThat(YamlParserUtils.convertToObject(sexagesimalNumber, Map.class))
+                .containsEntry(
+                        "sexagesimal",
+                        "1:00"); // In YAML 1.1, the expected value is number 60 not a string.
+
+        // In YAML 1.2, the !!pairs, !!omap, !!set, !!timestamp and !!binary types have been
+        // dropped.
+        String timestamp = "!!timestamp 2001-12-15T02:59:43.1Z";
+        assertThatThrownBy(() -> YamlParserUtils.convertToObject(timestamp, Object.class))
+                .isInstanceOf(YamlEngineException.class);
+    }
+
     @Test
     void testLoadEmptyYamlFile() throws Exception {
         File confFile = new File(tmpDir, "test.yaml");
@@ -92,7 +147,7 @@ class YamlParserUtilsTest {
             throw new RuntimeException(e);
         }
         assertThatThrownBy(() -> YamlParserUtils.loadYamlFile(confFile))
-                .isInstanceOf(YAMLException.class)
+                .isInstanceOf(YamlEngineException.class)
                 .satisfies(
                         e ->
                                 Assertions.assertThat(ExceptionUtils.stringifyException(e))
@@ -109,7 +164,7 @@ class YamlParserUtilsTest {
             throw new RuntimeException(e);
         }
         assertThatThrownBy(() -> YamlParserUtils.loadYamlFile(confFile))
-                .isInstanceOf(YAMLException.class)
+                .isInstanceOf(YamlEngineException.class)
                 .satisfies(
                         e ->
                                 Assertions.assertThat(ExceptionUtils.stringifyException(e))

@@ -96,6 +96,13 @@ under the License.
 			<!-- managed version -->
 		</dependency>
 
+		<!-- YAML parser utilities -->
+		<dependency>
+			<groupId>org.snakeyaml</groupId>
+			<artifactId>snakeyaml-engine</artifactId>
+			<version>2.6</version>
+		</dependency>
+
 		<!-- standard utilities -->
 		<dependency>
 			<groupId>org.apache.commons</groupId>

@@ -20,20 +20,21 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.util.TimeUtils;
 
-import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.DumperOptions;
-import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.LoaderOptions;
-import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.Yaml;
-import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.constructor.Constructor;
-import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.error.Mark;
-import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.error.MarkedYAMLException;
-import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.error.YAMLException;
-import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.nodes.Node;
-import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.nodes.Tag;
-import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.representer.Represent;
-import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.representer.Representer;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.snakeyaml.engine.v2.api.Dump;
+import org.snakeyaml.engine.v2.api.DumpSettings;
+import org.snakeyaml.engine.v2.api.Load;
+import org.snakeyaml.engine.v2.api.LoadSettings;
+import org.snakeyaml.engine.v2.common.FlowStyle;
+import org.snakeyaml.engine.v2.exceptions.Mark;
+import org.snakeyaml.engine.v2.exceptions.MarkedYamlEngineException;
+import org.snakeyaml.engine.v2.exceptions.YamlEngineException;
+import org.snakeyaml.engine.v2.nodes.Node;
+import org.snakeyaml.engine.v2.nodes.ScalarNode;
+import org.snakeyaml.engine.v2.nodes.Tag;
+import org.snakeyaml.engine.v2.representer.StandardRepresenter;
+import org.snakeyaml.engine.v2.schema.CoreSchema;
 
 import javax.annotation.Nonnull;
 
@@ -47,6 +48,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * This class contains utility methods to load standard yaml file and convert object to standard
@@ -56,26 +58,30 @@ public class YamlParserUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(YamlParserUtils.class);
 
-    private static final Yaml yaml;
+    private static final DumpSettings blockerDumperSettings =
+            DumpSettings.builder()
+                    .setDefaultFlowStyle(FlowStyle.BLOCK)
+                    // Disable split long lines to avoid add unexpected line breaks
+                    .setSplitLines(false)
+                    .setSchema(new CoreSchema())
+                    .build();
 
-    private static final DumperOptions dumperOptions = new DumperOptions();
+    private static final DumpSettings flowDumperSettings =
+            DumpSettings.builder()
+                    .setDefaultFlowStyle(FlowStyle.FLOW)
+                    // Disable split long lines to avoid add unexpected line breaks
+                    .setSplitLines(false)
+                    .setSchema(new CoreSchema())
+                    .build();
 
-    private static final LoaderOptions loaderOptions = new LoaderOptions();
+    private static final Dump blockerDumper =
+            new Dump(blockerDumperSettings, new FlinkConfigRepresenter(blockerDumperSettings));
 
-    static {
-        // Make the dump output is in single line
-        dumperOptions.setDefaultFlowStyle(DumperOptions.FlowStyle.FLOW);
-        dumperOptions.setWidth(Integer.MAX_VALUE);
-        // The standard YAML do not allow duplicate keys.
-        loaderOptions.setAllowDuplicateKeys(false);
+    private static final Dump flowDumper =
+            new Dump(flowDumperSettings, new FlinkConfigRepresenter(flowDumperSettings));
 
-        yaml =
-                new Yaml(
-                        new Constructor(loaderOptions),
-                        new FlinkConfigRepresenter(dumperOptions),
-                        dumperOptions,
-                        loaderOptions);
-    }
+    private static final Load loader =
+            new Load(LoadSettings.builder().setSchema(new CoreSchema()).build());
 
     /**
      * Loads the contents of the given YAML file into a map.
@@ -84,21 +90,22 @@ public class YamlParserUtils {
      * @return a non-null map representing the YAML content. If the file is empty or only contains
      *     comments, an empty map is returned.
      * @throws FileNotFoundException if the YAML file is not found.
-     * @throws YAMLException if the file cannot be parsed.
+     * @throws YamlEngineException if the file cannot be parsed.
      * @throws IOException if an I/O error occurs while reading from the file stream.
      */
     public static synchronized @Nonnull Map<String, Object> loadYamlFile(File file)
             throws Exception {
         try (FileInputStream inputStream = new FileInputStream((file))) {
-            Map<String, Object> yamlResult = yaml.load(inputStream);
+            Map<String, Object> yamlResult =
+                    (Map<String, Object>) loader.loadFromInputStream(inputStream);
             return yamlResult == null ? new HashMap<>() : yamlResult;
         } catch (FileNotFoundException e) {
             LOG.error("Failed to find YAML file", e);
             throw e;
-        } catch (IOException | YAMLException e) {
-            if (e instanceof MarkedYAMLException) {
-                YAMLException exception =
-                        wrapExceptionToHiddenSensitiveData((MarkedYAMLException) e);
+        } catch (IOException | YamlEngineException e) {
+            if (e instanceof MarkedYamlEngineException) {
+                YamlEngineException exception =
+                        wrapExceptionToHiddenSensitiveData((MarkedYamlEngineException) e);
                 LOG.error("Failed to parse YAML configuration", exception);
                 throw exception;
             } else {
@@ -122,14 +129,14 @@ public class YamlParserUtils {
      */
     public static synchronized String toYAMLString(Object value) {
         try {
-            String output = yaml.dump(value);
+            String output = flowDumper.dumpToString(value);
             // remove the line break
-            String linebreak = dumperOptions.getLineBreak().getString();
+            String linebreak = flowDumperSettings.getBestLineBreak();
             if (output.endsWith(linebreak)) {
                 output = output.substring(0, output.length() - linebreak.length());
             }
             return output;
-        } catch (MarkedYAMLException exception) {
+        } catch (MarkedYamlEngineException exception) {
             throw wrapExceptionToHiddenSensitiveData(exception);
         }
     }
@@ -159,18 +166,18 @@ public class YamlParserUtils {
                 }
                 currentMap.put(keys[keys.length - 1], entry.getValue());
             }
-            String data = yaml.dumpAsMap(nestedMap);
-            String linebreak = dumperOptions.getLineBreak().getString();
+            String data = blockerDumper.dumpToString(nestedMap);
+            String linebreak = blockerDumperSettings.getBestLineBreak();
             return Arrays.asList(data.split(linebreak));
-        } catch (MarkedYAMLException exception) {
+        } catch (MarkedYamlEngineException exception) {
             throw wrapExceptionToHiddenSensitiveData(exception);
         }
     }
 
     public static synchronized <T> T convertToObject(String value, Class<T> type) {
         try {
-            return yaml.loadAs(value, type);
-        } catch (MarkedYAMLException exception) {
+            return type.cast(loader.loadFromString(value));
+        } catch (MarkedYamlEngineException exception) {
             throw wrapExceptionToHiddenSensitiveData(exception);
         }
     }
@@ -199,44 +206,48 @@ public class YamlParserUtils {
      * in 'reader', line 2, column 1
      * }</pre>
      *
-     * @param exception The MarkedYAMLException containing potentially sensitive data.
-     * @return A YAMLException with a message that has sensitive data hidden.
+     * @param exception The MarkedYamlEngineException containing potentially sensitive data.
+     * @return A YamlEngineException with a message that has sensitive data hidden.
      */
-    private static YAMLException wrapExceptionToHiddenSensitiveData(MarkedYAMLException exception) {
+    private static YamlEngineException wrapExceptionToHiddenSensitiveData(
+            MarkedYamlEngineException exception) {
         StringBuilder lines = new StringBuilder();
         String context = exception.getContext();
-        Mark contextMark = exception.getContextMark();
+        Optional<Mark> contextMark = exception.getContextMark();
+        Optional<Mark> problemMark = exception.getProblemMark();
         String problem = exception.getProblem();
-        Mark problemMark = exception.getProblemMark();
 
         if (context != null) {
             lines.append(context);
             lines.append("\n");
         }
-        if (contextMark != null
+
+        if (contextMark.isPresent()
                 && (problem == null
-                        || problemMark == null
-                        || contextMark.getName().equals(problemMark.getName())
-                        || (contextMark.getLine() != problemMark.getLine())
-                        || (contextMark.getColumn() != problemMark.getColumn()))) {
-            lines.append(hiddenSensitiveDataInMark(contextMark));
+                        || !problemMark.isPresent()
+                        || contextMark.get().getName().equals(problemMark.get().getName())
+                        || contextMark.get().getLine() != problemMark.get().getLine()
+                        || contextMark.get().getColumn() != problemMark.get().getColumn())) {
+            lines.append(hiddenSensitiveDataInMark(contextMark.get()));
             lines.append("\n");
         }
+
         if (problem != null) {
             lines.append(problem);
             lines.append("\n");
         }
-        if (problemMark != null) {
-            lines.append(hiddenSensitiveDataInMark(problemMark));
+
+        if (problemMark.isPresent()) {
+            lines.append(hiddenSensitiveDataInMark(problemMark.get()));
             lines.append("\n");
         }
 
         Throwable cause = exception.getCause();
-        if (cause instanceof MarkedYAMLException) {
-            cause = wrapExceptionToHiddenSensitiveData((MarkedYAMLException) cause);
+        if (cause instanceof MarkedYamlEngineException) {
+            cause = wrapExceptionToHiddenSensitiveData((MarkedYamlEngineException) cause);
         }
 
-        YAMLException yamlException = new YAMLException(lines.toString(), cause);
+        YamlEngineException yamlException = new YamlEngineException(lines.toString(), cause);
         yamlException.setStackTrace(exception.getStackTrace());
         return yamlException;
     }
@@ -254,37 +265,27 @@ public class YamlParserUtils {
                 + (mark.getColumn() + 1);
     }
 
-    private static class FlinkConfigRepresenter extends Representer {
-        public FlinkConfigRepresenter(DumperOptions options) {
-            super(options);
-            representers.put(Duration.class, new RepresentDuration());
-            representers.put(MemorySize.class, new RepresentMemorySize());
-            multiRepresenters.put(Enum.class, new RepresentEnum());
+    private static class FlinkConfigRepresenter extends StandardRepresenter {
+        public FlinkConfigRepresenter(DumpSettings dumpSettings) {
+            super(dumpSettings);
+            representers.put(Duration.class, this::representDuration);
+            representers.put(MemorySize.class, this::representMemorySize);
+            parentClassRepresenters.put(Enum.class, this::representEnum);
         }
 
-        private class RepresentDuration implements Represent {
-            @Override
-            public Node representData(Object data) {
-                Duration duration = (Duration) data;
-                String durationString = TimeUtils.formatWithHighestUnit(duration);
-                return representScalar(getTag(duration.getClass(), Tag.STR), durationString, null);
-            }
+        private Node representDuration(Object data) {
+            Duration duration = (Duration) data;
+            String durationString = TimeUtils.formatWithHighestUnit(duration);
+            return new ScalarNode(Tag.STR, durationString, settings.getDefaultScalarStyle());
         }
 
-        private class RepresentMemorySize implements Represent {
-            @Override
-            public Node representData(Object data) {
-                MemorySize memorySize = (MemorySize) data;
-                return representScalar(
-                        getTag(memorySize.getClass(), Tag.STR), memorySize.toString(), null);
-            }
+        private Node representMemorySize(Object data) {
+            MemorySize memorySize = (MemorySize) data;
+            return new ScalarNode(Tag.STR, memorySize.toString(), settings.getDefaultScalarStyle());
         }
 
-        private class RepresentEnum implements Represent {
-            @Override
-            public Node representData(Object data) {
-                return representScalar(getTag(data.getClass(), Tag.STR), data.toString(), null);
-            }
+        private Node representEnum(Object data) {
+            return new ScalarNode(Tag.STR, data.toString(), settings.getDefaultScalarStyle());
         }
     }
 }
