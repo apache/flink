@@ -163,7 +163,7 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
         // mock four kinds of events.
         String mockPath =
                 String.format(
-                        "/api/v1/namespaces/%s/pods?labelSelector=%s&resourceVersion=%s&allowWatchBookmarks=true&watch=true",
+                        "/api/v1/namespaces/%s/pods?allowWatchBookmarks=true&labelSelector=%s&resourceVersion=%s&watch=true",
                         namespace,
                         labels.entrySet().stream()
                                 .map(entry -> entry.getKey() + "%3D" + entry.getValue())
