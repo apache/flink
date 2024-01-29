@@ -904,14 +904,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         return "CREATE TABLE tbl1 (\n"
                 + "  a bigint,\n"
                 + "  h varchar, \n"
-                + "  g as 2 * (a + 1), \n"
-                + "  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'), \n"
                 + "  b varchar,\n"
-                + "  proc as PROCTIME(), \n"
-                + "  meta STRING METADATA, \n"
-                + "  my_meta STRING METADATA FROM 'meta', \n"
-                + "  my_meta STRING METADATA FROM 'meta' VIRTUAL, \n"
-                + "  meta STRING METADATA VIRTUAL, \n"
                 + "  PRIMARY KEY (a, b)\n"
                 + ")\n"
                 + distributionClause
@@ -925,14 +918,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         return "CREATE TABLE `TBL1` (\n"
                 + "  `A` BIGINT,\n"
                 + "  `H` VARCHAR,\n"
-                + "  `G` AS (2 * (`A` + 1)),\n"
-                + "  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n"
                 + "  `B` VARCHAR,\n"
-                + "  `PROC` AS `PROCTIME`(),\n"
-                + "  `META` STRING METADATA,\n"
-                + "  `MY_META` STRING METADATA FROM 'meta',\n"
-                + "  `MY_META` STRING METADATA FROM 'meta' VIRTUAL,\n"
-                + "  `META` STRING METADATA VIRTUAL,\n"
                 + "  PRIMARY KEY (`A`, `B`)\n"
                 + ")\n"
                 + distributionClause
@@ -961,7 +947,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testCreateTableWithRandomDistribution() {
         final String sql = buildDistributionInput("DISTRIBUTED BY ^RANDOM^(a, h) INTO 6 BUCKETS\n");
-        sql(sql).fails("(?s).*Encountered \"RANDOM\" at line 14, column 16.*");
+        sql(sql).fails("(?s).*Encountered \"RANDOM\" at line 7, column 16.*");
     }
 
     @Test
@@ -996,7 +982,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testCreateTableWithDistributionIntoNegativeBuckets() {
         final String sql = buildDistributionInput("DISTRIBUTED INTO ^-^3 BUCKETS\n");
-        sql(sql).fails("(?s).*Encountered \"-\" at line 14, column 18.*");
+        sql(sql).fails("(?s).*Encountered \"-\" at line 7, column 18.*");
     }
 
     @Test

@@ -1042,7 +1042,7 @@ public final class DynamicSinkUtils {
         if (!(sink instanceof SupportsBucketing)) {
             throw new TableException(
                     String.format(
-                            "Table '%s' is a bucketed table, but the underlying %s doesn't "
+                            "Table '%s' is distributed into buckets, but the underlying %s doesn't "
                                     + "implement the %s interface.",
                             tableDebugName,
                             DynamicTableSink.class.getSimpleName(),

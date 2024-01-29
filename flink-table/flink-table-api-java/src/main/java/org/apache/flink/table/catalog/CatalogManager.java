@@ -1325,7 +1325,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
 
         final ResolvedSchema resolvedSchema = table.getUnresolvedSchema().resolve(schemaResolver);
 
-        // Validate partition keys are included in physical columns
+        // Validate distribution keys are included in physical columns
         final List<String> physicalColumns =
                 resolvedSchema.getColumns().stream()
                         .filter(Column::isPhysical)
@@ -1342,7 +1342,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                                     if (!physicalColumns.contains(bucketKey)) {
                                                         throw new ValidationException(
                                                                 String.format(
-                                                                        "Invalid bucket key '%s'. A bucket key must "
+                                                                        "Invalid bucket key '%s'. A bucket key for a distribution must "
                                                                                 + "reference a physical column in the schema. "
                                                                                 + "Available columns are: %s",
                                                                         bucketKey,

@@ -32,6 +32,7 @@ import org.apache.calcite.util.ImmutableNullableList;
 import javax.annotation.Nullable;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Distribution statement in CREATE TABLE DDL, e.g. {@code DISTRIBUTED BY HASH(column1, column2)
@@ -95,11 +96,8 @@ public class SqlDistribution extends SqlCall {
         writer.newlineAndIndent();
     }
 
-    public String getDistributionKind() {
-        if (distributionKind == null) {
-            return "UNKNOWN";
-        }
-        return distributionKind;
+    public Optional<String> getDistributionKind() {
+        return Optional.ofNullable(distributionKind);
     }
 
     public SqlNumericLiteral getBucketCount() {

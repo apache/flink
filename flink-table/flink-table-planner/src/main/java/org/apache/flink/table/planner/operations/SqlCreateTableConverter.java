@@ -244,7 +244,10 @@ class SqlCreateTableConverter {
         if (sqlCreateTable.getDistribution() != null) {
             CatalogTable.TableDistribution.Kind kind =
                     CatalogTable.TableDistribution.Kind.valueOf(
-                            sqlCreateTable.getDistribution().getDistributionKind());
+                            sqlCreateTable
+                                    .getDistribution()
+                                    .getDistributionKind()
+                                    .orElse("UNKNOWN"));
             Integer bucketCount = null;
             SqlNumericLiteral count = sqlCreateTable.getDistribution().getBucketCount();
             if (count != null && count.isInteger()) {
