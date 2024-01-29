@@ -30,11 +30,9 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
-import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -91,15 +89,7 @@ class ResourceManagerJobMasterTest {
         resourceManagerService =
                 TestingResourceManagerService.newBuilder()
                         .setRpcService(rpcService)
-                        .setJmLeaderRetrieverFunction(
-                                requestedJobId -> {
-                                    if (requestedJobId.equals(jobId)) {
-                                        return jobMasterLeaderRetrievalService;
-                                    } else {
-                                        throw new FlinkRuntimeException(
-                                                String.format("Unknown job id %s", jobId));
-                                    }
-                                })
+                        .setRMLeaderRetriever(jobMasterLeaderRetrievalService)
                         .setRmLeaderElection(leaderElection)
                         .build();
 
@@ -217,20 +207,18 @@ class ResourceManagerJobMasterTest {
     void testRegisterJobMasterWithFailureLeaderListener() {
         JobID unknownJobIDToHAServices = new JobID();
 
-        // this should fail because we try to register a job leader listener for an unknown job id
+        // this should fail because we try to register a job leader listener for an unknown leader
+        // id
         CompletableFuture<RegistrationResponse> registrationFuture =
                 resourceManagerGateway.registerJobMaster(
-                        jobMasterGateway.getFencingToken(),
+                        JobMasterId.generate(),
                         jobMasterResourceId,
                         jobMasterGateway.getAddress(),
                         unknownJobIDToHAServices,
                         TIMEOUT);
-
         assertThatFuture(registrationFuture)
-                .as("Expected to fail with a ResourceManagerException.")
-                .failsWithin(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS)
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(ResourceManagerException.class);
+                .eventuallySucceeds()
+                .isInstanceOf(RegistrationResponse.Failure.class);
 
         // ignore the reported error
         resourceManagerService.ignoreFatalErrors();

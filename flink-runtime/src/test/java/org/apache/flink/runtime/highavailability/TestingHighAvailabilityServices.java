@@ -49,14 +49,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
     private volatile LeaderRetrievalService clusterRestEndpointLeaderRetriever;
 
-    private volatile Function<JobID, LeaderRetrievalService> jobMasterLeaderRetrieverFunction =
-            ignored -> null;
-
     private volatile Function<JobID, LeaderElection> jobMasterLeaderElectionServiceFunction =
             ignored -> null;
-
-    private final ConcurrentHashMap<JobID, LeaderRetrievalService> jobMasterLeaderRetrievers =
-            new ConcurrentHashMap<>();
 
     private final ConcurrentHashMap<JobID, LeaderElection> jobMasterLeaderElections =
             new ConcurrentHashMap<>();
@@ -97,11 +91,6 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
         this.clusterRestEndpointLeaderRetriever = clusterRestEndpointLeaderRetriever;
     }
 
-    public void setJobMasterLeaderRetriever(
-            JobID jobID, LeaderRetrievalService jobMasterLeaderRetriever) {
-        this.jobMasterLeaderRetrievers.put(jobID, jobMasterLeaderRetriever);
-    }
-
     public void setJobMasterLeaderElection(JobID jobID, LeaderElection leaderElection) {
         this.jobMasterLeaderElections.put(jobID, leaderElection);
     }
@@ -134,11 +123,6 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
     public void setJobMasterLeaderElectionFunction(
             Function<JobID, LeaderElection> jobMasterLeaderElectionServiceFunction) {
         this.jobMasterLeaderElectionServiceFunction = jobMasterLeaderElectionServiceFunction;
-    }
-
-    public void setJobMasterLeaderRetrieverFunction(
-            Function<JobID, LeaderRetrievalService> jobMasterLeaderRetrieverFunction) {
-        this.jobMasterLeaderRetrieverFunction = jobMasterLeaderRetrieverFunction;
     }
 
     public void setCloseFuture(CompletableFuture<Void> closeFuture) {
@@ -175,23 +159,6 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
         } else {
             throw new IllegalStateException("ResourceManagerLeaderRetriever has not been set");
         }
-    }
-
-    @Override
-    public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
-        LeaderRetrievalService service =
-                jobMasterLeaderRetrievers.computeIfAbsent(jobID, jobMasterLeaderRetrieverFunction);
-        if (service != null) {
-            return service;
-        } else {
-            throw new IllegalStateException("JobMasterLeaderRetriever has not been set");
-        }
-    }
-
-    @Override
-    public LeaderRetrievalService getJobManagerLeaderRetriever(
-            JobID jobID, String defaultJobManagerAddress) {
-        return getJobManagerLeaderRetriever(jobID);
     }
 
     @Override

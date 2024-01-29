@@ -116,18 +116,6 @@ public class EmbeddedHaServicesTest extends TestLogger {
                         ^ leaderIdArgumentCaptor2.getAllValues().isEmpty());
     }
 
-    /** Tests the JobManager leader retrieval for a given job. */
-    @Test
-    public void testJobManagerLeaderRetrieval() throws Exception {
-        JobID jobId = new JobID();
-
-        LeaderElection leaderElection = embeddedHaServices.getJobManagerLeaderElection(jobId);
-        LeaderRetrievalService leaderRetrievalService =
-                embeddedHaServices.getJobManagerLeaderRetriever(jobId);
-
-        runLeaderRetrievalTest(leaderElection, leaderRetrievalService);
-    }
-
     private void runLeaderRetrievalTest(
             LeaderElection leaderElection, LeaderRetrievalService leaderRetrievalService)
             throws Exception {

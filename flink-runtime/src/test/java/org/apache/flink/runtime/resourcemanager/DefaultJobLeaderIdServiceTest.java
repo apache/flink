@@ -313,12 +313,11 @@ class DefaultJobLeaderIdServiceTest {
     /** Tests that whether the service has been started. */
     @Test
     void testIsStarted() throws Exception {
-        final JobID jobId = new JobID();
         TestingHighAvailabilityServices highAvailabilityServices =
                 new TestingHighAvailabilityServices();
         SettableLeaderRetrievalService leaderRetrievalService =
                 new SettableLeaderRetrievalService(null, null);
-        highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
+        highAvailabilityServices.setResourceManagerLeaderRetriever(leaderRetrievalService);
         ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
         Time timeout = Time.milliseconds(5000L);
         JobLeaderIdActions jobLeaderIdActions = mock(JobLeaderIdActions.class);

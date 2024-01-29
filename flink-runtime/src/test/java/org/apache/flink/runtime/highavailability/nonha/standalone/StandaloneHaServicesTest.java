@@ -86,59 +86,23 @@ public class StandaloneHaServicesTest extends TestLogger {
      * fixed leader session id.
      */
     @Test
-    public void testJobManagerLeaderRetrieval() throws Exception {
-        JobID jobId1 = new JobID();
-        JobID jobId2 = new JobID();
-        LeaderRetrievalListener jmListener1 = mock(LeaderRetrievalListener.class);
-        LeaderRetrievalListener jmListener2 = mock(LeaderRetrievalListener.class);
-        LeaderRetrievalListener rmListener = mock(LeaderRetrievalListener.class);
+    public void testResourceManagerLeaderRetrieval() throws Exception {
+        LeaderRetrievalListener rmListener1 = mock(LeaderRetrievalListener.class);
+        LeaderRetrievalListener rmListener2 = mock(LeaderRetrievalListener.class);
 
-        LeaderRetrievalService jmLeaderRetrievalService1 =
-                standaloneHaServices.getJobManagerLeaderRetriever(jobId1);
-        LeaderRetrievalService jmLeaderRetrievalService2 =
-                standaloneHaServices.getJobManagerLeaderRetriever(jobId2);
-        LeaderRetrievalService rmLeaderRetrievalService =
+        LeaderRetrievalService rmLeaderRetrievalService1 =
+                standaloneHaServices.getResourceManagerLeaderRetriever();
+        LeaderRetrievalService rmLeaderRetrievalService2 =
                 standaloneHaServices.getResourceManagerLeaderRetriever();
 
-        jmLeaderRetrievalService1.start(jmListener1);
-        jmLeaderRetrievalService2.start(jmListener2);
-        rmLeaderRetrievalService.start(rmListener);
+        rmLeaderRetrievalService1.start(rmListener1);
+        rmLeaderRetrievalService2.start(rmListener2);
 
-        verify(jmListener1)
-                .notifyLeaderAddress(eq("UNKNOWN"), eq(HighAvailabilityServices.DEFAULT_LEADER_ID));
-        verify(jmListener2)
-                .notifyLeaderAddress(eq("UNKNOWN"), eq(HighAvailabilityServices.DEFAULT_LEADER_ID));
-        verify(rmListener)
+        verify(rmListener1)
                 .notifyLeaderAddress(
                         eq(resourceManagerAddress), eq(HighAvailabilityServices.DEFAULT_LEADER_ID));
-    }
-
-    /**
-     * Tests that the standalone leader retrieval services return the given address and the fixed
-     * leader session id.
-     */
-    @Test
-    public void testJobMasterLeaderRetrieval() throws Exception {
-        JobID jobId1 = new JobID();
-        JobID jobId2 = new JobID();
-        final String jobManagerAddress1 = "foobar";
-        final String jobManagerAddress2 = "barfoo";
-        LeaderRetrievalListener jmListener1 = mock(LeaderRetrievalListener.class);
-        LeaderRetrievalListener jmListener2 = mock(LeaderRetrievalListener.class);
-
-        LeaderRetrievalService jmLeaderRetrievalService1 =
-                standaloneHaServices.getJobManagerLeaderRetriever(jobId1, jobManagerAddress1);
-        LeaderRetrievalService jmLeaderRetrievalService2 =
-                standaloneHaServices.getJobManagerLeaderRetriever(jobId2, jobManagerAddress2);
-
-        jmLeaderRetrievalService1.start(jmListener1);
-        jmLeaderRetrievalService2.start(jmListener2);
-
-        verify(jmListener1)
+        verify(rmListener2)
                 .notifyLeaderAddress(
-                        eq(jobManagerAddress1), eq(HighAvailabilityServices.DEFAULT_LEADER_ID));
-        verify(jmListener2)
-                .notifyLeaderAddress(
-                        eq(jobManagerAddress2), eq(HighAvailabilityServices.DEFAULT_LEADER_ID));
+                        eq(resourceManagerAddress), eq(HighAvailabilityServices.DEFAULT_LEADER_ID));
     }
 }

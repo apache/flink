@@ -85,9 +85,6 @@ public class TestingHighAvailabilityServicesBuilder {
         testingHighAvailabilityServices.setDispatcherLeaderRetriever(dispatcherLeaderRetriever);
         testingHighAvailabilityServices.setClusterRestEndpointLeaderRetriever(
                 webMonitorEndpointLeaderRetriever);
-
-        testingHighAvailabilityServices.setJobMasterLeaderRetrieverFunction(
-                jobMasterLeaderRetrieverFunction);
         testingHighAvailabilityServices.setJobMasterLeaderElectionFunction(
                 jobMasterLeaderElectionFunction);
 

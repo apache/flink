@@ -82,28 +82,6 @@ public interface HighAvailabilityServices
     LeaderRetrievalService getDispatcherLeaderRetriever();
 
     /**
-     * Gets the leader retriever for the job JobMaster which is responsible for the given job.
-     *
-     * @param jobID The identifier of the job.
-     * @return Leader retrieval service to retrieve the job manager for the given job
-     * @deprecated This method should only be used by the legacy code where the JobManager acts as
-     *     the master.
-     */
-    @Deprecated
-    LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID);
-
-    /**
-     * Gets the leader retriever for the job JobMaster which is responsible for the given job.
-     *
-     * @param jobID The identifier of the job.
-     * @param defaultJobManagerAddress JobManager address which will be returned by a static leader
-     *     retrieval service.
-     * @return Leader retrieval service to retrieve the job manager for the given job
-     */
-    LeaderRetrievalService getJobManagerLeaderRetriever(
-            JobID jobID, String defaultJobManagerAddress);
-
-    /**
      * This retriever should no longer be used on the cluster side. The web monitor retriever is
      * only required on the client-side and we have a dedicated high-availability services for the
      * client, named {@link ClientHighAvailabilityServices}. See also FLINK-13750.

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -44,7 +43,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
-import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -147,7 +145,7 @@ public class TestingResourceManagerService implements ResourceManagerService {
         private RpcService rpcService = null;
         private boolean needStopRpcService = true;
         private TestingLeaderElection rmLeaderElection = null;
-        private Function<JobID, LeaderRetrievalService> jmLeaderRetrieverFunction = null;
+        private LeaderRetrievalService rmLeaderRetriever = null;
 
         public Builder setRpcService(RpcService rpcService) {
             this.rpcService = checkNotNull(rpcService);
@@ -160,9 +158,8 @@ public class TestingResourceManagerService implements ResourceManagerService {
             return this;
         }
 
-        public Builder setJmLeaderRetrieverFunction(
-                Function<JobID, LeaderRetrievalService> jmLeaderRetrieverFunction) {
-            this.jmLeaderRetrieverFunction = checkNotNull(jmLeaderRetrieverFunction);
+        public Builder setRMLeaderRetriever(LeaderRetrievalService rmLeaderRetriever) {
+            this.rmLeaderRetriever = checkNotNull(rmLeaderRetriever);
             return this;
         }
 
@@ -174,8 +171,8 @@ public class TestingResourceManagerService implements ResourceManagerService {
             final TestingHighAvailabilityServices haServices =
                     new TestingHighAvailabilityServices();
             haServices.setResourceManagerLeaderElection(rmLeaderElection);
-            if (jmLeaderRetrieverFunction != null) {
-                haServices.setJobMasterLeaderRetrieverFunction(jmLeaderRetrieverFunction);
+            if (rmLeaderRetriever != null) {
+                haServices.setResourceManagerLeaderRetriever(rmLeaderRetriever);
             }
 
             final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();

@@ -26,7 +26,9 @@ import org.apache.flink.runtime.blob.TestingBlobStoreBuilder;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
+import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
@@ -85,7 +87,7 @@ public class TestingPartialDispatcherServices extends PartialDispatcherServices 
     /** {@code Builder} for creating {@code TestingPartialDispatcherServices} instances. */
     public static class Builder {
 
-        private HighAvailabilityServices highAvailabilityServices =
+        private TestingHighAvailabilityServices highAvailabilityServices =
                 new TestingHighAvailabilityServicesBuilder().build();
         private GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever =
                 CompletableFuture::new;
@@ -101,10 +103,14 @@ public class TestingPartialDispatcherServices extends PartialDispatcherServices 
         private DispatcherOperationCaches operationCaches = new DispatcherOperationCaches();
         private Executor ioExecutor = ForkJoinPool.commonPool();
 
-        private Builder() {}
+        private Builder() {
+            highAvailabilityServices.setResourceManagerLeaderRetriever(
+                    new StandaloneLeaderRetrievalService(
+                            "localhost", HighAvailabilityServices.DEFAULT_LEADER_ID));
+        }
 
         public Builder withHighAvailabilityServices(
-                HighAvailabilityServices highAvailabilityServices) {
+                TestingHighAvailabilityServices highAvailabilityServices) {
             this.highAvailabilityServices = highAvailabilityServices;
             return this;
         }

@@ -165,23 +165,19 @@ class ZooKeeperLeaderRetrievalTest {
                 externalProcessDriver.isLeader();
 
                 externalProcessDriver.publishLeaderInformation(
-                        HighAvailabilityServices.DEFAULT_JOB_ID.toString(),
+                        "resource_manager",
                         LeaderInformation.known(UUID.randomUUID(), wrongAddress));
 
                 FindConnectingAddress findConnectingAddress =
                         new FindConnectingAddress(
                                 timeout,
-                                highAvailabilityServices.getJobManagerLeaderRetriever(
-                                        HighAvailabilityServices.DEFAULT_JOB_ID,
-                                        "unused-default-address"));
+                                highAvailabilityServices.getResourceManagerLeaderRetriever());
 
                 thread = new Thread(findConnectingAddress);
 
                 thread.start();
 
-                leaderElection =
-                        highAvailabilityServices.getJobManagerLeaderElection(
-                                HighAvailabilityServices.DEFAULT_JOB_ID);
+                leaderElection = highAvailabilityServices.getResourceManagerLeaderElection();
                 TestingContender correctLeaderAddressContender =
                         new TestingContender(correctAddress, leaderElection);
 
@@ -226,8 +222,7 @@ class ZooKeeperLeaderRetrievalTest {
         Duration timeout = Duration.ofSeconds(1L);
 
         LeaderRetrievalService leaderRetrievalService =
-                highAvailabilityServices.getJobManagerLeaderRetriever(
-                        HighAvailabilityServices.DEFAULT_JOB_ID, "unused-default-address");
+                highAvailabilityServices.getResourceManagerLeaderRetriever();
         InetAddress result =
                 LeaderRetrievalUtils.findConnectingAddress(
                         leaderRetrievalService, timeout, RPC_SYSTEM);

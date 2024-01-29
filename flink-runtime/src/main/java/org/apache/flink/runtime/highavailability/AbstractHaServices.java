@@ -95,17 +95,6 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     }
 
     @Override
-    public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
-        return createLeaderRetrievalService(getLeaderPathForJobManager(jobID));
-    }
-
-    @Override
-    public LeaderRetrievalService getJobManagerLeaderRetriever(
-            JobID jobID, String defaultJobManagerAddress) {
-        return getJobManagerLeaderRetriever(jobID);
-    }
-
-    @Override
     public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
         return createLeaderRetrievalService(getLeaderPathForRestServer());
     }

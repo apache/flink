@@ -138,15 +138,21 @@ class TaskExecutorSlotLifetimeTest {
                 new SettableLeaderRetrievalService(
                         resourceManagerGateway.getAddress(),
                         resourceManagerGateway.getFencingToken().toUUID());
+        final LeaderRetrievalService resourceManagerLeaderRetriever2 =
+                new SettableLeaderRetrievalService(
+                        resourceManagerGateway.getAddress(),
+                        resourceManagerGateway.getFencingToken().toUUID());
         final LeaderRetrievalService jobMasterLeaderRetriever =
                 new SettableLeaderRetrievalService(
-                        jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
+                        resourceManagerGateway.getAddress(),
+                        resourceManagerGateway.getFencingToken().toUUID());
 
         final TestingHighAvailabilityServices haServices =
                 new TestingHighAvailabilityServicesBuilder()
                         .setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever)
-                        .setJobMasterLeaderRetrieverFunction(ignored -> jobMasterLeaderRetriever)
                         .build();
+        haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever2);
+        haServices.setResourceManagerLeaderRetriever(jobMasterLeaderRetriever);
 
         rpcService.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
         rpcService.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);

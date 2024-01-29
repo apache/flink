@@ -41,6 +41,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -75,18 +77,19 @@ class DefaultJobLeaderServiceTest {
         final int numberOperations = 20;
         final BlockingQueue<SettableLeaderRetrievalService> instantiatedLeaderRetrievalServices =
                 new ArrayBlockingQueue<>(numberOperations);
+        final UUID leaderId = UUID.randomUUID();
+        final List<SettableLeaderRetrievalService> retrievers = new ArrayList<>();
+        for (int i = 0; i < numberOperations; ++i) {
+            retrievers.add(new SettableLeaderRetrievalService());
+        }
 
-        final HighAvailabilityServices haServices =
+        final TestingHighAvailabilityServices haServices =
                 new TestingHighAvailabilityServicesBuilder()
-                        .setJobMasterLeaderRetrieverFunction(
-                                leaderForJobId -> {
-                                    final SettableLeaderRetrievalService leaderRetrievalService =
-                                            new SettableLeaderRetrievalService();
-                                    instantiatedLeaderRetrievalServices.offer(
-                                            leaderRetrievalService);
-                                    return leaderRetrievalService;
-                                })
+                        .setResourceManagerLeaderRetriever(retrievers.get(0))
                         .build();
+        for (int i = 1; i < numberOperations; ++i) {
+            haServices.setResourceManagerLeaderRetriever(retrievers.get(i));
+        }
 
         jobLeaderService.start(
                 "foobar",
@@ -109,9 +112,7 @@ class DefaultJobLeaderServiceTest {
         addJobAction.start();
 
         for (int i = 0; i < numberOperations; i++) {
-            final SettableLeaderRetrievalService leaderRetrievalService =
-                    instantiatedLeaderRetrievalServices.take();
-            leaderRetrievalService.notifyListener("foobar", UUID.randomUUID());
+            retrievers.get(i).notifyListener("foobar", leaderId);
         }
 
         addJobAction.sync();
@@ -129,7 +130,7 @@ class DefaultJobLeaderServiceTest {
                 new SettableLeaderRetrievalService();
         final TestingHighAvailabilityServices haServices =
                 new TestingHighAvailabilityServicesBuilder()
-                        .setJobMasterLeaderRetrieverFunction(ignored -> leaderRetrievalService)
+                        .setResourceManagerLeaderRetriever(leaderRetrievalService)
                         .build();
         final TestingJobMasterGateway jobMasterGateway = registerJobMaster();
 
@@ -169,7 +170,7 @@ class DefaultJobLeaderServiceTest {
                 new SettableLeaderRetrievalService();
         final TestingHighAvailabilityServices haServices =
                 new TestingHighAvailabilityServicesBuilder()
-                        .setJobMasterLeaderRetrieverFunction(ignored -> leaderRetrievalService)
+                        .setResourceManagerLeaderRetriever(leaderRetrievalService)
                         .build();
 
         final TestingJobMasterGateway jobMasterGateway = registerJobMaster();
@@ -211,7 +212,7 @@ class DefaultJobLeaderServiceTest {
                 new FailingSettableLeaderRetrievalService();
         final TestingHighAvailabilityServices haServices =
                 new TestingHighAvailabilityServicesBuilder()
-                        .setJobMasterLeaderRetrieverFunction(ignored -> leaderRetrievalService)
+                        .setResourceManagerLeaderRetriever(leaderRetrievalService)
                         .build();
 
         final JobID jobId = new JobID();
@@ -248,7 +249,7 @@ class DefaultJobLeaderServiceTest {
                 new SettableLeaderRetrievalService();
         final TestingHighAvailabilityServices haServices =
                 new TestingHighAvailabilityServicesBuilder()
-                        .setJobMasterLeaderRetrieverFunction(ignored -> leaderRetrievalService)
+                        .setResourceManagerLeaderRetriever(leaderRetrievalService)
                         .build();
 
         final JobID jobId = new JobID();
@@ -272,7 +273,7 @@ class DefaultJobLeaderServiceTest {
                 .registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
 
         try {
-            jobLeaderService.addJob(jobId, "foobar");
+            jobLeaderService.addJob(jobId, jobMasterGateway.getAddress());
 
             leaderRetrievalService.notifyListener(
                     jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());

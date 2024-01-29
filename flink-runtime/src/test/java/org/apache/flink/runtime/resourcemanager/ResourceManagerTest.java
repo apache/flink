@@ -405,11 +405,7 @@ class ResourceManagerTest {
                 new SettableLeaderRetrievalService(
                         jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
 
-        highAvailabilityServices.setJobMasterLeaderRetrieverFunction(
-                requestedJobId -> {
-                    assertThat(requestedJobId).isEqualTo(jobId);
-                    return jobMasterLeaderRetrievalService;
-                });
+        highAvailabilityServices.setResourceManagerLeaderRetriever(jobMasterLeaderRetrievalService);
 
         runHeartbeatTimeoutTest(
                 (ignore) -> {},
@@ -467,11 +463,7 @@ class ResourceManagerTest {
                 new SettableLeaderRetrievalService(
                         jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
 
-        highAvailabilityServices.setJobMasterLeaderRetrieverFunction(
-                requestedJobId -> {
-                    assertThat(requestedJobId).isEqualTo(jobId);
-                    return jobMasterLeaderRetrievalService;
-                });
+        highAvailabilityServices.setResourceManagerLeaderRetriever(jobMasterLeaderRetrievalService);
 
         runHeartbeatTargetBecomesUnreachableTest(
                 (ignore) -> {},
@@ -836,11 +828,9 @@ class ResourceManagerTest {
                         .withSlotManager(createSlotManager())
                         .buildAndStart();
 
-        highAvailabilityServices.setJobMasterLeaderRetrieverFunction(
-                requestedJobId ->
-                        new SettableLeaderRetrievalService(
-                                jobMasterGateway.getAddress(),
-                                jobMasterGateway.getFencingToken().toUUID()));
+        highAvailabilityServices.setResourceManagerLeaderRetriever(
+                new SettableLeaderRetrievalService(
+                        jobMasterGateway.getAddress(), resourceManager.getFencingToken().toUUID()));
 
         final JobID jobId = JobID.generate();
         final ResourceManagerGateway resourceManagerGateway =

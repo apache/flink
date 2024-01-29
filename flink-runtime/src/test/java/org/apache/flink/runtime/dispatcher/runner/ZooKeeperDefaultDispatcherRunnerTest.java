@@ -159,12 +159,13 @@ class ZooKeeperDefaultDispatcherRunnerTest {
                 final TestingHighAvailabilityServices highAvailabilityServices =
                         new TestingHighAvailabilityServicesBuilder()
                                 .setDispatcherLeaderElection(dispatcherLeaderElection)
-                                .setJobMasterLeaderRetrieverFunction(
-                                        jobId ->
-                                                ZooKeeperUtils.createLeaderRetrievalService(
-                                                        curatorFrameworkWrapper
-                                                                .asCuratorFramework()))
+                                .setResourceManagerLeaderRetriever(
+                                        ZooKeeperUtils.createLeaderRetrievalService(
+                                                curatorFrameworkWrapper.asCuratorFramework()))
                                 .build()) {
+            highAvailabilityServices.setResourceManagerLeaderRetriever(
+                    ZooKeeperUtils.createLeaderRetrievalService(
+                            curatorFrameworkWrapper.asCuratorFramework()));
 
             final PartialDispatcherServices partialDispatcherServices =
                     new PartialDispatcherServices(

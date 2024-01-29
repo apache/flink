@@ -75,18 +75,6 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
     }
 
     @Override
-    public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
-        checkNotNull(jobID);
-        return clusterLeaderService.createLeaderRetrievalService("job-" + jobID);
-    }
-
-    @Override
-    public LeaderRetrievalService getJobManagerLeaderRetriever(
-            JobID jobID, String defaultJobManagerAddress) {
-        return getJobManagerLeaderRetriever(jobID);
-    }
-
-    @Override
     public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
         return clusterLeaderService.createLeaderRetrievalService("rest_server");
     }

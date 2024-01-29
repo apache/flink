@@ -105,26 +105,6 @@ public class StandaloneHaServices extends AbstractNonHaServices {
     }
 
     @Override
-    public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
-        synchronized (lock) {
-            checkNotShutdown();
-
-            return new StandaloneLeaderRetrievalService("UNKNOWN", DEFAULT_LEADER_ID);
-        }
-    }
-
-    @Override
-    public LeaderRetrievalService getJobManagerLeaderRetriever(
-            JobID jobID, String defaultJobManagerAddress) {
-        synchronized (lock) {
-            checkNotShutdown();
-
-            return new StandaloneLeaderRetrievalService(
-                    defaultJobManagerAddress, DEFAULT_LEADER_ID);
-        }
-    }
-
-    @Override
     public LeaderElection getJobManagerLeaderElection(JobID jobID) {
         synchronized (lock) {
             checkNotShutdown();
