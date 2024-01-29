@@ -241,7 +241,7 @@ class CatalogBaseTableResolutionTest {
                     .satisfies(
                             matching(
                                     containsMessage(
-                                            "Invalid bucket key 'countyINVALID'. A bucket key must "
+                                            "Invalid bucket key 'countyINVALID'. A bucket key for a distribution must "
                                                     + "reference a physical column in the schema. "
                                                     + "Available columns are: [id, region, county]")));
         }

@@ -355,6 +355,22 @@ public class TableDescriptor {
             return this;
         }
 
+        public Builder distributedByHash(String... bucketKeys) {
+            return distributedByHash(null, bucketKeys);
+        }
+
+        public Builder distributedByHash(Integer number, String... bucketKeys) {
+            return distributedBy(TableDistribution.ofHash(Arrays.asList(bucketKeys), number));
+        }
+
+        public Builder distributedByRange(String... bucketKeys) {
+            return distributedByRange(null, bucketKeys);
+        }
+
+        public Builder distributedByRange(Integer number, String... bucketKeys) {
+            return distributedBy(TableDistribution.ofRange(Arrays.asList(bucketKeys), number));
+        }
+
         /** Define which columns this table is partitioned by. */
         public Builder partitionedBy(String... partitionKeys) {
             this.partitionKeys.addAll(Arrays.asList(partitionKeys));

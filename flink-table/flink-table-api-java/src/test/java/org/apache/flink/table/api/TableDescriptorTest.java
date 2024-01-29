@@ -141,8 +141,7 @@ class TableDescriptorTest {
         final TableDescriptor tableDescriptor =
                 TableDescriptor.forConnector("test-connector")
                         .schema(schema)
-                        .distributedBy(
-                                TableDistribution.ofRange(Collections.singletonList("f0"), 3))
+                        .distributedByRange(3, "f0")
                         .partitionedBy("f0")
                         .option(OPTION_A, true)
                         .format(formatDescriptor)
