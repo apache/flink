@@ -78,7 +78,6 @@ import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -97,6 +96,8 @@ class TaskExecutorExecutionDeploymentReconciliationTest {
     private final SettableLeaderRetrievalService jobManagerLeaderRetriever =
             new SettableLeaderRetrievalService();
     private final SettableLeaderRetrievalService resourceManagerLeaderRetriever =
+            new SettableLeaderRetrievalService();
+    private final SettableLeaderRetrievalService resourceManagerLeaderRetriever2 =
             new SettableLeaderRetrievalService();
     private final JobID jobId = new JobID();
 
@@ -117,7 +118,8 @@ class TaskExecutorExecutionDeploymentReconciliationTest {
     @BeforeEach
     void setup() {
         haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
-        haServices.setJobMasterLeaderRetriever(jobId, jobManagerLeaderRetriever);
+        haServices.setResourceManagerLeaderRetriever(jobManagerLeaderRetriever);
+        haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever2);
     }
 
     @AfterEach
@@ -331,8 +333,13 @@ class TaskExecutorExecutionDeploymentReconciliationTest {
 
         // inform the task manager about the job leader
         jobLeaderService.addJob(jobId, jobMasterAddress);
-        jobManagerLeaderRetriever.notifyListener(jobMasterAddress, UUID.randomUUID());
+        jobManagerLeaderRetriever.notifyListener(
+                resourceManagerGateway.getAddress(),
+                resourceManagerGateway.getFencingToken().toUUID());
         resourceManagerLeaderRetriever.notifyListener(
+                resourceManagerGateway.getAddress(),
+                resourceManagerGateway.getFencingToken().toUUID());
+        resourceManagerLeaderRetriever2.notifyListener(
                 resourceManagerGateway.getAddress(),
                 resourceManagerGateway.getFencingToken().toUUID());
 

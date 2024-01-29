@@ -29,6 +29,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
@@ -97,7 +98,15 @@ class TaskExecutorRecoveryTest {
                         testingResourceManagerGateway.getFencingToken().toUUID()));
         final SettableLeaderRetrievalService jobMasterLeaderRetriever =
                 new SettableLeaderRetrievalService();
-        highAvailabilityServices.setJobMasterLeaderRetriever(jobId, jobMasterLeaderRetriever);
+        highAvailabilityServices.setResourceManagerLeaderRetriever(jobMasterLeaderRetriever);
+        highAvailabilityServices.setResourceManagerLeaderRetriever(
+                new SettableLeaderRetrievalService(
+                        testingResourceManagerGateway.getAddress(),
+                        testingResourceManagerGateway.getFencingToken().toUUID()));
+        highAvailabilityServices.setResourceManagerLeaderRetriever(
+                new SettableLeaderRetrievalService(
+                        testingResourceManagerGateway.getAddress(),
+                        testingResourceManagerGateway.getFencingToken().toUUID()));
 
         final WorkingDirectory workingDirectory = WorkingDirectory.create(tempDir);
         final TaskExecutor taskExecutor =
@@ -128,7 +137,7 @@ class TaskExecutorRecoveryTest {
                         jobId,
                         allocationId,
                         slotStatus.getResourceProfile(),
-                        "localhost",
+                        "pekko.tcp://flink@localhost:6130/user/jobmanager",
                         testingResourceManagerGateway.getFencingToken(),
                         Time.seconds(10L))
                 .join();
@@ -144,10 +153,18 @@ class TaskExecutorRecoveryTest {
                                     offeredSlots.offer(new HashSet<>(slotOffers));
                                     return CompletableFuture.completedFuture(slotOffers);
                                 })
+                        .setFencingTokenSupplier(
+                                () ->
+                                        JobMasterId.fromUuidOrNull(
+                                                testingResourceManagerGateway
+                                                        .getFencingToken()
+                                                        .toUUID()))
+                        .setAddress("pekko.tcp://flink@localhost:6130/user/jobmanager")
                         .build();
         rpcService.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
         jobMasterLeaderRetriever.notifyListener(
-                jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
+                testingResourceManagerGateway.getAddress(),
+                testingResourceManagerGateway.getFencingToken().toUUID());
 
         // recover the TaskExecutor
         final TaskExecutor recoveredTaskExecutor =

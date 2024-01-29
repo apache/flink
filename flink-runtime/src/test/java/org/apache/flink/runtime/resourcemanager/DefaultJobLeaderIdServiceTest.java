@@ -66,7 +66,7 @@ class DefaultJobLeaderIdServiceTest {
         SettableLeaderRetrievalService leaderRetrievalService =
                 new SettableLeaderRetrievalService(null, null);
 
-        highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
+        highAvailabilityServices.setResourceManagerLeaderRetriever(leaderRetrievalService);
 
         ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
         Time timeout = Time.milliseconds(5000L);
@@ -99,7 +99,7 @@ class DefaultJobLeaderIdServiceTest {
         SettableLeaderRetrievalService leaderRetrievalService =
                 new SettableLeaderRetrievalService(null, null);
 
-        highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
+        highAvailabilityServices.setResourceManagerLeaderRetriever(leaderRetrievalService);
 
         ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
         Time timeout = Time.milliseconds(5000L);
@@ -137,7 +137,7 @@ class DefaultJobLeaderIdServiceTest {
         SettableLeaderRetrievalService leaderRetrievalService =
                 new SettableLeaderRetrievalService(null, null);
 
-        highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
+        highAvailabilityServices.setResourceManagerLeaderRetriever(leaderRetrievalService);
 
         ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
         Time timeout = Time.milliseconds(5000L);
@@ -183,7 +183,7 @@ class DefaultJobLeaderIdServiceTest {
         SettableLeaderRetrievalService leaderRetrievalService =
                 new SettableLeaderRetrievalService(null, null);
 
-        highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
+        highAvailabilityServices.setResourceManagerLeaderRetriever(leaderRetrievalService);
 
         ScheduledFuture<?> timeout1 = mock(ScheduledFuture.class);
         ScheduledFuture<?> timeout2 = mock(ScheduledFuture.class);
@@ -280,7 +280,7 @@ class DefaultJobLeaderIdServiceTest {
         SettableLeaderRetrievalService leaderRetrievalService =
                 new SettableLeaderRetrievalService(null, null);
 
-        highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
+        highAvailabilityServices.setResourceManagerLeaderRetriever(leaderRetrievalService);
 
         JobLeaderIdService jobLeaderIdService =
                 new DefaultJobLeaderIdService(

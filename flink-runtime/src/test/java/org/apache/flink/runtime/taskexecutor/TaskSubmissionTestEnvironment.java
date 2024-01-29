@@ -124,7 +124,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
         this.haServices = new TestingHighAvailabilityServices();
         this.haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
-        this.haServices.setJobMasterLeaderRetriever(jobId, new SettableLeaderRetrievalService());
+        this.haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
 
         this.temporaryFolder = new TemporaryFolder();
         this.temporaryFolder.create();

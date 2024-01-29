@@ -90,7 +90,6 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -125,7 +124,7 @@ class TaskExecutorPartitionLifecycleTest {
     @BeforeEach
     void setup() {
         haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
-        haServices.setJobMasterLeaderRetriever(jobId, jobManagerLeaderRetriever);
+        haServices.setResourceManagerLeaderRetriever(jobManagerLeaderRetriever);
     }
 
     @AfterEach
@@ -495,9 +494,10 @@ class TaskExecutorPartitionLifecycleTest {
                     testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
 
             // inform the task manager about the job leader
-            taskManagerServices.getJobLeaderService().addJob(jobId, jobMasterAddress);
-            jobManagerLeaderRetriever.notifyListener(jobMasterAddress, UUID.randomUUID());
             resourceManagerLeaderRetriever.notifyListener(
+                    testingResourceManagerGateway.getAddress(),
+                    testingResourceManagerGateway.getFencingToken().toUUID());
+            jobManagerLeaderRetriever.notifyListener(
                     testingResourceManagerGateway.getAddress(),
                     testingResourceManagerGateway.getFencingToken().toUUID());
 

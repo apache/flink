@@ -239,8 +239,8 @@ class TaskExecutorTest {
         jobManagerLeaderRetriever = new SettableLeaderRetrievalService();
         jobManagerLeaderRetriever2 = new SettableLeaderRetrievalService();
         haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
-        haServices.setJobMasterLeaderRetriever(jobId, jobManagerLeaderRetriever);
-        haServices.setJobMasterLeaderRetriever(jobId2, jobManagerLeaderRetriever2);
+        haServices.setResourceManagerLeaderRetriever(jobManagerLeaderRetriever);
+        haServices.setResourceManagerLeaderRetriever(jobManagerLeaderRetriever2);
 
         nettyShuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
     }
@@ -1684,7 +1684,9 @@ class TaskExecutorTest {
 
             final StartStopNotifyingLeaderRetrievalService jobMasterLeaderRetriever =
                     new StartStopNotifyingLeaderRetrievalService(startFuture, stopFuture);
-            haServices.setJobMasterLeaderRetriever(jobId, jobMasterLeaderRetriever);
+            haServices.getResourceManagerLeaderRetriever();
+            haServices.getResourceManagerLeaderRetriever();
+            haServices.setResourceManagerLeaderRetriever(jobMasterLeaderRetriever);
 
             taskExecutor.start();
             taskExecutor.waitUntilStarted();
@@ -2206,11 +2208,12 @@ class TaskExecutorTest {
                     new AllocationID(),
                     new SlotID(resourceID, 0),
                     ResourceProfile.ZERO,
-                    "foobar",
+                    jobMasterGateway.getAddress(),
                     resourceManagerGateway.getFencingToken());
 
             jobManagerLeaderRetriever.notifyListener(
-                    jobMasterGateway.getAddress(), UUID.randomUUID());
+                    resourceManagerGateway.getAddress(),
+                    resourceManagerGateway.getFencingToken().toUUID());
 
             assertThatFuture(offeredSlotsFuture).eventuallySucceeds().isEqualTo(1);
 
@@ -2339,7 +2342,7 @@ class TaskExecutorTest {
                     jobId,
                     allocationIdInBoth,
                     ResourceProfile.ZERO,
-                    "foobar",
+                    jobManagerAddress,
                     testingResourceManagerGateway.getFencingToken(),
                     timeout);
             taskExecutorGateway.requestSlot(
@@ -2347,7 +2350,7 @@ class TaskExecutorTest {
                     jobId,
                     allocationIdOnlyInTM,
                     ResourceProfile.ZERO,
-                    "foobar",
+                    jobManagerAddress,
                     testingResourceManagerGateway.getFencingToken(),
                     timeout);
 

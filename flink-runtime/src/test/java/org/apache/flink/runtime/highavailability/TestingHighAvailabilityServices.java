@@ -29,6 +29,8 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -40,7 +42,8 @@ import java.util.function.Function;
  */
 public class TestingHighAvailabilityServices implements HighAvailabilityServices {
 
-    private volatile LeaderRetrievalService resourceManagerLeaderRetriever;
+    private volatile Queue<LeaderRetrievalService> resourceManagerLeaderRetrievers =
+            new ArrayDeque<>();
 
     private volatile LeaderRetrievalService dispatcherLeaderRetriever;
 
@@ -82,7 +85,7 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
     public void setResourceManagerLeaderRetriever(
             LeaderRetrievalService resourceManagerLeaderRetriever) {
-        this.resourceManagerLeaderRetriever = resourceManagerLeaderRetriever;
+        this.resourceManagerLeaderRetrievers.add(resourceManagerLeaderRetriever);
     }
 
     public void setDispatcherLeaderRetriever(LeaderRetrievalService dispatcherLeaderRetriever) {
@@ -156,7 +159,7 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
     @Override
     public LeaderRetrievalService getResourceManagerLeaderRetriever() {
-        LeaderRetrievalService service = this.resourceManagerLeaderRetriever;
+        LeaderRetrievalService service = this.resourceManagerLeaderRetrievers.poll();
         if (service != null) {
             return service;
         } else {
