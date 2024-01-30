@@ -912,9 +912,11 @@ env.sqlQuery("SELECT BackgroundFunction(myField) FROM MyTable");
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-import org.apache.flink.table.annotation.InputGroup
 import org.apache.flink.table.api._
-import org.apache.flink.table.functions.AsyncScalarFunction
+import org.apache.flink.table.functions.{AsyncScalarFunction, FunctionContext}
+
+import java.util.Random
+import java.util.concurrent.{CompletableFuture, Executor, Executors}
 
 class BackgroundFunc extends AsyncScalarFunction {
 
