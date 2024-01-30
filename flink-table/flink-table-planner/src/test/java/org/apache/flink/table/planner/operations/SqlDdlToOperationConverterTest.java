@@ -601,7 +601,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         assertThatThrownBy(() -> parseAndConvert(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Invalid bucket key 'f3'. A bucket key must reference a physical column in the schema. Available columns are: [a]");
+                        "Invalid bucket key 'f3'. A bucket key for a distribution must reference a physical column in the schema. Available columns are: [a]");
     }
 
     // TODO Discuss this case.
