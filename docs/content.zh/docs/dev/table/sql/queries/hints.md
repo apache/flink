@@ -511,13 +511,13 @@ ON o.customer_id = c.id AND DATE_FORMAT(o.order_timestamp, 'yyyy-MM-dd HH:mm') =
 - 异步查找中，如果 'output-mode' 最终为 'ORDERED'，那延迟重试造成反压的概率相对 'UNORDERED' 更高，这种情况下调大 'capacity' 不一定能有效减轻反压，可能需要考虑减小延迟等待的时长。
 {{< /hint >}}
 
-### 联接提示使用中的冲突
+#### 联接提示使用中的冲突
 
 当联接提示产生冲突时，Flink 会选择最匹配的执行方式。
 - 同一种联接提示间产生冲突时，Flink 会为联接选择第一个最匹配的表。
 - 不同联接提示间产生冲突时，Flink 会为联接选择第一个最匹配的联接提示。
 
-#### 示例
+##### 示例
 
 ```sql
 CREATE TABLE t1 (id BIGINT, name STRING, age INT) WITH (...);
@@ -549,6 +549,95 @@ SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.
 -- 由于指定的两种联接提示都不支持不等值的联接条件。所以，只能使用支持非等值联接条件的 nested loop join。
 SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.id > t2.id;
 ```
+### 状态生命周期提示
+
+{{< label Streaming >}}
+
+对于有状态计算的[流连接]({{< ref "docs/dev/table/sql/queries/joins" >}}#regular-joins)和[分组聚合]({{< ref "docs/dev/table/sql/queries/group-agg" >}})操作，用户可以通过 `STATE_TTL` 来指定算子粒度的[空闲状态维持时间]({{< ref "docs/dev/table/concepts/overview" >}}#idle-state-retention-time)，该方式能够使得在上述状态算子中使用与作业级别 [table.exec.state.ttl]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl) 不同的值。
+
+##### 流连接示例
+
+```sql
+CREATE TABLE orders (
+  o_orderkey INT,
+  o_custkey INT,
+  o_status BOOLEAN,
+  o_totalprice DOUBLE
+) WITH (...);
+
+CREATE TABLE lineitem (
+  l_linenumber int,
+  l_orderkey int,
+  l_partkey int,
+  l_extendedprice double
+) WITH (...);
+
+CREATE TABLE customers (
+  c_custkey int,
+  c_address string
+) WITH (...);
+
+-- 表名作为 hint 键
+SELECT /*+ STATE_TTL('orders'='3d', 'lineitem'='1d') */ * FROM
+orders LEFT JOIN lineitem
+ON orders.o_orderkey = lineitem.l_orderkey;
+
+
+-- 别名作为 hint 键
+SELECT /*+ STATE_TTL('o'='3d', 'l'='1d') */ * FROM
+orders o LEFT JOIN lineitem l
+ON o.o_orderkey = l.l_orderkey;
+
+-- 临时视图作为 hint 键
+CREATE TEMPORARY VIEW left_input AS SELECT ... FROM orders WHERE ...;
+CREATE TEMPORARY VIEW right_input AS SELECT ... FROM lineitem WHERE ...;
+SELECT /*+ STATE_TTL('left_input'= '360000s', 'right_input' = '15h') */ * 
+FROM left_input JOIN right_input
+ON left_input.join_key = right_input.join_key;
+
+-- 级联 join
+SELECT /*+ STATE_TTL('o' = '3d', 'l' = '1d', 'c' = '10d') */ *
+FROM orders o LEFT OUTER JOIN lineitem l
+ON o.o_orderkey = l.l_orderkey
+LEFT OUTER JOIN customers c
+ON o.o_custkey = c.c_custkey;
+```
+
+##### 分组聚合示例
+
+```sql
+-- 表名作为 hint 键
+SELECT /*+ STATE_TTL('orders' = '1d') */ o_orderkey, SUM(o_totalprice) AS revenue
+FROM orders
+GROUP BY o_orderkey;
+
+-- 别名作为 hint 键
+SELECT /*+ STATE_TTL('o' = '1d') */ o_orderkey, SUM(o_totalprice) AS revenue
+FROM orders AS o
+GROUP BY o_orderkey;
+
+-- 查询块作为 hint 键
+SELECT /*+ STATE_TTL('tmp' = '1d') */ o_orderkey, SUM(o_totalprice) AS revenue
+FROM (SELECT o_orderkey, o_totalprice
+      FROM orders
+      WHERE o_shippriority = 0) tmp
+GROUP BY o_orderkey;
+```
+
+{{< hint info >}}
+注意：
+
+- 用户既可以选择表（或视图）名也可以选择别名作为提示键，但在指定别名时需要使用别名。
+- 对于多流连接场景，直接指定每张表的生命周期只会在第一个连接算子的左右流和第二个连接算子的右流上生效（因为流上关联操作是二元的）。如果想为每个连接算子的左右流都指定不同生命周期，需要将查询拆成多个查询块，如下所示。
+  ```sql
+  CREATE TEMPORARY VIEW V AS 
+  SELECT /*+ STATE_TTL('A' = '1d', 'B' = '12h')*/ * FROM A JOIN B ON...;
+  SELECT /*+ STATE_TTL('V' = '1d', 'C' = '3d')*/ * FROM V JOIN C ON ...;
+  ```
+- `STATE_TTL` 提示仅作用在当前查询块上。
+- 当 `STATE_TTL` 提示键重复时取最后一个值。举例来说，在出现 `SELECT /*+ STATE_TTL('A' = '1d', 'A' = '2d')*/ * FROM ...` 时，输入 A 的 TTL 值将会取 2d。
+- 当出现多个 `STATE_TTL` 且提示键重复时取第一个值。举例来说，在出现 `SELECT /*+ STATE_TTL('A' = '1d', 'B' = '2d'), STATE_TTL('C' = '12h', 'A' = '6h')*/ * FROM ...` 时，输入 A 的 TTL 值将会取 1d。
+{{< /hint >}}
 
 ### 什么是查询块？
 

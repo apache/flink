@@ -556,13 +556,13 @@ retry maybe higher than 'UNORDERED' mode, in which case increasing async 'capaci
 in reducing backpressure, and it may be necessary to consider reducing the delay duration.
 {{< /hint >}}
 
-### Conflict Cases In Join Hints
+#### Conflict Cases In Join Hints
 
 If the `Join Hints` conflicts occur, Flink will choose the most matching one.
 - Conflict in one same Join Hint strategy, Flink will choose the first matching table for a join.
 - Conflict in different Join Hints strategies, Flink will choose the first matching hint for a join.
 
-#### Examples
+##### Examples
 
 ```sql
 CREATE TABLE t1 (id BIGINT, name STRING, age INT) WITH (...);
@@ -596,6 +596,103 @@ SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.
 -- so only nested loop join can be applied.
 SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.id > t2.id;
 ```
+
+### State TTL Hints
+
+{{< label Streaming >}}
+
+For stateful computation [Regular Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#regular-joins)
+and [Group Aggregation]({{< ref "docs/dev/table/sql/queries/group-agg" >}}), users can
+use `STATE_TTL` hint to
+specify operator-level [Idle State Retention Time]({{< ref "docs/dev/table/concepts/overview" >}}#idle-state-retention-time),
+which enables the aforementioned operators to have a different TTL against the pipeline level configuration [table.exec.state.ttl]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl).
+
+##### Regular Join Examples
+
+```sql
+CREATE TABLE orders (
+  o_orderkey INT,
+  o_custkey INT,
+  o_status BOOLEAN,
+  o_totalprice DOUBLE
+) WITH (...);
+
+CREATE TABLE lineitem (
+  l_linenumber int,
+  l_orderkey int,
+  l_partkey int,
+  l_extendedprice double
+) WITH (...);
+
+CREATE TABLE customers (
+  c_custkey int,
+  c_address string
+) WITH (...);
+
+-- table name as hint key
+SELECT /*+ STATE_TTL('orders'='3d', 'lineitem'='1d') */ * FROM
+orders LEFT JOIN lineitem
+ON orders.o_orderkey = lineitem.l_orderkey;
+
+
+-- table alias as hint key
+SELECT /*+ STATE_TTL('o'='3d', 'l'='1d') */ * FROM
+orders o LEFT JOIN lineitem l
+ON o.o_orderkey = l.l_orderkey;
+
+-- temporary view name as hint key
+CREATE TEMPORARY VIEW left_input AS SELECT ... FROM orders WHERE ...;
+CREATE TEMPORARY VIEW right_input AS SELECT ... FROM lineitem WHERE ...;
+SELECT /*+ STATE_TTL('left_input'= '360000s', 'right_input' = '15h') */ * 
+FROM left_input JOIN right_input
+ON left_input.join_key = right_input.join_key;
+
+-- cascade joins
+SELECT /*+ STATE_TTL('o' = '3d', 'l' = '1d', 'c' = '10d') */ *
+FROM orders o LEFT OUTER JOIN lineitem l
+ON o.o_orderkey = l.l_orderkey
+LEFT OUTER JOIN customers c
+ON o.o_custkey = c.c_custkey;
+```
+
+##### Group Aggregation Examples
+
+```sql
+-- table name as hint key
+SELECT /*+ STATE_TTL('orders' = '1d') */ o_orderkey, SUM(o_totalprice) AS revenue
+FROM orders
+GROUP BY o_orderkey;
+
+-- table alias as hint key
+SELECT /*+ STATE_TTL('o' = '1d') */ o_orderkey, SUM(o_totalprice) AS revenue
+FROM orders AS o
+GROUP BY o_orderkey;
+
+-- query block alias as hint key
+SELECT /*+ STATE_TTL('tmp' = '1d') */ o_orderkey, SUM(o_totalprice) AS revenue
+FROM (SELECT o_orderkey, o_totalprice
+      FROM orders
+      WHERE o_shippriority = 0) tmp
+GROUP BY o_orderkey;
+```
+
+{{< hint info >}}
+Note:
+
+- Users can choose either table/view name or table alias as the hint key. However, once the alias is specified, the `STATE_TTL` must be hinted on the alias.
+- For cascade joins, the specified state TTLs will be interpreted as the left and right state TTL for the first join operator and 
+  the right state TTL for the second join operator (from a bottom-up order). 
+  The left state TTL for the second join operator will be retrieved from the configuration `table.exec.state.ttl`. 
+  If users need to set a specific TTL value for the left state of the second join operator, the query needs to be split into query blocks like 
+  ```sql
+  CREATE TEMPORARY VIEW V AS 
+  SELECT /*+ STATE_TTL('A' = '1d', 'B' = '12h')*/ * FROM A JOIN B ON...;
+  SELECT /*+ STATE_TTL('V' = '1d', 'C' = '3d')*/ * FROM V JOIN C ON ...;
+  ```
+- STATE_TTL hint only applies on the underlying query block.
+- When the `STATE_TTL` hint key is duplicated, the value is applied from the last occurrence. For example, in cases like `SELECT /*+ STATE_TTL('A' = '1d', 'A' = '2d')*/ * FROM ...`, the TTL for input A will be taken as 2d.
+- When there are multiple `STATE_TTL` hints appear with duplicated hint key, the value is applied from the first occurrence. For example, in cases like `SELECT /*+ STATE_TTL('A' = '1d', 'B' = '2d'), STATE_TTL('C' = '12h', 'A' = '6h')*/ * FROM ...`, the TTL for input A will be taken as 1d.
+{{< /hint >}}
 
 ### What are query blocks ?
 
