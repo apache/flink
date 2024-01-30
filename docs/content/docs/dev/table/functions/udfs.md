@@ -40,7 +40,7 @@ Overview
 Currently, Flink distinguishes between the following kinds of functions:
 
 - *Scalar functions* map scalar values to a new scalar value.
-  - *Asynchronous scalar functions* asynchronously map scalar values to a new scalar value.
+- *Asynchronous scalar functions* asynchronously map scalar values to a new scalar value.
 - *Table functions* map scalar values to new rows.
 - *Aggregate functions* map scalar values of multiple rows to a new scalar value.
 - *Table aggregate functions* map scalar values of multiple rows to new rows.
