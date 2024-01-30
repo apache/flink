@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.test.program;
 
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.types.Row;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /** Test step for creating a table source. */
 public final class SourceTestStep extends TableTestStep {
@@ -34,11 +36,12 @@ public final class SourceTestStep extends TableTestStep {
     SourceTestStep(
             String name,
             List<String> schemaComponents,
+            Optional<TableDistribution> distribution,
             List<String> partitionKeys,
             Map<String, String> options,
             List<Row> dataBeforeRestore,
             List<Row> dataAfterRestore) {
-        super(name, schemaComponents, partitionKeys, options);
+        super(name, schemaComponents, distribution, partitionKeys, options);
         this.dataBeforeRestore = dataBeforeRestore;
         this.dataAfterRestore = dataAfterRestore;
     }
@@ -85,6 +88,7 @@ public final class SourceTestStep extends TableTestStep {
             return new SourceTestStep(
                     name,
                     schemaComponents,
+                    distribution,
                     partitionKeys,
                     options,
                     dataBeforeRestore,

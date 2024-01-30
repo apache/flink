@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.planner.plan.abilities.sink;
 
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.abilities.SupportsBucketing;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
@@ -30,5 +32,12 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
 @JsonTypeName("Bucketing")
 public final class BucketingSpec implements SinkAbilitySpec {
     @Override
-    public void apply(DynamicTableSink tableSink) {}
+    public void apply(DynamicTableSink tableSink) {
+        if (!(tableSink instanceof SupportsBucketing)) {
+            throw new TableException(
+                    String.format(
+                            "%s does not support SupportsBucketing.",
+                            tableSink.getClass().getName()));
+        }
+    }
 }

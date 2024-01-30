@@ -55,6 +55,7 @@ import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
+import org.apache.flink.table.planner.plan.abilities.sink.BucketingSpec;
 import org.apache.flink.table.planner.plan.abilities.sink.OverwriteSpec;
 import org.apache.flink.table.planner.plan.abilities.sink.RowLevelDeleteSpec;
 import org.apache.flink.table.planner.plan.abilities.sink.RowLevelUpdateSpec;
@@ -947,8 +948,8 @@ public final class DynamicSinkUtils {
     }
 
     /**
-     * Prepares the given {@link DynamicTableSink}. It check whether the sink is compatible with the
-     * INSERT INTO clause and applies initial parameters.
+     * Prepares the given {@link DynamicTableSink}. It checks whether the sink is compatible with
+     * the INSERT INTO clause and applies initial parameters.
      */
     private static void prepareDynamicSink(
             String tableDebugName,
@@ -958,7 +959,10 @@ public final class DynamicSinkUtils {
             ResolvedCatalogTable table,
             List<SinkAbilitySpec> sinkAbilitySpecs) {
         table.getDistribution()
-                .ifPresent(distribution -> validateBucketing(tableDebugName, sink, distribution));
+                .ifPresent(
+                        distribution ->
+                                validateBucketing(
+                                        tableDebugName, sink, distribution, sinkAbilitySpecs));
 
         validatePartitioning(tableDebugName, staticPartitions, sink, table.getPartitionKeys());
 
@@ -1036,7 +1040,10 @@ public final class DynamicSinkUtils {
     }
 
     private static void validateBucketing(
-            String tableDebugName, DynamicTableSink sink, TableDistribution distribution) {
+            String tableDebugName,
+            DynamicTableSink sink,
+            TableDistribution distribution,
+            List<SinkAbilitySpec> sinkAbilitySpecs) {
         if (!(sink instanceof SupportsBucketing)) {
             throw new TableException(
                     String.format(
@@ -1062,6 +1069,7 @@ public final class DynamicSinkUtils {
                             sinkWithBucketing.listAlgorithms(),
                             distribution.getKind()));
         }
+        sinkAbilitySpecs.add(new BucketingSpec());
     }
 
     private static void validatePartitioning(

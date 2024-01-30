@@ -50,7 +50,8 @@ import java.util.Optional;
 public interface CatalogTable extends CatalogBaseTable {
 
     /** Builder for configuring and creating instances of {@link CatalogTable}. */
-    public static CatalogTable.Builder newBuilder() {
+    @PublicEvolving
+    static CatalogTable.Builder newBuilder() {
         return new CatalogTable.Builder();
     }
 
@@ -182,6 +183,7 @@ public interface CatalogTable extends CatalogBaseTable {
     // --------------------------------------------------------------------------------------------
 
     /** Builder for configuring and creating instances of {@link CatalogTable}. */
+    @PublicEvolving
     class Builder {
         private Schema schema;
         private String comment;

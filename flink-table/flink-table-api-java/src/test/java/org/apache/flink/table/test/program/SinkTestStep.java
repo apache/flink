@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.test.program;
 
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.types.Row;
 
 import javax.annotation.Nullable;
@@ -27,6 +28,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** Test step for creating a table sink. */
@@ -41,6 +43,7 @@ public final class SinkTestStep extends TableTestStep {
     SinkTestStep(
             String name,
             List<String> schemaComponents,
+            Optional<TableDistribution> distribution,
             List<String> partitionKeys,
             Map<String, String> options,
             @Nullable List<Row> expectedBeforeRestore,
@@ -48,7 +51,7 @@ public final class SinkTestStep extends TableTestStep {
             @Nullable List<String> expectedBeforeRestoreStrings,
             @Nullable List<String> expectedAfterRestoreStrings,
             boolean testChangelogData) {
-        super(name, schemaComponents, partitionKeys, options);
+        super(name, schemaComponents, distribution, partitionKeys, options);
         if (expectedBeforeRestore != null && expectedAfterRestoreStrings != null) {
             throw new IllegalArgumentException(
                     "You can not mix Row/String representation in before/after restore data.");
@@ -169,6 +172,7 @@ public final class SinkTestStep extends TableTestStep {
             return new SinkTestStep(
                     name,
                     schemaComponents,
+                    distribution,
                     partitionKeys,
                     options,
                     expectedBeforeRestore,

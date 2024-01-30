@@ -93,6 +93,7 @@ public class TableDistribution {
     }
 
     /** Distribution kind. */
+    @PublicEvolving
     public enum Kind {
         UNKNOWN,
         HASH,
