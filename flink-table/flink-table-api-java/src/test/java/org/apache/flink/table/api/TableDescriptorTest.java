@@ -181,4 +181,96 @@ class TableDescriptorTest {
                         "Format options set using #format(FormatDescriptor) should not contain the prefix 'test-format.', but found 'test-format.a'.")
                 .isInstanceOf(ValidationException.class);
     }
+
+    @Test
+    void testDistributedByHash() {
+        final TableDescriptor.Builder tableDescriptorBuilder = getTableDescriptorBuilder();
+        tableDescriptorBuilder.distributedByHash(3, "f0");
+        assertThat(tableDescriptorBuilder.build().toString())
+                .contains("DISTRIBUTED BY HASH(`f0`) INTO 3 BUCKETS\n");
+    }
+
+    @Test
+    void testDistributedByHashNoBucketCount() {
+        final TableDescriptor.Builder tableDescriptorBuilder = getTableDescriptorBuilder();
+        tableDescriptorBuilder.distributedByHash("f0");
+        assertThat(tableDescriptorBuilder.build().toString())
+                .contains("DISTRIBUTED BY HASH(`f0`)\n");
+    }
+
+    @Test
+    void testDistributedByHashNoBucketKeys() {
+        final TableDescriptor.Builder tableDescriptorBuilder = getTableDescriptorBuilder();
+        assertThatThrownBy(() -> tableDescriptorBuilder.distributedByHash(3))
+                .as("At least one bucket key must be defined for a distribution.")
+                .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    void testDistributedByRange() {
+        final TableDescriptor.Builder tableDescriptorBuilder = getTableDescriptorBuilder();
+        tableDescriptorBuilder.distributedByRange(3, "f0");
+        assertThat(tableDescriptorBuilder.build().toString())
+                .contains("DISTRIBUTED BY RANGE(`f0`) INTO 3 BUCKETS\n");
+    }
+
+    @Test
+    void testDistributedByRangeNoBucketCount() {
+        final TableDescriptor.Builder tableDescriptorBuilder = getTableDescriptorBuilder();
+        tableDescriptorBuilder.distributedByRange("f0");
+        assertThat(tableDescriptorBuilder.build().toString())
+                .contains("DISTRIBUTED BY RANGE(`f0`)\n");
+    }
+
+    @Test
+    void testDistributedByRangeNoBucketKeys() {
+        final TableDescriptor.Builder tableDescriptorBuilder = getTableDescriptorBuilder();
+        assertThatThrownBy(() -> tableDescriptorBuilder.distributedByRange(3))
+                .as("At least one bucket key must be defined for a distribution.")
+                .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    void testDistributedBy() {
+        final TableDescriptor.Builder tableDescriptorBuilder = getTableDescriptorBuilder();
+        tableDescriptorBuilder.distributedInto(3, "f0");
+        assertThat(tableDescriptorBuilder.build().toString())
+                .contains("DISTRIBUTED BY (`f0`) INTO 3 BUCKETS\n");
+    }
+
+    @Test
+    void testDistributedByNoBucketCount() {
+        final TableDescriptor.Builder tableDescriptorBuilder = getTableDescriptorBuilder();
+        tableDescriptorBuilder.distributedInto("f0");
+        assertThat(tableDescriptorBuilder.build().toString()).contains("DISTRIBUTED BY (`f0`)\n");
+    }
+
+    @Test
+    void testDistributedByNoBucketNoBucketCountKeys() {
+        final TableDescriptor.Builder tableDescriptorBuilder = getTableDescriptorBuilder();
+        assertThatThrownBy(() -> tableDescriptorBuilder.distributedInto())
+                .as("At least one bucket key must be defined for a distribution.")
+                .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    void testDistributedByNoBucketKeys() {
+        final TableDescriptor.Builder tableDescriptorBuilder = getTableDescriptorBuilder();
+        tableDescriptorBuilder.distributedInto(3);
+        assertThat(tableDescriptorBuilder.build().toString())
+                .contains("DISTRIBUTED INTO 3 BUCKETS\n");
+    }
+
+    private static TableDescriptor.Builder getTableDescriptorBuilder() {
+        final Schema schema = Schema.newBuilder().column("f0", DataTypes.STRING()).build();
+        final FormatDescriptor formatDescriptor =
+                FormatDescriptor.forFormat("test-format").option(OPTION_A, false).build();
+
+        return TableDescriptor.forConnector("test-connector")
+                .schema(schema)
+                .partitionedBy("f0")
+                .option(OPTION_A, true)
+                .format(formatDescriptor)
+                .comment("Test Comment");
+    }
 }

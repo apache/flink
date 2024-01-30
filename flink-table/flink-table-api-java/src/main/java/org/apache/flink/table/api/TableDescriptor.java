@@ -350,37 +350,52 @@ public class TableDescriptor {
         }
 
         public Builder distributedByHash(String... bucketKeys) {
+            if (bucketKeys.length == 0) {
+                throw new ValidationException(
+                        "At least one bucket key must be defined for a distribution.");
+            }
             this.distribution = TableDistribution.ofHash(Arrays.asList(bucketKeys), null);
             return this;
         }
 
         public Builder distributedByHash(int number, String... bucketKeys) {
+            if (bucketKeys.length == 0) {
+                throw new ValidationException(
+                        "At least one bucket key must be defined for a distribution.");
+            }
             this.distribution = TableDistribution.ofHash(Arrays.asList(bucketKeys), number);
             return this;
         }
 
         public Builder distributedByRange(String... bucketKeys) {
+            if (bucketKeys.length == 0) {
+                throw new ValidationException(
+                        "At least one bucket key must be defined for a distribution.");
+            }
             this.distribution = TableDistribution.ofRange(Arrays.asList(bucketKeys), null);
             return this;
         }
 
         public Builder distributedByRange(int number, String... bucketKeys) {
+            if (bucketKeys.length == 0) {
+                throw new ValidationException(
+                        "At least one bucket key must be defined for a distribution.");
+            }
             this.distribution = TableDistribution.ofRange(Arrays.asList(bucketKeys), number);
             return this;
         }
 
         public Builder distributedInto(String... bucketKeys) {
+            if (bucketKeys.length == 0) {
+                throw new ValidationException(
+                        "At least one bucket key must be defined for a distribution.");
+            }
             this.distribution = TableDistribution.ofUnknown(Arrays.asList(bucketKeys), null);
             return this;
         }
 
         public Builder distributedInto(int number, String... bucketKeys) {
             this.distribution = TableDistribution.ofUnknown(Arrays.asList(bucketKeys), number);
-            return this;
-        }
-
-        public Builder distributedInto(int number) {
-            this.distribution = TableDistribution.ofUnknown(Collections.emptyList(), number);
             return this;
         }
 
