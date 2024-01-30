@@ -24,9 +24,10 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 
 import java.util.Set;
 
-/** Enables to write bucketed data into a {@link DynamicTableSink}.
+/**
+ * Enables to write bucketed data into a {@link DynamicTableSink}.
  *
- * <p>Buckets split the data stored in an external system into disjoint subsets.  Each row will
+ * <p>Buckets split the data stored in an external system into disjoint subsets. Each row will
  * belong to one bucket based on physical columns in the row.
  *
  * <p>As an example, a table could be bucketed in using a hash function on the first column of the
@@ -37,14 +38,13 @@ import java.util.Set;
  * <pre>{@code
  * CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED BY HASH(uid) INTO 4 BUCKETS
  * }</pre>
- *
- * */
+ */
 @PublicEvolving
 public interface SupportsBucketing {
     /**
      * Returns the set of supported bucketing algorithms.
      *
-     * <p>The set must be non-empty.  Otherwise, the planner will throw an error during validation.
+     * <p>The set must be non-empty. Otherwise, the planner will throw an error during validation.
      *
      * @return the set of supported bucketing algorithms.
      */
@@ -53,9 +53,11 @@ public interface SupportsBucketing {
     /**
      * Returns whether the {@link DynamicTableSink} requires a bucket count.
      *
-     * <p>If this method returns {@code true}, the {@link DynamicTableSink} will require a bucket count.
+     * <p>If this method returns {@code true}, the {@link DynamicTableSink} will require a bucket
+     * count.
      *
-     * <p>If this method return {@code false}, the {@link DynamicTableSink} may or may not observe a provided bucket count.
+     * <p>If this method return {@code false}, the {@link DynamicTableSink} may or may not observe a
+     * provided bucket count.
      *
      * @return whether the {@link DynamicTableSink} requires a bucket count.
      */

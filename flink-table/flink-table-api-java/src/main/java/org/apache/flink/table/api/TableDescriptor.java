@@ -349,26 +349,39 @@ public class TableDescriptor {
             return this;
         }
 
-        /** Define which columns this table is distributed by. */
-        public Builder distributedBy(TableDistribution distribution) {
-            this.distribution = distribution;
+        public Builder distributedByHash(String... bucketKeys) {
+            this.distribution = TableDistribution.ofHash(Arrays.asList(bucketKeys), null);
             return this;
         }
 
-        public Builder distributedByHash(String... bucketKeys) {
-            return distributedByHash(null, bucketKeys);
-        }
-
-        public Builder distributedByHash(Integer number, String... bucketKeys) {
-            return distributedBy(TableDistribution.ofHash(Arrays.asList(bucketKeys), number));
+        public Builder distributedByHash(int number, String... bucketKeys) {
+            this.distribution = TableDistribution.ofHash(Arrays.asList(bucketKeys), number);
+            return this;
         }
 
         public Builder distributedByRange(String... bucketKeys) {
-            return distributedByRange(null, bucketKeys);
+            this.distribution = TableDistribution.ofRange(Arrays.asList(bucketKeys), null);
+            return this;
         }
 
-        public Builder distributedByRange(Integer number, String... bucketKeys) {
-            return distributedBy(TableDistribution.ofRange(Arrays.asList(bucketKeys), number));
+        public Builder distributedByRange(int number, String... bucketKeys) {
+            this.distribution = TableDistribution.ofRange(Arrays.asList(bucketKeys), number);
+            return this;
+        }
+
+        public Builder distributedInto(String... bucketKeys) {
+            this.distribution = TableDistribution.ofUnknown(Arrays.asList(bucketKeys), null);
+            return this;
+        }
+
+        public Builder distributedInto(int number, String... bucketKeys) {
+            this.distribution = TableDistribution.ofUnknown(Arrays.asList(bucketKeys), number);
+            return this;
+        }
+
+        public Builder distributedInto(int number) {
+            this.distribution = TableDistribution.ofUnknown(Collections.emptyList(), number);
+            return this;
         }
 
         /** Define which columns this table is partitioned by. */

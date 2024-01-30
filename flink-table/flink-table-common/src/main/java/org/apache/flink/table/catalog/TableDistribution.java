@@ -36,11 +36,19 @@ public class TableDistribution {
     private final @Nullable Integer bucketCount;
     private final List<String> bucketKeys;
 
-    @PublicEvolving
     public TableDistribution(Kind kind, @Nullable Integer bucketCount, List<String> bucketKeys) {
         this.kind = kind;
         this.bucketCount = bucketCount;
         this.bucketKeys = bucketKeys;
+    }
+
+    /**
+     * Connector-dependent distribution of the given kind over the given keys with a declared number
+     * of buckets.
+     */
+    public static TableDistribution of(
+            Kind kind, @Nullable Integer bucketCount, List<String> bucketKeys) {
+        return new TableDistribution(kind, bucketCount, bucketKeys);
     }
 
     /** Connector-dependent distribution with a declared number of buckets. */
@@ -48,12 +56,18 @@ public class TableDistribution {
         return new TableDistribution(Kind.UNKNOWN, bucketCount, Collections.emptyList());
     }
 
-    /** Hash distribution over on the given keys among the declared number of buckets. */
+    /** Connector-dependent distribution with a declared number of buckets. */
+    public static TableDistribution ofUnknown(
+            List<String> bucketKeys, @Nullable Integer bucketCount) {
+        return new TableDistribution(Kind.UNKNOWN, bucketCount, bucketKeys);
+    }
+
+    /** Hash distribution over the given keys among the declared number of buckets. */
     public static TableDistribution ofHash(List<String> bucketKeys, @Nullable Integer bucketCount) {
         return new TableDistribution(Kind.HASH, bucketCount, bucketKeys);
     }
 
-    /** Range distribution over on the given keys among the declared number of buckets. */
+    /** Range distribution over the given keys among the declared number of buckets. */
     public static TableDistribution ofRange(
             List<String> bucketKeys, @Nullable Integer bucketCount) {
         return new TableDistribution(Kind.RANGE, bucketCount, bucketKeys);
@@ -79,7 +93,6 @@ public class TableDistribution {
     }
 
     /** Distribution kind. */
-    @PublicEvolving
     public enum Kind {
         UNKNOWN,
         HASH,

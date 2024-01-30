@@ -248,7 +248,7 @@ class SqlCreateTableConverter {
                             sqlCreateTable
                                     .getDistribution()
                                     .getDistributionKind()
-                                    .orElse("UNKNOWN"));
+                                    .orElse(TableDistribution.Kind.UNKNOWN.toString()));
             Integer bucketCount = null;
             SqlNumericLiteral count = sqlCreateTable.getDistribution().getBucketCount();
             if (count != null && count.isInteger()) {
@@ -265,7 +265,7 @@ class SqlCreateTableConverter {
                                 .collect(Collectors.toList());
             }
             derivedTabledDistribution =
-                    Optional.of(new TableDistribution(kind, bucketCount, bucketColumns));
+                    Optional.of(TableDistribution.of(kind, bucketCount, bucketColumns));
         }
 
         return mergeTableLikeUtil.mergeDistribution(

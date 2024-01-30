@@ -558,10 +558,8 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                 isCreateTableOperation(
                                         withDistribution(
                                                 Optional.of(
-                                                        new TableDistribution(
-                                                                TableDistribution.Kind.UNKNOWN,
-                                                                null,
-                                                                Arrays.asList("a", "f0")))),
+                                                        TableDistribution.ofUnknown(
+                                                                Arrays.asList("a", "f0"), null))),
                                         withSchema(
                                                 Schema.newBuilder()
                                                         .column("f0", DataTypes.INT().notNull())
@@ -586,11 +584,9 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                 isCreateTableOperation(
                                         withDistribution(
                                                 Optional.of(
-                                                        new TableDistribution(
-                                                                TableDistribution.Kind.UNKNOWN,
-                                                                null,
-                                                                Collections.singletonList(
-                                                                        "a")))))));
+                                                        TableDistribution.ofUnknown(
+                                                                Collections.singletonList("a"),
+                                                                null))))));
     }
 
     @Test
@@ -604,7 +600,6 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                         "Invalid bucket key 'f3'. A bucket key for a distribution must reference a physical column in the schema. Available columns are: [a]");
     }
 
-    // TODO Discuss this case.
     @Test
     public void testMergingCreateTableAsWitDistribution() {
         Map<String, String> sourceProperties = new HashMap<>();
@@ -632,25 +627,6 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                 .isInstanceOf(SqlValidateException.class)
                 .hasMessageContaining(
                         "CREATE TABLE AS SELECT syntax does not support creating distributed tables yet.");
-
-        /*
-        Operation operation = ((CreateTableASOperation) ctas).getCreateTableOperation();
-        assertThat(operation)
-                .is(
-                        new HamcrestCondition<>(
-                                isCreateTableOperation(
-                                        withDistribution(Optional.of(new CatalogTable.TableDistribution(
-                                                CatalogTable.TableDistribution.Kind.UNKNOWN,
-                                                null,
-                                                Collections.singletonList("f0")))),
-                                        withSchema(
-                                                Schema.newBuilder()
-                                                        .column("f0", DataTypes.INT().notNull())
-                                                        .column("f1", DataTypes.TIMESTAMP(3))
-                                                        .column("f2", DataTypes.INT().notNull())
-                                                        .build())
-                                )));
-         */
     }
 
     @Test

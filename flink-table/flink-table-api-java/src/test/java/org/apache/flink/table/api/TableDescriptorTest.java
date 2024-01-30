@@ -53,7 +53,7 @@ class TableDescriptorTest {
         final TableDescriptor descriptor =
                 TableDescriptor.forConnector("test-connector")
                         .schema(schema)
-                        .distributedBy(TableDistribution.ofHash(Collections.singletonList("f0"), 1))
+                        .distributedByHash(1, "f0")
                         .partitionedBy("f0")
                         .comment("Test Comment")
                         .build();
