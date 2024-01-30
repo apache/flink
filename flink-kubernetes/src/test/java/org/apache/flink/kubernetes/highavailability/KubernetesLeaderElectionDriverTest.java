@@ -29,12 +29,9 @@ import org.apache.flink.runtime.leaderelection.LeaderInformationRegister;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
-import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_KEY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_ADDRESS_KEY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_SESSION_ID_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -249,26 +246,6 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
                             assertThat(errorEvent.getError())
                                     .isInstanceOf(LeaderElectionException.class)
                                     .hasMessage(expectedErrorMessage);
-                        });
-            }
-        };
-    }
-
-    @Test
-    void testHighAvailabilityLabelsCorrectlySet() throws Exception {
-        new Context() {
-            {
-                runTest(
-                        () -> {
-                            leaderCallbackGrantLeadership();
-
-                            final Map<String, String> leaderLabels =
-                                    getLeaderConfigMap().getLabels();
-                            assertThat(leaderLabels).hasSize(3);
-                            assertThat(leaderLabels)
-                                    .containsEntry(
-                                            LABEL_CONFIGMAP_TYPE_KEY,
-                                            LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY);
                         });
             }
         };

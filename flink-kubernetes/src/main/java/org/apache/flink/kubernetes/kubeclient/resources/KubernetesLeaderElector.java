@@ -20,8 +20,10 @@ package org.apache.flink.kubernetes.kubeclient.resources;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
+import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import io.fabric8.kubernetes.client.extended.leaderelection.LeaderCallbacks;
 import io.fabric8.kubernetes.client.extended.leaderelection.LeaderElectionConfig;
@@ -33,6 +35,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 
 /**
  * Represent {@link KubernetesLeaderElector} in kubernetes. {@link LeaderElector#run()} is a
@@ -71,8 +75,16 @@ public class KubernetesLeaderElector {
                         .withLeaseDuration(leaderConfig.getLeaseDuration())
                         .withLock(
                                 new ConfigMapLock(
-                                        kubernetesClient.getNamespace(),
-                                        leaderConfig.getConfigMapName(),
+                                        new ObjectMetaBuilder()
+                                                .withNamespace(kubernetesClient.getNamespace())
+                                                .withName(leaderConfig.getConfigMapName())
+                                                // Labels will be used to clean up the ha related
+                                                // ConfigMaps.
+                                                .withLabels(
+                                                        KubernetesUtils.getConfigMapLabels(
+                                                                leaderConfig.getClusterId(),
+                                                                LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY))
+                                                .build(),
                                         leaderConfig.getLockIdentity()))
                         .withRenewDeadline(leaderConfig.getRenewDeadline())
                         .withRetryPeriod(leaderConfig.getRetryPeriod())

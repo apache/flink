@@ -29,6 +29,8 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.UUID;
 
+import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
+import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -107,6 +109,46 @@ class KubernetesLeaderElectorITCase {
                     kubeClients[i].close();
                 }
             }
+            kubernetesExtension.getFlinkKubeClient().deleteConfigMap(leaderConfigMapName).get();
+        }
+    }
+
+    @Test
+    void testClusterConfigMapLabelsAreSet() throws Exception {
+        final Configuration configuration = kubernetesExtension.getConfiguration();
+
+        final String leaderConfigMapName =
+                LEADER_CONFIGMAP_NAME_PREFIX + System.currentTimeMillis();
+
+        final TestingLeaderCallbackHandler leaderCallbackHandler =
+                new TestingLeaderCallbackHandler(UUID.randomUUID().toString());
+        final KubernetesLeaderElectionConfiguration leaderConfig =
+                new KubernetesLeaderElectionConfiguration(
+                        leaderConfigMapName,
+                        leaderCallbackHandler.getLockIdentity(),
+                        configuration);
+
+        try (FlinkKubeClient kubeClient =
+                kubeClientFactory.fromConfiguration(configuration, "testing")) {
+            final KubernetesLeaderElector leaderElector =
+                    kubeClient.createLeaderElector(leaderConfig, leaderCallbackHandler);
+            try {
+                leaderElector.run();
+
+                TestingLeaderCallbackHandler.waitUntilNewLeaderAppears();
+
+                assertThat(kubeClient.getConfigMap(leaderConfigMapName))
+                        .hasValueSatisfying(
+                                configMap ->
+                                        assertThat(configMap.getLabels())
+                                                .hasSize(3)
+                                                .containsEntry(
+                                                        LABEL_CONFIGMAP_TYPE_KEY,
+                                                        LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY));
+            } finally {
+                leaderElector.stop();
+            }
+        } finally {
             kubernetesExtension.getFlinkKubeClient().deleteConfigMap(leaderConfigMapName).get();
         }
     }
