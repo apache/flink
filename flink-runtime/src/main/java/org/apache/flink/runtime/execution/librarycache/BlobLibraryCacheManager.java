@@ -438,14 +438,6 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
                                 + "\nnew:"
                                 + requiredClassPaths);
             }
-
-            String classpath = System.getProperty("java.class.path");
-            String[] classpathEntries = classpath.split(System.getProperty("path.separator"));
-
-            System.out.println("Classpath entries:");
-            for (String entry : classpathEntries) {
-                System.out.println(entry);
-            }
         }
 
         /**
