@@ -293,7 +293,6 @@
     "GO"
     "GOTO"
     "GRANTED"
-    "HASH"
     "HIERARCHY"
     "HOP"
     "HOURS"
@@ -526,7 +525,6 @@
   # Please keep the keyword in alphabetical order if new keyword is added.
   nonReservedKeywordsToAdd: [
     # not in core, added in Flink
-    "BUCKETS"
     "CHANGELOG_MODE"
     "COLUMNS"
     "ENFORCED"
