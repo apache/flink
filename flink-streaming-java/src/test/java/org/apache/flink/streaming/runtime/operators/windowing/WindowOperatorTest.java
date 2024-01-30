@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
@@ -1329,6 +1330,72 @@ public class WindowOperatorTest extends TestLogger {
                 "Output was not correct.",
                 expectedOutput,
                 Iterables.concat(outputBeforeClose, testHarness.getOutput()),
+                new Tuple2ResultSortComparator());
+
+        testHarness.close();
+    }
+
+    @Test
+    public void testEndOfStreamTrigger() throws Exception {
+        ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc =
+                new ReducingStateDescriptor<>(
+                        "window-contents",
+                        new SumReducer(),
+                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+
+        WindowOperator<
+                        String,
+                        Tuple2<String, Integer>,
+                        Tuple2<String, Integer>,
+                        Tuple2<String, Integer>,
+                        GlobalWindow>
+                operator =
+                        new WindowOperator<>(
+                                GlobalWindows.createWithEndOfStreamTrigger(),
+                                new GlobalWindow.Serializer(),
+                                new TupleKeySelector(),
+                                BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
+                                        new ExecutionConfig()),
+                                stateDesc,
+                                new InternalSingleValueWindowFunction<>(
+                                        new PassThroughWindowFunction<
+                                                String, GlobalWindow, Tuple2<String, Integer>>()),
+                                GlobalWindows.createWithEndOfStreamTrigger().getDefaultTrigger(),
+                                0,
+                                null /* late data output tag */);
+
+        OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
+                testHarness = createTestHarness(operator);
+
+        testHarness.open();
+
+        // add elements out-of-order
+        testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 3000));
+        testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 3999));
+        testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 20));
+        testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 0));
+        testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 999));
+        testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1998));
+        testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1999));
+        testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
+
+        TestHarnessUtil.assertOutputEqualsSorted(
+                "Output was not correct.",
+                Collections.EMPTY_LIST,
+                testHarness.getOutput(),
+                new Tuple2ResultSortComparator());
+
+        testHarness.processWatermark(Watermark.MAX_WATERMARK);
+
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), Long.MAX_VALUE));
+        expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 5), Long.MAX_VALUE));
+        expectedOutput.add(Watermark.MAX_WATERMARK);
+
+        TestHarnessUtil.assertOutputEqualsSorted(
+                "Output was not correct.",
+                expectedOutput,
+                testHarness.getOutput(),
                 new Tuple2ResultSortComparator());
 
         testHarness.close();
