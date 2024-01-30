@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.runtime.utils;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
@@ -33,7 +32,6 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.Random;
 import java.util.TimeZone;
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.fail;
 
@@ -318,93 +316,6 @@ public class JavaUserDefinedScalarFunctions {
         @Override
         public PythonEnv getPythonEnv() {
             return null;
-        }
-    }
-
-    /** Increment input. */
-    public static class AsyncJavaFunc0 extends AsyncScalarFunction {
-        public void eval(CompletableFuture<Long> future, Long l) {
-            future.complete(l + 1);
-        }
-    }
-
-    /** Concatenate inputs as strings. */
-    public static class AsyncJavaFunc1 extends AsyncScalarFunction {
-        public void eval(
-                CompletableFuture<String> future,
-                Integer a,
-                int b,
-                @DataTypeHint("TIMESTAMP(3)") TimestampData c) {
-            Long ts = (c == null) ? null : c.getMillisecond();
-            future.complete(a + " and " + b + " and " + ts);
-        }
-    }
-
-    /** Append product to string. */
-    public static class AsyncJavaFunc2 extends AsyncScalarFunction {
-        public void eval(CompletableFuture<String> future, String s, Integer... a) {
-            int m = 1;
-            for (int n : a) {
-                m *= n;
-            }
-            future.complete(s + m);
-        }
-    }
-
-    /**
-     * A UDF minus Timestamp with the specified offset. This UDF also ensures open and close are
-     * called.
-     */
-    public static class AsyncJavaFunc5 extends AsyncScalarFunction {
-        // these fields must be reset to false at the beginning of tests,
-        // otherwise the static fields will be changed by several tests concurrently
-        public static boolean openCalled = false;
-        public static boolean closeCalled = false;
-
-        @Override
-        public void open(FunctionContext context) {
-            openCalled = true;
-        }
-
-        public void eval(
-                @DataTypeHint("TIMESTAMP(3)") CompletableFuture<Timestamp> future,
-                @DataTypeHint("TIMESTAMP(3)") TimestampData timestampData,
-                Integer offset) {
-            if (!openCalled) {
-                fail("Open was not called before run.");
-            }
-            if (timestampData == null || offset == null) {
-                future.complete(null);
-            } else {
-                long ts = timestampData.getMillisecond() - offset;
-                int tzOffset = TimeZone.getDefault().getOffset(ts);
-                future.complete(new Timestamp(ts - tzOffset));
-            }
-        }
-
-        @Override
-        public void close() {
-            closeCalled = true;
-        }
-    }
-
-    /** Testing open method is called. */
-    public static class AsyncUdfWithOpen extends AsyncScalarFunction {
-
-        // transient make this class serializable by class name
-        private transient boolean isOpened = false;
-
-        @Override
-        public void open(FunctionContext context) throws Exception {
-            super.open(context);
-            this.isOpened = true;
-        }
-
-        public void eval(CompletableFuture<String> future, String c) {
-            if (!isOpened) {
-                throw new IllegalStateException("Open method is not called!");
-            }
-            future.complete("$" + c);
         }
     }
 }
