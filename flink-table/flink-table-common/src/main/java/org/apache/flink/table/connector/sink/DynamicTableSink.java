@@ -101,11 +101,11 @@ public interface DynamicTableSink {
      * <p>The given {@link Context} offers utilities by the planner for creating runtime
      * implementation with minimal dependencies to internal data structures.
      *
-     * <p>{@link SinkProvider} is the recommended core interface. {@code SinkFunctionProvider} in
-     * {@code flink-table-api-java-bridge} and {@link OutputFormatProvider} are available for
-     * backwards compatibility.
+     * <p>{@link SinkV2Provider} is the recommended core interface. {@link SinkProvider}, {@code
+     * SinkFunctionProvider} in {@code flink-table-api-java-bridge} and {@link OutputFormatProvider}
+     * are available for backwards compatibility.
      *
-     * @see SinkProvider
+     * @see SinkV2Provider
      */
     SinkRuntimeProvider getSinkRuntimeProvider(Context context);
 
@@ -215,11 +215,11 @@ public interface DynamicTableSink {
      * SinkRuntimeProvider} serves as the base interface. Concrete {@link SinkRuntimeProvider}
      * interfaces might be located in other Flink modules.
      *
-     * <p>{@link SinkProvider} is the recommended core interface. {@code SinkFunctionProvider} in
-     * {@code flink-table-api-java-bridge} and {@link OutputFormatProvider} are available for
-     * backwards compatibility.
+     * <p>{@link SinkV2Provider} is the recommended core interface. {@link SinkProvider}, {@code
+     * SinkFunctionProvider} in {@code flink-table-api-java-bridge} and {@link OutputFormatProvider}
+     * are available for backwards compatibility.
      *
-     * @see SinkProvider
+     * @see SinkV2Provider
      */
     @PublicEvolving
     interface SinkRuntimeProvider {
