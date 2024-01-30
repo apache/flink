@@ -901,7 +901,8 @@ object HashAggCodeGenHelper {
       ctx.tableConfig,
       ctx.classLoader,
       aggMapKeyType,
-      SortUtil.getAscendingSortSpec(Array.range(0, aggMapKeyType.getFieldCount)))
+      SortUtil.getAscendingSortSpec(Array.range(0, aggMapKeyType.getFieldCount)),
+      ctx)
     val computer = sortCodeGenerator.generateNormalizedKeyComputer("AggMapKeyComputer")
     val comparator = sortCodeGenerator.generateRecordComparator("AggMapValueComparator")
 
