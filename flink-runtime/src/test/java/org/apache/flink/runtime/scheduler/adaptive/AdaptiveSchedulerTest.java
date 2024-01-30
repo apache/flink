@@ -1218,9 +1218,12 @@ public class AdaptiveSchedulerTest {
         JobResourceRequirements initialJobResourceRequirements =
                 createRequirementsWithEqualLowerAndUpperParallelism(PARALLELISM);
 
+        final Configuration config = getConfigurationWithNoTimeouts();
+        // enable the ResourceWaitTimeout to trigger the immediate failure
+        config.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1));
         final AdaptiveScheduler scheduler =
                 prepareScheduler(jobGraph, declarativeSlotPool)
-                        .setJobMasterConfiguration(getConfigurationWithNoResourceWaitTimeout())
+                        .setJobMasterConfiguration(config)
                         .setJobResourceRequirements(initialJobResourceRequirements)
                         .build();
 
@@ -1252,6 +1255,7 @@ public class AdaptiveSchedulerTest {
 
         final AdaptiveScheduler scheduler =
                 prepareScheduler(jobGraph, declarativeSlotPool)
+                        .setJobMasterConfiguration(getConfigurationWithNoTimeouts())
                         .setJobResourceRequirements(initialJobResourceRequirements)
                         .build();
 
@@ -1285,15 +1289,16 @@ public class AdaptiveSchedulerTest {
                 .setDeclarativeSlotPool(declarativeSlotPool);
     }
 
-    private static Configuration getConfigurationWithNoResourceWaitTimeout() {
+    private static Configuration getConfigurationWithNoTimeouts() {
         return new Configuration()
-                .set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
+                .set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(-1L))
+                .set(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, Duration.ofMillis(1L));
     }
 
     private AdaptiveSchedulerBuilder prepareSchedulerWithNoResourceWaitTimeout(
             JobGraph jobGraph, DeclarativeSlotPool declarativeSlotPool) {
         return prepareScheduler(jobGraph, declarativeSlotPool)
-                .setJobMasterConfiguration(getConfigurationWithNoResourceWaitTimeout());
+                .setJobMasterConfiguration(getConfigurationWithNoTimeouts());
     }
 
     private AdaptiveScheduler createSchedulerWithNoResourceWaitTimeout(
