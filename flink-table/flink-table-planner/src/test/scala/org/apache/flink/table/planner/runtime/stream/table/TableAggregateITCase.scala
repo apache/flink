@@ -21,6 +21,8 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.runtime.utils.{JavaUserDefinedTableAggFunctions, StreamingWithStateTestBase, TestData, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.{JavaUserDefinedTableAggFunctions, StreamingWithStateTestBase, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverloadedDoubleMaxFunction
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
@@ -37,23 +39,20 @@ import org.junit.runners.Parameterized
 @RunWith(classOf[Parameterized])
 class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
-  var myTable: Table = _
-
   @Before
   override def before(): Unit = {
     super.before()
     tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
-    myTable = tEnv.fromValues(
-      DataTypes.ROW(
-        DataTypes.FIELD("id", DataTypes.INT),
-        DataTypes.FIELD("name", DataTypes.STRING),
-        DataTypes.FIELD("price", DataTypes.INT)),
-      row(1, "Latte", 6: java.lang.Integer),
-      row(2, "Milk", 3: java.lang.Integer),
-      row(3, "Breve", 5: java.lang.Integer),
-      row(4, "Mocha", 8: java.lang.Integer),
-      row(5, "Tea", 4: java.lang.Integer)
-    )
+    tEnv.executeSql(s"""
+                       |CREATE TABLE myTable (
+                       |  `id` INT,
+                       |  `name` STRING,
+                       |  `price` INT
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '${TestValuesTableFactory.registerData(TestData.tupleData4)}'
+                       |)
+                       |""".stripMargin)
   }
 
   @Test
@@ -115,7 +114,8 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
 
   def checkRank(func: String, expectedResult: List[String]): Unit = {
     val resultTable =
-      myTable
+      tEnv
+        .from("myTable")
         .flatAggregate(call(func, $("price")).as("top_price", "rank"))
         .select($("top_price"), $("rank"))
 
