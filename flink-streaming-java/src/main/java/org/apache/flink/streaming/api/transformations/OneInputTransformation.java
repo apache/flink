@@ -184,4 +184,8 @@ public class OneInputTransformation<IN, OUT> extends PhysicalTransformation<OUT>
     public final void setChainingStrategy(ChainingStrategy strategy) {
         operatorFactory.setChainingStrategy(strategy);
     }
+
+    public boolean isOutputOnlyAfterEndOfStream() {
+        return operatorFactory.getOperatorAttributes().isOutputOnlyAfterEndOfStream();
+    }
 }
