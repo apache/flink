@@ -42,6 +42,7 @@ import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
 
 import javax.annotation.Nullable;
 
+import java.util.Optional;
 import java.util.function.Supplier;
 
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
@@ -148,6 +149,9 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
                                 (c, s) ->
                                         newSerializerConfig.addDefaultKryoSerializer(
                                                 c, s.getSerializer()));
+
+                Optional.ofNullable(serializerConfig.isForceKryoAvroEnabled().getAsBoolean())
+                        .ifPresent(serializerConfig::setForceKryoAvro);
 
                 serializerConfig
                         .getDefaultKryoSerializerClasses()

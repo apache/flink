@@ -29,6 +29,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TernaryBoolean;
 
 import com.esotericsoftware.kryo.Serializer;
 
@@ -280,6 +281,19 @@ public final class SerializerConfigImpl implements SerializerConfig {
     }
 
     @Override
+    public void setForceKryoAvro(boolean forceKryoAvro) {
+        configuration.set(PipelineOptions.FORCE_KRYO_AVRO, forceKryoAvro);
+    }
+
+    @Override
+    public TernaryBoolean isForceKryoAvroEnabled() {
+        return configuration
+                .getOptional(PipelineOptions.FORCE_KRYO_AVRO)
+                .map(TernaryBoolean::fromBoolean)
+                .orElse(TernaryBoolean.UNDEFINED);
+    }
+
+    @Override
     public boolean equals(Object obj) {
         if (obj instanceof SerializerConfigImpl) {
             SerializerConfigImpl other = (SerializerConfigImpl) obj;
@@ -351,6 +365,9 @@ public final class SerializerConfigImpl implements SerializerConfig {
         configuration.getOptional(PipelineOptions.GENERIC_TYPES).ifPresent(this::setGenericTypes);
         configuration.getOptional(PipelineOptions.FORCE_KRYO).ifPresent(this::setForceKryo);
         configuration.getOptional(PipelineOptions.FORCE_AVRO).ifPresent(this::setForceAvro);
+        configuration
+                .getOptional(PipelineOptions.FORCE_KRYO_AVRO)
+                .ifPresent(this::setForceKryoAvro);
 
         configuration
                 .getOptional(PipelineOptions.KRYO_DEFAULT_SERIALIZERS)
