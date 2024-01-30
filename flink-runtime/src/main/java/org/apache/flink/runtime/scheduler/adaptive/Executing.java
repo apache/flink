@@ -88,7 +88,7 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
         deploy();
 
         // check if new resources have come available in the meantime
-        rescaleWhenCooldownPeriodIsOver();
+        context.runIfState(this, this::rescaleWhenCooldownPeriodIsOver, Duration.ZERO);
     }
 
     @Override
