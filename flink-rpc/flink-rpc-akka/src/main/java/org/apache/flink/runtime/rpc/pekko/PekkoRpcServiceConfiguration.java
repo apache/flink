@@ -17,8 +17,8 @@
 
 package org.apache.flink.runtime.rpc.pekko;
 
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 
 import javax.annotation.Nonnull;
 
@@ -77,14 +77,14 @@ public class PekkoRpcServiceConfiguration {
     }
 
     public static PekkoRpcServiceConfiguration fromConfiguration(Configuration configuration) {
-        final Duration timeout = configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION);
+        final Duration timeout = configuration.get(RpcOptions.ASK_TIMEOUT_DURATION);
 
         final long maximumFramesize = PekkoRpcServiceUtils.extractMaximumFramesize(configuration);
 
-        final boolean captureAskCallStacks = configuration.get(AkkaOptions.CAPTURE_ASK_CALLSTACK);
+        final boolean captureAskCallStacks = configuration.get(RpcOptions.CAPTURE_ASK_CALLSTACK);
 
         final boolean forceRpcInvocationSerialization =
-                AkkaOptions.isForceRpcInvocationSerializationEnabled(configuration);
+                RpcOptions.isForceRpcInvocationSerializationEnabled(configuration);
 
         return new PekkoRpcServiceConfiguration(
                 configuration,

@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.minicluster;
 
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.plugin.PluginManager;
@@ -90,8 +90,8 @@ public class MiniClusterConfiguration {
         }
 
         // increase the ask.timeout if not set in order to harden tests on slow CI
-        if (!modifiedConfig.contains(AkkaOptions.ASK_TIMEOUT_DURATION)) {
-            modifiedConfig.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(5L));
+        if (!modifiedConfig.contains(RpcOptions.ASK_TIMEOUT_DURATION)) {
+            modifiedConfig.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(5L));
         }
 
         return new UnmodifiableConfiguration(modifiedConfig);

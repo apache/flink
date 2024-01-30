@@ -20,10 +20,10 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.util.ConfigurationException;
@@ -238,7 +238,7 @@ public class SlotManagerConfiguration {
             throws ConfigurationException {
 
         final Time rpcTimeout =
-                Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
+                Time.fromDuration(configuration.get(RpcOptions.ASK_TIMEOUT_DURATION));
 
         final Time taskManagerTimeout =
                 Time.milliseconds(configuration.get(ResourceManagerOptions.TASK_MANAGER_TIMEOUT));

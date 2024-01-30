@@ -27,13 +27,13 @@ import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.util.ConfigurationException;
@@ -100,7 +100,7 @@ class FlinkYarnSessionCliTest {
                             "-j",
                             "fake.jar",
                             "-D",
-                            AkkaOptions.ASK_TIMEOUT_DURATION.key() + "=5 min",
+                            RpcOptions.ASK_TIMEOUT_DURATION.key() + "=5 min",
                             "-D",
                             CoreOptions.FLINK_JVM_OPTIONS.key() + "=-DappName=foobar",
                             "-D",
@@ -108,7 +108,7 @@ class FlinkYarnSessionCliTest {
                         });
 
         Configuration executorConfig = cli.toConfiguration(cmd);
-        assertThat(executorConfig.get(AkkaOptions.ASK_TIMEOUT_DURATION)).hasMinutes(5);
+        assertThat(executorConfig.get(RpcOptions.ASK_TIMEOUT_DURATION)).hasMinutes(5);
         assertThat(executorConfig.get(CoreOptions.FLINK_JVM_OPTIONS)).isEqualTo("-DappName=foobar");
         assertThat(executorConfig.get(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD))
                 .isEqualTo("changeit");

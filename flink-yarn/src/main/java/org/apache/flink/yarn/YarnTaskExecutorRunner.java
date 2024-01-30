@@ -19,8 +19,8 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptionsInternal;
@@ -118,7 +118,7 @@ public class YarnTaskExecutorRunner {
         LOG.info("TM: keytab principal obtained {}", keytabPrincipal);
 
         // tell pekko to die in case of an error
-        configuration.set(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
+        configuration.set(RpcOptions.JVM_EXIT_ON_FATAL_ERROR, true);
 
         String keytabPath = Utils.resolveKeytabPath(currDir, localKeytabPath);
 

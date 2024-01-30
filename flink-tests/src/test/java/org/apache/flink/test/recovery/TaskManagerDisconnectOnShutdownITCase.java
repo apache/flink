@@ -19,13 +19,13 @@
 package org.apache.flink.test.recovery;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blocklist.BlocklistUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -207,7 +207,7 @@ public class TaskManagerDisconnectOnShutdownITCase {
                     fatalErrorHandler,
                     resourceManagerMetricGroup,
                     standaloneClusterStartupPeriodTime,
-                    Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION)),
+                    Time.fromDuration(configuration.get(RpcOptions.ASK_TIMEOUT_DURATION)),
                     ioExecutor) {
 
                 @Override

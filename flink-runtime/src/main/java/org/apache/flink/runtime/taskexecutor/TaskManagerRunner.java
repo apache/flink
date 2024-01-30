@@ -21,9 +21,9 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JMXServerOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.core.fs.FileSystem;
@@ -171,7 +171,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
         this.pluginManager = checkNotNull(pluginManager);
         this.taskExecutorServiceFactory = checkNotNull(taskExecutorServiceFactory);
 
-        timeout = Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
+        timeout = Time.fromDuration(configuration.get(RpcOptions.ASK_TIMEOUT_DURATION));
 
         this.terminationFuture = new CompletableFuture<>();
         this.shutdown = false;
@@ -725,7 +725,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
             RpcSystemUtils rpcSystemUtils)
             throws LeaderRetrievalException {
 
-        final Duration lookupTimeout = configuration.get(AkkaOptions.LOOKUP_TIMEOUT_DURATION);
+        final Duration lookupTimeout = configuration.get(RpcOptions.LOOKUP_TIMEOUT_DURATION);
 
         final InetAddress taskManagerAddress =
                 LeaderRetrievalUtils.findConnectingAddress(

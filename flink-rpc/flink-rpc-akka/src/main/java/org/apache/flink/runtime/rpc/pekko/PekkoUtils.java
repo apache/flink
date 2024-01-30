@@ -18,8 +18,8 @@
 package org.apache.flink.runtime.rpc.pekko;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.concurrent.pekko.ScalaFutureUtils;
 import org.apache.flink.runtime.rpc.RpcSystem;
@@ -70,11 +70,11 @@ class PekkoUtils {
      * @return Flink's basic Pekko config
      */
     private static Config getBasicConfig(Configuration configuration) {
-        final int throughput = configuration.get(AkkaOptions.DISPATCHER_THROUGHPUT);
+        final int throughput = configuration.get(RpcOptions.DISPATCHER_THROUGHPUT);
         final String jvmExitOnFatalError =
-                booleanToOnOrOff(configuration.get(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR));
+                booleanToOnOrOff(configuration.get(RpcOptions.JVM_EXIT_ON_FATAL_ERROR));
         final String logLifecycleEvents =
-                booleanToOnOrOff(configuration.get(AkkaOptions.LOG_LIFECYCLE_EVENTS));
+                booleanToOnOrOff(configuration.get(RpcOptions.LOG_LIFECYCLE_EVENTS));
         final String supervisorStrategy = EscalatingSupervisorStrategy.class.getCanonicalName();
 
         return new ConfigBuilder()
@@ -206,39 +206,39 @@ class PekkoUtils {
 
     private static void addBaseRemoteConfig(
             ConfigBuilder configBuilder, Configuration configuration, int port, int externalPort) {
-        final Duration askTimeout = configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION);
+        final Duration askTimeout = configuration.get(RpcOptions.ASK_TIMEOUT_DURATION);
 
         final String startupTimeout =
                 TimeUtils.getStringInMillis(
                         TimeUtils.parseDuration(
                                 configuration.get(
-                                        AkkaOptions.STARTUP_TIMEOUT,
+                                        RpcOptions.STARTUP_TIMEOUT,
                                         TimeUtils.getStringInMillis(
                                                 askTimeout.multipliedBy(10L)))));
 
         final String tcpTimeout =
                 TimeUtils.getStringInMillis(
-                        TimeUtils.parseDuration(configuration.get(AkkaOptions.TCP_TIMEOUT)));
+                        TimeUtils.parseDuration(configuration.get(RpcOptions.TCP_TIMEOUT)));
 
-        final String framesize = configuration.get(AkkaOptions.FRAMESIZE);
+        final String framesize = configuration.get(RpcOptions.FRAMESIZE);
 
         final int clientSocketWorkerPoolPoolSizeMin =
-                configuration.get(AkkaOptions.CLIENT_SOCKET_WORKER_POOL_SIZE_MIN);
+                configuration.get(RpcOptions.CLIENT_SOCKET_WORKER_POOL_SIZE_MIN);
         final int clientSocketWorkerPoolPoolSizeMax =
-                configuration.get(AkkaOptions.CLIENT_SOCKET_WORKER_POOL_SIZE_MAX);
+                configuration.get(RpcOptions.CLIENT_SOCKET_WORKER_POOL_SIZE_MAX);
         final double clientSocketWorkerPoolPoolSizeFactor =
-                configuration.get(AkkaOptions.CLIENT_SOCKET_WORKER_POOL_SIZE_FACTOR);
+                configuration.get(RpcOptions.CLIENT_SOCKET_WORKER_POOL_SIZE_FACTOR);
         final int serverSocketWorkerPoolPoolSizeMin =
-                configuration.get(AkkaOptions.SERVER_SOCKET_WORKER_POOL_SIZE_MIN);
+                configuration.get(RpcOptions.SERVER_SOCKET_WORKER_POOL_SIZE_MIN);
         final int serverSocketWorkerPoolPoolSizeMax =
-                configuration.get(AkkaOptions.SERVER_SOCKET_WORKER_POOL_SIZE_MAX);
+                configuration.get(RpcOptions.SERVER_SOCKET_WORKER_POOL_SIZE_MAX);
         final double serverSocketWorkerPoolPoolSizeFactor =
-                configuration.get(AkkaOptions.SERVER_SOCKET_WORKER_POOL_SIZE_FACTOR);
+                configuration.get(RpcOptions.SERVER_SOCKET_WORKER_POOL_SIZE_FACTOR);
 
         final String logLifecycleEvents =
-                booleanToOnOrOff(configuration.get(AkkaOptions.LOG_LIFECYCLE_EVENTS));
+                booleanToOnOrOff(configuration.get(RpcOptions.LOG_LIFECYCLE_EVENTS));
 
-        final long retryGateClosedFor = configuration.get(AkkaOptions.RETRY_GATE_CLOSED_FOR);
+        final long retryGateClosedFor = configuration.get(RpcOptions.RETRY_GATE_CLOSED_FOR);
 
         configBuilder
                 .add("pekko {")
@@ -312,7 +312,7 @@ class PekkoUtils {
             ConfigBuilder configBuilder, Configuration configuration) {
 
         final boolean enableSSLConfig =
-                configuration.get(AkkaOptions.SSL_ENABLED)
+                configuration.get(RpcOptions.SSL_ENABLED)
                         && SecurityOptions.isInternalSSLEnabled(configuration);
 
         final String enableSSL = booleanToOnOrOff(enableSSLConfig);

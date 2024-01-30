@@ -33,13 +33,13 @@ import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.client.deployment.ClusterClientJobClientAdapter;
 import org.apache.flink.client.testjar.ForbidConfigurationJob;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutor;
@@ -101,8 +101,7 @@ class ClientTest {
         config = new Configuration();
         config.set(JobManagerOptions.ADDRESS, "localhost");
 
-        config.set(
-                AkkaOptions.ASK_TIMEOUT_DURATION, AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue());
+        config.set(RpcOptions.ASK_TIMEOUT_DURATION, RpcOptions.ASK_TIMEOUT_DURATION.defaultValue());
     }
 
     private Configuration fromPackagedProgram(
