@@ -24,6 +24,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.util.TernaryBoolean;
 
 import com.esotericsoftware.kryo.Serializer;
 
@@ -197,6 +198,16 @@ public interface SerializerConfig extends Serializable {
      */
     @Internal
     void setForceAvro(boolean forceAvro);
+
+    /**
+     * The method will be converted to private in the next Flink major version after removing its
+     * deprecated caller methods.
+     */
+    @Internal
+    public void setForceKryoAvro(boolean forceKryoAvro);
+
+    /** Returns whether forces Flink to register Apache Avro classes in Kryo serializer. */
+    TernaryBoolean isForceKryoAvroEnabled();
 
     /**
      * Sets all relevant options contained in the {@link ReadableConfig} such as e.g. {@link

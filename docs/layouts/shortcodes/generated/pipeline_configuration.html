@@ -51,6 +51,12 @@
             <td>If enabled, forces TypeExtractor to use Kryo serializer for POJOS even though we could analyze as POJO. In some cases this might be preferable. For example, when using interfaces with subclasses that cannot be analyzed as POJO.</td>
         </tr>
         <tr>
+            <td><h5>pipeline.force-kryo-avro</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Boolean</td>
+            <td>Forces Flink to register avro classes in kryo serializer.<br /><br />Important: Make sure to include the flink-avro module. Otherwise, nothing will be registered. For backward compatibility, the default value is empty to conform to the behavior of the older version. That is, always register avro with kryo, and if flink-avro is not in the class path, register a dummy serializer. In Flink-2.0, we will set the default value to true.</td>
+        </tr>
+        <tr>
             <td><h5>pipeline.generic-types</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>

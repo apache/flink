@@ -34,6 +34,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.TernaryBoolean;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoException;
@@ -191,7 +192,8 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
                         this.type,
                         serializerConfig.getRegisteredKryoTypes(),
                         serializerConfig.getRegisteredTypesWithKryoSerializerClasses(),
-                        serializerConfig.getRegisteredTypesWithKryoSerializers());
+                        serializerConfig.getRegisteredTypesWithKryoSerializers(),
+                        serializerConfig.isForceKryoAvroEnabled());
     }
 
     /**
@@ -567,7 +569,8 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
             LinkedHashMap<Class<?>, Class<? extends Serializer<?>>>
                     registeredTypesWithSerializerClasses,
             LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>>
-                    registeredTypesWithSerializers) {
+                    registeredTypesWithSerializers,
+            TernaryBoolean isForceAvroKryoEnabledOpt) {
 
         final LinkedHashMap<String, KryoRegistration> kryoRegistrations = new LinkedHashMap<>();
 
@@ -599,8 +602,19 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
                             registeredTypeWithSerializerEntry.getValue()));
         }
 
-        // add Avro support if flink-avro is available; a dummy otherwise
-        AvroUtils.getAvroUtils().addAvroGenericDataArrayRegistration(kryoRegistrations);
+        // we always register avro to maintain backward compatibility if this option is not present.
+        if (isForceAvroKryoEnabledOpt.getAsBoolean() == null) {
+            // add Avro support if flink-avro is available; a dummy otherwise
+            AvroUtils.getAvroUtils().addAvroGenericDataArrayRegistration(kryoRegistrations);
+        } else if (isForceAvroKryoEnabledOpt.getAsBoolean()) {
+            // we only register if flink-avro is available. That is, we won't register the
+            // dummy serializer.
+            AvroUtils.tryGetAvroUtils()
+                    .ifPresent(
+                            avroUtils ->
+                                    avroUtils.addAvroGenericDataArrayRegistration(
+                                            kryoRegistrations));
+        }
 
         return kryoRegistrations;
     }
@@ -627,7 +641,8 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
                             type,
                             registeredTypes,
                             registeredTypesWithSerializerClasses,
-                            registeredTypesWithSerializers);
+                            registeredTypesWithSerializers,
+                            TernaryBoolean.UNDEFINED);
         }
     }
 

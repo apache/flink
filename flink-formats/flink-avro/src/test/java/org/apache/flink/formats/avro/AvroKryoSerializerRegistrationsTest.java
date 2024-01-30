@@ -18,11 +18,15 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Registration;
+import org.apache.avro.generic.GenericData;
 import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
@@ -33,6 +37,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 /**
@@ -79,6 +85,36 @@ class AvroKryoSerializerRegistrationsTest {
                 }
             }
         }
+    }
+
+    @Test
+    void testEnableForceKryoAvroRegister() {
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        executionConfig.getSerializerConfig().setForceKryoAvro(true);
+        final Kryo kryo = new KryoSerializer<>(Integer.class, executionConfig).getKryo();
+        kryo.setRegistrationRequired(true);
+        assertThatCode(() -> kryo.getRegistration(GenericData.Array.class))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testDefaultForceKryoAvroRegister() {
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        final Kryo kryo = new KryoSerializer<>(Integer.class, executionConfig).getKryo();
+        kryo.setRegistrationRequired(true);
+        assertThatCode(() -> kryo.getRegistration(GenericData.Array.class))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testDisableForceKryoAvroRegister() {
+        Configuration configuration = new Configuration();
+        configuration.set(PipelineOptions.FORCE_KRYO_AVRO, false);
+        ExecutionConfig executionConfig = new ExecutionConfig(configuration);
+        final Kryo kryo = new KryoSerializer<>(Integer.class, executionConfig).getKryo();
+        kryo.setRegistrationRequired(true);
+        assertThatThrownBy(() -> kryo.getRegistration(GenericData.Array.class))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     /**
