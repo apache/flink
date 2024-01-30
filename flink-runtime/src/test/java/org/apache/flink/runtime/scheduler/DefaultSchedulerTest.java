@@ -1801,6 +1801,53 @@ public class DefaultSchedulerTest {
         commonJobStatusHookTest(ExecutionState.FINISHED, JobStatus.FINISHED);
     }
 
+    @Test
+    void testStartCheckpointOnlyAfterVertexWithBlockingEdgeFinished() {
+        final JobVertex source = new JobVertex("source");
+        source.setInvokableClass(NoOpInvokable.class);
+        final JobVertex map = new JobVertex("map");
+        map.setInvokableClass(NoOpInvokable.class);
+        final JobVertex sink = new JobVertex("sink");
+        sink.setInvokableClass(NoOpInvokable.class);
+
+        sink.connectNewDataSetAsInput(
+                map, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        map.connectNewDataSetAsInput(
+                source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(source, map, sink);
+        enableCheckpointing(jobGraph, null, null, Long.MAX_VALUE - 1, true);
+
+        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+        final CheckpointCoordinator checkpointCoordinator = scheduler.getCheckpointCoordinator();
+        assertThat(checkpointCoordinator.isPeriodicCheckpointingStarted()).isFalse();
+
+        final Iterator<ArchivedExecutionVertex> iterator =
+                scheduler
+                        .requestJob()
+                        .getArchivedExecutionGraph()
+                        .getAllExecutionVertices()
+                        .iterator();
+        final ExecutionAttemptID sourceAttemptId =
+                iterator.next().getCurrentExecutionAttempt().getAttemptId();
+        final ExecutionAttemptID mapAttemptId =
+                iterator.next().getCurrentExecutionAttempt().getAttemptId();
+        final ExecutionAttemptID sinkAttemptId =
+                iterator.next().getCurrentExecutionAttempt().getAttemptId();
+        assertThat(iterator).isExhausted();
+
+        transitionToRunning(scheduler, sourceAttemptId);
+        transitionToRunning(scheduler, mapAttemptId);
+        assertThat(checkpointCoordinator.isPeriodicCheckpointingStarted()).isFalse();
+
+        scheduler.updateTaskExecutionState(
+                new TaskExecutionState(sourceAttemptId, ExecutionState.FINISHED));
+        scheduler.updateTaskExecutionState(
+                new TaskExecutionState(mapAttemptId, ExecutionState.FINISHED));
+        transitionToRunning(scheduler, sinkAttemptId);
+        assertThat(checkpointCoordinator.isPeriodicCheckpointingStarted()).isTrue();
+    }
+
     private void commonJobStatusHookTest(
             ExecutionState expectedExecutionState, JobStatus expectedJobStatus) throws Exception {
         final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();

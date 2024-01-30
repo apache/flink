@@ -515,8 +515,13 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
         if (checkpointCoordinator.isPeriodicCheckpointingConfigured()) {
             // the periodic checkpoint scheduler is activated and deactivated as a result of
-            // job status changes (running -> on, all other states -> off)
-            registerJobStatusListener(checkpointCoordinator.createActivatorDeactivator());
+            // job status and topology changes (running & all edges non-blocking -> on, all
+            // other states -> off)
+            boolean allTasksOutputNonBlocking =
+                    tasks.values().stream()
+                            .noneMatch(vertex -> vertex.getJobVertex().isAnyOutputBlocking());
+            registerJobStatusListener(
+                    checkpointCoordinator.createActivatorDeactivator(allTasksOutputNonBlocking));
         }
 
         this.stateBackendName = checkpointStateBackend.getName();
@@ -1392,6 +1397,13 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 return attempt.switchToInitializing();
 
             case RUNNING:
+                if (!isAnyOutputBlocking()
+                        && checkpointCoordinator != null
+                        && checkpointCoordinator.isPeriodicCheckpointingConfigured()
+                        && !checkpointCoordinator.isPeriodicCheckpointingStarted()) {
+                    checkpointCoordinator.startCheckpointScheduler();
+                }
+
                 return attempt.switchToRunning();
 
             case FINISHED:
@@ -1427,6 +1439,11 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                                         + state.getExecutionState()));
                 return false;
         }
+    }
+
+    private boolean isAnyOutputBlocking() {
+        return currentExecutions.values().stream()
+                .anyMatch(x -> x.getVertex().getJobVertex().getJobVertex().isAnyOutputBlocking());
     }
 
     private void maybeReleasePartitionGroupsFor(final Execution attempt) {

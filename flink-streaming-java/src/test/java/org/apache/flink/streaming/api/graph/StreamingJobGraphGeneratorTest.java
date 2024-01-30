@@ -2346,6 +2346,10 @@ class StreamingJobGraphGeneratorTest {
         assertHasOutputPartitionType(
                 vertexMap.get("transform -> Map"), ResultPartitionType.BLOCKING);
 
+        assertThat(vertexMap.get("Source: source").isAnyOutputBlocking()).isFalse();
+        assertThat(vertexMap.get("transform -> Map").isAnyOutputBlocking()).isTrue();
+        assertThat(vertexMap.get("sink: Writer").isAnyOutputBlocking()).isFalse();
+
         env.disableOperatorChaining();
         jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph(false));
         vertexMap = new HashMap<>();
@@ -2357,6 +2361,11 @@ class StreamingJobGraphGeneratorTest {
                 vertexMap.get("Source: source"), ResultPartitionType.PIPELINED_BOUNDED);
         assertHasOutputPartitionType(vertexMap.get("transform"), ResultPartitionType.BLOCKING);
         assertHasOutputPartitionType(vertexMap.get("Map"), ResultPartitionType.PIPELINED_BOUNDED);
+
+        assertThat(vertexMap.get("Source: source").isAnyOutputBlocking()).isFalse();
+        assertThat(vertexMap.get("transform").isAnyOutputBlocking()).isTrue();
+        assertThat(vertexMap.get("Map").isAnyOutputBlocking()).isFalse();
+        assertThat(vertexMap.get("sink: Writer").isAnyOutputBlocking()).isFalse();
     }
 
     private static void testWhetherOutputFormatSupportsConcurrentExecutionAttempts(
