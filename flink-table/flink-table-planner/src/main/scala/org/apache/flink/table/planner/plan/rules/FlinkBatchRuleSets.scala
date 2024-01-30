@@ -268,7 +268,7 @@ object FlinkBatchRuleSets {
 
     // reduce aggregate functions like AVG, STDDEV_POP etc.
     CoreRules.AGGREGATE_REDUCE_FUNCTIONS,
-    WindowAggregateReduceFunctionsRule.WINDOW_AGGREGATE_REDUCE_FUNCTIONS_INSTANCE,
+    WindowAggregateReduceFunctionsRule.INSTANCE,
 
     // reduce group by columns
     AggregateReduceGroupingRule.INSTANCE,

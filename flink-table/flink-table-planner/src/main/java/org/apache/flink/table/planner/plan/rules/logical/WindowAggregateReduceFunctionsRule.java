@@ -45,21 +45,19 @@ public class WindowAggregateReduceFunctionsRule extends AggregateReduceFunctions
                             RelFactories.DEFAULT_STRUCT,
                             RelBuilder.Config.DEFAULT.withPruneInputOfAggregate(false)));
 
-    public static final WindowAggregateReduceFunctionsRule
-            WINDOW_AGGREGATE_REDUCE_FUNCTIONS_INSTANCE =
-                    new WindowAggregateReduceFunctionsRule(
-                            Config.DEFAULT
-                                    .withRelBuilderFactory(LOGICAL_BUILDER_WITHOUT_AGG_INPUT_PRUNE)
-                                    .withOperandSupplier(
-                                            b ->
-                                                    b.operand(LogicalWindowAggregate.class)
-                                                            .anyInputs())
-                                    .as(Config.class));
+    public static final WindowAggregateReduceFunctionsRule INSTANCE =
+            new WindowAggregateReduceFunctionsRule(
+                    Config.DEFAULT
+                            .withRelBuilderFactory(LOGICAL_BUILDER_WITHOUT_AGG_INPUT_PRUNE)
+                            .withOperandSupplier(
+                                    b -> b.operand(LogicalWindowAggregate.class).anyInputs())
+                            .as(Config.class));
 
     protected WindowAggregateReduceFunctionsRule(Config config) {
         super(config);
     }
 
+    @Override
     protected void newAggregateRel(
             RelBuilder relBuilder, Aggregate oldAgg, List<AggregateCall> newCalls) {
 
@@ -78,6 +76,7 @@ public class WindowAggregateReduceFunctionsRule extends AggregateReduceFunctions
         relBuilder.push(newWindowAgg);
     }
 
+    @Override
     protected void newCalcRel(RelBuilder relBuilder, RelDataType rowType, List<RexNode> exprs) {
         int numExprs = exprs.size();
         // add all named properties of the window to the selection
