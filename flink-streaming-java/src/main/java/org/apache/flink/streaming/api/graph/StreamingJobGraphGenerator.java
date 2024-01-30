@@ -186,6 +186,9 @@ public class StreamingJobGraphGenerator {
 
     private final Map<Integer, InputOutputFormatContainer> chainedInputOutputFormats;
 
+    // the ids of nodes whose output result partition type should be set to BLOCKING
+    private final Set<Integer> outputBlockingNodesID;
+
     private final StreamGraphHasher defaultStreamGraphHasher;
     private final List<StreamGraphHasher> legacyStreamGraphHashers;
 
@@ -226,6 +229,7 @@ public class StreamingJobGraphGenerator {
         this.chainedMinResources = new HashMap<>();
         this.chainedPreferredResources = new HashMap<>();
         this.chainedInputOutputFormats = new HashMap<>();
+        this.outputBlockingNodesID = new HashSet<>();
         this.physicalEdgesInOrder = new ArrayList<>();
         this.serializationExecutor = Preconditions.checkNotNull(serializationExecutor);
         this.chainInfos = new HashMap<>();
@@ -678,6 +682,11 @@ public class StreamingJobGraphGenerator {
 
             StreamNode currentNode = streamGraph.getStreamNode(currentNodeId);
 
+            boolean isOutputOnlyAfterEndOfStream = currentNode.isOutputOnlyAfterEndOfStream();
+            if (isOutputOnlyAfterEndOfStream) {
+                outputBlockingNodesID.add(currentNode.getId());
+            }
+
             for (StreamEdge outEdge : currentNode.getOutEdges()) {
                 if (isChainable(outEdge, streamGraph)) {
                     chainableOutputs.add(outEdge);
@@ -687,12 +696,20 @@ public class StreamingJobGraphGenerator {
             }
 
             for (StreamEdge chainable : chainableOutputs) {
+                // Mark downstream nodes in the same chain as outputBlocking
+                if (isOutputOnlyAfterEndOfStream) {
+                    outputBlockingNodesID.add(chainable.getTargetId());
+                }
                 transitiveOutEdges.addAll(
                         createChain(
                                 chainable.getTargetId(),
                                 chainIndex + 1,
                                 chainInfo,
                                 chainEntryPoints));
+                // Mark upstream nodes in the same chain as outputBlocking
+                if (outputBlockingNodesID.contains(chainable.getTargetId())) {
+                    outputBlockingNodesID.add(currentNodeId);
+                }
             }
 
             for (StreamEdge nonChainable : nonChainableOutputs) {
@@ -1476,15 +1493,20 @@ public class StreamingJobGraphGenerator {
             case HYBRID_SELECTIVE:
                 return ResultPartitionType.HYBRID_SELECTIVE;
             case UNDEFINED:
-                return determineUndefinedResultPartitionType(edge.getPartitioner());
+                return determineUndefinedResultPartitionType(edge);
             default:
                 throw new UnsupportedOperationException(
                         "Data exchange mode " + edge.getExchangeMode() + " is not supported yet.");
         }
     }
 
-    private ResultPartitionType determineUndefinedResultPartitionType(
-            StreamPartitioner<?> partitioner) {
+    private ResultPartitionType determineUndefinedResultPartitionType(StreamEdge edge) {
+        if (outputBlockingNodesID.contains(edge.getSourceId())) {
+            edge.setBufferTimeout(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
+            return ResultPartitionType.BLOCKING;
+        }
+
+        StreamPartitioner<?> partitioner = edge.getPartitioner();
         switch (streamGraph.getGlobalStreamExchangeMode()) {
             case ALL_EDGES_BLOCKING:
                 return ResultPartitionType.BLOCKING;

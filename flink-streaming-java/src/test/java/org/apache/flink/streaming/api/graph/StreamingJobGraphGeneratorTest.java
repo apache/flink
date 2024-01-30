@@ -2321,9 +2321,10 @@ class StreamingJobGraphGeneratorTest {
                                         .build()))
                 .map(x -> x)
                 .sinkTo(new DiscardingSink<>())
+                .disableChaining()
                 .name("sink");
 
-        final StreamGraph streamGraph = env.getStreamGraph();
+        final StreamGraph streamGraph = env.getStreamGraph(false);
         Map<String, StreamNode> nodeMap = new HashMap<>();
         for (StreamNode node : streamGraph.getStreamNodes()) {
             nodeMap.put(node.getOperatorName(), node);
@@ -2333,6 +2334,29 @@ class StreamingJobGraphGeneratorTest {
         assertThat(nodeMap.get("transform").isOutputOnlyAfterEndOfStream()).isTrue();
         assertThat(nodeMap.get("Map").isOutputOnlyAfterEndOfStream()).isFalse();
         assertThat(nodeMap.get("sink: Writer").isOutputOnlyAfterEndOfStream()).isFalse();
+
+        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+        Map<String, JobVertex> vertexMap = new HashMap<>();
+        for (JobVertex vertex : jobGraph.getVertices()) {
+            vertexMap.put(vertex.getName(), vertex);
+        }
+        assertThat(vertexMap).hasSize(3);
+        assertHasOutputPartitionType(
+                vertexMap.get("Source: source"), ResultPartitionType.PIPELINED_BOUNDED);
+        assertHasOutputPartitionType(
+                vertexMap.get("transform -> Map"), ResultPartitionType.BLOCKING);
+
+        env.disableOperatorChaining();
+        jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph(false));
+        vertexMap = new HashMap<>();
+        for (JobVertex vertex : jobGraph.getVertices()) {
+            vertexMap.put(vertex.getName(), vertex);
+        }
+        assertThat(vertexMap).hasSize(4);
+        assertHasOutputPartitionType(
+                vertexMap.get("Source: source"), ResultPartitionType.PIPELINED_BOUNDED);
+        assertHasOutputPartitionType(vertexMap.get("transform"), ResultPartitionType.BLOCKING);
+        assertHasOutputPartitionType(vertexMap.get("Map"), ResultPartitionType.PIPELINED_BOUNDED);
     }
 
     private static void testWhetherOutputFormatSupportsConcurrentExecutionAttempts(
