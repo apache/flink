@@ -37,7 +37,6 @@ public class AsyncCalcRestoreTest extends RestoreTestBase {
                 AsyncCalcTestPrograms.ASYNC_CALC_UDF_SIMPLE,
                 AsyncCalcTestPrograms.ASYNC_CALC_UDF_COMPLEX,
                 AsyncCalcTestPrograms.ASYNC_CALC_UDF_NESTED,
-                AsyncCalcTestPrograms.ASYNC_CALC_UDF_CONDITION
-        );
+                AsyncCalcTestPrograms.ASYNC_CALC_UDF_CONDITION);
     }
 }

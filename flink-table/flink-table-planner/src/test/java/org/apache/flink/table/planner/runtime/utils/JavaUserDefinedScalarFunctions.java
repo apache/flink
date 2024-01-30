@@ -330,7 +330,11 @@ public class JavaUserDefinedScalarFunctions {
 
     /** Concatenate inputs as strings. */
     public static class AsyncJavaFunc1 extends AsyncScalarFunction {
-        public void eval(CompletableFuture<String> future, Integer a, int b, @DataTypeHint("TIMESTAMP(3)") TimestampData c) {
+        public void eval(
+                CompletableFuture<String> future,
+                Integer a,
+                int b,
+                @DataTypeHint("TIMESTAMP(3)") TimestampData c) {
             Long ts = (c == null) ? null : c.getMillisecond();
             future.complete(a + " and " + b + " and " + ts);
         }
@@ -362,8 +366,10 @@ public class JavaUserDefinedScalarFunctions {
             openCalled = true;
         }
 
-        public void eval(@DataTypeHint("TIMESTAMP(3)") CompletableFuture<Timestamp> future,
-                @DataTypeHint("TIMESTAMP(3)") TimestampData timestampData, Integer offset) {
+        public void eval(
+                @DataTypeHint("TIMESTAMP(3)") CompletableFuture<Timestamp> future,
+                @DataTypeHint("TIMESTAMP(3)") TimestampData timestampData,
+                Integer offset) {
             if (!openCalled) {
                 fail("Open was not called before run.");
             }

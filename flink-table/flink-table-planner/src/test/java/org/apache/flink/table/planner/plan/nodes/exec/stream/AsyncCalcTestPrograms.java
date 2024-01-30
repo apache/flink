@@ -30,7 +30,8 @@ public class AsyncCalcTestPrograms {
 
     static final TableTestProgram ASYNC_CALC_UDF_SIMPLE =
             TableTestProgram.of("async-calc-simple", "validates async calc node with simple UDF")
-                    .setupTemporaryCatalogFunction("udf1", JavaUserDefinedScalarFunctions.AsyncJavaFunc0.class)
+                    .setupTemporaryCatalogFunction(
+                            "udf1", JavaUserDefinedScalarFunctions.AsyncJavaFunc0.class)
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
                                     .addSchema("a INT")
@@ -48,11 +49,16 @@ public class AsyncCalcTestPrograms {
 
     static final TableTestProgram ASYNC_CALC_UDF_COMPLEX =
             TableTestProgram.of("async-calc-complex", "validates calc node with complex UDFs")
-                    .setupTemporaryCatalogFunction("udf1", JavaUserDefinedScalarFunctions.AsyncJavaFunc0.class)
-                    .setupTemporaryCatalogFunction("udf2", JavaUserDefinedScalarFunctions.AsyncJavaFunc1.class)
-                    .setupTemporarySystemFunction("udf3", JavaUserDefinedScalarFunctions.AsyncJavaFunc2.class)
-                    .setupTemporarySystemFunction("udf4", JavaUserDefinedScalarFunctions.AsyncUdfWithOpen.class)
-                    .setupCatalogFunction("udf5", JavaUserDefinedScalarFunctions.AsyncJavaFunc5.class)
+                    .setupTemporaryCatalogFunction(
+                            "udf1", JavaUserDefinedScalarFunctions.AsyncJavaFunc0.class)
+                    .setupTemporaryCatalogFunction(
+                            "udf2", JavaUserDefinedScalarFunctions.AsyncJavaFunc1.class)
+                    .setupTemporarySystemFunction(
+                            "udf3", JavaUserDefinedScalarFunctions.AsyncJavaFunc2.class)
+                    .setupTemporarySystemFunction(
+                            "udf4", JavaUserDefinedScalarFunctions.AsyncUdfWithOpen.class)
+                    .setupCatalogFunction(
+                            "udf5", JavaUserDefinedScalarFunctions.AsyncJavaFunc5.class)
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
                                     .addSchema(
@@ -114,7 +120,8 @@ public class AsyncCalcTestPrograms {
 
     static final TableTestProgram ASYNC_CALC_UDF_NESTED =
             TableTestProgram.of("async-calc-nested", "validates async calc node with simple UDF")
-                    .setupTemporaryCatalogFunction("udf1", JavaUserDefinedScalarFunctions.AsyncJavaFunc0.class)
+                    .setupTemporaryCatalogFunction(
+                            "udf1", JavaUserDefinedScalarFunctions.AsyncJavaFunc0.class)
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
                                     .addSchema("a INT")
@@ -132,7 +139,8 @@ public class AsyncCalcTestPrograms {
 
     static final TableTestProgram ASYNC_CALC_UDF_CONDITION =
             TableTestProgram.of("async-calc-condition", "validates async calc node with simple UDF")
-                    .setupTemporaryCatalogFunction("udf1", JavaUserDefinedScalarFunctions.AsyncJavaFunc0.class)
+                    .setupTemporaryCatalogFunction(
+                            "udf1", JavaUserDefinedScalarFunctions.AsyncJavaFunc0.class)
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
                                     .addSchema("a INT")
