@@ -95,27 +95,6 @@ public interface CatalogTable extends CatalogBaseTable {
     }
 
     /**
-     * Creates an instance of {@link CatalogTable} with a specific snapshot.
-     *
-     * @param schema unresolved schema
-     * @param comment optional comment
-     * @param distribution distribution of the table
-     * @param partitionKeys list of partition keys or an empty list if not partitioned
-     * @param options options to configure the connector
-     * @param snapshot table snapshot of the table
-     */
-    static CatalogTable of(
-            Schema schema,
-            @Nullable String comment,
-            Optional<TableDistribution> distribution,
-            List<String> partitionKeys,
-            Map<String, String> options,
-            @Nullable Long snapshot) {
-        return new DefaultCatalogTable(
-                schema, comment, partitionKeys, options, snapshot, distribution);
-    }
-
-    /**
      * Creates an instance of {@link CatalogTable} from a map of string properties that were
      * previously created with {@link ResolvedCatalogTable#toProperties()}.
      *

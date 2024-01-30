@@ -200,12 +200,7 @@ public class ShowCreateUtil {
     }
 
     static Optional<String> extractFormattedDistributedInfo(ResolvedCatalogTable catalogTable) {
-        if (!catalogTable.getDistribution().isPresent()) {
-            return Optional.empty();
-        }
-        TableDistribution distribution = catalogTable.getDistribution().get();
-
-        return Optional.of(distribution.asSerializableString());
+        return catalogTable.getDistribution().map(TableDistribution::asSerializableString);
     }
 
     static Optional<String> extractFormattedPartitionedInfo(ResolvedCatalogTable catalogTable) {

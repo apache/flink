@@ -183,82 +183,34 @@ class TableDescriptorTest {
     }
 
     @Test
-    void testDistributedByHash() {
-        final TableDescriptor.Builder tableDescriptorBuilder = getTableDescriptorBuilder();
-        tableDescriptorBuilder.distributedByHash(3, "f0");
-        assertThat(tableDescriptorBuilder.build().toString())
-                .contains("DISTRIBUTED BY HASH(`f0`) INTO 3 BUCKETS\n");
-    }
-
-    @Test
-    void testDistributedByHashNoBucketCount() {
-        final TableDescriptor.Builder tableDescriptorBuilder = getTableDescriptorBuilder();
-        tableDescriptorBuilder.distributedByHash("f0");
-        assertThat(tableDescriptorBuilder.build().toString())
-                .contains("DISTRIBUTED BY HASH(`f0`)\n");
-    }
-
-    @Test
-    void testDistributedByHashNoBucketKeys() {
-        final TableDescriptor.Builder tableDescriptorBuilder = getTableDescriptorBuilder();
-        assertThatThrownBy(() -> tableDescriptorBuilder.distributedByHash(3))
-                .as("At least one bucket key must be defined for a distribution.")
-                .isInstanceOf(ValidationException.class);
-    }
-
-    @Test
-    void testDistributedByRange() {
-        final TableDescriptor.Builder tableDescriptorBuilder = getTableDescriptorBuilder();
-        tableDescriptorBuilder.distributedByRange(3, "f0");
-        assertThat(tableDescriptorBuilder.build().toString())
-                .contains("DISTRIBUTED BY RANGE(`f0`) INTO 3 BUCKETS\n");
-    }
-
-    @Test
-    void testDistributedByRangeNoBucketCount() {
-        final TableDescriptor.Builder tableDescriptorBuilder = getTableDescriptorBuilder();
-        tableDescriptorBuilder.distributedByRange("f0");
-        assertThat(tableDescriptorBuilder.build().toString())
-                .contains("DISTRIBUTED BY RANGE(`f0`)\n");
-    }
-
-    @Test
-    void testDistributedByRangeNoBucketKeys() {
-        final TableDescriptor.Builder tableDescriptorBuilder = getTableDescriptorBuilder();
-        assertThatThrownBy(() -> tableDescriptorBuilder.distributedByRange(3))
-                .as("At least one bucket key must be defined for a distribution.")
-                .isInstanceOf(ValidationException.class);
-    }
-
-    @Test
     void testDistributedBy() {
-        final TableDescriptor.Builder tableDescriptorBuilder = getTableDescriptorBuilder();
-        tableDescriptorBuilder.distributedInto(3, "f0");
-        assertThat(tableDescriptorBuilder.build().toString())
+        assertThat(getTableDescriptorBuilder().distributedByHash(3, "f0").build().toString())
+                .contains("DISTRIBUTED BY HASH(`f0`) INTO 3 BUCKETS\n");
+        assertThat(getTableDescriptorBuilder().distributedByHash("f0").build().toString())
+                .contains("DISTRIBUTED BY HASH(`f0`)\n");
+        assertThat(getTableDescriptorBuilder().distributedByRange(3, "f0").build().toString())
+                .contains("DISTRIBUTED BY RANGE(`f0`) INTO 3 BUCKETS\n");
+        assertThat(getTableDescriptorBuilder().distributedByRange("f0").build().toString())
+                .contains("DISTRIBUTED BY RANGE(`f0`)\n");
+        assertThat(getTableDescriptorBuilder().distributedInto(3, "f0").build().toString())
                 .contains("DISTRIBUTED BY (`f0`) INTO 3 BUCKETS\n");
+        assertThat(getTableDescriptorBuilder().distributedInto("f0").build().toString())
+                .contains("DISTRIBUTED BY (`f0`)\n");
+        assertThat(getTableDescriptorBuilder().distributedInto(3).build().toString())
+                .contains("DISTRIBUTED INTO 3 BUCKETS\n");
     }
 
     @Test
-    void testDistributedByNoBucketCount() {
-        final TableDescriptor.Builder tableDescriptorBuilder = getTableDescriptorBuilder();
-        tableDescriptorBuilder.distributedInto("f0");
-        assertThat(tableDescriptorBuilder.build().toString()).contains("DISTRIBUTED BY (`f0`)\n");
-    }
-
-    @Test
-    void testDistributedByNoBucketNoBucketCountKeys() {
-        final TableDescriptor.Builder tableDescriptorBuilder = getTableDescriptorBuilder();
-        assertThatThrownBy(() -> tableDescriptorBuilder.distributedInto())
+    void testDistributedByExceptions() {
+        assertThatThrownBy(() -> getTableDescriptorBuilder().distributedByHash(3))
                 .as("At least one bucket key must be defined for a distribution.")
                 .isInstanceOf(ValidationException.class);
-    }
-
-    @Test
-    void testDistributedByNoBucketKeys() {
-        final TableDescriptor.Builder tableDescriptorBuilder = getTableDescriptorBuilder();
-        tableDescriptorBuilder.distributedInto(3);
-        assertThat(tableDescriptorBuilder.build().toString())
-                .contains("DISTRIBUTED INTO 3 BUCKETS\n");
+        assertThatThrownBy(() -> getTableDescriptorBuilder().distributedInto())
+                .as("At least one bucket key must be defined for a distribution.")
+                .isInstanceOf(ValidationException.class);
+        assertThatThrownBy(() -> getTableDescriptorBuilder().distributedByRange(3))
+                .as("At least one bucket key must be defined for a distribution.")
+                .isInstanceOf(ValidationException.class);
     }
 
     private static TableDescriptor.Builder getTableDescriptorBuilder() {
