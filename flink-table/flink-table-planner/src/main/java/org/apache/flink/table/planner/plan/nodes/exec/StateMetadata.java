@@ -106,10 +106,17 @@ public class StateMetadata {
 
     public static List<StateMetadata> getOneInputOperatorDefaultMeta(
             ReadableConfig tableConfig, String stateName) {
+        return getOneInputOperatorDefaultMeta(null, tableConfig, stateName);
+    }
+
+    public static List<StateMetadata> getOneInputOperatorDefaultMeta(
+            @Nullable Long stateTtlFromHint, ReadableConfig tableConfig, String stateName) {
         return Collections.singletonList(
                 new StateMetadata(
                         0,
-                        tableConfig.get(ExecutionConfigOptions.IDLE_STATE_RETENTION),
+                        stateTtlFromHint == null
+                                ? tableConfig.get(ExecutionConfigOptions.IDLE_STATE_RETENTION)
+                                : Duration.ofMillis(stateTtlFromHint),
                         stateName));
     }
 

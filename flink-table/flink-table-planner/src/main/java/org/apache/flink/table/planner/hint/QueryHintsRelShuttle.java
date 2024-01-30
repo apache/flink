@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.planner.hint;
 
-import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
+import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalCorrelate;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalJoin;
@@ -37,15 +37,20 @@ public abstract class QueryHintsRelShuttle extends RelShuttleImpl {
         if (containsSubQuery(join)) {
             join = (LogicalJoin) resolveSubQuery(join, relNode -> relNode.accept(this));
         }
-        return visitBiRel(join);
+        return doVisit(join);
     }
 
     @Override
     public RelNode visit(LogicalCorrelate correlate) {
-        return visitBiRel(correlate);
+        return doVisit(correlate);
     }
 
-    protected abstract RelNode visitBiRel(BiRel biRel);
+    @Override
+    public RelNode visit(LogicalAggregate aggregate) {
+        return doVisit(aggregate);
+    }
+
+    protected abstract RelNode doVisit(RelNode node);
 
     @Override
     public RelNode visit(LogicalFilter filter) {

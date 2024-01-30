@@ -52,7 +52,7 @@ public abstract class FlinkHints {
     // ~ Internal alias tag hint
     public static final String HINT_ALIAS = "ALIAS";
 
-    // ~ Option name for hints on join or correlate
+    // ~ Option name for hints on BiRel like join or correlate
     public static final String LEFT_INPUT = "LEFT";
     public static final String RIGHT_INPUT = "RIGHT";
 
@@ -267,11 +267,8 @@ public abstract class FlinkHints {
         return JoinStrategy.isJoinStrategy(hintName) || StateTtlHint.isStateTtlHint(hintName);
     }
 
-    /**
-     * Currently, lookup join hints and state ttl hints are KV hints. And regular join hints are
-     * LIST hints.
-     */
-    public static boolean isKVQueryHint(String hintName) {
-        return JoinStrategy.isLookupHint(hintName) || StateTtlHint.isStateTtlHint(hintName);
+    /** Check if the hint is a alias hint. */
+    public static boolean isAliasHint(String hintName) {
+        return FlinkHints.HINT_ALIAS.equalsIgnoreCase(hintName);
     }
 }

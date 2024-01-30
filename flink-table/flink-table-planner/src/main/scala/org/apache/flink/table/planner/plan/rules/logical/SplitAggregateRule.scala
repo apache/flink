@@ -314,7 +314,8 @@ class SplitAggregateRule
       relBuilder.build(),
       fullGroupSet,
       ImmutableList.of[ImmutableBitSet](fullGroupSet),
-      newPartialAggCalls)
+      newPartialAggCalls,
+      originalAggregate.getHints)
     partialAggregate.setPartialFinalType(PartialFinalType.PARTIAL)
     relBuilder.push(partialAggregate)
 
@@ -357,7 +358,8 @@ class SplitAggregateRule
       relBuilder.build(),
       SplitAggregateRule.remap(fullGroupSet, originalAggregate.getGroupSet),
       SplitAggregateRule.remap(fullGroupSet, Seq(originalAggregate.getGroupSet)),
-      finalAggCalls
+      finalAggCalls,
+      originalAggregate.getHints
     )
     finalAggregate.setPartialFinalType(PartialFinalType.FINAL)
     relBuilder.push(finalAggregate)
