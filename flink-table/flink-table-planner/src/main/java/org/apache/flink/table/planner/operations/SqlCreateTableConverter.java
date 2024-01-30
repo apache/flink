@@ -107,19 +107,22 @@ class SqlCreateTableConverter {
                                                                         .getClass()
                                                                         .getSimpleName()));
         CatalogTable catalogTable = createCatalogTable(sqlCreateTableAs);
+        CatalogTable tableWithResolvedSchema =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .fromResolvedSchema(query.getResolvedSchema())
+                                        .build())
+                        .comment(catalogTable.getComment())
+                        .distribution(catalogTable.getDistribution())
+                        .options(catalogTable.getOptions())
+                        .partitionKeys(catalogTable.getPartitionKeys())
+                        .build();
 
         CreateTableOperation createTableOperation =
                 new CreateTableOperation(
                         identifier,
-                        CatalogTable.of(
-                                Schema.newBuilder()
-                                        .fromResolvedSchema(query.getResolvedSchema())
-                                        .build(),
-                                catalogTable.getComment(),
-                                catalogTable.getDistribution(),
-                                catalogTable.getPartitionKeys(),
-                                catalogTable.getOptions(),
-                                null),
+                        tableWithResolvedSchema,
                         sqlCreateTableAs.isIfNotExists(),
                         sqlCreateTableAs.isTemporary());
 
@@ -184,14 +187,16 @@ class SqlCreateTableConverter {
 
         String tableComment = OperationConverterUtils.getTableComment(sqlCreateTable.getComment());
 
-        return catalogManager.resolveCatalogTable(
-                CatalogTable.of(
-                        mergedSchema,
-                        tableComment,
-                        mergedTableDistribution,
-                        partitionKeys,
-                        new HashMap<>(mergedOptions),
-                        null));
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(mergedSchema)
+                        .comment(tableComment)
+                        .distribution(mergedTableDistribution)
+                        .options(new HashMap<>(mergedOptions))
+                        .partitionKeys(partitionKeys)
+                        .build();
+
+        return catalogManager.resolveCatalogTable(catalogTable);
     }
 
     private CatalogTable lookupLikeSourceTable(SqlTableLike sqlTableLike) {

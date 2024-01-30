@@ -518,18 +518,21 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         Map<String, String> sourceProperties = new HashMap<>();
         sourceProperties.put("format.type", "json");
         CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .column("f0", DataTypes.INT().notNull())
-                                .column("f1", DataTypes.TIMESTAMP(3))
-                                .columnByExpression("f2", "`f0` + 12345")
-                                .watermark("f1", "`f1` - interval '1' second")
-                                .build(),
-                        null,
-                        Optional.of(TableDistribution.ofHash(Collections.singletonList("f0"), 3)),
-                        Arrays.asList("f0", "f1"),
-                        sourceProperties,
-                        null);
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                        .columnByExpression("f2", "`f0` + 12345")
+                                        .watermark("f1", "`f1` - interval '1' second")
+                                        .build())
+                        .distribution(
+                                Optional.of(
+                                        TableDistribution.ofHash(
+                                                Collections.singletonList("f0"), 3)))
+                        .partitionKeys(Arrays.asList("f0", "f1"))
+                        .options(sourceProperties)
+                        .build();
 
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
@@ -605,18 +608,21 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         Map<String, String> sourceProperties = new HashMap<>();
         sourceProperties.put("format.type", "json");
         CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .column("f0", DataTypes.INT().notNull())
-                                .column("f1", DataTypes.TIMESTAMP(3))
-                                .columnByExpression("f2", "`f0` + 12345")
-                                .watermark("f1", "`f1` - interval '1' second")
-                                .build(),
-                        null,
-                        Optional.of(TableDistribution.ofHash(Collections.singletonList("f0"), 3)),
-                        Arrays.asList("f0", "f1"),
-                        sourceProperties,
-                        null);
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                        .columnByExpression("f2", "`f0` + 12345")
+                                        .watermark("f1", "`f1` - interval '1' second")
+                                        .build())
+                        .distribution(
+                                Optional.of(
+                                        TableDistribution.ofHash(
+                                                Collections.singletonList("f0"), 3)))
+                        .partitionKeys(Arrays.asList("f0", "f1"))
+                        .options(sourceProperties)
+                        .build();
 
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
@@ -634,18 +640,21 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         Map<String, String> sourceProperties = new HashMap<>();
         sourceProperties.put("format.type", "json");
         CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .column("f0", DataTypes.INT().notNull())
-                                .column("f1", DataTypes.TIMESTAMP(3))
-                                .columnByExpression("f2", "`f0` + 12345")
-                                .watermark("f1", "`f1` - interval '1' second")
-                                .build(),
-                        null,
-                        Optional.of(TableDistribution.ofHash(Collections.singletonList("f0"), 3)),
-                        Arrays.asList("f0", "f1"),
-                        sourceProperties,
-                        null);
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                        .columnByExpression("f2", "`f0` + 12345")
+                                        .watermark("f1", "`f1` - interval '1' second")
+                                        .build())
+                        .distribution(
+                                Optional.of(
+                                        TableDistribution.ofHash(
+                                                Collections.singletonList("f0"), 3)))
+                        .partitionKeys(Arrays.asList("f0", "f1"))
+                        .options(sourceProperties)
+                        .build();
 
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);

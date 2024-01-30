@@ -49,6 +49,11 @@ import java.util.Optional;
 @PublicEvolving
 public interface CatalogTable extends CatalogBaseTable {
 
+    /** Builder for configuring and creating instances of {@link CatalogTable}. */
+    public static CatalogTable.Builder newBuilder() {
+        return new CatalogTable.Builder();
+    }
+
     /**
      * Creates a basic implementation of this interface.
      *
@@ -59,6 +64,7 @@ public interface CatalogTable extends CatalogBaseTable {
      * @param partitionKeys list of partition keys or an empty list if not partitioned
      * @param options options to configure the connector
      */
+    @Deprecated
     static CatalogTable of(
             Schema schema,
             @Nullable String comment,
@@ -76,6 +82,7 @@ public interface CatalogTable extends CatalogBaseTable {
      * @param options options to configure the connector
      * @param snapshot table snapshot of the table
      */
+    @Deprecated
     static CatalogTable of(
             Schema schema,
             @Nullable String comment,
@@ -170,5 +177,52 @@ public interface CatalogTable extends CatalogBaseTable {
     /** Returns the distribution of the table if the {@code DISTRIBUTED} clause is defined. */
     default Optional<TableDistribution> getDistribution() {
         return Optional.empty();
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    /** Builder for configuring and creating instances of {@link CatalogTable}. */
+    class Builder {
+        private Schema schema;
+        private String comment;
+        private List<String> partitionKeys;
+        private Map<String, String> options;
+        private Long snapshot;
+        private Optional<TableDistribution> distribution;
+
+        public Builder schema(Schema schema) {
+            this.schema = schema;
+            return this;
+        }
+
+        public Builder comment(String comment) {
+            this.comment = comment;
+            return this;
+        }
+
+        public Builder partitionKeys(List<String> partitionKeys) {
+            this.partitionKeys = partitionKeys;
+            return this;
+        }
+
+        public Builder options(Map<String, String> options) {
+            this.options = options;
+            return this;
+        }
+
+        public Builder snapshot(Long snapshot) {
+            this.snapshot = snapshot;
+            return this;
+        }
+
+        public Builder distribution(Optional<TableDistribution> distribution) {
+            this.distribution = distribution;
+            return this;
+        }
+
+        public CatalogTable build() {
+            return new DefaultCatalogTable(
+                    schema, comment, partitionKeys, options, snapshot, distribution);
+        }
     }
 }
