@@ -200,22 +200,10 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
                             FactoryUtil.FORMAT.key()));
         }
 
-        String classpath = System.getProperty("java.class.path");
-        String[] classpathEntries = classpath.split(System.getProperty("path.separator"));
-
-        System.out.println("Classpath entries:");
-        for (String entry : classpathEntries) {
-            System.out.println(entry);
-        }
-
-        System.out.println("Factories:");
         final List<Factory> factories = new LinkedList<>();
         ServiceLoader.load(Factory.class, context.getClassLoader())
                 .iterator()
-                .forEachRemaining(factory -> {
-                    System.out.println("Factory Name: " + factory.getClass().getName());
-                    factories.add(factory);
-                });
+                .forEachRemaining(factories::add);
 
         final List<Factory> foundFactories =
                 factories.stream()
