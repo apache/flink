@@ -33,7 +33,7 @@ public class FlinkLimit0RemoveRule
     public static final FlinkLimit0RemoveRule INSTANCE =
             FlinkLimit0RemoveRule.FlinkLimit0RemoveRuleConfig.DEFAULT.toRule();
 
-    public FlinkLimit0RemoveRule(FlinkLimit0RemoveRuleConfig config) {
+    private FlinkLimit0RemoveRule(FlinkLimit0RemoveRuleConfig config) {
         super(config);
     }
 
