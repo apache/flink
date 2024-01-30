@@ -286,6 +286,19 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
   }
 
   @TestTemplate
+  def testMultipleHashAgg(): Unit = {
+    checkOpFusionCodegenResult(
+      """
+        |SELECT * FROM
+        |  (SELECT a, SUM(b) as b FROM x group by a) T1
+        |  INNER JOIN
+        |  (SELECT d, SUM(e) as e FROM y group by d) T2
+        |  ON T1.a = T2.d
+        |""".stripMargin
+    )
+  }
+
+  @TestTemplate
   def testGlobalHashAggWithKey2(): Unit = {
     checkOpFusionCodegenResult(
       """
