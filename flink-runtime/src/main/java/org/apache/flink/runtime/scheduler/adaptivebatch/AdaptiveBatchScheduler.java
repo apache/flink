@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
@@ -62,6 +63,7 @@ import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionOperations;
 import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
+import org.apache.flink.runtime.scheduler.ExecutionVertexVersion;
 import org.apache.flink.runtime.scheduler.ExecutionVertexVersioner;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
@@ -187,8 +189,10 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
     protected void startSchedulingInternal() {
         tryComputeSourceParallelismThenRunAsync(
                 (Void value, Throwable throwable) -> {
-                    initializeVerticesIfPossible();
-                    super.startSchedulingInternal();
+                    if (getExecutionGraph().getState() == JobStatus.CREATED) {
+                        initializeVerticesIfPossible();
+                        super.startSchedulingInternal();
+                    }
                 });
     }
 
@@ -196,8 +200,16 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
     protected void onTaskFinished(final Execution execution, final IOMetrics ioMetrics) {
         checkNotNull(ioMetrics);
         updateResultPartitionBytesMetrics(ioMetrics.getResultPartitionBytes());
+        ExecutionVertexVersion currentVersion =
+                executionVertexVersioner.getExecutionVertexVersion(execution.getVertex().getID());
         tryComputeSourceParallelismThenRunAsync(
                 (Void value, Throwable throwable) -> {
+                    if (executionVertexVersioner.isModified(currentVersion)) {
+                        log.debug(
+                                "Initialization of vertices will be skipped, because the execution"
+                                        + " vertex version has been modified.");
+                        return;
+                    }
                     initializeVerticesIfPossible();
                     super.onTaskFinished(execution, ioMetrics);
                 });
