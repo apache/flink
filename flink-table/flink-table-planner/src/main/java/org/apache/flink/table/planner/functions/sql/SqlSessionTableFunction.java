@@ -17,8 +17,8 @@
 
 package org.apache.flink.table.planner.functions.sql;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableList;
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCallBinding;
