@@ -40,6 +40,7 @@ Overview
 Currently, Flink distinguishes between the following kinds of functions:
 
 - *Scalar functions* map scalar values to a new scalar value.
+  - *Asynchronous scalar functions* asynchronously map scalar values to a new scalar value.
 - *Table functions* map scalar values to new rows.
 - *Aggregate functions* map scalar values of multiple rows to a new scalar value.
 - *Table aggregate functions* map scalar values of multiple rows to new rows.
@@ -843,6 +844,117 @@ env.sqlQuery("SELECT HashFunction(myField) FROM MyTable")
 {{< /tabs >}}
 
 If you intend to implement or call functions in Python, please refer to the [Python Scalar Functions]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#scalar-functions) documentation for more details.
+
+{{< top >}}
+
+Asynchronous Scalar Functions
+----------------
+
+A user-defined asynchronous scalar function maps zero, one, or multiple scalar values to a new scalar value, but does it asynchronously. Any data type listed in the [data types section]({{< ref "docs/dev/table/types" >}}) can be used as a parameter or return type of an evaluation method.
+
+In order to define an asynchronous scalar function, one has to extend the base class `AsyncScalarFunction` in `org.apache.flink.table.functions` and implement one or more evaluation methods named `eval(...)`.  The first argument must be a `CompletableFuture<...>` which is used to return the result, with subsequent arguments being the parameters passed to the function.
+
+The following example shows how to do work on a thread pool in the background, though any libraries exposing an async interface may be directly used to complete the `CompletableFuture` from a callback. See the [Implementation Guide](#implementation-guide) for more details.
+
+Also, see the configurations under `table.exec.async-scalar.*` for setting the number of outstanding calls, timeouts, and other parameters.
+
+{{< tabs "a385387e-d64b-44b3-9b65-fd42f0820e99" >}}
+{{< tab "Java" >}}
+
+```java
+import org.apache.flink.table.api.*;
+import org.apache.flink.table.functions.AsyncScalarFunction;
+
+import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+
+import static org.apache.flink.table.api.Expressions.*;
+
+public static class BackgroundFunction extends AsyncScalarFunction {
+    private Executor executor;
+
+    @Override
+    public void open(FunctionContext context) {
+        executor = Executors.newFixedThreadPool(10);
+    }
+
+    // take any data type and return INT
+    public void eval(CompletableFuture<Long> future, Integer waitMax) {
+        executor.execute(() -> {
+            long sleepTime = new Random().nextInt(waitMax);
+            try {
+                Thread.sleep(sleepTime);
+            } catch (InterruptedException e) {}
+            future.complete(sleepTime);
+        });
+    }
+}
+
+TableEnvironment env = TableEnvironment.create(...);
+env.getConfig().set("table.exec.async-scalar.buffer-capacity", "5");
+env.getConfig().set("table.exec.async-scalar.timeout", "1m");
+
+// call function "inline" without registration in Table API
+env.from("MyTable").select(call(BackgroundFunction.class, $("myField")));
+
+// register function
+env.createTemporarySystemFunction("BackgroundFunction", BackgroundFunction.class);
+
+// call registered function in Table API
+env.from("MyTable").select(call("BackgroundFunction", $("myField")));
+
+// call registered function in SQL
+env.sqlQuery("SELECT BackgroundFunction(myField) FROM MyTable");
+
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.table.annotation.InputGroup
+import org.apache.flink.table.api._
+import org.apache.flink.table.functions.AsyncScalarFunction
+
+class BackgroundFunc extends AsyncScalarFunction {
+
+  private var executor: Executor = null
+
+  override def open(context: FunctionContext): Unit = {
+    executor = Executors.newFixedThreadPool(10)
+  }
+
+  def eval(future: CompletableFuture[java.lang.Long], waitMax: Integer): Unit = {
+    executor.execute(() => {
+      val sleepTime = new Random().nextInt(waitMax)
+      try Thread.sleep(sleepTime)
+      catch {
+        case e: InterruptedException =>
+      }
+      future.complete(sleepTime)
+    })
+  }
+}
+
+val env = TableEnvironment.create(...)
+env.getConfig.set("table.exec.async-scalar.buffer-capacity", "5")
+env.getConfig.set("table.exec.async-scalar.timeout", "1m")
+
+// call function "inline" without registration in Table API
+env.from("MyTable").select(call(classOf[BackgroundFunc], $"myField"))
+
+// register function
+env.createTemporarySystemFunction("BackgroundFunc", classOf[BackgroundFunc])
+
+// call registered function in Table API
+env.from("MyTable").select(call("BackgroundFunc", $"myField"))
+
+// call registered function in SQL
+env.sqlQuery("SELECT BackgroundFunc(myField) FROM MyTable")
+
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 {{< top >}}
 
