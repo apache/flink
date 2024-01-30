@@ -2083,11 +2083,17 @@ public class AdaptiveSchedulerTest {
         final Duration scalingIntervalMin = Duration.ofMillis(1337);
         final Duration scalingIntervalMax = Duration.ofMillis(7331);
         final Configuration configuration = createConfigurationWithNoTimeouts();
+
         configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, scalingIntervalMin);
         configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX, scalingIntervalMax);
 
         final AdaptiveScheduler scheduler =
-                prepareSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool)
+                new AdaptiveSchedulerBuilder(
+                                jobGraph,
+                                singleThreadMainThreadExecutor,
+                                EXECUTOR_RESOURCE.getExecutor())
+                        .setDeclarativeSlotPool(declarativeSlotPool)
+                        .setJobMasterConfiguration(createConfigurationWithNoTimeouts())
                         .setJobMasterConfiguration(configuration)
                         .build();
         final SubmissionBufferingTaskManagerGateway taskManagerGateway =
@@ -2128,6 +2134,12 @@ public class AdaptiveSchedulerTest {
     // ---------------------------------------------------------------------------------------------
     // Utils
     // ---------------------------------------------------------------------------------------------
+
+    private static Configuration createConfigurationWithNoTimeouts() {
+        return new Configuration()
+                .set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L))
+                .set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, Duration.ofMillis(1L));
+    }
 
     private CompletableFuture<ArchivedExecutionGraph> getArchivedExecutionGraphForRunningJob(
             SchedulerNG scheduler) {
