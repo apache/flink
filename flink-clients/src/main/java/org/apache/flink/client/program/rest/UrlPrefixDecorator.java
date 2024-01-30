@@ -30,7 +30,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import java.util.Collection;
 
-import static org.apache.flink.shaded.guava32.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.shaded.guava31.com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * This class decorates the URL of the original message headers by adding a prefix. The purpose of

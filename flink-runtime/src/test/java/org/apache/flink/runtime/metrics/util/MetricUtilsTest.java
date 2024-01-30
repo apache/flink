@@ -38,7 +38,7 @@ import org.apache.flink.util.ChildFirstClassLoader;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.function.CheckedSupplier;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;

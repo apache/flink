@@ -26,7 +26,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 
-import org.apache.flink.shaded.guava32.com.google.common.base.Ticker;
+import org.apache.flink.shaded.guava31.com.google.common.base.Ticker;
 
 import org.junit.jupiter.api.Test;
 

@@ -52,7 +52,6 @@ import static org.apache.flink.formats.common.TimeFormats.ISO8601_TIMESTAMP_WITH
 import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
 import static org.apache.flink.formats.common.TimeFormats.SQL_TIME_FORMAT;
-import static org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.StreamWriteFeature.WRITE_BIGDECIMAL_AS_PLAIN;
 
 /** Tool class used to convert from {@link RowData} to {@link JsonNode}. * */
 @Internal
@@ -153,11 +152,7 @@ public class RowDataToJsonConverters implements Serializable {
     private RowDataToJsonConverter createDecimalConverter() {
         return (mapper, reuse, value) -> {
             BigDecimal bd = ((DecimalData) value).toBigDecimal();
-            return mapper.getNodeFactory()
-                    .numberNode(
-                            mapper.isEnabled(WRITE_BIGDECIMAL_AS_PLAIN)
-                                    ? bd
-                                    : bd.stripTrailingZeros());
+            return mapper.getNodeFactory().numberNode(bd);
         };
     }
 
