@@ -92,7 +92,7 @@ public class ExecutionVertexVersioner {
                                 ExecutionVertexVersion::getExecutionVertexId, Function.identity()));
     }
 
-    ExecutionVertexVersion getExecutionVertexVersion(ExecutionVertexID executionVertexId) {
+    public ExecutionVertexVersion getExecutionVertexVersion(ExecutionVertexID executionVertexId) {
         final long currentVersion = getCurrentVersion(executionVertexId);
         return new ExecutionVertexVersion(executionVertexId, currentVersion);
     }
