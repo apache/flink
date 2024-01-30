@@ -42,7 +42,7 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
 @Internal
 public final class OperatorBindingCallContext extends AbstractSqlCallContext {
 
-    private final OperatorBindingDecorator binding;
+    private final SqlOperatorBinding binding;
 
     private final List<DataType> argumentDataTypes;
 
@@ -59,7 +59,7 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
                 sqlOperatorBinding.getOperator().getNameAsId().toString(),
                 sqlOperatorBinding.getGroupCount() > 0);
 
-        this.binding = new OperatorBindingDecorator(sqlOperatorBinding);
+        this.binding = sqlOperatorBinding;
         this.argumentDataTypes =
                 new AbstractList<DataType>() {
                     @Override

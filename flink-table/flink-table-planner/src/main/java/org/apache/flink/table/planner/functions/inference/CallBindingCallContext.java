@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.functions.inference;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.planner.calcite.FlinkSqlCallBinding;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
@@ -51,7 +52,7 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
 
     private final List<DataType> argumentDataTypes;
 
-    private final OperatorBindingDecorator binding;
+    private final SqlCallBinding binding;
 
     private final @Nullable DataType outputType;
 
@@ -67,7 +68,11 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
                 sqlCallBinding.getGroupCount() > 0);
 
         this.adaptedArguments = sqlCallBinding.operands(); // reorders the operands
-        this.binding = new OperatorBindingDecorator(sqlCallBinding);
+        this.binding =
+                new FlinkSqlCallBinding(
+                        sqlCallBinding.getValidator(),
+                        sqlCallBinding.getScope(),
+                        sqlCallBinding.getCall());
         this.argumentDataTypes =
                 new AbstractList<DataType>() {
                     @Override

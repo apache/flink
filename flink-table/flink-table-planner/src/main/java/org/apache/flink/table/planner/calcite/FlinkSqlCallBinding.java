@@ -57,17 +57,28 @@ public class FlinkSqlCallBinding extends SqlCallBinding {
     public List<SqlNode> operands() {
         List<SqlNode> operands = super.operands();
         List<SqlNode> rewrittenOperands = new ArrayList<>();
-        for (int i = 0; i < operands.size(); i++) {
-            SqlNode operand = operands.get(i);
-            if (operand instanceof SqlCall
-                    && ((SqlCall) operand).getOperator() == SqlStdOperatorTable.DEFAULT) {
-                rewrittenOperands.add(
-                        new SqlDefaultOperator(argumentTypes.get(i)).createCall(SqlParserPos.ZERO));
-            } else {
-                rewrittenOperands.add(operands.get(i));
+        if (operands.stream()
+                .anyMatch(
+                        operand ->
+                                operand instanceof SqlCall
+                                        && ((SqlCall) operand).getOperator()
+                                                == SqlStdOperatorTable.DEFAULT)) {
+
+            for (int i = 0; i < operands.size(); i++) {
+                SqlNode operand = operands.get(i);
+                if (operand instanceof SqlCall
+                        && ((SqlCall) operand).getOperator() == SqlStdOperatorTable.DEFAULT) {
+                    rewrittenOperands.add(
+                            new SqlDefaultOperator(argumentTypes.get(i))
+                                    .createCall(SqlParserPos.ZERO));
+                } else {
+                    rewrittenOperands.add(operands.get(i));
+                }
             }
+            return rewrittenOperands;
+        } else {
+            return operands;
         }
-        return rewrittenOperands;
     }
 
     @Override
