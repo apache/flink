@@ -58,5 +58,8 @@ public class GlobalWindowsTest extends TestLogger {
         assertEquals(
                 new GlobalWindow.Serializer(), assigner.getWindowSerializer(new ExecutionConfig()));
         assertThat(assigner.getDefaultTrigger(), instanceOf(GlobalWindows.NeverTrigger.class));
+        assigner = GlobalWindows.createWithEndOfStreamTrigger();
+        assertThat(
+                assigner.getDefaultTrigger(), instanceOf(GlobalWindows.EndOfStreamTrigger.class));
     }
 }
