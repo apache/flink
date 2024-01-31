@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.plan.fusion.FusionCodegenUtil.{evaluateReq
 import org.apache.flink.table.planner.plan.fusion.OpFusionCodegenSpecBase
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.{toJava, toScala}
 
-import org.apache.calcite.rex.{RexInputRef, RexLocalRef, RexNode}
+import org.apache.calcite.rex.{RexInputRef, RexNode}
 
 import java.util
 
@@ -31,10 +31,9 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 /** The operator fusion codegen spec for Calc. */
 class CalcFusionCodegenSpec(
-    opCodegenCtx: CodeGeneratorContext,
-    expression: Seq[RexNode],
-    projection: Seq[RexLocalRef],
-    condition: Option[RexLocalRef])
+                             opCodegenCtx: CodeGeneratorContext,
+                             projection: Seq[RexNode],
+                             condition: Option[RexNode])
   extends OpFusionCodegenSpecBase(opCodegenCtx) {
 
   override def variablePrefix: String = "calc"
@@ -45,9 +44,9 @@ class CalcFusionCodegenSpec(
   }
 
   override def doProcessConsume(
-      inputId: Int,
-      inputVars: util.List[GeneratedExpression],
-      row: GeneratedExpression): String = {
+                                 inputId: Int,
+                                 inputVars: util.List[GeneratedExpression],
+                                 row: GeneratedExpression): String = {
     val onlyFilter =
       projection.lengthCompare(
         fusionContext.getInputFusionContexts.head.getOutputType.getFieldCount) == 0 &&
@@ -56,13 +55,6 @@ class CalcFusionCodegenSpec(
             rexNode.isInstanceOf[RexInputRef] && rexNode.asInstanceOf[RexInputRef].getIndex == index
         }
 
-    opCodegenCtx.initExpressions(expression)
-    expression.map(
-      p => {
-//              println(p)
-        getExprCodeGenerator.generateExpression(p)
-//              println("asd")
-      })
     val projectionUsedColumns =
       extractRefInputFields(projection, fusionContext.getInputFusionContexts.head.getOutputType)
     if (condition.isEmpty && onlyFilter) {

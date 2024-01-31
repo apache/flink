@@ -52,6 +52,7 @@ class BatchPhysicalCalc(
       optimizedExprs._1,
       optimizedExprs._2,
       optimizedExprs._3,
+      calcProgram,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
