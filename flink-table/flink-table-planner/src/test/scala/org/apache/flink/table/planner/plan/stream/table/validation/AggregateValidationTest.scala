@@ -131,7 +131,7 @@ class AggregateValidationTest extends TableTestBase {
     // If there are two parameters, second one must be character literal.
     expectExceptionThrown(
       "SELECT listagg(c, d) FROM T GROUP BY a",
-      "Supported form(s): 'LISTAGG(<CHARACTER>)'\n'LISTAGG(<CHARACTER>, <CHARACTER_LITERAL>)",
+      "Argument to function 'LISTAGG' must be a literal",
       classOf[ValidationException]
     )
   }
