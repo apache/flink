@@ -268,7 +268,8 @@ public class OuterJoinOperatorBaseTest implements Serializable {
         public void open(OpenContext openContext) {
             opened.compareAndSet(false, true);
             assertThat(getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()).isZero();
-            assertThat(getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks()).isEqualTo(1);
+            assertThat(getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks())
+                    .isEqualTo(1);
         }
 
         @Override

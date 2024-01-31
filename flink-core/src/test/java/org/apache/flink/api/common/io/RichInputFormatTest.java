@@ -21,7 +21,6 @@ package org.apache.flink.api.common.io;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.TaskInfoImpl;
-import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.types.Value;
@@ -48,8 +47,13 @@ class RichInputFormatTest {
                         new HashMap<>(),
                         UnregisteredMetricsGroup.createOperatorMetricGroup()));
 
-        assertThat(1).isEqualTo(inputFormat.getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
-        assertThat(3).isEqualTo(
-                inputFormat.getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
+        assertThat(1)
+                .isEqualTo(inputFormat.getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
+        assertThat(3)
+                .isEqualTo(
+                        inputFormat
+                                .getRuntimeContext()
+                                .getTaskInfo()
+                                .getNumberOfParallelSubtasks());
     }
 }
