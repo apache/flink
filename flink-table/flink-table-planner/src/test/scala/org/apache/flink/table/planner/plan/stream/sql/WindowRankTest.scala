@@ -198,6 +198,38 @@ class WindowRankTest extends TableTestBase {
       .isInstanceOf[TableException]
   }
 
+  @Test
+  def testUnsupportedWindowTVF_SessionOnRowtime(): Unit = {
+    val sql =
+      """
+        |SELECT window_start, window_end, window_time, a, b, c, d, e
+        |FROM (
+        |SELECT *,
+        |   ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end ORDER BY b DESC) as rownum
+        |FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |)
+        |WHERE rownum <= 3
+      """.stripMargin
+
+    util.verifyExplain(sql)
+  }
+
+  @Test
+  def testUnsupportedWindowTVF_SessionOnProctime(): Unit = {
+    val sql =
+      """
+        |SELECT window_start, window_end, window_time, a, b, c, d, e
+        |FROM (
+        |SELECT *,
+        |   ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end ORDER BY b DESC) as rownum
+        |FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
+        |)
+        |WHERE rownum <= 3
+      """.stripMargin
+
+    util.verifyExplain(sql)
+  }
+
   // ----------------------------------------------------------------------------------------
   // Tests for queries Rank on window Aggregate
   // ----------------------------------------------------------------------------------------

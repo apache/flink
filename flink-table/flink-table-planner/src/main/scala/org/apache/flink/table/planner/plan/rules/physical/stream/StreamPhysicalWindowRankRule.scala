@@ -39,6 +39,11 @@ class StreamPhysicalWindowRankRule(config: Config) extends ConverterRule(config)
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(call.getMetadataQuery)
     val windowProperties = fmq.getRelWindowProperties(rank.getInput)
     val partitionKey = rank.partitionKey
+
+    // unaligned window such as session window doesn't support window rank
+    if (WindowUtil.isUnalignedWindow(windowProperties)) {
+      return false
+    }
     WindowUtil.groupingContainsWindowStartEnd(partitionKey, windowProperties) &&
     !RankUtil.canConvertToDeduplicate(rank)
   }
