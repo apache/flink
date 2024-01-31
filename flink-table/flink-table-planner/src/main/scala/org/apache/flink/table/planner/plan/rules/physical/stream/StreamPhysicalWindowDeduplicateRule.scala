@@ -39,6 +39,12 @@ class StreamPhysicalWindowDeduplicateRule(config: Config) extends ConverterRule(
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(call.getMetadataQuery)
     val windowProperties = fmq.getRelWindowProperties(rank.getInput)
     val partitionKey = rank.partitionKey
+
+    // unaligned window such as session window doesn't support window deduplicate
+    if (WindowUtil.isUnalignedWindow(windowProperties)) {
+      return false
+    }
+
     WindowUtil.groupingContainsWindowStartEnd(partitionKey, windowProperties) &&
     RankUtil.canConvertToDeduplicate(rank)
   }
