@@ -128,7 +128,7 @@
     "needRetraction" : false,
     "state" : [ {
       "index" : 0,
-      "ttl" : "4 d",
+      "ttl" : "1 s",
       "name" : "groupAggregateState"
     } ],
     "inputProperties" : [ {
