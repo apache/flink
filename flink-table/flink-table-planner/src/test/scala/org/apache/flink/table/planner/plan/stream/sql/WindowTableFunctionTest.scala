@@ -257,4 +257,34 @@ class WindowTableFunctionTest extends TableTestBase {
     util.verifyRelPlan(sql)
   }
 
+  @Test
+  def testSessionTVF(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testSessionTVFProctime(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testSessionTVFWithPartitionKeys(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(SESSION(TABLE MyTable PARTITION BY (b, a), DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
 }
