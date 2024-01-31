@@ -266,5 +266,23 @@ GROUP BY day
 Flink SQL optimizer can recognize the different filter arguments on the same distinct key. For example, in the above example, all the three COUNT DISTINCT are on `user_id` column.
 Then Flink can use just one shared state instance instead of three state instances to reduce state access and state size. In some workloads, this can get significant performance improvements.
 
+## MiniBatch Join
+
+By default, regular join operator processes input records one by one, i.e., (1) look up records from state according to joinKey, (2) write or retract input in state, (3) process the input and joined records. This processing pattern may increase the overhead of StateBackend (especially for RocksDB StateBackend).
+
+The core idea of mini-batch join is to cache a bundle of inputs in a buffer inside of the mini-batch join operator. Reduce data in the cache, and then when the cache is triggered for processing, perform specific optimizations based on certain scenarios. Some of input records would be folded according to specified rule illustrated below:
+
+{{< img src="/fig/table-streaming/folded.png" width="70%" height="70%" >}}
+
+When the bundle of inputs is triggered to be processed, the inputs inside of the bundle are records that could not be folded further. Another optimization for update records is applied for the bundle. When encountering the pair of -U and +U records, they would be recognized and redundant records in their output would be suppressed. The graph below explains the principle here.
+
+{{< img src="/fig/table-streaming/suppress.jpg" width="70%" height="70%" >}}
+
+Besides, the order in which the left and right stream bundles are processed can also help reduce redundant records, but this only applies to cases where there is an outer join. The following graph clarifies the principle:
+
+{{< img src="/fig/table-streaming/order.jpg" width="70%" height="70%" >}}
+
+MiniBatch optimization is disabled by default for regular join. In order to enable this optimization, you should set options `table.exec.mini-batch.enabled`, `table.exec.mini-batch.allow-latency` and `table.exec.mini-batch.size`. Please see [configuration]({{< ref "docs/dev/table/config" >}}#execution-options) page for more details.
+The examples could refer to the part of MiniBatch Aggregation.
 
 {{< top >}}

@@ -259,5 +259,23 @@ GROUP BY day
 
 Flink SQL 优化器可以识别相同的 distinct key 上的不同过滤器参数。例如，在上面的示例中，三个 COUNT DISTINCT 都在 `user_id` 一列上。Flink 可以只使用一个共享状态实例，而不是三个状态实例，以减少状态访问和状态大小。在某些工作负载下，可以获得显著的性能提升。
 
+## MiniBatch Join
+默认情况下，普通join算子是逐条处理输入的记录，即：（1）从状态中根据joinKey查询记录，（2）将当前记录写到对应状态，（3）处理输入和从状态中查找出的记录。这种处理模式可能会增加 StateBackend 开销（尤其是对于 RocksDB StateBackend ）。
+
+MiniBatch join的核心思想是将一组输入的数据缓存在join算子内部的缓冲区中，在缓存中减少数据，然后当缓存触发处理时，根据一些特定场景做特定处理来优化。
+一些输入的数据会在缓存中被折叠掉，具体的折叠规则参照下面的表格：
+
+{{< img src="/fig/table-streaming/folded.png" width="70%" height="70%" >}}
+
+当集中处理缓存中的数据时，此时的数据已经是经过折叠后的数据。对于其中存在的数据更新流，这里也可以进行优化。当存在outer join且遇到-U（删除更新）和+U（添加更新）数据时，可以抑制下发冗余的结果。下图解释了这里的原理。
+
+{{< img src="/fig/table-streaming/suppress.jpg" width="70%" height="70%" >}}
+
+除此之外，当存在outer join时，更改左右流缓存的处理顺序也可以帮助减少下发冗余结果。下图解释了这里的原理:
+
+{{< img src="/fig/table-streaming/order.jpg" width="70%" height="70%" >}}
+
+默认情况下，对于普通join算子来说，mini-batch 优化是被禁用的。开启这项优化，需要设置选项 `table.exec.mini-batch.enabled`、`table.exec.mini-batch.allow-latency` 和 `table.exec.mini-batch.size`。更多详细信息请参见[配置]({{< ref "docs/dev/table/config" >}}#execution-options)页面。
+具体示例可以参照MiniBatch聚合对应示例。
 
 {{< top >}}
