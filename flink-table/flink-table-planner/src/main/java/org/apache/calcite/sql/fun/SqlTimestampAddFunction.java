@@ -19,13 +19,21 @@ package org.apache.calcite.sql.fun;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
+import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.type.SqlTypeTransforms;
+import org.apache.calcite.sql.validate.SqlValidator;
+import org.apache.calcite.sql.validate.SqlValidatorScope;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+import static org.apache.calcite.util.Util.first;
 
 /**
  * The <code>TIMESTAMPADD</code> function, which adds an interval to a datetime (TIMESTAMP, TIME or
@@ -66,14 +74,11 @@ public class SqlTimestampAddFunction extends SqlFunction {
     private static final int MICROSECOND_PRECISION = 6;
 
     private static final SqlReturnTypeInference RETURN_TYPE_INFERENCE =
-            opBinding -> {
-                final RelDataTypeFactory typeFactory = opBinding.getTypeFactory();
-                return deduceType(
-                        typeFactory,
-                        opBinding.getOperandLiteralValue(0, TimeUnit.class),
-                        opBinding.getOperandType(1),
-                        opBinding.getOperandType(2));
-            };
+            opBinding ->
+                    deduceType(
+                            opBinding.getTypeFactory(),
+                            opBinding.getOperandLiteralValue(0, TimeUnit.class),
+                            opBinding.getOperandType(2));
 
     // BEGIN FLINK MODIFICATION
     // Reason: this method is changed to deduce return type on timestamp with local time zone
@@ -81,57 +86,67 @@ public class SqlTimestampAddFunction extends SqlFunction {
     // Whole class should be removed after CALCITE-4698 is fixed
     public static RelDataType deduceType(
             RelDataTypeFactory typeFactory,
-            TimeUnit timeUnit,
-            RelDataType intervalType,
-            RelDataType datetimeType) {
-        RelDataType type;
-        switch (timeUnit) {
+            @Nullable TimeUnit timeUnit,
+            RelDataType operandType1,
+            RelDataType operandType2) {
+        final RelDataType type = deduceType(typeFactory, timeUnit, operandType2);
+        return typeFactory.createTypeWithNullability(
+                type, operandType1.isNullable() || operandType2.isNullable());
+    }
+
+    static RelDataType deduceType(
+            RelDataTypeFactory typeFactory, @Nullable TimeUnit timeUnit, RelDataType datetimeType) {
+        final TimeUnit timeUnit2 = first(timeUnit, TimeUnit.EPOCH);
+        SqlTypeName typeName = datetimeType.getSqlTypeName();
+        switch (timeUnit2) {
             case MILLISECOND:
-                type =
-                        typeFactory.createSqlType(
-                                timestampOrTimestampLtz(datetimeType),
-                                Math.max(MILLISECOND_PRECISION, datetimeType.getPrecision()));
-                break;
+                return typeFactory.createSqlType(
+                        typeName, Math.max(MILLISECOND_PRECISION, datetimeType.getPrecision()));
             case MICROSECOND:
-                type =
-                        typeFactory.createSqlType(
-                                timestampOrTimestampLtz(datetimeType),
-                                Math.max(MICROSECOND_PRECISION, datetimeType.getPrecision()));
-                break;
+                return typeFactory.createSqlType(
+                        typeName, Math.max(MICROSECOND_PRECISION, datetimeType.getPrecision()));
             case HOUR:
             case MINUTE:
             case SECOND:
                 if (datetimeType.getFamily() == SqlTypeFamily.TIME) {
-                    type = datetimeType;
+                    return datetimeType;
                 } else if (datetimeType.getFamily() == SqlTypeFamily.TIMESTAMP) {
-                    type =
-                            typeFactory.createSqlType(
-                                    timestampOrTimestampLtz(datetimeType),
-                                    datetimeType.getPrecision());
+                    return typeFactory.createSqlType(typeName, datetimeType.getPrecision());
                 } else {
-                    type = typeFactory.createSqlType(SqlTypeName.TIMESTAMP);
+                    return typeFactory.createSqlType(SqlTypeName.TIMESTAMP);
                 }
-                break;
             default:
-                type = datetimeType;
+                return datetimeType;
         }
-        return typeFactory.createTypeWithNullability(
-                type, intervalType.isNullable() || datetimeType.isNullable());
     }
 
-    private static SqlTypeName timestampOrTimestampLtz(RelDataType datetimeType) {
-        return datetimeType.getSqlTypeName() == SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE
-                ? SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE
-                : SqlTypeName.TIMESTAMP;
+    @Override
+    public void validateCall(
+            SqlCall call,
+            SqlValidator validator,
+            SqlValidatorScope scope,
+            SqlValidatorScope operandScope) {
+        super.validateCall(call, validator, scope, operandScope);
+
+        // This is either a time unit or a time frame:
+        //
+        //  * In "TIMESTAMPADD(YEAR, 2, x)" operand 0 is a SqlIntervalQualifier
+        //    with startUnit = YEAR and timeFrameName = null.
+        //
+        //  * In "TIMESTAMPADD(MINUTE15, 2, x) operand 0 is a SqlIntervalQualifier
+        //    with startUnit = EPOCH and timeFrameName = 'MINUTE15'.
+        //
+        // If the latter, check that timeFrameName is valid.
+        validator.validateTimeFrame((SqlIntervalQualifier) call.getOperandList().get(0));
     }
     // END FLINK MODIFICATION
 
     /** Creates a SqlTimestampAddFunction. */
-    SqlTimestampAddFunction() {
+    SqlTimestampAddFunction(String name) {
         super(
-                "TIMESTAMPADD",
+                name,
                 SqlKind.TIMESTAMP_ADD,
-                RETURN_TYPE_INFERENCE,
+                RETURN_TYPE_INFERENCE.andThen(SqlTypeTransforms.TO_NULLABLE),
                 null,
                 OperandTypes.family(
                         SqlTypeFamily.ANY, SqlTypeFamily.INTEGER, SqlTypeFamily.DATETIME),
