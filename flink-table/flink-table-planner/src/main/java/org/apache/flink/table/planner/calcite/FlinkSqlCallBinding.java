@@ -57,13 +57,7 @@ public class FlinkSqlCallBinding extends SqlCallBinding {
     public List<SqlNode> operands() {
         List<SqlNode> operands = super.operands();
         List<SqlNode> rewrittenOperands = new ArrayList<>();
-        if (operands.stream()
-                .anyMatch(
-                        operand ->
-                                operand instanceof SqlCall
-                                        && ((SqlCall) operand).getOperator()
-                                                == SqlStdOperatorTable.DEFAULT)) {
-
+        if (isNamedArgument()) {
             for (int i = 0; i < operands.size(); i++) {
                 SqlNode operand = operands.get(i);
                 if (operand instanceof SqlCall
@@ -83,7 +77,7 @@ public class FlinkSqlCallBinding extends SqlCallBinding {
 
     @Override
     public RelDataType getOperandType(int ordinal) {
-        return isNamedArgument()
+        return isNamedArgument() && !argumentTypes.isEmpty()
                 ? ((SqlOperandMetadata) getCall().getOperator().getOperandTypeChecker())
                         .paramTypes(typeFactory)
                         .get(ordinal)
@@ -93,7 +87,7 @@ public class FlinkSqlCallBinding extends SqlCallBinding {
     public boolean isNamedArgument() {
         for (SqlNode operand : getCall().getOperandList()) {
             if (operand != null && operand.getKind() == SqlKind.ARGUMENT_ASSIGNMENT) {
-                return true;
+                return !getArgumentTypes().isEmpty();
             }
         }
         return false;
