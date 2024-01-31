@@ -23,7 +23,6 @@ import org.apache.flink.table.planner.functions.sql.SqlDefaultOperator;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
-import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -77,7 +76,7 @@ public class FlinkSqlCallBinding extends SqlCallBinding {
 
     @Override
     public RelDataType getOperandType(int ordinal) {
-        return isNamedArgument() && !argumentTypes.isEmpty()
+        return isNamedArgument()
                 ? ((SqlOperandMetadata) getCall().getOperator().getOperandTypeChecker())
                         .paramTypes(typeFactory)
                         .get(ordinal)
@@ -85,12 +84,7 @@ public class FlinkSqlCallBinding extends SqlCallBinding {
     }
 
     public boolean isNamedArgument() {
-        for (SqlNode operand : getCall().getOperandList()) {
-            if (operand != null && operand.getKind() == SqlKind.ARGUMENT_ASSIGNMENT) {
-                return !getArgumentTypes().isEmpty();
-            }
-        }
-        return false;
+        return !argumentTypes.isEmpty();
     }
 
     private List<RelDataType> getArgumentTypes() {
