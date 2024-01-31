@@ -63,6 +63,8 @@ class CodeGeneratorContext(
   def this(tableConfig: ReadableConfig, classLoader: ClassLoader) =
     this(tableConfig, classLoader, null)
 
+  var orderedExpressions: ListBuffer[GeneratedExpression] = ListBuffer[GeneratedExpression]()
+
   // holding a list of objects that could be used passed into generated class
   val references: mutable.ArrayBuffer[AnyRef] = new mutable.ArrayBuffer[AnyRef]()
 
@@ -123,10 +125,6 @@ class CodeGeneratorContext(
   // we use a LinkedHashSet to keep the insertion order
   private val reusableConstructorStatements: mutable.LinkedHashSet[(String, String)] =
     mutable.LinkedHashSet[(String, String)]()
-
-  // mapping between RexNode and GeneratedExpressions
-  val cachedExprs: mutable.Map[Int, Boolean] =
-    mutable.Map[Int, Boolean]()
 
   // mapping between RexNode and GeneratedExpressions
   private val reusableExpr: mutable.Map[RexNode, GeneratedExpression] =
