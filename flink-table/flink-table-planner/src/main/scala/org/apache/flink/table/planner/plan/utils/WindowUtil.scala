@@ -42,6 +42,8 @@ import org.apache.calcite.sql.`type`.SqlTypeFamily
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.{ImmutableBitSet, Util}
 
+import javax.annotation.Nullable
+
 import java.time.Duration
 import java.util.Collections
 
@@ -464,5 +466,15 @@ object WindowUtil {
         partitionKeys.equals(newGrouping.toSet)
       case _ => true
     }
+  }
+
+  /**
+   * Check if the window in [[RelWindowProperties]] is unaligned window.
+   *
+   * Return true if the [[RelWindowProperties]] is not null and the window is unaligned window. Else
+   * return false.
+   */
+  def isUnalignedWindow(@Nullable windowProp: RelWindowProperties): Boolean = {
+    windowProp != null && !windowProp.getWindowSpec.isAlignedWindow
   }
 }
