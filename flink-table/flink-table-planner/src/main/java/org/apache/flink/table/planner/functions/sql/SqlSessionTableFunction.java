@@ -68,7 +68,7 @@ public class SqlSessionTableFunction extends SqlWindowTableFunction {
     /** Operand type checker for SESSION. */
     private static class OperandMetadataImpl extends AbstractOperandMetadata {
         OperandMetadataImpl() {
-            super(ImmutableList.of(PARAM_DATA, PARAM_TIMECOL, PARAM_SIZE), 3);
+            super(ImmutableList.of(PARAM_DATA, PARAM_TIMECOL, GAP), 3);
         }
 
         @Override
