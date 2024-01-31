@@ -62,12 +62,13 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.32.0:
+				"mvn dependency:tree" as of Calcite 1.33.0:
 
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.32.0:compile
-				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.22.0:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.33.0:compile
+				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.23.0:compile
 				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.2:compile
-				[INFO] |  \- org.checkerframework:checker-qual:jar:3.12.0:compile
+				[INFO] |  +- org.checkerframework:checker-qual:jar:3.12.0:compile
+				[INFO] |  \- org.apache.commons:commons-math3:jar:3.6.1:runtime
 
 				Dependencies that are not needed for how we use Calcite right now.
 				-->
