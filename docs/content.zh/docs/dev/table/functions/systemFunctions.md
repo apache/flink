@@ -118,43 +118,44 @@ JSON 函数使用符合 ISO/IEC TR 19075-6 SQL标准的 JSON 路径表达式。 
 下表列出了时间间隔单位和时间点单位标识符。
 
 对于 Table API，请使用 `_` 代替空格（例如 `DAY_TO_HOUR`）。
+Plural works for SQL only.
 
-| 时间间隔单位                | 时间点单位                        |
-| :------------------------ | :------------------------------ |
-| `MILLENNIUM`              |                                 |
-| `CENTURY`                 |                                 |
-| `DECADE`                  |                                 |
-| `YEAR`                    | `YEAR`                          |
-| `YEAR TO MONTH`           |                                 |
-| `QUARTER`                 | `QUARTER`                       |
-| `MONTH`                   | `MONTH`                         |
-| `WEEK`                    | `WEEK`                          |
-| `DAY`                     | `DAY`                           |
-| `DAY TO HOUR`             |                                 |
-| `DAY TO MINUTE`           |                                 |
-| `DAY TO SECOND`           |                                 |
-| `HOUR`                    | `HOUR`                          |
-| `HOUR TO MINUTE`          |                                 |
-| `HOUR TO SECOND`          |                                 |
-| `MINUTE`                  | `MINUTE`                        |
-| `MINUTE TO SECOND`        |                                 |
-| `SECOND`                  | `SECOND`                        |
-| `MILLISECOND`             | `MILLISECOND`                   |
-| `MICROSECOND`             | `MICROSECOND`                   |
-| `NANOSECOND`              |                                 |
-| `EPOCH`                   |                                 |
-| `DOY` _（仅适用SQL）_       |                                 |
-| `DOW` _（仅适用SQL）_       |                                 |
-| `ISODOW` _（仅适用SQL）_    |                                 |
-| `ISOYEAR` _（仅适用SQL）_   |                                 |
-|                           | `SQL_TSI_YEAR` _（仅适用SQL）_    |
-|                           | `SQL_TSI_QUARTER` _（仅适用SQL）_ |
-|                           | `SQL_TSI_MONTH` _（仅适用SQL）_   |
-|                           | `SQL_TSI_WEEK` _（仅适用SQL）_    |
-|                           | `SQL_TSI_DAY` _（仅适用SQL）_     |
-|                           | `SQL_TSI_HOUR` _（仅适用SQL）_    |
-|                           | `SQL_TSI_MINUTE` _（仅适用SQL）_  |
-|                           | `SQL_TSI_SECOND ` _（仅适用SQL）_ |
+| 时间间隔单位                   | 时间点单位                        |
+|:-------------------------|:-----------------------------|
+| `MILLENNIUM`             |                              |
+| `CENTURY`                |                              |
+| `DECADE`                 |                              |
+| `YEAR(S)`                | `YEAR`                       |
+| `YEAR(S) TO MONTH(S)`    |                              |
+| `QUARTER(S)`             | `QUARTER`                    |
+| `MONTH(S)`               | `MONTH`                      |
+| `WEEK(S)`                | `WEEK`                       |
+| `DAY(S)`                 | `DAY`                        |
+| `DAY(S) TO HOUR(S)`      |                              |
+| `DAY(S) TO MINUTE(S)`    |                              |
+| `DAY(S) TO SECOND(S)`    |                              |
+| `HOUR(S)`                | `HOUR`                       |
+| `HOUR(S) TO MINUTE(S)`   |                              |
+| `HOUR(S) TO SECOND(S)`   |                              |
+| `MINUTE(S)`              | `MINUTE`                     |
+| `MINUTE(S) TO SECOND(S)` |                              |
+| `SECOND(S)`              | `SECOND`                     |
+| `MILLISECOND`            | `MILLISECOND`                |
+| `MICROSECOND`            | `MICROSECOND`                |
+| `NANOSECOND`             |                              |
+| `EPOCH`                  |                              |
+| `DOY` _（仅适用SQL）_         |                              |
+| `DOW` _（仅适用SQL）_         |                              |
+| `ISODOW` _（仅适用SQL）_      |                              |
+| `ISOYEAR` _（仅适用SQL）_     |                              |
+|                          | `SQL_TSI_YEAR` _（仅适用SQL）_    |
+|                          | `SQL_TSI_QUARTER` _（仅适用SQL）_ |
+|                          | `SQL_TSI_MONTH` _（仅适用SQL）_   |
+|                          | `SQL_TSI_WEEK` _（仅适用SQL）_    |
+|                          | `SQL_TSI_DAY` _（仅适用SQL）_     |
+|                          | `SQL_TSI_HOUR` _（仅适用SQL）_    |
+|                          | `SQL_TSI_MINUTE` _（仅适用SQL）_  |
+|                          | `SQL_TSI_SECOND ` _（仅适用SQL）_ |
 
 {{< top >}}
 
