@@ -39,6 +39,7 @@ import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXE
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_RETRY_DELAY;
 import static org.assertj.core.api.Assertions.fail;
 
+/** {@link TableTestProgram} definitions for testing {@link StreamExecAsyncCalc}. */
 public class AsyncCalcTestPrograms {
 
     static final TableTestProgram ASYNC_CALC_UDF_SIMPLE =
@@ -168,7 +169,7 @@ public class AsyncCalcTestPrograms {
     static final TableTestProgram ASYNC_CALC_UDF_FAILURE_EXCEPTION =
             TableTestProgram.of(
                             "async-calc-failure-exception",
-                            "validates async calc node that fails some number of times and then recover after restore")
+                            "validates async calc node that fails some number of times and then recovers after restore")
                     .setupConfig(TABLE_EXEC_ASYNC_SCALAR_RETRY_DELAY, Duration.ofMillis(3000))
                     .setupConfig(TABLE_EXEC_ASYNC_SCALAR_MAX_ATTEMPTS, 3)
                     .setupConfig(TABLE_EXEC_ASYNC_SCALAR_BUFFER_CAPACITY, 5)
