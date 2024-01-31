@@ -166,4 +166,14 @@ public enum FlinkSqlConformance implements SqlConformance {
     public SqlLibrary semantics() {
         return SqlConformanceEnum.DEFAULT.semantics();
     }
+
+    @Override
+    public boolean allowCoercionStringToArray() {
+        return SqlConformanceEnum.DEFAULT.allowCoercionStringToArray();
+    }
+
+    @Override
+    public boolean isValueAllowed() {
+        return SqlConformanceEnum.DEFAULT.isValueAllowed();
+    }
 }
