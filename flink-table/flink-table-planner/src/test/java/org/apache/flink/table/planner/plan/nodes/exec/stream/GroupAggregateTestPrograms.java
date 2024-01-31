@@ -387,13 +387,15 @@ public class GroupAggregateTestPrograms {
                                             "+I[1, 1, null, Hi]",
                                             "+I[2, 1, 2.0, Hello]",
                                             "+U[2, 2, 2.0, Hello]")
+                                    // Due to state TTL in hint, the state in the metadata
+                                    // savepoint has expired.
                                     .consumedAfterRestore(
-                                            "+U[1, 2, null, Hi]",
-                                            "+U[2, 3, 2.0, Hello]",
-                                            "+U[2, 4, 2.0, Hello]")
+                                            "+I[1, 1, null, Hi Again!]",
+                                            "+I[2, 1, 2.0, Hello Again!]",
+                                            "+U[2, 2, 2.0, Hello Again!]")
                                     .build())
                     .runSql(
-                            "INSERT INTO sink_t SELECT /*+ STATE_TTL('source_t' = '4d') */"
+                            "INSERT INTO sink_t SELECT /*+ STATE_TTL('source_t' = '1s') */"
                                     + "b, "
                                     + "COUNT(*) AS cnt, "
                                     + "AVG(a) FILTER (WHERE a > 1) AS avg_a, "
