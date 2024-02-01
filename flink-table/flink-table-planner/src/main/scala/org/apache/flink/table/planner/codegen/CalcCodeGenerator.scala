@@ -24,15 +24,16 @@ import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.data.{BoxedWrapperRowData, RowData}
 import org.apache.flink.table.functions.FunctionKind
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.codegen.GeneratedExpression.NO_CODE
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil.AccessedLocalRefsFinder
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
+
 import org.apache.calcite.rex._
-import org.apache.flink.table.planner.codegen.GeneratedExpression.NO_CODE
-import org.apache.flink.table.planner.plan.utils.FlinkRexUtil.AccessedLocalRefsFinder
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -40,14 +41,14 @@ import scala.collection.mutable.ListBuffer
 object CalcCodeGenerator {
 
   def generateCalcOperator(
-                            ctx: CodeGeneratorContext,
-                            inputTransform: Transformation[RowData],
-                            outputType: RowType,
-                            expr: Seq[RexNode],
-                            projection: Seq[RexLocalRef],
-                            condition: Option[RexLocalRef],
-                            retainHeader: Boolean = false,
-                            opName: String): CodeGenOperatorFactory[RowData] = {
+      ctx: CodeGeneratorContext,
+      inputTransform: Transformation[RowData],
+      outputType: RowType,
+      expr: Seq[RexNode],
+      projection: Seq[RexLocalRef],
+      condition: Option[RexLocalRef],
+      retainHeader: Boolean = false,
+      opName: String): CodeGenOperatorFactory[RowData] = {
 
     val inputType = inputTransform.getOutputType
       .asInstanceOf[InternalTypeInfo[RowData]]
@@ -79,15 +80,15 @@ object CalcCodeGenerator {
   }
 
   private[flink] def generateFunction[T <: Function](
-                                                      inputType: RowType,
-                                                      name: String,
-                                                      returnType: RowType,
-                                                      outRowClass: Class[_ <: RowData],
-                                                      calcExpression: Seq[RexNode],
-                                                      calcProjection: Seq[RexLocalRef],
-                                                      calcCondition: Option[RexLocalRef],
-                                                      tableConfig: ReadableConfig,
-                                                      classLoader: ClassLoader): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
+      inputType: RowType,
+      name: String,
+      returnType: RowType,
+      outRowClass: Class[_ <: RowData],
+      calcExpression: Seq[RexNode],
+      calcProjection: Seq[RexLocalRef],
+      calcCondition: Option[RexLocalRef],
+      tableConfig: ReadableConfig,
+      classLoader: ClassLoader): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
     val ctx = new CodeGeneratorContext(tableConfig, classLoader)
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val collectorTerm = CodeGenUtils.DEFAULT_COLLECTOR_TERM
@@ -115,18 +116,18 @@ object CalcCodeGenerator {
       collectorTerm = collectorTerm)
   }
   private[flink] def generateProcessCode(
-                                          ctx: CodeGeneratorContext,
-                                          inputType: RowType,
-                                          outRowType: RowType,
-                                          outRowClass: Class[_ <: RowData],
-                                          expr: Seq[RexNode],
-                                          projection: Seq[RexLocalRef],
-                                          condition: Option[RexLocalRef],
-                                          inputTerm: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
-                                          collectorTerm: String = CodeGenUtils.DEFAULT_OPERATOR_COLLECTOR_TERM,
-                                          eagerInputUnboxingCode: Boolean,
-                                          retainHeader: Boolean = false,
-                                          outputDirectly: Boolean = false): String = {
+      ctx: CodeGeneratorContext,
+      inputType: RowType,
+      outRowType: RowType,
+      outRowClass: Class[_ <: RowData],
+      expr: Seq[RexNode],
+      projection: Seq[RexLocalRef],
+      condition: Option[RexLocalRef],
+      inputTerm: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
+      collectorTerm: String = CodeGenUtils.DEFAULT_OPERATOR_COLLECTOR_TERM,
+      eagerInputUnboxingCode: Boolean,
+      retainHeader: Boolean = false,
+      outputDirectly: Boolean = false): String = {
 
     // according to the SQL standard, every table function should also be a scalar function
     // but we don't allow that for now
@@ -144,13 +145,16 @@ object CalcCodeGenerator {
 
     val onlyFilter = projection.isEmpty && condition.nonEmpty
 
-    val onlyFilterExprs = if (condition.isEmpty) Seq.empty else {
-      val accessedRefsFinder = new AccessedLocalRefsFinder(JavaScalaConversionUtil.toJava(expr))
-      condition.get.accept(accessedRefsFinder)
-      accessedRefsFinder.getAccessedLocalRefs
-    }
+    val onlyFilterExprs =
+      if (condition.isEmpty) Seq.empty
+      else {
+        val accessedRefsFinder = new AccessedLocalRefsFinder(JavaScalaConversionUtil.toJava(expr))
+        condition.get.accept(accessedRefsFinder)
+        accessedRefsFinder.getAccessedLocalRefs
+      }
 
-    val onlyProjectionExprs = expr.zipWithIndex.filter(e => !onlyFilterExprs.contains(e._2)).map(e => e._2)
+    val onlyProjectionExprs =
+      expr.zipWithIndex.filter(e => !onlyFilterExprs.contains(e._2)).map(e => e._2)
 
     def produceOutputCode(resultTerm: String): String = if (outputDirectly) {
       s"$collectorTerm.collect($resultTerm);"
@@ -162,9 +166,10 @@ object CalcCodeGenerator {
       val generatedExpressionCodes = exprIdx
         .filter(p => ctx.orderedExpressions(p) != null)
         .map(p => (ctx.orderedExpressions(p), p))
-        .map(e => {
-          "// EXPR %d Starts \n%s\n// EXPRT %d ENDS".format(e._2, e._1.code, e._2)
-        })
+        .map(
+          e => {
+            "// EXPR %d Starts \n%s\n// EXPRT %d ENDS".format(e._2, e._1.code, e._2)
+          })
         .mkString("\n")
       generatedExpressionCodes
     }
@@ -179,13 +184,20 @@ object CalcCodeGenerator {
       //      ctx.accessedLocalRefs.clear()
 
       val generatedExpressionCodes = generateCode(onlyProjectionExprs)
-      val generatedProjectExpressions = projection.map(p => ctx.getReusableRexNodeExpr(p)).map(ge =>
-        new GeneratedExpression(ge.get.resultTerm, ge.get.nullTerm, NO_CODE, ge.get.resultType, ge.get.literalValue))
+      val generatedProjectExpressions = projection
+        .map(p => ctx.getReusableRexNodeExpr(p))
+        .map(
+          ge =>
+            new GeneratedExpression(
+              ge.get.resultTerm,
+              ge.get.nullTerm,
+              NO_CODE,
+              ge.get.resultType,
+              ge.get.literalValue))
 
       //      val projectGeneratedExpr = projection.map(p => ctx.getReusableRexNodeExpr(p).get)
       val projectionExpression =
         exprGenerator.generateResultExpression(generatedProjectExpressions, outRowType, outRowClass)
-
 
       val projectionExpressionCode = projectionExpression.code
 
@@ -207,13 +219,12 @@ object CalcCodeGenerator {
       p => {
         val r = exprGenerator.generateExpression(p)
 //        println(ctx.orderedExpressions.size)
+        ctx.currentOrder += 1
         r
       })
 
-
     //    val ptest =
     //      exprGenerator.gen1(tt2, outRowType, outRowClass)
-
 
     if (condition.isEmpty && onlyFilter) {
       throw new TableException(
@@ -255,8 +266,8 @@ object CalcCodeGenerator {
 //          .map(_.code)
 //          .mkString("\n")
         s"""
-           |${filterCode}
-           |if (${filterResultTerm}) {
+           |$filterCode
+           |if ($filterResultTerm) {
            |  $projectionCode
            |}
            |""".stripMargin

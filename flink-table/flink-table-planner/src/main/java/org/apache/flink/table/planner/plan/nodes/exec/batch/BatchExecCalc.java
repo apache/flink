@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
-import org.apache.calcite.rex.RexProgram;
-
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -38,6 +36,7 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexProgram;
 
 import javax.annotation.Nullable;
 
@@ -84,11 +83,15 @@ public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowDa
     protected OpFusionCodegenSpecGenerator translateToFusionCodegenSpecInternal(
             PlannerBase planner, ExecNodeConfig config, CodeGeneratorContext parentCtx) {
 
-        List<RexNode> projs = calcProgram.getProjectList().stream().map(n -> calcProgram.expandLocalRef(n)).collect(
-                Collectors.toList());
+        List<RexNode> projs =
+                calcProgram.getProjectList().stream()
+                        .map(n -> calcProgram.expandLocalRef(n))
+                        .collect(Collectors.toList());
 
-        RexNode cnd =  calcProgram.getCondition() != null ? calcProgram.expandLocalRef(calcProgram.getCondition()) : null;
-
+        RexNode cnd =
+                calcProgram.getCondition() != null
+                        ? calcProgram.expandLocalRef(calcProgram.getCondition())
+                        : null;
 
         OpFusionCodegenSpecGenerator input =
                 getInputEdges().get(0).translateToFusionCodegenSpec(planner, parentCtx);

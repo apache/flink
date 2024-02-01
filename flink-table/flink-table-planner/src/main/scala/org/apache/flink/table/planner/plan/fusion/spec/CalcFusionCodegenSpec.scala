@@ -31,9 +31,9 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 /** The operator fusion codegen spec for Calc. */
 class CalcFusionCodegenSpec(
-                             opCodegenCtx: CodeGeneratorContext,
-                             projection: Seq[RexNode],
-                             condition: Option[RexNode])
+    opCodegenCtx: CodeGeneratorContext,
+    projection: Seq[RexNode],
+    condition: Option[RexNode])
   extends OpFusionCodegenSpecBase(opCodegenCtx) {
 
   override def variablePrefix: String = "calc"
@@ -44,9 +44,9 @@ class CalcFusionCodegenSpec(
   }
 
   override def doProcessConsume(
-                                 inputId: Int,
-                                 inputVars: util.List[GeneratedExpression],
-                                 row: GeneratedExpression): String = {
+      inputId: Int,
+      inputVars: util.List[GeneratedExpression],
+      row: GeneratedExpression): String = {
     val onlyFilter =
       projection.lengthCompare(
         fusionContext.getInputFusionContexts.head.getOutputType.getFieldCount) == 0 &&

@@ -485,19 +485,17 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
          |}
          |""".stripMargin
 
-    GeneratedExpression(resultTerm, nullTerm, resultCode, fieldAccessExpr.resultType)
+    ctx.addToOrder(
+      GeneratedExpression(resultTerm, nullTerm, resultCode, fieldAccessExpr.resultType))
   }
 
   override def visitLiteral(literal: RexLiteral): GeneratedExpression = {
     // this case is handled by visitCall (SqlKind.SEARCH)
     if (literal.getTypeName == SqlTypeName.SARG) {
-      ctx.orderedExpressions += null
-      return null
+      return ctx.addToOrder(null)
     }
     val res = RexLiteralUtil.toFlinkInternalValue(literal)
-    val lit = generateLiteral(ctx, res.f0, res.f1)
-    ctx.orderedExpressions += lit
-    lit
+    ctx.addToOrder(generateLiteral(ctx, res.f0, res.f1))
   }
 
   override def visitCorrelVariable(correlVariable: RexCorrelVariable): GeneratedExpression = {
@@ -509,9 +507,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       ctx
         .getReusableRexNodeExpr(localRef)
         .getOrElse(throw new RuntimeException("Unexpected access to RexLocalRef"))
-    new GeneratedExpression(r.resultTerm, r.nullTerm, NO_CODE, r.resultType)
-
-
+    new GeneratedExpression(r.resultTerm, r.nullTerm, NO_CODE, r.resultType, r.literalValue)
 
 //    val r =
 //      ctx
@@ -593,9 +589,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         case localRef: RexLocalRef => ctx.getReusableExpr(localRef.getIndex)
         case _ => call.getOperands.get(1)
       }
-      val res = generateSearch(ctx, generatedExpression0, op1.asInstanceOf[RexLiteral])
-      ctx.orderedExpressions += res
-      return res
+      return ctx.addToOrder(generateSearch(ctx, generatedExpression0, op1.asInstanceOf[RexLiteral]))
     }
 
     // convert operands and help giving untyped NULL literals a type
@@ -611,14 +605,22 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case (o @ _, _) => o.accept(this)
     }
 
-    val callOperandsWithoutLocalRef = call.getOperands.map {
-      case localRef: RexLocalRef => ctx.getReusableExpr(localRef.getIndex)
-      case op => op
+    def callOperandsWithoutLocalRef(rexNode: RexNode): RexNode = {
+      rexNode match {
+        case localRef: RexLocalRef => {
+          val ref = ctx.getReusableExpr(localRef.getIndex)
+          callOperandsWithoutLocalRef(ref)
+        }
+        case rexCall: RexCall => {
+          val op = rexCall.operands.map(callOperandsWithoutLocalRef)
+          rexCall.clone(rexCall.getType, op)
+        }
+        case _ => rexNode
+      }
     }
-    val callWithoutLocalRef = call.clone(call.getType, callOperandsWithoutLocalRef)
-    val res = generateCallExpression(ctx, callWithoutLocalRef, operands, resultType)
-    ctx.orderedExpressions += res
-    res
+    val callWithoutLocalRef =
+      call.clone(call.getType, call.operands.map(callOperandsWithoutLocalRef))
+    ctx.addToOrder(generateCallExpression(ctx, callWithoutLocalRef, operands, resultType))
   }
 
   override def visitOver(over: RexOver): GeneratedExpression =
