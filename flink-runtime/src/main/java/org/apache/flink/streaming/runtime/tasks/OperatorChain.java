@@ -469,14 +469,14 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             snapshotInProgress.setInputChannelStateFuture(
                     channelStateWriteResult
                             .getInputChannelStateHandles()
-                            .thenApply(StateObjectCollection::new)
+                            .thenApply(e -> new StateObjectCollection(e))
                             .thenApply(SnapshotResult::of));
         }
         if (op == getTailOperator()) {
             snapshotInProgress.setResultSubpartitionStateFuture(
                     channelStateWriteResult
                             .getResultSubpartitionStateHandles()
-                            .thenApply(StateObjectCollection::new)
+                            .thenApply(e -> new StateObjectCollection(e))
                             .thenApply(SnapshotResult::of));
         }
     }

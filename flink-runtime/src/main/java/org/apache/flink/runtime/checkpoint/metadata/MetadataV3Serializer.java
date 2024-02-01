@@ -26,10 +26,10 @@ import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.state.InputChannelStateHandle;
+import org.apache.flink.runtime.state.InputStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
+import org.apache.flink.runtime.state.OutputStateHandle;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -203,35 +203,31 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     @VisibleForTesting
     @Override
     public void serializeResultSubpartitionStateHandle(
-            ResultSubpartitionStateHandle handle, DataOutputStream dos) throws IOException {
+            OutputStateHandle handle, DataOutputStream dos) throws IOException {
         channelStateHandleSerializer.serialize(handle, dos);
     }
 
     @VisibleForTesting
     @Override
-    public StateObjectCollection<ResultSubpartitionStateHandle>
-            deserializeResultSubpartitionStateHandle(
-                    DataInputStream dis, @Nullable DeserializationContext context)
-                    throws IOException {
-        return deserializeCollection(
-                dis,
-                context,
-                channelStateHandleSerializer::deserializeResultSubpartitionStateHandle);
-    }
-
-    @VisibleForTesting
-    @Override
-    public void serializeInputChannelStateHandle(
-            InputChannelStateHandle handle, DataOutputStream dos) throws IOException {
-        channelStateHandleSerializer.serialize(handle, dos);
-    }
-
-    @VisibleForTesting
-    @Override
-    public StateObjectCollection<InputChannelStateHandle> deserializeInputChannelStateHandle(
+    public StateObjectCollection<OutputStateHandle> deserializeResultSubpartitionStateHandle(
             DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
         return deserializeCollection(
-                dis, context, channelStateHandleSerializer::deserializeInputChannelStateHandle);
+                dis, context, channelStateHandleSerializer::deserializeOutputStateHandle);
+    }
+
+    @VisibleForTesting
+    @Override
+    public void serializeInputChannelStateHandle(InputStateHandle handle, DataOutputStream dos)
+            throws IOException {
+        channelStateHandleSerializer.serialize(handle, dos);
+    }
+
+    @VisibleForTesting
+    @Override
+    public StateObjectCollection<InputStateHandle> deserializeInputChannelStateHandle(
+            DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
+        return deserializeCollection(
+                dis, context, channelStateHandleSerializer::deserializeInputStateHandle);
     }
 
     private <T extends StateObject> void serializeCollection(
@@ -296,14 +292,14 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     }
 
     @VisibleForTesting
-    public static StateObjectCollection<InputChannelStateHandle> deserializeInputChannelStateHandle(
+    public static StateObjectCollection<InputStateHandle> deserializeInputChannelStateHandle(
             DataInputStream dis) throws IOException {
         return INSTANCE.deserializeInputChannelStateHandle(dis, null);
     }
 
     @VisibleForTesting
-    public StateObjectCollection<ResultSubpartitionStateHandle>
-            deserializeResultSubpartitionStateHandle(DataInputStream dis) throws IOException {
+    public StateObjectCollection<OutputStateHandle> deserializeResultSubpartitionStateHandle(
+            DataInputStream dis) throws IOException {
         return INSTANCE.deserializeResultSubpartitionStateHandle(dis, null);
     }
 
