@@ -107,7 +107,7 @@ class FlinkTestcontainersConfigurator {
 
     private GenericContainer<?> configureZookeeperContainer() {
         return configureContainer(
-                new GenericContainer<>(DockerImageName.parse("zookeeper").withTag("3.7.2")),
+                new GenericContainer<>(DockerImageName.parse("zookeeper").withTag("3.7.1")),
                 flinkContainersSettings.getZookeeperHostname(),
                 "Zookeeper");
     }

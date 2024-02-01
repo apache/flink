@@ -36,7 +36,7 @@ import org.apache.flink.table.planner.functions.casting.RowDataToStringConverter
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.apache.flink.shaded.guava32.com.google.common.cache.CacheStats;
+import org.apache.flink.shaded.guava31.com.google.common.cache.CacheStats;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
