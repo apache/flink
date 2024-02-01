@@ -34,7 +34,7 @@ import java.util.jar.Manifest;
 import static java.util.Objects.requireNonNull;
 
 /** Utility that parses JAR manifest attributes. */
-public class JarManifestParser {
+class JarManifestParser {
 
     static class JarFileWithEntryClass {
         private final File jarFile;
@@ -118,7 +118,7 @@ public class JarManifestParser {
      * @return Optional holding value of first found attribute
      * @throws IOException If there is an error accessing the JAR
      */
-    public static Optional<String> findFirstManifestAttribute(File jarFile, String... attributes)
+    private static Optional<String> findFirstManifestAttribute(File jarFile, String... attributes)
             throws IOException {
         if (attributes.length == 0) {
             return Optional.empty();

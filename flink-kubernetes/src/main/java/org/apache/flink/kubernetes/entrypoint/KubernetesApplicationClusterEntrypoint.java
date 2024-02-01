@@ -21,7 +21,7 @@ package org.apache.flink.kubernetes.entrypoint;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.client.deployment.application.ApplicationClusterEntryPoint;
 import org.apache.flink.client.deployment.application.ApplicationConfiguration;
-import org.apache.flink.client.program.DefaultPackagedProgramRetriever;
+import org.apache.flink.client.deployment.application.ClassPathPackagedProgramRetriever;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
 import org.apache.flink.client.program.PackagedProgramUtils;
@@ -39,6 +39,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 /** An {@link ApplicationClusterEntryPoint} for Kubernetes. */
@@ -87,7 +88,7 @@ public final class KubernetesApplicationClusterEntrypoint extends ApplicationClu
     }
 
     private static PackagedProgram getPackagedProgram(final Configuration configuration)
-            throws FlinkException {
+            throws IOException, FlinkException {
 
         final ApplicationConfiguration applicationConfiguration =
                 ApplicationConfiguration.fromConfiguration(configuration);
@@ -104,9 +105,13 @@ public final class KubernetesApplicationClusterEntrypoint extends ApplicationClu
             final Configuration configuration,
             final String[] programArguments,
             @Nullable final String jobClassName)
-            throws FlinkException {
+            throws IOException {
 
         final File userLibDir = ClusterEntrypointUtils.tryFindUserLibDirectory().orElse(null);
+        final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
+                ClassPathPackagedProgramRetriever.newBuilder(programArguments)
+                        .setUserLibDirectory(userLibDir)
+                        .setJobClassName(jobClassName);
 
         // No need to do pipelineJars validation if it is a PyFlink job.
         if (!(PackagedProgramUtils.isPython(jobClassName)
@@ -114,11 +119,8 @@ public final class KubernetesApplicationClusterEntrypoint extends ApplicationClu
             final List<File> pipelineJars =
                     KubernetesUtils.checkJarFileForApplicationMode(configuration);
             Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
-            return DefaultPackagedProgramRetriever.create(
-                    userLibDir, pipelineJars.get(0), jobClassName, programArguments, configuration);
+            retrieverBuilder.setJarFile(pipelineJars.get(0));
         }
-
-        return DefaultPackagedProgramRetriever.create(
-                userLibDir, jobClassName, programArguments, configuration);
+        return retrieverBuilder.build();
     }
 }
