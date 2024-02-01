@@ -25,19 +25,33 @@ import java.io.IOException;
 import static org.apache.flink.runtime.checkpoint.metadata.ChannelStateTestUtils.testSerializeInputHandle;
 import static org.apache.flink.runtime.checkpoint.metadata.ChannelStateTestUtils.testSerializeOutputHandle;
 
-class ChannelStateHandleSerializerV1Test {
+class ChannelStateHandleSerializerV2Test {
 
     @Test
     void testWithInputChannelStateHandle() throws IOException {
         testSerializeInputHandle(
-                new ChannelStateHandleSerializerV1(),
+                new ChannelStateHandleSerializerV2(),
                 ChannelStateTestUtils::randomInputChannelStateHandle);
     }
 
     @Test
     void testWithResultSubpartitionStateHandle() throws IOException {
         testSerializeOutputHandle(
-                new ChannelStateHandleSerializerV1(),
+                new ChannelStateHandleSerializerV2(),
                 ChannelStateTestUtils::randomResultSubpartitionStateHandle);
+    }
+
+    @Test
+    void testWithMergedInputChannelStateHandle() throws IOException {
+        testSerializeInputHandle(
+                new ChannelStateHandleSerializerV2(),
+                ChannelStateTestUtils::randomMergedInputChannelStateHandle);
+    }
+
+    @Test
+    void testWithMergedResultSubpartitionStateHandle() throws IOException {
+        testSerializeOutputHandle(
+                new ChannelStateHandleSerializerV2(),
+                ChannelStateTestUtils::randomMergedResultSubpartitionStateHandle);
     }
 }
