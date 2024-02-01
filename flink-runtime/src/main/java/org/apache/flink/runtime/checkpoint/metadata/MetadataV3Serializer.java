@@ -268,39 +268,39 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     }
 
     @VisibleForTesting
-    public static void serializeOperatorStateHandleUtil(
+    public void serializeOperatorStateHandleUtil(
             OperatorStateHandle stateHandle, DataOutputStream dos) throws IOException {
-        INSTANCE.serializeOperatorStateHandle(stateHandle, dos);
+        serializeOperatorStateHandle(stateHandle, dos);
     }
 
     @VisibleForTesting
-    public static OperatorStateHandle deserializeOperatorStateHandleUtil(DataInputStream dis)
+    public OperatorStateHandle deserializeOperatorStateHandleUtil(DataInputStream dis)
             throws IOException {
-        return INSTANCE.deserializeOperatorStateHandle(dis, null);
+        return deserializeOperatorStateHandle(dis, null);
     }
 
     @VisibleForTesting
-    public static void serializeKeyedStateHandleUtil(
-            KeyedStateHandle stateHandle, DataOutputStream dos) throws IOException {
-        INSTANCE.serializeKeyedStateHandle(stateHandle, dos);
-    }
-
-    @VisibleForTesting
-    public static KeyedStateHandle deserializeKeyedStateHandleUtil(DataInputStream dis)
+    public void serializeKeyedStateHandleUtil(KeyedStateHandle stateHandle, DataOutputStream dos)
             throws IOException {
-        return INSTANCE.deserializeKeyedStateHandle(dis, null);
+        serializeKeyedStateHandle(stateHandle, dos);
     }
 
     @VisibleForTesting
-    public static StateObjectCollection<InputStateHandle> deserializeInputChannelStateHandle(
+    public KeyedStateHandle deserializeKeyedStateHandleUtil(DataInputStream dis)
+            throws IOException {
+        return deserializeKeyedStateHandle(dis, null);
+    }
+
+    @VisibleForTesting
+    public StateObjectCollection<InputStateHandle> deserializeInputChannelStateHandle(
             DataInputStream dis) throws IOException {
-        return INSTANCE.deserializeInputChannelStateHandle(dis, null);
+        return deserializeInputChannelStateHandle(dis, null);
     }
 
     @VisibleForTesting
     public StateObjectCollection<OutputStateHandle> deserializeResultSubpartitionStateHandle(
             DataInputStream dis) throws IOException {
-        return INSTANCE.deserializeResultSubpartitionStateHandle(dis, null);
+        return deserializeResultSubpartitionStateHandle(dis, null);
     }
 
     static class SubtaskAndFinishedState {
