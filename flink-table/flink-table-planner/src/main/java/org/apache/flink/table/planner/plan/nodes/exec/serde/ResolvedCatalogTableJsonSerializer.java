@@ -87,7 +87,9 @@ final class ResolvedCatalogTableJsonSerializer extends StdSerializer<ResolvedCat
 
         serializerProvider.defaultSerializeField(
                 RESOLVED_SCHEMA, resolvedCatalogTable.getResolvedSchema(), jsonGenerator);
-        jsonGenerator.writeObjectField(DISTRIBUTION, resolvedCatalogTable.getDistribution());
+        if (resolvedCatalogTable.getDistribution().isPresent()) {
+            jsonGenerator.writeObjectField(DISTRIBUTION, resolvedCatalogTable.getDistribution());
+        }
         jsonGenerator.writeObjectField(PARTITION_KEYS, resolvedCatalogTable.getPartitionKeys());
 
         if (serializeOptions) {
