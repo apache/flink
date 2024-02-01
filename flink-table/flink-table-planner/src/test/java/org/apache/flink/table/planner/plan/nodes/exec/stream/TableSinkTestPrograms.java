@@ -39,30 +39,40 @@ public class TableSinkTestPrograms {
 
     static final String[] SOURCE_SCHEMA = {"a INT", "b BIGINT", "c VARCHAR"};
 
-    static final TableTestProgram SINK_BUCKETING =
-            TableTestProgram.of("sink-bucketing", "validates sink bucketing")
-                    .setupTableSource(
-                            SourceTestStep.newBuilder("source_t")
-                                    .addSchema(SOURCE_SCHEMA)
-                                    .producedBeforeRestore(BEFORE_DATA)
-                                    .producedAfterRestore(AFTER_DATA)
-                                    .build())
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink_t")
-                                    .addSchema("a INT", "b BIGINT", "c VARCHAR")
-                                    .addDistribution(
-                                            Optional.of(
-                                                    TableDistribution.ofHash(
-                                                            Arrays.asList("a"), 3)))
-                                    .addPartitionKeys("b")
-                                    .consumedBeforeRestore(
-                                            "+I[1, 1, hi]",
-                                            "+I[2, 2, hello]",
-                                            "+I[3, 2, hello world]")
-                                    .consumedAfterRestore("+I[4, 4, foo]", "+I[5, 2, foo bar]")
-                                    .build())
-                    .runSql("INSERT INTO sink_t SELECT * FROM source_t")
-                    .build();
+    static final TableTestProgram SINK_BUCKETING_WITH_COUNT =
+            buildBucketingTest("with-count", TableDistribution.ofUnknown(3));
+    static final TableTestProgram SINK_BUCKETING_WITH_KEYS_AND_COUNT =
+            buildBucketingTest(
+                    "with-keys-and-count", TableDistribution.ofUnknown(Arrays.asList("a"), 3));
+    static final TableTestProgram SINK_BUCKETING_HASH_WITH_KEYS_AND_COUNT =
+            buildBucketingTest(
+                    "hash-with-keys-with-count", TableDistribution.ofHash(Arrays.asList("a"), 3));
+    static final TableTestProgram SINK_BUCKETING_HASH_WITH_KEYS_AND_WITHOUT_COUNT =
+            buildBucketingTest(
+                    "range_with_keys_without_count",
+                    TableDistribution.ofHash(Arrays.asList("a"), null));
+
+    private static TableTestProgram buildBucketingTest(
+            final String suffix, final TableDistribution distribution) {
+        return TableTestProgram.of("sink-bucketing_" + suffix, "validates sink bucketing")
+                .setupTableSource(
+                        SourceTestStep.newBuilder("source_t")
+                                .addSchema(SOURCE_SCHEMA)
+                                .producedBeforeRestore(BEFORE_DATA)
+                                .producedAfterRestore(AFTER_DATA)
+                                .build())
+                .setupTableSink(
+                        SinkTestStep.newBuilder("sink_t")
+                                .addSchema("a INT", "b BIGINT", "c VARCHAR")
+                                .addDistribution(Optional.of(distribution))
+                                .addPartitionKeys("b")
+                                .consumedBeforeRestore(
+                                        "+I[1, 1, hi]", "+I[2, 2, hello]", "+I[3, 2, hello world]")
+                                .consumedAfterRestore("+I[4, 4, foo]", "+I[5, 2, foo bar]")
+                                .build())
+                .runSql("INSERT INTO sink_t SELECT * FROM source_t")
+                .build();
+    }
 
     static final TableTestProgram SINK_PARTITION =
             TableTestProgram.of("sink-partition", "validates sink partition")

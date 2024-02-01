@@ -63,7 +63,7 @@ public class DefaultCatalogTable implements CatalogTable {
         this.partitionKeys = checkNotNull(partitionKeys, "Partition keys must not be null.");
         this.options = checkNotNull(options, "Options must not be null.");
         this.snapshot = snapshot;
-        this.distribution = distribution;
+        this.distribution = checkNotNull(distribution, "Distribution may be empty, but not null.");
 
         checkArgument(
                 options.entrySet().stream()
@@ -140,6 +140,7 @@ public class DefaultCatalogTable implements CatalogTable {
         DefaultCatalogTable that = (DefaultCatalogTable) o;
         return schema.equals(that.schema)
                 && Objects.equals(comment, that.comment)
+                && distribution.equals(that.distribution)
                 && partitionKeys.equals(that.partitionKeys)
                 && options.equals(that.options)
                 && Objects.equals(snapshot, that.snapshot);

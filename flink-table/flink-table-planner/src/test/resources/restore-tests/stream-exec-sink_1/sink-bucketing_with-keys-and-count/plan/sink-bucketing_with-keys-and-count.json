@@ -1,7 +1,7 @@
 {
   "flinkVersion" : "1.19",
   "nodes" : [ {
-    "id" : 1,
+    "id" : 3,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -20,6 +20,7 @@
             } ],
             "watermarkSpecs" : [ ]
           },
+          "distribution" : null,
           "partitionKeys" : [ ]
         }
       }
@@ -28,7 +29,7 @@
     "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t]], fields=[a, b, c])",
     "inputProperties" : [ ]
   }, {
-    "id" : 2,
+    "id" : 4,
     "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -54,6 +55,11 @@
             } ],
             "watermarkSpecs" : [ ]
           },
+          "distribution" : {
+            "kind" : "UNKNOWN",
+            "bucketCount" : 3,
+            "bucketKeys" : [ "a" ]
+          },
           "partitionKeys" : [ "b" ]
         }
       },
@@ -73,8 +79,8 @@
     "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[a, b, c])"
   } ],
   "edges" : [ {
-    "source" : 1,
-    "target" : 2,
+    "source" : 3,
+    "target" : 4,
     "shuffle" : {
       "type" : "FORWARD"
     },

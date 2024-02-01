@@ -169,7 +169,7 @@ public interface CatalogTable extends CatalogBaseTable {
         private List<String> partitionKeys;
         private Map<String, String> options;
         private Long snapshot;
-        private Optional<TableDistribution> distribution;
+        private Optional<TableDistribution> distribution = Optional.empty();
 
         public Builder schema(Schema schema) {
             this.schema = schema;
