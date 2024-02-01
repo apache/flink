@@ -105,7 +105,7 @@ public class ConfigurationTest {
 
             assertThat(orig).isEqualTo(copy);
             assertThat(orig.keySet()).isEqualTo(copy.keySet());
-            assertThat(orig.hashCode()).isEqualTo(copy.hashCode());
+            assertThat(orig).hasSameHashCodeAs(copy);
 
         } catch (Exception e) {
             e.printStackTrace();

@@ -98,12 +98,10 @@ class CompositeTypeSerializerSnapshotTest {
         // nested serializer at index 1 should strictly be a ReconfiguredNestedSerializer
         // nested serializer at index 0 and 2 is RestoredNestedSerializer after checking
         // compatibility
-        assertThat(reconfiguredNestedSerializers[0].getClass())
-                .isSameAs(RestoredNestedSerializer.class);
-        assertThat(reconfiguredNestedSerializers[1].getClass())
-                .isSameAs(ReconfiguredNestedSerializer.class);
-        assertThat(reconfiguredNestedSerializers[2].getClass())
-                .isSameAs(RestoredNestedSerializer.class);
+        assertThat(reconfiguredNestedSerializers[0]).isInstanceOf(RestoredNestedSerializer.class);
+        assertThat(reconfiguredNestedSerializers[1])
+                .isInstanceOf(ReconfiguredNestedSerializer.class);
+        assertThat(reconfiguredNestedSerializers[2]).isInstanceOf(RestoredNestedSerializer.class);
     }
 
     @Test

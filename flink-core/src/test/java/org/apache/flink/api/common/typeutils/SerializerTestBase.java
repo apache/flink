@@ -154,7 +154,7 @@ public abstract class SerializerTestBase<T> {
         } else {
             throw new AssertionError("Unable to restore serializer with " + strategy);
         }
-        assertThat(restoreSerializer.getClass()).isSameAs(serializer.getClass());
+        assertThat(restoreSerializer).hasSameClassAs(serializer);
     }
 
     @Test

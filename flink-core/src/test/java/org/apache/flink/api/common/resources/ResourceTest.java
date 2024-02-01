@@ -66,7 +66,7 @@ class ResourceTest extends TestLogger {
     void testHashCodeIgnoringScale() {
         final Resource v1 = new TestResource(new BigDecimal("0.1"));
         final Resource v2 = new TestResource(new BigDecimal("0.10"));
-        assertThat(v2.hashCode()).isEqualTo(v1.hashCode());
+        assertThat(v2).hasSameHashCodeAs(v1);
     }
 
     @Test

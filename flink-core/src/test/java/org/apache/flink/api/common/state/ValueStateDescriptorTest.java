@@ -45,8 +45,8 @@ public class ValueStateDescriptorTest extends TestLogger {
 
         // test that hashCode() works on state descriptors with initialized and uninitialized
         // serializers
-        assertThat(same.hashCode()).isEqualTo(original.hashCode());
-        assertThat(sameBySerializer.hashCode()).isEqualTo(original.hashCode());
+        assertThat(same).hasSameHashCodeAs(original);
+        assertThat(sameBySerializer).hasSameHashCodeAs(original);
 
         assertThat(same).isEqualTo(original);
         assertThat(sameBySerializer).isEqualTo(original);

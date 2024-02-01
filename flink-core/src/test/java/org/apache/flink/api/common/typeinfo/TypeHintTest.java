@@ -41,7 +41,7 @@ class TypeHintTest {
 
         assertThat(stringInfo1.getTypeInfo()).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
 
-        assertThat(stringInfo2.hashCode()).isEqualTo(stringInfo1.hashCode());
+        assertThat(stringInfo2).hasSameHashCodeAs(stringInfo1);
         assertThat(stringInfo2).isEqualTo(stringInfo1);
         assertThat(stringInfo2.toString()).isEqualTo(stringInfo1.toString());
 

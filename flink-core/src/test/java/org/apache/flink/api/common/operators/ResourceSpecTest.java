@@ -112,7 +112,7 @@ class ResourceSpecTest extends TestLogger {
     void testHashCode() {
         ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).build();
         ResourceSpec rs2 = ResourceSpec.newBuilder(1.0, 100).build();
-        assertThat(rs2.hashCode()).isEqualTo(rs1.hashCode());
+        assertThat(rs2).hasSameHashCodeAs(rs1);
 
         ResourceSpec rs3 =
                 ResourceSpec.newBuilder(1.0, 100)
@@ -128,7 +128,7 @@ class ResourceSpecTest extends TestLogger {
                 ResourceSpec.newBuilder(1.0, 100)
                         .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 2.2))
                         .build();
-        assertThat(rs5.hashCode()).isEqualTo(rs3.hashCode());
+        assertThat(rs5).hasSameHashCodeAs(rs3);
     }
 
     @Test
@@ -271,7 +271,7 @@ class ResourceSpecTest extends TestLogger {
                 ResourceSpec.newBuilder(1.0, 100)
                         .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 0))
                         .build();
-        assertThat(0).isEqualTo(resourceSpec.getExtendedResources().size());
+        assertThat(resourceSpec.getExtendedResources()).isEmpty();
     }
 
     @Test
@@ -281,6 +281,6 @@ class ResourceSpecTest extends TestLogger {
                         .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1.0))
                         .build();
 
-        assertThat(0).isEqualTo(resourceSpec.subtract(resourceSpec).getExtendedResources().size());
+        assertThat(resourceSpec.subtract(resourceSpec).getExtendedResources()).isEmpty();
     }
 }
