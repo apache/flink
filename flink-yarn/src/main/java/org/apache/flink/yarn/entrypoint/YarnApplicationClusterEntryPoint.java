@@ -21,9 +21,10 @@ package org.apache.flink.yarn.entrypoint;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.client.deployment.application.ApplicationClusterEntryPoint;
 import org.apache.flink.client.deployment.application.ApplicationConfiguration;
-import org.apache.flink.client.deployment.application.ClassPathPackagedProgramRetriever;
+import org.apache.flink.client.program.DefaultPackagedProgramRetriever;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
+import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
@@ -112,7 +113,7 @@ public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEn
     }
 
     private static PackagedProgram getPackagedProgram(final Configuration configuration)
-            throws IOException, FlinkException {
+            throws FlinkException {
 
         final ApplicationConfiguration applicationConfiguration =
                 ApplicationConfiguration.fromConfiguration(configuration);
@@ -129,16 +130,20 @@ public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEn
             final Configuration configuration,
             final String[] programArguments,
             @Nullable final String jobClassName)
-            throws IOException {
+            throws FlinkException {
 
         final File userLibDir = YarnEntrypointUtils.getUsrLibDir(configuration).orElse(null);
-        final File userApplicationJar = getUserApplicationJar(userLibDir, configuration);
-        final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
-                ClassPathPackagedProgramRetriever.newBuilder(programArguments)
-                        .setUserLibDirectory(userLibDir)
-                        .setJarFile(userApplicationJar)
-                        .setJobClassName(jobClassName);
-        return retrieverBuilder.build();
+
+        // No need to do pipelineJars validation if it is a PyFlink job.
+        if (!(PackagedProgramUtils.isPython(jobClassName)
+                || PackagedProgramUtils.isPython(programArguments))) {
+            final File userApplicationJar = getUserApplicationJar(userLibDir, configuration);
+            return DefaultPackagedProgramRetriever.create(
+                    userLibDir, userApplicationJar, jobClassName, programArguments, configuration);
+        }
+
+        return DefaultPackagedProgramRetriever.create(
+                userLibDir, jobClassName, programArguments, configuration);
     }
 
     private static File getUserApplicationJar(
