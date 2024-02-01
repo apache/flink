@@ -63,7 +63,7 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     public static final MetadataV3Serializer INSTANCE = new MetadataV3Serializer();
 
     private final ChannelStateHandleSerializer channelStateHandleSerializer =
-            new ChannelStateHandleSerializer();
+            new ChannelStateHandleSerializerV1();
 
     /** Singleton, not meant to be instantiated. */
     protected MetadataV3Serializer() {}
