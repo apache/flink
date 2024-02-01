@@ -20,10 +20,10 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
-import org.apache.flink.runtime.state.InputChannelStateHandle;
+import org.apache.flink.runtime.state.InputStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
+import org.apache.flink.runtime.state.OutputStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -62,10 +62,10 @@ public class OperatorSnapshotFinalizer {
         SnapshotResult<OperatorStateHandle> operatorRaw =
                 FutureUtils.runIfNotDoneAndGet(snapshotFutures.getOperatorStateRawFuture());
 
-        SnapshotResult<StateObjectCollection<InputChannelStateHandle>> inputChannel =
+        SnapshotResult<StateObjectCollection<InputStateHandle>> inputChannel =
                 snapshotFutures.getInputChannelStateFuture().get();
 
-        SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>> resultSubpartition =
+        SnapshotResult<StateObjectCollection<OutputStateHandle>> resultSubpartition =
                 snapshotFutures.getResultSubpartitionStateFuture().get();
 
         jobManagerOwnedState =

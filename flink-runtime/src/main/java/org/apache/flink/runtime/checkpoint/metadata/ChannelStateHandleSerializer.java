@@ -17,11 +17,11 @@
 
 package org.apache.flink.runtime.checkpoint.metadata;
 
-import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
-import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.state.AbstractChannelStateHandle;
 import org.apache.flink.runtime.state.AbstractChannelStateHandle.StateContentMetaInfo;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
+import org.apache.flink.runtime.state.InputStateHandle;
+import org.apache.flink.runtime.state.OutputStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.function.BiConsumerWithException;
@@ -36,50 +36,51 @@ import java.util.List;
 
 import static org.apache.flink.runtime.checkpoint.metadata.MetadataV2V3SerializerBase.deserializeStreamStateHandle;
 import static org.apache.flink.runtime.checkpoint.metadata.MetadataV2V3SerializerBase.serializeStreamStateHandle;
+import static org.apache.flink.runtime.state.ChannelStateHelper.INPUT_CHANNEL_INFO_READER;
+import static org.apache.flink.runtime.state.ChannelStateHelper.INPUT_CHANNEL_INFO_WRITER;
+import static org.apache.flink.runtime.state.ChannelStateHelper.RESULT_SUBPARTITION_INFO_READER;
+import static org.apache.flink.runtime.state.ChannelStateHelper.RESULT_SUBPARTITION_INFO_WRITER;
 
+/**
+ * ChannelStateHandlerSerializer only support {@link InputChannelStateHandle} and {@link
+ * ResultSubpartitionStateHandle}, used in {@link MetadataV3Serializer} and {@link
+ * MetadataV4Serializer}.
+ */
 class ChannelStateHandleSerializer {
 
-    public void serialize(ResultSubpartitionStateHandle handle, DataOutputStream dataOutputStream)
-            throws IOException {
+    public void serialize(OutputStateHandle handle, DataOutputStream dos) throws IOException {
+        if (!(handle instanceof ResultSubpartitionStateHandle)) {
+            throw new IllegalStateException(
+                    "OutputStateHandle must be ResultSubpartitionStateHandle.");
+        }
+
         serializeChannelStateHandle(
-                handle,
-                dataOutputStream,
-                (info, out) -> {
-                    out.writeInt(info.getPartitionIdx());
-                    out.writeInt(info.getSubPartitionIdx());
-                });
+                (ResultSubpartitionStateHandle) handle, dos, RESULT_SUBPARTITION_INFO_WRITER);
     }
 
-    ResultSubpartitionStateHandle deserializeResultSubpartitionStateHandle(
+    public OutputStateHandle deserializeOutputStateHandle(
             DataInputStream dis, MetadataV2V3SerializerBase.DeserializationContext context)
             throws IOException {
 
         return deserializeChannelStateHandle(
-                is -> new ResultSubpartitionInfo(is.readInt(), is.readInt()),
-                ResultSubpartitionStateHandle::new,
-                dis,
-                context);
+                RESULT_SUBPARTITION_INFO_READER, ResultSubpartitionStateHandle::new, dis, context);
     }
 
-    public void serialize(InputChannelStateHandle handle, DataOutputStream dos) throws IOException {
+    public void serialize(InputStateHandle handle, DataOutputStream dos) throws IOException {
+        if (!(handle instanceof InputChannelStateHandle)) {
+            throw new IllegalStateException("InputStateHandle must be InputChannelStateHandle.");
+        }
+
         serializeChannelStateHandle(
-                handle,
-                dos,
-                (info, dataOutputStream) -> {
-                    dos.writeInt(info.getGateIdx());
-                    dos.writeInt(info.getInputChannelIdx());
-                });
+                (InputChannelStateHandle) handle, dos, INPUT_CHANNEL_INFO_WRITER);
     }
 
-    InputChannelStateHandle deserializeInputChannelStateHandle(
+    public InputStateHandle deserializeInputStateHandle(
             DataInputStream dis, MetadataV2V3SerializerBase.DeserializationContext context)
             throws IOException {
 
         return deserializeChannelStateHandle(
-                is -> new InputChannelInfo(is.readInt(), is.readInt()),
-                InputChannelStateHandle::new,
-                dis,
-                context);
+                INPUT_CHANNEL_INFO_READER, InputChannelStateHandle::new, dis, context);
     }
 
     private static <I> void serializeChannelStateHandle(
