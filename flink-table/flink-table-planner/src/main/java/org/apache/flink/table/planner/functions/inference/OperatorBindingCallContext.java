@@ -51,15 +51,15 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
     public OperatorBindingCallContext(
             DataTypeFactory dataTypeFactory,
             FunctionDefinition definition,
-            SqlOperatorBinding sqlOperatorBinding,
+            SqlOperatorBinding binding,
             RelDataType returnRelDataType) {
         super(
                 dataTypeFactory,
                 definition,
-                sqlOperatorBinding.getOperator().getNameAsId().toString(),
-                sqlOperatorBinding.getGroupCount() > 0);
+                binding.getOperator().getNameAsId().toString(),
+                binding.getGroupCount() > 0);
 
-        this.binding = sqlOperatorBinding;
+        this.binding = binding;
         this.argumentDataTypes =
                 new AbstractList<DataType>() {
                     @Override

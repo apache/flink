@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.functions.inference;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.planner.calcite.FlinkSqlCallBinding;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
@@ -59,20 +58,16 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
     public CallBindingCallContext(
             DataTypeFactory dataTypeFactory,
             FunctionDefinition definition,
-            SqlCallBinding sqlCallBinding,
+            SqlCallBinding binding,
             @Nullable RelDataType outputType) {
         super(
                 dataTypeFactory,
                 definition,
-                sqlCallBinding.getOperator().getNameAsId().toString(),
-                sqlCallBinding.getGroupCount() > 0);
+                binding.getOperator().getNameAsId().toString(),
+                binding.getGroupCount() > 0);
 
-        this.adaptedArguments = sqlCallBinding.operands(); // reorders the operands
-        this.binding =
-                new FlinkSqlCallBinding(
-                        sqlCallBinding.getValidator(),
-                        sqlCallBinding.getScope(),
-                        sqlCallBinding.getCall());
+        this.adaptedArguments = binding.operands(); // reorders the operands
+        this.binding = binding;
         this.argumentDataTypes =
                 new AbstractList<DataType>() {
                     @Override
@@ -87,7 +82,7 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
                         return binding.getOperandCount();
                     }
                 };
-        this.outputType = convertOutputType(sqlCallBinding, outputType);
+        this.outputType = convertOutputType(binding, outputType);
     }
 
     @Override
