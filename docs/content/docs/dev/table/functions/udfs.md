@@ -1779,7 +1779,7 @@ The following example shows how to use the `emitUpdateWithRetract(...)` method t
 updates. In order to do so, the accumulator keeps both the old and new top 2 values.
 
 {{< hint info >}}
-Note: Do not update accumulator within `emitUpdateWithRetract` because `GroupTableAggFunction` will not re-invoke `function#getAccumulators` after `function#emitValue` is invoked.
+Note: Do not update accumulator within `emitUpdateWithRetract` because after `function#emitUpdateWithRetract` is invoked, `GroupTableAggFunction` will not re-invoke `function#getAccumulators` to update the latest accumulator to state.
 {{< /hint >}}
 
 {{< tabs "043e94c6-05b5-4800-9e5f-7d11235f3a11" >}}

@@ -1894,7 +1894,7 @@ tab
 
 下面的例子展示了如何使用 `emitUpdateWithRetract` 方法来只发送更新的数据。为了只发送更新的结果，accumulator 保存了上一次的最大的2个值，也保存了当前最大的2个值。
 {{< hint info >}}
-注意：请不要在 `emitUpdateWithRetract` 方法中更新 accumulator，因为 `GroupTableAggFunction` 在调用过 `function#emitValue` 方法后，不会再次调用 `function#getAccumulators`。
+注意：请不要在 `emitUpdateWithRetract` 方法中更新 accumulator，因为在调用 `function#emitUpdateWithRetract` 之后，`GroupTableAggFunction` 不会重新调用 `function#getAccumulators` 来将最新的 accumulator 更新到状态中。
 {{< /hint >}}
 
 {{< tabs "e0d841fe-8d95-4706-9e19-e76141171966" >}}
