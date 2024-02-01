@@ -19,10 +19,14 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.state.InputChannelStateHandle;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
+import org.apache.flink.runtime.state.AbstractChannelStateHandle;
+import org.apache.flink.runtime.state.ChannelState;
+import org.apache.flink.runtime.state.InputStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
+import org.apache.flink.runtime.state.OutputStateHandle;
 import org.apache.flink.runtime.state.StateObject;
 
 import org.apache.commons.lang3.BooleanUtils;
@@ -33,6 +37,8 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -73,10 +79,9 @@ public class PrioritizedOperatorSubtaskState {
     /** List of prioritized snapshot alternatives for raw keyed state. */
     private final List<StateObjectCollection<KeyedStateHandle>> prioritizedRawKeyedState;
 
-    private final List<StateObjectCollection<InputChannelStateHandle>> prioritizedInputChannelState;
+    private final List<StateObjectCollection<InputStateHandle>> prioritizedInputChannelState;
 
-    private final List<StateObjectCollection<ResultSubpartitionStateHandle>>
-            prioritizedResultSubpartitionState;
+    private final List<StateObjectCollection<OutputStateHandle>> prioritizedResultSubpartitionState;
 
     /** Checkpoint id for a restored operator or null if not restored. */
     private final @Nullable Long restoredCheckpointId;
@@ -88,11 +93,9 @@ public class PrioritizedOperatorSubtaskState {
                     List<StateObjectCollection<OperatorStateHandle>>
                             prioritizedManagedOperatorState,
             @Nonnull List<StateObjectCollection<OperatorStateHandle>> prioritizedRawOperatorState,
+            @Nonnull List<StateObjectCollection<InputStateHandle>> prioritizedInputChannelState,
             @Nonnull
-                    List<StateObjectCollection<InputChannelStateHandle>>
-                            prioritizedInputChannelState,
-            @Nonnull
-                    List<StateObjectCollection<ResultSubpartitionStateHandle>>
+                    List<StateObjectCollection<OutputStateHandle>>
                             prioritizedResultSubpartitionState,
             @Nullable Long restoredCheckpointId) {
 
@@ -182,13 +185,12 @@ public class PrioritizedOperatorSubtaskState {
     }
 
     @Nonnull
-    public StateObjectCollection<InputChannelStateHandle> getPrioritizedInputChannelState() {
+    public StateObjectCollection<InputStateHandle> getPrioritizedInputChannelState() {
         return lastElement(prioritizedInputChannelState);
     }
 
     @Nonnull
-    public StateObjectCollection<ResultSubpartitionStateHandle>
-            getPrioritizedResultSubpartitionState() {
+    public StateObjectCollection<OutputStateHandle> getPrioritizedResultSubpartitionState() {
         return lastElement(prioritizedResultSubpartitionState);
     }
 
@@ -271,10 +273,10 @@ public class PrioritizedOperatorSubtaskState {
                     new ArrayList<>(size);
             List<StateObjectCollection<KeyedStateHandle>> rawKeyedAlternatives =
                     new ArrayList<>(size);
-            List<StateObjectCollection<InputChannelStateHandle>> inputChannelStateAlternatives =
+            List<StateObjectCollection<InputStateHandle>> inputChannelStateAlternatives =
                     new ArrayList<>(size);
-            List<StateObjectCollection<ResultSubpartitionStateHandle>>
-                    resultSubpartitionStateAlternatives = new ArrayList<>(size);
+            List<StateObjectCollection<OutputStateHandle>> resultSubpartitionStateAlternatives =
+                    new ArrayList<>(size);
 
             for (OperatorSubtaskState subtaskState : alternativesByPriority) {
 
@@ -309,11 +311,31 @@ public class PrioritizedOperatorSubtaskState {
                     resolvePrioritizedAlternatives(
                             jobManagerState.getInputChannelState(),
                             inputChannelStateAlternatives,
-                            eqStateApprover(InputChannelStateHandle::getInfo)),
+                            channelStateApprover(
+                                    (InputChannelInfo i1, InputChannelInfo i2) -> {
+                                        if (i1.getGateIdx() == i2.getGateIdx()) {
+                                            return Integer.compare(
+                                                    i1.getInputChannelIdx(),
+                                                    i2.getInputChannelIdx());
+                                        } else {
+                                            return Integer.compare(
+                                                    i1.getGateIdx(), i2.getGateIdx());
+                                        }
+                                    })),
                     resolvePrioritizedAlternatives(
                             jobManagerState.getResultSubpartitionState(),
                             resultSubpartitionStateAlternatives,
-                            eqStateApprover(ResultSubpartitionStateHandle::getInfo)),
+                            channelStateApprover(
+                                    (ResultSubpartitionInfo r1, ResultSubpartitionInfo r2) -> {
+                                        if (r1.getPartitionIdx() == r2.getPartitionIdx()) {
+                                            return Integer.compare(
+                                                    r1.getSubPartitionIdx(),
+                                                    r2.getSubPartitionIdx());
+                                        } else {
+                                            return Integer.compare(
+                                                    r1.getPartitionIdx(), r2.getPartitionIdx());
+                                        }
+                                    })),
                     restoredCheckpointId);
         }
 
@@ -464,6 +486,44 @@ public class PrioritizedOperatorSubtaskState {
             // Of course we include the ground truth as last alternative.
             approved.add(jobManagerState);
             return Collections.unmodifiableList(approved);
+        }
+    }
+
+    private static <T extends ChannelState, Info> BiFunction<T, T, Boolean> channelStateApprover(
+            Comparator<Info> comparator) {
+        return (ref, alt) -> approveChannelState(ref, alt, comparator);
+    }
+
+    private static <Info> boolean approveChannelState(
+            ChannelState ref, ChannelState alt, Comparator<Info> comparator) {
+        List<Info> refInfos = extractInfos(ref, comparator);
+        List<Info> altInfos = extractInfos(alt, comparator);
+
+        if (refInfos.size() != altInfos.size()) {
+            return false;
+        }
+
+        Iterator<Info> refInfoIterator = refInfos.iterator();
+        Iterator<Info> altInfoIterator = altInfos.iterator();
+        while (refInfoIterator.hasNext()) {
+            Info refInfo = refInfoIterator.next();
+            Info altInfo = altInfoIterator.next();
+            if (!refInfo.equals(altInfo)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** return sorted info list extracted from the passed in handle. */
+    private static <Info> List<Info> extractInfos(
+            ChannelState handle, Comparator<Info> comparator) {
+        if (handle instanceof AbstractChannelStateHandle) {
+            return Collections.singletonList(((AbstractChannelStateHandle<Info>) handle).getInfo());
+        } else {
+            throw new IllegalStateException(
+                    "Not supported InputStateHandle : " + handle.getClass());
         }
     }
 
