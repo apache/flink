@@ -22,10 +22,19 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Predicate;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Convenience functions to test actor based components. */
 public class TestingUtils {
@@ -55,5 +64,25 @@ public class TestingUtils {
 
     public static UUID zeroUUID() {
         return ZERO_UUID;
+    }
+
+    public static File getClassFile(Class<?> cls) {
+        String className = String.format("%s.class", cls.getSimpleName());
+        URL url = cls.getResource(className);
+        assertThat(url).isNotNull();
+
+        return new File(url.getPath());
+    }
+
+    public static File getFileFromTargetDir(Class<?> cls, Predicate<Path> fileFilter)
+            throws IOException {
+        final String pathStr = cls.getProtectionDomain().getCodeSource().getLocation().getPath();
+        final Path mvnTargetDir = Paths.get(pathStr).getParent();
+
+        final Collection<Path> jarPaths =
+                org.apache.flink.util.FileUtils.listFilesInDirectory(mvnTargetDir, fileFilter);
+        assertThat(jarPaths).isNotEmpty();
+
+        return jarPaths.iterator().next().toFile();
     }
 }

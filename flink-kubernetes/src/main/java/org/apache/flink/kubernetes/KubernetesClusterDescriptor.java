@@ -33,6 +33,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.kubernetes.artifact.KubernetesArtifactUploader;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal;
 import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
@@ -79,12 +80,17 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 
     private final FlinkKubeClient client;
 
+    private final KubernetesArtifactUploader artifactUploader;
+
     private final String clusterId;
 
     public KubernetesClusterDescriptor(
-            Configuration flinkConfig, FlinkKubeClientFactory clientFactory) {
+            Configuration flinkConfig,
+            FlinkKubeClientFactory clientFactory,
+            KubernetesArtifactUploader artifactUploader) {
         this.flinkConfig = flinkConfig;
         this.clientFactory = clientFactory;
+        this.artifactUploader = artifactUploader;
         this.client = clientFactory.fromConfiguration(flinkConfig, "client");
         this.clusterId =
                 checkNotNull(
@@ -215,6 +221,12 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
             final List<URI> pipelineJars =
                     KubernetesUtils.checkJarFileForApplicationMode(flinkConfig);
             Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
+        }
+
+        try {
+            artifactUploader.uploadAll(flinkConfig);
+        } catch (Exception ex) {
+            throw new ClusterDeploymentException(ex);
         }
 
         final ClusterClientProvider<String> clusterClientProvider =
