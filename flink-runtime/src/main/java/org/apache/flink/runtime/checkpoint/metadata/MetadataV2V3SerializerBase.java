@@ -312,8 +312,8 @@ public abstract class MetadataV2V3SerializerBase {
             state.setRawKeyedState(rawKeyedState);
         }
 
-        state.setInputChannelState(deserializeInputChannelStateHandle(dis, context));
-        state.setResultSubpartitionState(deserializeResultSubpartitionStateHandle(dis, context));
+        state.setInputChannelState(deserializeInputStateHandle(dis, context));
+        state.setResultSubpartitionState(deserializeOutputStateHandle(dis, context));
 
         return state.build();
     }
@@ -696,22 +696,21 @@ public abstract class MetadataV2V3SerializerBase {
     //  channel state (unaligned checkpoints)
     // ------------------------------------------------------------------------
 
-    protected StateObjectCollection<OutputStateHandle> deserializeResultSubpartitionStateHandle(
+    protected StateObjectCollection<OutputStateHandle> deserializeOutputStateHandle(
             DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
         return StateObjectCollection.empty();
     }
 
-    protected StateObjectCollection<InputStateHandle> deserializeInputChannelStateHandle(
+    protected StateObjectCollection<InputStateHandle> deserializeInputStateHandle(
             DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
         return StateObjectCollection.empty();
     }
 
-    protected void serializeResultSubpartitionStateHandle(
-            OutputStateHandle resultSubpartitionStateHandle, DataOutputStream dos)
+    protected void serializeOutputStateHandle(OutputStateHandle handle, DataOutputStream dos)
             throws IOException {}
 
-    protected void serializeInputChannelStateHandle(
-            InputStateHandle inputChannelStateHandle, DataOutputStream dos) throws IOException {}
+    protected void serializeInputStateHandle(InputStateHandle handle, DataOutputStream dos)
+            throws IOException {}
 
     // ------------------------------------------------------------------------
     //  low-level state handles
