@@ -31,8 +31,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /** An instance of this class represents a snapshot of the io-related metrics of a single task. */
 public class IOMetrics implements Serializable {
 
@@ -145,6 +143,8 @@ public class IOMetrics implements Serializable {
     }
 
     public Map<IntermediateResultPartitionID, ResultPartitionBytes> getResultPartitionBytes() {
-        return Collections.unmodifiableMap(checkNotNull(resultPartitionBytes));
+        return resultPartitionBytes == null
+                ? null
+                : Collections.unmodifiableMap(resultPartitionBytes);
     }
 }
