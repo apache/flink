@@ -110,10 +110,15 @@ public class DefaultPackagedProgramRetriever implements PackagedProgramRetriever
             classpaths.addAll(classpathsFromConfiguration);
 
             userClasspaths = Collections.unmodifiableList(classpaths);
+
+            System.out.println("userClasspaths");
+            System.out.println(userClasspaths);
         } catch (IOException e) {
             throw new FlinkException("An error occurred while extracting the user classpath.", e);
         }
 
+        System.out.println("userLibDir");
+        System.out.println(userLibDir);
         final EntryClassInformationProvider entryClassInformationProvider =
                 createEntryClassInformationProvider(
                         userLibDir == null ? null : userClasspaths,
@@ -233,9 +238,14 @@ public class DefaultPackagedProgramRetriever implements PackagedProgramRetriever
 
     private static List<URL> getClasspathsFromConfiguration(Configuration configuration)
             throws MalformedURLException {
+        System.out.println("inside getClasspathsFromConfiguration");
         if (configuration == null) {
             return Collections.emptyList();
         }
+
+        System.out.println("classpaths in getClasspathsFromConfiguration");
+        System.out.println(ConfigUtils.decodeListFromConfig(
+                configuration, PipelineOptions.CLASSPATHS, URL::new));
         return ConfigUtils.decodeListFromConfig(
                 configuration, PipelineOptions.CLASSPATHS, URL::new);
     }
