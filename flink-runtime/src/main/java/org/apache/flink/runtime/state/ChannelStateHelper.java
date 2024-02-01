@@ -33,6 +33,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.util.stream.Collectors.groupingBy;
+
 /**
  * Utility class for channel info serialization and conversions between single channel state handle
  * and merged state handle.
@@ -72,6 +74,10 @@ public final class ChannelStateHelper {
                             if (handle instanceof AbstractChannelStateHandle) {
                                 return ((AbstractChannelStateHandle<?>) handle).getDelegate();
 
+                            } else if (handle instanceof AbstractMergedChannelStateHandle) {
+                                return ((AbstractMergedChannelStateHandle<?, ?>) handle)
+                                        .getDelegate();
+
                             } else {
                                 throw new IllegalStateException(
                                         "Not Supported state handle : " + handle.getClass());
@@ -100,6 +106,40 @@ public final class ChannelStateHelper {
                 handles.stream().map(e -> ((OutputStateHandle) e)).collect(Collectors.toList()));
     }
 
+    public static StateObjectCollection<InputStateHandle> mergeInputStateCollection(
+            Collection<InputChannelStateHandle> handles) {
+        if (handles == null || handles.isEmpty()) {
+            return StateObjectCollection.empty();
+        }
+
+        Collection<InputStateHandle> inputStateHandles =
+                handles.stream()
+                        .collect(groupingBy(AbstractChannelStateHandle::getDelegate))
+                        .values()
+                        .stream()
+                        .map(MergedInputChannelStateHandle::fromChannelHandles)
+                        .map(e -> ((InputStateHandle) e))
+                        .collect(Collectors.toSet());
+        return new StateObjectCollection<>(inputStateHandles);
+    }
+
+    public static StateObjectCollection<OutputStateHandle> mergeOutputStateCollection(
+            Collection<ResultSubpartitionStateHandle> handles) {
+        if (handles == null || handles.isEmpty()) {
+            return StateObjectCollection.empty();
+        }
+
+        Collection<OutputStateHandle> outputStateHandles =
+                handles.stream()
+                        .collect(groupingBy(AbstractChannelStateHandle::getDelegate))
+                        .values()
+                        .stream()
+                        .map(MergedResultSubpartitionStateHandle::fromChannelHandles)
+                        .map(e -> ((OutputStateHandle) e))
+                        .collect(Collectors.toSet());
+        return new StateObjectCollection<>(outputStateHandles);
+    }
+
     public static StateObjectCollection<InputChannelStateHandle> extractUnmergedInputHandles(
             OperatorSubtaskState subtaskState) {
         List<InputChannelStateHandle> inputHandles =
@@ -108,6 +148,9 @@ public final class ChannelStateHelper {
                                 h -> {
                                     if (h instanceof InputChannelStateHandle) {
                                         return Stream.of((InputChannelStateHandle) h);
+                                    } else if (h instanceof MergedInputChannelStateHandle) {
+                                        return ((MergedInputChannelStateHandle) h)
+                                                .getUnmergedHandles().stream();
                                     } else {
                                         throw new IllegalStateException(
                                                 "Invalid input channel state : " + h.getClass());
@@ -127,6 +170,9 @@ public final class ChannelStateHelper {
                                 h -> {
                                     if (h instanceof ResultSubpartitionStateHandle) {
                                         return Stream.of((ResultSubpartitionStateHandle) h);
+                                    } else if (h instanceof MergedResultSubpartitionStateHandle) {
+                                        return ((MergedResultSubpartitionStateHandle) h)
+                                                .getUnmergedHandles().stream();
                                     } else {
                                         throw new IllegalStateException(
                                                 "Invalid output channel state : " + h.getClass());
