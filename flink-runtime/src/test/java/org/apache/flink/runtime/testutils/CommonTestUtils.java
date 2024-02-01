@@ -343,49 +343,52 @@ public class CommonTestUtils {
 
     /** Wait for (at least) the given number of successful checkpoints. */
     public static void waitForCheckpoint(JobID jobID, MiniCluster miniCluster, int numCheckpoints)
-            throws Exception, FlinkJobNotFoundException {
+            throws Exception {
+        waitForCheckpoints(
+                jobID,
+                miniCluster,
+                checkpointStatsSnapshot ->
+                        checkpointStatsSnapshot != null
+                                && checkpointStatsSnapshot
+                                                .getCounts()
+                                                .getNumberOfCompletedCheckpoints()
+                                        >= numCheckpoints);
+    }
+
+    /**
+     * Wait for a new completed checkpoint, the new checkpoint must be triggered after
+     * waitForNewCheckpoint is called.
+     */
+    public static void waitForNewCheckpoint(JobID jobID, MiniCluster miniCluster) throws Exception {
+        final long startTime = System.currentTimeMillis();
+        waitForCheckpoints(
+                jobID,
+                miniCluster,
+                checkpointStatsSnapshot -> {
+                    if (checkpointStatsSnapshot == null) {
+                        return false;
+                    }
+                    final CompletedCheckpointStats latestCompletedCheckpoint =
+                            checkpointStatsSnapshot.getHistory().getLatestCompletedCheckpoint();
+                    return latestCompletedCheckpoint != null
+                            && latestCompletedCheckpoint.getTriggerTimestamp() > startTime;
+                });
+    }
+
+    // Wait for CheckpointStatsSnapshot to meet the condition.
+    private static void waitForCheckpoints(
+            JobID jobId, MiniCluster miniCluster, Predicate<CheckpointStatsSnapshot> condition)
+            throws Exception {
         waitUntilCondition(
                 () -> {
-                    AccessExecutionGraph graph = miniCluster.getExecutionGraph(jobID).get();
-                    if (Optional.ofNullable(graph.getCheckpointStatsSnapshot())
-                            .filter(
-                                    st ->
-                                            st.getCounts().getNumberOfCompletedCheckpoints()
-                                                    >= numCheckpoints)
-                            .isPresent()) {
+                    final AccessExecutionGraph graph = miniCluster.getExecutionGraph(jobId).get();
+                    final CheckpointStatsSnapshot snapshot = graph.getCheckpointStatsSnapshot();
+                    if (condition.test(snapshot)) {
                         return true;
                     } else if (graph.getState().isGloballyTerminalState()) {
                         checkState(
                                 graph.getFailureInfo() != null,
-                                "Job terminated before taking required %s checkpoints: %s",
-                                numCheckpoints,
-                                graph.getState());
-                        throw graph.getFailureInfo().getException();
-                    } else {
-                        return false;
-                    }
-                });
-    }
-
-    /** Wait for on more completed checkpoint. */
-    public static void waitForOneMoreCheckpoint(JobID jobID, MiniCluster miniCluster)
-            throws Exception {
-        final long[] currentCheckpoint = new long[] {-1L};
-        waitUntilCondition(
-                () -> {
-                    AccessExecutionGraph graph = miniCluster.getExecutionGraph(jobID).get();
-                    CheckpointStatsSnapshot snapshot = graph.getCheckpointStatsSnapshot();
-                    if (snapshot != null) {
-                        long currentCount = snapshot.getCounts().getNumberOfCompletedCheckpoints();
-                        if (currentCheckpoint[0] < 0L) {
-                            currentCheckpoint[0] = currentCount;
-                        } else {
-                            return currentCount > currentCheckpoint[0];
-                        }
-                    } else if (graph.getState().isGloballyTerminalState()) {
-                        checkState(
-                                graph.getFailureInfo() != null,
-                                "Job terminated before taking required checkpoint.",
+                                "Job terminated (state=%s) before completing the requested checkpoint(s).",
                                 graph.getState());
                         throw graph.getFailureInfo().getException();
                     }
