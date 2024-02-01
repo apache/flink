@@ -917,9 +917,7 @@ LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-NestedLoopJoin(joinType=[RightOuterJoin], where=[true], select=[d, e, f, g, h, a, b, c], build=[left])
-:- Exchange(distribution=[broadcast])
-:  +- Values(tuples=[[]], values=[d, e, f, g, h])
+Calc(select=[null:INTEGER AS d, null:BIGINT AS e, null:INTEGER AS f, null:VARCHAR(2147483647) AS g, null:BIGINT AS h, a, b, c])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
