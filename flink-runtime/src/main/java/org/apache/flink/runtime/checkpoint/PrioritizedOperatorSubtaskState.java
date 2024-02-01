@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.state.AbstractChannelStateHandle;
+import org.apache.flink.runtime.state.AbstractMergedChannelStateHandle;
 import org.apache.flink.runtime.state.ChannelState;
 import org.apache.flink.runtime.state.InputStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -521,6 +522,10 @@ public class PrioritizedOperatorSubtaskState {
             ChannelState handle, Comparator<Info> comparator) {
         if (handle instanceof AbstractChannelStateHandle) {
             return Collections.singletonList(((AbstractChannelStateHandle<Info>) handle).getInfo());
+        } else if (handle instanceof AbstractMergedChannelStateHandle) {
+            return ((AbstractMergedChannelStateHandle<Info, AbstractChannelStateHandle<Info>>)
+                            handle)
+                    .getInfos().stream().sorted(comparator).collect(Collectors.toList());
         } else {
             throw new IllegalStateException(
                     "Not supported InputStateHandle : " + handle.getClass());
