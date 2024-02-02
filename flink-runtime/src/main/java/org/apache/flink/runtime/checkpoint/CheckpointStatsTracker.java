@@ -25,7 +25,6 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatistics;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 
@@ -106,17 +105,9 @@ public class CheckpointStatsTracker {
      * @param numRememberedCheckpoints Maximum number of checkpoints to remember, including in
      *     progress ones.
      * @param metricGroup Metric group for exposed metrics
+     * @param jobID ID of the job being checkpointed
      */
     public CheckpointStatsTracker(
-            int numRememberedCheckpoints, JobManagerJobMetricGroup metricGroup) {
-        this(numRememberedCheckpoints, metricGroup, metricGroup.jobId());
-    }
-
-    public CheckpointStatsTracker(int numRememberedCheckpoints, MetricGroup metricGroup) {
-        this(numRememberedCheckpoints, metricGroup, new JobID());
-    }
-
-    private CheckpointStatsTracker(
             int numRememberedCheckpoints, MetricGroup metricGroup, JobID jobID) {
         checkArgument(numRememberedCheckpoints >= 0, "Negative number of remembered checkpoints");
         this.history = new CheckpointStatsHistory(numRememberedCheckpoints);
