@@ -63,19 +63,19 @@ class CodeGeneratorContext(
   def this(tableConfig: ReadableConfig, classLoader: ClassLoader) =
     this(tableConfig, classLoader, null)
 
-  val orderedExpressions: ListBuffer[GeneratedExpression] = ListBuffer[GeneratedExpression]()
+//  val orderedExpressions: ListBuffer[GeneratedExpression] = ListBuffer[GeneratedExpression]()
 
-  var currentOrder = 0
+//  var currentOrder = 0
 
-  def addToOrder(expr: GeneratedExpression): GeneratedExpression = {
-    if (orderedExpressions.size == currentOrder) {
-      orderedExpressions += expr
-    } else {
-      orderedExpressions(currentOrder) = expr
-    }
-
-    expr
-  }
+//  def addToOrder(expr: GeneratedExpression): GeneratedExpression = {
+//    if (orderedExpressions.size == currentOrder) {
+//      orderedExpressions += expr
+//    } else {
+//      orderedExpressions(currentOrder) = expr
+//    }
+//
+//    expr
+//  }
 
   // holding a list of objects that could be used passed into generated class
   val references: mutable.ArrayBuffer[AnyRef] = new mutable.ArrayBuffer[AnyRef]()

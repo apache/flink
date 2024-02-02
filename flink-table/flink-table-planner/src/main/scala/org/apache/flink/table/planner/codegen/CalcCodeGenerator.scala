@@ -156,6 +156,13 @@ object CalcCodeGenerator {
     val onlyProjectionExprs =
       expr.zipWithIndex.filter(e => !onlyFilterExprs.contains(e._2)).map(e => e._2)
 
+    val generatedExpressions = expr.map(
+      p => {
+        val r = exprGenerator.generateExpression(p)
+        //        println(ctx.orderedExpressions.size)
+        r
+      })
+
     def produceOutputCode(resultTerm: String): String = if (outputDirectly) {
       s"$collectorTerm.collect($resultTerm);"
     } else {
@@ -164,11 +171,11 @@ object CalcCodeGenerator {
 
     def generateCode(exprIdx: Seq[Int]): String = {
       val generatedExpressionCodes = exprIdx
-        .filter(p => ctx.orderedExpressions(p) != null)
-        .map(p => (ctx.orderedExpressions(p), p))
+        .filter(p => generatedExpressions(p) != null)
+        .map(p => (generatedExpressions(p), p))
         .map(
           e => {
-            "// EXPR %d Starts \n%s\n// EXPRT %d ENDS".format(e._2, e._1.code, e._2)
+            "// EXPR %d Starts \n%s\n// EXPRT %d ENDS".format(e._2, e._1.getExprReuseCode, e._2)
           })
         .mkString("\n")
       generatedExpressionCodes
@@ -199,7 +206,7 @@ object CalcCodeGenerator {
       val projectionExpression =
         exprGenerator.generateResultExpression(generatedProjectExpressions, outRowType, outRowClass)
 
-      val projectionExpressionCode = projectionExpression.code
+      val projectionExpressionCode = projectionExpression.getExprReuseCode
 
       val header = if (retainHeader) {
         s"${projectionExpression.resultTerm}.setRowKind($inputTerm.getRowKind());"
@@ -214,14 +221,6 @@ object CalcCodeGenerator {
          |${produceOutputCode(projectionExpression.resultTerm)}
          |""".stripMargin
     }
-
-    val tt2 = expr.map(
-      p => {
-        val r = exprGenerator.generateExpression(p)
-//        println(ctx.orderedExpressions.size)
-        ctx.currentOrder += 1
-        r
-      })
 
     //    val ptest =
     //      exprGenerator.gen1(tt2, outRowType, outRowClass)
@@ -241,7 +240,7 @@ object CalcCodeGenerator {
         val filterCondition = exprGenerator.generateExpression(conditionExpr.get)
         s"""
            |${if (eagerInputUnboxingCode) ctx.reuseInputUnboxingCode() else ""}
-           |${filterCondition.code}
+           |${filterCondition.getExprReuseCode}
            |if (${filterCondition.resultTerm}) {
            |  ${produceOutputCode(inputTerm)}
            |}
@@ -251,7 +250,7 @@ object CalcCodeGenerator {
         // if any filter conditions, projection code will enter an new scope
         val projectionCode = produceProjectionCode
         val filterCode = generateCode(onlyFilterExprs)
-        val filterResultTerm = ctx.orderedExpressions(condition.get.getIndex).resultTerm
+        val filterResultTerm = generatedExpressions(condition.get.getIndex).resultTerm
 //        val filterCondition = exprGenerator.generateExpression(conditionExpr.get)
 //        val filterInputCode = ctx.reuseInputUnboxingCode()
         //        val origFilterExpression = ctx.getReusableRexNodeExpr(condition.get).get

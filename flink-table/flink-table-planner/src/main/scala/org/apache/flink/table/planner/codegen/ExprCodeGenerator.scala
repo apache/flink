@@ -343,87 +343,6 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     GeneratedExpression(outRow, NEVER_NULL, code, returnType)
   }
 
-//  def gen1(
-//                                fieldExprs: Seq[GeneratedExpression],
-//                                fieldExprIdxToOutputRowPosMap: Map[Int, Int],
-//                                returnType: RowType,
-//                                returnTypeClazz: Class[_ <: RowData],
-//                                outRow: String,
-//                                outRowWriter: Option[String],
-//                                reusedOutRow: Boolean,
-//                                outRowAlreadyExists: Boolean): GeneratedExpression = {
-////    // initial type check
-////    if (returnType.getFieldCount != fieldExprs.length) {
-////      throw new CodeGenException(
-////        s"Arity [${returnType.getFieldCount}] of result type [$returnType] does not match " +
-////          s"number [${fieldExprs.length}] of expressions [$fieldExprs].")
-////    }
-////    if (fieldExprIdxToOutputRowPosMap.size != fieldExprs.length) {
-////      throw new CodeGenException(
-////        s"Size [${returnType.getFieldCount}] of fieldExprIdxToOutputRowPosMap does not match " +
-////          s"number [${fieldExprs.length}] of expressions [$fieldExprs].")
-////    }
-////    // type check
-////    fieldExprs.zipWithIndex.foreach {
-////      // timestamp type(Include TimeIndicator) and generic type can compatible with each other.
-////      case (fieldExpr, i)
-////        if fieldExpr.resultType.isInstanceOf[TypeInformationRawType[_]] ||
-////          fieldExpr.resultType.isInstanceOf[TimestampType] =>
-////        if (
-////          returnType.getTypeAt(i).getClass != fieldExpr.resultType.getClass
-////            && !returnType.getTypeAt(i).isInstanceOf[TypeInformationRawType[_]]
-////        ) {
-////          throw new CodeGenException(
-////            s"Incompatible types of expression and result type, Expression[$fieldExpr] type is " +
-////              s"[${fieldExpr.resultType}], result type is [${returnType.getTypeAt(i)}]")
-////        }
-////      case (fieldExpr, i) if !isInteroperable(fieldExpr.resultType, returnType.getTypeAt(i)) =>
-////        throw new CodeGenException(
-////          s"Incompatible types of expression and result type. Expression[$fieldExpr] type is " +
-////            s"[${fieldExpr.resultType}], result type is [${returnType.getTypeAt(i)}]")
-////      case _ => // ok
-////    }
-//
-//    val setFieldsCode = fieldExprs.zipWithIndex
-//      .map {
-//        case (fieldExpr, index) =>
-//          val pos = fieldExprIdxToOutputRowPosMap.getOrElse(
-//            index,
-//            throw new CodeGenException(s"Illegal field expr index: $index"))
-//          rowSetField(ctx, returnTypeClazz, outRow, pos.toString, fieldExpr, outRowWriter)
-//      }
-//      .mkString("\n")
-//
-//    val outRowInitCode = if (!outRowAlreadyExists) {
-//      val initCode = generateRecordStatement(returnType, returnTypeClazz, outRow, outRowWriter, ctx)
-//      if (reusedOutRow) {
-//        NO_CODE
-//      } else {
-//        initCode
-//      }
-//    } else {
-//      NO_CODE
-//    }
-//
-//    val code = if (returnTypeClazz == classOf[BinaryRowData] && outRowWriter.isDefined) {
-//      val writer = outRowWriter.get
-//      val resetWriter = s"$writer.reset();"
-//      val completeWriter: String = s"$writer.complete();"
-//      s"""
-//         |$outRowInitCode
-//         |$resetWriter
-//         |$setFieldsCode
-//         |$completeWriter
-//        """.stripMargin
-//    } else {
-//      s"""
-//         |$outRowInitCode
-//         |$setFieldsCode
-//        """.stripMargin
-//    }
-//    GeneratedExpression(outRow, NEVER_NULL, code, returnType)
-//  }
-
   override def visitInputRef(inputRef: RexInputRef): GeneratedExpression = {
     // for specific custom code generation
     if (input1Type == null) {
@@ -485,17 +404,16 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
          |}
          |""".stripMargin
 
-    ctx.addToOrder(
-      GeneratedExpression(resultTerm, nullTerm, resultCode, fieldAccessExpr.resultType))
+    GeneratedExpression(resultTerm, nullTerm, resultCode, fieldAccessExpr.resultType)
   }
 
   override def visitLiteral(literal: RexLiteral): GeneratedExpression = {
     // this case is handled by visitCall (SqlKind.SEARCH)
     if (literal.getTypeName == SqlTypeName.SARG) {
-      return ctx.addToOrder(null)
+      return null
     }
     val res = RexLiteralUtil.toFlinkInternalValue(literal)
-    ctx.addToOrder(generateLiteral(ctx, res.f0, res.f1))
+    generateLiteral(ctx, res.f0, res.f1)
   }
 
   override def visitCorrelVariable(correlVariable: RexCorrelVariable): GeneratedExpression = {
@@ -562,7 +480,12 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         expr
     }
     // hide the generated code as it will be executed only once
-    GeneratedExpression(inputExpr.resultTerm, inputExpr.nullTerm, NO_CODE, inputExpr.resultType)
+    GeneratedExpression(
+      inputExpr.resultTerm,
+      inputExpr.nullTerm,
+      NO_CODE,
+      inputExpr.resultType,
+      exprReuseCode = inputExpr.code)
   }
 
   override def visitRangeRef(rangeRef: RexRangeRef): GeneratedExpression =
@@ -589,7 +512,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         case localRef: RexLocalRef => ctx.getReusableExpr(localRef.getIndex)
         case _ => call.getOperands.get(1)
       }
-      return ctx.addToOrder(generateSearch(ctx, generatedExpression0, op1.asInstanceOf[RexLiteral]))
+      return generateSearch(ctx, generatedExpression0, op1.asInstanceOf[RexLiteral])
     }
 
     // convert operands and help giving untyped NULL literals a type
@@ -620,7 +543,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     }
     val callWithoutLocalRef =
       call.clone(call.getType, call.operands.map(callOperandsWithoutLocalRef))
-    ctx.addToOrder(generateCallExpression(ctx, callWithoutLocalRef, operands, resultType))
+    generateCallExpression(ctx, callWithoutLocalRef, operands, resultType)
   }
 
   override def visitOver(over: RexOver): GeneratedExpression =

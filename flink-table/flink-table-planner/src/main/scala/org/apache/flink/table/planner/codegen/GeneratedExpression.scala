@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.table.planner.codegen.CodeGenUtils.boxedTypeTermForType
+import org.apache.flink.table.planner.codegen.GeneratedExpression.NO_CODE
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.types.logical.LogicalType
 
@@ -41,7 +42,13 @@ case class GeneratedExpression(
     nullTerm: String,
     var code: String,
     resultType: LogicalType,
-    literalValue: Option[Any] = None) {
+    literalValue: Option[Any] = None,
+    exprReuseCode: String = NO_CODE) {
+
+  def getExprReuseCode: String = if (code == NO_CODE)
+    exprReuseCode
+  else
+    code
 
   /**
    * Indicates a constant expression do not reference input and can thus be used in the member area

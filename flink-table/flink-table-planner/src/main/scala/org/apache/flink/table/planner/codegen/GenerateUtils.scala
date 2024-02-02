@@ -474,9 +474,13 @@ object GenerateUtils {
         ctx.addReusableInputUnboxingExprs(inputTerm, index, expr)
         expr
     }
-    ctx.addToOrder(inputExpr)
     // hide the generated code as it will be executed only once
-    GeneratedExpression(inputExpr.resultTerm, inputExpr.nullTerm, "", inputExpr.resultType)
+    GeneratedExpression(
+      inputExpr.resultTerm,
+      inputExpr.nullTerm,
+      "",
+      inputExpr.resultType,
+      exprReuseCode = inputExpr.code)
   }
 
   def generateNullableInputFieldAccess(
