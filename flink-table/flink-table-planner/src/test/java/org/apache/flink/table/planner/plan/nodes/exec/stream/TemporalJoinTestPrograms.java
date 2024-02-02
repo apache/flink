@@ -23,6 +23,9 @@ import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import static org.apache.flink.table.api.Expressions.$;
 
 /** {@link TableTestProgram} definitions for testing {@link StreamExecTemporalJoin}. */
@@ -43,6 +46,49 @@ public class TemporalJoinTestPrograms {
                     .producedAfterRestore(
                             Row.of(1L, "Euro", "2020-10-10 00:00:58"),
                             Row.of(1L, "USD", "2020-10-10 00:00:58"))
+                    .build();
+
+    static final SourceTestStep ORDERS_WITH_NESTED_ID =
+            SourceTestStep.newBuilder("OrdersNestedId")
+                    .addSchema(
+                            "amount bigint",
+                            "nested_row ROW<currency STRING>",
+                            "nested_map MAP<STRING NOT NULL, STRING>",
+                            "order_time STRING",
+                            "rowtime as TO_TIMESTAMP(order_time) ",
+                            "WATERMARK FOR rowtime AS rowtime")
+                    .producedBeforeRestore(
+                            Row.of(
+                                    2L,
+                                    Row.of("Euro"),
+                                    mapOf("currency", "Euro"),
+                                    "2020-10-10 00:00:42"),
+                            Row.of(
+                                    1L,
+                                    Row.of("USD"),
+                                    mapOf("currency", "USD"),
+                                    "2020-10-10 00:00:43"),
+                            Row.of(
+                                    50L,
+                                    Row.of("Yen"),
+                                    mapOf("currency", "Yen"),
+                                    "2020-10-10 00:00:44"),
+                            Row.of(
+                                    3L,
+                                    Row.of("Euro"),
+                                    mapOf("currency", "Euro"),
+                                    "2020-10-10 00:00:45"))
+                    .producedAfterRestore(
+                            Row.of(
+                                    1L,
+                                    Row.of("Euro"),
+                                    mapOf("currency", "Euro"),
+                                    "2020-10-10 00:00:58"),
+                            Row.of(
+                                    1L,
+                                    Row.of("USD"),
+                                    mapOf("currency", "USD"),
+                                    "2020-10-10 00:00:58"))
                     .build();
 
     static final SourceTestStep RATES =
@@ -84,6 +130,36 @@ public class TemporalJoinTestPrograms {
                                     + "ON o.currency = r.currency ")
                     .build();
 
+    static final TableTestProgram TEMPORAL_JOIN_TABLE_JOIN_NESTED_KEY =
+            TableTestProgram.of(
+                            "temporal-join-table-join-nested-key",
+                            "validates temporal join with a table when the join keys comes from a nested row")
+                    .setupTableSource(ORDERS_WITH_NESTED_ID)
+                    .setupTableSource(RATES)
+                    .setupTableSink(AMOUNTS)
+                    .runSql(
+                            "INSERT INTO MySink "
+                                    + "SELECT amount * r.rate "
+                                    + "FROM OrdersNestedId AS o "
+                                    + "JOIN RatesHistory FOR SYSTEM_TIME AS OF o.rowtime AS r "
+                                    + "ON o.nested_row.currency = r.currency ")
+                    .build();
+
+    static final TableTestProgram TEMPORAL_JOIN_TABLE_JOIN_KEY_FROM_MAP =
+            TableTestProgram.of(
+                            "temporal-join-table-join-key-from-map",
+                            "validates temporal join with a table when the join key comes from a map value")
+                    .setupTableSource(ORDERS_WITH_NESTED_ID)
+                    .setupTableSource(RATES)
+                    .setupTableSink(AMOUNTS)
+                    .runSql(
+                            "INSERT INTO MySink "
+                                    + "SELECT amount * r.rate "
+                                    + "FROM OrdersNestedId AS o "
+                                    + "JOIN RatesHistory FOR SYSTEM_TIME AS OF o.rowtime AS r "
+                                    + "ON o.nested_map['currency'] = r.currency ")
+                    .build();
+
     static final TableTestProgram TEMPORAL_JOIN_TEMPORAL_FUNCTION =
             TableTestProgram.of(
                             "temporal-join-temporal-function",
@@ -100,4 +176,10 @@ public class TemporalJoinTestPrograms {
                                     + "LATERAL TABLE (Rates(o.rowtime)) AS r "
                                     + "WHERE o.currency = r.currency ")
                     .build();
+
+    private static Map<String, String> mapOf(String key, String value) {
+        final HashMap<String, String> map = new HashMap<>();
+        map.put(key, value);
+        return map;
+    }
 }
