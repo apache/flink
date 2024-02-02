@@ -122,16 +122,16 @@ Flink SQL> SELECT * FROM TABLE(
 +------------------+-------+------+------------------+------------------+-------------------------+
 
 -- apply aggregation on the tumbling windowed table
-Flink SQL> SELECT window_start, window_end, SUM(price)
+Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
   FROM TABLE(
     TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
   GROUP BY window_start, window_end;
-+------------------+------------------+-------+
-|     window_start |       window_end | price |
-+------------------+------------------+-------+
-| 2020-04-15 08:00 | 2020-04-15 08:10 | 11.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:20 | 10.00 |
-+------------------+------------------+-------+
++------------------+------------------+-------------+
+|     window_start |       window_end | total_price |
++------------------+------------------+-------------+
+| 2020-04-15 08:00 | 2020-04-15 08:10 |       11.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 |       10.00 |
++------------------+------------------+-------------+
 ```
 
 *Note: in order to better understand the behavior of windowing, we simplify the displaying of timestamp values to not show the trailing zeros, e.g. `2020-04-15 08:05` should be displayed as `2020-04-15 08:05:00.000` in Flink SQL Client if the type is `TIMESTAMP(3)`.*
@@ -193,18 +193,18 @@ Here is an example invocation on the `Bid` table:
 +------------------+-------+------+------------------+------------------+-------------------------+
 
 -- apply aggregation on the hopping windowed table
-> SELECT window_start, window_end, SUM(price)
+> SELECT window_start, window_end, SUM(price) AS total_price
   FROM TABLE(
     HOP(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES, INTERVAL '10' MINUTES))
   GROUP BY window_start, window_end;
-+------------------+------------------+-------+
-|     window_start |       window_end | price |
-+------------------+------------------+-------+
-| 2020-04-15 08:00 | 2020-04-15 08:10 | 11.00 |
-| 2020-04-15 08:05 | 2020-04-15 08:15 | 15.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:20 | 10.00 |
-| 2020-04-15 08:15 | 2020-04-15 08:25 |  6.00 |
-+------------------+------------------+-------+
++------------------+------------------+-------------+
+|     window_start |       window_end | total_price |
++------------------+------------------+-------------+
+| 2020-04-15 08:00 | 2020-04-15 08:10 |       11.00 |
+| 2020-04-15 08:05 | 2020-04-15 08:15 |       15.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 |       10.00 |
+| 2020-04-15 08:15 | 2020-04-15 08:25 |        6.00 |
++------------------+------------------+-------------+
 ```
 
 ### CUMULATE
@@ -271,22 +271,22 @@ Here is an example invocation on the Bid table:
 +------------------+-------+------+------------------+------------------+-------------------------+
 
 -- apply aggregation on the cumulating windowed table
-> SELECT window_start, window_end, SUM(price)
+> SELECT window_start, window_end, SUM(price) AS total_price
   FROM TABLE(
     CUMULATE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES, INTERVAL '10' MINUTES))
   GROUP BY window_start, window_end;
-+------------------+------------------+-------+
-|     window_start |       window_end | price |
-+------------------+------------------+-------+
-| 2020-04-15 08:00 | 2020-04-15 08:06 |  4.00 |
-| 2020-04-15 08:00 | 2020-04-15 08:08 |  6.00 |
-| 2020-04-15 08:00 | 2020-04-15 08:10 | 11.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:12 |  3.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:14 |  4.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:16 |  4.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:18 | 10.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:20 | 10.00 |
-+------------------+------------------+-------+
++------------------+------------------+-------------+
+|     window_start |       window_end | total_price |
++------------------+------------------+-------------+
+| 2020-04-15 08:00 | 2020-04-15 08:06 |        4.00 |
+| 2020-04-15 08:00 | 2020-04-15 08:08 |        6.00 |
+| 2020-04-15 08:00 | 2020-04-15 08:10 |       11.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:12 |        3.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:14 |        4.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:16 |        4.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:18 |       10.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 |       10.00 |
++------------------+------------------+-------------+
 ```
 
 ## Window Offset
@@ -331,16 +331,16 @@ Flink SQL> SELECT * FROM TABLE(
 +------------------+-------+------+------------------+------------------+-------------------------+
 
 -- apply aggregation on the tumbling windowed table
-Flink SQL> SELECT window_start, window_end, SUM(price)
+Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
   FROM TABLE(
     TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES, INTERVAL '1' MINUTES))
   GROUP BY window_start, window_end;
-+------------------+------------------+-------+
-|     window_start |       window_end | price |
-+------------------+------------------+-------+
-| 2020-04-15 08:01 | 2020-04-15 08:11 | 11.00 |
-| 2020-04-15 08:11 | 2020-04-15 08:21 | 10.00 |
-+------------------+------------------+-------+
++------------------+------------------+-------------+
+|     window_start |       window_end | total_price |
++------------------+------------------+-------------+
+| 2020-04-15 08:01 | 2020-04-15 08:11 |       11.00 |
+| 2020-04-15 08:11 | 2020-04-15 08:21 |       10.00 |
++------------------+------------------+-------------+
 ```
 
 *Note: in order to better understand the behavior of windowing, we simplify the displaying of timestamp values to not show the trailing zeros, e.g. `2020-04-15 08:05` should be displayed as `2020-04-15 08:05:00.000` in Flink SQL Client if the type is `TIMESTAMP(3)`.*
