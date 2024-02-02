@@ -33,7 +33,7 @@ Apache Flink provides several window table-valued functions (TVF) to divide the 
 - [Tumble Windows](#tumble)
 - [Hop Windows](#hop)
 - [Cumulate Windows](#cumulate)
-- Session Windows (will be supported soon)
+- [Session Windows](#session) (Only supported in streaming mode now)
 
 Note that each element can logically belong to more than one window, depending on the windowing table-valued function you use. For example, HOP windowing creates overlapping windows wherein a single element can be assigned to multiple windows.
 
@@ -49,7 +49,7 @@ See more how to apply further computations based on windowing TVF:
 
 ## Window Functions
 
-Apache Flink provides 3 built-in windowing TVFs: `TUMBLE`, `HOP` and `CUMULATE`. The return value of windowing TVF is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. 
+Apache Flink provides 4 built-in windowing TVFs: `TUMBLE`, `HOP`, `CUMULATE` and `SESSION`. The return value of windowing TVF is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. 
 In streaming mode, the "window_time" field is a [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) of the window. 
 In batch mode, the "window_time" field is an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ` based on input time field type. 
 The "window_time" field can be used in subsequent time-based operations, e.g. another windowing TVF, or <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a>, <a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over aggregations</a>. The value of `window_time` always equal to `window_end - 1ms`.
@@ -286,6 +286,133 @@ Here is an example invocation on the Bid table:
 | 2020-04-15 08:10 | 2020-04-15 08:16 |        4.00 |
 | 2020-04-15 08:10 | 2020-04-15 08:18 |       10.00 |
 | 2020-04-15 08:10 | 2020-04-15 08:20 |       10.00 |
++------------------+------------------+-------------+
+```
+
+### SESSION
+
+{{< hint info >}}
+Note:
+1. Session Window TVF is not supported in batch mode now.
+2. Session Window Aggregation does not support any optimization in [Performance Tuning]({{< ref "docs/dev/table/tuning" >}}) now.
+3. Session Window Join, Session Window TopN and Session Window Deduplication are conceptually supported and in beta mode. Issues can be reported in [JIRA](https://issues.apache.org/jira/browse/FLINK).
+{{< /hint >}}
+
+The `SESSION` function groups elements by sessions of activity. In contrast to `TUMBLE` windows and `HOP` windows, session windows do not overlap and do not have a fixed start and end time. 
+Instead, a `session` window closes when it doesn't receive elements for a certain period of time, i.e., when a gap of inactivity occurred. 
+A `session` window should be configured with a static session gap which defines how long the period of inactivity is. 
+When this period expires, the current `session` closes and subsequent elements are assigned to a new `session` window.
+
+For example, you could have windows of gap 10 minutes. 
+With this, when the interval between two events of the same user is less than 10 minutes, these events will be grouped into the same `session` window. 
+If there is no data after 10 minutes following the latest event, then this `session` window will close and be sent downstream. 
+Subsequent events will be assigned to a new `session` window.
+
+{{< img src="/fig/session-windows.svg" alt="Session windows" width="70%">}}
+
+The `SESSION` function assigns windows that cover rows based on datetime.
+In streaming mode, the time attribute field must be either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}).
+The return value of `SESSION` is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. 
+The original time attribute "timecol" will be a regular timestamp column after windowing TVF.
+
+`SESSION` takes three required parameters and one optional parameter:
+
+```sql
+SESSION(TABLE data [PARTITION BY(keycols, ...)], DESCRIPTOR(timecol), gap)
+```
+
+- `data`: is a table parameter that can be any relation with an time attribute column.
+- `keycols`: is a column descriptor indicating which columns should be used to partition the data prior to session windows.
+- `timecol`: is a column descriptor indicating which time attributes column of data should be mapped to session windows.
+- `gap`: is the maximum interval in timestamp for two events to be considered part of the same session window.
+
+Here is an example invocation on the `Bid` table:
+
+```sql
+-- tables must have time attribute, e.g. `bidtime` in this table
+Flink SQL> desc Bid;
++-------------+------------------------+------+-----+--------+---------------------------------+
+|        name |                   type | null | key | extras |                       watermark |
++-------------+------------------------+------+-----+--------+---------------------------------+
+|     bidtime | TIMESTAMP(3) *ROWTIME* | true |     |        | `bidtime` - INTERVAL '1' SECOND |
+|       price |         DECIMAL(10, 2) | true |     |        |                                 |
+|        item |                 STRING | true |     |        |                                 |
++-------------+------------------------+------+-----+--------+---------------------------------+
+
+Flink SQL> SELECT * FROM Bid;
++------------------+-------+------+
+|          bidtime | price | item |
++------------------+-------+------+
+| 2020-04-15 08:07 |  4.00 | A    |
+| 2020-04-15 08:06 |  2.00 | A    |
+| 2020-04-15 08:09 |  5.00 | B    |
+| 2020-04-15 08:08 |  3.00 | A    |
+| 2020-04-15 08:17 |  1.00 | B    |
++------------------+-------+------+
+
+-- session window with partition keys
+> SELECT * FROM TABLE(
+    SESSION(TABLE Bid PARTITION BY item, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES));
+-- or with the named params
+-- note: the DATA param must be the first
+> SELECT * FROM TABLE(
+    SESSION(
+      DATA => TABLE Bid PARTITION BY item,
+      TIMECOL => DESCRIPTOR(bidtime),
+      GAP => INTERVAL '5' MINUTES);
++------------------+-------+------+------------------+------------------+-------------------------+
+|          bidtime | price | item |     window_start |       window_end |             window_time |
++------------------+-------+------+------------------+------------------+-------------------------+
+| 2020-04-15 08:07 |  4.00 | A    | 2020-04-15 08:06 | 2020-04-15 08:13 | 2020-04-15 08:12:59.999 |
+| 2020-04-15 08:06 |  2.00 | A    | 2020-04-15 08:06 | 2020-04-15 08:13 | 2020-04-15 08:12:59.999 |
+| 2020-04-15 08:08 |  3.00 | A    | 2020-04-15 08:06 | 2020-04-15 08:13 | 2020-04-15 08:12:59.999 |
+| 2020-04-15 08:09 |  5.00 | B    | 2020-04-15 08:09 | 2020-04-15 08:14 | 2020-04-15 08:13:59.999 |
+| 2020-04-15 08:17 |  1.00 | B    | 2020-04-15 08:17 | 2020-04-15 08:22 | 2020-04-15 08:21:59.999 |
++------------------+-------+------+------------------+------------------+-------------------------+
+
+-- apply aggregation on the session windowed table with partition keys
+> SELECT window_start, window_end, item, SUM(price) AS total_price
+  FROM TABLE(
+    SESSION(TABLE Bid PARTITION BY item, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES))
+  GROUP BY item, window_start, window_end;
++------------------+------------------+------+-------------+
+|     window_start |       window_end | item | total_price |
++------------------+------------------+------+-------------+
+| 2020-04-15 08:06 | 2020-04-15 08:13 | A    |        9.00 |
+| 2020-04-15 08:09 | 2020-04-15 08:14 | B    |        5.00 |
+| 2020-04-15 08:17 | 2020-04-15 08:22 | B    |        1.00 |
++------------------+------------------+------+-------------+
+
+-- session window without partition keys
+> SELECT * FROM TABLE(
+    SESSION(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES));
+-- or with the named params
+-- note: the DATA param must be the first
+> SELECT * FROM TABLE(
+    SESSION(
+      DATA => TABLE Bid,
+      TIMECOL => DESCRIPTOR(bidtime),
+      GAP => INTERVAL '5' MINUTES);
++------------------+-------+------+------------------+------------------+-------------------------+
+|          bidtime | price | item |     window_start |       window_end |             window_time |
++------------------+-------+------+------------------+------------------+-------------------------+
+| 2020-04-15 08:07 |  4.00 | A    | 2020-04-15 08:06 | 2020-04-15 08:14 | 2020-04-15 08:13:59.999 |
+| 2020-04-15 08:06 |  2.00 | A    | 2020-04-15 08:06 | 2020-04-15 08:14 | 2020-04-15 08:13:59.999 |
+| 2020-04-15 08:08 |  3.00 | A    | 2020-04-15 08:06 | 2020-04-15 08:14 | 2020-04-15 08:13:59.999 |
+| 2020-04-15 08:09 |  5.00 | B    | 2020-04-15 08:06 | 2020-04-15 08:14 | 2020-04-15 08:13:59.999 |
+| 2020-04-15 08:17 |  1.00 | B    | 2020-04-15 08:17 | 2020-04-15 08:22 | 2020-04-15 08:21:59.999 |
++------------------+-------+------+------------------+------------------+-------------------------+
+
+-- apply aggregation on the session windowed table without partition keys
+> SELECT window_start, window_end, SUM(price) AS total_price
+  FROM TABLE(
+      SESSION(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES))
+  GROUP BY window_start, window_end;
++------------------+------------------+-------------+
+|     window_start |       window_end | total_price |
++------------------+------------------+-------------+
+| 2020-04-15 08:06 | 2020-04-15 08:14 |       14.00 |
+| 2020-04-15 08:17 | 2020-04-15 08:22 |        1.00 |
 +------------------+------------------+-------------+
 ```
 

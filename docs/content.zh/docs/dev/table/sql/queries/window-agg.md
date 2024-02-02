@@ -40,11 +40,15 @@ GROUP BY window_start, window_end, ...
 
 ### 窗口表值函数
 
-Flink 支持在 `TUMBLE`， `HOP` 和 `CUMULATE` 上进行窗口聚合。
+Flink 支持在 `TUMBLE`，`HOP`，`CUMULATE` 和 `SESSION` 上进行窗口聚合。
 在流模式下，窗口表值函数的时间属性字段必须是 [事件时间或处理时间]({{< ref "docs/dev/table/concepts/time_attributes" >}})。关于窗口函数更多信息，参见 [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})。
 在批模式下，窗口表值函数的时间属性字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 类型的。
 
-这里有关于 `TUMBLE`，`HOP` 和 `CUMULATE` 窗口聚合的几个例子：
+{{< hint info >}}
+注意：`SESSION` 窗口聚合目前不支持批模式。
+{{< /hint >}}
+
+这里有关于 `TUMBLE`，`HOP`，`CUMULATE` 和 `SESSION` 窗口聚合的几个例子：
 
 ```sql
 -- tables must have time attribute, e.g. `bidtime` in this table
@@ -112,6 +116,32 @@ Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
 | 2020-04-15 08:10 | 2020-04-15 08:16 |        4.00 |
 | 2020-04-15 08:10 | 2020-04-15 08:18 |       10.00 |
 | 2020-04-15 08:10 | 2020-04-15 08:20 |       10.00 |
++------------------+------------------+-------------+
+
+-- session window aggregation with partition keys
+Flink SQL> SELECT window_start, window_end, supplier_id, SUM(price) AS total_price
+           FROM TABLE(
+               SESSION(TABLE Bid PARTITION BY supplier_id, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES))
+           GROUP BY window_start, window_end, supplier_id;
++------------------+------------------+-------------+-------------+
+|     window_start |       window_end | supplier_id | total_price |
++------------------+------------------+-------------+-------------+
+| 2020-04-15 08:05 | 2020-04-15 08:09 | supplier1   |        6.00 |
+| 2020-04-15 08:09 | 2020-04-15 08:13 | supplier2   |        8.00 |
+| 2020-04-15 08:13 | 2020-04-15 08:15 | supplier1   |        1.00 |
+| 2020-04-15 08:17 | 2020-04-15 08:19 | supplier2   |        6.00 |
++------------------+------------------+-------------+-------------+
+
+-- session window aggregation without partition keys
+Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
+           FROM TABLE(
+               SESSION(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES))
+           GROUP BY window_start, window_end;
++------------------+------------------+-------------+
+|     window_start |       window_end | total_price |
++------------------+------------------+-------------+
+| 2020-04-15 08:05 | 2020-04-15 08:15 |       15.00 |
+| 2020-04-15 08:17 | 2020-04-15 08:19 |        6.00 |
 +------------------+------------------+-------------+
 ```
 

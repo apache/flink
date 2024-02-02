@@ -32,7 +32,7 @@ SQL 是数据分析中使用最广泛的语言。Flink Table API 和 SQL 使用�
 在这一页，我们将介绍一些实用的优化选项以及流式聚合的内部原理，它们在某些情况下能带来很大的提升。
 
 {{< hint info >}}
-目前 [分组聚合]({{< ref "docs/dev/table/sql/queries/group-agg" >}}) 和 [窗口表值函数聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}}) 都支持本页提到的流式聚合优化。
+目前 [分组聚合] ({{< ref "docs/dev/table/sql/queries/group-agg" >}}) 和 [窗口表值函数聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}}) （会话窗口表值函数聚合除外）都支持本页提到的流式聚合优化。
 {{< /hint >}}
 
 

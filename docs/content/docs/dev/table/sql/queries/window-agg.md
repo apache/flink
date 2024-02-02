@@ -40,11 +40,15 @@ Unlike other aggregations on continuous tables, window aggregation do not emit i
 
 ### Windowing TVFs
 
-Flink supports `TUMBLE`, `HOP` and `CUMULATE` types of window aggregations.
+Flink supports `TUMBLE`, `HOP`, `CUMULATE` and `SESSION` types of window aggregations.
 In streaming mode, the time attribute field of a window table-valued function must be on either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). See [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) for more windowing functions information.
 In batch mode, the time attribute field of a window table-valued function must be an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ`. 
 
-Here are some examples for `TUMBLE`, `HOP` and `CUMULATE` window aggregations.
+{{< hint info >}}
+Note: `SESSION` Window Aggregation is not supported in batch mode now.
+{{< /hint >}}
+
+Here are some examples for `TUMBLE`, `HOP`, `CUMULATE` and `SESSION` window aggregations.
 
 ```sql
 -- tables must have time attribute, e.g. `bidtime` in this table
@@ -112,6 +116,32 @@ Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
 | 2020-04-15 08:10 | 2020-04-15 08:16 |        4.00 |
 | 2020-04-15 08:10 | 2020-04-15 08:18 |       10.00 |
 | 2020-04-15 08:10 | 2020-04-15 08:20 |       10.00 |
++------------------+------------------+-------------+
+
+-- session window aggregation with partition keys
+Flink SQL> SELECT window_start, window_end, supplier_id, SUM(price) AS total_price
+           FROM TABLE(
+               SESSION(TABLE Bid PARTITION BY supplier_id, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES))
+           GROUP BY window_start, window_end, supplier_id;
++------------------+------------------+-------------+-------------+
+|     window_start |       window_end | supplier_id | total_price |
++------------------+------------------+-------------+-------------+
+| 2020-04-15 08:05 | 2020-04-15 08:09 | supplier1   |        6.00 |
+| 2020-04-15 08:09 | 2020-04-15 08:13 | supplier2   |        8.00 |
+| 2020-04-15 08:13 | 2020-04-15 08:15 | supplier1   |        1.00 |
+| 2020-04-15 08:17 | 2020-04-15 08:19 | supplier2   |        6.00 |
++------------------+------------------+-------------+-------------+
+
+-- session window aggregation without partition keys
+Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
+           FROM TABLE(
+               SESSION(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES))
+           GROUP BY window_start, window_end;
++------------------+------------------+-------------+
+|     window_start |       window_end | total_price |
++------------------+------------------+-------------+
+| 2020-04-15 08:05 | 2020-04-15 08:15 |       15.00 |
+| 2020-04-15 08:17 | 2020-04-15 08:19 |        6.00 |
 +------------------+------------------+-------------+
 ```
 

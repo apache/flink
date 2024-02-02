@@ -31,7 +31,7 @@ SQL is the most widely used language for data analytics. Flink's Table API and S
 In this page, we will introduce some useful optimization options and the internals of streaming aggregation which will bring great improvement in some cases.
 
 {{< hint info >}}
-The streaming aggregation optimizations mentioned in this page are all supported for [Group Aggregations]({{< ref "docs/dev/table/sql/queries/group-agg" >}}) and [Window TVF Aggregations]({{< ref "docs/dev/table/sql/queries/window-agg" >}}) now.
+The streaming aggregation optimizations mentioned in this page are all supported for [Group Aggregations]({{< ref "docs/dev/table/sql/queries/group-agg" >}}) and [Window TVF Aggregations]({{< ref "docs/dev/table/sql/queries/window-agg" >}}) (except Session Window TVF Aggregation) now.
 {{< /hint >}}
 
 

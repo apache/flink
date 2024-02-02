@@ -31,6 +31,10 @@ For streaming queries, unlike other joins on continuous tables, window join does
 
 Usually, Window Join is used with [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}). Besides, Window Join could follow after other operations based on [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}), such as [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), [Window TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}}) and [Window Join]({{< ref "docs/dev/table/sql/queries/window-join">}}).
 
+{{< hint info >}}
+Note: `SESSION` Window Join is not supported in batch mode now.
+{{< /hint >}}
+
 Currently, Window Join requires the join on condition contains window starts equality of input tables and window ends equality of input tables.
 
 Window Join supports INNER/LEFT/RIGHT/FULL OUTER/ANTI/SEMI JOIN.
