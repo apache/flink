@@ -187,4 +187,16 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
     public void unregisterJob(JobID jobId) {
         jobShuffleContexts.remove(jobId);
     }
+
+    @Override
+    public boolean supportsBatchSnapshot() {
+        return true;
+    }
+
+    @Override
+    public void snapshotState(
+            CompletableFuture<ShuffleMasterSnapshot> snapshotFuture,
+            ShuffleMasterSnapshotContext context) {
+        snapshotFuture.complete(EmptyShuffleMasterSnapshot.getInstance());
+    }
 }
