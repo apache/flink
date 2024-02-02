@@ -19,10 +19,10 @@
 package org.apache.flink.table.planner.plan.optimize;
 
 import org.apache.flink.table.planner.hint.FlinkHints;
+import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
 
+import org.apache.calcite.rel.RelHomogeneousShuttle;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelShuttleImpl;
-import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.hint.Hintable;
 import org.apache.calcite.rel.hint.RelHint;
 
@@ -31,22 +31,22 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /** A shuttle to remove query block alias hint. */
-public class ClearQueryBlockAliasResolver extends RelShuttleImpl {
+public class ClearQueryBlockAliasResolver extends RelHomogeneousShuttle {
 
     public List<RelNode> resolve(List<RelNode> roots) {
         return roots.stream().map(node -> node.accept(this)).collect(Collectors.toList());
     }
 
     @Override
-    protected RelNode visitChild(RelNode parent, int i, RelNode child) {
-        RelNode newParent = clearQueryBlockAlias(parent);
-        return super.visitChild(newParent, i, child);
-    }
-
-    @Override
-    public RelNode visit(TableScan scan) {
-        RelNode newScan = clearQueryBlockAlias(scan);
-        return super.visit(newScan);
+    public RelNode visit(RelNode other) {
+        RelNode curNode;
+        if (FlinkRelOptUtil.containsSubQuery(other)) {
+            curNode = FlinkHints.resolveSubQuery(other, relNode -> relNode.accept(this));
+        } else {
+            curNode = other;
+        }
+        RelNode result = clearQueryBlockAlias(curNode);
+        return super.visit(result);
     }
 
     private RelNode clearQueryBlockAlias(RelNode relNode) {
