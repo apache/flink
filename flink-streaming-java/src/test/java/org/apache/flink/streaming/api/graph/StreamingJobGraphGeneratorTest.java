@@ -103,6 +103,8 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.CoordinatedOperatorFactory;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.OperatorAttributes;
+import org.apache.flink.streaming.api.operators.OperatorAttributesBuilder;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamMap;
@@ -2303,6 +2305,36 @@ class StreamingJobGraphGeneratorTest {
                 new TestingOutputFormatSupportConcurrentExecutionAttempts<>(), true);
     }
 
+    @Test
+    void testOutputOnlyAfterEndOfStream() {
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
+
+        final DataStream<Integer> source = env.fromData(1, 2, 3).name("source");
+        source.transform(
+                        "transform",
+                        Types.INT,
+                        new StreamOperatorWithConfigurableOperatorAttributes<>(
+                                x -> x,
+                                new OperatorAttributesBuilder()
+                                        .setOutputOnlyAfterEndOfStream(true)
+                                        .build()))
+                .map(x -> x)
+                .sinkTo(new DiscardingSink<>())
+                .name("sink");
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+        Map<String, StreamNode> nodeMap = new HashMap<>();
+        for (StreamNode node : streamGraph.getStreamNodes()) {
+            nodeMap.put(node.getOperatorName(), node);
+        }
+        assertThat(nodeMap).hasSize(4);
+        assertThat(nodeMap.get("Source: source").isOutputOnlyAfterEndOfStream()).isFalse();
+        assertThat(nodeMap.get("transform").isOutputOnlyAfterEndOfStream()).isTrue();
+        assertThat(nodeMap.get("Map").isOutputOnlyAfterEndOfStream()).isFalse();
+        assertThat(nodeMap.get("sink: Writer").isOutputOnlyAfterEndOfStream()).isFalse();
+    }
+
     private static void testWhetherOutputFormatSupportsConcurrentExecutionAttempts(
             OutputFormat<Integer> outputFormat, boolean isSupported) {
         final StreamExecutionEnvironment env =
@@ -2944,5 +2976,21 @@ class StreamingJobGraphGeneratorTest {
 
         @Override
         public void cancel() {}
+    }
+
+    private static class StreamOperatorWithConfigurableOperatorAttributes<IN, OUT>
+            extends StreamMap<IN, OUT> {
+        private final OperatorAttributes attributes;
+
+        public StreamOperatorWithConfigurableOperatorAttributes(
+                MapFunction<IN, OUT> mapper, OperatorAttributes attributes) {
+            super(mapper);
+            this.attributes = attributes;
+        }
+
+        @Override
+        public OperatorAttributes getOperatorAttributes() {
+            return attributes;
+        }
     }
 }

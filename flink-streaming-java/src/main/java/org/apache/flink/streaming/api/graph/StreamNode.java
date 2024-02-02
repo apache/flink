@@ -443,4 +443,11 @@ public class StreamNode {
             boolean supportsConcurrentExecutionAttempts) {
         this.supportsConcurrentExecutionAttempts = supportsConcurrentExecutionAttempts;
     }
+
+    public boolean isOutputOnlyAfterEndOfStream() {
+        if (operatorFactory == null) {
+            return false;
+        }
+        return operatorFactory.getOperatorAttributes().isOutputOnlyAfterEndOfStream();
+    }
 }
