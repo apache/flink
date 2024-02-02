@@ -337,7 +337,7 @@ public class AutoRescalingITCase extends TestLogger {
 
             restClusterClient.updateJobResourceRequirements(jobID, builder.build()).join();
 
-            waitForRunningTasks(restClusterClient, jobID, parallelism2);
+            waitForRunningTasks(restClusterClient, jobID, 2 * parallelism2);
             waitForAvailableSlots(restClusterClient, totalSlots - parallelism2);
 
             StateSourceBase.canFinishLatch.countDown();
@@ -427,7 +427,8 @@ public class AutoRescalingITCase extends TestLogger {
 
             restClusterClient.updateJobResourceRequirements(jobID, builder.build()).join();
 
-            waitForRunningTasks(restClusterClient, jobID, parallelism2);
+            // Source is parallelism, the flatMapper & Sink is parallelism2
+            waitForRunningTasks(restClusterClient, jobID, parallelism + parallelism2);
             waitForAvailableSlots(restClusterClient, totalSlots - parallelism2);
 
             SubtaskIndexSource.SOURCE_LATCH.trigger();
