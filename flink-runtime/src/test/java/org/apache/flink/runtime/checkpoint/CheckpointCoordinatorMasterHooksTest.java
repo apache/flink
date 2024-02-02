@@ -500,7 +500,7 @@ class CheckpointCoordinatorMasterHooksTest {
                         new ExecutionGraphCheckpointPlanCalculatorContext(graph),
                         graph.getVerticesTopologically(),
                         false),
-                new CheckpointStatsTracker(1, new DummyMetricGroup()));
+                new CheckpointStatsTracker(1, new DummyMetricGroup(), new JobID()));
     }
 
     private static <T> T mockGeneric(Class<?> clazz) {
