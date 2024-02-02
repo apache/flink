@@ -1778,9 +1778,9 @@ def emitUpdateWithRetract(accumulator: ACC, out: RetractableCollector[T]): Unit
 The following example shows how to use the `emitUpdateWithRetract(...)` method to emit only incremental
 updates. In order to do so, the accumulator keeps both the old and new top 2 values.
 
-If the N of Top N is big, it might be inefficient to keep both the old and new values. One way to
-solve this case is to store only the input record in the accumulator in `accumulate` method and then perform
-a calculation in `emitUpdateWithRetract`.
+{{< hint info >}}
+Note: Do not update accumulator within `emitUpdateWithRetract` because after `function#emitUpdateWithRetract` is invoked, `GroupTableAggFunction` will not re-invoke `function#getAccumulators` to update the latest accumulator to state.
+{{< /hint >}}
 
 {{< tabs "043e94c6-05b5-4800-9e5f-7d11235f3a11" >}}
 {{< tab "Java" >}}
@@ -1809,6 +1809,8 @@ public static class Top2WithRetract
   }
 
   public void accumulate(Top2WithRetractAccumulator acc, Integer v) {
+    acc.oldFirst = acc.first;
+    acc.oldSecond = acc.second;
     if (v > acc.first) {
       acc.second = acc.first;
       acc.first = v;
@@ -1826,7 +1828,6 @@ public static class Top2WithRetract
           out.retract(Tuple2.of(acc.oldFirst, 1));
       }
       out.collect(Tuple2.of(acc.first, 1));
-      acc.oldFirst = acc.first;
     }
     if (!acc.second.equals(acc.oldSecond)) {
       // if there is an update, retract the old value then emit a new value
@@ -1834,7 +1835,6 @@ public static class Top2WithRetract
           out.retract(Tuple2.of(acc.oldSecond, 2));
       }
       out.collect(Tuple2.of(acc.second, 2));
-      acc.oldSecond = acc.second;
     }
   }
 }
@@ -1866,6 +1866,8 @@ class Top2WithRetract
   }
 
   def accumulate(acc: Top2WithRetractAccumulator, value: Integer): Unit = {
+    acc.oldFirst = acc.first
+    acc.oldSecond = acc.second
     if (value > acc.first) {
       acc.second = acc.first
       acc.first = value
@@ -1884,7 +1886,6 @@ class Top2WithRetract
           out.retract(Tuple2.of(acc.oldFirst, 1))
       }
       out.collect(Tuple2.of(acc.first, 1))
-      acc.oldFirst = acc.first
     }
     if (!acc.second.equals(acc.oldSecond)) {
       // if there is an update, retract the old value then emit a new value
@@ -1892,7 +1893,6 @@ class Top2WithRetract
           out.retract(Tuple2.of(acc.oldSecond, 2))
       }
       out.collect(Tuple2.of(acc.second, 2))
-      acc.oldSecond = acc.second
     }
   }
 }
