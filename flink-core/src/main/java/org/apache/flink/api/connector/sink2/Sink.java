@@ -218,5 +218,11 @@ public interface Sink<InputT> extends Serializable {
         public <IN> TypeSerializer<IN> createInputSerializer() {
             return wrapped.createInputSerializer();
         }
+
+        @Experimental
+        @Override
+        public <MetaT> Optional<Consumer<MetaT>> metadataConsumer() {
+            return wrapped.metadataConsumer();
+        }
     }
 }
