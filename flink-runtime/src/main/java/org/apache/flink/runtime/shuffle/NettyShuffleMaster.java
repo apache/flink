@@ -165,4 +165,16 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
                         || conf.get(BATCH_SHUFFLE_MODE) == ALL_EXCHANGES_HYBRID_SELECTIVE)
                 && conf.get(NETWORK_HYBRID_SHUFFLE_ENABLE_NEW_MODE);
     }
+
+    @Override
+    public boolean supportsBatchSnapshot() {
+        return true;
+    }
+
+    @Override
+    public void snapshotState(
+            CompletableFuture<ShuffleMasterSnapshot> snapshotFuture,
+            ShuffleMasterSnapshotContext context) {
+        snapshotFuture.complete(EmptyShuffleMasterSnapshot.getInstance());
+    }
 }
