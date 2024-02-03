@@ -76,11 +76,11 @@ class SingleInputSemanticPropertiesTest {
         sp.addForwardedField(3, 2);
 
         assertThat(sp.getForwardingSourceField(0, 1)).isZero();
-        assertThat(sp.getForwardingSourceField(0, 4)).isEqualTo(1);
+        assertThat(sp.getForwardingSourceField(0, 4)).isOne();
         assertThat(sp.getForwardingSourceField(0, 3)).isEqualTo(2);
         assertThat(sp.getForwardingSourceField(0, 2)).isEqualTo(3);
-        assertThat(sp.getForwardingSourceField(0, 0) < 0).isTrue();
-        assertThat(sp.getForwardingSourceField(0, 5) < 0).isTrue();
+        assertThat(sp.getForwardingSourceField(0, 0)).isNegative();
+        assertThat(sp.getForwardingSourceField(0, 5)).isNegative();
 
         sp = new SingleInputSemanticProperties();
         sp.addForwardedField(0, 0);
@@ -91,10 +91,10 @@ class SingleInputSemanticPropertiesTest {
 
         assertThat(sp.getForwardingSourceField(0, 0)).isZero();
         assertThat(sp.getForwardingSourceField(0, 4)).isZero();
-        assertThat(sp.getForwardingSourceField(0, 1)).isEqualTo(1);
-        assertThat(sp.getForwardingSourceField(0, 2)).isEqualTo(1);
-        assertThat(sp.getForwardingSourceField(0, 3)).isEqualTo(1);
-        assertThat(sp.getForwardingSourceField(0, 5) < 0).isTrue();
+        assertThat(sp.getForwardingSourceField(0, 1)).isOne();
+        assertThat(sp.getForwardingSourceField(0, 2)).isOne();
+        assertThat(sp.getForwardingSourceField(0, 3)).isOne();
+        assertThat(sp.getForwardingSourceField(0, 5)).isNegative();
     }
 
     @Test

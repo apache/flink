@@ -116,13 +116,13 @@ public class ExpressionKeysTest {
             // by changing the ints.
             ek = new ExpressionKeys<>(inInts, typeInfo);
             assertThat(ek.computeLogicalKeyPositions()).isEqualTo(ints);
-            assertThat(ek.computeLogicalKeyPositions()).hasSize(ints.length);
+            assertThat(ek.computeLogicalKeyPositions()).hasSameSizeAs(ints);
 
             ArrayUtils.reverse(ints);
             inInts = Arrays.copyOf(ints, ints.length);
             ek = new ExpressionKeys<>(inInts, typeInfo);
             assertThat(ek.computeLogicalKeyPositions()).isEqualTo(ints);
-            assertThat(ek.computeLogicalKeyPositions()).hasSize(ints.length);
+            assertThat(ek.computeLogicalKeyPositions()).hasSameSizeAs(ints);
         }
     }
 

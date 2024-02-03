@@ -78,7 +78,7 @@ class FieldListTest {
             return;
         }
 
-        assertThat(set).hasSize(elements.length);
+        assertThat(set).hasSameSizeAs(elements);
 
         // test contains
         for (int i : elements) {
@@ -98,7 +98,7 @@ class FieldListTest {
             for (int i = 0; i < fromIter.length; i++) {
                 fromIter[i] = iter.next();
             }
-            assertThat(iter.hasNext()).isFalse();
+            assertThat(iter).isExhausted();
             assertThat(elements).isEqualTo(fromIter);
         }
     }

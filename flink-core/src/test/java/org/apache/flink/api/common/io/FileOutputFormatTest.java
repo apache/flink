@@ -91,7 +91,7 @@ class FileOutputFormatTest {
                             dfof.open(0, 1);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isFile();
         tmpOutPath.delete();
 
         // check fail for path with tailing '/'
@@ -108,7 +108,7 @@ class FileOutputFormatTest {
                             dfof.open(0, 1);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isFile();
         tmpOutPath.delete();
 
         // ----------- test again with always directory mode
@@ -147,8 +147,8 @@ class FileOutputFormatTest {
                             dfof.open(0, 1);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
-        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isDirectory();
+        assertThat(tmpOutFile).exists().isFile();
         (new File(tmpOutPath.getAbsoluteFile() + "/1")).delete();
 
         // check custom file name inside directory if directory exists
@@ -167,8 +167,8 @@ class FileOutputFormatTest {
                             dfof.close();
                         });
         File customOutFile = new File(tmpOutPath.getAbsolutePath() + "/fancy-1-0.avro");
-        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
-        assertThat(customOutFile.exists() && customOutFile.isFile()).isTrue();
+        assertThat(customOutFile).exists().isDirectory();
+        assertThat(customOutFile).exists().isFile();
         customOutFile.delete();
 
         // check fail if file in directory exists
@@ -206,8 +206,8 @@ class FileOutputFormatTest {
                             dfof.open(0, 1);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
-        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isDirectory();
+        assertThat(tmpOutFile).exists().isFile();
         (new File(tmpOutPath.getAbsoluteFile() + "/1")).delete();
         tmpOutPath.delete();
 
@@ -225,8 +225,8 @@ class FileOutputFormatTest {
                             dfof.open(0, 1);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
-        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isDirectory();
+        assertThat(tmpOutFile).exists().isFile();
         (new File(tmpOutPath.getAbsoluteFile() + "/1")).delete();
         tmpOutPath.delete();
     }
@@ -275,8 +275,8 @@ class FileOutputFormatTest {
                             dfof.open(0, 2);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
-        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isDirectory();
+        assertThat(tmpOutFile).exists().isFile();
         tmpOutFile.delete();
         tmpOutPath.delete();
 
@@ -314,8 +314,8 @@ class FileOutputFormatTest {
                             dfof.open(0, 2);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
-        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isDirectory();
+        assertThat(tmpOutFile).exists().isFile();
         tmpOutFile.delete();
         tmpOutPath.delete();
 
@@ -333,8 +333,8 @@ class FileOutputFormatTest {
                             dfof.open(0, 2);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
-        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isDirectory();
+        assertThat(tmpOutFile).exists().isFile();
         tmpOutFile.delete();
         tmpOutPath.delete();
     }
@@ -364,7 +364,7 @@ class FileOutputFormatTest {
                             dfof.open(0, 1);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isFile();
 
         // check success if directory exists
         tmpOutPath.delete();
@@ -383,7 +383,7 @@ class FileOutputFormatTest {
                             dfof.open(0, 1);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isFile();
         tmpOutPath.delete();
 
         // check success
@@ -400,7 +400,7 @@ class FileOutputFormatTest {
                             dfof.open(0, 1);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isFile();
         tmpOutPath.delete();
 
         // check fail for path with tailing '/'
@@ -417,7 +417,7 @@ class FileOutputFormatTest {
                             dfof.open(0, 1);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isFile();
         tmpOutPath.delete();
 
         // ----------- test again with always directory mode
@@ -438,8 +438,8 @@ class FileOutputFormatTest {
                             dfof.open(0, 1);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
-        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isDirectory();
+        assertThat(tmpOutFile).exists().isFile();
 
         tmpOutFile.delete();
         tmpOutPath.delete();
@@ -460,8 +460,8 @@ class FileOutputFormatTest {
                             dfof.open(0, 1);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
-        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isDirectory();
+        assertThat(tmpOutFile).exists().isFile();
         tmpOutPath.delete();
         tmpOutFile.delete();
 
@@ -482,8 +482,8 @@ class FileOutputFormatTest {
                             dfof.open(0, 1);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
-        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isDirectory();
+        assertThat(tmpOutFile).exists().isFile();
         tmpOutPath.delete();
         tmpOutFile.delete();
 
@@ -502,8 +502,8 @@ class FileOutputFormatTest {
                             dfof.close();
                         });
 
-        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
-        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isDirectory();
+        assertThat(tmpOutFile).exists().isFile();
         tmpOutFile.delete();
         tmpOutPath.delete();
 
@@ -521,8 +521,8 @@ class FileOutputFormatTest {
                             dfof.open(0, 1);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
-        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isDirectory();
+        assertThat(tmpOutFile).exists().isFile();
         tmpOutFile.delete();
         tmpOutPath.delete();
     }
@@ -552,8 +552,8 @@ class FileOutputFormatTest {
                             dfof.open(0, 2);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
-        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isDirectory();
+        assertThat(tmpOutFile).exists().isFile();
         tmpOutFile.delete();
         tmpOutPath.delete();
 
@@ -573,8 +573,8 @@ class FileOutputFormatTest {
                             dfof.open(0, 2);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
-        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isDirectory();
+        assertThat(tmpOutFile).exists().isFile();
         tmpOutFile.delete();
         tmpOutPath.delete();
 
@@ -595,8 +595,8 @@ class FileOutputFormatTest {
                             dfof.open(0, 2);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
-        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isDirectory();
+        assertThat(tmpOutFile).exists().isFile();
         (new File(tmpOutPath.getAbsoluteFile() + "/1")).delete();
         tmpOutPath.delete();
 
@@ -614,8 +614,8 @@ class FileOutputFormatTest {
                             dfof.open(0, 2);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
-        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isDirectory();
+        assertThat(tmpOutFile).exists().isFile();
         tmpOutFile.delete();
         tmpOutPath.delete();
 
@@ -633,8 +633,8 @@ class FileOutputFormatTest {
                             dfof.open(0, 2);
                             dfof.close();
                         });
-        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
-        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
+        assertThat(tmpOutPath).exists().isDirectory();
+        assertThat(tmpOutFile).exists().isFile();
         tmpOutFile.delete();
         tmpOutPath.delete();
     }

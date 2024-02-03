@@ -266,9 +266,9 @@ class FileInputFormatTest {
             }
         }
 
-        assertThat(numSplitsFile1).isEqualTo(1);
-        assertThat(numSplitsFile2).isEqualTo(1);
-        assertThat(numSplitsFile3).isEqualTo(1);
+        assertThat(numSplitsFile1).isOne();
+        assertThat(numSplitsFile2).isOne();
+        assertThat(numSplitsFile3).isOne();
     }
 
     // ------------------------------------------------------------------------
@@ -599,14 +599,14 @@ class FileInputFormatTest {
         FileInputSplit[] splits = format.createInputSplits(2);
         final Set<String> supportedCompressionFormats =
                 FileInputFormat.getSupportedCompressionFormats();
-        assertThat(splits).hasSize(supportedCompressionFormats.size());
+        assertThat(splits).hasSameSizeAs(supportedCompressionFormats);
         for (FileInputSplit split : splits) {
             assertThat(split.getLength())
                     .isEqualTo(
                             FileInputFormat.READ_WHOLE_SPLIT_FLAG); // unsplittable compressed files
             // have this size as a
             // flag for "read whole file"
-            assertThat(split.getStart()).isEqualTo(0L); // always read from the beginning.
+            assertThat(split.getStart()).isZero(); // always read from the beginning.
         }
 
         // test if this also works for "mixed" directories
@@ -628,7 +628,7 @@ class FileInputFormatTest {
                                 FileInputFormat.READ_WHOLE_SPLIT_FLAG); // unsplittable compressed
                 // files have this size as a
                 // flag for "read whole file"
-                assertThat(split.getStart()).isEqualTo(0L); // always read from the beginning.
+                assertThat(split.getStart()).isZero(); // always read from the beginning.
             } else {
                 assertThat(split.getStart()).isEqualTo(0L);
                 assertThat(split.getLength() > 0).as("split size not correct").isTrue();
@@ -659,9 +659,9 @@ class FileInputFormatTest {
         final Set<String> supportedCompressionFormats =
                 FileInputFormat.getSupportedCompressionFormats();
         // one file per compression format, one split per file
-        assertThat(splits).hasSize(supportedCompressionFormats.size());
+        assertThat(splits).hasSameSizeAs(supportedCompressionFormats);
         for (FileInputSplit split : splits) {
-            assertThat(split.getStart()).isEqualTo(0L); // always read from the beginning.
+            assertThat(split.getStart()).isZero(); // always read from the beginning.
             format.open(split);
             assertThat(format.compressedRead).isTrue();
             assertThat(format.getSplitLength())

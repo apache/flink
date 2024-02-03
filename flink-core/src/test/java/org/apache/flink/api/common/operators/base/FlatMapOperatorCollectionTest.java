@@ -87,7 +87,7 @@ public class FlatMapOperatorCollectionTest implements Serializable {
                                         UnregisteredMetricsGroup.createOperatorMetricGroup()),
                                 executionConfig);
 
-        assertThat(result).hasSize(input.size());
+        assertThat(result).hasSameSizeAs(input);
         assertThat(result).isEqualTo(input);
     }
 

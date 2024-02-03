@@ -33,7 +33,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
-import static org.assertj.core.api.Fail.fail;
 
 /** Test for the {@link RuntimeUDFContext}. */
 class RuntimeUDFContextTest {
@@ -173,12 +172,8 @@ class RuntimeUDFContextTest {
         assertThat(sum).isEqualTo(10);
 
         // access it the second time with no initializer -> should fail due to type mismatch
-        try {
-            ctx.getBroadcastVariable("name");
-            fail("should throw an exception");
-        } catch (IllegalStateException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> ctx.getBroadcastVariable("name"))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     // --------------------------------------------------------------------------------------------

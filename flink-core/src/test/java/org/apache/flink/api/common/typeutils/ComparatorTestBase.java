@@ -168,16 +168,16 @@ public abstract class ComparatorTestBase<T> {
                 in2 = out2.getInputView();
 
                 if (greater && ascending) {
-                    assertThat(comparator.compareSerialized(in1, in2)).isLessThan(0);
+                    assertThat(comparator.compareSerialized(in1, in2)).isNegative();
                 }
                 if (greater && !ascending) {
-                    assertThat(comparator.compareSerialized(in1, in2)).isGreaterThan(0);
+                    assertThat(comparator.compareSerialized(in1, in2)).isPositive();
                 }
                 if (!greater && ascending) {
-                    assertThat(comparator.compareSerialized(in2, in1)).isGreaterThan(0);
+                    assertThat(comparator.compareSerialized(in2, in1)).isPositive();
                 }
                 if (!greater && !ascending) {
-                    assertThat(comparator.compareSerialized(in2, in1)).isLessThan(0);
+                    assertThat(comparator.compareSerialized(in2, in1)).isNegative();
                 }
             }
         }
@@ -205,16 +205,16 @@ public abstract class ComparatorTestBase<T> {
                 comparatorHigh.setReference(data[y]);
 
                 if (greater && ascending) {
-                    assertThat(comparatorLow.compareToReference(comparatorHigh)).isGreaterThan(0);
+                    assertThat(comparatorLow.compareToReference(comparatorHigh)).isPositive();
                 }
                 if (greater && !ascending) {
-                    assertThat(comparatorLow.compareToReference(comparatorHigh)).isLessThan(0);
+                    assertThat(comparatorLow.compareToReference(comparatorHigh)).isNegative();
                 }
                 if (!greater && ascending) {
-                    assertThat(comparatorHigh.compareToReference(comparatorLow)).isLessThan(0);
+                    assertThat(comparatorHigh.compareToReference(comparatorLow)).isNegative();
                 }
                 if (!greater && !ascending) {
-                    assertThat(comparatorHigh.compareToReference(comparatorLow)).isGreaterThan(0);
+                    assertThat(comparatorHigh.compareToReference(comparatorLow)).isPositive();
                 }
             }
         }
@@ -332,14 +332,14 @@ public abstract class ComparatorTestBase<T> {
                 if (greater) {
                     cmp = memSegLow.compare(memSegHigh, l * normKeyLen, h * normKeyLen, normKeyLen);
                     if (fullyDetermines) {
-                        assertThat(cmp).isLessThan(0);
+                        assertThat(cmp).isNegative();
                     } else {
                         assertThat(cmp).isLessThanOrEqualTo(0);
                     }
                 } else {
                     cmp = memSegHigh.compare(memSegLow, h * normKeyLen, l * normKeyLen, normKeyLen);
                     if (fullyDetermines) {
-                        assertThat(cmp).isGreaterThan(0);
+                        assertThat(cmp).isPositive();
                     } else {
                         assertThat(cmp).isGreaterThanOrEqualTo(0);
                     }
@@ -447,7 +447,7 @@ public abstract class ComparatorTestBase<T> {
         // Just look if the data is really there after serialization, before testing comparator on
         // it
         TestInputView in = out.getInputView();
-        assertThat(in.available()).as("No data available during deserialization.").isGreaterThan(0);
+        assertThat(in.available()).as("No data available during deserialization.").isPositive();
 
         T deserialized = serializer.deserialize(serializer.createInstance(), in);
         deepEquals("Deserialized value is wrong.", value, deserialized);

@@ -167,7 +167,7 @@ public class InnerJoinOperatorBaseTest implements Serializable {
         assertThat(resultSafe).isEqualTo(expected);
         assertThat(resultRegular).isEqualTo(expected);
 
-        assertThat(opened.get()).isTrue();
-        assertThat(closed.get()).isTrue();
+        assertThat(opened).isTrue();
+        assertThat(closed).isTrue();
     }
 }

@@ -47,13 +47,9 @@ class RichInputFormatTest {
                         new HashMap<>(),
                         UnregisteredMetricsGroup.createOperatorMetricGroup()));
 
-        assertThat(1)
-                .isEqualTo(inputFormat.getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
-        assertThat(3)
-                .isEqualTo(
-                        inputFormat
-                                .getRuntimeContext()
-                                .getTaskInfo()
-                                .getNumberOfParallelSubtasks());
+        assertThat(inputFormat.getRuntimeContext().getTaskInfo().getIndexOfThisSubtask())
+                .isEqualTo(1);
+        assertThat(inputFormat.getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks())
+                .isEqualTo(3);
     }
 }

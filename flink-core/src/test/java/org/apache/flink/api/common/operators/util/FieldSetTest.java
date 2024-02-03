@@ -80,7 +80,7 @@ class FieldSetTest {
             return;
         }
 
-        assertThat(set).hasSize(elements.length);
+        assertThat(set).hasSameSizeAs(elements);
 
         // test contains
         for (int i : elements) {
@@ -103,7 +103,7 @@ class FieldSetTest {
             for (int i = 0; i < fromIter.length; i++) {
                 fromIter[i] = iter.next();
             }
-            assertThat(iter.hasNext()).isFalse();
+            assertThat(iter).isExhausted();
             Arrays.sort(fromIter);
             assertThat(elements).isEqualTo(fromIter);
         }

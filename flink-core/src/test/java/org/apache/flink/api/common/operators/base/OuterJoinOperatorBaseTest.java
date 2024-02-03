@@ -255,8 +255,8 @@ public class OuterJoinOperatorBaseTest implements Serializable {
         assertThat(resultSafe).isEqualTo(expected);
         assertThat(resultRegular).isEqualTo(expected);
 
-        assertThat(joiner.opened.get()).isTrue();
-        assertThat(joiner.closed.get()).isTrue();
+        assertThat(joiner.opened).isTrue();
+        assertThat(joiner.closed).isTrue();
     }
 
     private static class MockRichFlatJoinFunction

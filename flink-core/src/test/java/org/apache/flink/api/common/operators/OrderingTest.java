@@ -30,7 +30,7 @@ public class OrderingTest {
 
         // add a field
         ordering.appendOrdering(3, Integer.class, Order.ASCENDING);
-        assertThat(ordering.getNumberOfFields()).isEqualTo(1);
+        assertThat(ordering.getNumberOfFields()).isOne();
 
         // add a second field
         ordering.appendOrdering(1, Long.class, Order.DESCENDING);

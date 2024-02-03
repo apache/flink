@@ -180,8 +180,8 @@ class ResourceTest extends TestLogger {
 
         assertThat(resource1.compareTo(resource1)).isZero();
         assertThat(resource1.compareTo(resource2)).isZero();
-        assertThat(resource1.compareTo(resource3)).isLessThan(0);
-        assertThat(resource3.compareTo(resource1)).isGreaterThan(0);
+        assertThat(resource1.compareTo(resource3)).isNegative();
+        assertThat(resource3.compareTo(resource1)).isPositive();
     }
 
     @Test

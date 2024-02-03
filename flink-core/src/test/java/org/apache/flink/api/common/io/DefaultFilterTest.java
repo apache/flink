@@ -18,48 +18,50 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import lombok.Getter;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
-import java.util.List;
+import java.util.Collection;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class DefaultFilterTest {
-    public static List<DefaultFilterTestData> data() {
+@ExtendWith(ParameterizedTestExtension.class)
+class DefaultFilterTest {
+    @Parameters
+    private static Collection<Object[]> data() {
         return Arrays.asList(
-                new DefaultFilterTestData("file.txt", false),
-                new DefaultFilterTestData(".file.txt", true),
-                new DefaultFilterTestData("dir/.file.txt", true),
-                new DefaultFilterTestData(".dir/file.txt", false),
-                new DefaultFilterTestData("_file.txt", true),
-                new DefaultFilterTestData("dir/_file.txt", true),
-                new DefaultFilterTestData("_dir/file.txt", false),
-                new DefaultFilterTestData(FilePathFilter.HADOOP_COPYING, true),
-                new DefaultFilterTestData("dir/" + FilePathFilter.HADOOP_COPYING, true),
-                new DefaultFilterTestData(FilePathFilter.HADOOP_COPYING + "/file.txt", false));
+                new Object[][] {
+                    {"file.txt", false},
+                    {".file.txt", true},
+                    {"dir/.file.txt", true},
+                    {".dir/file.txt", false},
+                    {"_file.txt", true},
+                    {"dir/_file.txt", true},
+                    {"_dir/file.txt", false},
+
+                    // Check filtering Hadoop's unfinished files
+                    {FilePathFilter.HADOOP_COPYING, true},
+                    {"dir/" + FilePathFilter.HADOOP_COPYING, true},
+                    {FilePathFilter.HADOOP_COPYING + "/file.txt", false},
+                });
     }
 
-    @Getter
-    private static class DefaultFilterTestData {
-        private final boolean shouldFilter;
-        private final String filePath;
+    private final boolean shouldFilter;
+    private final String filePath;
 
-        public DefaultFilterTestData(String filePath, boolean shouldFilter) {
-            this.filePath = filePath;
-            this.shouldFilter = shouldFilter;
-        }
+    DefaultFilterTest(String filePath, boolean shouldFilter) {
+        this.filePath = filePath;
+        this.shouldFilter = shouldFilter;
     }
 
-    @ParameterizedTest
-    @MethodSource("data")
-    void test(DefaultFilterTestData defaultFilterTestData) {
+    @TestTemplate
+    void test() {
         FilePathFilter defaultFilter = FilePathFilter.createDefaultFilter();
-        Path path = new Path(String.valueOf(defaultFilterTestData.getFilePath()));
-        assertThat(defaultFilter.filterPath(path))
-                .isEqualTo(defaultFilterTestData.isShouldFilter());
+        Path path = new Path(filePath);
+        assertThat(defaultFilter.filterPath(path)).as("File: " + filePath).isEqualTo(shouldFilter);
     }
 }

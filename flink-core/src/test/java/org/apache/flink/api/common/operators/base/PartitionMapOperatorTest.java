@@ -58,7 +58,7 @@ public class PartitionMapOperatorTest implements java.io.Serializable {
                         opened.set(true);
                         RuntimeContext ctx = getRuntimeContext();
                         assertThat(ctx.getTaskInfo().getIndexOfThisSubtask()).isZero();
-                        assertThat(ctx.getTaskInfo().getNumberOfParallelSubtasks()).isEqualTo(1);
+                        assertThat(ctx.getTaskInfo().getNumberOfParallelSubtasks()).isOne();
                         assertThat(ctx.getTaskInfo().getTaskName()).isEqualTo(taskName);
                     }
 
@@ -117,7 +117,7 @@ public class PartitionMapOperatorTest implements java.io.Serializable {
         assertThat(resultMutableSafe).isEqualTo(asList(1, 2, 3, 4, 5, 6));
         assertThat(resultRegular).isEqualTo(asList(1, 2, 3, 4, 5, 6));
 
-        assertThat(opened.get()).isTrue();
-        assertThat(closed.get()).isTrue();
+        assertThat(opened).isTrue();
+        assertThat(closed).isTrue();
     }
 }
