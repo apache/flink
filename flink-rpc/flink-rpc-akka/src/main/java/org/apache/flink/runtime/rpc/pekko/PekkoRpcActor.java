@@ -35,6 +35,7 @@ import org.apache.flink.runtime.rpc.pekko.exceptions.RpcInvalidStateException;
 import org.apache.flink.runtime.rpc.pekko.exceptions.UnknownMessageException;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -52,6 +53,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -102,6 +104,7 @@ class PekkoRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
     private final AtomicBoolean rpcEndpointStopped;
 
     private final boolean forceSerialization;
+    private final Map<String, String> loggingContext;
 
     private volatile RpcEndpointTerminationResult rpcEndpointTerminationResult;
 
@@ -113,7 +116,9 @@ class PekkoRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
             final int version,
             final long maximumFramesize,
             final boolean forceSerialization,
-            final ClassLoader flinkClassLoader) {
+            final ClassLoader flinkClassLoader,
+            final Map<String, String> loggingContext) {
+        this.loggingContext = loggingContext;
 
         checkArgument(maximumFramesize > 0, "Maximum framesize must be positive.");
         this.rpcEndpoint = checkNotNull(rpcEndpoint, "rpc endpoint");
@@ -161,30 +166,32 @@ class PekkoRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
     }
 
     private void handleMessage(final Object message) {
-        if (state.isRunning()) {
-            mainThreadValidator.enterMainThread();
+        try (MdcUtils.MdcCloseable ctx = MdcUtils.withContext(loggingContext)) {
+            if (state.isRunning()) {
+                mainThreadValidator.enterMainThread();
 
-            try {
-                handleRpcMessage(message);
-            } finally {
-                mainThreadValidator.exitMainThread();
+                try {
+                    handleRpcMessage(message);
+                } finally {
+                    mainThreadValidator.exitMainThread();
+                }
+            } else {
+                log.info(
+                        "The rpc endpoint {} has not been started yet. Discarding message {} until processing is started.",
+                        rpcEndpoint.getClass().getName(),
+                        message);
+
+                sendErrorIfSender(
+                        new EndpointNotStartedException(
+                                String.format(
+                                        "Discard message %s, because the rpc endpoint %s has not been started yet.",
+                                        message, getSelf().path())));
             }
-        } else {
-            log.info(
-                    "The rpc endpoint {} has not been started yet. Discarding message {} until processing is started.",
-                    rpcEndpoint.getClass().getName(),
-                    message);
-
-            sendErrorIfSender(
-                    new EndpointNotStartedException(
-                            String.format(
-                                    "Discard message %s, because the rpc endpoint %s has not been started yet.",
-                                    message, getSelf().path())));
         }
     }
 
     private void handleControlMessage(ControlMessages controlMessage) {
-        try {
+        try (MdcUtils.MdcCloseable ctx = MdcUtils.withContext(loggingContext)) {
             switch (controlMessage) {
                 case START:
                     state = state.start(this, flinkClassLoader);
@@ -237,20 +244,22 @@ class PekkoRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
     }
 
     private void handleHandshakeMessage(RemoteHandshakeMessage handshakeMessage) {
-        if (!isCompatibleVersion(handshakeMessage.getVersion())) {
-            sendErrorIfSender(
-                    new HandshakeException(
-                            String.format(
-                                    "Version mismatch between source (%s) and target (%s) rpc component. Please verify that all components have the same version.",
-                                    handshakeMessage.getVersion(), getVersion())));
-        } else if (!isGatewaySupported(handshakeMessage.getRpcGateway())) {
-            sendErrorIfSender(
-                    new HandshakeException(
-                            String.format(
-                                    "The rpc endpoint does not support the gateway %s.",
-                                    handshakeMessage.getRpcGateway().getSimpleName())));
-        } else {
-            getSender().tell(new Status.Success(HandshakeSuccessMessage.INSTANCE), getSelf());
+        try (MdcUtils.MdcCloseable ctx = MdcUtils.withContext(loggingContext)) {
+            if (!isCompatibleVersion(handshakeMessage.getVersion())) {
+                sendErrorIfSender(
+                        new HandshakeException(
+                                String.format(
+                                        "Version mismatch between source (%s) and target (%s) rpc component. Please verify that all components have the same version.",
+                                        handshakeMessage.getVersion(), getVersion())));
+            } else if (!isGatewaySupported(handshakeMessage.getRpcGateway())) {
+                sendErrorIfSender(
+                        new HandshakeException(
+                                String.format(
+                                        "The rpc endpoint does not support the gateway %s.",
+                                        handshakeMessage.getRpcGateway().getSimpleName())));
+            } else {
+                getSender().tell(new Status.Success(HandshakeSuccessMessage.INSTANCE), getSelf());
+            }
         }
     }
 

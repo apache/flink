@@ -21,6 +21,8 @@ package org.apache.flink.runtime.rpc;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -34,13 +36,21 @@ public abstract class FencedRpcEndpoint<F extends Serializable> extends RpcEndpo
 
     private final F fencingToken;
 
-    protected FencedRpcEndpoint(RpcService rpcService, String endpointId, F fencingToken) {
-        super(rpcService, endpointId);
+    protected FencedRpcEndpoint(
+            RpcService rpcService,
+            String endpointId,
+            F fencingToken,
+            Map<String, String> loggingContext) {
+        super(rpcService, endpointId, loggingContext);
 
         Preconditions.checkNotNull(fencingToken, "The fence token should be null");
         Preconditions.checkNotNull(rpcServer, "The rpc server should be null");
 
         this.fencingToken = fencingToken;
+    }
+
+    protected FencedRpcEndpoint(RpcService rpcService, String endpointId, F fencingToken) {
+        this(rpcService, endpointId, fencingToken, Collections.emptyMap());
     }
 
     protected FencedRpcEndpoint(RpcService rpcService, F fencingToken) {

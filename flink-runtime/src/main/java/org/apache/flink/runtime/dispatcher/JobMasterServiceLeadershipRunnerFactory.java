@@ -39,6 +39,7 @@ import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFact
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
@@ -98,7 +99,8 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
 
         final DefaultJobMasterServiceFactory jobMasterServiceFactory =
                 new DefaultJobMasterServiceFactory(
-                        jobManagerServices.getIoExecutor(),
+                        MdcUtils.scopeToJob(
+                                jobGraph.getJobID(), jobManagerServices.getIoExecutor()),
                         rpcService,
                         jobMasterConfiguration,
                         jobGraph,
