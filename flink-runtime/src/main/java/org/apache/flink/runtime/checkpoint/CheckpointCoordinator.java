@@ -47,6 +47,7 @@ import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.clock.Clock;
@@ -795,29 +796,31 @@ public class CheckpointCoordinator {
             triggerTasks(request, timestamp, checkpoint)
                     .exceptionally(
                             failure -> {
-                                LOG.info(
-                                        "Triggering Checkpoint {} for job {} failed due to {}",
-                                        checkpoint.getCheckpointID(),
-                                        job,
-                                        failure);
-
-                                final CheckpointException cause;
-                                if (failure instanceof CheckpointException) {
-                                    cause = (CheckpointException) failure;
-                                } else {
-                                    cause =
-                                            new CheckpointException(
-                                                    CheckpointFailureReason
-                                                            .TRIGGER_CHECKPOINT_FAILURE,
-                                                    failure);
+                                try (MdcUtils.MdcCloseable ignored =
+                                        MdcUtils.withContext(MdcUtils.asContextData(job))) {
+                                    LOG.info(
+                                            "Triggering Checkpoint {} for job {} failed due to {}",
+                                            checkpoint.getCheckpointID(),
+                                            job,
+                                            failure);
+                                    final CheckpointException cause;
+                                    if (failure instanceof CheckpointException) {
+                                        cause = (CheckpointException) failure;
+                                    } else {
+                                        cause =
+                                                new CheckpointException(
+                                                        CheckpointFailureReason
+                                                                .TRIGGER_CHECKPOINT_FAILURE,
+                                                        failure);
+                                    }
+                                    timer.execute(
+                                            () -> {
+                                                synchronized (lock) {
+                                                    abortPendingCheckpoint(checkpoint, cause);
+                                                }
+                                            });
+                                    return null;
                                 }
-                                timer.execute(
-                                        () -> {
-                                            synchronized (lock) {
-                                                abortPendingCheckpoint(checkpoint, cause);
-                                            }
-                                        });
-                                return null;
                             });
 
             // It is possible that the tasks has finished

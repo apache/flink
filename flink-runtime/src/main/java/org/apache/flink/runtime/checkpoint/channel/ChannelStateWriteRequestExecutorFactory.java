@@ -70,7 +70,8 @@ public class ChannelStateWriteRequestExecutorFactory {
                                     checkState(this.executor == executor);
                                     this.executor = null;
                                 },
-                                lock);
+                                lock,
+                                jobID);
                 if (startExecutor) {
                     executor.start();
                 }

@@ -85,6 +85,7 @@ import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.IterableUtils;
+import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TernaryBoolean;
@@ -484,9 +485,12 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         checkState(checkpointCoordinatorTimer == null);
 
         checkpointCoordinatorTimer =
-                Executors.newSingleThreadScheduledExecutor(
-                        new DispatcherThreadFactory(
-                                Thread.currentThread().getThreadGroup(), "Checkpoint Timer"));
+                MdcUtils.scopeToJob(
+                        getJobID(),
+                        Executors.newSingleThreadScheduledExecutor(
+                                new DispatcherThreadFactory(
+                                        Thread.currentThread().getThreadGroup(),
+                                        "Checkpoint Timer")));
 
         // create the coordinator that triggers and commits checkpoints and holds the state
         checkpointCoordinator =

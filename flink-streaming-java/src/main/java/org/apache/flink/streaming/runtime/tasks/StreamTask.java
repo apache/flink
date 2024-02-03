@@ -110,6 +110,7 @@ import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.clock.SystemClock;
@@ -416,8 +417,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             resourceCloser.registerCloseable(mailboxProcessor);
 
             this.channelIOExecutor =
-                    Executors.newSingleThreadExecutor(
-                            new ExecutorThreadFactory("channel-state-unspilling"));
+                    MdcUtils.scopeToJob(
+                            environment.getJobID(),
+                            Executors.newSingleThreadExecutor(
+                                    new ExecutorThreadFactory("channel-state-unspilling")));
             resourceCloser.registerCloseable(channelIOExecutor::shutdown);
 
             this.recordWriter = createRecordWriterDelegate(configuration, environment);
@@ -436,13 +439,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             // for simultaneous N ongoing concurrent checkpoints and for example clean up of one
             // aborted one.
             this.asyncOperationsThreadPool =
-                    new ThreadPoolExecutor(
-                            0,
-                            configuration.getMaxConcurrentCheckpoints() + 1,
-                            60L,
-                            TimeUnit.SECONDS,
-                            new LinkedBlockingQueue<>(),
-                            new ExecutorThreadFactory("AsyncOperations", uncaughtExceptionHandler));
+                    MdcUtils.scopeToJob(
+                            getEnvironment().getJobID(),
+                            new ThreadPoolExecutor(
+                                    0,
+                                    configuration.getMaxConcurrentCheckpoints() + 1,
+                                    60L,
+                                    TimeUnit.SECONDS,
+                                    new LinkedBlockingQueue<>(),
+                                    new ExecutorThreadFactory(
+                                            "AsyncOperations", uncaughtExceptionHandler)));
 
             // Register all asynchronous checkpoint threads.
             resourceCloser.registerCloseable(this::shutdownAsyncThreads);
