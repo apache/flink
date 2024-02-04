@@ -26,6 +26,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -55,13 +57,17 @@ import org.junit.jupiter.params.provider.ValueSource;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Queue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
@@ -382,12 +388,36 @@ abstract class SinkWriterOperatorTestBase {
 
     @Test
     void testInitContext() throws Exception {
-        final AtomicReference<org.apache.flink.api.connector.sink2.Sink.InitContext> initContext =
-                new AtomicReference<>();
-        final org.apache.flink.api.connector.sink2.Sink<String> sink =
-                context -> {
-                    initContext.set(context);
-                    return null;
+        final AtomicReference<Sink.InitContext> initContext = new AtomicReference<>();
+        final AtomicBoolean consumed = new AtomicBoolean(false);
+
+        final Sink<String> sink =
+                new Sink<String>() {
+                    @Override
+                    public SinkWriter<String> createWriter(WriterInitContext context)
+                            throws IOException {
+                        WriterInitContext decoratedContext =
+                                (WriterInitContext)
+                                        Proxy.newProxyInstance(
+                                                WriterInitContext.class.getClassLoader(),
+                                                new Class[] {WriterInitContext.class},
+                                                (proxy, method, args) -> {
+                                                    if (method.getName()
+                                                            .equals("metadataConsumer")) {
+                                                        return Optional.of(
+                                                                (Consumer<AtomicBoolean>)
+                                                                        o -> consumed.set(true));
+                                                    }
+                                                    return method.invoke(context, args);
+                                                });
+                        return Sink.super.createWriter(decoratedContext);
+                    }
+
+                    @Override
+                    public SinkWriter<String> createWriter(InitContext context) {
+                        initContext.set(context);
+                        return null;
+                    }
                 };
 
         final int subtaskId = 1;
@@ -421,6 +451,14 @@ abstract class SinkWriterOperatorTestBase {
         assertThat(initContext.get().isObjectReuseEnabled()).isTrue();
         assertThat(initContext.get().createInputSerializer()).isEqualTo(typeSerializer);
         assertThat(initContext.get().getJobInfo().getJobId()).isEqualTo(jobID);
+
+        assertThat(initContext.get().metadataConsumer())
+                .isPresent()
+                .hasValueSatisfying(
+                        consumer -> {
+                            consumer.accept(consumed);
+                            assertThat(consumed).isTrue();
+                        });
 
         testHarness.close();
     }
