@@ -39,7 +39,7 @@ Failover strategies decide which tasks should be restarted to recover the job.
 The cluster can be started with a default restart strategy which is always used when no job specific restart strategy has been defined.
 In case that the job is submitted with a restart strategy, this strategy overrides the cluster's default setting.
 
-The default restart strategy is set via Flink's configuration file `flink-conf.yaml`.
+The default restart strategy is set via Flink's configuration file [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
 The configuration parameter *restart-strategy.type* defines which strategy is taken.
 If checkpointing is not enabled, the "no restart" strategy is used.
 If checkpointing is activated and the restart strategy has not been configured, the fixed-delay strategy is used with 
@@ -96,7 +96,7 @@ The fixed delay restart strategy attempts a given number of times to restart the
 If the maximum number of attempts is exceeded, the job eventually fails.
 In-between two consecutive restart attempts, the restart strategy waits a fixed amount of time.
 
-This strategy is enabled as default by setting the following configuration parameter in `flink-conf.yaml`.
+This strategy is enabled as default by setting the following configuration parameter in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
 
 ```yaml
 restart-strategy.type: fixed-delay
@@ -209,7 +209,7 @@ Still not supported in Python API.
 The failure rate restart strategy restarts job after failure, but when `failure rate` (failures per time interval) is exceeded, the job eventually fails.
 In-between two consecutive restart attempts, the restart strategy waits a fixed amount of time.
 
-This strategy is enabled as default by setting the following configuration parameter in `flink-conf.yaml`.
+This strategy is enabled as default by setting the following configuration parameter in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
 
 ```yaml
 restart-strategy.type: failure-rate
@@ -301,7 +301,7 @@ By default, a fixed delay restart strategy is chosen if there is no other restar
 ## Failover Strategies
 
 Flink supports different failover strategies which can be configured via the configuration parameter
-*jobmanager.execution.failover-strategy* in Flink's configuration file `flink-conf.yaml`.
+*jobmanager.execution.failover-strategy* in Flink's configuration file [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
 
 <table class="table table-bordered">
   <thead>

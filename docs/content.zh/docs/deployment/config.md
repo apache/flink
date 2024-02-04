@@ -31,7 +31,7 @@ All configuration can be set in Flink configuration file in the `conf/` director
 
 The configuration is parsed and evaluated when the Flink processes are started. Changes to the configuration file require restarting the relevant processes.
 
-The out of the box configuration will use your default Java installation. You can manually set the environment variable `JAVA_HOME` or the configuration key `env.java.home` in Flink configuration file if you want to manually override the Java runtime to use.
+The out of the box configuration will use your default Java installation. You can manually set the environment variable `JAVA_HOME` or the configuration key `env.java.home` in Flink configuration file if you want to manually override the Java runtime to use. Note that the configuration key `env.java.home` must be specified in a flattened format (i.e. one-line key-value format) in the configuration file.
 
 You can specify a different configuration directory location by defining the `FLINK_CONF_DIR` environment variable. For resource providers which provide non-session deployments, you can specify per-job configurations this way. Make a copy of the `conf` directory from the Flink distribution and modify the settings on a per-job basis. Note that this is not supported in Docker or standalone Kubernetes deployments. On Docker-based deployments, you can use the `FLINK_PROPERTIES` environment variable for passing configuration values.
 

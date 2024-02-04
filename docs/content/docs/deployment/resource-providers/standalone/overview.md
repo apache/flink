@@ -148,7 +148,7 @@ Example:
 $ ./bin/jobmanager.sh start -D jobmanager.rpc.address=localhost -D rest.port=8081
 ```
 
-Options set via dynamic properties overwrite the options from `flink-conf.yaml`.
+Options set via dynamic properties overwrite the options from [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
 
 ### Debugging
 
@@ -259,7 +259,7 @@ By default, the JobManager will pick a *random port* for inter process communica
 
 #### Example: Standalone HA Cluster with 2 JobManagers
 
-1. Configure high availability mode and ZooKeeper quorum in `conf/flink-conf.yaml`:
+1. Configure high availability mode and ZooKeeper quorum in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}):
 
 ```bash
 high-availability.type: zookeeper

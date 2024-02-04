@@ -491,7 +491,7 @@ $ docker run flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /
     -D blob.server.port=6124
 ```
 
-Options set via dynamic properties overwrite the options from `flink-conf.yaml`.
+Options set via dynamic properties overwrite the options from [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
 
 ### Via Environment Variables
 
@@ -508,11 +508,11 @@ $ docker run --env FLINK_PROPERTIES=${FLINK_PROPERTIES} flink:{{< stable >}}{{< 
 The [`jobmanager.rpc.address`]({{< ref "docs/deployment/config" >}}#jobmanager-rpc-address) option must be configured, others are optional to set.
 
 The environment variable `FLINK_PROPERTIES` should contain a list of Flink cluster configuration options separated by new line,
-the same way as in the `flink-conf.yaml`. `FLINK_PROPERTIES` takes precedence over configurations in `flink-conf.yaml`.
+the same way as in the [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}). `FLINK_PROPERTIES` takes precedence over configurations in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
 
-### Via flink-conf.yaml
+### Via Flink configuration file
 
-The configuration files (`flink-conf.yaml`, logging, hosts etc) are located in the `/opt/flink/conf` directory in the Flink image.
+The configuration files ([Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}), logging, hosts etc) are located in the `/opt/flink/conf` directory in the Flink image.
 To provide a custom location for the Flink configuration files, you can
 
 * **either mount a volume** with the custom configuration files to this path `/opt/flink/conf` when you run the Flink image:
@@ -528,13 +528,13 @@ To provide a custom location for the Flink configuration files, you can
 
     ```dockerfile
     FROM flink
-    ADD /host/path/to/flink-conf.yaml /opt/flink/conf/flink-conf.yaml
+    ADD /host/path/to/config.yaml /opt/flink/conf/config.yaml
     ADD /host/path/to/log4j.properties /opt/flink/conf/log4j.properties
     ```
 
 {{< hint info >}}
 The mounted volume must contain all necessary configuration files.
-The `flink-conf.yaml` file must have write permission so that the Docker entry point script can modify it in certain cases.
+The [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) file must have write permission so that the Docker entry point script can modify it in certain cases.
 {{< /hint >}}
 
 ### Using Filesystem Plugins
@@ -630,7 +630,7 @@ You can customize the Flink image in several ways:
 
     RUN set -ex; apt-get update; apt-get -y install python
 
-    ADD /host/path/to/flink-conf.yaml /container/local/path/to/custom/conf/flink-conf.yaml
+    ADD /host/path/to/config.yaml /container/local/path/to/custom/conf/config.yaml
     ADD /host/path/to/log4j.properties /container/local/path/to/custom/conf/log4j.properties
 
     RUN ln -fs /opt/flink/opt/flink-sql-gateway-*.jar /opt/flink/lib/.
