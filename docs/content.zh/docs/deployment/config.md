@@ -477,6 +477,26 @@ Flink does not use Pekko for data transport.
 
 {{< generated/akka_configuration >}}
 
+### Flink Format Options
+
+Flink support most commonly used file formats (Avro/CSV/Json/ORC/Parquet/Protobuf).
+
+**Avro Format Options**
+
+{{< generated/avro_format_configuration >}}
+
+**CSV Format Options**
+
+{{< generated/csv_format_configuration >}}
+
+**Json Format Options**
+
+{{< generated/json_format_configuration >}}
+
+**Protobuf Format Options**
+
+{{< generated/pb_format_configuration >}}
+
 ----
 ----
 

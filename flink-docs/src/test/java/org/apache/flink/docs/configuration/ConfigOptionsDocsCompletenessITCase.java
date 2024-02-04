@@ -23,6 +23,8 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.docs.util.ConfigurationOptionLocator;
 import org.apache.flink.docs.util.OptionWithMetaInfo;
 
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableSet;
+
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.junit.jupiter.api.Test;
@@ -40,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -57,6 +60,8 @@ import static org.assertj.core.api.Fail.fail;
  * non-existent options.
  */
 class ConfigOptionsDocsCompletenessITCase {
+    private static final Set<String> ALLOWED_DUPLICATED_CONFIG_KEY =
+            ImmutableSet.of("ignore-parse-errors");
 
     @Test
     void testCompleteness() throws Exception {
@@ -93,7 +98,10 @@ class ConfigOptionsDocsCompletenessITCase {
                                                             // we fail here outright as this is
                                                             // not a documentation-completeness
                                                             // problem
-                                                            if (!option1.defaultValue.equals(
+                                                            if (ALLOWED_DUPLICATED_CONFIG_KEY
+                                                                    .contains(option1.key)) {
+                                                                return option1;
+                                                            } else if (!option1.defaultValue.equals(
                                                                     option2.defaultValue)) {
                                                                 String errorMessage =
                                                                         String.format(
@@ -187,6 +195,9 @@ class ConfigOptionsDocsCompletenessITCase {
         // documentation contains an option that no longer exists
         documentedOptions.values().stream()
                 .flatMap(Collection::stream)
+                .filter(
+                        documentedOption ->
+                                !ALLOWED_DUPLICATED_CONFIG_KEY.contains(documentedOption.key))
                 .forEach(
                         documentedOption ->
                                 problems.add(

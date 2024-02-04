@@ -79,7 +79,18 @@ public class ConfigurationOptionLocator {
                 new OptionsClassLocation(
                         "flink-dstl/flink-dstl-dfs", "org.apache.flink.changelog.fs"),
                 new OptionsClassLocation(
-                        "flink-table/flink-sql-gateway", "org.apache.flink.table.gateway.rest.util")
+                        "flink-table/flink-sql-gateway",
+                        "org.apache.flink.table.gateway.rest.util"),
+                new OptionsClassLocation(
+                        "flink-formats/flink-avro", "org.apache.flink.formats.avro"),
+                new OptionsClassLocation("flink-formats/flink-csv", "org.apache.flink.formats.csv"),
+                new OptionsClassLocation(
+                        "flink-formats/flink-json", "org.apache.flink.formats.json"),
+                new OptionsClassLocation("flink-formats/flink-orc", "org.apache.flink.orc"),
+                new OptionsClassLocation(
+                        "flink-formats/flink-parquet", "org.apache.flink.formats.parquet"),
+                new OptionsClassLocation(
+                        "flink-formats/flink-protobuf", "org.apache.flink.formats.protobuf")
             };
 
     private static final Set<String> EXCLUSIONS =
