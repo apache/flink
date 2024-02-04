@@ -68,6 +68,11 @@ public class MinibatchUtil {
      * @return mini batch size
      */
     public static long miniBatchSize(ReadableConfig config) {
-        return config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE);
+        long size = config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE);
+        if (size <= 0) {
+            throw new IllegalArgumentException(
+                    ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE + " must be > 0.");
+        }
+        return size;
     }
 }

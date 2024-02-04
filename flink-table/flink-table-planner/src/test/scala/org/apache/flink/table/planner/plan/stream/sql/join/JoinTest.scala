@@ -22,6 +22,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableFunc1, TableTestBase}
 
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 
 import java.time.Duration
@@ -661,5 +662,29 @@ class JoinTest extends TableTestBase {
         | join right_table on left_table.a = right_table.c
         |""".stripMargin
     )
+  }
+
+  @Test
+  def testMiniBatchJoinWithNegativeMiniBatchSize(): Unit = {
+    util.tableEnv.getConfig.getConfiguration
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
+    util.tableEnv.getConfig.getConfiguration
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(10))
+
+    val sql = "SELECT * FROM A JOIN B ON a1 = b1"
+
+    // without setting mini-batch size
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessage(
+        "Key: 'table.exec.mini-batch.size' , default: -1 (fallback keys: []) must be > 0.")
+      .isInstanceOf[IllegalArgumentException]
+
+    // set negative mini-batch size
+    util.tableEnv.getConfig.getConfiguration
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, Long.box(-500L))
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessage(
+        "Key: 'table.exec.mini-batch.size' , default: -1 (fallback keys: []) must be > 0.")
+      .isInstanceOf[IllegalArgumentException]
   }
 }
