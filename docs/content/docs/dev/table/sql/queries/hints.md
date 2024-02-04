@@ -114,6 +114,42 @@ hintOption:
     |   stringLiteral
 ```
 
+### Conflict Cases In Query Hints
+#### Resolution of Key-value Hint Conflicts
+For key-value hints, which are provided in the following syntax:
+
+```sql
+hintName '(' optionKey '=' optionVal [, optionKey '=' optionVal ]* ')'
+```
+
+When Flink encounters conflicting in key-value hints, it adopts a last-write-wins strategy. This means that 
+if multiple hint values are provided for the same key, Flink will use the value from the last hint specified 
+in the query. For instance, consider the following SQL query with conflicting 'max-attempts' values in the LOOKUP hint:
+
+```sql
+SELECT /*+ LOOKUP('table'='D', 'max-attempts'='3', 'max-attempts'='4') */ * FROM t1 T JOIN t2 AS OF T.proctime AS D ON T.id = D.id;
+```
+
+In this case, Flink will resolve the conflict by selecting the last specified value for 'max-attempts'. 
+Therefore, the effective hint for 'max-attempts' will be '4'.
+
+#### Resolution of List Hint Conflicts
+List hints are provided using the following syntax:
+
+```sql
+hintName '(' hintOption [, hintOption ]* ')'
+```
+
+With list hints, Flink resolves conflicts by adopting a first-accept strategy. This means that the 
+first specified hint in the list will take precedence and be effective.
+For example, consider the following SQL query with conflicting BROADCAST hints:
+```sql
+SELECT /*+ BROADCAST(t2, t1), BROADCAST(t1, t2) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
+```
+
+In this scenario, Flink will choose the BROADCAST hint that is listed first. 
+Therefore, the effective broadcast hint is BROADCAST(t2, t1).
+
 ### Join Hints
 
 `Join Hints` allow users to suggest the join strategy to optimizer in order to get a more high-performance execution plan.
@@ -559,6 +595,7 @@ in reducing backpressure, and it may be necessary to consider reducing the delay
 #### Conflict Cases In Join Hints
 
 If the `Join Hints` conflicts occur, Flink will choose the most matching one.
+- First, `Join Hints` will follow the logic of Flink query hint for resolving conflicts (see: [Conflict Cases In Query Hints](#conflict-cases-in-query-hints))
 - Conflict in one same Join Hint strategy, Flink will choose the first matching table for a join.
 - Conflict in different Join Hints strategies, Flink will choose the first matching hint for a join.
 
