@@ -110,7 +110,7 @@ take a savepoint with the new version, and only after that you can restore it wi
 
 ## Configuring a State Backend
 
-The default state backend, if you specify nothing, is the jobmanager. If you wish to establish a different default for all jobs on your cluster, you can do so by defining a new default state backend in **flink-conf.yaml**. The default state backend can be overridden on a per-job basis, as shown below.
+The default state backend, if you specify nothing, is the jobmanager. If you wish to establish a different default for all jobs on your cluster, you can do so by defining a new default state backend in [**Flink configuration file**]({{< ref "docs/deployment/config#flink-configuration-file" >}}). The default state backend can be overridden on a per-job basis, as shown below.
 
 ### Setting the Per-job State Backend
 
@@ -151,13 +151,13 @@ If you want to use the `EmbeddedRocksDBStateBackend` in your IDE or configure it
 ```
 
 {{< hint info >}}
-Since RocksDB is part of the default Flink distribution, you do not need this dependency if you are not using any RocksDB code in your job and configure the state backend via `state.backend.type` and further [checkpointing]({{< ref "docs/deployment/config" >}}#checkpointing) and [RocksDB-specific]({{< ref "docs/deployment/config" >}}#rocksdb-state-backend) parameters in your `flink-conf.yaml`.
+Since RocksDB is part of the default Flink distribution, you do not need this dependency if you are not using any RocksDB code in your job and configure the state backend via `state.backend.type` and further [checkpointing]({{< ref "docs/deployment/config" >}}#checkpointing) and [RocksDB-specific]({{< ref "docs/deployment/config" >}}#rocksdb-state-backend) parameters in your [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
 {{< /hint >}}
 
 
 ### Setting Default State Backend
 
-A default state backend can be configured in the `flink-conf.yaml`, using the configuration key `state.backend.type`.
+A default state backend can be configured in the [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}), using the configuration key `state.backend.type`.
 
 Possible values for the config entry are *hashmap* (HashMapStateBackend), *rocksdb* (EmbeddedRocksDBStateBackend), or the fully qualified class
 name of the class that implements the state backend factory {{< gh_link file="flink-runtime/src/main/java/org/apache/flink/runtime/state/StateBackendFactory.java" name="StateBackendFactory" >}},
@@ -190,7 +190,7 @@ An incremental checkpoint builds upon (typically multiple) previous checkpoints.
 Recovery time of incremental checkpoints may be longer or shorter compared to full checkpoints. If your network bandwidth is the bottleneck, it may take a bit longer to restore from an incremental checkpoint, because it implies fetching more data (more deltas). Restoring from an incremental checkpoint is faster, if the bottleneck is your CPU or IOPs, because restoring from an incremental checkpoint means not re-building the local RocksDB tables from Flink's canonical key/value snapshot format (used in savepoints and full checkpoints).
 
 While we encourage the use of incremental checkpoints for large state, you need to enable this feature manually:
-  - Setting a default in your `flink-conf.yaml`: `state.backend.incremental: true` will enable incremental checkpoints, unless the application overrides this setting in the code.
+  - Setting a default in your [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}): `state.backend.incremental: true` will enable incremental checkpoints, unless the application overrides this setting in the code.
   - You can alternatively configure this directly in the code (overrides the config default): `EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend(true);`
 
 Notice that once incremental checkpoont is enabled, the `Checkpointed Data Size` showed in web UI only represents the 
@@ -267,14 +267,14 @@ Flink offers sophisticated default [memory management for RocksDB](#memory-manag
 With *Predefined Options*, users can apply some predefined config profiles on each RocksDB Column Family, configuring for example memory use, thread, compaction settings, etc. There is currently one Column Family per each state in each operator.
 
 There are two ways to select predefined options to be applied:
-  - Set the option's name in `flink-conf.yaml` via `state.backend.rocksdb.predefined-options`.
+  - Set the option's name in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) via `state.backend.rocksdb.predefined-options`.
   - Set the predefined options programmatically: `EmbeddedRocksDBStateBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)`.
 
 The default value for this option is `DEFAULT` which translates to `PredefinedOptions.DEFAULT`.
 
-Predefined options set programmatically would override the ones configured via `flink-conf.yaml`.
+Predefined options set programmatically would override the ones configured via [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
 
-#### Reading Column Family Options from flink-conf.yaml
+#### Reading Column Family Options from Flink configuration file
 
 RocksDB State Backend picks up all config options [defined here]({{< ref "docs/deployment/config" >}}#advanced-rocksdb-state-backends-options). Hence, you can configure low-level Column Family options simply by turning off managed memory for RocksDB and putting the relevant entries in the configuration.
 
@@ -284,11 +284,11 @@ To manually control RocksDB's options, you need to configure an `RocksDBOptionsF
 
 There are two ways to pass a RocksDBOptionsFactory to the RocksDB State Backend:
 
-  - Configure options factory class name in the `flink-conf.yaml` via `state.backend.rocksdb.options-factory`.
+  - Configure options factory class name in the [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) via `state.backend.rocksdb.options-factory`.
   
   - Set the options factory programmatically, e.g. `EmbeddedRocksDBStateBackend.setRocksDBOptions(new MyOptionsFactory());`
 
-Options factory which set programmatically would override the one configured via `flink-conf.yaml`,
+Options factory which set programmatically would override the one configured via [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}),
 and options factory has a higher priority over the predefined options if ever configured or set.
 
 RocksDB is a native library that allocates memory directly from the process,
@@ -475,7 +475,7 @@ Users can migrate existing applications to use the new API without losing any st
 
 The legacy `MemoryStateBackend` is equivalent to using [`HashMapStateBackend`](#the-hashmapstatebackend) and [`JobManagerCheckpointStorage`]({{< ref "docs/ops/state/checkpoints#the-jobmanagercheckpointstorage" >}}).
 
-#### `flink-conf.yaml` configuration 
+#### Configuration using Flink configuration file
 
 ```yaml
 state.backend: hashmap
@@ -517,7 +517,7 @@ env = StreamExecutionEnvironment.get_execution_environment(config)
 
 The legacy `FsStateBackend` is equivalent to using [`HashMapStateBackend`](#the-hashmapstatebackend) and [`FileSystemCheckpointStorage`]({{< ref "docs/ops/state/checkpoints#the-filesystemcheckpointstorage" >}}).
 
-#### `flink-conf.yaml` configuration
+#### Configuration using Flink configuration file
 
 ```yaml
 state.backend: hashmap
@@ -579,7 +579,7 @@ env.configure(config);
 
 The legacy `RocksDBStateBackend` is equivalent to using [`EmbeddedRocksDBStateBackend`](#the-embeddedrocksdbstatebackend) and [`FileSystemCheckpointStorage`]({{< ref "docs/ops/state/checkpoints#the-filesystemcheckpointstorage" >}}).
 
-#### `flink-conf.yaml` configuration 
+#### Configuration using Flink configuration file
 
 ```yaml
 state.backend: rocksdb

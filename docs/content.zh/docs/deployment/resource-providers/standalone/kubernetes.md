@@ -158,7 +158,7 @@ $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
 
 ### Configuration
 
-所有配置项都展示在[配置页面]({{< ref "docs/deployment/config" >}})上。在 config map 配置文件 `flink-configuration-configmap.yaml` 中，可以将配置添加在 `flink-conf.yaml` 部分。
+所有配置项都展示在[配置页面]({{< ref "docs/deployment/config" >}})上。在 config map 配置文件 `flink-configuration-configmap.yaml` 中，可以将配置添加在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-configuration-file" >}}) 部分。
 
 <a name="accessing-flink-in-kubernetes"></a>
 
@@ -231,7 +231,7 @@ metadata:
   labels:
     app: flink
 data:
-  flink-conf.yaml: |+
+  config.yaml: |+
   ...
     kubernetes.cluster-id: <cluster-id>
     high-availability.type: kubernetes
@@ -281,7 +281,7 @@ metadata:
   labels:
     app: flink
 data:
-  flink-conf.yaml: |+
+  config.yaml: |+
     jobmanager.rpc.address: flink-jobmanager
     taskmanager.numberOfTaskSlots: 2
     blob.server.port: 6124
@@ -348,7 +348,7 @@ metadata:
   labels:
     app: flink
 data:
-  flink-conf.yaml: |+
+  config.yaml: |+
     jobmanager.rpc.address: flink-jobmanager
     taskmanager.numberOfTaskSlots: 2
     blob.server.port: 6124
@@ -495,8 +495,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
 ```
@@ -553,8 +553,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
 ```
@@ -599,8 +599,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
 ```
@@ -652,8 +652,8 @@ spec:
           configMap:
             name: flink-config
             items:
-              - key: flink-conf.yaml
-                path: flink-conf.yaml
+              - key: config.yaml
+                path: config.yaml
               - key: log4j-console.properties
                 path: log4j-console.properties
         - name: job-artifacts-volume
@@ -712,8 +712,8 @@ spec:
           configMap:
             name: flink-config
             items:
-              - key: flink-conf.yaml
-                path: flink-conf.yaml
+              - key: config.yaml
+                path: config.yaml
               - key: log4j-console.properties
                 path: log4j-console.properties
         - name: job-artifacts-volume
@@ -764,8 +764,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
       - name: job-artifacts-volume

@@ -84,7 +84,7 @@ Cache-Control: no-cache
 EOF)
 ```
 
-By default, the SQL Client will use the truststore configured using the `security.ssl.rest.truststore` and `security.ssl.rest.truststore-password` properties in the `flink-conf.yaml` file on the SQL client side. If these properties aren't explicitly configured, the client will use the default certificate stores provided by the JDK.
+By default, the SQL Client will use the truststore configured using the `security.ssl.rest.truststore` and `security.ssl.rest.truststore-password` properties in the [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) file on the SQL client side. If these properties aren't explicitly configured, the client will use the default certificate stores provided by the JDK.
 
 <span class="label label-danger">Note</span> SQL Client only supports connecting to the [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}#rest-api) since version v2.
 

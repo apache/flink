@@ -155,7 +155,7 @@ Deployment of a Session cluster is explained in the [Getting Started](#getting-s
 
 ### Configuration
 
-All configuration options are listed on the [configuration page]({{< ref "docs/deployment/config" >}}). Configuration options can be added to the `flink-conf.yaml` section of the `flink-configuration-configmap.yaml` config map.
+All configuration options are listed on the [configuration page]({{< ref "docs/deployment/config" >}}). Configuration options can be added to the [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) section of the `flink-configuration-configmap.yaml` config map.
 
 ### Accessing Flink in Kubernetes
 
@@ -218,7 +218,7 @@ metadata:
   labels:
     app: flink
 data:
-  flink-conf.yaml: |+
+  config.yaml: |+
   ...
     kubernetes.cluster-id: <cluster-id>
     high-availability.type: kubernetes
@@ -274,7 +274,7 @@ metadata:
   labels:
     app: flink
 data:
-  flink-conf.yaml: |+
+  config.yaml: |+
     jobmanager.rpc.address: flink-jobmanager
     taskmanager.numberOfTaskSlots: 2
     blob.server.port: 6124
@@ -341,7 +341,7 @@ metadata:
   labels:
     app: flink
 data:
-  flink-conf.yaml: |+
+  config.yaml: |+
     jobmanager.rpc.address: flink-jobmanager
     taskmanager.numberOfTaskSlots: 2
     blob.server.port: 6124
@@ -483,8 +483,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
 ```
@@ -541,8 +541,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
 ```
@@ -587,8 +587,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
 ```
@@ -638,8 +638,8 @@ spec:
           configMap:
             name: flink-config
             items:
-              - key: flink-conf.yaml
-                path: flink-conf.yaml
+              - key: config.yaml
+                path: config.yaml
               - key: log4j-console.properties
                 path: log4j-console.properties
         - name: job-artifacts-volume
@@ -698,8 +698,8 @@ spec:
           configMap:
             name: flink-config
             items:
-              - key: flink-conf.yaml
-                path: flink-conf.yaml
+              - key: config.yaml
+                path: config.yaml
               - key: log4j-console.properties
                 path: log4j-console.properties
         - name: job-artifacts-volume
@@ -750,8 +750,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
       - name: job-artifacts-volume
@@ -769,7 +769,7 @@ metadata:
   labels:
     app: flink
 data:
-  flink-conf.yaml: |+
+  config.yaml: |+
     jobmanager.rpc.address: flink-jobmanager
     taskmanager.numberOfTaskSlots: 2
     blob.server.port: 6124
@@ -837,8 +837,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
   volumeClaimTemplates:
