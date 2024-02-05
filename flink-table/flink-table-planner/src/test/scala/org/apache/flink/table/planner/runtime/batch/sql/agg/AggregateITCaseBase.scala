@@ -372,6 +372,36 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
   }
 
   @Test
+  def testGroupByOrdinals(): Unit = {
+    checkQuery(
+      Seq((1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2)),
+      "select f0, sum(f1) from TableName group by 1",
+      Seq((1, 3), (2, 3), (3, 3))
+    )
+    checkQuery(
+      Seq((1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2)),
+      "select f0, count(*) from TableName group by 1",
+      Seq((1, 2L), (2, 2L), (3, 2L)) // count=>long
+    )
+    checkQuery(
+      Seq(("a", 1, 0), ("b", 2, 4), ("a", 2, 3)),
+      "select f0, min(f1), min(f2) from TableName group by 1",
+      Seq(("a", 1, 0), ("b", 2, 4))
+    )
+    checkQuery(
+      Seq((b1, b1), (b1, b2), (b2, b1), (b2, b2), (b3, b1), (b3, b2)),
+      "select f0, sum(f1) from TableName group by 1",
+      Seq((b1x, b3x), (b2x, b3x), (b3x, b3x))
+    )
+    // nulls in key/value
+    checkQuery(
+      Seq((b1, b1), (b1, bN), (b2, b1), (b2, bN), (b3, b1), (b3, b2), (bN, b2)),
+      "select f0, sum(f1) from TableName group by 1",
+      Seq((b1x, b1x), (b2x, b1x), (b3x, b3x), (bN, b2x))
+    )
+  }
+
+  @Test
   def testCountCannotByMultiFields(): Unit = {
     assertThatThrownBy(
       () => {
@@ -910,12 +940,12 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
   def testGroupByLiteral(): Unit = {
     checkQuery(
       Seq((1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2)),
-      "select 3, 4, sum(f1) from TableName group by 1, 2",
+      "select 3, 4, sum(f1) from TableName group by '1', '2'",
       Seq((3, 4, 9))
     )
     checkQuery(
       Seq((1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2)),
-      "SELECT 3, 4, SUM(f1) from TableName GROUP BY 3, 4",
+      "SELECT 3, 4, SUM(f1) from TableName GROUP BY '3', '4'",
       Seq((3, 4, 9))
     )
     // NOTE: Spark runs this query

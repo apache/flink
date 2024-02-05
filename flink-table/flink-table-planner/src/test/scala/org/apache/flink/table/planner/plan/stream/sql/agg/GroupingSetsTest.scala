@@ -393,12 +393,12 @@ class GroupingSetsTest extends TableTestBase {
 
   @Test
   def testAllowExpressionInCube2(): Unit = {
-    util.verifyExecPlan("SELECT COUNT(*) AS c FROM emp GROUP BY CUBE(1)")
+    util.verifyExecPlan("SELECT COUNT(*) AS c FROM emp GROUP BY CUBE('1')")
   }
 
   @Test
   def testAllowExpressionInRollup3(): Unit = {
-    util.verifyExecPlan("SELECT COUNT(*) AS c FROM emp GROUP BY ROLLUP(1)")
+    util.verifyExecPlan("SELECT COUNT(*) AS c FROM emp GROUP BY ROLLUP('1')")
   }
 
   @Test

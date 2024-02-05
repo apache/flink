@@ -53,14 +53,14 @@ HashJoin(joinType=[LeftAntiJoin], where=[(a = i)], select=[a, b, c], build=[righ
   </TestCase>
   <TestCase name="testExistsWithCorrelated_AggInSubQuery">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT MAX(e) FROM r WHERE l.b = r.e AND d < 100 AND l.c = r.f GROUP BY d, true, f, 1)]]>
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT MAX(e) FROM r WHERE l.b = r.e AND d < 100 AND l.c = r.f GROUP BY d, true, f, '1')]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
 LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$0=[MAX($4)])
-  LogicalProject(d=[$0], $f1=[true], f=[$2], $f3=[1], e=[$1])
+  LogicalProject(d=[$0], $f1=[true], f=[$2], $f3=[_UTF-16LE'1'], e=[$1])
     LogicalFilter(condition=[AND(=($cor0.b, $1), <($0, 100), =($cor0.c, $2))])
       LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
 })], variablesSet=[[$cor0]])
@@ -578,7 +578,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[((b = EXPR$0) AND (c = f))], select=[a,
   </TestCase>
   <TestCase name="testInWithCorrelated_AggInSubQuery2">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM l WHERE (b, a) IN (SELECT COUNT(*), d FROM r WHERE l.c = r.f GROUP BY d, true, e, 1)]]>
+      <![CDATA[SELECT * FROM l WHERE (b, a) IN (SELECT COUNT(*), d FROM r WHERE l.c = r.f GROUP BY d, true, e, '1')]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -586,7 +586,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($1, $0, {
 LogicalProject(EXPR$0=[$4], d=[$0])
   LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$0=[COUNT()])
-    LogicalProject(d=[$0], $f1=[true], e=[$1], $f3=[1])
+    LogicalProject(d=[$0], $f1=[true], e=[$1], $f3=[_UTF-16LE'1'])
       LogicalFilter(condition=[=($cor0.c, $2)])
         LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
 })], variablesSet=[[$cor0]])

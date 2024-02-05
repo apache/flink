@@ -170,7 +170,7 @@ public class QueryOperationTestPrograms {
                                     + "    SELECT (SUM(`a`)) AS `EXPR$0` FROM (\n"
                                     + "        SELECT `a`, `b` FROM `default_catalog`.`default_database`.`s`\n"
                                     + "    )\n"
-                                    + "    GROUP BY 1\n"
+                                    + "    GROUP BY '1'\n"
                                     + ")")
                     .build();
 

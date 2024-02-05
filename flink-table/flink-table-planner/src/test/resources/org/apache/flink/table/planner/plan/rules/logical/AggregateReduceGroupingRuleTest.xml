@@ -698,13 +698,13 @@ FlinkLogicalAggregate(group=[{0}], d1=[AUXILIARY_GROUP($2)], EXPR$2=[COUNT($1) F
   </TestCase>
   <TestCase name="testSingleAggOnlyConstantGroupKey">
     <Resource name="sql">
-      <![CDATA[SELECT count(c1) FROM T1 GROUP BY 1, true]]>
+      <![CDATA[SELECT count(c1) FROM T1 GROUP BY '1', true]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
-   +- LogicalProject($f0=[1], $f1=[true], c1=[$2])
+   +- LogicalProject($f0=[_UTF-16LE'1'], $f1=[true], c1=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
 ]]>
     </Resource>
@@ -712,7 +712,7 @@ LogicalProject(EXPR$0=[$2])
       <![CDATA[
 FlinkLogicalCalc(select=[EXPR$0])
 +- FlinkLogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
-   +- FlinkLogicalCalc(select=[1 AS $f0, c1])
+   +- FlinkLogicalCalc(select=['1' AS $f0, c1])
       +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
@@ -755,6 +755,25 @@ FlinkLogicalAggregate(group=[{0}], b1=[AUXILIARY_GROUP($1)], EXPR$2=[COUNT($2)])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSingleAggWithOrdinalGroupKey">
+	<Resource name="sql">
+		<![CDATA[SELECT a1, b1, count(c1) FROM T1 GROUP BY 1, 2]]>
+	</Resource>
+	<Resource name="ast">
+		<![CDATA[
+LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
++- LogicalProject(a1=[$0], b1=[$1], c1=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+	</Resource>
+	<Resource name="optimized rel plan">
+		<![CDATA[
+FlinkLogicalAggregate(group=[{0}], b1=[AUXILIARY_GROUP($1)], EXPR$2=[COUNT($2)])
++- FlinkLogicalCalc(select=[a1, b1, c1])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+	</Resource>
+  </TestCase>
   <TestCase name="testSingleAggOnTableWithUniqueKeys">
     <Resource name="sql">
       <![CDATA[SELECT  b2, c2, avg(a2) FROM T2 GROUP BY b2, c2]]>
@@ -775,13 +794,13 @@ FlinkLogicalAggregate(group=[{1}], c2=[AUXILIARY_GROUP($2)], EXPR$2=[AVG($0)])
   </TestCase>
   <TestCase name="testSingleAggWithConstantGroupKey">
     <Resource name="sql">
-      <![CDATA[SELECT a1, b1, count(c1) FROM T1 GROUP BY a1, b1, 1, true]]>
+      <![CDATA[SELECT a1, b1, count(c1) FROM T1 GROUP BY a1, b1, '1', true]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], EXPR$2=[$4])
 +- LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$2=[COUNT($4)])
-   +- LogicalProject(a1=[$0], b1=[$1], $f2=[1], $f3=[true], c1=[$2])
+   +- LogicalProject(a1=[$0], b1=[$1], $f2=[_UTF-16LE'1'], $f3=[true], c1=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
 ]]>
     </Resource>

@@ -108,13 +108,18 @@ abstract class AggregateReduceGroupingTestBase(withExecPlan: Boolean) extends Ta
   }
 
   @Test
+  def testSingleAggWithOrdinalGroupKey(): Unit = {
+    verifyPlan("SELECT a1, b1, count(c1) FROM T1 GROUP BY 1, 2")
+  }
+
+  @Test
   def testSingleAggWithConstantGroupKey(): Unit = {
-    verifyPlan("SELECT a1, b1, count(c1) FROM T1 GROUP BY a1, b1, 1, true")
+    verifyPlan("SELECT a1, b1, count(c1) FROM T1 GROUP BY a1, b1, '1', true")
   }
 
   @Test
   def testSingleAggOnlyConstantGroupKey(): Unit = {
-    verifyPlan("SELECT count(c1) FROM T1 GROUP BY 1, true")
+    verifyPlan("SELECT count(c1) FROM T1 GROUP BY '1', true")
   }
 
   @Test

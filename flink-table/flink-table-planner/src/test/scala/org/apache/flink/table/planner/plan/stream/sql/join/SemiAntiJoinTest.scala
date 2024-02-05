@@ -223,7 +223,7 @@ class SemiAntiJoinTest extends TableTestBase {
   @Test
   def testInWithCorrelated_AggInSubQuery2(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE (b, a) IN " +
-      "(SELECT COUNT(*), d FROM r WHERE l.c = r.f GROUP BY d, true, e, 1)"
+      "(SELECT COUNT(*), d FROM r WHERE l.c = r.f GROUP BY d, true, e, '1')"
     util.verifyExecPlan(sqlQuery)
   }
 
@@ -359,7 +359,7 @@ class SemiAntiJoinTest extends TableTestBase {
   @Test
   def testExistsWithCorrelated_AggInSubQuery(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
-      "(SELECT MAX(e) FROM r WHERE l.b = r.e AND d < 100 AND l.c = r.f GROUP BY d, true, f, 1)"
+      "(SELECT MAX(e) FROM r WHERE l.b = r.e AND d < 100 AND l.c = r.f GROUP BY d, true, f, '1')"
     util.verifyExecPlan(sqlQuery)
   }
 

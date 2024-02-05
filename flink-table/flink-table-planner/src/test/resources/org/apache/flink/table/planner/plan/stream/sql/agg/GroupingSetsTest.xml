@@ -44,13 +44,13 @@ Calc(select=[d, c, g])
   </TestCase>
   <TestCase name="testAllowExpressionInCube2">
     <Resource name="sql">
-      <![CDATA[SELECT COUNT(*) AS c FROM emp GROUP BY CUBE(1)]]>
+      <![CDATA[SELECT COUNT(*) AS c FROM emp GROUP BY CUBE('1')]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$1])
 +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
-   +- LogicalProject($f0=[1])
+   +- LogicalProject($f0=[_UTF-16LE'1'])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
@@ -60,7 +60,7 @@ Calc(select=[c])
 +- GroupAggregate(groupBy=[$f0, $e], select=[$f0, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[$f0, $e]])
       +- Expand(projects=[{$f0, 0 AS $e}, {null AS $f0, 1 AS $e}])
-         +- Calc(select=[1 AS $f0])
+         +- Calc(select=['1' AS $f0])
             +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
@@ -119,13 +119,13 @@ Calc(select=[d, c, g])
   </TestCase>
   <TestCase name="testAllowExpressionInRollup3">
     <Resource name="sql">
-      <![CDATA[SELECT COUNT(*) AS c FROM emp GROUP BY ROLLUP(1)]]>
+      <![CDATA[SELECT COUNT(*) AS c FROM emp GROUP BY ROLLUP('1')]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$1])
 +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
-   +- LogicalProject($f0=[1])
+   +- LogicalProject($f0=[_UTF-16LE'1'])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
@@ -135,7 +135,7 @@ Calc(select=[c])
 +- GroupAggregate(groupBy=[$f0, $e], select=[$f0, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[$f0, $e]])
       +- Expand(projects=[{$f0, 0 AS $e}, {null AS $f0, 1 AS $e}])
-         +- Calc(select=[1 AS $f0])
+         +- Calc(select=['1' AS $f0])
             +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>

@@ -282,14 +282,14 @@ LogicalProject(a=[$0], b=[$1])
   </TestCase>
   <TestCase name="testExistsWithCorrelatedOnWhere_Aggregate2">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM l1 WHERE EXISTS (SELECT MAX(e) FROM r1 WHERE l1.b = r1.d AND c < 100 AND l1.a = r1.c GROUP BY c, true, f, 1)]]>
+      <![CDATA[SELECT * FROM l1 WHERE EXISTS (SELECT MAX(e) FROM r1 WHERE l1.b = r1.d AND c < 100 AND l1.a = r1.c GROUP BY c, true, f, '1')]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[EXISTS({
 LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$0=[MAX($4)])
-  LogicalProject(c=[$0], $f1=[true], f=[$3], $f3=[1], e=[$2])
+  LogicalProject(c=[$0], $f1=[true], f=[$3], $f3=[_UTF-16LE'1'], e=[$2])
     LogicalFilter(condition=[AND(=($cor0.b, $1), <($0, 100), =($cor0.a, $0))])
       LogicalTableScan(table=[[default_catalog, default_database, r1, source: [TestTableSource(c, d, e, f)]]])
 })], variablesSet=[[$cor0]])
@@ -303,7 +303,7 @@ LogicalProject(a=[$0], b=[$1])
    :- LogicalTableScan(table=[[default_catalog, default_database, l1, source: [TestTableSource(a, b)]]])
    +- LogicalProject(c=[$0], d=[$2])
       +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[MAX($5)])
-         +- LogicalProject(c=[$0], f=[$3], d=[$1], $f1=[true], $f3=[1], e=[$2])
+         +- LogicalProject(c=[$0], f=[$3], d=[$1], $f1=[true], $f3=[_UTF-16LE'1'], e=[$2])
             +- LogicalFilter(condition=[<($0, 100)])
                +- LogicalTableScan(table=[[default_catalog, default_database, r1, source: [TestTableSource(c, d, e, f)]]])
 ]]>
@@ -1681,7 +1681,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
   </TestCase>
   <TestCase name="testInWithCorrelatedOnWhere_Aggregate5">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM l WHERE b IN (SELECT MAX(e) FROM r WHERE l.c = r.f GROUP BY d, true, 1)]]>
+      <![CDATA[SELECT * FROM l WHERE b IN (SELECT MAX(e) FROM r WHERE l.c = r.f GROUP BY d, true, '1')]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1689,7 +1689,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($1, {
 LogicalProject(EXPR$0=[$3])
   LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[MAX($3)])
-    LogicalProject(d=[$0], $f1=[true], $f2=[1], e=[$1])
+    LogicalProject(d=[$0], $f1=[true], $f2=[_UTF-16LE'1'], e=[$1])
       LogicalFilter(condition=[=($cor0.c, $2)])
         LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
 })], variablesSet=[[$cor0]])
@@ -1703,7 +1703,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
    :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(EXPR$0=[$2], f=[$1])
       +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($4)])
-         +- LogicalProject(d=[$0], f=[$2], $f1=[true], $f2=[1], e=[$1])
+         +- LogicalProject(d=[$0], f=[$2], $f1=[true], $f2=[_UTF-16LE'1'], e=[$1])
             +- LogicalFilter(condition=[true])
                +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
 ]]>
@@ -1711,7 +1711,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
   </TestCase>
   <TestCase name="testInWithCorrelatedOnWhere_Aggregate6">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM l WHERE (b, a) IN (SELECT COUNT(*), d FROM r WHERE l.c = r.f GROUP BY d, true, e, 1)]]>
+      <![CDATA[SELECT * FROM l WHERE (b, a) IN (SELECT COUNT(*), d FROM r WHERE l.c = r.f GROUP BY d, true, e, '1')]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1719,7 +1719,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($1, $0, {
 LogicalProject(EXPR$0=[$4], d=[$0])
   LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$0=[COUNT()])
-    LogicalProject(d=[$0], $f1=[true], e=[$1], $f3=[1])
+    LogicalProject(d=[$0], $f1=[true], e=[$1], $f3=[_UTF-16LE'1'])
       LogicalFilter(condition=[=($cor0.c, $2)])
         LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
 })], variablesSet=[[$cor0]])
@@ -1733,7 +1733,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
    :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(EXPR$0=[$3], d=[$0], f=[$2])
       +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[COUNT()])
-         +- LogicalProject(d=[$0], e=[$1], f=[$2], $f1=[true], $f3=[1])
+         +- LogicalProject(d=[$0], e=[$1], f=[$2], $f1=[true], $f3=[_UTF-16LE'1'])
             +- LogicalFilter(condition=[true])
                +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
 ]]>
@@ -3199,7 +3199,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
   </TestCase>
   <TestCase name="testInWithUncorrelatedOnWhere_Aggregate5">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM l WHERE b IN (SELECT MAX(e) FROM r GROUP BY d, true, 1)]]>
+      <![CDATA[SELECT * FROM l WHERE b IN (SELECT MAX(e) FROM r GROUP BY d, true, '1')]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -3207,7 +3207,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($1, {
 LogicalProject(EXPR$0=[$3])
   LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[MAX($3)])
-    LogicalProject(d=[$0], $f1=[true], $f2=[1], e=[$1])
+    LogicalProject(d=[$0], $f1=[true], $f2=[_UTF-16LE'1'], e=[$1])
       LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
 })])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
@@ -3220,14 +3220,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
    :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(EXPR$0=[$3])
       +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[MAX($3)])
-         +- LogicalProject(d=[$0], $f1=[true], $f2=[1], e=[$1])
+         +- LogicalProject(d=[$0], $f1=[true], $f2=[_UTF-16LE'1'], e=[$1])
             +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testInWithUncorrelatedOnWhere_Aggregate6">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM l WHERE (b, a) IN (SELECT COUNT(*), d FROM r GROUP BY d, true, e, 1)]]>
+      <![CDATA[SELECT * FROM l WHERE (b, a) IN (SELECT COUNT(*), d FROM r GROUP BY d, true, e, '1')]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -3235,7 +3235,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($1, $0, {
 LogicalProject(EXPR$0=[$4], d=[$0])
   LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$0=[COUNT()])
-    LogicalProject(d=[$0], $f1=[true], e=[$1], $f3=[1])
+    LogicalProject(d=[$0], $f1=[true], e=[$1], $f3=[_UTF-16LE'1'])
       LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
 })])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
@@ -3248,7 +3248,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
    :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(EXPR$0=[$4], d=[$0])
       +- LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$0=[COUNT()])
-         +- LogicalProject(d=[$0], $f1=[true], e=[$1], $f3=[1])
+         +- LogicalProject(d=[$0], $f1=[true], e=[$1], $f3=[_UTF-16LE'1'])
             +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
