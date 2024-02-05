@@ -23,10 +23,13 @@ import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 
+import org.hamcrest.CoreMatchers;
 import org.hamcrest.Description;
 import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
+
+import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -117,21 +120,30 @@ public class OperationMatchers {
     }
 
     /**
-     * Checks that the schema of {@link CreateTableOperation} is equal to the given {@link
-     * TableDistribution}.
+     * Checks that {@link CreateTableOperation} is equal to the given {@link TableDistribution}.
      *
      * @param distribution TableDistribution that the {@link CreateTableOperation} should have
      * @see #isCreateTableOperation(Matcher[])
      */
-    public static Matcher<CreateTableOperation> withDistribution(
-            Optional<TableDistribution> distribution) {
+    public static Matcher<CreateTableOperation> withDistribution(TableDistribution distribution) {
         return new FeatureMatcher<CreateTableOperation, Optional<TableDistribution>>(
-                equalTo(distribution), "distribution of the derived table", "schema") {
+                equalTo(Optional.ofNullable(distribution)),
+                "distribution of the derived table",
+                "distribution") {
             @Override
             protected Optional<TableDistribution> featureValueOf(CreateTableOperation actual) {
                 return actual.getCatalogTable().getDistribution();
             }
         };
+    }
+
+    /**
+     * Checks that {@link CreateTableOperation} has no {@link TableDistribution}.
+     *
+     * @see #isCreateTableOperation(Matcher[])
+     */
+    public static Matcher<CreateTableOperation> withNoDistribution() {
+        return withDistribution(null);
     }
 
     /**

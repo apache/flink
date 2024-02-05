@@ -18,7 +18,9 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.connector.sink.abilities.SupportsBucketing;
 import org.apache.flink.table.utils.EncodingUtils;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -28,24 +30,34 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-/** Distribution specification. */
+/**
+ * Defines whether the given table is distributed across buckets using a specified algorithm and
+ * given columns. It represents the DISTRIBUTED BY clause in SQL.
+ *
+ * @see SupportsBucketing
+ */
 @PublicEvolving
 public class TableDistribution {
+
+    /** Distribution kind. */
+    @PublicEvolving
+    public enum Kind {
+        UNKNOWN,
+        HASH,
+        RANGE
+    }
 
     private final Kind kind;
     private final @Nullable Integer bucketCount;
     private final List<String> bucketKeys;
 
-    public TableDistribution(Kind kind, @Nullable Integer bucketCount, List<String> bucketKeys) {
-        this.kind = kind;
+    private TableDistribution(Kind kind, @Nullable Integer bucketCount, List<String> bucketKeys) {
+        this.kind = Preconditions.checkNotNull(kind, "Distribution kind must not be null.");
         this.bucketCount = bucketCount;
-        this.bucketKeys = bucketKeys;
+        this.bucketKeys = Preconditions.checkNotNull(bucketKeys, "Bucket keys must not be null.");
     }
 
-    /**
-     * Connector-dependent distribution of the given kind over the given keys with a declared number
-     * of buckets.
-     */
+    /** Distribution of the given kind over the given keys with a declared number of buckets. */
     public static TableDistribution of(
             Kind kind, @Nullable Integer bucketCount, List<String> bucketKeys) {
         return new TableDistribution(kind, bucketCount, bucketKeys);
@@ -90,14 +102,6 @@ public class TableDistribution {
     @Override
     public int hashCode() {
         return Objects.hash(kind, bucketCount, bucketKeys);
-    }
-
-    /** Distribution kind. */
-    @PublicEvolving
-    public enum Kind {
-        UNKNOWN,
-        HASH,
-        RANGE
     }
 
     public Kind getKind() {

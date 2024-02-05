@@ -64,7 +64,7 @@ public class TableSinkTestPrograms {
                 .setupTableSink(
                         SinkTestStep.newBuilder("sink_t")
                                 .addSchema("a INT", "b BIGINT", "c VARCHAR")
-                                .addDistribution(Optional.of(distribution))
+                                .addDistribution(distribution)
                                 .addPartitionKeys("b")
                                 .consumedBeforeRestore(
                                         "+I[1, 1, hi]", "+I[2, 2, hello]", "+I[3, 2, hello world]")

@@ -43,7 +43,7 @@ public final class SinkTestStep extends TableTestStep {
     SinkTestStep(
             String name,
             List<String> schemaComponents,
-            Optional<TableDistribution> distribution,
+            @Nullable TableDistribution distribution,
             List<String> partitionKeys,
             Map<String, String> options,
             @Nullable List<Row> expectedBeforeRestore,

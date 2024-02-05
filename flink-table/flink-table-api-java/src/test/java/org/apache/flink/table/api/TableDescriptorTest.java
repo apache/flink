@@ -62,7 +62,7 @@ class TableDescriptorTest {
         assertThat(descriptor.getSchema().get()).isEqualTo(schema);
 
         assertThat(descriptor.getDistribution())
-                .isEqualTo(TableDistribution.ofHash(Collections.singletonList("f0"), 1));
+                .contains(TableDistribution.ofHash(Collections.singletonList("f0"), 1));
 
         assertThat(descriptor.getPartitionKeys()).hasSize(1);
         assertThat(descriptor.getPartitionKeys().get(0)).isEqualTo("f0");
@@ -168,15 +168,14 @@ class TableDescriptorTest {
     @Test
     void testFormatDescriptorWithPrefix() {
         assertThatThrownBy(
-                        () -> {
-                            TableDescriptor.forConnector("test-connector")
-                                    .schema(Schema.newBuilder().build())
-                                    .format(
-                                            FormatDescriptor.forFormat("test-format")
-                                                    .option("test-format.a", "A")
-                                                    .build())
-                                    .build();
-                        })
+                        () ->
+                                TableDescriptor.forConnector("test-connector")
+                                        .schema(Schema.newBuilder().build())
+                                        .format(
+                                                FormatDescriptor.forFormat("test-format")
+                                                        .option("test-format.a", "A")
+                                                        .build())
+                                        .build())
                 .as(
                         "Format options set using #format(FormatDescriptor) should not contain the prefix 'test-format.', but found 'test-format.a'.")
                 .isInstanceOf(ValidationException.class);
@@ -192,9 +191,9 @@ class TableDescriptorTest {
                 .contains("DISTRIBUTED BY RANGE(`f0`) INTO 3 BUCKETS\n");
         assertThat(getTableDescriptorBuilder().distributedByRange("f0").build().toString())
                 .contains("DISTRIBUTED BY RANGE(`f0`)\n");
-        assertThat(getTableDescriptorBuilder().distributedInto(3, "f0").build().toString())
+        assertThat(getTableDescriptorBuilder().distributedBy(3, "f0").build().toString())
                 .contains("DISTRIBUTED BY (`f0`) INTO 3 BUCKETS\n");
-        assertThat(getTableDescriptorBuilder().distributedInto("f0").build().toString())
+        assertThat(getTableDescriptorBuilder().distributedBy("f0").build().toString())
                 .contains("DISTRIBUTED BY (`f0`)\n");
         assertThat(getTableDescriptorBuilder().distributedInto(3).build().toString())
                 .contains("DISTRIBUTED INTO 3 BUCKETS\n");
@@ -205,7 +204,7 @@ class TableDescriptorTest {
         assertThatThrownBy(() -> getTableDescriptorBuilder().distributedByHash(3))
                 .as("At least one bucket key must be defined for a distribution.")
                 .isInstanceOf(ValidationException.class);
-        assertThatThrownBy(() -> getTableDescriptorBuilder().distributedInto())
+        assertThatThrownBy(() -> getTableDescriptorBuilder().distributedBy())
                 .as("At least one bucket key must be defined for a distribution.")
                 .isInstanceOf(ValidationException.class);
         assertThatThrownBy(() -> getTableDescriptorBuilder().distributedByRange(3))

@@ -24,6 +24,8 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.TableDistribution;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -38,14 +40,14 @@ public abstract class TableTestStep implements TestStep {
 
     public final String name;
     public final List<String> schemaComponents;
-    public final Optional<TableDistribution> distribution;
+    public final @Nullable TableDistribution distribution;
     public final List<String> partitionKeys;
     public final Map<String, String> options;
 
     TableTestStep(
             String name,
             List<String> schemaComponents,
-            Optional<TableDistribution> distribution,
+            @Nullable TableDistribution distribution,
             List<String> partitionKeys,
             Map<String, String> options) {
         this.name = name;
@@ -64,7 +66,9 @@ public abstract class TableTestStep implements TestStep {
         allOptions.putAll(extraOptions);
 
         final String distributedBy =
-                distribution.map(TableDistribution::asSerializableString).orElse("");
+                Optional.ofNullable(distribution)
+                        .map(TableDistribution::asSerializableString)
+                        .orElse("");
         final String partitionedBy =
                 partitionKeys.isEmpty()
                         ? ""
@@ -91,7 +95,7 @@ public abstract class TableTestStep implements TestStep {
         protected final String name;
 
         protected final List<String> schemaComponents = new ArrayList<>();
-        protected Optional<TableDistribution> distribution = Optional.empty();
+        protected @Nullable TableDistribution distribution;
         protected final List<String> partitionKeys = new ArrayList<>();
         protected final Map<String, String> options = new HashMap<>();
 
@@ -140,7 +144,7 @@ public abstract class TableTestStep implements TestStep {
             return (SpecificBuilder) this;
         }
 
-        public SpecificBuilder addDistribution(Optional<TableDistribution> distribution) {
+        public SpecificBuilder addDistribution(@Nullable TableDistribution distribution) {
             this.distribution = distribution;
             return (SpecificBuilder) this;
         }

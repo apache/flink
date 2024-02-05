@@ -105,9 +105,7 @@ class ResolvedCatalogTableSerdeTest {
                                             .build())
                             .comment("my table")
                             .distribution(
-                                    Optional.of(
-                                            TableDistribution.ofHash(
-                                                    Collections.singletonList("a"), 1)))
+                                    TableDistribution.ofHash(Collections.singletonList("a"), 1))
                             .partitionKeys(Collections.singletonList("c"))
                             .options(OPTIONS)
                             .build(),
@@ -136,9 +134,7 @@ class ResolvedCatalogTableSerdeTest {
                                                 .build())
                                 .comment(null)
                                 .distribution(
-                                        Optional.of(
-                                                TableDistribution.ofHash(
-                                                        Collections.singletonList("a"), 1)))
+                                        TableDistribution.ofHash(Collections.singletonList("a"), 1))
                                 .partitionKeys(Collections.singletonList("c"))
                                 .options(OPTIONS)
                                 .build(),
@@ -180,9 +176,7 @@ class ResolvedCatalogTableSerdeTest {
                                                 .build())
                                 .comment(null)
                                 .distribution(
-                                        Optional.of(
-                                                TableDistribution.ofHash(
-                                                        Collections.singletonList("a"), 1)))
+                                        TableDistribution.ofHash(Collections.singletonList("a"), 1))
                                 .partitionKeys(Collections.singletonList("c"))
                                 .options(Collections.emptyMap())
                                 .build(),

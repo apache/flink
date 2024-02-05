@@ -102,7 +102,7 @@ final class ResolvedCatalogTableJsonDeserializer extends StdDeserializer<Resolve
                 CatalogTable.newBuilder()
                         .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema).build())
                         .comment(comment)
-                        .distribution(distribution)
+                        .distribution(distribution.orElse(null))
                         .partitionKeys(partitionKeys)
                         .options(options)
                         .build(),

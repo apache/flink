@@ -21,6 +21,8 @@ package org.apache.flink.table.test.program;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.types.Row;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -36,7 +38,7 @@ public final class SourceTestStep extends TableTestStep {
     SourceTestStep(
             String name,
             List<String> schemaComponents,
-            Optional<TableDistribution> distribution,
+            @Nullable TableDistribution distribution,
             List<String> partitionKeys,
             Map<String, String> options,
             List<Row> dataBeforeRestore,

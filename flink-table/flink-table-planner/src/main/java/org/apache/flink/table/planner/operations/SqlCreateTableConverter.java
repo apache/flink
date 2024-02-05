@@ -114,7 +114,7 @@ class SqlCreateTableConverter {
                                         .fromResolvedSchema(query.getResolvedSchema())
                                         .build())
                         .comment(catalogTable.getComment())
-                        .distribution(catalogTable.getDistribution())
+                        .distribution(catalogTable.getDistribution().orElse(null))
                         .options(catalogTable.getOptions())
                         .partitionKeys(catalogTable.getPartitionKeys())
                         .build();
@@ -191,7 +191,7 @@ class SqlCreateTableConverter {
                 CatalogTable.newBuilder()
                         .schema(mergedSchema)
                         .comment(tableComment)
-                        .distribution(mergedTableDistribution)
+                        .distribution(mergedTableDistribution.orElse(null))
                         .options(new HashMap<>(mergedOptions))
                         .partitionKeys(partitionKeys)
                         .build();

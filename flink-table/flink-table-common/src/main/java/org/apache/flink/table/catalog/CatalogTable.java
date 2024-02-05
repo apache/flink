@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.factories.DynamicTableFactory;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -64,6 +65,7 @@ public interface CatalogTable extends CatalogBaseTable {
      * @param comment optional comment
      * @param partitionKeys list of partition keys or an empty list if not partitioned
      * @param options options to configure the connector
+     * @deprecated Use the builder {@link CatalogTable#newBuilder()} instead.
      */
     @Deprecated
     static CatalogTable of(
@@ -82,6 +84,7 @@ public interface CatalogTable extends CatalogBaseTable {
      * @param partitionKeys list of partition keys or an empty list if not partitioned
      * @param options options to configure the connector
      * @param snapshot table snapshot of the table
+     * @deprecated Use the builder {@link CatalogTable#newBuilder()} instead.
      */
     @Deprecated
     static CatalogTable of(
@@ -90,8 +93,7 @@ public interface CatalogTable extends CatalogBaseTable {
             List<String> partitionKeys,
             Map<String, String> options,
             @Nullable Long snapshot) {
-        return new DefaultCatalogTable(
-                schema, comment, partitionKeys, options, snapshot, Optional.empty());
+        return new DefaultCatalogTable(schema, comment, partitionKeys, options, snapshot, null);
     }
 
     /**
@@ -164,39 +166,42 @@ public interface CatalogTable extends CatalogBaseTable {
     /** Builder for configuring and creating instances of {@link CatalogTable}. */
     @PublicEvolving
     class Builder {
-        private Schema schema;
-        private String comment;
-        private List<String> partitionKeys;
-        private Map<String, String> options;
-        private Long snapshot;
-        private Optional<TableDistribution> distribution = Optional.empty();
+        private @Nullable Schema schema;
+        private @Nullable String comment;
+        private List<String> partitionKeys = Collections.emptyList();
+        private Map<String, String> options = Collections.emptyMap();
+        private @Nullable Long snapshot;
+        private @Nullable TableDistribution distribution;
+
+        private Builder() {}
 
         public Builder schema(Schema schema) {
-            this.schema = schema;
+            this.schema = Preconditions.checkNotNull(schema, "Schema must not be null.");
             return this;
         }
 
-        public Builder comment(String comment) {
+        public Builder comment(@Nullable String comment) {
             this.comment = comment;
             return this;
         }
 
         public Builder partitionKeys(List<String> partitionKeys) {
-            this.partitionKeys = partitionKeys;
+            this.partitionKeys =
+                    Preconditions.checkNotNull(partitionKeys, "Partition keys must not be null.");
             return this;
         }
 
         public Builder options(Map<String, String> options) {
-            this.options = options;
+            this.options = Preconditions.checkNotNull(options, "Options must not be null.");
             return this;
         }
 
-        public Builder snapshot(Long snapshot) {
+        public Builder snapshot(@Nullable Long snapshot) {
             this.snapshot = snapshot;
             return this;
         }
 
-        public Builder distribution(Optional<TableDistribution> distribution) {
+        public Builder distribution(@Nullable TableDistribution distribution) {
             this.distribution = distribution;
             return this;
         }

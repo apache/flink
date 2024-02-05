@@ -1060,11 +1060,16 @@ public final class DynamicSinkUtils {
                             "Table '%s' is a bucketed table, but the underlying %s requires the number of buckets to be set.",
                             tableDebugName, DynamicTableSink.class.getSimpleName()));
         }
-        if (distribution.getKind() != TableDistribution.Kind.UNKNOWN
-                && !sinkWithBucketing.listAlgorithms().contains(distribution.getKind())) {
+        if (!sinkWithBucketing.listAlgorithms().contains(distribution.getKind())) {
+            if (distribution.getKind() == TableDistribution.Kind.UNKNOWN) {
+                throw new ValidationException(
+                        String.format(
+                                "Bucketed table '%s' must specify an algorithm. Supported algorithms: %s",
+                                tableDebugName, sinkWithBucketing.listAlgorithms()));
+            }
             throw new ValidationException(
                     String.format(
-                            "Table '%s' is a bucketed table and it supports %s, but %s was requested.",
+                            "Table '%s' is a bucketed table and it supports %s, but algorithm %s was requested.",
                             tableDebugName,
                             sinkWithBucketing.listAlgorithms(),
                             distribution.getKind()));

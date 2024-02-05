@@ -93,6 +93,7 @@ import static org.apache.flink.table.planner.utils.OperationMatchers.entry;
 import static org.apache.flink.table.planner.utils.OperationMatchers.isCreateTableOperation;
 import static org.apache.flink.table.planner.utils.OperationMatchers.partitionedBy;
 import static org.apache.flink.table.planner.utils.OperationMatchers.withDistribution;
+import static org.apache.flink.table.planner.utils.OperationMatchers.withNoDistribution;
 import static org.apache.flink.table.planner.utils.OperationMatchers.withOptions;
 import static org.apache.flink.table.planner.utils.OperationMatchers.withSchema;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -526,10 +527,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                         .columnByExpression("f2", "`f0` + 12345")
                                         .watermark("f1", "`f1` - interval '1' second")
                                         .build())
-                        .distribution(
-                                Optional.of(
-                                        TableDistribution.ofHash(
-                                                Collections.singletonList("f0"), 3)))
+                        .distribution(TableDistribution.ofHash(Collections.singletonList("f0"), 3))
                         .partitionKeys(Arrays.asList("f0", "f1"))
                         .options(sourceProperties)
                         .build();
@@ -560,9 +558,8 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                         new HamcrestCondition<>(
                                 isCreateTableOperation(
                                         withDistribution(
-                                                Optional.of(
-                                                        TableDistribution.ofUnknown(
-                                                                Arrays.asList("a", "f0"), null))),
+                                                TableDistribution.ofUnknown(
+                                                        Arrays.asList("a", "f0"), null)),
                                         withSchema(
                                                 Schema.newBuilder()
                                                         .column("f0", DataTypes.INT().notNull())
@@ -586,10 +583,8 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                         new HamcrestCondition<>(
                                 isCreateTableOperation(
                                         withDistribution(
-                                                Optional.of(
-                                                        TableDistribution.ofUnknown(
-                                                                Collections.singletonList("a"),
-                                                                null))))));
+                                                TableDistribution.ofUnknown(
+                                                        Collections.singletonList("a"), null)))));
     }
 
     @Test
@@ -616,10 +611,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                         .columnByExpression("f2", "`f0` + 12345")
                                         .watermark("f1", "`f1` - interval '1' second")
                                         .build())
-                        .distribution(
-                                Optional.of(
-                                        TableDistribution.ofHash(
-                                                Collections.singletonList("f0"), 3)))
+                        .distribution(TableDistribution.ofHash(Collections.singletonList("f0"), 3))
                         .partitionKeys(Arrays.asList("f0", "f1"))
                         .options(sourceProperties)
                         .build();
@@ -648,10 +640,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                         .columnByExpression("f2", "`f0` + 12345")
                                         .watermark("f1", "`f1` - interval '1' second")
                                         .build())
-                        .distribution(
-                                Optional.of(
-                                        TableDistribution.ofHash(
-                                                Collections.singletonList("f0"), 3)))
+                        .distribution(TableDistribution.ofHash(Collections.singletonList("f0"), 3))
                         .partitionKeys(Arrays.asList("f0", "f1"))
                         .options(sourceProperties)
                         .build();
@@ -666,7 +655,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                 .is(
                         new HamcrestCondition<>(
                                 isCreateTableOperation(
-                                        withDistribution(Optional.empty()),
+                                        withNoDistribution(),
                                         withSchema(
                                                 Schema.newBuilder()
                                                         .column("f0", DataTypes.INT().notNull())
