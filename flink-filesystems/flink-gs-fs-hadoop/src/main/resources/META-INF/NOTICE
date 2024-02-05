@@ -10,10 +10,10 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.google.android:annotations:4.1.1.4
 - com.google.api-client:google-api-client-jackson2:2.0.1
 - com.google.api-client:google-api-client:2.2.0
-- com.google.api.grpc:gapic-google-cloud-storage-v2:2.29.1-alpha
-- com.google.api.grpc:grpc-google-cloud-storage-v2:2.29.1-alpha
+- com.google.api.grpc:gapic-google-cloud-storage-v2:2.26.1-alpha
+- com.google.api.grpc:grpc-google-cloud-storage-v2:2.26.1-alpha
 - com.google.api.grpc:proto-google-cloud-monitoring-v3:1.64.0
-- com.google.api.grpc:proto-google-cloud-storage-v2:2.29.1-alpha
+- com.google.api.grpc:proto-google-cloud-storage-v2:2.26.1-alpha
 - com.google.api.grpc:proto-google-common-protos:2.28.0
 - com.google.api.grpc:proto-google-iam-v1:1.23.0
 - com.google.apis:google-api-services-iamcredentials:v1-rev20211203-2.0.0
@@ -27,7 +27,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.google.cloud:google-cloud-core-http:2.27.0
 - com.google.cloud:google-cloud-core:2.27.0
 - com.google.cloud:google-cloud-monitoring:1.82.0
-- com.google.cloud:google-cloud-storage:2.29.1
+- com.google.cloud:google-cloud-storage:2.26.1
 - com.google.code.gson:gson:2.10.1
 - com.google.flogger:flogger-system-backend:0.7.1
 - com.google.flogger:flogger:0.7.1
