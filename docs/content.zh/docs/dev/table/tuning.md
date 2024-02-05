@@ -29,7 +29,7 @@ under the License.
 
 SQL 是数据分析中使用最广泛的语言。Flink Table API 和 SQL 使用户能够以更少的时间和精力定义高效的流分析应用程序。此外，Flink Table API 和 SQL 是高效优化过的，它集成了许多查询优化和算子优化。但并不是所有的优化都是默认开启的，因此对于某些工作负载，可以通过打开某些选项来提高性能。
 
-在这一页，我们将介绍一些实用的优化选项以及流式聚合的内部原理，它们在某些情况下能带来很大的提升。
+在这一页，我们将介绍一些实用的优化选项以及流式聚合和普通连接的内部原理，它们在某些情况下能带来很大的提升。
 
 {{< hint info >}}
 目前 [分组聚合] ({{< ref "docs/dev/table/sql/queries/group-agg" >}}) 和 [窗口表值函数聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}}) （会话窗口表值函数聚合除外）都支持本页提到的流式聚合优化。
@@ -53,7 +53,7 @@ MiniBatch optimization is always enabled for [Window TVF Aggregation]({{< ref "d
 Window TVF aggregation buffer records in [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm">}}#managed-memory) instead of JVM Heap, so there is no risk of overloading GC or OOM issues.
 {{< /hint >}}
 
-下面的例子显示如何启用这些选项。
+下面的<span id="jump">例子</span>显示如何启用这些选项。
 
 {{< tabs "2d4673a0-58e4-461a-8ea3-216cbf8893ce" >}}
 {{< tab "Java" >}}
@@ -259,23 +259,25 @@ GROUP BY day
 
 Flink SQL 优化器可以识别相同的 distinct key 上的不同过滤器参数。例如，在上面的示例中，三个 COUNT DISTINCT 都在 `user_id` 一列上。Flink 可以只使用一个共享状态实例，而不是三个状态实例，以减少状态访问和状态大小。在某些工作负载下，可以获得显著的性能提升。
 
-## MiniBatch Join
-默认情况下，普通join算子是逐条处理输入的记录，即：（1）从状态中根据joinKey查询记录，（2）将当前记录写到对应状态，（3）处理输入和从状态中查找出的记录。这种处理模式可能会增加 StateBackend 开销（尤其是对于 RocksDB StateBackend ）。
+## MiniBatch 普通连接
 
-MiniBatch join的核心思想是将一组输入的数据缓存在join算子内部的缓冲区中，在缓存中减少数据，然后当缓存触发处理时，根据一些特定场景做特定处理来优化。
-一些输入的数据会在缓存中被折叠掉，具体的折叠规则参照下面的表格：
+默认情况下，普通join算子是逐条处理输入的记录，即：（1）从状态中根据join key查询记录，（2）将当前记录写到对应状态，（3）处理输入和从状态中查找出的记录。这种处理模式可能会发送冗余结果到下游。除此之外，因为每条输入都会触发一次join计算，这会增加 StateBackend 开销（尤其是对于 RocksDB StateBackend ）。
 
-{{< img src="/fig/table-streaming/folded.png" width="70%" height="70%" >}}
+Mini-batch join主要解决普通连接存在的中间结果放大和StateBackend开销较大的问题，其核心思想是将一组输入的数据缓存在join算子内部的缓冲区中，在缓存中折叠数据，然后当缓存中的数据被处理时，根据特定规则来抑制冗余结果下发。
 
-当集中处理缓存中的数据时，此时的数据已经是经过折叠后的数据。对于其中存在的数据更新流，这里也可以进行优化。当存在outer join且遇到-U（删除更新）和+U（添加更新）数据时，可以抑制下发冗余的结果。下图解释了这里的原理。
+以left join为例子，左右流的输入都是join key包含的unique key的情况。假设id为join key和unique key, 具体SQL如下:
 
-{{< img src="/fig/table-streaming/suppress.jpg" width="70%" height="70%" >}}
+```sql
+SELECT a.id as a_id, a.a_content, b.id as b_id, b.b_content
+FROM a LEFT JOIN b
+ON a.id = b.id
+```
 
-除此之外，当存在outer join时，更改左右流缓存的处理顺序也可以帮助减少下发冗余结果。下图解释了这里的原理:
+针对上述场景，mini-batch join算子的具体处理过程如下图所示。
 
-{{< img src="/fig/table-streaming/order.jpg" width="70%" height="70%" >}}
+{{< img src="/fig/table-streaming/doc.jpg" width="70%" height="70%" >}}
 
 默认情况下，对于普通join算子来说，mini-batch 优化是被禁用的。开启这项优化，需要设置选项 `table.exec.mini-batch.enabled`、`table.exec.mini-batch.allow-latency` 和 `table.exec.mini-batch.size`。更多详细信息请参见[配置]({{< ref "docs/dev/table/config" >}}#execution-options)页面。
-具体示例可以参照MiniBatch聚合对应示例。
+具体示例可以参照MiniBatch聚合对应[示例](#jump)。
 
 {{< top >}}
