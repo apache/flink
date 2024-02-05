@@ -268,7 +268,12 @@ Then Flink can use just one shared state instance instead of three state instanc
 
 ## MiniBatch Regular Joins
 
-By default, regular join operator processes input records one by one, i.e., (1) look up records from state according to joinKey, (2) write or retract input in state, (3) process the input and joined records. This processing pattern may output many redundant records downstream. Besides, it also increases the overhead of StateBackend (especially for RocksDB StateBackend) because every input would trigger the process of join.
+By default, regular join operator processes input records one by one, i.e., 
+(1) lookup associated records from the state of counterpart based on the join key of the current input record, 
+(2) add or retract the current input record to state, 
+(3) output the join results according to the current record and associated records. 
+This processing pattern may increase the overhead of StateBackend (especially for RocksDB StateBackend). 
+Besides, this can lead to severe record amplification, especially in cascading Join scenarios, generating too many intermediate results and further leading to performance degradation.
 
 Mini-batch join tries to solve the problems in regular joins. Its core idea is to cache a bundle of inputs in a buffer inside of the mini-batch join operator. First, fold records in the cache could reduce the number of data to be processed. Second, suppress outputting redundant result based on certain rule when the records in cache are being processed.
 

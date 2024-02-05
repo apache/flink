@@ -259,13 +259,14 @@ GROUP BY day
 
 Flink SQL 优化器可以识别相同的 distinct key 上的不同过滤器参数。例如，在上面的示例中，三个 COUNT DISTINCT 都在 `user_id` 一列上。Flink 可以只使用一个共享状态实例，而不是三个状态实例，以减少状态访问和状态大小。在某些工作负载下，可以获得显著的性能提升。
 
-## MiniBatch 普通连接
+## MiniBatch Regular Joins
 
-默认情况下，普通join算子是逐条处理输入的记录，即：（1）从状态中根据join key查询记录，（2）将当前记录写到对应状态，（3）处理输入和从状态中查找出的记录。这种处理模式可能会发送冗余结果到下游。除此之外，因为每条输入都会触发一次join计算，这会增加 StateBackend 开销（尤其是对于 RocksDB StateBackend ）。
+默认情况下，普通 join 算子是逐条处理输入的记录，即：（1）根据当前输入记录的 join key 查询对方状态中的记录，（2）根据当前记录写入或者撤回状态中的记录，（3）根据当前的输入记录和关联到的记录输出结果。
+这种处理模式可能会增加 StateBackend 的开销（尤其是对于 RocksDB StateBackend ）。除此之外，这会导致严重的中间结果放大。尤其在多级级联 join 的场景，会产生很多的中间结果从而导致性能降低。
 
-Mini-batch join主要解决普通连接存在的中间结果放大和StateBackend开销较大的问题，其核心思想是将一组输入的数据缓存在join算子内部的缓冲区中，在缓存中折叠数据，然后当缓存中的数据被处理时，根据特定规则来抑制冗余结果下发。
+Mini-batch join 主要解决普通连接存在的中间结果放大和 StateBackend 开销较大的问题，其核心思想是将一组输入的数据缓存在 join 算子内部的缓冲区中，在缓存中折叠数据，然后当缓存中的数据被处理时，根据特定规则来抑制冗余结果下发。
 
-以left join为例子，左右流的输入都是join key包含的unique key的情况。假设id为join key和unique key, 具体SQL如下:
+以 left join 为例子，左右流的输入都是 join key 包含的 unique key 的情况。假设 id 为 join key 和 unique key , 具体 SQL 如下:
 
 ```sql
 SELECT a.id as a_id, a.a_content, b.id as b_id, b.b_content
@@ -273,11 +274,11 @@ FROM a LEFT JOIN b
 ON a.id = b.id
 ```
 
-针对上述场景，mini-batch join算子的具体处理过程如下图所示。
+针对上述场景，mini-batch join 算子的具体处理过程如下图所示。
 
 {{< img src="/fig/table-streaming/doc.jpg" width="70%" height="70%" >}}
 
-默认情况下，对于普通join算子来说，mini-batch 优化是被禁用的。开启这项优化，需要设置选项 `table.exec.mini-batch.enabled`、`table.exec.mini-batch.allow-latency` 和 `table.exec.mini-batch.size`。更多详细信息请参见[配置]({{< ref "docs/dev/table/config" >}}#execution-options)页面。
-具体示例可以参照MiniBatch聚合对应[示例](#jump)。
+默认情况下，对于普通 join 算子来说，mini-batch 优化是被禁用的。开启这项优化，需要设置选项 `table.exec.mini-batch.enabled`、`table.exec.mini-batch.allow-latency` 和 `table.exec.mini-batch.size`。更多详细信息请参见[配置]({{< ref "docs/dev/table/config" >}}#execution-options)页面。
+具体示例可以参照 MiniBatch 聚合对应[示例](#jump)。
 
 {{< top >}}
