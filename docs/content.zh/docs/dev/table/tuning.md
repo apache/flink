@@ -53,7 +53,7 @@ MiniBatch optimization is always enabled for [Window TVF Aggregation]({{< ref "d
 Window TVF aggregation buffer records in [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm">}}#managed-memory) instead of JVM Heap, so there is no risk of overloading GC or OOM issues.
 {{< /hint >}}
 
-下面的<span id="jump">例子</span>显示如何启用这些选项。
+下面的例子显示如何启用这些选项。
 
 {{< tabs "2d4673a0-58e4-461a-8ea3-216cbf8893ce" >}}
 {{< tab "Java" >}}
@@ -261,14 +261,22 @@ Flink SQL 优化器可以识别相同的 distinct key 上的不同过滤器参�
 
 ## MiniBatch Regular Joins
 
-默认情况下，普通 join 算子是逐条处理输入的记录，即：（1）根据当前输入记录的 join key 查询对方状态中的记录，（2）根据当前记录写入或者撤回状态中的记录，（3）根据当前的输入记录和关联到的记录输出结果。
+默认情况下，regular join 算子是逐条处理输入的记录，即：（1）根据当前输入记录的 join key 关联对方状态中的记录，（2）根据当前记录写入或者撤回状态中的记录，（3）根据当前的输入记录和关联到的记录输出结果。
 这种处理模式可能会增加 StateBackend 的开销（尤其是对于 RocksDB StateBackend ）。除此之外，这会导致严重的中间结果放大。尤其在多级级联 join 的场景，会产生很多的中间结果从而导致性能降低。
 
-Mini-batch join 主要解决普通连接存在的中间结果放大和 StateBackend 开销较大的问题，其核心思想是将一组输入的数据缓存在 join 算子内部的缓冲区中，在缓存中折叠数据，然后当缓存中的数据被处理时，根据特定规则来抑制冗余结果下发。
+MiniBatch join 主要解决 regular join 存在的中间结果放大和 StateBackend 开销较大的问题。其核心思想是将一组输入的数据缓存在 join 算子内部的缓冲区中，一旦达到时间阈值或者缓存容量阈值，就触发 join 执行流程。
+这有两个主要的优化点：
 
-以 left join 为例子，左右流的输入都是 join key 包含的 unique key 的情况。假设 id 为 join key 和 unique key , 具体 SQL 如下:
+1) 在缓存中折叠数据，以此减少 join 的次数。
+2) 尽最大可能在处理数据时抑制冗余数据下发。
+
+以 left join 为例子，左右流的输入都是 join key 包含 unique key 的情况。假设 `id` 为 join key 和 unique key （数字代表 `id`, 字母代表 `content`）, 具体 SQL 如下:
 
 ```sql
+SET 'table.exec.mini-batch.enabled' = 'true';
+SET 'table.exec.mini-batch.allow-latency' = '5S';
+SET 'table.exec.mini-batch.size' = '5000';
+    
 SELECT a.id as a_id, a.a_content, b.id as b_id, b.b_content
 FROM a LEFT JOIN b
 ON a.id = b.id
@@ -278,7 +286,6 @@ ON a.id = b.id
 
 {{< img src="/fig/table-streaming/doc.jpg" width="70%" height="70%" >}}
 
-默认情况下，对于普通 join 算子来说，mini-batch 优化是被禁用的。开启这项优化，需要设置选项 `table.exec.mini-batch.enabled`、`table.exec.mini-batch.allow-latency` 和 `table.exec.mini-batch.size`。更多详细信息请参见[配置]({{< ref "docs/dev/table/config" >}}#execution-options)页面。
-具体示例可以参照 MiniBatch 聚合对应[示例](#jump)。
+默认情况下，对于 regular join 算子来说，mini-batch 优化是被禁用的。开启这项优化，需要设置选项 `table.exec.mini-batch.enabled`、`table.exec.mini-batch.allow-latency` 和 `table.exec.mini-batch.size`。更多详细信息请参见[配置]({{< ref "docs/dev/table/config" >}}#execution-options)页面。
 
 {{< top >}}

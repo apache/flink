@@ -53,7 +53,7 @@ MiniBatch optimization is always enabled for [Window TVF Aggregation]({{< ref "d
 Window TVF aggregation buffer records in [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm">}}#managed-memory) instead of JVM Heap, so there is no risk of overloading GC or OOM issues.
 {{< /hint >}}
 
-The following <span id="jump">examples</span> show how to enable these options.
+The following examples show how to enable these options.
 
 {{< tabs "bfd23c92-3007-4ddd-a0df-9d42ac589faa" >}}
 {{< tab "Java" >}}
@@ -270,27 +270,35 @@ Then Flink can use just one shared state instance instead of three state instanc
 
 By default, regular join operator processes input records one by one, i.e., 
 (1) lookup associated records from the state of counterpart based on the join key of the current input record, 
-(2) add or retract the current input record to state, 
+(2) update the state by adding current input record or retracting it, 
 (3) output the join results according to the current record and associated records. 
 This processing pattern may increase the overhead of StateBackend (especially for RocksDB StateBackend). 
-Besides, this can lead to severe record amplification, especially in cascading Join scenarios, generating too many intermediate results and further leading to performance degradation.
+Besides, this can lead to severe record amplification, especially in cascading join scenarios, generating too many intermediate results and further leading to performance degradation.
 
-Mini-batch join tries to solve the problems in regular joins. Its core idea is to cache a bundle of inputs in a buffer inside of the mini-batch join operator. First, fold records in the cache could reduce the number of data to be processed. Second, suppress outputting redundant result based on certain rule when the records in cache are being processed.
+MiniBatch join seeks to resolve the aforementioned issues. Its core idea is to cache a bundle of inputs in a buffer inside of the mini-batch join operator. 
+Once the buffer reaches a specified time threshold or size limit, the records are forwarded to the join process.  
+There are two core optimizations:
+
+1) fold records in the buffer to reduce the number of data before join process.
+2) try best to suppress outputting redundant results when the records in buffer are being processed.
 
 For example, consider following SQL:
 
 ```sql
+SET 'table.exec.mini-batch.enabled' = 'true';
+SET 'table.exec.mini-batch.allow-latency' = '5S';
+SET 'table.exec.mini-batch.size' = '5000';
+    
 SELECT a.id as a_id, a.a_content, b.id as b_id, b.b_content
 FROM a LEFT JOIN b
 ON a.id = b.id
 ```
 
-Both the left and right input have unique key contained by join key which is id (assuming the number represents id, and letter represents the content).
-The optimizations adopted by mini-batch join operator are as shown in the figure below.
+Both the left and right input side have unique key contained by join key which is `id` (assuming the number represents `id`, and letter represents the `content`).
+The execution of mini-batch join operator are as shown in the figure below.
 
 {{< img src="/fig/table-streaming/doc.jpg" width="70%" height="70%" >}}
 
 MiniBatch optimization is disabled by default for regular join. In order to enable this optimization, you should set options `table.exec.mini-batch.enabled`, `table.exec.mini-batch.allow-latency` and `table.exec.mini-batch.size`. Please see [configuration]({{< ref "docs/dev/table/config" >}}#execution-options) page for more details.
-The examples could refer to the [part](#jump) of MiniBatch Aggregation.
 
 {{< top >}}
