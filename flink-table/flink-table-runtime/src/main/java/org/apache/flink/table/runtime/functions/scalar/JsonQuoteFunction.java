@@ -47,7 +47,7 @@ public class JsonQuoteFunction extends BuiltInScalarFunction {
             String res = objectMapper.writeValueAsString(inputStr);
             return new BinaryStringData(res);
         } catch (JsonProcessingException e) {
-            return BinaryStringData.EMPTY_UTF8;
+            return input;
         }
     }
 }

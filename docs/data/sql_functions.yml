@@ -382,7 +382,7 @@ string:
     description: Quotes a string as a JSON value by wrapping it with double quote characters, escaping interior quote and other characters, and returning the result as a utf8mb4 string. If the argument is NULL, the function returns NULL.
   - sql: JSON_UNQUOTE(string)
     table: STRING.JsonUnquote()
-    description: Unquotes JSON value and returns the result as a utf8mb4 string. If the argument is NULL, returns NULL. If the value starts and ends with double quotes but is not a valid JSON string literal, this value skipped as NULL.
+    description: Unquotes JSON value and returns the result as a utf8mb4 string. If the argument is NULL, returns NULL. If the value starts and ends with double quotes but is not a valid JSON string literal, the value is passed through unmodified.
 
 temporal:
   - sql: DATE string

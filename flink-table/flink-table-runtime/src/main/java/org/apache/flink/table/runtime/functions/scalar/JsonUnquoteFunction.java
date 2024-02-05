@@ -53,7 +53,7 @@ public class JsonUnquoteFunction extends BuiltInScalarFunction {
             String res = objectMapper.writeValueAsString(jsonNode);
             return new BinaryStringData(res);
         } catch (JsonProcessingException e) {
-            return BinaryStringData.EMPTY_UTF8;
+            return input;
         }
     }
 }

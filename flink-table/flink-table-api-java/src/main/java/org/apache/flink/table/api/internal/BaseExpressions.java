@@ -1096,15 +1096,13 @@ public abstract class BaseExpressions<InType, OutType> {
      * Returns a string by quotes a string as a JSON value and wrapping it with double quote
      * characters.
      */
-    public OutType jsonQuote(InType input) {
-        return toApiSpecificExpression(
-                unresolvedCall(JSON_QUOTE, toExpr(), objectToExpression(input)));
+    public OutType jsonQuote() {
+        return toApiSpecificExpression(unresolvedCall(JSON_QUOTE, objectToExpression(toExpr())));
     }
 
     /** Returns utf8mb4 string by unquoting JSON value. */
-    public OutType jsonUnquote(InType input) {
-        return toApiSpecificExpression(
-                unresolvedCall(JSON_UNQUOTE, toExpr(), objectToExpression(input)));
+    public OutType jsonUnquote() {
+        return toApiSpecificExpression(unresolvedCall(JSON_UNQUOTE, objectToExpression(toExpr())));
     }
 
     /** Returns the base string decoded with base64. */
