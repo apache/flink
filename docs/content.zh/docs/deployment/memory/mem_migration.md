@@ -290,7 +290,7 @@ Flink 通过设置上述 JVM 内存限制降低内存泄漏问题的排查难度
 
 ## Flink 配置文件中的默认配置
 
-本节描述 Flink 自带的默认 [Flink 配置文件]({{< ref "docs/deployment/config#flink-configuration-file" >}})中的变化。
+本节描述 Flink 自带的默认 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}})中的变化。
 
 原本的 TaskManager 总内存（`taskmanager.heap.size`）被新的配置项 [`taskmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-process-size) 所取代。
 默认值从 1024MB 增加到了 1728MB。
@@ -301,5 +301,5 @@ Flink 通过设置上述 JVM 内存限制降低内存泄漏问题的排查难度
 请参考[如何配置总内存]({{< ref "docs/deployment/memory/mem_setup" >}}#configure-total-memory)。
 
 {{< hint warning >}}
-**注意：** 使用新的默认 [Flink 配置文件]({{< ref "docs/deployment/config#flink-configuration-file" >}}) 可能会造成各内存部分的大小发生变化，从而产生性能变化。
+**注意：** 使用新的默认 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 可能会造成各内存部分的大小发生变化，从而产生性能变化。
 {{< /hint >}}

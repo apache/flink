@@ -114,7 +114,7 @@ EmbeddedRocksDBStateBackend 是目前唯一支持增量 CheckPoint 的 State Bac
 
 ## 设置 State Backend
 
-如果没有明确指定，将使用 jobmanager 做为默认的 state backend。你能在 [**Flink 配置文件**]({{< ref "docs/deployment/config#flink-configuration-file" >}}) 中为所有 Job 设置其他默认的 State Backend。
+如果没有明确指定，将使用 jobmanager 做为默认的 state backend。你能在 [**Flink 配置文件**]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中为所有 Job 设置其他默认的 State Backend。
 每一个 Job 的 state backend 配置会覆盖默认的 state backend 配置，如下所示：
 
 <a name="setting-the-per-job-state-backend"></a>
@@ -158,14 +158,14 @@ env = StreamExecutionEnvironment.get_execution_environment(config)
 ```
 
 {{< hint info >}}
-  **注意:** 由于 RocksDB 是 Flink 默认分发包的一部分，所以如果你没在代码中使用 RocksDB，则不需要添加此依赖。而且可以在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-configuration-file" >}})中通过 `state.backend.type` 配置 State Backend，以及更多的 [checkpointing]({{< ref "docs/deployment/config" >}}#checkpointing) 和 [RocksDB 特定的]({{< ref "docs/deployment/config" >}}#rocksdb-state-backend) 参数。
+  **注意:** 由于 RocksDB 是 Flink 默认分发包的一部分，所以如果你没在代码中使用 RocksDB，则不需要添加此依赖。而且可以在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}})中通过 `state.backend.type` 配置 State Backend，以及更多的 [checkpointing]({{< ref "docs/deployment/config" >}}#checkpointing) 和 [RocksDB 特定的]({{< ref "docs/deployment/config" >}}#rocksdb-state-backend) 参数。
 {{< /hint >}}
 
 <a name="setting-default-state-backend"></a>
 
 ### 设置默认的（全局的） State Backend
 
-在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-configuration-file" >}}) 可以通过键 `state.backend.type` 设置默认的 State Backend。
+在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 可以通过键 `state.backend.type` 设置默认的 State Backend。
 
 可选值包括 *jobmanager* (HashMapStateBackend), *rocksdb* (EmbeddedRocksDBStateBackend)，
 或使用实现了 state backend 工厂 {{< gh_link file="flink-runtime/src/main/java/org/apache/flink/runtime/state/StateBackendFactory.java" name="StateBackendFactory" >}} 的类的全限定类名，
@@ -204,7 +204,7 @@ RocksDB 支持*增量快照*。不同于产生一个包含所有数据的全量�
 和基于全量快照的恢复时间相比，如果网络带宽是瓶颈，那么基于增量快照恢复可能会消耗更多时间，因为增量快照包含的 sst 文件之间可能存在数据重叠导致需要下载的数据量变大；而当 CPU 或者 IO 是瓶颈的时候，基于增量快照恢复会更快，因为从增量快照恢复不需要解析 Flink 的统一快照格式来重建本地的 RocksDB 数据表，而是可以直接基于 sst 文件加载。
 
 虽然状态数据量很大时我们推荐使用增量快照，但这并不是默认的快照机制，您需要通过下述配置手动开启该功能：
-  - 在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-configuration-file" >}}) 中设置：`state.backend.incremental: true` 或者
+  - 在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中设置：`state.backend.incremental: true` 或者
   - 在代码中按照右侧方式配置（来覆盖默认配置）：`EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend(true);`
 
 需要注意的是，一旦启用了增量快照，网页上展示的 `Checkpointed Data Size` 只代表增量上传的数据量，而不是一次快照的完整数据量。
@@ -270,7 +270,7 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
 使用*预定义选项*，用户可以在每个 RocksDB 列族上应用一些预定义的配置，例如配置内存使用、线程、Compaction 设置等。目前每个算子的每个状态都在 RocksDB 中有专门的一个列族存储。
 
 有两种方法可以选择要应用的预定义选项：
-  - 通过 `state.backend.rocksdb.predefined-options` 配置项将选项名称设置进 [Flink 配置文件]({{< ref "docs/deployment/config#flink-configuration-file" >}}) 。
+  - 通过 `state.backend.rocksdb.predefined-options` 配置项将选项名称设置进 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 。
   - 通过程序设置：`EmbeddedRocksDBStateBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)` 。
 
 该选项的默认值是 `DEFAULT` ，对应 `PredefinedOptions.DEFAULT` 。
@@ -288,11 +288,11 @@ RocksDB State Backend 会将 [这里定义]({{< ref "docs/deployment/config" >}}
 
 有两种方法可以将 `RocksDBOptionsFactory` 传递给 RocksDB State Backend：
 
-  - 通过 `state.backend.rocksdb.options-factory` 选项将工厂实现类的名称设置到[Flink 配置文件]({{< ref "docs/deployment/config#flink-configuration-file" >}}) 。
+  - 通过 `state.backend.rocksdb.options-factory` 选项将工厂实现类的名称设置到[Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 。
   
   - 通过程序设置，例如 `EmbeddedRocksDBStateBackend.setRocksDBOptions(new MyOptionsFactory());` 。
   
-<span class="label label-info">注意</span> 通过程序设置的 `RocksDBOptionsFactory` 将覆盖 [Flink 配置文件]({{< ref "docs/deployment/config#flink-configuration-file" >}}) 配置文件的设置，且 `RocksDBOptionsFactory` 设置的优先级高于预定义选项（`PredefinedOptions`）。
+<span class="label label-info">注意</span> 通过程序设置的 `RocksDBOptionsFactory` 将覆盖 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 的设置，且 `RocksDBOptionsFactory` 设置的优先级高于预定义选项（`PredefinedOptions`）。
 
 <span class="label label-info">注意</span> RocksDB是一个本地库，它直接从进程分配内存，
 而不是从JVM分配内存。分配给 RocksDB 的任何内存都必须被考虑在内，通常需要将这部分内存从任务管理器（`TaskManager`）的JVM堆中减去。

@@ -29,7 +29,7 @@ under the License.
 Flink allows reporting traces to external systems.
 For more information about Flink's tracing system go to the [tracing system documentation]({{< ref "docs/ops/traces" >}}).
 
-Traces can be exposed to an external system by configuring one or several reporters in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}). These
+Traces can be exposed to an external system by configuring one or several reporters in [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}). These
 reporters will be instantiated on each job and task manager when they are started.
 
 Below is a list of parameters that are generally applicable to all reporters.

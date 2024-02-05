@@ -491,7 +491,7 @@ $ docker run flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /
     -D blob.server.port=6124
 ```
 
-Options set via dynamic properties overwrite the options from [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
+Options set via dynamic properties overwrite the options from [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}).
 
 ### Via Environment Variables
 
@@ -508,11 +508,11 @@ $ docker run --env FLINK_PROPERTIES=${FLINK_PROPERTIES} flink:{{< stable >}}{{< 
 The [`jobmanager.rpc.address`]({{< ref "docs/deployment/config" >}}#jobmanager-rpc-address) option must be configured, others are optional to set.
 
 The environment variable `FLINK_PROPERTIES` should contain a list of Flink cluster configuration options separated by new line,
-the same way as in the [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}). `FLINK_PROPERTIES` takes precedence over configurations in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
+the same way as in the [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}). `FLINK_PROPERTIES` takes precedence over configurations in [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}).
 
 ### Via Flink configuration file
 
-The configuration files ([Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}), logging, hosts etc) are located in the `/opt/flink/conf` directory in the Flink image.
+The configuration files ([Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}), logging, hosts etc) are located in the `/opt/flink/conf` directory in the Flink image.
 To provide a custom location for the Flink configuration files, you can
 
 * **either mount a volume** with the custom configuration files to this path `/opt/flink/conf` when you run the Flink image:
@@ -534,7 +534,7 @@ To provide a custom location for the Flink configuration files, you can
 
 {{< hint info >}}
 The mounted volume must contain all necessary configuration files.
-The [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) file must have write permission so that the Docker entry point script can modify it in certain cases.
+The [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}) must have write permission so that the Docker entry point script can modify it in certain cases.
 {{< /hint >}}
 
 ### Using Filesystem Plugins

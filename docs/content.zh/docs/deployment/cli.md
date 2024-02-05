@@ -30,7 +30,7 @@ under the License.
 Flink provides a Command-Line Interface (CLI) `bin/flink` to run programs that 
 are packaged as JAR files and to control their execution. The CLI is part of any 
 Flink setup, available in local single node setups and in distributed setups. 
-It connects to the running JobManager specified in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
+It connects to the running JobManager specified in [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}).
 
 
 
@@ -431,7 +431,7 @@ parameter combinations:
   * `./bin/flink run --target remote`: Submission to an already running Flink cluster
 
 The `--target` will overwrite the [execution.target]({{< ref "docs/deployment/config" >}}#execution-target) 
-specified in the [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
+specified in the [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}).
 
 For more details on the commands and the available options, please refer to the Resource Provider-specific 
 pages of the documentation.

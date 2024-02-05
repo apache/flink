@@ -533,7 +533,7 @@ To provide a custom location for the Flink configuration files, you can
 
 {{< hint info >}}
 The mounted volume must contain all necessary configuration files.
-The [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) file must have write permission so that the Docker entry point script can modify it in certain cases.
+The [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) must have write permission so that the Docker entry point script can modify it in certain cases.
 {{< /hint >}}
 
 ### Using Filesystem Plugins
