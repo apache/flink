@@ -28,8 +28,8 @@ import org.apache.flink.table.runtime.operators.multipleinput.input.InputSpec;
 import java.util.List;
 
 /** The factory to create {@link BatchMultipleInputStreamOperator}. */
-public class BatchMultipleInputStreamOperatorFactory
-        extends AbstractStreamOperatorFactory<RowData> implements YieldingOperatorFactory<RowData> {
+public class BatchMultipleInputStreamOperatorFactory extends AbstractStreamOperatorFactory<RowData>
+        implements YieldingOperatorFactory<RowData> {
     private static final long serialVersionUID = 1L;
 
     private final List<InputSpec> inputSpecs;
