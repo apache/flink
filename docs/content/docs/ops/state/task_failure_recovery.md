@@ -39,7 +39,7 @@ Failover strategies decide which tasks should be restarted to recover the job.
 The cluster can be started with a default restart strategy which is always used when no job specific restart strategy has been defined.
 In case that the job is submitted with a restart strategy, this strategy overrides the cluster's default setting.
 
-The default restart strategy is set via Flink's configuration file [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
+The default restart strategy is set via [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
 The configuration parameter *restart-strategy.type* defines which strategy is taken.
 If checkpointing is not enabled, the "no restart" strategy is used.
 If checkpointing is activated and the restart strategy has not been configured, the fixed-delay strategy is used with 
@@ -301,7 +301,7 @@ By default, a fixed delay restart strategy is chosen if there is no other restar
 ## Failover Strategies
 
 Flink supports different failover strategies which can be configured via the configuration parameter
-*jobmanager.execution.failover-strategy* in Flink's configuration file [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
+*jobmanager.execution.failover-strategy* in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
 
 <table class="table table-bordered">
   <thead>

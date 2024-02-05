@@ -71,13 +71,13 @@ cp ./opt/flink-gs-fs-hadoop-{{< version >}}.jar ./plugins/gs-fs-hadoop/
 
 ### Configuration
 
-The underlying Hadoop file system can be configured using the [Hadoop configuration keys](https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/v2.2.18/gcs/CONFIGURATION.md) for `gcs-connector` by adding the configurations to your [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
+The underlying Hadoop file system can be configured using the [Hadoop configuration keys](https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/v2.2.18/gcs/CONFIGURATION.md) for `gcs-connector` by adding the configurations to your [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}).
 
-For example, `gcs-connector` has a `fs.gs.http.connect-timeout` configuration key. If you want to change it, you need to set `gs.http.connect-timeout: xyz` in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}). Flink will internally translate this back to `fs.gs.http.connect-timeout`.
+For example, `gcs-connector` has a `fs.gs.http.connect-timeout` configuration key. If you want to change it, you need to set `gs.http.connect-timeout: xyz` in [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}). Flink will internally translate this back to `fs.gs.http.connect-timeout`.
 
 You can also set `gcs-connector` options directly in the Hadoop `core-site.xml` configuration file, so long as the Hadoop configuration directory is made known to Flink via the `env.hadoop.conf.dir` Flink option or via the `HADOOP_CONF_DIR` environment variable.
 
-`flink-gs-fs-hadoop` can also be configured by setting the following options in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}):
+`flink-gs-fs-hadoop` can also be configured by setting the following options in [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}):
 
 | Key                             | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 |---------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

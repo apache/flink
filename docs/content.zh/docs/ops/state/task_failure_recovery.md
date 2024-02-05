@@ -38,7 +38,7 @@ Flink 通过重启策略和故障恢复策略来控制 Task 重启：重启策�
 Flink 作业如果没有定义重启策略，则会遵循集群启动时加载的默认重启策略。
 如果提交作业时设置了重启策略，该策略将覆盖掉集群的默认策略。
 
-通过 Flink 的配置文件 [Flink 配置文件]({{< ref "docs/deployment/config#flink-configuration-file" >}}) 来设置默认的重启策略。配置参数 *restart-strategy.type* 定义了采取何种策略。
+通过 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 来设置默认的重启策略。配置参数 *restart-strategy.type* 定义了采取何种策略。
 如果没有启用 checkpoint，就采用“不重启”策略。如果启用了 checkpoint 且没有配置重启策略，那么就采用固定延时重启策略，
 此时最大尝试重启次数由 `Integer.MAX_VALUE` 参数设置。下表列出了可用的重启策略和与其对应的配置值。
 
@@ -93,7 +93,7 @@ env = StreamExecutionEnvironment.get_execution_environment(config)
 如果尝试超过了给定的最大次数，作业将最终失败。
 在连续的两次重启尝试之间，重启策略等待一段固定长度的时间。
 
-通过在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-configuration-file" >}}) 中设置如下配置参数，默认启用此策略。
+通过在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中设置如下配置参数，默认启用此策略。
 
 ```yaml
 restart-strategy.type: fixed-delay
@@ -205,7 +205,7 @@ Python API 不支持。
 故障率重启策略在故障发生之后重启作业，但是当**故障率**（每个时间间隔发生故障的次数）超过设定的限制时，作业会最终失败。
 在连续的两次重启尝试之间，重启策略等待一段固定长度的时间。
 
-通过在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-configuration-file" >}}) 中设置如下配置参数，默认启用此策略。
+通过在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中设置如下配置参数，默认启用此策略。
 
 ```yaml
 restart-strategy.type: failure-rate
@@ -298,7 +298,7 @@ env = StreamExecutionEnvironment.get_execution_environment(config)
 
 ## Failover Strategies
 
-Flink 支持多种不同的故障恢复策略，该策略需要通过 Flink 配置文件 [Flink 配置文件]({{< ref "docs/deployment/config#flink-configuration-file" >}}) 中的 *jobmanager.execution.failover-strategy*
+Flink 支持多种不同的故障恢复策略，该策略需要通过 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中的 *jobmanager.execution.failover-strategy*
 配置项进行配置。
 
 <table class="table table-bordered">

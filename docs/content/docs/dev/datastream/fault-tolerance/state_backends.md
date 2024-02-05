@@ -28,7 +28,7 @@ under the License.
 
 Flink provides different state backends that specify how and where state is stored.
 
-State can be located on Java’s heap or off-heap. Depending on your state backend, Flink can also manage the state for the application, meaning Flink deals with the memory management (possibly spilling to disk if necessary) to allow applications to hold very large state. By default, the configuration file [*Flink configuration file*]({{< ref "docs/deployment/config#flink-configuration-file" >}}) determines the state backend for all Flink jobs.
+State can be located on Java’s heap or off-heap. Depending on your state backend, Flink can also manage the state for the application, meaning Flink deals with the memory management (possibly spilling to disk if necessary) to allow applications to hold very large state. By default, the [*Flink configuration file*]({{< ref "docs/deployment/config#flink-configuration-file" >}}) determines the state backend for all Flink jobs.
 
 However, the default state backend can be overridden on a per-job basis, as shown below.
 

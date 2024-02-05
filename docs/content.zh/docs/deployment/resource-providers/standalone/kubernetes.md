@@ -158,7 +158,7 @@ $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
 
 ### Configuration
 
-所有配置项都展示在[配置页面]({{< ref "docs/deployment/config" >}})上。在 config map 配置文件 `flink-configuration-configmap.yaml` 中，可以将配置添加在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-configuration-file" >}}) 部分。
+所有配置项都展示在[配置页面]({{< ref "docs/deployment/config" >}})上。在 config map 配置文件 `flink-configuration-configmap.yaml` 中，可以将配置添加在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 部分。
 
 <a name="accessing-flink-in-kubernetes"></a>
 
