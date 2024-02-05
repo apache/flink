@@ -2162,7 +2162,7 @@ public final class TestValuesTableFactory
         public void applyOverwrite(boolean overwrite) {}
 
         public Set<TableDistribution.Kind> listAlgorithms() {
-            return Collections.singleton(TableDistribution.Kind.HASH);
+            return Set.of(TableDistribution.Kind.UNKNOWN, TableDistribution.Kind.HASH);
         }
 
         @Override

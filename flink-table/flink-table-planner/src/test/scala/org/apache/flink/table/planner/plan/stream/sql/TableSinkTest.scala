@@ -855,7 +855,7 @@ class TableSinkTest extends TableTestBase {
     Assertions
       .assertThatThrownBy(() => util.verifyExecPlan(stmtSet))
       .hasMessageContaining(
-        "Table 'default_catalog.default_database.sink' is a bucketed table and it supports [HASH], but RANGE was requested.")
+        "Table 'default_catalog.default_database.sink' is a bucketed table and it supports [HASH, UNKNOWN], but algorithm RANGE was requested.")
   }
 
   @Test

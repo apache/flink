@@ -472,7 +472,11 @@ public class ContextResolvedTableSerdeTest {
                 assertThat(result.f1.isPermanent()).isTrue();
                 assertThat(result.f1.getIdentifier()).isEqualTo(PERMANENT_TABLE_IDENTIFIER);
                 assertThat(result.f1.getResolvedSchema()).isEqualTo(CATALOG_TABLE_RESOLVED_SCHEMA);
-                assertThat(result.f1.<ResolvedCatalogTable>getResolvedTable().getDistribution())
+                assertThat(
+                                result.f1
+                                        .<ResolvedCatalogTable>getResolvedTable()
+                                        .getDistribution()
+                                        .get())
                         .isEqualTo(DISTRIBUTION);
                 assertThat(result.f1.<ResolvedCatalogTable>getResolvedTable().getPartitionKeys())
                         .isEqualTo(PARTITION_KEYS);
