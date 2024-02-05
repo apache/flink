@@ -1065,13 +1065,20 @@ public final class DynamicSinkUtils {
                 throw new ValidationException(
                         String.format(
                                 "Bucketed table '%s' must specify an algorithm. Supported algorithms: %s",
-                                tableDebugName, sinkWithBucketing.listAlgorithms()));
+                                tableDebugName,
+                                sinkWithBucketing.listAlgorithms().stream()
+                                        .map(TableDistribution.Kind::toString)
+                                        .sorted()
+                                        .collect(Collectors.toList())));
             }
             throw new ValidationException(
                     String.format(
                             "Table '%s' is a bucketed table and it supports %s, but algorithm %s was requested.",
                             tableDebugName,
-                            sinkWithBucketing.listAlgorithms(),
+                            sinkWithBucketing.listAlgorithms().stream()
+                                    .map(TableDistribution.Kind::toString)
+                                    .sorted()
+                                    .collect(Collectors.toList()),
                             distribution.getKind()));
         }
         sinkAbilitySpecs.add(new BucketingSpec());
