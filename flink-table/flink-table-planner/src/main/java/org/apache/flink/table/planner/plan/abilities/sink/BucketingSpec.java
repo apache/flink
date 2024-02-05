@@ -25,8 +25,6 @@ import org.apache.flink.table.connector.sink.abilities.SupportsBucketing;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
-import java.util.Objects;
-
 /**
  * No properties. This only checks whether the interface is implemented again during deserialization
  */

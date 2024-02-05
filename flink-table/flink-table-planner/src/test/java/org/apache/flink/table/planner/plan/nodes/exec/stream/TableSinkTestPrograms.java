@@ -26,7 +26,6 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 
 import java.util.Arrays;
-import java.util.Optional;
 
 /** {@link TableTestProgram} definitions for testing {@link StreamExecDeduplicate}. */
 public class TableSinkTestPrograms {

@@ -18,11 +18,6 @@
 
 package org.apache.flink.table.catalog;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
-import static java.lang.String.format;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -53,8 +48,11 @@ import org.apache.flink.table.expressions.resolver.ExpressionResolver.Expression
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -70,7 +68,9 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.annotation.Nullable;
+import static java.lang.String.format;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A manager for dealing with catalog objects such as tables, views, functions, and types. It
@@ -841,10 +841,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      */
     public Set<String> listSchemas(String catalogName) {
         return Stream.concat(
-                        getCatalog(catalogName)
-                                .map(Catalog::listDatabases)
-                                .orElse(Collections.emptyList())
-                                .stream(),
+                        getCatalog(catalogName).map(Catalog::listDatabases)
+                                .orElse(Collections.emptyList()).stream(),
                         temporaryTables.keySet().stream()
                                 .filter(i -> i.getCatalogName().equals(catalogName))
                                 .map(ObjectIdentifier::getDatabaseName))
