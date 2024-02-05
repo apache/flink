@@ -2162,7 +2162,8 @@ public final class TestValuesTableFactory
         public void applyOverwrite(boolean overwrite) {}
 
         public Set<TableDistribution.Kind> listAlgorithms() {
-            return Set.of(TableDistribution.Kind.UNKNOWN, TableDistribution.Kind.HASH);
+            return new HashSet<>(
+                    Arrays.asList(TableDistribution.Kind.UNKNOWN, TableDistribution.Kind.HASH));
         }
 
         @Override
