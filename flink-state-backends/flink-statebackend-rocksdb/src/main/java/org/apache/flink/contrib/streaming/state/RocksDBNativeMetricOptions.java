@@ -262,6 +262,26 @@ public class RocksDBNativeMetricOptions implements Serializable {
                     .withDescription(
                             "Monitor the total count of block cache misses in RocksDB (BLOCK_CACHE_MISS == BLOCK_CACHE_INDEX_MISS + BLOCK_CACHE_FILTER_MISS + BLOCK_CACHE_DATA_MISS).");
 
+    public static final ConfigOption<Boolean> MONITOR_BLOOM_FILTER_USEFUL =
+            ConfigOptions.key("state.backend.rocksdb.metrics.bloom-filter-useful")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Monitor the total count of reads avoided by bloom filter.");
+
+    public static final ConfigOption<Boolean> MONITOR_BLOOM_FILTER_FULL_POSITIVE =
+            ConfigOptions.key("state.backend.rocksdb.metrics.bloom-filter-full-positive")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Monitor the total count of reads not avoided by bloom full filter.");
+
+    public static final ConfigOption<Boolean> MONITOR_BLOOM_FILTER_FULL_TRUE_POSITIVE =
+            ConfigOptions.key("state.backend.rocksdb.metrics.bloom-filter-full-true-positive")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Monitor the total count of reads not avoided by bloom full filter and the data actually exists in RocksDB.");
+
     public static final ConfigOption<Boolean> MONITOR_BYTES_READ =
             ConfigOptions.key("state.backend.rocksdb.metrics.bytes-read")
                     .booleanType()
@@ -435,6 +455,11 @@ public class RocksDBNativeMetricOptions implements Serializable {
                 {
                     put(MONITOR_BLOCK_CACHE_HIT, TickerType.BLOCK_CACHE_HIT);
                     put(MONITOR_BLOCK_CACHE_MISS, TickerType.BLOCK_CACHE_MISS);
+                    put(MONITOR_BLOOM_FILTER_USEFUL, TickerType.BLOOM_FILTER_USEFUL);
+                    put(MONITOR_BLOOM_FILTER_FULL_POSITIVE, TickerType.BLOOM_FILTER_FULL_POSITIVE);
+                    put(
+                            MONITOR_BLOOM_FILTER_FULL_TRUE_POSITIVE,
+                            TickerType.BLOOM_FILTER_FULL_TRUE_POSITIVE);
                     put(MONITOR_BYTES_READ, TickerType.BYTES_READ);
                     put(MONITOR_ITER_BYTES_READ, TickerType.ITER_BYTES_READ);
                     put(MONITOR_BYTES_WRITTEN, TickerType.BYTES_WRITTEN);
