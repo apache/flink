@@ -276,7 +276,7 @@ public class AsyncCalcTestPrograms {
         }
     }
 
-    /** Testing open method is called. */
+    /** Testing that failing requests can recover after restore. */
     public static class TwosFailFunction extends AsyncScalarFunction {
         private static final int TOTAL_FAILURES = 1;
 
