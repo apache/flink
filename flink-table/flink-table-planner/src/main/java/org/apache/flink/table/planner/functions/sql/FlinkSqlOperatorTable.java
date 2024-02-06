@@ -1144,9 +1144,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 
     /**
      * Use the definitions in Flink instead of {@link SqlLibraryOperators#ARRAY_AGG}, because we
-     * ignore nulls and returns nullable ARRAY type. Order by clause like <code>
-     * ARRAY_AGG(x ORDER BY x, y)</code> for aggregate function is not supported yet, because the
-     * row data cannot be obtained inside the aggregate function.
+     * return nullable ARRAY type. Order by clause like <code>ARRAY_AGG(x ORDER BY x, y)</code> for
+     * aggregate function is not supported yet, because the row data cannot be obtained inside the
+     * aggregate function.
      */
     public static final SqlAggFunction ARRAY_AGG =
             SqlBasicAggFunction.create(

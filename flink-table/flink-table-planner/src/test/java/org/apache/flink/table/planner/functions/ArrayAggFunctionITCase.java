@@ -53,6 +53,7 @@ class ArrayAggFunctionITCase extends BuiltInAggregateFunctionTestBase {
                                         Row.ofKind(INSERT, "B", 3),
                                         Row.ofKind(INSERT, "C", 3),
                                         Row.ofKind(INSERT, "C", null),
+                                        Row.ofKind(DELETE, "C", null),
                                         Row.ofKind(INSERT, "D", null),
                                         Row.ofKind(INSERT, "E", 4),
                                         Row.ofKind(INSERT, "E", 5),
@@ -71,7 +72,7 @@ class ArrayAggFunctionITCase extends BuiltInAggregateFunctionTestBase {
                                 Arrays.asList(
                                         Row.of("A", new Integer[] {1, 2}),
                                         Row.of("B", new Integer[] {2, 2, 3}),
-                                        Row.of("C", new Integer[] {3, null}),
+                                        Row.of("C", new Integer[] {3}),
                                         Row.of("D", new Integer[] {null}),
                                         Row.of("E", new Integer[] {6})))
                         .testSqlResult(

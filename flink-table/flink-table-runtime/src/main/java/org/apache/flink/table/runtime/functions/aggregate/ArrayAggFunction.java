@@ -29,7 +29,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -119,17 +118,13 @@ public final class ArrayAggFunction<T>
     }
 
     public void accumulate(ArrayAggAccumulator<T> acc, T value) throws Exception {
-        if (value == null) {
-            if (!ignoreNulls) {
-                acc.list.add(null);
-            }
-        } else {
+        if (value != null || !ignoreNulls) {
             acc.list.add(value);
         }
     }
 
     public void retract(ArrayAggAccumulator<T> acc, T value) throws Exception {
-        if (value != null) {
+        if (value != null || !ignoreNulls) {
             if (!acc.list.remove(value)) {
                 acc.retractList.add(value);
             }
@@ -138,38 +133,24 @@ public final class ArrayAggFunction<T>
 
     public void merge(ArrayAggAccumulator<T> acc, Iterable<ArrayAggAccumulator<T>> its)
             throws Exception {
+        List<T> newRetractBuffer = new LinkedList<>();
         for (ArrayAggAccumulator<T> otherAcc : its) {
-            // merge list of acc and other
-            List<T> buffer = new ArrayList<>();
-            for (T element : acc.list) {
-                buffer.add(element);
+            if (!otherAcc.list.iterator().hasNext() && !otherAcc.retractList.iterator().hasNext()) {
+                // otherAcc is empty, skip it
+                continue;
             }
-            for (T element : otherAcc.list) {
-                buffer.add(element);
-            }
-            // merge retract list of acc and other
-            List<T> retractBuffer = new ArrayList<>();
-            for (T element : acc.retractList) {
-                retractBuffer.add(element);
-            }
-            for (T element : otherAcc.retractList) {
-                retractBuffer.add(element);
-            }
-
-            // merge list & retract list
-            List<T> newRetractBuffer = new ArrayList<>();
-            for (T element : retractBuffer) {
-                if (!buffer.remove(element)) {
-                    newRetractBuffer.add(element);
-                }
-            }
-
-            // update to acc
-            acc.list.clear();
-            acc.list.addAll(buffer);
-            acc.retractList.clear();
-            acc.retractList.addAll(newRetractBuffer);
+            acc.list.addAll(otherAcc.list);
+            acc.retractList.addAll(otherAcc.retractList);
         }
+
+        for (T element : acc.retractList) {
+            if (!acc.list.remove(element)) {
+                newRetractBuffer.add(element);
+            }
+        }
+
+        acc.retractList.clear();
+        acc.retractList.addAll(newRetractBuffer);
     }
 
     @Override
