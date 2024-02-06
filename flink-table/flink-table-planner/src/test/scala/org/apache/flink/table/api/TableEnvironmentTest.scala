@@ -2662,6 +2662,47 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testDescribeCatalog(): Unit = {
+    val catalogDDL =
+      s"""
+         | CREATE CATALOG test_catalog with ('type'='generic_in_memory');
+         |""".stripMargin
+
+    tableEnv.executeSql(catalogDDL)
+
+    val expectedResult =
+      "default database: default\n" +
+        "CatalogClass: org.apache.flink.table.catalog.GenericInMemoryCatalog"
+
+    val tableResult = tableEnv.executeSql("describe catalog test_catalog")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(util.Arrays.asList(Row.of(expectedResult)).iterator(), tableResult.collect())
+
+    assertThatThrownBy(() => tableEnv.executeSql("describe catalog not_exist_catalog"))
+      .hasMessage("Catalog not_exist_catalog does not exist.")
+      .isInstanceOf[CatalogNotExistException]
+  }
+
+  @Test
+  def testDescribeCustomCatalog(): Unit = {
+    val customCatalog = new TestCatalog("test_catalog", "test_database")
+    customCatalog.customExtraExplainInfo.put("k1", "v1")
+    customCatalog.customExtraExplainInfo.put("k2", "v2")
+    // omit the custom catalog factory and just use the deprecate method here
+    tableEnv.registerCatalog("test_catalog", customCatalog)
+
+    val expectedResult =
+      "default database: test_database\n" +
+        "k1: v1\n" +
+        "k2: v2\n" +
+        "CatalogClass: org.apache.flink.table.api.TableEnvironmentTest.TestCatalog"
+
+    val tableResult = tableEnv.executeSql("describe catalog test_catalog")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(util.Arrays.asList(Row.of(expectedResult)).iterator(), tableResult.collect())
+  }
+
+  @Test
   def testTemporaryOperationListener(): Unit = {
     val listener = new ListenerCatalog("listener_cat")
     val currentCat = tableEnv.getCurrentCatalog
@@ -3016,6 +3057,17 @@ class TableEnvironmentTest {
     }
 
     override def onDropTemporaryFunction(functionPath: ObjectPath): Unit = numTempFunc -= 1
+  }
+
+  class TestCatalog(name: String, defaultDatabase: String)
+    extends GenericInMemoryCatalog(name, defaultDatabase) {
+
+    // use linked hashmap to ensure order
+    val customExtraExplainInfo: util.Map[String, String] = new util.LinkedHashMap[String, String]()
+
+    override protected def extraExplainInfo(): util.Map[String, String] = {
+      customExtraExplainInfo
+    }
   }
 
 }

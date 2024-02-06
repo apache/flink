@@ -781,4 +781,13 @@ public interface Catalog {
             CatalogColumnStatistics columnStatistics,
             boolean ignoreIfNotExists)
             throws PartitionNotExistException, CatalogException;
+
+    /**
+     * Get a user defined catalog description.
+     *
+     * @return a user-implement catalog detailed explanation
+     */
+    default String explainCatalog() {
+        return String.format("CatalogClass: %s", this.getClass().getCanonicalName());
+    }
 }

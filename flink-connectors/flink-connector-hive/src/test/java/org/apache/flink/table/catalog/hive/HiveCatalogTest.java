@@ -379,6 +379,15 @@ public class HiveCatalogTest {
         }
     }
 
+    @Test
+    public void testExplainCatalog() {
+        assertThat(hiveCatalog.explainCatalog())
+                .matches(
+                        "default database: default\n"
+                                + "hiveVersion: .*\n"
+                                + "CatalogClass: org.apache.flink.table.catalog.hive.HiveCatalog");
+    }
+
     private static Map<String, String> getLegacyFileSystemConnectorOptions(String path) {
         final Map<String, String> options = new HashMap<>();
         options.put("connector.type", "filesystem");
