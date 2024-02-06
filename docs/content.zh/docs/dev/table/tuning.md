@@ -284,7 +284,7 @@ ON a.id = b.id
 
 针对上述场景，mini-batch join 算子的具体处理过程如下图所示。
 
-{{< img src="/fig/table-streaming/doc.jpg" width="70%" height="70%" >}}
+{{< img src="/fig/table-streaming/doc.png" width="70%" height="70%" >}}
 
 默认情况下，对于 regular join 算子来说，mini-batch 优化是被禁用的。开启这项优化，需要设置选项 `table.exec.mini-batch.enabled`、`table.exec.mini-batch.allow-latency` 和 `table.exec.mini-batch.size`。更多详细信息请参见[配置]({{< ref "docs/dev/table/config" >}}#execution-options)页面。
 
