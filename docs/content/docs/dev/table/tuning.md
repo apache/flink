@@ -297,7 +297,7 @@ ON a.id = b.id
 Both the left and right input side have unique key contained by join key which is `id` (assuming the number represents `id`, and letter represents the `content`).
 The execution of mini-batch join operator are as shown in the figure below.
 
-{{< img src="/fig/table-streaming/doc.png" width="70%" height="70%" >}}
+{{< img src="/fig/table-streaming/minibatch_join.png" width="70%" height="70%" >}}
 
 MiniBatch optimization is disabled by default for regular join. In order to enable this optimization, you should set options `table.exec.mini-batch.enabled`, `table.exec.mini-batch.allow-latency` and `table.exec.mini-batch.size`. Please see [configuration]({{< ref "docs/dev/table/config" >}}#execution-options) page for more details.
 
