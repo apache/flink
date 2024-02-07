@@ -84,32 +84,32 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
 
     testHarness.processElement(insertRecord(1: JInt, 2: JInt))
     expectedOutput.add(deleteRecord(1: JInt, 1: JInt, 1: JInt))
-    expectedOutput.add(insertRecord(1: JInt, 1: JInt, 1: JInt))
-    expectedOutput.add(insertRecord(1: JInt, 2: JInt, 2: JInt))
+    expectedOutput.add(insertRecord(1: JInt, 2: JInt, 1: JInt))
+    expectedOutput.add(insertRecord(1: JInt, 1: JInt, 2: JInt))
 
     testHarness.processElement(insertRecord(1: JInt, 3: JInt))
-    expectedOutput.add(deleteRecord(1: JInt, 1: JInt, 1: JInt))
-    expectedOutput.add(deleteRecord(1: JInt, 2: JInt, 2: JInt))
-    expectedOutput.add(insertRecord(1: JInt, 1: JInt, 1: JInt))
+    expectedOutput.add(deleteRecord(1: JInt, 2: JInt, 1: JInt))
+    expectedOutput.add(deleteRecord(1: JInt, 1: JInt, 2: JInt))
+    expectedOutput.add(insertRecord(1: JInt, 3: JInt, 1: JInt))
     expectedOutput.add(insertRecord(1: JInt, 2: JInt, 2: JInt))
-    expectedOutput.add(insertRecord(1: JInt, 3: JInt, 3: JInt))
+    expectedOutput.add(insertRecord(1: JInt, 1: JInt, 3: JInt))
 
     testHarness.processElement(insertRecord(1: JInt, 2: JInt))
-    expectedOutput.add(deleteRecord(1: JInt, 1: JInt, 1: JInt))
+    expectedOutput.add(deleteRecord(1: JInt, 3: JInt, 1: JInt))
     expectedOutput.add(deleteRecord(1: JInt, 2: JInt, 2: JInt))
-    expectedOutput.add(deleteRecord(1: JInt, 3: JInt, 3: JInt))
+    expectedOutput.add(deleteRecord(1: JInt, 1: JInt, 3: JInt))
+    expectedOutput.add(insertRecord(1: JInt, 3: JInt, 1: JInt))
     expectedOutput.add(insertRecord(1: JInt, 2: JInt, 2: JInt))
-    expectedOutput.add(insertRecord(1: JInt, 2: JInt, 2: JInt))
-    expectedOutput.add(insertRecord(1: JInt, 3: JInt, 3: JInt))
+    expectedOutput.add(insertRecord(1: JInt, 2: JInt, 3: JInt))
 
     // ingest data with key value of 2
     testHarness.processElement(insertRecord(2: JInt, 2: JInt))
-    expectedOutput.add(insertRecord(2: JInt, 2: JInt, 2: JInt))
+    expectedOutput.add(insertRecord(2: JInt, 2: JInt, 1: JInt))
 
     // set TtlTimeProvider with 3002 to trigger expired state cleanup
     testHarness.setStateTtlProcessingTime(3002)
     testHarness.processElement(insertRecord(1: JInt, 2: JInt))
-    expectedOutput.add(insertRecord(1: JInt, 2: JInt, 2: JInt))
+    expectedOutput.add(insertRecord(1: JInt, 2: JInt, 1: JInt))
 
     val result = testHarness.getOutput
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
@@ -136,22 +136,22 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     expectedOutput.add(deleteRecord(1: JInt, 1: JInt))
 
     testHarness.processElement(insertRecord(3: JInt))
-    expectedOutput.add(insertRecord(3: JInt, 3: JInt))
+    expectedOutput.add(insertRecord(3: JInt, 1: JInt))
 
     testHarness.processElement(insertRecord(4: JInt))
-    expectedOutput.add(deleteRecord(3: JInt, 3: JInt))
-    expectedOutput.add(insertRecord(3: JInt, 3: JInt))
-    expectedOutput.add(insertRecord(4: JInt, 4: JInt))
+    expectedOutput.add(deleteRecord(3: JInt, 1: JInt))
+    expectedOutput.add(insertRecord(3: JInt, 2: JInt))
+    expectedOutput.add(insertRecord(4: JInt, 1: JInt))
 
     testHarness.processElement(deleteRecord(3: JInt))
-    expectedOutput.add(deleteRecord(3: JInt, 3: JInt))
-    expectedOutput.add(deleteRecord(4: JInt, 4: JInt))
-    expectedOutput.add(insertRecord(4: JInt, 4: JInt))
+    expectedOutput.add(deleteRecord(3: JInt, 2: JInt))
+    expectedOutput.add(deleteRecord(4: JInt, 1: JInt))
+    expectedOutput.add(insertRecord(4: JInt, 1: JInt))
 
     testHarness.processElement(insertRecord(5: JInt))
-    expectedOutput.add(deleteRecord(4: JInt, 4: JInt))
-    expectedOutput.add(insertRecord(4: JInt, 4: JInt))
-    expectedOutput.add(insertRecord(5: JInt, 5: JInt))
+    expectedOutput.add(deleteRecord(4: JInt, 1: JInt))
+    expectedOutput.add(insertRecord(4: JInt, 2: JInt))
+    expectedOutput.add(insertRecord(5: JInt, 1: JInt))
 
     val result = testHarness.getOutput
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)

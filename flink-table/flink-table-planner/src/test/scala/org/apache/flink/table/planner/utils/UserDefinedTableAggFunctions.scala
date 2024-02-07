@@ -121,11 +121,19 @@ class Top3 extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Accum] {
 
   def emitValue(acc: Top3Accum, out: Collector[JTuple2[JInt, JInt]]): Unit = {
     val entries = acc.data.entrySet().iterator()
+    val allKeys = new ListBuffer[JInt]
     while (entries.hasNext) {
       val pair = entries.next()
       for (_ <- 0 until pair.getValue) {
-        out.collect(JTuple2.of(pair.getKey, pair.getKey))
+        allKeys.append(pair.getKey)
       }
+    }
+
+    val sortedKeys = allKeys.sorted.reverse
+    sortedKeys.zipWithIndex.foreach {
+      case (key, index) =>
+        // output the value and the rank number
+        out.collect(JTuple2.of(key, index + 1))
     }
   }
 }
@@ -201,12 +209,20 @@ class Top3WithMapView extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Wi
   }
 
   def emitValue(acc: Top3WithMapViewAccum, out: Collector[JTuple2[JInt, JInt]]): Unit = {
-    val keys = acc.data.iterator
-    while (keys.hasNext) {
-      val pair = keys.next()
+    val entries = acc.data.iterator
+    val allKeys = new ListBuffer[JInt]
+    while (entries.hasNext) {
+      val pair = entries.next()
       for (_ <- 0 until pair.getValue) {
-        out.collect(JTuple2.of(pair.getKey, pair.getKey))
+        allKeys.append(pair.getKey)
       }
+    }
+
+    val sortedKeys = allKeys.sorted.reverse
+    sortedKeys.zipWithIndex.foreach {
+      case (key, index) =>
+        // output the value and the rank number
+        out.collect(JTuple2.of(key, index + 1))
     }
   }
 }
@@ -245,7 +261,8 @@ class Top3WithRetractInput
     while (i < 3 && i < acc.data.size) {
       val v = ite.next()
       i += 1
-      out.collect(JTuple2.of(v, v))
+      // output the value and the rank number
+      out.collect(JTuple2.of(v, i))
     }
   }
 }

@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.stream.table
 
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
@@ -26,7 +25,7 @@ import org.apache.flink.table.planner.runtime.utils.{JavaUserDefinedTableAggFunc
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverloadedDoubleMaxFunction
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData.tupleData3
-import org.apache.flink.table.planner.utils.{TableAggSum, Top3, Top3Accum, Top3WithMapView, Top3WithRetractInput}
+import org.apache.flink.table.planner.utils._
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
@@ -145,19 +144,19 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
     val expected = List(
       "1,1,1",
       "2,2,2",
-      "2,3,3",
-      "3,4,4",
-      "3,5,5",
-      "3,6,6",
-      "4,10,10",
-      "4,9,9",
-      "4,8,8",
-      "5,15,15",
-      "5,14,14",
-      "5,13,13",
-      "6,21,21",
-      "6,20,20",
-      "6,19,19"
+      "2,3,1",
+      "3,4,3",
+      "3,5,2",
+      "3,6,1",
+      "4,10,1",
+      "4,9,2",
+      "4,8,3",
+      "5,15,1",
+      "5,14,2",
+      "5,13,3",
+      "6,21,1",
+      "6,20,2",
+      "6,19,3"
     ).sorted
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
   }
@@ -177,9 +176,9 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
     env.execute()
 
     val expected = List(
-      "19,19",
-      "20,20",
-      "21,21"
+      "19,3",
+      "20,2",
+      "21,1"
     ).sorted
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
   }
@@ -230,19 +229,19 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
     val expected = List(
       "1,1,1",
       "2,2,2",
-      "2,3,3",
-      "3,4,4",
-      "3,5,5",
-      "3,6,6",
-      "4,10,10",
-      "4,9,9",
-      "4,8,8",
-      "5,15,15",
-      "5,14,14",
-      "5,13,13",
-      "6,21,21",
-      "6,20,20",
-      "6,19,19"
+      "2,3,1",
+      "3,4,3",
+      "3,5,2",
+      "3,6,1",
+      "4,10,1",
+      "4,9,2",
+      "4,8,3",
+      "5,15,1",
+      "5,14,2",
+      "5,13,3",
+      "6,21,1",
+      "6,20,2",
+      "6,19,3"
     ).sorted
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
   }
@@ -263,9 +262,9 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
     env.execute()
 
     val expected = List(
-      "111,111",
-      "65,65",
-      "34,34"
+      "111,1",
+      "65,2",
+      "34,3"
     ).sorted
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
   }
