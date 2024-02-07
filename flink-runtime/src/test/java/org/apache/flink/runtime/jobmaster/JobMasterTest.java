@@ -1019,7 +1019,9 @@ class JobMasterTest {
      * if this execution fails.
      */
     @Test
-    @Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler") // FLINK-21450
+    // The AdaptiveScheduler doesn't support partial recovery but restarts all Executions in case of
+    // a local failure.
+    @Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler")
     void testRequestNextInputSplitWithLocalFailover() throws Exception {
 
         configuration.set(
