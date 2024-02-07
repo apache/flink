@@ -42,7 +42,6 @@ import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
@@ -198,7 +197,6 @@ class FileSourceTextLinesITCase {
      * record format (text lines) and restarts TaskManager.
      */
     @Test
-    @Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler") // FLINK-21450
     void testContinuousTextFileSourceWithTaskManagerFailover(@TempDir java.nio.file.Path tmpTestDir)
             throws Exception {
         // This test will kill TM, so we run it in a new cluster to avoid affecting other tests
