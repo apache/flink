@@ -231,7 +231,7 @@ function run_group_2 {
     # Sticky Scheduling
     ################################################################################
 
-    if [[ ${PROFILE} != *"enable-adaptive-scheduler"* ]]; then #FLINK-21450
+    if [[ ${PROFILE} != *"enable-adaptive-scheduler"* ]]; then # FLINK-34416
         run_test "Local recovery and sticky scheduling end-to-end test" "$END_TO_END_DIR/test-scripts/test_local_recovery_and_scheduling.sh 4 3 hashmap false false 100" "skip_check_exceptions"
         run_test "Local recovery and sticky scheduling end-to-end test" "$END_TO_END_DIR/test-scripts/test_local_recovery_and_scheduling.sh 4 3 hashmap false true 100" "skip_check_exceptions"
         run_test "Local recovery and sticky scheduling end-to-end test" "$END_TO_END_DIR/test-scripts/test_local_recovery_and_scheduling.sh 4 10 rocks false false 100" "skip_check_exceptions"
