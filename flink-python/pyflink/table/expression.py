@@ -832,6 +832,10 @@ class Expression(Generic[T]):
     def collect(self) -> 'Expression':
         return _unary_op("collect")(self)
 
+    @property
+    def array_agg(self) -> 'Expression':
+        return _unary_op("arrayAgg")(self)
+
     def alias(self, name: str, *extra_names: str) -> 'Expression[T]':
         """
         Specifies a name for an expression i.e. a field.

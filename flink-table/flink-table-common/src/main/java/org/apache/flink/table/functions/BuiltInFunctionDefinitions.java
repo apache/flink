@@ -745,6 +745,13 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(argument(0))
                     .build();
 
+    public static final BuiltInFunctionDefinition ARRAY_AGG =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_AGG")
+                    .kind(AGGREGATE)
+                    .outputTypeStrategy(nullableIfArgs(SpecificTypeStrategies.ARRAY))
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // String functions
     // --------------------------------------------------------------------------------------------

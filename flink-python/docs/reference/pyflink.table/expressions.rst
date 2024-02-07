@@ -138,6 +138,7 @@ arithmetic functions
     Expression.var_pop
     Expression.var_samp
     Expression.collect
+    Expression.array_agg
     Expression.alias
     Expression.cast
     Expression.try_cast
