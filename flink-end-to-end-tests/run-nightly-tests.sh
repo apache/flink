@@ -191,8 +191,10 @@ function run_group_2 {
 
     if [[ ${PROFILE} != *"enable-adaptive-scheduler"* ]]; then # FLINK-21400
       run_test "Streaming File Sink end-to-end test" "$END_TO_END_DIR/test-scripts/test_file_sink.sh local StreamingFileSink" "skip_check_exceptions"
+      run_test "Streaming File Sink (Minio) end-to-end test" "$END_TO_END_DIR/test-scripts/test_file_sink.sh minio StreamingFileSink" "skip_check_exceptions"
       run_test "Streaming File Sink s3 end-to-end test" "$END_TO_END_DIR/test-scripts/test_file_sink.sh s3 StreamingFileSink" "skip_check_exceptions"
       run_test "New File Sink end-to-end test" "$END_TO_END_DIR/test-scripts/test_file_sink.sh local FileSink" "skip_check_exceptions"
+      run_test "New File Sink end-to-end (Minio) test" "$END_TO_END_DIR/test-scripts/test_file_sink.sh minio FileSink" "skip_check_exceptions"
       run_test "New File Sink s3 end-to-end test" "$END_TO_END_DIR/test-scripts/test_file_sink.sh s3 FileSink" "skip_check_exceptions"
 
       run_test "Stateful stream job upgrade end-to-end test" "$END_TO_END_DIR/test-scripts/test_stateful_stream_job_upgrade.sh 2 4"
