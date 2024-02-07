@@ -62,8 +62,7 @@ function get_total_number_of_valid_lines {
 if [ "${OUT_TYPE}" == "local" ]; then
   echo "[INFO] Test run in local environment: No S3 environment is loaded."
 elif [ "${OUT_TYPE}" == "s3" ]; then
-  # the s3 context requires additional
-  source "$(dirname "$0")"/common_s3.sh
+  source "$(dirname "$0")"/common_s3_minio.sh
   s3_setup hadoop
 
   # overwrites JOB_OUTPUT_PATH to point to S3
@@ -90,7 +89,6 @@ elif [ "${OUT_TYPE}" == "s3" ]; then
   function out_cleanup {
     s3_delete_by_full_path_prefix "${S3_DATA_PREFIX}"
     s3_delete_by_full_path_prefix "${S3_CHECKPOINT_PREFIX}"
-    rollback_openssl_lib
   }
 
   on_exit out_cleanup
@@ -104,6 +102,9 @@ OPENSSL_LINKAGE=$(if (( RANDOM % 2 )) ; then echo "dynamic"; else echo "static";
 echo "Executing test with ${OPENSSL_LINKAGE} openSSL linkage (random selection between 'dynamic' and 'static')"
 
 set_conf_ssl "mutual" "OPENSSL" "${OPENSSL_LINKAGE}"
+# set_conf_ssl moves netty libraries into FLINK_DIR which we want to rollback at the end of the test run
+on_exit rollback_openssl_lib
+
 set_config_key "metrics.fetcher.update-interval" "2000"
 # this test relies on global failovers
 set_config_key "jobmanager.execution.failover-strategy" "full"
