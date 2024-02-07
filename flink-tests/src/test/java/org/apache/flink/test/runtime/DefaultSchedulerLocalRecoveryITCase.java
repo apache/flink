@@ -60,13 +60,18 @@ public class DefaultSchedulerLocalRecoveryITCase extends TestLogger {
     private static final long TIMEOUT = 10_000L;
 
     @Test
-    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21450
+    // The AdaptiveScheduler doesn't update the ExecutionGraph but creates a new Execution during
+    // local recovery. Recovering can also lead to a change in parallelism which makes the
+    // executionHistory non-linear. The lack of a linear executionHistory prevents us from applying
+    // the same test for the AdaptiveScheduler.
+    @Category(FailsWithAdaptiveScheduler.class)
     public void testLocalRecoveryFull() throws Exception {
         testLocalRecoveryInternal("full");
     }
 
     @Test
-    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21450
+    // see comment in #testLocalRecoveryFull
+    @Category(FailsWithAdaptiveScheduler.class)
     public void testLocalRecoveryRegion() throws Exception {
         testLocalRecoveryInternal("region");
     }
