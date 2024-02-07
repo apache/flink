@@ -48,6 +48,7 @@ import org.apache.flink.table.expressions.resolver.ExpressionResolver.Expression
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -311,7 +312,10 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         }
 
         Catalog catalog = initCatalog(catalogName, catalogDescriptor);
-        catalog.open();
+        try (TemporaryClassLoaderContext context =
+                TemporaryClassLoaderContext.of(catalogStoreHolder.classLoader())) {
+            catalog.open();
+        }
         catalogs.put(catalogName, catalog);
 
         catalogStoreHolder.catalogStore().storeCatalog(catalogName, catalogDescriptor);
