@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.runtime.harness
 
 import org.apache.flink.api.scala._
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
 import org.apache.flink.table.api.{EnvironmentSettings, _}
 import org.apache.flink.table.api.bridge.scala._
@@ -34,7 +35,7 @@ import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
-import org.apache.flink.types.Row
+import org.apache.flink.types.{Row, RowKind}
 import org.apache.flink.types.RowKind._
 
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
@@ -152,8 +153,12 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
     expectedOutput.add(binaryRecord(UPDATE_BEFORE, "bbb", 2L: JLong))
     expectedOutput.add(binaryRecord(UPDATE_AFTER, "bbb", 5L: JLong))
 
-    val result = testHarness.getOutput
+    // accumulate
+    testHarness.processElement(binaryRecord(INSERT, "aaa", 0L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 16L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 16L: JLong))
 
+    val result = testHarness.getOutput
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
 
     testHarness.close()
@@ -219,6 +224,63 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
 
     testHarness.close()
+  }
+
+  @TestTemplate
+  def testGlobalAggregateWithRetraction(): Unit = {
+    if (!this.miniBatch.on) {
+      return
+    }
+    val data = new mutable.MutableList[(String, String, Long)]
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.createTemporaryView("T", t)
+
+    val sql =
+      """
+        |SELECT a, SUM(c)
+        |FROM (
+        |  SELECT a, b, SUM(c) as c
+        |  FROM T GROUP BY a, b
+        |)GROUP BY a
+      """.stripMargin
+    val t1 = tEnv.sqlQuery(sql)
+
+    tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(2))
+    tEnv.getConfig.set("table.optimizer.agg-phase-strategy", "TWO_PHASE")
+    val localTestHarness =
+      createHarnessTesterForNoState(t1.toRetractStream[Row], "LocalGroupAggregate")
+    val globalTestHarness = createHarnessTester(t1.toRetractStream[Row], "GlobalGroupAggregate")
+    val assertor = new RowDataHarnessAssertor(
+      Array(DataTypes.STRING().getLogicalType, DataTypes.BIGINT().getLogicalType))
+
+    localTestHarness.open()
+    globalTestHarness.open()
+
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+
+    // insertion
+    localTestHarness.processElement(binaryRecord(INSERT, "aaa", 1L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "aaa", 1L: JLong))
+
+    // insertion
+    localTestHarness.processElement(binaryRecord(INSERT, "bbb", 1L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "bbb", 1L: JLong))
+
+    // insertion
+    localTestHarness.processElement(binaryRecord(INSERT, "aaa", 0L: JLong))
+    // We expect the output here to be displayed even if the result is the same as before,
+    // because we have set an expiration time for the state.
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 1L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 1L: JLong))
+
+    // Here we use the output of LocalGroupAggregate as the input of GlobalGroupAggregate.
+    val localResult = localTestHarness.getOutput
+    globalTestHarness.processElements(localResult.asInstanceOf[JCollection[StreamRecord[RowData]]])
+    val globalResult = globalTestHarness.getOutput
+
+    assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, globalResult)
+    localTestHarness.close()
+    globalTestHarness.close()
   }
 
   private def createAggregationWithDistinct()
