@@ -142,7 +142,9 @@ public class SortBufferAccumulator implements BufferAccumulator {
                         int newSize = this.memoryManager.getBufferPoolSize();
                         int oldSize = poolSize.getAndSet(newSize);
                         if (oldSize > newSize) {
-                            flushCurrentDataBuffer();
+                            if (!returnFreeSegments(oldSize - newSize)) {
+                                flushCurrentDataBuffer();
+                            }
                         }
                     },
                     poolSizeCheckInterval,
@@ -270,6 +272,16 @@ public class SortBufferAccumulator implements BufferAccumulator {
         if (currentDataBuffer != null) {
             flushDataBuffer();
             currentDataBuffer = null;
+        }
+    }
+
+    private synchronized boolean returnFreeSegments(int numSegments) {
+        if (currentDataBuffer == null
+                || currentDataBuffer.isReleased()
+                || !currentDataBuffer.hasRemaining()) {
+            return false;
+        } else {
+            return currentDataBuffer.returnFreeSegments(numSegments);
         }
     }
 
