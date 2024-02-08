@@ -23,8 +23,8 @@ import org.apache.flink.table.api.{EnvironmentSettings, _}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.data.RowData
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableAggFunctions.{Top3WithMapView, Top3WithRetractInput}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
-import org.apache.flink.table.planner.utils.{Top3WithMapView, Top3WithRetractInput}
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.{deleteRecord, insertRecord}

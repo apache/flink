@@ -20,7 +20,8 @@ package org.apache.flink.table.planner.plan.stream.table
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.Func0
-import org.apache.flink.table.planner.utils.{EmptyTableAggFunc, EmptyTableAggFuncWithIntResultType, TableTestBase}
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableAggFunctions.{EmptyTableAggFunc, EmptyTableAggFuncWithIntResultType}
+import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.jupiter.api.Test
 

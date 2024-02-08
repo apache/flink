@@ -26,8 +26,8 @@ import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction;
-import org.apache.flink.table.planner.utils.Top3;
-import org.apache.flink.table.planner.utils.Top3Accum;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableAggFunctions.Top3;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableAggFunctions.Top3Accumulator;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.DoubleType;
@@ -124,7 +124,7 @@ public class AggregateCallSerdeTest {
     }
 
     private static AggregateCall getLegacyAggCall() {
-        TableAggregateFunction<Tuple2<Integer, Integer>, Top3Accum> top3 = new Top3();
+        TableAggregateFunction<Tuple2<Integer, Integer>, Top3Accumulator> top3 = new Top3();
         DataType externalResultType =
                 TypeConversions.fromLegacyInfoToDataType(
                         UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(top3));

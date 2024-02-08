@@ -21,10 +21,10 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink}
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableAggFunctions.Top3
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
-import org.apache.flink.table.planner.utils.Top3
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 
 import org.assertj.core.api.Assertions.assertThat

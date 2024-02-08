@@ -19,7 +19,8 @@ package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.planner.utils.{PythonEmptyTableAggFunc, TableTestBase}
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableAggFunctions.PythonEmptyTableAggFunc
+import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.jupiter.api.Test
 

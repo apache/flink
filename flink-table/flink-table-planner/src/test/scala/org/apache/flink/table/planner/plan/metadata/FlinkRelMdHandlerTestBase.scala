@@ -42,8 +42,9 @@ import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, Inte
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.planner.plan.utils._
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableAggFunctions.Top3
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions
-import org.apache.flink.table.planner.utils.{PlannerMocks, Top3}
+import org.apache.flink.table.planner.utils.PlannerMocks
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext
 import org.apache.flink.table.runtime.groupwindow._
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType, VariableRankRange}
