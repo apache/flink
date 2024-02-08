@@ -65,7 +65,7 @@ public class TemporalJoinTestPrograms {
                                     "2020-10-10 00:00:42"),
                             Row.of(
                                     1L,
-                                    Row.of("USD"),
+                                    Row.of("usd"),
                                     mapOf("currency", "USD"),
                                     "2020-10-10 00:00:43"),
                             Row.of(
@@ -86,7 +86,7 @@ public class TemporalJoinTestPrograms {
                                     "2020-10-10 00:00:58"),
                             Row.of(
                                     1L,
-                                    Row.of("USD"),
+                                    Row.of("usd"),
                                     mapOf("currency", "USD"),
                                     "2020-10-10 00:00:58"))
                     .build();
@@ -142,7 +142,7 @@ public class TemporalJoinTestPrograms {
                                     + "SELECT amount * r.rate "
                                     + "FROM OrdersNestedId AS o "
                                     + "JOIN RatesHistory FOR SYSTEM_TIME AS OF o.rowtime AS r "
-                                    + "ON o.nested_row.currency = r.currency ")
+                                    + "ON (case when o.nested_row.currency = 'usd' then upper(o.nested_row.currency) ELSE o.nested_row.currency END) = r.currency ")
                     .build();
 
     static final TableTestProgram TEMPORAL_JOIN_TABLE_JOIN_KEY_FROM_MAP =

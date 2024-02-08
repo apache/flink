@@ -146,13 +146,50 @@
         "kind" : "ROWTIME"
       }
     }, {
-      "kind" : "FIELD_ACCESS",
-      "name" : "currency",
-      "expr" : {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 2,
-        "type" : "ROW<`currency` VARCHAR(2147483647)>"
-      }
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CASE$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "FIELD_ACCESS",
+          "name" : "currency",
+          "expr" : {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 2,
+            "type" : "ROW<`currency` VARCHAR(2147483647)>"
+          }
+        }, {
+          "kind" : "LITERAL",
+          "value" : "usd",
+          "type" : "VARCHAR(2147483647) NOT NULL"
+        } ],
+        "type" : "BOOLEAN"
+      }, {
+        "kind" : "CALL",
+        "internalName" : "$UPPER$1",
+        "operands" : [ {
+          "kind" : "FIELD_ACCESS",
+          "name" : "currency",
+          "expr" : {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 2,
+            "type" : "ROW<`currency` VARCHAR(2147483647)>"
+          }
+        } ],
+        "type" : "VARCHAR(2147483647)"
+      }, {
+        "kind" : "FIELD_ACCESS",
+        "name" : "currency",
+        "expr" : {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 2,
+          "type" : "ROW<`currency` VARCHAR(2147483647)>"
+        }
+      } ],
+      "type" : "VARCHAR(2147483647)"
     } ],
     "condition" : null,
     "inputProperties" : [ {
@@ -179,7 +216,7 @@
         "fieldType" : "VARCHAR(2147483647)"
       } ]
     },
-    "description" : "Calc(select=[amount, rowtime, nested_row.currency AS $f5])"
+    "description" : "Calc(select=[amount, rowtime, CASE((nested_row.currency = 'usd'), UPPER(nested_row.currency), nested_row.currency) AS $f5])"
   }, {
     "id" : 16,
     "type" : "stream-exec-exchange_1",
