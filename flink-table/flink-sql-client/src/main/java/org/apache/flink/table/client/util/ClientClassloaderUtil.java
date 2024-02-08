@@ -37,9 +37,10 @@ public class ClientClassloaderUtil {
 
     public static FlinkUserCodeClassLoader buildUserClassLoader(
             List<URL> jarUrls, ClassLoader parentClassLoader, Configuration conf) {
-        LOG.debug("Set option '{}' to 'false' to use {}.",
-            CoreOptions.CHECK_LEAKED_CLASSLOADER.key(),
-            ClientWrapperClassLoader.class.getSimpleName());
+        LOG.debug(
+                "Set option '{}' to 'false' to use {}.",
+                CoreOptions.CHECK_LEAKED_CLASSLOADER.key(),
+                ClientWrapperClassLoader.class.getSimpleName());
         conf.set(CoreOptions.CHECK_LEAKED_CLASSLOADER, false);
         return (FlinkUserCodeClassLoader)
                 ClientUtils.buildUserCodeClassLoader(
