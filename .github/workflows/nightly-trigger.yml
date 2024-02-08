@@ -24,6 +24,7 @@ on:
 
 jobs:
   Trigger:
+    if: github.repository == 'apache/flink'
     permissions:
       actions: write
     strategy:
