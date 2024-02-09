@@ -60,12 +60,12 @@ class ArtifactFetchManagerTest {
     @BeforeEach
     void setup() {
         configuration = new Configuration();
-        configuration.setString(ArtifactFetchOptions.BASE_DIR, tempDir.toAbsolutePath().toString());
+        configuration.set(ArtifactFetchOptions.BASE_DIR, tempDir.toAbsolutePath().toString());
     }
 
     @Test
     void testGetFetcher() throws Exception {
-        configuration.setBoolean(ArtifactFetchOptions.RAW_HTTP_ENABLED, true);
+        configuration.set(ArtifactFetchOptions.RAW_HTTP_ENABLED, true);
         ArtifactFetchManager fetchManager = new ArtifactFetchManager(configuration);
 
         ArtifactFetcher fetcher = fetchManager.getFetcher(new URI("local:///a.jar"));
@@ -115,7 +115,7 @@ class ArtifactFetchManagerTest {
 
     @Test
     void testHttpFetch() throws Exception {
-        configuration.setBoolean(ArtifactFetchOptions.RAW_HTTP_ENABLED, true);
+        configuration.set(ArtifactFetchOptions.RAW_HTTP_ENABLED, true);
         HttpServer httpServer = null;
         try {
             httpServer = startHttpServer();
