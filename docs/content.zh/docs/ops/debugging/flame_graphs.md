@@ -38,7 +38,7 @@ under the License.
 Flame Graph
 {{% /center %}}
 
-Flame Graphs是通过多次采样堆栈跟踪来构建的。每个方法调用都以一个条形图表示，其中条形图的长度与其在采样中出现的次数成比例。
+Flame Graphs是通过多次采样堆栈跟踪来构建的。每个方法调用都由一个条形图表示，其中条形图的长度与其在样本中出现的次数成比例。
 
 从Flink 1.13版本开始，Flink原生支持Flame Graphs。要生成一个Flame Graph，请导航到正在运行的作业的作业图，选择感兴趣的算子，并在右侧菜单中点击“Flame Graph”选项卡： 
 
