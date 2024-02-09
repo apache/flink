@@ -31,7 +31,7 @@ under the License.
 
 - 目前哪些方法正在消耗CPU资源？
 - 一个方法的消耗与其他方法相比如何？
-- 堆栈中的一系列调用导致执行特定方法？
+- 哪一系列的堆栈调用导致了特定方法的执行?
 
 {{< img src="/fig/flame_graph_on_cpu.png" class="img-fluid" width="90%" >}}
 {{% center %}}
