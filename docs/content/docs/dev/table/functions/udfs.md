@@ -872,6 +872,10 @@ While calls to an `AsyncScalarFunction` may be completed out of the original inp
 #### Error Handling
 The primary way for a user to indicate an error is to call `completableFuture.completeExceptionally(throwable)`. Similarly, if an exception is encountered by the system when invoking `eval`, that will also result in an error. When an error occurs, the system will consider the retry strategy, configured by `table.exec.async-scalar.retry-strategy`. If this is `NO_RETRY`, it will fail the job immediately. If it is set to `FIXED_DELAY`, a period of `table.exec.async-scalar.retry-delay` will be waited, and the function call will be retried and given another attempt to succeed. If the number of retries exceeds `table.exec.async-scalar.max-attempts` or if the timeout `table.exec.async-scalar.timeout` expires (including all retry attempts), the job will fail.
 
+#### Is AsyncScalarFunction Required?
+One thing to consider is if the UDF contains CPU intensive logic with no blocking calls.  If so, it likely doesn't require asynchronous functionality and could use a `ScalarFunction`. If the logic involves waiting for things like network or background operations (e.g. database lookups, RPCs, or REST calls), this may be a useful way to speed things up. 
+
+
 The following example shows how to do work on a thread pool in the background, though any libraries exposing an async interface may be directly used to complete the `CompletableFuture` from a callback. See the [Implementation Guide](#implementation-guide) for more details.
 
 {{< tabs "a385387e-d64b-44b3-9b65-fd42f0820e99" >}}
