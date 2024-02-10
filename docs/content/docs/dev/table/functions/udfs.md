@@ -850,13 +850,29 @@ If you intend to implement or call functions in Python, please refer to the [Pyt
 Asynchronous Scalar Functions
 ----------------
 
+When interacting with external systems (for example when enriching stream events with data stored in a database), one needs to take care that network or other latency does not dominate the streaming application’s running time.
+
+Naively accessing data in the external database, for example using a `ScalarFunction`, typically means **synchronous** interaction: A request is sent to the database and the `ScalarFunction` waits until the response has been received. In many cases, this waiting makes up the vast majority of the function’s time.
+
+Asynchronous interaction with the database means that a single function instance can handle many requests concurrently and receive the responses concurrently. That way, the waiting time can be overlaid with sending other requests and receiving responses. At the very least, the waiting time is amortized over multiple requests. This leads in most cased to much higher streaming throughput.
+
+{{< img src="/fig/async_io.svg" width="50%" >}}
+
+#### Defining an AsyncScalarFunction
+
 A user-defined asynchronous scalar function maps zero, one, or multiple scalar values to a new scalar value, but does it asynchronously. Any data type listed in the [data types section]({{< ref "docs/dev/table/types" >}}) can be used as a parameter or return type of an evaluation method.
 
 In order to define an asynchronous scalar function, one has to extend the base class `AsyncScalarFunction` in `org.apache.flink.table.functions` and implement one or more evaluation methods named `eval(...)`.  The first argument must be a `CompletableFuture<...>` which is used to return the result, with subsequent arguments being the parameters passed to the function.
 
-The following example shows how to do work on a thread pool in the background, though any libraries exposing an async interface may be directly used to complete the `CompletableFuture` from a callback. See the [Implementation Guide](#implementation-guide) for more details.
+The number of outstanding calls to `eval` may be configured by `table.exec.async-scalar.buffer-capacity`.
 
-Also, see the configurations under `table.exec.async-scalar.*` for setting the number of outstanding calls, timeouts, and other parameters.
+#### Asynchronous Semantics
+While calls to an `AsyncScalarFunction` may be completed out of the original input order, to maintain correct semantics, the outputs of the function are guaranteed to maintain that input order to downstream components of the query. The data itself could reveal completion order (e.g. by containing fetch timestamps), so the user should consider whether this is acceptable for the use-case. 
+
+#### Error Handling
+The primary way for a user to indicate an error is to call `completableFuture.completeExceptionally(throwable)`. Similarly, if an exception is encountered by the system when invoking `eval`, that will also result in an error. When an error occurs, the system will consider the retry strategy, configured by `table.exec.async-scalar.retry-strategy`. If this is `NO_RETRY`, it will fail the job immediately. If it is set to `FIXED_DELAY`, a period of `table.exec.async-scalar.retry-delay` will be waited, and the function call will be retried and given another attempt to succeed. If the number of retries exceeds `table.exec.async-scalar.max-attempts` or if the timeout `table.exec.async-scalar.timeout` expires (including all retry attempts), the job will fail.
+
+The following example shows how to do work on a thread pool in the background, though any libraries exposing an async interface may be directly used to complete the `CompletableFuture` from a callback. See the [Implementation Guide](#implementation-guide) for more details.
 
 {{< tabs "a385387e-d64b-44b3-9b65-fd42f0820e99" >}}
 {{< tab "Java" >}}
