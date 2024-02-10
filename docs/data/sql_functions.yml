@@ -97,10 +97,10 @@ logical:
   - sql: boolean IS NOT TRUE
     table: BOOLEAN.isNotTrue
     description: Returns TRUE if boolean is FALSE or UNKNOWN; returns FALSE if boolean is TRUE.
-  - sql: boolean IS UNKNOWN
-    description: Returns TRUE if boolean is UNKNOWN; returns FALSE if boolean is TRUE or FALSE.
   - sql: boolean IS NOT UNKNOWN
     description: Returns TRUE if boolean is TRUE or FALSE; returns FALSE if boolean is UNKNOWN.
+  - sql: boolean IS UNKNOWN
+    description: Returns TRUE if boolean is UNKNOWN; returns FALSE if boolean is TRUE or FALSE.
 
 arithmetic:
   - sql: + numeric
