@@ -53,20 +53,17 @@ import org.apache.calcite.runtime.CalciteContextException
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.parser.SqlParseException
 import org.assertj.core.api.Assertions.fail
+import org.junit.Before
 import org.junit.jupiter.api.{AfterEach, BeforeEach}
 
 class BatchTestBase extends BatchAbstractTestBase {
 
   protected var settings = EnvironmentSettings.newInstance().inBatchMode().build()
-  protected var testingTableEnv: TestingTableEnvironment = TestingTableEnvironment
-    .create(settings, catalogManager = None, TableConfig.getDefault)
-  protected var tEnv: TableEnvironment = testingTableEnv
-  tEnv.getConfig.set(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED, Boolean.box(false))
-  protected var planner =
-    tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
-  protected var env: StreamExecutionEnvironment = planner.getExecEnv
-  env.getConfig.enableObjectReuse()
-  protected var tableConfig: TableConfig = tEnv.getConfig
+  protected var testingTableEnv: TestingTableEnvironment = _
+  protected var tEnv: TableEnvironment = _
+  protected var planner: PlannerBase = _
+  protected var env: StreamExecutionEnvironment = _
+  protected var tableConfig: TableConfig = _
 
   val LINE_COL_PATTERN: Pattern = Pattern.compile("At line ([0-9]+), column ([0-9]+)")
   val LINE_COL_TWICE_PATTERN: Pattern = Pattern.compile(
@@ -75,9 +72,22 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   @throws(classOf[Exception])
   @BeforeEach
-  def before(): Unit = {
+  @Before
+  def setupEnv(): Unit = {
+    testingTableEnv = TestingTableEnvironment
+      .create(settings, catalogManager = None, TableConfig.getDefault)
+    tEnv = testingTableEnv
+    tEnv.getConfig.set(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED, Boolean.box(false))
+    planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
+    env = planner.getExecEnv
+    env.getConfig.enableObjectReuse()
+    tableConfig = tEnv.getConfig
     BatchTestBase.configForMiniCluster(tableConfig)
   }
+
+  @throws(classOf[Exception])
+  @BeforeEach
+  def before(): Unit = {}
 
   @AfterEach
   def after(): Unit = {
