@@ -24,7 +24,7 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.BlobWriter;
+import org.apache.flink.runtime.blob.BlobWriterUtils;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
@@ -161,7 +161,7 @@ class TaskDeploymentDescriptorTest {
         try (BlobServer blobServer = setupBlobServer()) {
             // Serialize taskInformation to blobServer and get the permanentBlobKey
             Either<SerializedValue<TaskInformation>, PermanentBlobKey> taskInformationOrBlobKey =
-                    BlobWriter.serializeAndTryOffload(taskInformation, jobID, blobServer);
+                    BlobWriterUtils.serializeAndTryOffload(taskInformation, jobID, blobServer);
             assertThat(taskInformationOrBlobKey.isRight()).isTrue();
             PermanentBlobKey permanentBlobKey = taskInformationOrBlobKey.right();
 

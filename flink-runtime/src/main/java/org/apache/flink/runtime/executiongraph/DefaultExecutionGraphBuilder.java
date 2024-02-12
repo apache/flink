@@ -25,6 +25,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobWriter;
+import org.apache.flink.runtime.blob.BlobWriterUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
@@ -128,7 +129,8 @@ public class DefaultExecutionGraphBuilder {
         try {
             taskDeploymentDescriptorFactory =
                     new TaskDeploymentDescriptorFactory(
-                            BlobWriter.serializeAndTryOffload(jobInformation, jobId, blobWriter),
+                            BlobWriterUtils.serializeAndTryOffload(
+                                    jobInformation, jobId, blobWriter),
                             jobId,
                             partitionLocationConstraint,
                             blobWriter,

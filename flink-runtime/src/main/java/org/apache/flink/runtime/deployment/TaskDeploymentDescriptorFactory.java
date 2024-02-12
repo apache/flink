@@ -23,6 +23,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.runtime.blob.BlobWriter;
+import org.apache.flink.runtime.blob.BlobWriterUtils;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -507,7 +508,7 @@ public class TaskDeploymentDescriptorFactory {
 
             final Either<ShuffleDescriptorGroup, PermanentBlobKey> rawValueOrBlobKey =
                     shouldOffload(shuffleDescriptorGroup.getShuffleDescriptors(), numConsumer)
-                            ? BlobWriter.offloadWithException(
+                            ? BlobWriterUtils.offloadWithException(
                                             CompressedSerializedValue.fromObject(
                                                     shuffleDescriptorGroup),
                                             jobID,

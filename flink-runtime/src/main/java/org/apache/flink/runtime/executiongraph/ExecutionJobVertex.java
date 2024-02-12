@@ -32,6 +32,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobWriter;
+import org.apache.flink.runtime.blob.BlobWriterUtils;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -443,7 +444,8 @@ public class ExecutionJobVertex
                 final BlobWriter blobWriter = graph.getBlobWriter();
                 final TaskInformation taskInformation = getTaskInformation();
                 taskInformationOrBlobKey =
-                        BlobWriter.serializeAndTryOffload(taskInformation, getJobId(), blobWriter);
+                        BlobWriterUtils.serializeAndTryOffload(
+                                taskInformation, getJobId(), blobWriter);
             }
 
             return taskInformationOrBlobKey;

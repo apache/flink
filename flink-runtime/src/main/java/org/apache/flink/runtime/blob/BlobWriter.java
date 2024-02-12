@@ -19,16 +19,12 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.types.Either;
-import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Optional;
 
 /** BlobWriter is used to upload data to the BLOB store. */
 public interface BlobWriter {
@@ -73,54 +69,4 @@ public interface BlobWriter {
      * @return minimum offloading size
      */
     int getMinOffloadingSize();
-
-    /**
-     * Serializes the given value and offloads it to the BlobServer if its size exceeds the minimum
-     * offloading size of the BlobServer.
-     *
-     * @param value to serialize
-     * @param jobId to which the value belongs.
-     * @param blobWriter to use to offload the serialized value
-     * @param <T> type of the value to serialize
-     * @return Either the serialized value or the stored blob key
-     * @throws IOException if the data cannot be serialized
-     */
-    static <T> Either<SerializedValue<T>, PermanentBlobKey> serializeAndTryOffload(
-            T value, JobID jobId, BlobWriter blobWriter) throws IOException {
-        Preconditions.checkNotNull(value);
-
-        final SerializedValue<T> serializedValue = new SerializedValue<>(value);
-
-        return tryOffload(serializedValue, jobId, blobWriter);
-    }
-
-    static <T> Either<SerializedValue<T>, PermanentBlobKey> tryOffload(
-            SerializedValue<T> serializedValue, JobID jobId, BlobWriter blobWriter) {
-        Preconditions.checkNotNull(serializedValue);
-        Preconditions.checkNotNull(jobId);
-        Preconditions.checkNotNull(blobWriter);
-
-        if (serializedValue.getByteArray().length < blobWriter.getMinOffloadingSize()) {
-            return Either.Left(serializedValue);
-        } else {
-            return offloadWithException(serializedValue, jobId, blobWriter)
-                    .map(Either::<SerializedValue<T>, PermanentBlobKey>Right)
-                    .orElse(Either.Left(serializedValue));
-        }
-    }
-
-    static <T> Optional<PermanentBlobKey> offloadWithException(
-            SerializedValue<T> serializedValue, JobID jobId, BlobWriter blobWriter) {
-        Preconditions.checkNotNull(serializedValue);
-        Preconditions.checkNotNull(jobId);
-        Preconditions.checkNotNull(blobWriter);
-        try {
-            final PermanentBlobKey permanentBlobKey =
-                    blobWriter.putPermanent(jobId, serializedValue.getByteArray());
-            return Optional.of(permanentBlobKey);
-        } catch (IOException e) {
-            LOG.warn("Failed to offload value for job {} to BLOB store.", jobId, e);
-            return Optional.empty();
-        }
-    }
 }
