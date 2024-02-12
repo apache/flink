@@ -40,7 +40,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
 /** Integration SQL test for protobuf. */
-public class ProtobufSQLITCaseTest extends BatchTestBase {
+public class ProtobufSQLITCase extends BatchTestBase {
 
     private MapTest getProtoTestObject() {
         MapTest.InnerMessageTest innerMessageTest =
