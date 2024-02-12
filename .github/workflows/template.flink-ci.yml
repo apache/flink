@@ -32,12 +32,27 @@ on:
         description: "The Java version to use."
         default: 8
         type: number
+      build_docs:
+        description: "Flag to enable doc generation"
+        default: false
+        type: boolean
     secrets:
       s3_bucket:
         required: false
       s3_access_key:
         required: false
       s3_secret_key:
+        required: false
+      # the NIGHTLIES_RSYNC_* secrets are only required if build_docs is enabled
+      NIGHTLIES_RSYNC_PATH:
+        required: false
+      NIGHTLIES_RSYNC_HOST:
+        required: false
+      NIGHTLIES_RSYNC_PORT:
+        required: false
+      NIGHTLIES_RSYNC_USER:
+        required: false
+      NIGHTLIES_RSYNC_KEY:
         required: false
 
 permissions: read-all
@@ -127,6 +142,94 @@ jobs:
           if-no-files-found: error
           # use minimum here because we only need these artifacts to speed up the build
           retention-days: 1
+
+  docs:
+    if: github.repository == 'apache/flink' && inputs.build_docs
+    name: "Build Documentation"
+    needs: compile
+    runs-on: ubuntu-22.04
+    container:
+      image: mapohl/flink-ci:FLINK-34194
+      # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
+      # --privileged allows writing coredumps in docker (FLINK-16973)
+      options: --init --privileged
+
+    steps:
+      - name: "Flink Checkout"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: "Initialize job"
+        uses: "./.github/actions/job_init"
+        with:
+          jdk_version: ${{ inputs.jdk_version }}
+          maven_repo_folder: ${{ env.MAVEN_REPO_FOLDER }}
+          source_directory: ${{ env.MOUNTED_WORKING_DIR }}
+          target_directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
+
+      - name: "Download build artifacts from compile job"
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}
+          path: ${{ env.FLINK_ARTIFACT_DIR }}
+
+      - name: "Unpack build artifact"
+        working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
+        run: |
+          ./tools/azure-pipelines/unpack_build_artifact.sh
+
+      - name: "Install Hugo"
+        working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
+        run: ./docs/setup_hugo.sh
+
+      - name: "Build documentation"
+        working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
+        run: ./.github/workflows/docs.sh
+
+      - name: "Prepare documentation upload"
+        working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
+        run: |
+          current_branch=$(git branch --show-current)
+          stable_release_branch=$(git branch | grep "release-" | sort -nr | head -1)
+
+          echo "flink_branch=${current_branch}" >> ${GITHUB_ENV}
+
+          if [ "${current_branch}" = "master" ]; then
+            master_major_version="$(./mvnw -q help:evaluate -DforceStdout -Dexpression=project.version | cut -d'-' -f1)"
+            master_docs_alias="release-${master_major_version}"
+            echo "[INFO] Sets ${master_docs_alias} for master docs."
+          
+            echo "flink_alias=${master_docs_alias}" >> ${GITHUB_ENV}
+          elif [ "${current_branch}" = "${stable_release_branch}" ]; then
+            stable_docs_alias="stable"
+            echo "[INFO] Sets ${stable_docs_alias} for ${stable_release_branch} docs."
+          
+            echo "flink_alias=${stable_docs_alias}" >> ${GITHUB_ENV}
+          fi
+
+      - name: "Upload documentation"
+        uses: burnett01/rsync-deployments@5.2
+        with:
+          switches: --archive --compress
+          path: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}/docs/target/
+          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/flink-docs-${{ env.flink_branch }}/
+          remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
+          remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
+          remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
+          remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
+
+      - name: "Upload documentation alias"
+        if: env.flink_alias != ''
+        uses: burnett01/rsync-deployments@5.2
+        with:
+          switches: --archive --compress
+          path: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}/docs/target/
+          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/flink-docs-${{ env.flink_alias }}/
+          remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
+          remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
+          remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
+          remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
 
   packaging:
     name: "Test packaging/licensing"

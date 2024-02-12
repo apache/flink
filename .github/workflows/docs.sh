@@ -24,27 +24,8 @@ javadoc -J-version
 
 # workaround for a git security patch
 git config --global --add safe.directory /root/flink
-git submodule update --init --recursive
 
-cd docs
-
-# setup hugo
-source setup_hugo.sh
-
-# Setup the external documentation modules
-source setup_docs.sh
-
-cd ..
-
-# Build the docs
-hugo --source docs
-
-# generate docs into docs/target
-hugo -v --source docs --destination target
-if [ $? -ne 0 ]; then
-	echo "Error building the docs"
-	exit 1
-fi
+./docs/build_docs.sh build
 
 # build Flink; required for Javadoc step
 mvn clean install -B -DskipTests -Dfast -Pskip-webui-build

@@ -35,6 +35,7 @@ jobs:
       workflow-caller-id: java8
       environment: 'PROFILE="-Dinclude_hadoop_aws"'
       jdk_version: 8
+      build_docs: true
     secrets:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
