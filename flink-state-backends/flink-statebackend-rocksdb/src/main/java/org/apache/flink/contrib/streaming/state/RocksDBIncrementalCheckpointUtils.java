@@ -20,17 +20,11 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
-import org.apache.flink.util.IOUtils;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.apache.flink.shaded.guava31.com.google.common.primitives.UnsignedBytes;
 
-import org.rocksdb.Checkpoint;
 import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.CompactRangeOptions;
-import org.rocksdb.ExportImportFilesMetaData;
 import org.rocksdb.LiveFileMetaData;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
@@ -39,16 +33,11 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.io.File;
-import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 /** Utils for RocksDB Incremental Checkpoint. */
 public class RocksDBIncrementalCheckpointUtils {
@@ -218,6 +207,7 @@ public class RocksDBIncrementalCheckpointUtils {
 
         return Optional.of(
                 () -> {
+                    /*
                     try (CompactRangeOptions compactionOptions =
                             new CompactRangeOptions()
                                     .setExclusiveManualCompaction(true)
@@ -251,6 +241,7 @@ public class RocksDBIncrementalCheckpointUtils {
                             }
                         }
                     }
+                     */
                 });
     }
 
@@ -321,6 +312,7 @@ public class RocksDBIncrementalCheckpointUtils {
      * @param resultOutput output parameter for the metadata of the export.
      * @throws RocksDBException on problems inside RocksDB.
      */
+    /*
     public static void exportColumnFamilies(
             RocksDB db,
             List<ColumnFamilyHandle> columnFamilyHandles,
@@ -357,6 +349,7 @@ public class RocksDBIncrementalCheckpointUtils {
             }
         }
     }
+    */
 
     /** check whether the bytes is before prefixBytes in the character order. */
     public static boolean beforeThePrefixBytes(@Nonnull byte[] bytes, @Nonnull byte[] prefixBytes) {

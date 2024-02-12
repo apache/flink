@@ -31,8 +31,6 @@ import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
-import org.rocksdb.ExportImportFilesMetaData;
-import org.rocksdb.ImportColumnFamilyOptions;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
@@ -44,7 +42,6 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -120,17 +117,13 @@ public class RocksDBOperationUtils {
      *
      * <p>Creates the column family for the state. Sets TTL compaction filter if {@code
      * ttlCompactFiltersManager} is not {@code null}.
-     *
-     * @param importFilesMetaData if not empty, we import the files specified in the metadata to the
-     *     column family.
      */
     public static RocksDBKeyedStateBackend.RocksDbKvStateInfo createStateInfo(
             RegisteredStateMetaInfoBase metaInfoBase,
             RocksDB db,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             @Nullable RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-            @Nullable Long writeBufferManagerCapacity,
-            List<ExportImportFilesMetaData> importFilesMetaData) {
+            @Nullable Long writeBufferManagerCapacity) {
 
         ColumnFamilyDescriptor columnFamilyDescriptor =
                 createColumnFamilyDescriptor(
@@ -141,29 +134,13 @@ public class RocksDBOperationUtils {
 
         final ColumnFamilyHandle columnFamilyHandle;
         try {
-            columnFamilyHandle =
-                    createColumnFamily(columnFamilyDescriptor, db, importFilesMetaData);
+            columnFamilyHandle = createColumnFamily(columnFamilyDescriptor, db);
         } catch (Exception ex) {
             IOUtils.closeQuietly(columnFamilyDescriptor.getOptions());
             throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", ex);
         }
 
         return new RocksDBKeyedStateBackend.RocksDbKvStateInfo(columnFamilyHandle, metaInfoBase);
-    }
-
-    public static RocksDBKeyedStateBackend.RocksDbKvStateInfo createStateInfo(
-            RegisteredStateMetaInfoBase metaInfoBase,
-            RocksDB db,
-            Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
-            @Nullable RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-            @Nullable Long writeBufferManagerCapacity) {
-        return createStateInfo(
-                metaInfoBase,
-                db,
-                columnFamilyOptionsFactory,
-                ttlCompactFiltersManager,
-                writeBufferManagerCapacity,
-                Collections.emptyList());
     }
 
     /**
@@ -253,20 +230,8 @@ public class RocksDBOperationUtils {
     }
 
     private static ColumnFamilyHandle createColumnFamily(
-            ColumnFamilyDescriptor columnDescriptor,
-            RocksDB db,
-            List<ExportImportFilesMetaData> importFilesMetaData)
-            throws RocksDBException {
-
-        if (importFilesMetaData.isEmpty()) {
-            return db.createColumnFamily(columnDescriptor);
-        } else {
-            try (ImportColumnFamilyOptions importColumnFamilyOptions =
-                    new ImportColumnFamilyOptions().setMoveFiles(true)) {
-                return db.createColumnFamilyWithImport(
-                        columnDescriptor, importColumnFamilyOptions, importFilesMetaData);
-            }
-        }
+            ColumnFamilyDescriptor columnDescriptor, RocksDB db) throws RocksDBException {
+        return db.createColumnFamily(columnDescriptor);
     }
 
     public static void addColumnFamilyOptionsToCloseLater(
