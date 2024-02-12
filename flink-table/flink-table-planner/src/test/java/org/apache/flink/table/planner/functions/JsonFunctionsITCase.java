@@ -717,7 +717,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f1").jsonQuote(),
                                 "JSON_QUOTE(f1)",
-                                "\"\\\"null\\\"\"",
+                                "\"\"null\"\"",
                                 STRING().notNull())
                         .testResult(
                                 $("f2").jsonQuote(),
@@ -727,12 +727,12 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f3").jsonQuote(),
                                 "JSON_QUOTE(f3)",
-                                "\"This is a \\t test \\n with special characters: \\\" \\\\ \\b \\f \\r A\"",
+                                "\"This is a \t test \n with special characters: \" \\ \b \f \r A\"",
                                 STRING().notNull())
                         .testResult(
                                 $("f4").jsonQuote(),
                                 "JSON_QUOTE(f4)",
-                                "\"\\\"special\\\": \\\"\\\\b\\\\f\\\\r\\\"\"",
+                                "\"\"special\": \"\\b\\f\\r\"\"",
                                 STRING().notNull()));
     }
 
@@ -751,7 +751,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "\"abc\"",
                                 "\"[\"abc\"]\"",
                                 "\"[\"\\u0041\"]\"",
-                                "\"[\"\\u006z\"]\"",
+                                "\"\\u0041\"",
                                 "\"[1,2,3]",
                                 "\"[1, 2, 3}",
                                 "\"",
@@ -772,7 +772,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f0").jsonUnquote(),
                                 "JSON_UNQUOTE(f0)",
-                                "\"abc\"",
+                                "abc",
                                 STRING().notNull())
                         .testResult(
                                 $("f1").jsonUnquote(),
@@ -785,10 +785,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "[\"A\"]",
                                 STRING().notNull())
                         .testResult(
-                                $("f3").jsonUnquote(),
-                                "JSON_UNQUOTE(f3)",
-                                "\"[\"\\u006z\"]\"",
-                                STRING().notNull())
+                                $("f3").jsonUnquote(), "JSON_UNQUOTE(f3)", "A", STRING().notNull())
                         .testResult(
                                 $("f4").jsonUnquote(),
                                 "JSON_UNQUOTE(f4)",
@@ -809,7 +806,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f8").jsonUnquote(),
                                 "JSON_UNQUOTE(f8)",
-                                "\"This is a \\t test \\n with special characters: \\b \\f \\r \\u0041\"",
+                                "This is a \\t test \\n with special characters: \\b \\f \\r A",
                                 STRING().notNull())
                         .testResult(
                                 $("f9").jsonUnquote(),

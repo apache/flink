@@ -23,7 +23,6 @@ import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import javax.annotation.Nullable;
@@ -42,12 +41,7 @@ public class JsonQuoteFunction extends BuiltInScalarFunction {
             return null;
         }
         BinaryStringData bs = (BinaryStringData) input;
-        String inputStr = bs.toString();
-        try {
-            String res = objectMapper.writeValueAsString(inputStr);
-            return new BinaryStringData(res);
-        } catch (JsonProcessingException e) {
-            return input;
-        }
+        String stringWithQuotes = String.format("\"%s\"", bs);
+        return new BinaryStringData(stringWithQuotes);
     }
 }

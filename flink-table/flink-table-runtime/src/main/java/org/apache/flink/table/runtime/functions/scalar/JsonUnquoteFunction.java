@@ -19,15 +19,19 @@
 package org.apache.flink.table.runtime.functions.scalar;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import javax.annotation.Nullable;
+
+import java.io.IOException;
 
 /** Implementation of {@link BuiltInFunctionDefinitions#JSON_UNQUOTE}. */
 @Internal
@@ -38,22 +42,74 @@ public class JsonUnquoteFunction extends BuiltInScalarFunction {
         super(BuiltInFunctionDefinitions.JSON_UNQUOTE, context);
     }
 
+    public boolean isValidJSON(final String json) {
+        boolean valid = false;
+        try {
+            final JsonParser parser = new ObjectMapper().getJsonFactory().createJsonParser(json);
+            while (parser.nextToken() != null) {}
+            valid = true;
+        } catch (JsonParseException jpe) {
+            return false;
+        } catch (IOException ioe) {
+            return false;
+        }
+
+        return valid;
+    }
+
+    private Tuple2<String, Boolean> unescapeUnicode(String unicode) {
+        try {
+            StringBuilder result = new StringBuilder();
+            int i = 0;
+            while (i < unicode.length()) {
+                if (unicode.charAt(i) == '\\'
+                        && i + 1 < unicode.length()
+                        && unicode.charAt(i + 1) == 'u') {
+                    String hex = unicode.substring(i + 2, i + 6);
+                    char ch = (char) Integer.parseInt(hex, 16);
+                    result.append(ch);
+                    i += 6;
+                } else {
+                    result.append(unicode.charAt(i));
+                    i++;
+                }
+            }
+            return new Tuple2<>(result.toString(), true);
+        } catch (NumberFormatException e) {
+            return new Tuple2<>(unicode, false);
+        }
+    }
+
+    private boolean isValidJson(String inputStr) {
+        try {
+            String jsonValStr = objectMapper.writeValueAsString(inputStr);
+            if (!isValidJSON(objectMapper.writeValueAsString(inputStr))) {
+                return false;
+            }
+            objectMapper.readTree(jsonValStr);
+        } catch (JsonProcessingException e) {
+            return false;
+        }
+        return true;
+    }
+
     public @Nullable Object eval(Object input) {
         if (input == null) {
             return null;
         }
         BinaryStringData bs = (BinaryStringData) input;
         String inputStr = bs.toString();
-
         if (inputStr.length() > 1 && inputStr.startsWith("\"") && inputStr.endsWith("\"")) {
-            inputStr = inputStr.substring(1, inputStr.length() - 1);
-        }
-        try {
-            JsonNode jsonNode = objectMapper.readTree(inputStr);
-            String res = objectMapper.writeValueAsString(jsonNode);
-            return new BinaryStringData(res);
-        } catch (JsonProcessingException e) {
-            return input;
+            if (!isValidJson(inputStr)) {
+                return new BinaryStringData(inputStr);
+            }
+            Tuple2<String, Boolean> truncated =
+                    unescapeUnicode(inputStr.substring(1, inputStr.length() - 1));
+            return truncated.f1
+                    ? new BinaryStringData(truncated.f0)
+                    : new BinaryStringData(inputStr);
+        } else {
+            return new BinaryStringData(inputStr);
         }
     }
 }

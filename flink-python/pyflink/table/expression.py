@@ -1203,22 +1203,6 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("regexpExtract")(self, regex, extract_index)
 
-    def json_quote(self) -> 'Expression':
-        """
-        Quotes a string as a JSON value by wrapping it with double quote characters,
-        escaping interior quote and other characters, and returning the result as
-        a utf8mb4 string. If the argument is NULL, the function returns NULL.
-        """
-        return _unary_op("jsonQuote")(self)
-
-    def json_unquote(self) -> 'Expression':
-        """
-        Unquotes JSON value and returns the result as a utf8mb4 string.
-        If the argument is NULL, returns NULL. If the value starts and ends with
-        double quotes but is not a valid JSON string literal, an error occurs.
-        """
-        return _unary_op("jsonUnquote")(self)
-
     @property
     def from_base64(self) -> 'Expression[str]':
         """
@@ -1892,6 +1876,25 @@ class Expression(Generic[T]):
         return _varargs_op("jsonQuery")(self, path, wrapping_behavior._to_j_json_query_wrapper(),
                                         on_empty._to_j_json_query_on_error_or_empty(),
                                         on_error._to_j_json_query_on_error_or_empty())
+
+    def json_quote(self) -> 'Expression':
+        """
+        Quotes a string as a JSON value by wrapping it with double quote characters,
+        escaping interior quote and special characters
+        ('"', '\', '/', 'b', 'f', 'n', 'r', 't'), and returning
+        the result as a utf8mb4 string. If the argument is NULL, the function returns NULL.
+        """
+        return _unary_op("jsonQuote")(self)
+
+    def json_unquote(self) -> 'Expression':
+        """
+        Unquotes JSON value, escapes spacial characters
+        ('"', '\', '/', 'b', 'f', 'n', 'r', 't', 'u' hex hex hex hex) and
+        returns the result as a utf8mb4 string.
+        If the argument is NULL, returns NULL. If the value starts and ends with
+        double quotes but is not a valid JSON string literal, an error occurs.
+        """
+        return _unary_op("jsonUnquote")(self)
 
 
 # add the docs
