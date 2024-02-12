@@ -61,9 +61,9 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>io.github.fredia</groupId>
+			<groupId>com.ververica</groupId>
 			<artifactId>frocksdbjni</artifactId>
-			<version>8.6.7-ververica-test-1.0</version>
+			<version>6.20.3-ververica-2.0</version>
 		</dependency>
 
 		<!-- test dependencies -->
