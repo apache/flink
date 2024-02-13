@@ -515,6 +515,27 @@ public final class FileUtils {
         }
     }
 
+    private static boolean extractionPathInTargetDir(Path newFile, Path targetDirectory) {
+        // check recursively if targetDirectory is one of the parents
+        Path parent = newFile.getParent();
+        while (parent != null) {
+            if (parent.equals(targetDirectory)) {
+                return true;
+            }
+            parent = parent.getParent();
+        }
+        return false;
+    }
+
+    /**
+     * Un-archives files inside the target directory. Illegal fs access outside target directory is
+     * not permitted.
+     *
+     * @param file path to zipped/archived file
+     * @param targetDirectory directory path where file needs to be unarchived
+     * @return path to folder with unarchived contents
+     * @throws IOException if file open fails or in case of unsafe access outside target directory
+     */
     public static Path expandDirectory(Path file, Path targetDirectory) throws IOException {
         FileSystem sourceFs = file.getFileSystem();
         FileSystem targetFs = targetDirectory.getFileSystem();
@@ -529,6 +550,10 @@ public final class FileUtils {
                 }
 
                 Path newFile = new Path(targetDirectory, relativePath);
+                if (!extractionPathInTargetDir(newFile, targetDirectory)) {
+                    throw new IOException("Illegal escape from target directory");
+                }
+
                 if (entry.isDirectory()) {
                     targetFs.mkdirs(newFile);
                 } else {
