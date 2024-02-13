@@ -17,15 +17,15 @@
 
 # first set batch mode
 SET 'execution.runtime-mode' = 'batch';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SET 'table.dml-sync' = 'true';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # create a table first
@@ -34,7 +34,7 @@ WITH (
   'connector' = 'test-update-delete',
   'data-id' = '$VAR_TRUNCATE_TABLE_DATA_ID'
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # query the table first
@@ -53,7 +53,7 @@ SELECT * FROM t;
 
 # truncate the table
 TRUNCATE TABLE t;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # query the table again

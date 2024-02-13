@@ -665,7 +665,7 @@ Flink SQL> CREATE TABLE pageviews (
 >   'properties.bootstrap.servers' = '...',
 >   'format' = 'avro'
 > );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> CREATE TABLE pageview (
 >   page_id BIGINT,
@@ -675,7 +675,7 @@ Flink SQL> CREATE TABLE pageview (
 >   'url' = 'jdbc:mysql://localhost:3306/mydatabase',
 >   'table-name' = 'pageview'
 > );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> CREATE TABLE uniqueview (
 >   page_id BIGINT,
@@ -685,7 +685,7 @@ Flink SQL> CREATE TABLE uniqueview (
 >   'url' = 'jdbc:mysql://localhost:3306/mydatabase',
 >   'table-name' = 'uniqueview'
 > );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> EXECUTE STATEMENT SET
 > BEGIN
