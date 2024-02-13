@@ -16,11 +16,11 @@
 # limitations under the License.
 
 SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SET 'table.dml-sync' = 'true';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create table src (
@@ -29,7 +29,7 @@ create table src (
 ) with (
   'connector' = 'values'
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # ==========================================================================
@@ -37,7 +37,7 @@ create table src (
 # ==========================================================================
 
 SET 'execution.runtime-mode' = 'streaming';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create table StreamingTable (
@@ -48,11 +48,11 @@ create table StreamingTable (
   'path' = '$VAR_STREAMING_PATH',
   'format' = 'csv'
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 BEGIN STATEMENT SET;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 BEGIN STATEMENT SET;
@@ -76,7 +76,7 @@ org.apache.flink.table.gateway.service.utils.SqlExecutionException: Only 'INSERT
 !error
 
 INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 END;
@@ -108,7 +108,7 @@ Received a total of 7 rows
 # ==========================================================================
 
 SET 'execution.runtime-mode' = 'batch';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create table BatchTable (
@@ -119,11 +119,11 @@ str string
 'path' = '$VAR_BATCH_PATH',
 'format' = 'csv'
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 BEGIN STATEMENT SET;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 BEGIN STATEMENT SET;
@@ -132,7 +132,7 @@ org.apache.flink.table.gateway.service.utils.SqlExecutionException: Only 'INSERT
 !error
 
 INSERT INTO BatchTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 END;
@@ -155,9 +155,9 @@ SELECT * FROM BatchTable;
 !ok
 
 BEGIN STATEMENT SET;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 END;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
