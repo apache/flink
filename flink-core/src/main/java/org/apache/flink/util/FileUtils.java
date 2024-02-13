@@ -515,18 +515,6 @@ public final class FileUtils {
         }
     }
 
-    private static boolean extractionPathInTargetDir(Path newFile, Path targetDirectory) {
-        // check recursively if targetDirectory is one of the parents
-        Path parent = newFile.getParent();
-        while (parent != null) {
-            if (parent.equals(targetDirectory)) {
-                return true;
-            }
-            parent = parent.getParent();
-        }
-        return false;
-    }
-
     /**
      * Un-archives files inside the target directory. Illegal fs access outside target directory is
      * not permitted.
@@ -542,6 +530,7 @@ public final class FileUtils {
         Path rootDir = null;
         try (ZipInputStream zis = new ZipInputStream(sourceFs.open(file))) {
             ZipEntry entry;
+            String targetDirStr = targetDirectory.toString();
             while ((entry = zis.getNextEntry()) != null) {
                 Path relativePath = new Path(entry.getName());
                 if (rootDir == null) {
@@ -550,7 +539,7 @@ public final class FileUtils {
                 }
 
                 Path newFile = new Path(targetDirectory, relativePath);
-                if (!extractionPathInTargetDir(newFile, targetDirectory)) {
+                if (!newFile.toString().contains(targetDirStr)) {
                     throw new IOException("Illegal escape from target directory");
                 }
 
