@@ -26,8 +26,11 @@ import org.junit.Test;
 /**
  * Test for very huge proto definition, which may trigger some special optimizations such as code
  * splitting and java constant pool size optimization.
+ *
+ * <p>Implementing this test as an {@code ITCase} enables larger heap size for the test execution.
+ * The current unit test execution configuration would cause {@code OutOfMemoryErrors}.
  */
-public class VeryBigPbRowToProtoTest {
+public class VeryBigPbRowToProtoITCase {
 
     @Test
     public void testSimple() throws Exception {
