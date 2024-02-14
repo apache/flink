@@ -23,6 +23,7 @@ import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
@@ -32,7 +33,6 @@ import org.apache.flink.runtime.taskexecutor.SlotReport;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 /** Implementation of {@link SlotManager} for testing purpose. */
@@ -102,7 +102,7 @@ public class TestingSlotManager implements SlotManager {
     @Override
     public void start(
             ResourceManagerId newResourceManagerId,
-            Executor newMainThreadExecutor,
+            ComponentMainThreadExecutor newMainThreadExecutor,
             ResourceAllocator newResourceAllocator,
             ResourceEventListener resourceEventListener,
             BlockedTaskManagerChecker newBlockedTaskManagerChecker) {}

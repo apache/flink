@@ -23,6 +23,7 @@ import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
@@ -31,7 +32,6 @@ import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 
 import java.util.Collection;
-import java.util.concurrent.Executor;
 
 /**
  * The slot manager is responsible for maintaining a view on all registered task manager slots,
@@ -74,7 +74,7 @@ public interface SlotManager extends AutoCloseable {
      */
     void start(
             ResourceManagerId newResourceManagerId,
-            Executor newMainThreadExecutor,
+            ComponentMainThreadExecutor newMainThreadExecutor,
             ResourceAllocator newResourceAllocator,
             ResourceEventListener resourceEventListener,
             BlockedTaskManagerChecker newBlockedTaskManagerChecker);
