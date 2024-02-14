@@ -32,6 +32,7 @@ import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions.SchedulerType;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
@@ -274,6 +275,16 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     @PublicEvolving
     public long getLatencyTrackingInterval() {
         return configuration.get(MetricOptions.LATENCY_INTERVAL).toMillis();
+    }
+
+    @PublicEvolving
+    public Optional<MemorySize> getGlobalAggregationBufferSize() {
+        return this.configuration.getOptional(ExecutionOptions.GLOBAL_AGG_BUFFER_SIZE);
+    }
+
+    @PublicEvolving
+    public Optional<Integer> getGlobalAggregationMaxBufferedRecords() {
+        return this.configuration.getOptional(ExecutionOptions.GLOBAL_AGG_MAX_BUFFERED_RECORDS);
     }
 
     @Internal
@@ -1328,6 +1339,17 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         configuration
                 .getOptional(JobManagerOptions.SCHEDULER)
                 .ifPresent(t -> this.configuration.set(JobManagerOptions.SCHEDULER, t));
+
+        configuration
+                .getOptional(ExecutionOptions.GLOBAL_AGG_BUFFER_SIZE)
+                .ifPresent(t -> this.configuration.set(ExecutionOptions.GLOBAL_AGG_BUFFER_SIZE, t));
+
+        configuration
+                .getOptional(ExecutionOptions.GLOBAL_AGG_MAX_BUFFERED_RECORDS)
+                .ifPresent(
+                        t ->
+                                this.configuration.set(
+                                        ExecutionOptions.GLOBAL_AGG_MAX_BUFFERED_RECORDS, t));
 
         serializerConfig.configure(configuration, classLoader);
     }
