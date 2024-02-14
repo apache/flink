@@ -68,7 +68,7 @@ public abstract class BytesMap<K, V> {
 
     protected static final double LOAD_FACTOR = 0.75;
     // a smaller bucket can make the best of l1/l2/l3 cache.
-    protected static final long INIT_BUCKET_MEMORY_IN_BYTES = 1024 * 1024L;
+    protected static final long INIT_BUCKET_MEMORY_IN_BYTES = 1024 * 32L;
 
     /** The map will be expanded once the number of elements exceeds this threshold. */
     protected int growthThreshold;

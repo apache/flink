@@ -287,6 +287,16 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         return this.configuration.getOptional(ExecutionOptions.GLOBAL_AGG_MAX_BUFFERED_RECORDS);
     }
 
+    @PublicEvolving
+    public Optional<MemorySize> getLocalAggregationBufferSize() {
+        return this.configuration.getOptional(ExecutionOptions.LOCAL_AGG_BUFFER_SIZE);
+    }
+
+    @PublicEvolving
+    public Optional<Integer> getLocalAggregationMaxBufferedRecords() {
+        return this.configuration.getOptional(ExecutionOptions.LOCAL_AGG_MAX_BUFFERED_RECORDS);
+    }
+
     @Internal
     public boolean isLatencyTrackingConfigured() {
         return configuration.getOptional(MetricOptions.LATENCY_INTERVAL).isPresent();
@@ -1350,6 +1360,16 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                         t ->
                                 this.configuration.set(
                                         ExecutionOptions.GLOBAL_AGG_MAX_BUFFERED_RECORDS, t));
+        configuration
+                .getOptional(ExecutionOptions.LOCAL_AGG_BUFFER_SIZE)
+                .ifPresent(t -> this.configuration.set(ExecutionOptions.LOCAL_AGG_BUFFER_SIZE, t));
+
+        configuration
+                .getOptional(ExecutionOptions.LOCAL_AGG_MAX_BUFFERED_RECORDS)
+                .ifPresent(
+                        t ->
+                                this.configuration.set(
+                                        ExecutionOptions.LOCAL_AGG_MAX_BUFFERED_RECORDS, t));
 
         serializerConfig.configure(configuration, classLoader);
     }

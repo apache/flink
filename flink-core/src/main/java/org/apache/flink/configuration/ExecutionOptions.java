@@ -27,6 +27,7 @@ import org.apache.flink.configuration.description.Description;
 
 import java.time.Duration;
 
+import static org.apache.flink.configuration.TaskManagerOptions.MEMORY_SEGMENT_SIZE;
 import static org.apache.flink.configuration.description.TextElement.text;
 
 /** {@link ConfigOption}s specific for a single execution of a user program. */
@@ -262,5 +263,34 @@ public class ExecutionOptions {
                             "Maximum number of records to buffer in Global Aggregation."
                                     + "see "
                                     + GLOBAL_AGG_BUFFER_SIZE.key()
+                                    + " for more details.");
+
+    public static final ConfigOption<MemorySize> LOCAL_AGG_BUFFER_SIZE =
+            ConfigOptions.key("taskmanager.runtime.aggregation.local.buffer-size")
+                    .memoryType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Maximum size of the buffer used by Local Aggregation."
+                                    + "Minimum is 128Kb; must be a multiple of "
+                                    + MEMORY_SEGMENT_SIZE.key()
+                                    + "The buffer holds records for aggregation in memory and is flushed downstream on: "
+                                    + "1) checkpoints, 2) watermarks, or 3) when it is full."
+                                    + "If it's too big (even if watermarks are progressing), "
+                                    + "there might be much more data to flush than the memory available (classic flatMap problem)."
+                                    + "That might lead to back-pressure and hard-blocking the task thread."
+                                    + "To overcome this, the buffer AND the headers must fit into a network buffer "
+                                    + "(see "
+                                    + MEMORY_SEGMENT_SIZE.key()
+                                    + ")"
+                                    + "However, this buffer can't be as small because keys, values, and offsets use separate memory pages.");
+
+    public static final ConfigOption<Integer> LOCAL_AGG_MAX_BUFFERED_RECORDS =
+            ConfigOptions.key("taskmanager.runtime.aggregation.local.max-buffered-records")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Maximum number of records to buffer in Local Aggregation."
+                                    + "see "
+                                    + LOCAL_AGG_BUFFER_SIZE.key()
                                     + " for more details.");
 }

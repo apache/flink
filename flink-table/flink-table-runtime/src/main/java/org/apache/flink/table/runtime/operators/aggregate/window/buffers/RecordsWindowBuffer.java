@@ -229,13 +229,24 @@ public final class RecordsWindowBuffer implements WindowBuffer {
             return new RecordsWindowBuffer(
                     operatorOwner,
                     memoryManager,
-                    memorySize,
+                    Math.min(
+                            // memory size for this operator:
+                            memorySize,
+                            // memory size for local aggregation buffer:
+                            runtimeContext
+                                    .getExecutionConfig()
+                                    .getLocalAggregationBufferSize()
+                                    .map(MemorySize::getBytes)
+                                    .orElse(memorySize)),
                     combiner,
                     keySer,
                     inputSer,
                     false,
                     shiftTimeZone,
-                    Long.MAX_VALUE);
+                    runtimeContext
+                            .getExecutionConfig()
+                            .getLocalAggregationMaxBufferedRecords()
+                            .orElse(Integer.MAX_VALUE));
         }
     }
 }
