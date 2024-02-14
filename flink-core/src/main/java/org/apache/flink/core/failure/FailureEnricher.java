@@ -37,6 +37,12 @@ import java.util.concurrent.Executor;
 public interface FailureEnricher {
 
     /**
+     * Special key to label failures that prevents job restart for persistent or terminal errors,
+     * e.g. to avoid restart loops from deserialization errors.
+     */
+    String KEY_JOB_CANNOT_RESTART = "JOB_CANNOT_RESTART";
+
+    /**
      * Method to list all the label Keys the enricher can associate with Values in case of a failure
      * {@code processFailure}. Note that Keys must unique and properly defined per enricher
      * implementation otherwise will be ignored.

@@ -218,7 +218,7 @@ public class StateWithExecutionGraphTest extends TestLogger {
         }
 
         @Override
-        void onFailure(Throwable cause) {}
+        void onFailure(Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {}
 
         @Override
         void onGloballyTerminalState(JobStatus globallyTerminalState) {

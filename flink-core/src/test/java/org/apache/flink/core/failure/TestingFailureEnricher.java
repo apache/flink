@@ -28,11 +28,13 @@ import java.util.concurrent.CompletableFuture;
 public class TestingFailureEnricher implements FailureEnricher {
 
     final Set<Throwable> seenThrowables = new HashSet<>();
-    final Map<String, String> failureLabels = Collections.singletonMap("failKey", "failValue");
+    Map<String, String> failureLabels = Collections.singletonMap("failKey", "failValue");
+
+    Set<String> outputKeys = Collections.singleton("failKey");
 
     @Override
     public Set<String> getOutputKeys() {
-        return Collections.singleton("failKey");
+        return outputKeys;
     }
 
     @Override
@@ -47,5 +49,13 @@ public class TestingFailureEnricher implements FailureEnricher {
 
     public Map<String, String> getFailureLabels() {
         return failureLabels;
+    }
+
+    public void setFailureLabels(Map<String, String> failureLabels) {
+        this.failureLabels = failureLabels;
+    }
+
+    public void setOutputKeys(Set<String> outputKeys) {
+        this.outputKeys = outputKeys;
     }
 }

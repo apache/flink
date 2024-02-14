@@ -33,8 +33,8 @@ import org.apache.flink.util.IterableUtils;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -151,7 +151,7 @@ public class ExecutionFailureHandler {
         final CompletableFuture<Map<String, String>> failureLabels =
                 labelFailure(cause, globalFailure);
 
-        if (isUnrecoverableError(cause)) {
+        if (isUnrecoverableError(cause, failureLabels)) {
             return FailureHandlingResult.unrecoverable(
                     failedExecution,
                     new JobException("The failure is not recoverable", cause),
@@ -188,11 +188,13 @@ public class ExecutionFailureHandler {
         }
     }
 
-    public static boolean isUnrecoverableError(Throwable cause) {
-        Optional<Throwable> unrecoverableError =
-                ThrowableClassifier.findThrowableOfThrowableType(
-                        cause, ThrowableType.NonRecoverableError);
-        return unrecoverableError.isPresent();
+    public static boolean isUnrecoverableError(
+            Throwable cause, CompletableFuture<Map<String, String>> labels) {
+        return labels.getNow(Collections.emptyMap())
+                        .containsKey(FailureEnricher.KEY_JOB_CANNOT_RESTART)
+                || ThrowableClassifier.findThrowableOfThrowableType(
+                                cause, ThrowableType.NonRecoverableError)
+                        .isPresent();
     }
 
     public long getNumberOfRestarts() {
