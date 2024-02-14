@@ -166,7 +166,7 @@ public interface CheckpointedFunction {
      * execution. Functions typically set up their state storing data structures in this method.
      *
      * @param context the context for initializing the operator
-     * @throws Exception Thrown, if state could not be created ot restored.
+     * @throws Exception Thrown, if state could not be created or restored.
      */
     void initializeState(FunctionInitializationContext context) throws Exception;
 }
