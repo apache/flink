@@ -246,7 +246,7 @@ class FutureUtilsTest {
                         () ->
                                 FutureUtils.completedExceptionally(
                                         new FlinkException("Test exception")),
-                        new FixedRetryStrategy(1, TestingUtils.infiniteDuration()),
+                        new FixedRetryStrategy(1, TestingUtils.INFINITE),
                         scheduledExecutor);
 
         assertThat(retryFuture).isNotDone();

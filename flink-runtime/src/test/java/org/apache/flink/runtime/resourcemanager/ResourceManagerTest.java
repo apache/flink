@@ -378,9 +378,7 @@ class ResourceManagerTest {
                         () -> {
                             assertThat(processRequirementsFuture.isDone()).isFalse();
                             readyToServeFuture.complete(null);
-                            return null;
-                        },
-                        TIMEOUT)
+                        })
                 .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
         processRequirementsFuture.get();
     }
