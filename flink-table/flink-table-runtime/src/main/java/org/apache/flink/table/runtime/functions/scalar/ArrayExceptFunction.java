@@ -19,36 +19,28 @@
 package org.apache.flink.table.runtime.functions.scalar;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction;
+import org.apache.flink.table.runtime.util.EqualityAndHashcodeProvider;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
 
-import java.lang.invoke.MethodHandle;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import static org.apache.flink.table.api.Expressions.$;
-
 /** Implementation of {@link BuiltInFunctionDefinitions#ARRAY_EXCEPT}. */
 @Internal
 public class ArrayExceptFunction extends BuiltInScalarFunction {
     private final ArrayData.ElementGetter elementGetter;
-    private final SpecializedFunction.ExpressionEvaluator hashcodeEvaluator;
-    private final SpecializedFunction.ExpressionEvaluator equalityEvaluator;
-    private transient MethodHandle hashcodeHandle;
-
-    private transient MethodHandle equalityHandle;
+    private final EqualityAndHashcodeProvider equalityAndHashcodeProvider;
 
     public ArrayExceptFunction(SpecializedFunction.SpecializedContext context) {
         super(BuiltInFunctionDefinitions.ARRAY_EXCEPT, context);
@@ -57,23 +49,17 @@ public class ArrayExceptFunction extends BuiltInScalarFunction {
                         .getElementDataType()
                         .toInternal();
         elementGetter = ArrayData.createElementGetter(dataType.toInternal().getLogicalType());
-        hashcodeEvaluator =
-                context.createEvaluator(
-                        Expressions.call("$HASHCODE$1", $("element1")),
-                        DataTypes.INT(),
-                        DataTypes.FIELD("element1", dataType.notNull().toInternal()));
-        equalityEvaluator =
-                context.createEvaluator(
-                        $("element1").isEqual($("element2")),
-                        DataTypes.BOOLEAN(),
-                        DataTypes.FIELD("element1", dataType.notNull().toInternal()),
-                        DataTypes.FIELD("element2", dataType.notNull().toInternal()));
+        this.equalityAndHashcodeProvider = new EqualityAndHashcodeProvider(context, dataType);
     }
 
     @Override
     public void open(FunctionContext context) throws Exception {
-        hashcodeHandle = hashcodeEvaluator.open(context);
-        equalityHandle = equalityEvaluator.open(context);
+        equalityAndHashcodeProvider.open(context);
+    }
+
+    @Override
+    public void close() throws Exception {
+        equalityAndHashcodeProvider.close();
     }
 
     public @Nullable ArrayData eval(ArrayData arrayOne, ArrayData arrayTwo) {
@@ -121,7 +107,7 @@ public class ArrayExceptFunction extends BuiltInScalarFunction {
 
     private class ObjectContainer {
 
-        Object o;
+        private final Object o;
 
         public ObjectContainer(Object o) {
             this.o = o;
@@ -136,26 +122,12 @@ public class ArrayExceptFunction extends BuiltInScalarFunction {
                 return false;
             }
             ObjectContainer that = (ObjectContainer) other;
-            try {
-                return (boolean) equalityHandle.invoke(this.o, that.o);
-            } catch (Throwable e) {
-                throw new RuntimeException(e);
-            }
+            return equalityAndHashcodeProvider.equals(this.o, that.o);
         }
 
         @Override
         public int hashCode() {
-            try {
-                return (int) hashcodeHandle.invoke(o);
-            } catch (Throwable e) {
-                throw new RuntimeException(e);
-            }
+            return equalityAndHashcodeProvider.hashCode(o);
         }
-    }
-
-    @Override
-    public void close() throws Exception {
-        hashcodeEvaluator.close();
-        equalityEvaluator.close();
     }
 }
