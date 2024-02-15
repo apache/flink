@@ -872,6 +872,49 @@ public class RocksDBStateBackendConfigTest {
         assertTrue(0.3 == rocksDBStateBackend.getOverlapFractionThreshold());
     }
 
+    @Test
+    public void testDefaultUseIngestDB() {
+        EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend(true);
+        assertEquals(
+                RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE.defaultValue(),
+                rocksDBStateBackend.getUseIngestDbRestoreMode());
+    }
+
+    @Test
+    public void testConfigureUseIngestDB() {
+        EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend(true);
+        Configuration configuration = new Configuration();
+        configuration.set(RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE, true);
+        rocksDBStateBackend =
+                rocksDBStateBackend.configure(configuration, getClass().getClassLoader());
+        assertTrue(rocksDBStateBackend.getUseIngestDbRestoreMode());
+    }
+
+    @Test
+    public void testDefaultIncrementalRestoreInstanceBufferSize() {
+        EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend(true);
+        assertEquals(
+                RocksDBConfigurableOptions.INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE
+                        .defaultValue(),
+                rocksDBStateBackend.getIncrementalRestoreAsyncCompactAfterRescale());
+    }
+
+    @Test
+    public void testConfigureIncrementalRestoreInstanceBufferSize() {
+        EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend(true);
+        Configuration configuration = new Configuration();
+        boolean notDefault =
+                !RocksDBConfigurableOptions.INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE
+                        .defaultValue();
+        configuration.set(
+                RocksDBConfigurableOptions.INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE,
+                notDefault);
+        rocksDBStateBackend =
+                rocksDBStateBackend.configure(configuration, getClass().getClassLoader());
+        assertEquals(
+                notDefault, rocksDBStateBackend.getIncrementalRestoreAsyncCompactAfterRescale());
+    }
+
     private void verifySetParameter(Runnable setter) {
         try {
             setter.run();

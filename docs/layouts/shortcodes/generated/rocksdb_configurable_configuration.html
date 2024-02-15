@@ -75,6 +75,12 @@
             <td>The maximum number of open files (per stateful operator) that can be used by the DB, '-1' means no limit. The default value is '-1'.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.incremental-restore-async-compact-after-rescale</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If true, an async compaction of RocksDB is started after every restore after which we detect keys (including tombstones) in the database that are outside the key-groups range of the backend.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.log.dir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
@@ -115,6 +121,12 @@
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>If true, every newly created SST file will contain a Bloom filter. It is disabled by default.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.use-ingest-db-restore-mode</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>A recovery mode that directly clips and ingests multiple DBs during state recovery if the keys in the SST files does not exceed the declared key-group range.</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.write-batch-size</h5></td>

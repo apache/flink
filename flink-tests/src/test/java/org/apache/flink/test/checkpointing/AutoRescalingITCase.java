@@ -38,6 +38,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -109,22 +110,28 @@ public class AutoRescalingITCase extends TestLogger {
     private static final int slotsPerTaskManager = 2;
     private static final int totalSlots = numTaskManagers * slotsPerTaskManager;
 
-    @Parameterized.Parameters(name = "backend = {0}, buffersPerChannel = {1}")
+    @Parameterized.Parameters(name = "backend = {0}, buffersPerChannel = {1}, useIngestDB = {2}")
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
-                    {"rocksdb", 0}, {"rocksdb", 2}, {"filesystem", 0}, {"filesystem", 2}
+                    {"rocksdb", 0, false},
+                    {"rocksdb", 2, true},
+                    {"filesystem", 0, false},
+                    {"filesystem", 2, false}
                 });
     }
 
-    public AutoRescalingITCase(String backend, int buffersPerChannel) {
+    public AutoRescalingITCase(String backend, int buffersPerChannel, boolean useIngestDB) {
         this.backend = backend;
         this.buffersPerChannel = buffersPerChannel;
+        this.useIngestDB = useIngestDB;
     }
 
     private final String backend;
 
     private final int buffersPerChannel;
+
+    private final boolean useIngestDB;
 
     private String currentBackend = null;
 
@@ -154,6 +161,7 @@ public class AutoRescalingITCase extends TestLogger {
             final File savepointDir = temporaryFolder.newFolder();
 
             config.set(StateBackendOptions.STATE_BACKEND, currentBackend);
+            config.set(RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE, useIngestDB);
             config.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
             config.set(CheckpointingOptions.LOCAL_RECOVERY, true);
             config.set(

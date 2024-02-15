@@ -109,6 +109,12 @@ public class DirectoryStateHandle implements StateObject {
 
     @Override
     public String toString() {
-        return "DirectoryStateHandle{" + "directory=" + directoryString + '}';
+        return "DirectoryStateHandle{"
+                + "directory='"
+                + directoryString
+                + '\''
+                + ", directorySize="
+                + directorySize
+                + '}';
     }
 }
