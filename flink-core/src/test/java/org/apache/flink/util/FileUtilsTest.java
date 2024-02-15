@@ -546,7 +546,7 @@ public class FileUtilsTest {
     }
 
     @Test
-    public void testExpandDir() {
+    public void testExpandDirWithValidPaths() {
         Assertions.assertDoesNotThrow(() -> writeZipAndFetchExpandedPath("t0", "/level1/level2/"));
         Assertions.assertDoesNotThrow(
                 () -> writeZipAndFetchExpandedPath("t1", "/level1/level2/file.txt"));
@@ -560,7 +560,7 @@ public class FileUtilsTest {
     }
 
     @Test
-    public void testExpandDirForbiddenEscape() {
+    public void testExpandDirWithForbiddenEscape() {
         Assertions.assertThrows(
                 IOException.class, () -> writeZipAndFetchExpandedPath("t1", "/../../"));
         Assertions.assertThrows(IOException.class, () -> writeZipAndFetchExpandedPath("t2", "../"));

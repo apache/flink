@@ -539,7 +539,7 @@ public final class FileUtils {
                 }
 
                 Path newFile = new Path(targetDirectory, relativePath);
-                if (!newFile.toString().contains(targetDirStr)) {
+                if (!newFile.toString().startsWith(targetDirStr)) {
                     throw new IOException("Illegal escape from target directory");
                 }
 
