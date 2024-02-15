@@ -23,11 +23,9 @@ import org.apache.flink.test.util.TestProcessBuilder.TestProcess;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.testutils.ClassLoaderUtils.ClassLoaderBuilder;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -37,38 +35,34 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.text.IsEmptyString.isEmptyString;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ExceptionUtils} which require to spawn JVM process and set JVM memory args. */
-public class ExceptionUtilsITCase extends TestLogger {
+class ExceptionUtilsITCase {
     private static final int DIRECT_MEMORY_SIZE = 10 * 1024; // 10Kb
     private static final int DIRECT_MEMORY_ALLOCATION_PAGE_SIZE = 1024; // 1Kb
     private static final int DIRECT_MEMORY_PAGE_NUMBER =
             DIRECT_MEMORY_SIZE / DIRECT_MEMORY_ALLOCATION_PAGE_SIZE;
     private static final long INITIAL_BIG_METASPACE_SIZE = 128 * (1 << 20); // 128Mb
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
-
     @Test
-    public void testIsDirectOutOfMemoryError() throws IOException, InterruptedException {
+    void testIsDirectOutOfMemoryError() throws IOException, InterruptedException {
         String className = DummyDirectAllocatingProgram.class.getName();
         RunResult result = run(className, DIRECT_MEMORY_SIZE, -1);
-        assertThat(result.getErrorOut() + "|" + result.getStandardOut(), is("|"));
+        assertThat(result.getStandardOut()).isEmpty();
+        assertThat(result.getErrorOut()).isEmpty();
     }
 
     @Test
-    public void testIsMetaspaceOutOfMemoryError() throws IOException, InterruptedException {
-        String className = DummyClassLoadingProgram.class.getName();
-        final File compiledClassesFolder = TEMPORARY_FOLDER.getRoot();
+    void testIsMetaspaceOutOfMemoryError(@TempDir File temporaryFolderForCompiledClasses)
+            throws IOException, InterruptedException {
         final int classCount = 10;
 
         // compile the classes first
         final String sourcePattern =
                 "public class %s { @Override public String toString() { return \"dummy\"; } }";
         final ClassLoaderBuilder classLoaderBuilder =
-                ClassLoaderUtils.withRoot(compiledClassesFolder);
+                ClassLoaderUtils.withRoot(temporaryFolderForCompiledClasses);
         for (int i = 0; i < classCount; i++) {
             final String dummyClassName = "DummyClass" + i;
             final String source = String.format(sourcePattern, dummyClassName);
@@ -77,33 +71,35 @@ public class ExceptionUtilsITCase extends TestLogger {
         classLoaderBuilder.generateSourcesAndCompile();
 
         // load only one class and record required Metaspace
-        RunResult normalOut =
+        final String className = DummyClassLoadingProgram.class.getName();
+        final RunResult initialRun =
                 run(
                         className,
                         -1,
                         INITIAL_BIG_METASPACE_SIZE,
                         1,
-                        compiledClassesFolder.getAbsolutePath());
+                        temporaryFolderForCompiledClasses.getAbsolutePath());
 
         // multiply the Metaspace size to stabilize the test - relying solely on the Metaspace size
         // of the initial run might cause OOMs to appear in the main thread (due to JVM-specific
         // artifacts being loaded)
-        long okMetaspace = 3 * Long.parseLong(normalOut.getStandardOut());
-        assertThat("No error is expected here.", normalOut.getErrorOut(), is(""));
+        long okMetaspace = 3 * Long.parseLong(initialRun.getStandardOut());
+        assertThat(initialRun.getErrorOut()).as("No error is expected.").isEmpty();
 
         // load more classes to cause 'OutOfMemoryError: Metaspace'
-        RunResult oomOut =
+        final RunResult outOfMemoryErrorRun =
                 run(
                         className,
                         -1,
                         okMetaspace,
                         classCount,
-                        compiledClassesFolder.getAbsolutePath());
-        assertThat(
-                "OutOfMemoryError: Metaspace errors are caught and don't generate any output.",
-                oomOut.getStandardOut(),
-                isEmptyString());
-        assertThat("Nothing should have been printed to stderr.", oomOut.getErrorOut(), is(""));
+                        temporaryFolderForCompiledClasses.getAbsolutePath());
+        assertThat(outOfMemoryErrorRun.getStandardOut())
+                .as("OutOfMemoryError: Metaspace errors are caught and don't generate any output.")
+                .isEmpty();
+        assertThat(outOfMemoryErrorRun.getErrorOut())
+                .as("Nothing should have been printed to stderr.")
+                .isEmpty();
     }
 
     private static RunResult run(
