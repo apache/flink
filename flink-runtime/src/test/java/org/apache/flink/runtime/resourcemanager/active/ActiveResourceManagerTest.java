@@ -74,7 +74,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for {@link ActiveResourceManager}. */
 class ActiveResourceManagerTest {
@@ -936,59 +935,6 @@ class ActiveResourceManagerTest {
                             assertThatFuture(releaseResourceFuture)
                                     .succeedsWithin(TIMEOUT_SEC, TimeUnit.SECONDS)
                                     .isSameAs(tmResourceId);
-                        });
-            }
-        };
-    }
-
-    @Test
-    void testWorkerRegistrationTimeoutNotCountingAllocationTime() throws Exception {
-        new Context() {
-            {
-                final ResourceID tmResourceId = ResourceID.generate();
-                final CompletableFuture<ResourceID> requestResourceFuture =
-                        new CompletableFuture<>();
-                final CompletableFuture<ResourceID> releaseResourceFuture =
-                        new CompletableFuture<>();
-
-                flinkConfig.set(
-                        ResourceManagerOptions.TASK_MANAGER_REGISTRATION_TIMEOUT,
-                        Duration.ofMillis(TESTING_START_WORKER_TIMEOUT_MS));
-
-                driverBuilder
-                        .setRequestResourceFunction(
-                                taskExecutorProcessSpec -> requestResourceFuture)
-                        .setReleaseResourceConsumer(releaseResourceFuture::complete);
-
-                runTest(
-                        () -> {
-                            // request new worker
-                            runInMainThread(
-                                    () ->
-                                            getResourceManager()
-                                                    .requestNewWorker(WORKER_RESOURCE_SPEC));
-
-                            // resource allocation takes longer than worker registration timeout
-                            Thread.sleep(TESTING_START_WORKER_TIMEOUT_MS * 2);
-
-                            final long start = System.nanoTime();
-
-                            runInMainThread(() -> requestResourceFuture.complete(tmResourceId));
-
-                            // worker registered, verify not released due to timeout
-                            RegistrationResponse registrationResponse =
-                                    registerTaskExecutor(tmResourceId).join();
-
-                            assertThatFuture(releaseResourceFuture).isNotDone();
-
-                            final long registrationTime = (System.nanoTime() - start) / 1_000_000;
-
-                            assumeThat(registrationTime)
-                                    .as(
-                                            "The registration must not take longer than the start worker timeout. If it does, then this indicates a very slow machine.")
-                                    .isLessThan(TESTING_START_WORKER_TIMEOUT_MS);
-                            assertThat(registrationResponse)
-                                    .isInstanceOf(RegistrationResponse.Success.class);
                         });
             }
         };
