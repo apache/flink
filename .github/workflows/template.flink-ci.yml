@@ -177,6 +177,9 @@ jobs:
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
       # --privileged allows writing coredumps in docker (FLINK-16973)
       options: --init --privileged
+      # the /mnt folder is a separate disk mounted to the host filesystem with more free disk space that can be utilized
+      volumes:
+        - /mnt:/root
     env:
       # timeout in minutes - this environment variable is required by uploading_watchdog.sh
       GHA_JOB_TIMEOUT: 240
@@ -250,6 +253,17 @@ jobs:
         run: |
           ${{ inputs.environment }} PROFILE="$PROFILE -Pgithub-actions" ./tools/azure-pipelines/uploading_watchdog.sh \
               ./tools/ci/test_controller.sh ${{ matrix.module }}
+
+      - name: "Post-build Disk Info"
+        if: ${{ always() }}
+        shell: bash
+        run: df -h
+
+      - name: "Top 15 biggest directories in terms of used disk space"
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          du -ah --exclude="proc" -t100M . | sort -h -r | head -n 15
 
       - name: "Post-process build artifacts"
         working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
