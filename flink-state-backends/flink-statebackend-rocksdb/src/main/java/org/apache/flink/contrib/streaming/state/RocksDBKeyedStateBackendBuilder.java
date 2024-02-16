@@ -30,6 +30,8 @@ import org.apache.flink.contrib.streaming.state.restore.RocksDBRestoreResult;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksDBSnapshotStrategyBase;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksIncrementalSnapshotStrategy;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksNativeFullSnapshotStrategy;
+import org.apache.flink.contrib.streaming.state.sstmerge.RocksDBManualCompactionConfig;
+import org.apache.flink.contrib.streaming.state.sstmerge.RocksDBManualCompactionManager;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
@@ -76,6 +78,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE;
@@ -83,6 +86,7 @@ import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOption
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.USE_DELETE_FILES_IN_RANGE_DURING_RESCALING;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Builder class for {@link RocksDBKeyedStateBackend} which handles all necessary initializations
@@ -138,6 +142,9 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
     private boolean useIngestDbRestoreMode = USE_INGEST_DB_RESTORE_MODE.defaultValue();
     private ColumnFamilyHandle injectedDefaultColumnFamilyHandle; // for testing
     private RocksDBStateUploader injectRocksDBStateUploader; // for testing
+    private RocksDBManualCompactionConfig manualCompactionConfig =
+            RocksDBManualCompactionConfig.getDefault();
+    private ExecutorService ioExecutor;
 
     public RocksDBKeyedStateBackendBuilder(
             String operatorIdentifier,
@@ -298,6 +305,11 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
         return this;
     }
 
+    RocksDBKeyedStateBackendBuilder<K> setIOExecutor(ExecutorService ioExecutor) {
+        this.ioExecutor = ioExecutor;
+        return this;
+    }
+
     public static File getInstanceRocksDBPath(File instanceBasePath) {
         return new File(instanceBasePath, DB_INSTANCE_DIR_STRING);
     }
@@ -337,6 +349,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
         int keyGroupPrefixBytes =
                 CompositeKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(
                         numberOfKeyGroups);
+        RocksDBManualCompactionManager manualCompactionManager;
 
         try {
             // Variables for snapshot strategy when incremental checkpoint is enabled
@@ -398,13 +411,16 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                             materializedSstFiles,
                             lastCompletedCheckpointId);
             // init priority queue factory
+            manualCompactionManager =
+                    RocksDBManualCompactionManager.create(db, manualCompactionConfig, ioExecutor);
             priorityQueueFactory =
                     initPriorityQueueFactory(
                             keyGroupPrefixBytes,
                             kvStateInformation,
                             db,
                             writeBatchWrapper,
-                            nativeMetricMonitor);
+                            nativeMetricMonitor,
+                            manualCompactionManager);
         } catch (Throwable e) {
             // Do clean up
             List<ColumnFamilyOptions> columnFamilyOptions =
@@ -472,7 +488,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 ttlCompactFiltersManager,
                 keyContext,
                 writeBatchSize,
-                asyncCompactAfterRestoreFuture);
+                asyncCompactAfterRestoreFuture,
+                manualCompactionManager);
     }
 
     private RocksDBRestoreOperation getRocksDBRestoreOperation(
@@ -607,7 +624,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             Map<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation,
             RocksDB db,
             RocksDBWriteBatchWrapper writeBatchWrapper,
-            RocksDBNativeMetricMonitor nativeMetricMonitor) {
+            RocksDBNativeMetricMonitor nativeMetricMonitor,
+            RocksDBManualCompactionManager manualCompactionManager) {
         PriorityQueueSetFactory priorityQueueFactory;
         switch (priorityQueueConfig.getPriorityQueueStateType()) {
             case HEAP:
@@ -626,7 +644,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                                 nativeMetricMonitor,
                                 columnFamilyOptionsFactory,
                                 optionsContainer.getWriteBufferManagerCapacity(),
-                                priorityQueueConfig.getRocksDBPriorityQueueSetCacheSize());
+                                priorityQueueConfig.getRocksDBPriorityQueueSetCacheSize(),
+                                manualCompactionManager);
                 break;
             default:
                 throw new IllegalArgumentException(
@@ -647,5 +666,11 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             // in case something crashed and the backend never reached dispose()
             FileUtils.deleteDirectory(instanceBasePath);
         }
+    }
+
+    public RocksDBKeyedStateBackendBuilder<K> setManualCompactionConfig(
+            RocksDBManualCompactionConfig manualCompactionConfig) {
+        this.manualCompactionConfig = checkNotNull(manualCompactionConfig);
+        return this;
     }
 }

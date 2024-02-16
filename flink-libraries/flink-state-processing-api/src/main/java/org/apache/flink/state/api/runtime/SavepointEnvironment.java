@@ -68,6 +68,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.UserCodeClassLoader;
+import org.apache.flink.util.concurrent.Executors;
 
 import java.util.Collections;
 import java.util.Map;
@@ -141,7 +142,10 @@ public class SavepointEnvironment implements Environment {
 
         this.registry = new KvStateRegistry().createTaskRegistry(jobID, vertexID);
         this.taskStateManager = new SavepointTaskStateManager(prioritizedOperatorSubtaskState);
-        this.ioManager = new IOManagerAsync(ConfigurationUtils.parseTempDirectories(configuration));
+        this.ioManager =
+                new IOManagerAsync(
+                        ConfigurationUtils.parseTempDirectories(configuration),
+                        Executors.newDirectExecutorService());
         this.memoryManager = MemoryManager.create(64 * 1024 * 1024, DEFAULT_PAGE_SIZE);
         this.sharedResources = new SharedResources();
         this.accumulatorRegistry = new AccumulatorRegistry(jobID, attemptID);

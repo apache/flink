@@ -30,6 +30,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.contrib.streaming.state.RocksDBMemoryControllerUtils.RocksDBMemoryFactory;
+import org.apache.flink.contrib.streaming.state.sstmerge.RocksDBManualCompactionConfig;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
@@ -46,6 +47,7 @@ import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TernaryBoolean;
 
@@ -195,6 +197,8 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     private RocksDBMemoryFactory rocksDBMemoryFactory;
     // ------------------------------------------------------------------------
 
+    private final RocksDBManualCompactionConfig manualCompactionConfig;
+
     /** Creates a new {@code EmbeddedRocksDBStateBackend} for storing local state. */
     public EmbeddedRocksDBStateBackend() {
         this(TernaryBoolean.UNDEFINED);
@@ -226,6 +230,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         this.useIngestDbRestoreMode = TernaryBoolean.UNDEFINED;
         this.incrementalRestoreAsyncCompactAfterRescale = TernaryBoolean.UNDEFINED;
         this.rescalingUseDeleteFilesInRange = TernaryBoolean.UNDEFINED;
+        this.manualCompactionConfig = null;
     }
 
     /**
@@ -337,6 +342,11 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                         config);
 
         this.rocksDBMemoryFactory = original.rocksDBMemoryFactory;
+
+        this.manualCompactionConfig =
+                original.manualCompactionConfig != null
+                        ? original.manualCompactionConfig
+                        : RocksDBManualCompactionConfig.from(config);
     }
 
     // ------------------------------------------------------------------------
@@ -510,7 +520,15 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                         .setIncrementalRestoreAsyncCompactAfterRescale(
                                 getIncrementalRestoreAsyncCompactAfterRescale())
                         .setUseIngestDbRestoreMode(getUseIngestDbRestoreMode())
-                        .setRescalingUseDeleteFilesInRange(isRescalingUseDeleteFilesInRange());
+                        .setRescalingUseDeleteFilesInRange(isRescalingUseDeleteFilesInRange())
+                        .setIOExecutor(
+                                MdcUtils.scopeToJob(
+                                        jobId,
+                                        parameters.getEnv().getIOManager().getExecutorService()))
+                        .setManualCompactionConfig(
+                                manualCompactionConfig == null
+                                        ? RocksDBManualCompactionConfig.getDefault()
+                                        : manualCompactionConfig);
         return builder.build();
     }
 
