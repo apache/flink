@@ -252,6 +252,7 @@ under the License.
                      it under ${project.build.directory} where all freemarker templates are. -->
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-dependency-plugin</artifactId>
+				<!-- Uncomment it back once fix for CALCITE-6266 comes to Flink with Calcite upgrade
 				<executions>
 					<execution>
 						<id>unpack-parser-template</id>
@@ -273,7 +274,7 @@ under the License.
 							</artifactItems>
 						</configuration>
 					</execution>
-				</executions>
+				</executions>-->
 			</plugin>
 			<!-- adding fmpp code gen -->
 			<plugin>

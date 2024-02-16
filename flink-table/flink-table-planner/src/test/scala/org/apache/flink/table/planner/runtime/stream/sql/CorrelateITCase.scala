@@ -389,6 +389,25 @@ class CorrelateITCase extends StreamingTestBase {
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
+  @Test
+  def testL1eftJoinPartialProjectWithEmptyOutput(): Unit = {
+    val data = List((1, 2, "x|y"))
+
+    val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.createTemporaryView("T1", t1)
+
+    val sql =
+      "SELECT * FROM T1 as t, LATERAL TABLE(STRING_SPLIT(t.c,'|')) CROSS JOIN (VALUES ('A'), ('B'));"
+
+    val result = tEnv.sqlQuery(sql)
+    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    result.executeInsert("MySink").await()
+
+    val expected = List("1,2,x|y,x,A", "1,2,x|y,x,B", "1,2,x|y,y,A", "1,2,x|y,y,B")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
   // TODO support agg
 //  @Test
 //  def testCountStarOnCorrelate(): Unit = {
