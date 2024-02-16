@@ -388,6 +388,7 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(sequence(ANY))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.INT().notNull())))
                     .runtimeProvided()
+                    .internal()
                     .build();
 
     public static final BuiltInFunctionDefinition ARRAY_INTERSECT =
