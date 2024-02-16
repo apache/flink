@@ -18,16 +18,19 @@
 
 package org.apache.flink.runtime.io.disk.iomanager;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.ShutdownHookUtil;
+import org.apache.flink.util.concurrent.Executors;
 
 import java.io.IOException;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -53,8 +56,17 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
     // -------------------------------------------------------------------------
 
     /** Constructs a new asynchronous I/O manager, writing files to the system 's temp directory. */
+    @VisibleForTesting
     public IOManagerAsync() {
-        this(EnvironmentInformation.getTemporaryFileDirectory());
+        this(
+                EnvironmentInformation.getTemporaryFileDirectory(),
+                Executors.newDirectExecutorService());
+    }
+
+    /** Constructs a new asynchronous I/O manager, writing files to the system 's temp directory. */
+    @VisibleForTesting
+    public IOManagerAsync(ExecutorService executorService) {
+        this(EnvironmentInformation.getTemporaryFileDirectory(), executorService);
     }
 
     /**
@@ -62,8 +74,19 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
      *
      * @param tempDir The directory to write temporary files to.
      */
+    @VisibleForTesting
     public IOManagerAsync(String tempDir) {
-        this(new String[] {tempDir});
+        this(new String[] {tempDir}, Executors.newDirectExecutorService());
+    }
+
+    /**
+     * Constructs a new asynchronous I/O manager, writing file to the given directory.
+     *
+     * @param tempDir The directory to write temporary files to.
+     */
+    @VisibleForTesting
+    public IOManagerAsync(String tempDir, ExecutorService executorService) {
+        this(new String[] {tempDir}, executorService);
     }
 
     /**
@@ -72,8 +95,8 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
      *
      * @param tempDirs The directories to write temporary files to.
      */
-    public IOManagerAsync(String[] tempDirs) {
-        super(tempDirs);
+    public IOManagerAsync(String[] tempDirs, ExecutorService executorService) {
+        super(tempDirs, executorService);
 
         // start a write worker thread for each directory
         this.writers = new WriterThread[tempDirs.length];

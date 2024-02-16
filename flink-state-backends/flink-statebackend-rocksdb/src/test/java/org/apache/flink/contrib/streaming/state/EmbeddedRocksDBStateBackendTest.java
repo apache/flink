@@ -29,11 +29,13 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.contrib.streaming.state.sstmerge.RocksDBManualCompactionOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
@@ -82,6 +84,7 @@ import org.rocksdb.Snapshot;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -202,6 +205,7 @@ public class EmbeddedRocksDBStateBackendTest
         configuration.set(
                 RocksDBOptions.TIMER_SERVICE_FACTORY,
                 EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
+        configuration.set(RocksDBManualCompactionOptions.MIN_INTERVAL, Duration.ofMillis(1));
         return configuration;
     }
 
@@ -705,6 +709,55 @@ public class EmbeddedRocksDBStateBackendTest
     private void checkBooleanWithBaseConf(
             Configuration testConfig, ConfigOption<Boolean> option, boolean value) {
         assertEquals(testConfig.getOptional(option).orElse(!option.defaultValue()), value);
+    }
+
+    /** Test that most of the non-overlapping small SST files are eventually merged. */
+    @TestTemplate
+    public void testSmallFilesCompaction() throws Exception {
+        ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
+        CheckpointStreamFactory streamFactory = createStreamFactory();
+
+        final KeyGroupRange range = KeyGroupRange.of(0, 49);
+        double expectedNumSstFiles = range.getNumberOfKeyGroups() * .5;
+        final CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(
+                        IntSerializer.INSTANCE,
+                        range.getEndKeyGroup() - range.getStartKeyGroup() + 1,
+                        range,
+                        env);
+        try {
+            ValueState<String> state =
+                    backend.getPartitionedState(
+                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+            for (int i = range.getStartKeyGroup(); i < range.getEndKeyGroup(); i++) {
+                backend.setCurrentKey(i);
+                state.update(Integer.toString(i));
+                // snapshot to force flushing memtables to disk and create a new SST file
+                runSnapshot(
+                        backend.snapshot(
+                                i, // checkpoint id
+                                i, // timestamp
+                                streamFactory,
+                                CheckpointOptions.forCheckpointWithDefaultLocation()),
+                        sharedStateRegistry);
+            }
+
+            // expect files under dpPath: job_123_op_456/db/*.sst
+            File sstPath = new File(dbPath).listFiles()[0].listFiles()[0];
+
+            int length = sstPath.listFiles((dir, name) -> name.endsWith(".sst")).length;
+            assertThat(length)
+                    .isLessThanOrEqualTo((int) expectedNumSstFiles)
+                    .withFailMessage("actual: " + length + ", expected: " + expectedNumSstFiles);
+
+        } finally {
+            IOUtils.closeQuietly(backend);
+            backend.dispose();
+        }
+        // allow some time for the background compaction to fail hard by calling closed db
+        Thread.sleep(100);
     }
 
     private void runStateUpdates() throws Exception {
