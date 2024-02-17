@@ -216,7 +216,7 @@ public class CliFrontendParser {
                     "d",
                     "drain",
                     false,
-                    "Send MAX_WATERMARK before taking the savepoint and stopping the pipelne.");
+                    "Send MAX_WATERMARK before taking the savepoint and stopping the pipeline.");
 
     public static final Option PY_OPTION =
             new Option(
