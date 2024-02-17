@@ -44,6 +44,31 @@ runs:
         echo "GHA_PIPELINE_START_TIME=${job_start_time}" >> "${GITHUB_ENV}"
         echo "The job's start time is set to ${job_start_time}."
 
+    - name: "Pre-cleanup Disk Info"
+      shell: bash
+      run: df -h
+
+    - name: "Delete unused binaries"
+      shell: bash
+      run: |
+        # inspired by https://github.com/easimon/maximize-build-space
+        for label_with_path in \
+              "Android SDK:/usr/local/lib/android" \
+              "CodeQL:/opt/hostedtoolcache/CodeQL" \
+              ".NET:/usr/share/dotnet"; do
+          dependency_name="$(echo "${label_with_path}" | cut -d: -f1)"
+          dependency_path="$(echo "${label_with_path}" | cut -d: -f2)"
+        
+          if [ -d "${dependency_path}" ]; then
+            echo "[INFO] Deleting binaries of ${dependency_name} in ${dependency_path}."
+            sudo rm -rf "${dependency_path}"
+            df -h
+          else
+            echo "[INFO] The directory '${dependency_path}' doesn't exist. ${dependency_name} won't be removed."
+          fi
+        done
+        android_sdk_path="/usr/local/lib/android"
+
     - name: "Set JDK version to ${{ inputs.jdk_version }}"
       shell: bash
       run: |

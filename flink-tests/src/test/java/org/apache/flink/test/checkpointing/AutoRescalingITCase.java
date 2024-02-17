@@ -38,6 +38,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -86,7 +87,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
-import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForOneMoreCheckpoint;
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForNewCheckpoint;
 import static org.apache.flink.test.scheduling.UpdateJobResourceRequirementsITCase.waitForAvailableSlots;
 import static org.apache.flink.test.scheduling.UpdateJobResourceRequirementsITCase.waitForRunningTasks;
 import static org.junit.Assert.assertEquals;
@@ -109,22 +110,28 @@ public class AutoRescalingITCase extends TestLogger {
     private static final int slotsPerTaskManager = 2;
     private static final int totalSlots = numTaskManagers * slotsPerTaskManager;
 
-    @Parameterized.Parameters(name = "backend = {0}, buffersPerChannel = {1}")
+    @Parameterized.Parameters(name = "backend = {0}, buffersPerChannel = {1}, useIngestDB = {2}")
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
-                    {"rocksdb", 0}, {"rocksdb", 2}, {"filesystem", 0}, {"filesystem", 2}
+                    {"rocksdb", 0, false},
+                    {"rocksdb", 2, true},
+                    {"filesystem", 0, false},
+                    {"filesystem", 2, false}
                 });
     }
 
-    public AutoRescalingITCase(String backend, int buffersPerChannel) {
+    public AutoRescalingITCase(String backend, int buffersPerChannel, boolean useIngestDB) {
         this.backend = backend;
         this.buffersPerChannel = buffersPerChannel;
+        this.useIngestDB = useIngestDB;
     }
 
     private final String backend;
 
     private final int buffersPerChannel;
+
+    private final boolean useIngestDB;
 
     private String currentBackend = null;
 
@@ -154,6 +161,7 @@ public class AutoRescalingITCase extends TestLogger {
             final File savepointDir = temporaryFolder.newFolder();
 
             config.set(StateBackendOptions.STATE_BACKEND, currentBackend);
+            config.set(RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE, useIngestDB);
             config.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
             config.set(CheckpointingOptions.LOCAL_RECOVERY, true);
             config.set(
@@ -163,6 +171,8 @@ public class AutoRescalingITCase extends TestLogger {
                     NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, buffersPerChannel);
 
             config.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
+            // Disable the scaling cooldown to speed up the test
+            config.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, Duration.ofMillis(0));
 
             // speed the test suite up
             // - lower refresh interval -> controls how fast we invalidate ExecutionGraphCache
@@ -261,7 +271,11 @@ public class AutoRescalingITCase extends TestLogger {
 
             waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID(), false);
 
-            waitForOneMoreCheckpoint(jobID, cluster.getMiniCluster());
+            // We need to wait for a checkpoint to be completed that was triggered after all the
+            // data was processed. That ensures the entire data being flushed out of the Operator's
+            // network buffers to avoid reprocessing test data twice after the restore (see
+            // FLINK-34200).
+            waitForNewCheckpoint(jobID, cluster.getMiniCluster());
 
             SubtaskIndexSource.SOURCE_LATCH.reset();
 
@@ -328,7 +342,7 @@ public class AutoRescalingITCase extends TestLogger {
             // wait until the operator handles some data
             StateSourceBase.workStartedLatch.await();
 
-            waitForOneMoreCheckpoint(jobID, cluster.getMiniCluster());
+            waitForNewCheckpoint(jobID, cluster.getMiniCluster());
 
             JobResourceRequirements.Builder builder = JobResourceRequirements.newBuilder();
             for (JobVertex vertex : jobGraph.getVertices()) {
@@ -411,7 +425,7 @@ public class AutoRescalingITCase extends TestLogger {
             // clear the CollectionSink set for the restarted job
             CollectionSink.clearElementsSet();
 
-            waitForOneMoreCheckpoint(jobID, cluster.getMiniCluster());
+            waitForNewCheckpoint(jobID, cluster.getMiniCluster());
 
             SubtaskIndexSource.SOURCE_LATCH.reset();
 
@@ -513,7 +527,7 @@ public class AutoRescalingITCase extends TestLogger {
         // wait until the operator handles some data
         StateSourceBase.workStartedLatch.await();
 
-        waitForOneMoreCheckpoint(jobID, cluster.getMiniCluster());
+        waitForNewCheckpoint(jobID, cluster.getMiniCluster());
 
         JobResourceRequirements.Builder builder = JobResourceRequirements.newBuilder();
         for (JobVertex vertex : jobGraph.getVertices()) {

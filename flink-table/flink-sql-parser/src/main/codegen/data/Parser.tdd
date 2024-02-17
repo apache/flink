@@ -201,6 +201,7 @@
     "AFTER"
     "ALWAYS"
     "APPLY"
+    "ARRAY_AGG"
     "ASC"
     "ASSERTION"
     "ASSIGNMENT"

@@ -70,7 +70,9 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 import static org.apache.flink.configuration.description.TextElement.text;
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD;
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.WRITE_BATCH_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -168,7 +170,19 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
      * The threshold of the overlap fraction between the handle's key-group range and target
      * key-group range.
      */
-    private double overlapFractionThreshold;
+    private final double overlapFractionThreshold;
+
+    /**
+     * Whether we use the optimized Ingest/Clip DB method for rescaling RocksDB incremental
+     * checkpoints.
+     */
+    private final TernaryBoolean useIngestDbRestoreMode;
+
+    /**
+     * Whether we trigger an async compaction after restores for which we detect state in the
+     * database (including tombstones) that exceed the proclaimed key-groups range of the backend.
+     */
+    private final TernaryBoolean incrementalRestoreAsyncCompactAfterRescale;
 
     /** Factory for Write Buffer Manager and Block Cache. */
     private RocksDBMemoryFactory rocksDBMemoryFactory;
@@ -202,6 +216,8 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         this.overlapFractionThreshold = UNDEFINED_OVERLAP_FRACTION_THRESHOLD;
         this.rocksDBMemoryFactory = RocksDBMemoryFactory.DEFAULT;
         this.priorityQueueConfig = new RocksDBPriorityQueueConfig();
+        this.useIngestDbRestoreMode = TernaryBoolean.UNDEFINED;
+        this.incrementalRestoreAsyncCompactAfterRescale = TernaryBoolean.UNDEFINED;
     }
 
     /**
@@ -295,6 +311,17 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         checkArgument(
                 overlapFractionThreshold >= 0 && this.overlapFractionThreshold <= 1,
                 "Overlap fraction threshold of restoring should be between 0 and 1");
+
+        incrementalRestoreAsyncCompactAfterRescale =
+                original.incrementalRestoreAsyncCompactAfterRescale == TernaryBoolean.UNDEFINED
+                        ? TernaryBoolean.fromBoxedBoolean(
+                                config.get(INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE))
+                        : original.incrementalRestoreAsyncCompactAfterRescale;
+
+        useIngestDbRestoreMode =
+                original.useIngestDbRestoreMode == TernaryBoolean.UNDEFINED
+                        ? TernaryBoolean.fromBoxedBoolean(config.get(USE_INGEST_DB_RESTORE_MODE))
+                        : TernaryBoolean.fromBoolean(original.getUseIngestDbRestoreMode());
 
         this.rocksDBMemoryFactory = original.rocksDBMemoryFactory;
     }
@@ -466,7 +493,10 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                         .setNativeMetricOptions(
                                 resourceContainer.getMemoryWatcherOptions(nativeMetricOptions))
                         .setWriteBatchSize(getWriteBatchSize())
-                        .setOverlapFractionThreshold(getOverlapFractionThreshold());
+                        .setOverlapFractionThreshold(getOverlapFractionThreshold())
+                        .setIncrementalRestoreAsyncCompactAfterRescale(
+                                getIncrementalRestoreAsyncCompactAfterRescale())
+                        .setUseIngestDbRestoreMode(getUseIngestDbRestoreMode());
         return builder.build();
     }
 
@@ -803,6 +833,15 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         return overlapFractionThreshold == UNDEFINED_OVERLAP_FRACTION_THRESHOLD
                 ? RESTORE_OVERLAP_FRACTION_THRESHOLD.defaultValue()
                 : overlapFractionThreshold;
+    }
+
+    boolean getIncrementalRestoreAsyncCompactAfterRescale() {
+        return incrementalRestoreAsyncCompactAfterRescale.getOrDefault(
+                INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE.defaultValue());
+    }
+
+    boolean getUseIngestDbRestoreMode() {
+        return useIngestDbRestoreMode.getOrDefault(USE_INGEST_DB_RESTORE_MODE.defaultValue());
     }
 
     // ------------------------------------------------------------------------

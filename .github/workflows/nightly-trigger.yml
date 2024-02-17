@@ -24,12 +24,14 @@ on:
 
 jobs:
   Trigger:
+    if: github.repository == 'apache/flink'
     permissions:
       actions: write
     strategy:
       matrix:
         branch:
           - master
+          - release-1.19
           - release-1.18
     runs-on: ubuntu-latest
     steps:

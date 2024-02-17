@@ -849,7 +849,7 @@ object AggregateUtil extends Enumeration {
             call.getAggregation,
             false,
             false,
-            false,
+            call.ignoreNulls,
             call.getArgList,
             -1, // remove filterArg
             null,

@@ -309,6 +309,21 @@ public class RocksDBConfigurableOptions implements Serializable {
                                     + "has a chance to be an initial handle. "
                                     + "The default value is 0.0, there is always a handle will be selected for initialization. ");
 
+    public static final ConfigOption<Boolean> USE_INGEST_DB_RESTORE_MODE =
+            key("state.backend.rocksdb.use-ingest-db-restore-mode")
+                    .booleanType()
+                    .defaultValue(Boolean.FALSE)
+                    .withDescription(
+                            "A recovery mode that directly clips and ingests multiple DBs during state recovery if the keys"
+                                    + " in the SST files does not exceed the declared key-group range.");
+
+    public static final ConfigOption<Boolean> INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE =
+            key("state.backend.rocksdb.incremental-restore-async-compact-after-rescale")
+                    .booleanType()
+                    .defaultValue(Boolean.FALSE)
+                    .withDescription(
+                            "If true, an async compaction of RocksDB is started after every restore after which we detect keys (including tombstones) in the database that are outside the key-groups range of the backend.");
+
     static final ConfigOption<?>[] CANDIDATE_CONFIGS =
             new ConfigOption<?>[] {
                 // configurable DBOptions
@@ -334,7 +349,9 @@ public class RocksDBConfigurableOptions implements Serializable {
                 USE_BLOOM_FILTER,
                 BLOOM_FILTER_BITS_PER_KEY,
                 BLOOM_FILTER_BLOCK_BASED_MODE,
-                RESTORE_OVERLAP_FRACTION_THRESHOLD
+                RESTORE_OVERLAP_FRACTION_THRESHOLD,
+                USE_INGEST_DB_RESTORE_MODE,
+                INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE
             };
 
     private static final Set<ConfigOption<?>> POSITIVE_INT_CONFIG_SET =

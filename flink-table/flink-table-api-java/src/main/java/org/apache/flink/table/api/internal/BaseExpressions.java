@@ -53,6 +53,7 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ABS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ACOS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_AGG;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_CONCAT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_CONTAINS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_DISTINCT;
@@ -525,6 +526,11 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Returns multiset aggregate of a given expression. */
     public OutType collect() {
         return toApiSpecificExpression(unresolvedCall(COLLECT, toExpr()));
+    }
+
+    /** Returns array aggregate of a given expression. */
+    public OutType arrayAgg() {
+        return toApiSpecificExpression(unresolvedCall(ARRAY_AGG, toExpr()));
     }
 
     /**

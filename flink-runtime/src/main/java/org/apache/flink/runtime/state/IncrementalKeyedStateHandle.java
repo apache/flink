@@ -100,5 +100,16 @@ public interface IncrementalKeyedStateHandle
         public int hashCode() {
             return Objects.hash(handle, localPath);
         }
+
+        @Override
+        public String toString() {
+            return "HandleAndLocalPath{"
+                    + "handle="
+                    + handle
+                    + ", localPath='"
+                    + localPath
+                    + '\''
+                    + '}';
+        }
     }
 }

@@ -51,7 +51,8 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         arrayMaxTestCases(),
                         arrayJoinTestCases(),
                         arraySliceTestCases(),
-                        arrayMinTestCases())
+                        arrayMinTestCases(),
+                        arraySortTestCases())
                 .flatMap(s -> s);
     }
 
@@ -1369,5 +1370,150 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "ARRAY_SLICE(<ARRAY>, <INTEGER>, <INTEGER>)\n"
                                         + "ARRAY_SLICE(<ARRAY>, <INTEGER>)")
                         .testSqlValidationError("ARRAY_SLICE(null)", "Illegal use of 'NULL'"));
+    }
+
+    private Stream<TestSetSpec> arraySortTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_SORT)
+                        .onFieldsWithData(
+                                new Integer[] {1, 2, 2, null},
+                                null,
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null
+                                },
+                                new Double[] {1.2, 3.5, 4.7, 1.3, 1.0, 5.0},
+                                new String[] {"a", "cv", "dc", "rerer", "234", "12"},
+                                new LocalDate[] {
+                                    LocalDate.of(2022, 1, 2),
+                                    LocalDate.of(2023, 4, 21),
+                                    LocalDate.of(2022, 12, 24),
+                                    LocalDate.of(2026, 2, 10),
+                                    LocalDate.of(2012, 5, 16),
+                                    LocalDate.of(2092, 7, 19)
+                                })
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())),
+                                DataTypes.ARRAY(DataTypes.DOUBLE()),
+                                DataTypes.ARRAY(DataTypes.STRING()),
+                                DataTypes.ARRAY(DataTypes.DATE()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f0")),
+                                "ARRAY_SORT(f0)",
+                                new Integer[] {null, 1, 2, 2},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f0"), false),
+                                "ARRAY_SORT(f0, false)",
+                                new Integer[] {2, 2, 1, null},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f0"), true),
+                                "ARRAY_SORT(f0, true)",
+                                new Integer[] {null, 1, 2, 2},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f0"), null),
+                                "ARRAY_SORT(f0, null)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f0"), true, true),
+                                "ARRAY_SORT(f0, true, true)",
+                                new Integer[] {null, 1, 2, 2},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f0"), true, false),
+                                "ARRAY_SORT(f0, true, false)",
+                                new Integer[] {1, 2, 2, null},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f0"), false, true),
+                                "ARRAY_SORT(f0, false, true)",
+                                new Integer[] {null, 2, 2, 1},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f0"), false, false),
+                                "ARRAY_SORT(f0, false, false)",
+                                new Integer[] {2, 2, 1, null},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f0"), false, null),
+                                "ARRAY_SORT(f0, false, null)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f0"), null, null),
+                                "ARRAY_SORT(f0, false, null)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f1"), true),
+                                "ARRAY_SORT(f1, true)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f1"), false),
+                                "ARRAY_SORT(f1, true)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testTableApiValidationError(
+                                call("ARRAY_SORT", $("f2"), true),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_SORT(<ARRAY<COMPARABLE>>)\n"
+                                        + "ARRAY_SORT(<ARRAY<COMPARABLE>>, <BOOLEAN>)\n"
+                                        + "ARRAY_SORT(<ARRAY<COMPARABLE>>, <BOOLEAN>, <BOOLEAN>)")
+                        .testSqlValidationError(
+                                "ARRAY_SORT(f2, true)",
+                                "SQL validation failed. Invalid function call:\n"
+                                        + "ARRAY_SORT(ARRAY<ROW<`f0` BOOLEAN, `f1` DATE>>, BOOLEAN NOT NULL)")
+                        .testResult(
+                                call("ARRAY_SORT", $("f3")),
+                                "ARRAY_SORT(f3)",
+                                new Double[] {1.0, 1.2, 1.3, 3.5, 4.7, 5.0},
+                                DataTypes.ARRAY(DataTypes.DOUBLE()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f3"), false),
+                                "ARRAY_SORT(f3, false)",
+                                new Double[] {5.0, 4.7, 3.5, 1.3, 1.2, 1.0},
+                                DataTypes.ARRAY(DataTypes.DOUBLE()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f4")),
+                                "ARRAY_SORT(f4)",
+                                new String[] {"12", "234", "a", "cv", "dc", "rerer"},
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f4"), false),
+                                "ARRAY_SORT(f4, false)",
+                                new String[] {"rerer", "dc", "cv", "a", "234", "12"},
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f5")),
+                                "ARRAY_SORT(f5)",
+                                new LocalDate[] {
+                                    LocalDate.of(2012, 5, 16),
+                                    LocalDate.of(2022, 1, 2),
+                                    LocalDate.of(2022, 12, 24),
+                                    LocalDate.of(2023, 4, 21),
+                                    LocalDate.of(2026, 2, 10),
+                                    LocalDate.of(2092, 7, 19)
+                                },
+                                DataTypes.ARRAY(DataTypes.DATE()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f5"), false),
+                                "ARRAY_SORT(f5, false)",
+                                new LocalDate[] {
+                                    LocalDate.of(2092, 7, 19),
+                                    LocalDate.of(2026, 2, 10),
+                                    LocalDate.of(2023, 4, 21),
+                                    LocalDate.of(2022, 12, 24),
+                                    LocalDate.of(2022, 1, 2),
+                                    LocalDate.of(2012, 5, 16)
+                                },
+                                DataTypes.ARRAY(DataTypes.DATE())));
     }
 }

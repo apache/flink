@@ -111,9 +111,11 @@ public class CheckpointStatsTracker {
      * @param numRememberedCheckpoints Maximum number of checkpoints to remember, including in
      *     progress ones.
      * @param metricGroup Metric group for exposed metrics
+     * @param jobID ID of the job being checkpointed
      */
-    public CheckpointStatsTracker(int numRememberedCheckpoints, MetricGroup metricGroup) {
-        this(numRememberedCheckpoints, metricGroup, new JobID(), Integer.MAX_VALUE);
+    public CheckpointStatsTracker(
+            int numRememberedCheckpoints, MetricGroup metricGroup, JobID jobID) {
+        this(numRememberedCheckpoints, metricGroup, jobID, Integer.MAX_VALUE);
     }
 
     CheckpointStatsTracker(
