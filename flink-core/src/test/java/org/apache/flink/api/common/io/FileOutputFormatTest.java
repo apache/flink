@@ -167,7 +167,7 @@ class FileOutputFormatTest {
                             dfof.close();
                         });
         File customOutFile = new File(tmpOutPath.getAbsolutePath() + "/fancy-1-0.avro");
-        assertThat(customOutFile).exists().isDirectory();
+        assertThat(tmpOutPath).exists().isDirectory();
         assertThat(customOutFile).exists().isFile();
         customOutFile.delete();
 
