@@ -85,7 +85,8 @@ class AggsHandlerCodeGenerator(
   private var ignoreAggValues: Array[Int] = Array()
 
   private var isAccumulateNeeded = false
-  private var isRetractNeeded = false
+
+  /** Each element indicates whether the corresponding agg call needs `retract` method. */
   private var aggCallNeedRetractions: Array[Boolean] = _
   private var isMergeNeeded = false
   private var isWindowSizeNeeded = false
@@ -166,7 +167,6 @@ class AggsHandlerCodeGenerator(
    * @return
    */
   def needRetract(aggCallNeedRetractions: Array[Boolean]): AggsHandlerCodeGenerator = {
-    this.isRetractNeeded = true
     this.aggCallNeedRetractions = aggCallNeedRetractions
     this
   }
@@ -1034,7 +1034,7 @@ class AggsHandlerCodeGenerator(
   }
 
   private def genRetract(): String = {
-    if (isRetractNeeded) {
+    if (isRetractNeededPreAggCall) {
       // validation check
       checkNeededMethods(needRetract = true)
 
@@ -1286,6 +1286,10 @@ class AggsHandlerCodeGenerator(
           needReset,
           needEmitValue)
     }
+  }
+
+  private def isRetractNeededPreAggCall(): Boolean = {
+    Option(aggCallNeedRetractions).exists(_.contains(true))
   }
 
   private def genThrowException(msg: String): String = {
