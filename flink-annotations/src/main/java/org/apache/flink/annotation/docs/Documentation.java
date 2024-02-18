@@ -77,8 +77,7 @@ public final class Documentation {
 
         public static final String STATE_BACKEND_ROCKSDB = "state_backend_rocksdb";
 
-        public static final String STATE_BACKEND_LATENCY_TRACKING =
-                "state_backend_latency_tracking";
+        public static final String STATE_LATENCY_TRACKING = "state_latency_tracking";
 
         public static final String STATE_BACKEND_CHANGELOG = "state_backend_changelog";
 
