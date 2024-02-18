@@ -453,9 +453,9 @@ Please refer to the [Debugging Classloading Docs]({{< ref "docs/ops/debugging/de
 
 {{< generated/expert_state_backends_section >}}
 
-### State Backends Latency Tracking Options
+### State Latency Tracking Options
 
-{{< generated/state_backend_latency_tracking_section >}}
+{{< generated/state_latency_tracking_section >}}
 
 ### Advanced RocksDB State Backends Options
 
