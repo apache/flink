@@ -1724,7 +1724,7 @@ Note that the metrics are only available via reporters.
     </tr>
     <tr>
       <td>changelogBusyTimeMsPerSecond</td>
-      <td>The time (in milliseconds) taken by the Changelog state backend to do IO operations, only positive when Changelog state backend is enabled. Please check 'dstl.dfs.upload.max-in-flight' for more information.</td>
+      <td>The time (in milliseconds) taken by the Changelog state backend to do IO operations, only positive when Changelog state backend is enabled. Please check 'state.changelog.dstl.dfs.upload.max-in-flight' for more information.</td>
       <td>Gauge</td>
     </tr>
     <tr>
