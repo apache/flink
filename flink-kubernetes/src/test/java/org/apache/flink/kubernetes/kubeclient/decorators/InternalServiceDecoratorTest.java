@@ -69,6 +69,8 @@ class InternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
         final Map<String, String> expectedLabels = getCommonLabels();
         assertThat(internalService.getMetadata().getLabels()).isEqualTo(expectedLabels);
 
+        assertThat(internalService.getMetadata().getAnnotations()).isEqualTo(userAnnotations);
+
         assertThat(internalService.getSpec().getType()).isNull();
         assertThat(internalService.getSpec().getClusterIP()).isEqualTo("None");
 

@@ -111,6 +111,12 @@
             <td>Whether to enable HostNetwork mode. The HostNetwork allows the pod could use the node network namespace instead of the individual pod network namespace. Please note that the JobManager service account should have the permission to update Kubernetes service.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.internal-service.annotations</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>The user-specified annotations that are set to the internal Service. The value should be in the form of a1:v1,a2:v2</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.jobmanager.annotations</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Map</td>
