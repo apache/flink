@@ -20,7 +20,7 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigurationUtils;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 

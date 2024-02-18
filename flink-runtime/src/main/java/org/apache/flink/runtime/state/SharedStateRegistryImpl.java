@@ -19,10 +19,10 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.SnapshotType.SharingFilesStrategy;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.slf4j.Logger;

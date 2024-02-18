@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.core.execution.RestoreMode;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 

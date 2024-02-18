@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;

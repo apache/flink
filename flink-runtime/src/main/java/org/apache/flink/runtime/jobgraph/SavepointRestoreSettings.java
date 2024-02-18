@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.execution.RestoreMode;
 
 import javax.annotation.Nonnull;
 
