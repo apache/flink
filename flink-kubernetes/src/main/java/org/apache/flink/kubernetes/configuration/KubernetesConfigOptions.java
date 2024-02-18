@@ -377,6 +377,14 @@ public class KubernetesConfigOptions {
                             "The user-specified annotations that are set to the rest Service. The value should be "
                                     + "in the form of a1:v1,a2:v2");
 
+    public static final ConfigOption<Map<String, String>> INTERNAL_SERVICE_ANNOTATIONS =
+            key("kubernetes.internal-service.annotations")
+                    .mapType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The user-specified annotations that are set to the internal Service. The value should be "
+                                    + "in the form of a1:v1,a2:v2");
+
     /**
      * Defines the configuration key of that external resource in Kubernetes. This is used as a
      * suffix in an actual config.

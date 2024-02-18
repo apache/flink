@@ -118,6 +118,12 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
                 .orElse(Collections.emptyMap());
     }
 
+    public Map<String, String> getInternalServiceAnnotations() {
+        return flinkConfig
+                .getOptional(KubernetesConfigOptions.INTERNAL_SERVICE_ANNOTATIONS)
+                .orElse(Collections.emptyMap());
+    }
+
     public int getJobManagerMemoryMB() {
         return clusterSpecification.getMasterMemoryMB();
     }
