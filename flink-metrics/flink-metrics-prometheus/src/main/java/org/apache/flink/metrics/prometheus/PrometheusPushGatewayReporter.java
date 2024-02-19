@@ -18,6 +18,7 @@
 
 package org.apache.flink.metrics.prometheus;
 
+import io.prometheus.client.exporter.BasicAuthHttpConnectionFactory;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Metric;
@@ -29,6 +30,7 @@ import io.prometheus.client.exporter.PushGateway;
 
 import java.io.IOException;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.util.Map;
 
 /**
@@ -41,7 +43,8 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
     private final String jobName;
     private final Map<String, String> groupingKey;
     private final boolean deleteOnShutdown;
-    @VisibleForTesting final URL hostUrl;
+    @VisibleForTesting
+    final URL hostUrl;
 
     PrometheusPushGatewayReporter(
             URL hostUrl,
@@ -53,6 +56,13 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
         this.jobName = Preconditions.checkNotNull(jobName);
         this.groupingKey = Preconditions.checkNotNull(groupingKey);
         this.deleteOnShutdown = deleteOnShutdown;
+        if (hostUrl.getUserInfo() != null) {
+            String[] userInfo = hostUrl.getUserInfo().split(":");
+
+            String username = URLDecoder.decode(userInfo[0]);
+            String password = URLDecoder.decode(userInfo[1]);
+            this.pushGateway.setConnectionFactory(new BasicAuthHttpConnectionFactory(username, password));
+        }
     }
 
     @Override
