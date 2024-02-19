@@ -490,17 +490,16 @@ public class TaskDeploymentDescriptorFactory {
         public MaybeOffloaded<ShuffleDescriptorGroup> serializeAndTryOffloadShuffleDescriptor(
                 ShuffleDescriptorGroup shuffleDescriptorGroup, int numConsumer) throws IOException {
 
-            final CompressedSerializedValue<ShuffleDescriptorGroup> compressedSerializedValue =
-                    CompressedSerializedValue.fromObject(shuffleDescriptorGroup);
-
-            final Either<SerializedValue<ShuffleDescriptorGroup>, PermanentBlobKey>
-                    serializedValueOrBlobKey =
-                            shouldOffload(
-                                            shuffleDescriptorGroup.getShuffleDescriptors(),
-                                            numConsumer)
-                                    ? BlobWriter.offloadWithException(
-                                            compressedSerializedValue, jobID, blobWriter)
-                                    : Either.Left(compressedSerializedValue);
+            final Either<ShuffleDescriptorGroup, PermanentBlobKey> serializedValueOrBlobKey =
+                    shouldOffload(shuffleDescriptorGroup.getShuffleDescriptors(), numConsumer)
+                            ? BlobWriter.offloadWithException(
+                                            CompressedSerializedValue.fromObject(
+                                                    shuffleDescriptorGroup),
+                                            jobID,
+                                            blobWriter)
+                                    .map(Either::<ShuffleDescriptorGroup, PermanentBlobKey>Right)
+                                    .orElse(Either.Left(shuffleDescriptorGroup))
+                            : Either.Left(shuffleDescriptorGroup);
 
             if (serializedValueOrBlobKey.isLeft()) {
                 return new TaskDeploymentDescriptor.NonOffloaded<>(serializedValueOrBlobKey.left());

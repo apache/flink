@@ -63,6 +63,7 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -591,7 +592,15 @@ public class Execution
             // does not block
             // the main thread and sync back to the main thread once submission is completed.
             CompletableFuture.supplyAsync(
-                            () -> taskManagerGateway.submitTask(deployment, rpcTimeout), executor)
+                            () -> {
+                                try {
+                                    deployment.compressAndSerializeShuffleDescriptors();
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
+                                }
+                                return taskManagerGateway.submitTask(deployment, rpcTimeout);
+                            },
+                            executor)
                     .thenCompose(Function.identity())
                     .whenCompleteAsync(
                             (ack, failure) -> {

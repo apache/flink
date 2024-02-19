@@ -186,6 +186,18 @@ public class InputGateDeploymentDescriptor implements Serializable {
         }
     }
 
+    public void compressAndSerializeShuffleDescriptors() throws IOException {
+        for (MaybeOffloaded<ShuffleDescriptorGroup> maybeOffloaded : serializedInputChannels) {
+            if (maybeOffloaded instanceof TaskDeploymentDescriptor.NonOffloaded) {
+                final TaskDeploymentDescriptor.NonOffloaded nonOffloaded =
+                        (TaskDeploymentDescriptor.NonOffloaded) maybeOffloaded;
+                if (nonOffloaded.serializedValue == null) {
+                    nonOffloaded.compressAndSerialize();
+                }
+            }
+        }
+    }
+
     private void tryLoadAndDeserializeShuffleDescriptorGroup(
             @Nullable PermanentBlobService blobService,
             JobID jobId,
