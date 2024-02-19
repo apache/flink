@@ -1065,14 +1065,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             QueryOperation operation,
             CollectModifyOperation sinkOperation,
             List<Transformation<?>> transformations) {
-        final String defaultJobName = "collect";
-
         resourceManager.addJarConfiguration(tableConfig);
 
-        // We pass only the configuration to avoid reconfiguration with the rootConfiguration
-        Pipeline pipeline =
-                execEnv.createPipeline(
-                        transformations, tableConfig.getConfiguration(), defaultJobName);
+        Pipeline pipeline = generatePipelineFromQueryOperation(operation, transformations);
         try {
             JobClient jobClient = execEnv.executeAsync(pipeline);
             ResultProvider resultProvider = sinkOperation.getSelectResultProvider();
@@ -1183,6 +1178,23 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         } else {
             throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
         }
+    }
+
+    /** generate execution {@link Pipeline} from {@link QueryOperation}. */
+    @VisibleForTesting
+    public Pipeline generatePipelineFromQueryOperation(
+            QueryOperation operation, List<Transformation<?>> transformations) {
+        String defaultJobName = "collect";
+
+        try {
+            defaultJobName = operation.asSerializableString();
+        } catch (Throwable e) {
+            // ignore error for unsupported operations and use 'collect' as default job name
+        }
+
+        // We pass only the configuration to avoid reconfiguration with the rootConfiguration
+        return execEnv.createPipeline(
+                transformations, tableConfig.getConfiguration(), defaultJobName);
     }
 
     /**

@@ -18,6 +18,11 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.table.api.internal.TableEnvironmentImpl;
+import org.apache.flink.table.operations.CollectModifyOperation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.test.program.SqlTestStep;
 import org.apache.flink.table.test.program.TableApiTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -29,6 +34,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -76,6 +82,39 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
                                 .get();
         final Table table = tableApiStep.toTable(env);
         assertThat(table.getQueryOperation().asSerializableString()).isEqualTo(sqlStep.sql);
+    }
+
+    @ParameterizedTest
+    @MethodSource("supportedPrograms")
+    void testSqlAsJobNameForQueryOperation(TableTestProgram program) {
+        final TableEnvironmentImpl env = (TableEnvironmentImpl) setupEnv(program);
+
+        final TableApiTestStep tableApiStep =
+                (TableApiTestStep)
+                        program.runSteps.stream()
+                                .filter(s -> s instanceof TableApiTestStep)
+                                .findFirst()
+                                .get();
+
+        final SqlTestStep sqlStep =
+                (SqlTestStep)
+                        program.runSteps.stream()
+                                .filter(s -> s instanceof SqlTestStep)
+                                .findFirst()
+                                .get();
+
+        final Table table = tableApiStep.toTable(env);
+
+        QueryOperation queryOperation = table.getQueryOperation();
+        CollectModifyOperation sinkOperation = new CollectModifyOperation(queryOperation);
+        List<Transformation<?>> transformations =
+                env.getPlanner().translate(Collections.singletonList(sinkOperation));
+
+        StreamGraph streamGraph =
+                (StreamGraph)
+                        env.generatePipelineFromQueryOperation(queryOperation, transformations);
+
+        assertThat(sqlStep.sql).isEqualTo(streamGraph.getJobName());
     }
 
     private static TableEnvironment setupEnv(TableTestProgram program) {
