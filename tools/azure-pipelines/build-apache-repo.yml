@@ -92,7 +92,7 @@ stages:
                 echo "##vso[task.setvariable variable=skip;]0"
               fi
             displayName: Check if PR contains docs change
-          - script: ./tools/ci/docs.sh
+          - script: ./docs/setup_hugo.sh && ./docs/build_docs.sh build
             condition: not(eq(variables['SKIP'], '1'))
   # Special stage for nightly builds:
   - stage: cron_build
@@ -179,7 +179,7 @@ stages:
           - task: GoTool@0
             inputs:
               version: '1.18.1'
-          - script: ./tools/ci/docs.sh
+          - script: ./docs/build_docs.sh install-hugo && ./docs/build_docs.sh build
       - template: build-python-wheels.yml
         parameters:
           stage_name: cron_python_wheels
