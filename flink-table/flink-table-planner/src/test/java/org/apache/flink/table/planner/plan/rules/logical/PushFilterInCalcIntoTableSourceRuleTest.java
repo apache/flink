@@ -52,7 +52,7 @@ class PushFilterInCalcIntoTableSourceRuleTest extends PushFilterIntoTableSourceS
                                 RuleSets.ofList(
                                         CoreRules.PROJECT_TO_CALC,
                                         CoreRules.FILTER_TO_CALC,
-                                        FlinkCalcMergeRule$.MODULE$.INSTANCE(),
+                                        FlinkCalcMergeRule.INSTANCE,
                                         FlinkLogicalCalc.CONVERTER(),
                                         FlinkLogicalTableSourceScan.CONVERTER(),
                                         FlinkLogicalWatermarkAssigner.CONVERTER()))
