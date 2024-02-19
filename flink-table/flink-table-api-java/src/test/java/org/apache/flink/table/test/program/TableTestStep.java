@@ -66,9 +66,7 @@ public abstract class TableTestStep implements TestStep {
         allOptions.putAll(extraOptions);
 
         final String distributedBy =
-                Optional.ofNullable(distribution)
-                        .map(TableDistribution::asSerializableString)
-                        .orElse("");
+                Optional.ofNullable(distribution).map(TableDistribution::toString).orElse("");
         final String partitionedBy =
                 partitionKeys.isEmpty()
                         ? ""

@@ -200,7 +200,7 @@ public class ShowCreateUtil {
     }
 
     static Optional<String> extractFormattedDistributedInfo(ResolvedCatalogTable catalogTable) {
-        return catalogTable.getDistribution().map(TableDistribution::asSerializableString);
+        return catalogTable.getDistribution().map(TableDistribution::toString);
     }
 
     static Optional<String> extractFormattedPartitionedInfo(ResolvedCatalogTable catalogTable) {
