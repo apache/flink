@@ -120,6 +120,16 @@ class DefaultSlotStatusSyncerTest {
     }
 
     @Test
+    void testAllocationUpdatesIgnoredIfSlotRemoved() throws Exception {
+        testSlotAllocation(
+                (slotStatusSyncer, taskManagerTracker, instanceID, allocationId) -> {
+                    taskManagerTracker.removeTaskManager(instanceID);
+                    assertThat(taskManagerTracker.getAllocatedOrPendingSlot(allocationId))
+                            .isEmpty();
+                });
+    }
+
+    @Test
     void testFreeSlot() {
         final FineGrainedTaskManagerTracker taskManagerTracker =
                 new FineGrainedTaskManagerTracker();
