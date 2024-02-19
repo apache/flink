@@ -67,7 +67,6 @@ runs:
             echo "[INFO] The directory '${dependency_path}' doesn't exist. ${dependency_name} won't be removed."
           fi
         done
-        android_sdk_path="/usr/local/lib/android"
 
     - name: "Set JDK version to ${{ inputs.jdk_version }}"
       shell: bash
