@@ -47,7 +47,7 @@ public class ClassLoaderUtils {
 
     public static URLClassLoader compileAndLoadJava(File root, String filename, String source)
             throws IOException {
-        return withRoot(root).addClass(filename.replaceAll("\\.java", ""), source).build();
+        return withRoot(root).addClass(filename.replace(".java", ""), source).build();
     }
 
     private static URLClassLoader createClassLoader(File root, ClassLoader parent)
