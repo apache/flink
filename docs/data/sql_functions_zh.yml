@@ -763,6 +763,9 @@ collection:
   - sql: map ‘[’ value ‘]’
     table: MAP.at(ANY)
     description: 返回 map 中指定 key 对应的值。
+  - sql: ARRAY_APPEND(array, element)
+    table: array.arrayAppend(element)
+    description: Appends an element to the end of the array and returns the result. If the array itself is null, the function will return null. If an element to add is null, the null element will be added to the end of the array.
   - sql: ARRAY_CONTAINS(haystack, needle)
     table: haystack.arrayContains(needle)
     description: 返回是否数组 haystack 中包含指定元素 needle。支持检查数组中是否存在 null。 如果数组本身是null，函数会返回 null。如果需要，指定元素会隐式转换为数组的元素类型。
@@ -772,6 +775,9 @@ collection:
   - sql: ARRAY_POSITION(haystack, needle)
     table: haystack.arrayPosition(needle)
     description: 返回数组中第一次出现 needle 元素的位置，返回类型为 int。如果数组中不存在该元素则返回 0。如果两个参数中任何一个参数为 null，则返回 null。序号不是从 0 开始，而是从 1 开始，第一个元素的序号为 1。
+  - sql: ARRAY_PREPEND(array, element)
+    table: array.arrayPrepend(element)
+    description: Appends an element to the beginning of the array and returns the result. If the array itself is null, the function will return null. If an element to add is null, the null element will be added to the beginning of the array.
   - sql: ARRAY_REMOVE(haystack, needle)
     table: haystack.arrayRemove(needle)
     description: 删除数组中所有和元素 needle 相等的元素。如果数组是 null，则返回 null。函数会保留数组中元素的顺序。
