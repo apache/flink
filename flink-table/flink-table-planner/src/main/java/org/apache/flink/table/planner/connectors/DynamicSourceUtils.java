@@ -287,6 +287,17 @@ public final class DynamicSourceUtils {
         return isCDCSource && changeEventsDuplicate && hasPrimaryKey;
     }
 
+    /** Returns true if the changelogNormalize should be enabled. */
+    public static boolean changelogNormalizeEnabled(
+            boolean eventTimeSnapshotRequired,
+            ResolvedSchema resolvedSchema,
+            DynamicTableSource tableSource,
+            TableConfig tableConfig) {
+        return !eventTimeSnapshotRequired
+                && (isUpsertSource(resolvedSchema, tableSource)
+                        || isSourceChangeEventsDuplicate(resolvedSchema, tableSource, tableConfig));
+    }
+
     // --------------------------------------------------------------------------------------------
 
     /** Creates a specialized node for assigning watermarks. */
