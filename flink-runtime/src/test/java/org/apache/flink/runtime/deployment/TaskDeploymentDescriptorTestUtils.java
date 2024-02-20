@@ -48,10 +48,13 @@ public class TaskDeploymentDescriptorTestUtils {
         for (MaybeOffloaded<ShuffleDescriptorGroup> sd : maybeOffloaded) {
             ShuffleDescriptorGroup shuffleDescriptorGroup;
             if (sd instanceof NonOffloaded) {
+                final NonOffloaded<ShuffleDescriptorGroup> nonOffloaded =
+                        (NonOffloaded<ShuffleDescriptorGroup>) sd;
                 shuffleDescriptorGroup =
-                        ((NonOffloaded<ShuffleDescriptorGroup>) sd)
-                                .serializedValue.deserializeValue(
-                                        ClassLoader.getSystemClassLoader());
+                        nonOffloaded.rawValue == null
+                                ? nonOffloaded.serializedValue.deserializeValue(
+                                        ClassLoader.getSystemClassLoader())
+                                : nonOffloaded.rawValue;
 
             } else {
                 final CompressedSerializedValue<ShuffleDescriptorGroup> compressedSerializedValue =
