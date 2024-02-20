@@ -146,7 +146,7 @@ Flink SQL> SET 'execution.runtime-mode' = 'batch';
 [INFO] Session property has been set.
 
 Flink SQL> CREATE TABLE Orders (`user` STRING, product STRING, amount INT) with (...);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> INSERT INTO Orders VALUES ('Lili', 'Apple', 1), ('Jessica', 'Banana', 1), ('Mr.White', 'Chicken', 3);
 [INFO] Submitting SQL update statement to the cluster...
@@ -160,7 +160,7 @@ Flink SQL> SELECT * FROM Orders;
 Mr.White                         Chicken           3
 
 Flink SQL> TRUNCATE TABLE Orders;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> SELECT * FROM Orders;
 // Empty set

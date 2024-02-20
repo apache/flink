@@ -239,18 +239,18 @@ compiledPlan.writeToFile("/path/to/plan.json")
 
 ```sql
 Flink SQL> CREATE TABLE orders (order_id BIGINT, order_line_id BIGINT, buyer_id BIGINT, ...);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> CREATE TABLE line_orders (order_line_id BIGINT, order_status TINYINT, ...);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> CREATE TABLE enriched_orders (order_id BIGINT, order_line_id BIGINT, order_status TINYINT, ...);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> COMPILE PLAN 'file:///path/to/plan.json' FOR INSERT INTO enriched_orders
 > SELECT a.order_id, a.order_line_id, b.order_status, ...
 > FROM orders a JOIN line_orders b ON a.order_line_id = b.order_line_id;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 ```
 
 {{< /tab >}}
@@ -357,13 +357,13 @@ tableEnv.loadPlan(PlanReference.fromFile("/path/to/plan.json")).execute().await(
 
 ```sql
 Flink SQL> CREATE TABLE orders (order_id BIGINT, order_line_id BIGINT, buyer_id BIGINT, ...);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> CREATE TABLE line_orders (order_line_id BIGINT, order_status TINYINT, ...);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> CREATE TABLE enriched_orders (order_id BIGINT, order_line_id BIGINT, order_status TINYINT, ...);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> EXECUTE PLAN 'file:///path/to/plan.json';
 [INFO] Submitting SQL update statement to the cluster...

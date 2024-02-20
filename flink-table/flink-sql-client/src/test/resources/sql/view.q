@@ -27,13 +27,13 @@ CREATE TABLE orders (
 ) with (
  'connector' = 'datagen'
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # ==== test temporary view =====
 
 create temporary view v1 as select * from orders;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create temporary view v1 as select * from orders;
@@ -43,7 +43,7 @@ org.apache.flink.table.api.ValidationException: Temporary table '`default_catalo
 
 # TODO: warning users the view already exists
 create temporary view if not exists v1 as select * from orders;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # test query a view with hint
@@ -54,7 +54,7 @@ org.apache.flink.table.api.ValidationException: View '`default_catalog`.`default
 
 # test create a view reference another view
 create temporary view if not exists v2 as select * from v1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # test show create a temporary view
@@ -112,7 +112,7 @@ org.apache.flink.table.api.TableException: SHOW CREATE TABLE is only supported f
 
 # register a permanent view with the duplicate name with temporary view
 create view v1 as select * from orders;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # test create duplicate view
@@ -123,7 +123,7 @@ org.apache.flink.table.catalog.exceptions.TableAlreadyExistException: Table (or 
 
 # test show create a permanent view
 create view permanent_v1 as select * from orders;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # test show create a permanent view
@@ -140,7 +140,7 @@ FROM `default_catalog`.`default_database`.`orders` |
 
 # remove permanent_v1 view
 drop view permanent_v1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # we didn't distinguish the temporary v1 and permanent v1 for now
@@ -363,12 +363,12 @@ org.apache.flink.table.api.ValidationException: Temporary view with identifier '
 
 # although temporary v2 needs temporary v1, dropping v1 first does not throw exception
 drop temporary view v1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # now we can drop permanent view v1
 drop view v1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # test drop invalid table
@@ -380,7 +380,7 @@ org.apache.flink.table.api.ValidationException: View with identifier 'default_ca
 # ===== test playing with keyword identifiers =====
 
 create view `mod` as select * from orders;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 describe `mod`;
@@ -410,7 +410,7 @@ desc `mod`;
 !ok
 
 drop view `mod`;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show tables;
