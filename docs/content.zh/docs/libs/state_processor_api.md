@@ -32,15 +32,15 @@ Apache Flink 的 State Processor API 提供了批模式 (BATCH) 下使用 DataSt
 
 例如，可以获取一个正在运行的流应用程序的 savepoint，使用 State Processor API 在批模式下对该 savepoint 进行分析，以验证应用程序的行为是否正确；
 还可以从任意存储中读取并预处理一批数据后将结果写入一个 savepoint，然后基于这个 savepoint 初始化流应用程序的状态； State Processor API 也可以用来修复不一致的状态条目。
-State Processor API 为有状态应用程序的演化提供了新的方式，以前只能通过无状态重启的方式来更新一个有状态应用程序的状态，现在可以通过 State Processor API 修改状态的数据类型、调整操作符的最大并行度、拆分或合并操作符状态、重新分配操作符UID等。
+State Processor API 为有状态应用程序的演化提供了新的方式。以前有状态应用程序不能够进行更改，否则会丢失所有状态。现在可以通过 State Processor API 修改状态的数据类型、调整操作符的最大并行度、拆分或合并操作符状态、重新分配操作符 UID 等。
 
 请在应用程序中包含以下库以使用 State Processor API。
 
 {{< artifact flink-state-processor-api >}}
 
-## 从应用状态到逻辑表
+## 从状态到数据集
 
-State Processor API 将流应用程序的状态映射到若干个可以单独处理的逻辑表中，为了能使用 API，您需要先理解这种映射是如何工作的。
+State Processor API 将流应用程序的状态映射到若干个可以单独处理的数据集中，为了能使用 API，您需要先理解这种映射是如何工作的。
 
 让我们先看看有状态的 Flink 作业是什么样子的。Flink 作业由算子 (Operator) 组成: 一个作业通常包括若干个 Source 算子，一些实际用于计算处理的算子以及若干个 Sink 算子。
 每个算子由若干个子任务并行运行，一个算子中可以有不同类型的 State。一个算子可以有若干个 operator state，这些状态被组织成列表，每个子任务的 State 对应列表中的一个元素。
@@ -50,14 +50,14 @@ State Processor API 将流应用程序的状态映射到若干个可以单独处
 
 {{< img src="/fig/application-my-app-state-processor-api.png" width="600px" alt="Application: MyApp" >}}
 
-MyApp 的 savepoint 或 checkpoint 包含了所有状态数据，可以用来恢复每个子任务的状态。当使用批处理作业处理 savepoint/checkpoint 的数据时，我们需要一个逻辑映射模型，将各个任务的状态数据映射到逻辑表中。 
+MyApp 的 savepoint 或 checkpoint 包含了所有状态数据，可以用来恢复每个子任务的状态。当使用批处理作业处理 savepoint/checkpoint 的数据时，我们需要一个映射模型，将各个任务的状态数据映射到数据集中。 
 事实上，可以将 savepoint 视为数据库，每个算子（由其 UID 标识）代表一个命名空间。算子的 operator state 可以映射为命名空间中一个单列的表，表中的一行代表一个子任务。
-算子所有的 keyed state 可以看作一个多列的表，每一列表示一个 keyed state。下图展示了 MyApp 的 savepoint 和逻辑表间的映射关系。
+算子所有的 keyed state 可以看作一个多列的表，每一列表示一个 keyed state。下图展示了 MyApp 的 savepoint 和数据集间的映射关系。
 
 {{< img src="/fig/database-my-app-state-processor-api.png" width="600px" alt="Database: MyApp" >}}
 
-上图显示了 Src 算子的 operator state 与逻辑表的映射，逻辑表的每一行表示一个 Src 算子的子任务的状态。
-Proc 算子的 os2 也类似地映射到一个单列的表。Proc 算子的 ks1 和 ks2 组合成一个三列的表，第一列表示key，第二列表示 ks1，第三列表示 ks2，每一行表示一个key的状态。
+上图显示了 Src 算子的 operator state 与数据集的映射，数据集的每一行表示一个 Src 算子的子任务的状态。
+Proc 算子的 os2 也类似地映射到一个单列的表。Proc 算子的 ks1 和 ks2 组合成一个三列的表，第一列表示key，第二列表示 ks1，第三列表示 ks2，每一行表示一个 key 的状态。
 Snk 算子没有状态，因此它的命名空间是空的。
 
 ## 算子的标识
@@ -67,7 +67,7 @@ State Processor API 允许使用 [UIDs]({{< ref "docs/concepts/glossary" >}}#UID
 
 ## 通过 State Processor API 读取状态
 
-读取状态首先需要指定 savepoint 或 checkpoint 的路径以及用于恢复数据的 `状态存储后端(StateBackend)`。兼容性保证了 state processor API 恢复的状态与 DataStream 应用恢复的状态是一致的。
+读取状态首先需要指定 savepoint 或 checkpoint 的路径以及用于恢复数据的 `状态存储后端 (StateBackend)`。State processor API 恢复的状态与 DataStream 应用恢复的状态是一致的。
 
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -77,7 +77,7 @@ SavepointReader savepoint = SavepointReader.read(env, "hdfs://path/", new HashMa
 ### Operator State
 
 Flink 中的 non-keyed state 被称为 [operator state]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#operator-state)。
-在应用程序中使用 `CheckpointedFunction` 或 `BroadcastState` 会生成 operator State。 读取 operator state 时，需要指定算子 uid、状态名称和类型信息。 
+在应用程序中使用 `CheckpointedFunction` 或 `BroadcastState` 会生成 operator State。 读取 operator state 时，需要指定算子 UID、状态名称和类型信息。 
 
 #### Operator List State
 
@@ -106,7 +106,7 @@ DataStream<Integer> listState  = savepoint.readUnionState<>(
 
 #### 广播状态 Broadcast State
 
-可以用`ExistingSavepoint#readBroadcastState`读取 [BroadcastState]({{< ref "docs/dev/datastream/fault-tolerance/broadcast_state" >}}).
+可以用 `ExistingSavepoint#readBroadcastState` 读取 [BroadcastState]({{< ref "docs/dev/datastream/fault-tolerance/broadcast_state" >}})。
 状态名称和类型信息应该与定义在 DataStream 应用程序中声明此状态的 `MapStateDescriptor` 相匹配。
 State Processor API 将返回一个状态的 _单_ 副本，可以看作并发度为 1 的 DataStream 应用。
 
@@ -120,7 +120,7 @@ DataStream<Tuple2<Integer, Integer>> broadcastState = savepoint.readBroadcastSta
 
 #### 使用自定义序列化器
 
-Operator state readers 支持使用自定义的 `TypeSerializers`，如果在写出状态时 `StateDescriptor` 使用了自定义的 `TypeSerializer`。
+如果在写出状态时 `StateDescriptor` 使用了自定义的 `TypeSerializer`，Operator state readers 也支持使用自定义的 `TypeSerializers`。
 
 ```java
 DataStream<Integer> listState = savepoint.readListState<>(
@@ -130,13 +130,13 @@ DataStream<Integer> listState = savepoint.readListState<>(
     new MyCustomIntSerializer());
 ```
 
-### 分区状态 Keyed State
+### 分区状态
 
-[Keyed state]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#keyed-state)，又叫分区状态(partitioned state)，是与 key 相对应的状态。
+[Keyed state]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#keyed-state)，又叫分区状态 (partitioned state)，是使用一个 key 进行分区的状态。
 当读取 keyed state 时，需要指定算子 id 和一个 `KeyedStateReaderFunction<KeyType, OutputType>`。
 
-`KeyedStateReaderFunction` 允许用户读取任意列和复杂的状态类型，如 ListState, MapState, 和 AggregatingState。 
-这意味着如果一个算子包含一个 stateful process function，如：
+`KeyedStateReaderFunction` 允许用户读取任意列和复杂的状态类型，如 ListState, MapState, 和 AggregatingState。
+这意味着如果一个算子包含一个带状态的处理函数，如：
 
 ```java
 public class StatefulFunctionWithTime extends KeyedProcessFunction<Integer, Integer, Void> {
@@ -210,11 +210,11 @@ public class ReaderFunction extends KeyedStateReaderFunction<Integer, KeyedState
 
 除了读取注册的状态之外，每个 key 还可以访问包括 event time 和 processing time [计时器](https://nightlies.apache.org/flink/flink-docs-release-1.17/docs/concepts/time/)等元数据的 `Context`。
 
-**注意：** 当使用 `KeyedStateReaderFunction` 时，所有状态描述符必须在 open 函数中注册。 否则任何尝试调用 `RuntimeContext#get*State` 将导致 `RuntimeException`。
+**注意：** 当使用 `KeyedStateReaderFunction` 时，所有状态描述符必须在 `open` 函数中注册。 否则任何尝试调用 `RuntimeContext#get*State` 将导致 `RuntimeException`。
 
 ### 窗口状态 Window State
 
-State Processor api 支持读取[窗口算子]({{< ref "docs/dev/datastream/operators/windows" >}})的状态，当读取窗口状态时，需要指定算子 id，窗口分配器和聚合类型。
+State Processor API 支持读取[窗口算子]({{< ref "docs/dev/datastream/operators/windows" >}})的状态，当读取窗口状态时，需要指定算子 id，窗口分配器和聚合类型。
 此外，可以指定类似于 `WindowFunction` 或 `ProcessWindowFunction` 的 `WindowReaderFunction` 来增强每次读取的附加信息。
 
 假设下面是一个统计用户每分钟点击次数的 DataStream 应用程序。
@@ -303,12 +303,12 @@ savepoint
 
 ```
 
-另外，可以通过`WindowReaderFunction`里的`Context#triggerState`方法读取`CountTrigger`或自定义触发器的状态。
+另外，可以通过 `WindowReaderFunction` 里的 `Context#triggerState` 方法读取 `CountTrigger` 或自定义触发器的状态。
 
-## 通过 State Processor API 写出状态
+## 通过 State Processor API 生成新 savepoint
 
 State processor API 可以用来生成 savepoint，这使得用户可以基于历史数据进行状态的初始化。
-每个 savepoint 可以由若干个 `StateBootstrapTransformation` 生成，每个 `StateBootstrapTransformation` 定义了一个 operator 的状态。
+每个 savepoint 可以由若干个 `StateBootstrapTransformation` 生成，每个 `StateBootstrapTransformation` 定义了一个算子的状态。
 
 {{< hint info >}}
 当使用 `SavepointWriter` 时，您的应用程序必须在 [批]({{< ref "docs/dev/datastream/execution_mode" >}}) 执行模式下运行。
@@ -328,7 +328,7 @@ SavepointWriter
     .write(savepointPath);
 ```
 
-与每个算子关联的 [UID]({{< ref "docs/ops/state/savepoints" >}}#assigning-operator-ids) 必须与在 DataStream 应用程序中分配给算子的 UID 一一对应；这样 Flink 才能知道什么状态映射到哪个算子。
+与每个算子关联的 [UID]({{< ref "docs/ops/state/savepoints" >}}#assigning-operator-ids) 必须与 DataStream 应用程序中分配给算子的 UID 一一对应；这样 Flink 才能知道什么状态映射到哪个算子。
 
 ### Operator State
 
@@ -435,12 +435,12 @@ StateBootstrapTransformation<Account> transformation = OperatorTransformation
 计时器不会在 state processor API 的 bootstrap 函数内触发，只有在 DataStream 应用程序中恢复后才会激活。
 如果设置了 processing time 计时器，但直到该时间过去后状态才恢复，则计时器将在启动后立即触发。
 
-<span class="label label-danger">注意</span> 如果您的 bootstrap 函数创建了计时器，则只能使用[process]({{< ref "docs/dev/datastream/operators/process_function" >}}) 类型的函数之一来恢复状态。
+<span class="label label-danger">注意</span> 如果您的 bootstrap 函数创建了计时器，则只能使用 [process]({{< ref "docs/dev/datastream/operators/process_function" >}}) 类型的函数之一来恢复状态。
 
 ### 窗口状态 Window State
 
-State processor API 支持写出 [window operator]({{< ref "docs/dev/datastream/operators/windows" >}})的状态。
-当写出窗口状态时，需要指定算子 id，窗口分配器，淘汰器(evictor)，触发器(可选)，以及聚合类型。
+State processor API 支持写出 [window operator]({{< ref "docs/dev/datastream/operators/windows" >}}) 的状态。
+当写出窗口状态时，需要指定算子 id、窗口分配器、淘汰器(evictor)、触发器(可选)以及聚合类型。
 State processor API 中 bootstrap transformation 的配置需要与 DataStream 窗口的配置相匹配。
 
 ```java
