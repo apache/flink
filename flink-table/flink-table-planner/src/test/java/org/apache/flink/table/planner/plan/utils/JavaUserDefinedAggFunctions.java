@@ -214,7 +214,7 @@ public class JavaUserDefinedAggFunctions {
     /** Accumulator of ConcatDistinctAgg. */
     public static class ConcatAcc {
         public MapView<String, Boolean> map = new MapView<>();
-        public ListView<String> list = new ListView<>(Types.STRING);
+        public ListView<String> list = new ListView<>();
     }
 
     /** Concat distinct aggregate. */
