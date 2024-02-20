@@ -19,9 +19,12 @@
 package org.apache.flink.api.common;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -31,9 +34,11 @@ import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class ExecutionConfigFromConfigurationTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class ExecutionConfigFromConfigurationTest {
 
-    public static Collection<TestSpec> specs() {
+    @Parameters(name = "{0}")
+    private static Collection<TestSpec> specs() {
         return Arrays.asList(
                 TestSpec.testValue(false)
                         .whenSetFromFile("pipeline.auto-generate-uids", "false")
@@ -136,9 +141,10 @@ public class ExecutionConfigFromConfigurationTest {
                         .nonDefaultValue(21L));
     }
 
-    @ParameterizedTest
-    @MethodSource("specs")
-    void testLoadingFromConfiguration(TestSpec spec) {
+    @Parameter private TestSpec spec;
+
+    @TestTemplate
+    void testLoadingFromConfiguration() {
         ExecutionConfig configFromSetters = new ExecutionConfig();
         ExecutionConfig configFromFile = new ExecutionConfig();
 
@@ -150,9 +156,8 @@ public class ExecutionConfigFromConfigurationTest {
         spec.assertEqual(configFromFile, configFromSetters);
     }
 
-    @ParameterizedTest
-    @MethodSource("specs")
-    void testNotOverridingIfNotSet(TestSpec spec) {
+    @TestTemplate
+    void testNotOverridingIfNotSet() {
         ExecutionConfig executionConfig = new ExecutionConfig();
 
         spec.setNonDefaultValue(executionConfig);
