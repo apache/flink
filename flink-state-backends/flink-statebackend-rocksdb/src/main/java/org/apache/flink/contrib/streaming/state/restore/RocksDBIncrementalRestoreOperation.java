@@ -600,16 +600,13 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 keyGroupRange.prettyPrintInterval(),
                 operatorIdentifier);
 
-        // Choose the best state handle for the initial DB
+        // Choose the best state handle for the initial DB and remove it from the list
         final IncrementalLocalKeyedStateHandle selectedInitialHandle =
                 localKeyedStateHandles.remove(
                         RocksDBIncrementalCheckpointUtils.findTheBestStateHandleForInitial(
                                 localKeyedStateHandles, keyGroupRange, overlapFractionThreshold));
 
         Preconditions.checkNotNull(selectedInitialHandle);
-
-        // Remove the selected handle from the list so that we don't restore it twice.
-        localKeyedStateHandles.remove(selectedInitialHandle);
 
         // Init the base DB instance with the initial state
         initBaseDBFromSingleStateHandle(selectedInitialHandle);
