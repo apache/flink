@@ -62,11 +62,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 
 /** Implementation of {@link ResourceManagerDriver} for Kubernetes deployment. */
 public class KubernetesResourceManagerDriver
@@ -74,6 +74,8 @@ public class KubernetesResourceManagerDriver
 
     /** The taskmanager pod name pattern is {clusterId}-{taskmanager}-{attemptId}-{podIndex}. */
     private static final String TASK_MANAGER_POD_FORMAT = "%s-taskmanager-%d-%d";
+
+    private static final Long TERMINATION_WAIT_SECOND = 5L;
 
     private final String clusterId;
 
@@ -90,7 +92,10 @@ public class KubernetesResourceManagerDriver
     /** Current max pod index. When creating a new pod, it should increase one. */
     private long currentMaxPodId = 0;
 
-    private Optional<KubernetesWatch> podsWatchOpt;
+    private CompletableFuture<KubernetesWatch> podsWatchOptFuture =
+            FutureUtils.completedExceptionally(
+                    new ResourceManagerException(
+                            "KubernetesResourceManagerDriver is not initialized."));
 
     private volatile boolean running;
 
@@ -114,7 +119,7 @@ public class KubernetesResourceManagerDriver
 
     @Override
     protected void initializeInternal() throws Exception {
-        podsWatchOpt = watchTaskManagerPods();
+        podsWatchOptFuture = watchTaskManagerPods();
         final File podTemplateFile = KubernetesUtils.getTaskManagerPodTemplateFileInPod();
         if (podTemplateFile.exists()) {
             taskManagerPodTemplate =
@@ -139,7 +144,7 @@ public class KubernetesResourceManagerDriver
         Exception exception = null;
 
         try {
-            podsWatchOpt.ifPresent(KubernetesWatch::close);
+            podsWatchOptFuture.get(TERMINATION_WAIT_SECOND, TimeUnit.SECONDS).close();
         } catch (Exception e) {
             exception = e;
         }
@@ -412,11 +417,21 @@ public class KubernetesResourceManagerDriver
                         });
     }
 
-    private Optional<KubernetesWatch> watchTaskManagerPods() throws Exception {
-        return Optional.of(
+    private CompletableFuture<KubernetesWatch> watchTaskManagerPods() throws Exception {
+        CompletableFuture<KubernetesWatch> kubernetesWatchCompletableFuture =
                 flinkKubeClient.watchPodsAndDoCallback(
                         KubernetesUtils.getTaskManagerSelectors(clusterId),
-                        new PodCallbackHandlerImpl()));
+                        new PodCallbackHandlerImpl());
+        kubernetesWatchCompletableFuture.whenCompleteAsync(
+                (KubernetesWatch watch, Throwable throwable) -> {
+                    if (throwable != null) {
+                        getResourceEventHandler().onError(throwable);
+                    } else {
+                        log.info("Create watch on TaskManager pods successfully.");
+                    }
+                },
+                getMainThreadExecutor());
+        return kubernetesWatchCompletableFuture;
     }
 
     // ------------------------------------------------------------------------
@@ -448,19 +463,27 @@ public class KubernetesResourceManagerDriver
         @Override
         public void handleError(Throwable throwable) {
             if (throwable instanceof KubernetesTooOldResourceVersionException) {
-                getMainThreadExecutor()
-                        .execute(
-                                () -> {
-                                    if (running) {
-                                        podsWatchOpt.ifPresent(KubernetesWatch::close);
-                                        log.info("Creating a new watch on TaskManager pods.");
-                                        try {
-                                            podsWatchOpt = watchTaskManagerPods();
-                                        } catch (Exception e) {
-                                            getResourceEventHandler().onError(e);
-                                        }
+                podsWatchOptFuture.whenCompleteAsync(
+                        (KubernetesWatch watch, Throwable throwable1) -> {
+                            if (running) {
+                                try {
+                                    if (watch != null) {
+                                        watch.close();
                                     }
-                                });
+                                } catch (Exception e) {
+                                    log.warn(
+                                            "Error when get old watch to close, which is not supposed to happen",
+                                            e);
+                                }
+                                log.info("Creating a new watch on TaskManager pods.");
+                                try {
+                                    podsWatchOptFuture = watchTaskManagerPods();
+                                } catch (Exception e) {
+                                    getResourceEventHandler().onError(e);
+                                }
+                            }
+                        },
+                        getMainThreadExecutor());
             } else {
                 getResourceEventHandler().onError(throwable);
             }
