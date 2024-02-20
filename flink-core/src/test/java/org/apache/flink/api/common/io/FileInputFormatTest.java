@@ -68,7 +68,7 @@ class FileInputFormatTest {
 
         Path[] paths = format.getFilePaths();
         assertThat(paths).as("Paths should not be null.").isNotNull();
-        assertThat(paths.length).as("Paths should be empty.").isZero();
+        assertThat(paths).as("Paths should be empty.").isEmpty();
     }
 
     @Test
