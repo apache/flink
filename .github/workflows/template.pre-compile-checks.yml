@@ -39,9 +39,14 @@ permissions: read-all
 # This workflow should only contain steps that do not require the compilation of Flink (and therefore, are
 # independent of the used JDK)
 jobs:
+  workflow-init:
+    name: "Initialize Workflow"
+    uses: ./.github/workflows/template.workflow-init.yml
+
   qa:
     name: "Basic QA"
-    runs-on: ubuntu-22.04
+    needs: workflow-init
+    runs-on: ${{ fromJSON( needs.workflow-init.outputs.runner_config ) }}
     container:
       image: mapohl/flink-ci:FLINK-34194
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
