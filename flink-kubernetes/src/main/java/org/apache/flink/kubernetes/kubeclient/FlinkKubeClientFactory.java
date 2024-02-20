@@ -33,8 +33,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 /** A {@link FlinkKubeClientFactory} for creating the {@link FlinkKubeClient}. */
 public class FlinkKubeClientFactory {
@@ -107,11 +107,12 @@ public class FlinkKubeClientFactory {
         final int poolSize =
                 flinkConfig.get(KubernetesConfigOptions.KUBERNETES_CLIENT_IO_EXECUTOR_POOL_SIZE);
         return new Fabric8FlinkKubeClient(
-                flinkConfig, client, createThreadPoolForAsyncIO(poolSize, useCase));
+                flinkConfig, client, createScheduledThreadPoolForAsyncIO(poolSize, useCase));
     }
 
-    private static ExecutorService createThreadPoolForAsyncIO(int poolSize, String useCase) {
-        return Executors.newFixedThreadPool(
+    private static ScheduledExecutorService createScheduledThreadPoolForAsyncIO(
+            int poolSize, String useCase) {
+        return Executors.newScheduledThreadPool(
                 poolSize, new ExecutorThreadFactory("flink-kubeclient-io-for-" + useCase));
     }
 }
