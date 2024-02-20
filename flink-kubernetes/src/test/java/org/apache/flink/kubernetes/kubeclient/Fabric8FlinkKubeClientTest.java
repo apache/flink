@@ -37,7 +37,6 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
-import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
@@ -58,8 +57,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -357,9 +357,7 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
         mockExpectedNodesFromServerSide(addresses);
         try (final Fabric8FlinkKubeClient localClient =
                 new Fabric8FlinkKubeClient(
-                        flinkConfig,
-                        kubeClient,
-                        org.apache.flink.util.concurrent.Executors.newDirectExecutorService())) {
+                        flinkConfig, kubeClient, Executors.newSingleThreadScheduledExecutor())) {
             final Optional<Endpoint> resultEndpoint = localClient.getRestEndpoint(CLUSTER_ID);
             assertThat(resultEndpoint).isPresent();
             final List<String> expectedIps;
@@ -452,6 +450,21 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
         assertThat(podAddedAction.get()).isEqualTo(Action.ADDED);
         assertThat(podDeletedAction.get()).isEqualTo(Action.DELETED);
         assertThat(podModifiedAction.get()).isEqualTo(Action.MODIFIED);
+    }
+
+    @Test
+    void testWatchPodsAndDoCallbackFail() throws Exception {
+        mockWatchPodSuccessAfterFailTwoTimes(
+                NAMESPACE, KUBERNETES_ZERO_RESOURCE_VERSION, TESTING_LABELS);
+        TestingWatchCallbackHandler<KubernetesPod> watchCallbackHandler =
+                TestingWatchCallbackHandler.<KubernetesPod>builder().build();
+        // disable the retry of kubeClient
+        kubeClient.getConfiguration().setRequestRetryBackoffLimit(0);
+        assertThat(
+                        flinkKubeClient
+                                .watchPodsAndDoCallback(TESTING_LABELS, watchCallbackHandler)
+                                .get(10, TimeUnit.SECONDS))
+                .isNotNull();
     }
 
     @Test
@@ -638,8 +651,8 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
 
     @Test
     void testIOExecutorShouldBeShutDownWhenFlinkKubeClientClosed() {
-        final ExecutorService executorService =
-                Executors.newFixedThreadPool(2, new ExecutorThreadFactory("Testing-IO"));
+        final ScheduledExecutorService executorService =
+                Executors.newSingleThreadScheduledExecutor();
         final FlinkKubeClient flinkKubeClient =
                 new Fabric8FlinkKubeClient(flinkConfig, kubeClient, executorService);
         flinkKubeClient.close();
