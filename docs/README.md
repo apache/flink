@@ -56,18 +56,9 @@ Replace <connector_name> with the name of your connector, e.g., `elasticsearch` 
 
 ## Generate configuration tables
 
-Configuration descriptions are auto generated from code. To trigger the generation you need to run in the project root:
+Configuration descriptions are auto generated from code. To trigger the generation, you need to run a command in the project root (see [Configuration documentation](https://github.com/apache/flink/blob/master/flink-docs/README.md#configuration-documentation).)
 
-```
-mvn -Pgenerate-config-docs install -Dfast -DskipTests
-```
-
-The resulting html files will be written to `layouts/shortcodes/generated`. Tables are regenerated each time the command is invoked.
-These tables can be directly included into the documentation:
-
-```
-{{< generated/file_name >}}
-```
+The resulting html files will be written to `layouts/shortcodes/generated`.
 
 # Contribute
 
