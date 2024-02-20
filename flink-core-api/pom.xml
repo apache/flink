@@ -32,4 +32,12 @@ under the License.
 	<name>Flink : Core API</name>
 
 	<packaging>jar</packaging>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-annotations</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+	</dependencies>
 </project>
