@@ -27,7 +27,7 @@ import java.time.Duration;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for the {@link WatermarksWithIdleness} class. */
 class WatermarksWithIdlenessTest {

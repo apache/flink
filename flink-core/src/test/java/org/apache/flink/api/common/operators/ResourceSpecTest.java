@@ -26,7 +26,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for ResourceSpec class, including its all public api: isValid, lessThanOrEqual, equals,
