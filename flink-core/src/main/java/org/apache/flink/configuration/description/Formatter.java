@@ -85,7 +85,7 @@ public abstract class Formatter {
     private String finalizeFormatting() {
         String result = state.toString();
         state.setLength(0);
-        return result.replaceAll("%%", "%");
+        return result.replace("%%", "%");
     }
 
     protected abstract void formatLink(StringBuilder state, String link, String description);
@@ -105,8 +105,8 @@ public abstract class Formatter {
     private static final String TEMPORARY_PLACEHOLDER = "randomPlaceholderForStringFormat";
 
     private static String escapeFormatPlaceholder(String value) {
-        return value.replaceAll("%s", TEMPORARY_PLACEHOLDER)
-                .replaceAll("%", "%%")
-                .replaceAll(TEMPORARY_PLACEHOLDER, "%s");
+        return value.replace("%s", TEMPORARY_PLACEHOLDER)
+                .replace("%", "%%")
+                .replace(TEMPORARY_PLACEHOLDER, "%s");
     }
 }

@@ -188,7 +188,7 @@ public class JarFileChecker {
 
     private static Pattern asPatternWithPotentialLineBreaks(String text) {
         // allows word sequences to be separated by whitespace, line-breaks and comments(//, #)
-        return Pattern.compile(text.toLowerCase(Locale.ROOT).replaceAll(" ", " ?\\\\R?[\\\\s/#]*"));
+        return Pattern.compile(text.toLowerCase(Locale.ROOT).replace(" ", " ?\\R?[\\s/#]*"));
     }
 
     private static int findNonBinaryFilesContainingText(

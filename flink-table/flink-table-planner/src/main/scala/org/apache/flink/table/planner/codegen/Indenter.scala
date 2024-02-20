@@ -25,7 +25,7 @@ class IndentStringContext(sc: StringContext) {
 
       val ind = getindent(s)
       if (ind.nonEmpty) {
-        sb.append(a.toString.replaceAll("\n", "\n" + ind))
+        sb.append(a.toString.replace("\n", "\n" + ind))
       } else {
         sb.append(a.toString)
       }

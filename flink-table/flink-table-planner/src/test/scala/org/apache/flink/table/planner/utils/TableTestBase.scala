@@ -849,7 +849,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     // add the postfix to the path to avoid conflicts
     // between the test class name and the result file name
     val clazz = test.getClass
-    val testClassDirPath = clazz.getName.replaceAll("\\.", "/") + "_jsonplan"
+    val testClassDirPath = clazz.getName.replace(".", "/") + "_jsonplan"
     val testMethodFileName = test.methodName + ".out"
     val resourceTestFilePath = s"/$testClassDirPath/$testMethodFileName"
     val plannerDirPath = clazz.getResource("/").getFile.replace("/target/test-classes/", "")
@@ -1165,7 +1165,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
 
   /** Replace the estimated costs for the given plan, because it may be unstable. */
   protected def replaceEstimatedCost(s: String): String = {
-    var str = s.replaceAll("\\r\\n", "\n")
+    var str = s.replace("\r\n", "\n")
     val scientificFormRegExpr = "[+-]?[\\d]+([\\.][\\d]*)?([Ee][+-]?[0-9]{0,2})?"
     str = str.replaceAll(s"rowcount = $scientificFormRegExpr", "rowcount = ")
     str = str.replaceAll(s"$scientificFormRegExpr rows", "rows")
@@ -1813,7 +1813,7 @@ object TableTestUtil {
    * StreamExecutionEnvironment is up
    */
   def replaceStageId(s: String): String = {
-    s.replaceAll("\\r\\n", "\n").replaceAll("Stage \\d+", "")
+    s.replace("\r\n", "\n").replaceAll("Stage \\d+", "")
   }
 
   /**

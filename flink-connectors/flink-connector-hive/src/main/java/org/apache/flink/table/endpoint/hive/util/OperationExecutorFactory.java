@@ -508,10 +508,10 @@ public class OperationExecutorFactory {
         String wStr = ".*";
         return Pattern.compile(
                 pattern.replaceAll("([^\\\\])%", "$1" + wStr)
-                        .replaceAll("\\\\%", "%")
+                        .replace("\\\\%", "%")
                         .replaceAll("^%", wStr)
                         .replaceAll("([^\\\\])_", "$1.")
-                        .replaceAll("\\\\_", "_")
+                        .replace("\\\\_", "_")
                         .replaceAll("^_", "."));
     }
 

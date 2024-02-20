@@ -110,8 +110,8 @@ class JsonFunctionsCallSyntax {
                         operands.get(0).asSerializableString(),
                         operands.get(1).asSerializableString(),
                         toString(wrapper),
-                        onEmpty.toString().replaceAll("_", " "),
-                        onError.toString().replaceAll("_", " "));
+                        onEmpty.toString().replace("_", " "),
+                        onError.toString().replace("_", " "));
             };
 
     static final SqlCallSyntax JSON_OBJECT =

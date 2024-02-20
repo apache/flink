@@ -21,7 +21,7 @@ object LogicalPlanFormatUtils {
   private val tempPattern = """TMP_\d+""".r
 
   def formatTempTableId(preStr: String): String = {
-    val str = preStr.replaceAll("ArrayBuffer\\(", "List\\(")
+    val str = preStr.replace("ArrayBuffer(", "List(")
     val minId = getMinTempTableId(str)
     tempPattern.replaceAllIn(str, s => "TMP_" + (s.matched.substring(4).toInt - minId))
   }

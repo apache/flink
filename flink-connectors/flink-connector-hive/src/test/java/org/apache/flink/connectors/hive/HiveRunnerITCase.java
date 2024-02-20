@@ -763,7 +763,7 @@ public class HiveRunnerITCase {
         Set<String> expectedSet = new HashSet<>();
         for (int i = 0; i < results.size(); i++) {
             final String rowString = expected.get(i).toString();
-            expectedSet.add(rowString.substring(3, rowString.length() - 1).replaceAll(", ", "\t"));
+            expectedSet.add(rowString.substring(3, rowString.length() - 1).replace(", ", "\t"));
         }
         assertThat(new HashSet<>(results)).isEqualTo(expectedSet);
     }

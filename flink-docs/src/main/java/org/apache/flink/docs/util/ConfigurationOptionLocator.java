@@ -150,7 +150,7 @@ public class ConfigurationOptionLocator {
             throws IOException, ClassNotFoundException {
 
         Path configDir =
-                rootDir.resolve(Paths.get(module, pathPrefix, packageName.replaceAll("\\.", "/")));
+                rootDir.resolve(Paths.get(module, pathPrefix, packageName.replace(".", "/")));
 
         List<Class<?>> optionClasses = new ArrayList<>();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(configDir)) {

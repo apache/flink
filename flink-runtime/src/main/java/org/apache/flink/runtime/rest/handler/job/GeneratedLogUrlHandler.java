@@ -79,9 +79,9 @@ public class GeneratedLogUrlHandler extends SimpleChannelInboundHandler<RoutedRe
 
     @VisibleForTesting
     static String generateLogUrl(String pattern, String jobId, String taskManagerId) {
-        String generatedUrl = pattern.replaceAll("<jobid>", jobId);
+        String generatedUrl = pattern.replace("<jobid>", jobId);
         if (null != taskManagerId) {
-            generatedUrl = generatedUrl.replaceAll("<tmid>", taskManagerId);
+            generatedUrl = generatedUrl.replace("<tmid>", taskManagerId);
         }
         return generatedUrl;
     }

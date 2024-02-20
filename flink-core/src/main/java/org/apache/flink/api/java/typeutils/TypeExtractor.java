@@ -2013,7 +2013,7 @@ public class TypeExtractor {
             return true;
         } else {
             boolean hasGetter = false, hasSetter = false;
-            final String fieldNameLow = f.getName().toLowerCase().replaceAll("_", "");
+            final String fieldNameLow = f.getName().toLowerCase().replace("_", "");
 
             Type fieldType = f.getGenericType();
             Class<?> fieldTypeWrapper = ClassUtils.primitiveToWrapper(f.getType());
@@ -2028,9 +2028,9 @@ public class TypeExtractor {
                         m.getName().endsWith("_$eq")
                                 ? m.getName()
                                         .toLowerCase()
-                                        .replaceAll("_", "")
+                                        .replace("_", "")
                                         .replaceFirst("\\$eq$", "_\\$eq")
-                                : m.getName().toLowerCase().replaceAll("_", "");
+                                : m.getName().toLowerCase().replace("_", "");
 
                 // check for getter
                 if ( // The name should be "get<FieldName>" or "<fieldName>" (for scala) or

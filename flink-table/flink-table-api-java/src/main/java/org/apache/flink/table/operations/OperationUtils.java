@@ -63,7 +63,7 @@ public class OperationUtils {
             if (group.startsWith("'")) {
                 matcher.appendReplacement(output, Matcher.quoteReplacement(group));
             } else {
-                String replaced = group.replaceAll("\n", "\n" + OPERATION_INDENT);
+                String replaced = group.replace("\n", "\n" + OPERATION_INDENT);
                 matcher.appendReplacement(output, Matcher.quoteReplacement(replaced));
             }
         }

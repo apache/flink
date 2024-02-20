@@ -135,7 +135,7 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
         this.localRecoveryConfig = localRecoveryConfig;
         this.description = description;
         this.instanceBasePath = instanceBasePath;
-        this.localDirectoryName = backendUID.toString().replaceAll("[\\-]", "");
+        this.localDirectoryName = backendUID.toString().replace("-", "");
         this.backendUID = backendUID;
     }
 

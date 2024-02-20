@@ -487,7 +487,7 @@ Identifier
 fragment    
 QuotedIdentifier 
     :
-    '`'  ( '``' | ~('`') )* '`' { setText(getText().substring(1, getText().length() -1 ).replaceAll("``", "`")); }
+    '`'  ( '``' | ~('`') )* '`' { setText(getText().substring(1, getText().length() -1 ).replace("``", "`")); }
     ;
 
 CharSetName

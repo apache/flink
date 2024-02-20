@@ -393,7 +393,7 @@ class MetricRegistryImplTest {
                 delimiter = String.valueOf(GLOBAL_DEFAULT_DELIMITER);
             }
             String expected =
-                    (config.get(MetricOptions.SCOPE_NAMING_TM) + ".C").replaceAll("\\.", delimiter);
+                    (config.get(MetricOptions.SCOPE_NAMING_TM) + ".C").replace(".", delimiter);
             CollectingMetricsReporter reporter = (CollectingMetricsReporter) cfg.getReporter();
 
             for (MetricGroupAndName groupAndName :

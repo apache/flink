@@ -93,10 +93,7 @@ public class TpchResultComparator {
                                 failed = (e * 0.99 > t || e * 1.01 < t);
                             }
                         } catch (NumberFormatException nfe2) {
-                            failed =
-                                    !expected[i]
-                                            .trim()
-                                            .equals(actual[i].replaceAll("\"", "").trim());
+                            failed = !expected[i].trim().equals(actual[i].replace("\"", "").trim());
                         }
                     }
                     if (failed) {

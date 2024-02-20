@@ -301,6 +301,6 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger impleme
     protected abstract String getMigrationSavepointName(FlinkVersion version);
 
     private static String escapeRegexCharacters(String string) {
-        return string.replaceAll("\\(", "\\\\(").replaceAll("\\)", "\\\\)");
+        return string.replace("(", "\\(").replace(")", "\\)");
     }
 }

@@ -258,7 +258,7 @@ public class Hardware {
                     continue;
                 }
 
-                line = line.replaceAll(" ", "");
+                line = line.replace(" ", "");
                 sizeOfPhyiscalMemory += Long.parseLong(line);
             }
             return sizeOfPhyiscalMemory;

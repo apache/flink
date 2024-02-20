@@ -37,7 +37,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * #invert()}, the direction may change accordingly. To generalize, the left side is called source
  * and the right side is called target(s) in this class.
  *
- * <p>{@ImplNote This class omits trailing empty targets.}
+ * <p>{@implNote This class omits trailing empty targets.}
  */
 public class RescaleMappings implements Serializable {
     public static final RescaleMappings SYMMETRIC_IDENTITY =

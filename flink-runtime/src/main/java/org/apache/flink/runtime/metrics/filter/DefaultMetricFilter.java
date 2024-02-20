@@ -94,8 +94,8 @@ public class DefaultMetricFilter implements MetricFilter {
 
         final String rawPattern =
                 Arrays.stream(split)
-                        .map(s -> s.replaceAll("\\.", "\\."))
-                        .map(s -> s.replaceAll("\\*", ".*"))
+                        .map(s -> s.replace(".", "\\."))
+                        .map(s -> s.replace("*", ".*"))
                         .collect(Collectors.joining("|", "(", ")"));
 
         return Pattern.compile(rawPattern);

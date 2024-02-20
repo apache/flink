@@ -81,7 +81,7 @@ class StructuredOptionsSplitter {
                         || string.contains("'");
 
         if (escape) {
-            return "'" + string.replaceAll("'", "''") + "'";
+            return "'" + string.replace("'", "''") + "'";
         }
 
         return string;

@@ -112,7 +112,7 @@ public class JoinQueryOperation implements QueryOperation {
                 "SELECT %s FROM (%s\n) %s JOIN %s ON %s",
                 OperationUtils.formatSelectColumns(resolvedSchema),
                 OperationUtils.indent(left.asSerializableString()),
-                joinType.toString().replaceAll("_", " "),
+                joinType.toString().replace("_", " "),
                 rightToSerializable(),
                 condition.asSerializableString());
     }

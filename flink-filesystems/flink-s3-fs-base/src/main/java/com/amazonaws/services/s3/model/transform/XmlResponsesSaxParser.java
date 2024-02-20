@@ -212,7 +212,7 @@ public class XmlResponsesSaxParser {
                  * misinterpreting 0x0D characters as 0x0A and being unable to
                  * parse the XML.
                  */
-                String listingDoc = listingDocBuffer.toString().replaceAll("\r", "&#013;");
+                String listingDoc = listingDocBuffer.toString().replace("\r", "&#013;");
 
                 sanitizedInputStream = new ByteArrayInputStream(listingDoc.getBytes(UTF8));
 

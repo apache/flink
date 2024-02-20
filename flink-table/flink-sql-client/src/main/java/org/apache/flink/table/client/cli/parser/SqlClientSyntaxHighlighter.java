@@ -44,7 +44,7 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
     private static final Set<String> KEYWORDS =
             Collections.unmodifiableSet(
                     Arrays.stream(FlinkSqlParserImplConstants.tokenImage)
-                            .map(t -> t.replaceAll("\"", ""))
+                            .map(t -> t.replace("\"", ""))
                             .collect(Collectors.toSet()));
 
     private final Executor executor;

@@ -29,9 +29,9 @@ public enum Utils {
     private static final String TEMPORARY_PLACEHOLDER = "superRandomTemporaryPlaceholder";
 
     public static String escapeCharacters(String value) {
-        return value.replaceAll("<wbr>", TEMPORARY_PLACEHOLDER)
-                .replaceAll("<", "&lt;")
-                .replaceAll(">", "&gt;")
-                .replaceAll(TEMPORARY_PLACEHOLDER, "<wbr>");
+        return value.replace("<wbr>", TEMPORARY_PLACEHOLDER)
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace(TEMPORARY_PLACEHOLDER, "<wbr>");
     }
 }
