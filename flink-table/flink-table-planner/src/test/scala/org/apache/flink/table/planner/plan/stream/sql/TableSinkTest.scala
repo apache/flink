@@ -800,6 +800,65 @@ class TableSinkTest extends TableTestBase {
   }
 
   @Test
+  def testDistribution(): Unit = {
+    util.addTable(s"""
+                     |CREATE TABLE sink (
+                     |  `a` INT,
+                     |  `b` BIGINT
+                     |) DISTRIBUTED BY (
+                     |  `b`
+                     |) WITH (
+                     |  'connector' = 'values'
+                     |)
+                     |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sink SELECT a,b FROM MyTable ORDER BY a")
+    util.verifyExecPlan(stmtSet)
+  }
+
+  @Test
+  def testDistributionWithRequiredBucketCount(): Unit = {
+    util.addTable(s"""
+                     |CREATE TABLE sink (
+                     |  `a` INT,
+                     |  `b` BIGINT
+                     |) DISTRIBUTED BY (
+                     |  `b`
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink.bucket-count-required' = 'true'
+                     |)
+                     |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sink SELECT a,b FROM MyTable ORDER BY a")
+
+    Assertions
+      .assertThatThrownBy(() => util.verifyExecPlan(stmtSet))
+      .hasMessageContaining(
+        "Table 'default_catalog.default_database.sink' is a bucketed table, but the underlying DynamicTableSink requires the number of buckets to be set.")
+  }
+
+  @Test
+  def testDistributionWithUnsupportedDistributionAlgorithm(): Unit = {
+    util.addTable(s"""
+                     |CREATE TABLE sink (
+                     |  `a` INT,
+                     |  `b` BIGINT
+                     |) DISTRIBUTED BY RANGE (
+                     |  `b`
+                     |) WITH (
+                     |  'connector' = 'values'
+                     |)
+                     |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sink SELECT a,b FROM MyTable ORDER BY a")
+    Assertions
+      .assertThatThrownBy(() => util.verifyExecPlan(stmtSet))
+      .hasMessageContaining(
+        "Table 'default_catalog.default_database.sink' is a bucketed table and it supports [HASH, UNKNOWN], but algorithm RANGE was requested.")
+  }
+
+  @Test
   def testCreateTableAsSelect(): Unit = {
     // TODO: support explain CreateTableASOperation
     // Flink does not support explain CreateTableASOperation yet, we will fix it in FLINK-28770.

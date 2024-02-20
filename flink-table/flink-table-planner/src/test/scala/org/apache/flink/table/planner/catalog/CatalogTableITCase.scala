@@ -1020,6 +1020,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
         |  watermark for ts1 as cast(timestampadd(hour, 8, ts1) as timestamp(3)),
         |  constraint test_constraint primary key (a, b) not enforced
         |) comment 'test show create table statement'
+        |distributed by (a)
         |partitioned by (b,h)
         |with (
         |  'connector' = 'kafka',
@@ -1043,6 +1044,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
         |  WATERMARK FOR `ts1` AS CAST(TIMESTAMPADD(HOUR, 8, `ts1`) AS TIMESTAMP(3)),
         |  CONSTRAINT `test_constraint` PRIMARY KEY (`a`, `b`) NOT ENFORCED
         |) COMMENT 'test show create table statement'
+        |DISTRIBUTED BY (`a`)
         |PARTITIONED BY (`b`, `h`)
         |WITH (
         |  'connector' = 'kafka',
@@ -1079,6 +1081,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
         |  watermark for ts1 as cast(timestampadd(hour, 8, ts1) as timestamp(3)),
         |  constraint test_constraint primary key (pk1, pk2) not enforced
         |) comment 'test show create table statement'
+        |distributed into 5 buckets
         |partitioned by (h)
         |with (
         |  'connector' = 'kafka',
@@ -1103,6 +1106,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
         |  WATERMARK FOR `ts1` AS CAST(TIMESTAMPADD(HOUR, 8, `ts1`) AS TIMESTAMP(3)),
         |  CONSTRAINT `test_constraint` PRIMARY KEY (`pk1`, `pk2`) NOT ENFORCED
         |) COMMENT 'test show create table statement'
+        |DISTRIBUTED INTO 5 BUCKETS
         |PARTITIONED BY (`h`)
         |WITH (
         |  'connector' = 'kafka',
@@ -1112,6 +1116,41 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     tableEnv.executeSql(executedDDL)
     val row = tableEnv.executeSql("SHOW CREATE TABLE `TBL1`").collect().next()
     assertEquals(expectedDDL, row.getField(0).toString)
+  }
+
+  @TestTemplate
+  def testCreateTableAndShowCreateTableWithDistributionAlgorithm(): Unit = {
+    val executedDDL =
+      """
+        |create temporary table TBL1 (
+        |  a bigint not null,
+        |  h string,
+        |  b string not null
+        |) comment 'test show create table statement'
+        |distributed by range(a) into 7 buckets
+        |partitioned by (b,h)
+        |with (
+        |  'connector' = 'kafka',
+        |  'kafka.topic' = 'log.test'
+        |)
+        |""".stripMargin
+
+    val expectedDDL =
+      """ |CREATE TEMPORARY TABLE `default_catalog`.`default_database`.`TBL1` (
+        |  `a` BIGINT NOT NULL,
+        |  `h` VARCHAR(2147483647),
+        |  `b` VARCHAR(2147483647) NOT NULL
+        |) COMMENT 'test show create table statement'
+        |DISTRIBUTED BY RANGE(`a`) INTO 7 BUCKETS
+        |PARTITIONED BY (`b`, `h`)
+        |WITH (
+        |  'connector' = 'kafka',
+        |  'kafka.topic' = 'log.test'
+        |)
+        |""".stripMargin
+    tableEnv.executeSql(executedDDL)
+    val row = tableEnv.executeSql("SHOW CREATE TABLE `TBL1`").collect().next()
+    assertEquals(expectedDDL, row.getField(0))
   }
 
   @TestTemplate

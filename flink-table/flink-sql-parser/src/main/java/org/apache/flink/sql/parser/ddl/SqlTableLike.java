@@ -115,6 +115,7 @@ public class SqlTableLike extends SqlCall implements ExtendedSqlNode {
      * <ul>
      *   <li>ALL - a shortcut to change the default merging strategy if none provided
      *   <li>CONSTRAINTS - constraints such as primary and unique keys
+     *   <li>DISTRIBUTION - distribution of the table
      *   <li>GENERATED - computed columns
      *   <li>METADATA - metadata columns
      *   <li>WATERMARKS - watermark declarations
@@ -138,6 +139,7 @@ public class SqlTableLike extends SqlCall implements ExtendedSqlNode {
      * LIKE `sourceTable` (
      *   INCLUDING GENERATED
      *   INCLUDING CONSTRAINTS
+     *   INCLUDING DISTRIBUTION
      *   OVERWRITING OPTIONS
      *   EXCLUDING PARTITIONS
      * )
@@ -146,6 +148,7 @@ public class SqlTableLike extends SqlCall implements ExtendedSqlNode {
     public enum FeatureOption {
         ALL,
         CONSTRAINTS,
+        DISTRIBUTION,
         GENERATED,
         METADATA,
         OPTIONS,
@@ -191,6 +194,8 @@ public class SqlTableLike extends SqlCall implements ExtendedSqlNode {
 
     static {
         invalidCombinations.put(FeatureOption.ALL, singletonList(MergingStrategy.OVERWRITING));
+        invalidCombinations.put(
+                FeatureOption.DISTRIBUTION, singletonList(MergingStrategy.OVERWRITING));
         invalidCombinations.put(
                 FeatureOption.PARTITIONS, singletonList(MergingStrategy.OVERWRITING));
         invalidCombinations.put(

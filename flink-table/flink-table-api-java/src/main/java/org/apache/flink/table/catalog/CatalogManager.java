@@ -63,6 +63,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -1330,12 +1331,45 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
 
         final ResolvedSchema resolvedSchema = table.getUnresolvedSchema().resolve(schemaResolver);
 
-        // Validate partition keys are included in physical columns
+        // Validate distribution keys are included in physical columns
         final List<String> physicalColumns =
                 resolvedSchema.getColumns().stream()
                         .filter(Column::isPhysical)
                         .map(Column::getName)
                         .collect(Collectors.toList());
+
+        final Consumer<TableDistribution> distributionValidation =
+                distribution -> {
+                    distribution
+                            .getBucketKeys()
+                            .forEach(
+                                    bucketKey -> {
+                                        if (!physicalColumns.contains(bucketKey)) {
+                                            throw new ValidationException(
+                                                    String.format(
+                                                            "Invalid bucket key '%s'. A bucket key for a distribution must "
+                                                                    + "reference a physical column in the schema. "
+                                                                    + "Available columns are: %s",
+                                                            bucketKey, physicalColumns));
+                                        }
+                                    });
+
+                    distribution
+                            .getBucketCount()
+                            .ifPresent(
+                                    c -> {
+                                        if (c <= 0) {
+                                            throw new ValidationException(
+                                                    String.format(
+                                                            "Invalid bucket count '%s'. The number of "
+                                                                    + "buckets for a distributed table must be at least 1.",
+                                                            c));
+                                        }
+                                    });
+                };
+
+        table.getDistribution().ifPresent(distributionValidation);
+
         table.getPartitionKeys()
                 .forEach(
                         partitionKey -> {

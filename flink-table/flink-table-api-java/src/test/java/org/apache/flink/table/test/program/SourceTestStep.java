@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.test.program;
 
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.types.Row;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,11 +37,12 @@ public final class SourceTestStep extends TableTestStep {
     SourceTestStep(
             String name,
             List<String> schemaComponents,
+            @Nullable TableDistribution distribution,
             List<String> partitionKeys,
             Map<String, String> options,
             List<Row> dataBeforeRestore,
             List<Row> dataAfterRestore) {
-        super(name, schemaComponents, partitionKeys, options);
+        super(name, schemaComponents, distribution, partitionKeys, options);
         this.dataBeforeRestore = dataBeforeRestore;
         this.dataAfterRestore = dataAfterRestore;
     }
@@ -85,6 +89,7 @@ public final class SourceTestStep extends TableTestStep {
             return new SourceTestStep(
                     name,
                     schemaComponents,
+                    distribution,
                     partitionKeys,
                     options,
                     dataBeforeRestore,

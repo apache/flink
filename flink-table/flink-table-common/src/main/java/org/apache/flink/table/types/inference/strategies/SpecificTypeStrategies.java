@@ -65,6 +65,10 @@ public final class SpecificTypeStrategies {
     public static final TypeStrategy ARRAY_ELEMENT = new ArrayElementTypeStrategy();
 
     public static final TypeStrategy ITEM_AT = new ItemAtTypeStrategy();
+
+    /** See {@link ArrayAppendPrependTypeStrategy}. */
+    public static final TypeStrategy ARRAY_APPEND_PREPEND = new ArrayAppendPrependTypeStrategy();
+
     /** See {@link GetTypeStrategy}. */
     public static final TypeStrategy GET = new GetTypeStrategy();
 
