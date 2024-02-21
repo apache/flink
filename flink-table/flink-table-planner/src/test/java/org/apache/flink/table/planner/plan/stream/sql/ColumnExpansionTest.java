@@ -289,4 +289,32 @@ class ColumnExpansionTest {
         assertThat(tableEnv.sqlQuery(sql).getResolvedSchema().getColumnNames())
                 .containsExactly(columnNames);
     }
+
+    @Test
+    void testExplicitTableWithinTableFunctionWithNamedArgs() {
+        tableEnv.getConfig()
+                .set(
+                        TABLE_COLUMN_EXPANSION_STRATEGY,
+                        Collections.singletonList(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+
+        // t3_m_virtual is selected due to expansion of the explicit table expression
+        // with hints from descriptor
+        assertColumnNames(
+                "SELECT * FROM TABLE("
+                        + "TUMBLE(DATA => TABLE t3, TIMECOL => DESCRIPTOR(t3_m_virtual), SIZE => INTERVAL '1' MINUTE))",
+                "t3_s",
+                "t3_i",
+                "t3_m_virtual",
+                "window_start",
+                "window_end",
+                "window_time");
+
+        // Test common window TVF syntax
+        assertColumnNames(
+                "SELECT t3_s, SUM(t3_i) AS agg "
+                        + "FROM TABLE(TUMBLE(DATA => TABLE t3, TIMECOL => DESCRIPTOR(t3_m_virtual), SIZE => INTERVAL '1' MINUTE)) "
+                        + "GROUP BY t3_s, window_start, window_end",
+                "t3_s",
+                "agg");
+    }
 }
