@@ -31,7 +31,6 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 /** Tests for the {@link MapStateDescriptor}. */
 class MapStateDescriptorTest {
@@ -49,7 +48,7 @@ class MapStateDescriptorTest {
 
         assertThat(descr.getName()).isEqualTo("testName");
         assertThat(descr.getSerializer()).isNotNull();
-        assertInstanceOf(MapSerializer.class, descr.getSerializer());
+        assertThat(descr.getSerializer()).isInstanceOf(MapSerializer.class);
         assertThat(descr.getKeySerializer()).isNotNull();
         assertThat(descr.getKeySerializer()).isEqualTo(keySerializer);
         assertThat(descr.getValueSerializer()).isNotNull();
@@ -59,7 +58,7 @@ class MapStateDescriptorTest {
 
         assertThat(copy.getName()).isEqualTo("testName");
         assertThat(copy.getSerializer()).isNotNull();
-        assertInstanceOf(MapSerializer.class, copy.getSerializer());
+        assertThat(copy.getSerializer()).isInstanceOf(MapSerializer.class);
 
         assertThat(copy.getKeySerializer()).isNotNull();
         assertThat(copy.getKeySerializer()).isEqualTo(keySerializer);

@@ -31,7 +31,6 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 /** Tests for the {@link ListStateDescriptor}. */
 class ListStateDescriptorTest {
@@ -46,7 +45,7 @@ class ListStateDescriptorTest {
 
         assertThat(descr.getName()).isEqualTo("testName");
         assertThat(descr.getSerializer()).isNotNull();
-        assertInstanceOf(ListSerializer.class, descr.getSerializer());
+        assertThat(descr.getSerializer()).isInstanceOf(ListSerializer.class);
         assertThat(descr.getElementSerializer()).isNotNull();
         assertThat(descr.getElementSerializer()).isEqualTo(serializer);
 
@@ -54,7 +53,7 @@ class ListStateDescriptorTest {
 
         assertThat(copy.getName()).isEqualTo("testName");
         assertThat(copy.getSerializer()).isNotNull();
-        assertInstanceOf(ListSerializer.class, copy.getSerializer());
+        assertThat(copy.getSerializer()).isInstanceOf(ListSerializer.class);
 
         assertThat(copy.getElementSerializer()).isNotNull();
         assertThat(copy.getElementSerializer()).isEqualTo(serializer);

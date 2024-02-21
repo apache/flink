@@ -40,7 +40,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Fail.fail;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 /** Tests for the common/shared functionality of {@link StateDescriptor}. */
 class StateDescriptorTest {
@@ -56,13 +55,13 @@ class StateDescriptorTest {
 
         assertThat(descr.isSerializerInitialized()).isTrue();
         assertThat(descr.getSerializer()).isNotNull();
-        assertInstanceOf(StringSerializer.class, descr.getSerializer());
+        assertThat(descr.getSerializer()).isInstanceOf(StringSerializer.class);
 
         // this should not have any effect
         descr.initializeSerializerUnlessSet(new ExecutionConfig());
         assertThat(descr.isSerializerInitialized()).isTrue();
         assertThat(descr.getSerializer()).isNotNull();
-        assertInstanceOf(StringSerializer.class, descr.getSerializer());
+        assertThat(descr.getSerializer()).isInstanceOf(StringSerializer.class);
 
         TestStateDescriptor<String> clone = CommonTestUtils.createCopySerializable(descr);
         assertThat(clone.isSerializerInitialized()).isTrue();
@@ -85,7 +84,7 @@ class StateDescriptorTest {
 
         assertThat(descr.isSerializerInitialized()).isTrue();
         assertThat(descr.getSerializer()).isNotNull();
-        assertInstanceOf(StringSerializer.class, descr.getSerializer());
+        assertThat(descr.getSerializer()).isInstanceOf(StringSerializer.class);
 
         TestStateDescriptor<String> clone = CommonTestUtils.createCopySerializable(descr);
 
