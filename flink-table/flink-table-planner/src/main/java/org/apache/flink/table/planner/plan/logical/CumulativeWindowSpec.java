@@ -28,6 +28,7 @@ import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Objects;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.TimeUtils.formatWithHighestUnit;
 
@@ -54,7 +55,9 @@ public class CumulativeWindowSpec implements WindowSpec {
             @JsonProperty(FIELD_NAME_MAX_SIZE) Duration maxSize,
             @JsonProperty(FIELD_NAME_STEP) Duration step,
             @JsonProperty(FIELD_NAME_OFFSET) @Nullable Duration offset) {
+        checkArgument(!maxSize.isNegative(), "Cumulate Window parameters must satisfy size > 0");
         this.maxSize = checkNotNull(maxSize);
+        checkArgument(!step.isNegative(), "Cumulate Window parameters must satisfy step > 0");
         this.step = checkNotNull(step);
         this.offset = offset;
     }

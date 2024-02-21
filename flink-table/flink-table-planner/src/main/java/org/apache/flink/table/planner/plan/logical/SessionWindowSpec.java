@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.TimeUtils.formatWithHighestUnit;
 
@@ -46,6 +47,7 @@ public class SessionWindowSpec implements WindowSpec {
     public SessionWindowSpec(
             @JsonProperty(FIELD_NAME_GAP) Duration gap,
             @JsonProperty(FIELD_NAME_PARTITION_KEYS) int[] partitionKeyIndices) {
+        checkArgument(!gap.isNegative(), "Session Window parameters must satisfy gap > 0");
         this.gap = checkNotNull(gap);
         this.partitionKeyIndices = checkNotNull(partitionKeyIndices);
     }
