@@ -44,7 +44,7 @@ Flame Graphs是通过多次采样堆栈跟踪来构建的。每个方法调用�
 
 {{< img src="/fig/flame_graph_operator.png" class="img-fluid" width="90%" >}}
 {{% center %}}
-算子级别的 On-CPU Flame Graph
+算子级别的 On-CPU 火焰图
 {{% /center %}}
 
 {{< hint warning >}}
