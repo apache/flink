@@ -36,7 +36,7 @@ import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerCo
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
 import org.apache.flink.runtime.jobmanager.JobPersistenceComponentFactory;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.TestingResourceManagerFactory;
@@ -134,11 +134,11 @@ public class ClusterEntrypointTest extends TestLogger {
     @Test
     public void testCloseAsyncShouldNotCleanUpHAData() throws Exception {
         final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-        final CompletableFuture<Void> closeAndCleanupAllDataFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> cleanupAllDataFuture = new CompletableFuture<>();
         final HighAvailabilityServices testingHaService =
                 new TestingHighAvailabilityServicesBuilder()
                         .setCloseFuture(closeFuture)
-                        .setCloseAndCleanupAllDataFuture(closeAndCleanupAllDataFuture)
+                        .setCleanupAllDataFuture(cleanupAllDataFuture)
                         .build();
         final TestingEntryPoint testingEntryPoint =
                 new TestingEntryPoint.Builder()
@@ -154,7 +154,7 @@ public class ClusterEntrypointTest extends TestLogger {
                 appStatusFuture.get(TIMEOUT_MS, TimeUnit.MILLISECONDS),
                 is(ApplicationStatus.UNKNOWN));
         assertThat(closeFuture.isDone(), is(true));
-        assertThat(closeAndCleanupAllDataFuture.isDone(), is(false));
+        assertThat(cleanupAllDataFuture.isDone(), is(false));
     }
 
     @Test
@@ -184,13 +184,13 @@ public class ClusterEntrypointTest extends TestLogger {
     @Test
     public void testClusterFinishedNormallyShouldDeregisterAppAndCleanupHAData() throws Exception {
         final CompletableFuture<Void> deregisterFuture = new CompletableFuture<>();
-        final CompletableFuture<Void> closeAndCleanupAllDataFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> cleanupAllDataFuture = new CompletableFuture<>();
         final CompletableFuture<ApplicationStatus> dispatcherShutDownFuture =
                 new CompletableFuture<>();
 
         final HighAvailabilityServices testingHaService =
                 new TestingHighAvailabilityServicesBuilder()
-                        .setCloseAndCleanupAllDataFuture(closeAndCleanupAllDataFuture)
+                        .setCleanupAllDataFuture(cleanupAllDataFuture)
                         .build();
         final TestingResourceManagerFactory testingResourceManagerFactory =
                 new TestingResourceManagerFactory.Builder()
@@ -221,7 +221,7 @@ public class ClusterEntrypointTest extends TestLogger {
                 appStatusFuture.get(TIMEOUT_MS, TimeUnit.MILLISECONDS),
                 is(ApplicationStatus.SUCCEEDED));
         assertThat(deregisterFuture.isDone(), is(true));
-        assertThat(closeAndCleanupAllDataFuture.isDone(), is(true));
+        assertThat(cleanupAllDataFuture.isDone(), is(true));
     }
 
     @Test
@@ -449,7 +449,7 @@ public class ClusterEntrypointTest extends TestLogger {
 
         @Override
         public DispatcherRunner createDispatcherRunner(
-                LeaderElectionService leaderElectionService,
+                LeaderElection leaderElection,
                 FatalErrorHandler fatalErrorHandler,
                 JobPersistenceComponentFactory jobPersistenceComponentFactory,
                 Executor ioExecutor,

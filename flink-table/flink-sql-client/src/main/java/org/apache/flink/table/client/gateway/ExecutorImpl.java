@@ -19,10 +19,15 @@
 package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.client.ClientUtils;
+import org.apache.flink.client.program.rest.UrlPrefixDecorator;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.AutoCloseableRegistry;
+import org.apache.flink.runtime.rest.HttpHeader;
 import org.apache.flink.runtime.rest.RestClient;
+import org.apache.flink.runtime.rest.messages.CustomHeadersDecorator;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
@@ -62,12 +67,14 @@ import org.apache.flink.table.gateway.rest.message.statement.ExecuteStatementReq
 import org.apache.flink.table.gateway.rest.message.statement.ExecuteStatementResponseBody;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsMessageParameters;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsResponseBody;
+import org.apache.flink.table.gateway.rest.message.util.GetApiVersionResponseBody;
 import org.apache.flink.table.gateway.rest.serde.ResultInfo;
 import org.apache.flink.table.gateway.rest.util.RowFormat;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointUtils;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -77,9 +84,12 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URL;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -101,16 +111,46 @@ public class ExecutorImpl implements Executor {
     private static final long HEARTBEAT_INTERVAL_MILLISECONDS = 60_000L;
 
     private final AutoCloseableRegistry registry;
-    private final InetSocketAddress gatewayAddress;
+    private final URL gatewayUrl;
+
     private final ExecutorService executorService;
     private final RestClient restClient;
 
     private final SqlGatewayRestAPIVersion connectionVersion;
     private final SessionHandle sessionHandle;
+    private final RowFormat rowFormat;
+    private final Collection<HttpHeader> customHttpHeaders;
 
     public ExecutorImpl(
             DefaultContext defaultContext, InetSocketAddress gatewayAddress, String sessionId) {
-        this(defaultContext, gatewayAddress, sessionId, HEARTBEAT_INTERVAL_MILLISECONDS);
+        this(
+                defaultContext,
+                NetUtils.socketToUrl(gatewayAddress),
+                sessionId,
+                HEARTBEAT_INTERVAL_MILLISECONDS,
+                RowFormat.PLAIN_TEXT);
+    }
+
+    public ExecutorImpl(
+            DefaultContext defaultContext,
+            InetSocketAddress gatewayAddress,
+            String sessionId,
+            RowFormat rowFormat) {
+        this(
+                defaultContext,
+                NetUtils.socketToUrl(gatewayAddress),
+                sessionId,
+                HEARTBEAT_INTERVAL_MILLISECONDS,
+                rowFormat);
+    }
+
+    public ExecutorImpl(DefaultContext defaultContext, URL gatewayUrl, String sessionId) {
+        this(
+                defaultContext,
+                gatewayUrl,
+                sessionId,
+                HEARTBEAT_INTERVAL_MILLISECONDS,
+                RowFormat.PLAIN_TEXT);
     }
 
     @VisibleForTesting
@@ -119,13 +159,34 @@ public class ExecutorImpl implements Executor {
             InetSocketAddress gatewayAddress,
             String sessionId,
             long heartbeatInterval) {
+        this(
+                defaultContext,
+                NetUtils.socketToUrl(gatewayAddress),
+                sessionId,
+                heartbeatInterval,
+                RowFormat.PLAIN_TEXT);
+    }
+
+    @VisibleForTesting
+    ExecutorImpl(
+            DefaultContext defaultContext,
+            URL gatewayUrl,
+            String sessionId,
+            long heartbeatInterval,
+            RowFormat rowFormat) {
         this.registry = new AutoCloseableRegistry();
+        this.gatewayUrl = gatewayUrl;
+        this.rowFormat = rowFormat;
+        this.customHttpHeaders =
+                ClientUtils.readHeadersFromEnvironmentVariable(
+                        ConfigConstants.FLINK_REST_CLIENT_HEADERS);
         try {
-            this.gatewayAddress = gatewayAddress;
             // register required resource
             this.executorService = Executors.newCachedThreadPool();
             registry.registerCloseable(executorService::shutdownNow);
-            this.restClient = new RestClient(defaultContext.getFlinkConfig(), executorService);
+            Configuration flinkConfig = defaultContext.getFlinkConfig();
+
+            this.restClient = RestClient.forUrl(flinkConfig, executorService, gatewayUrl);
             registry.registerCloseable(restClient);
 
             // determine gateway rest api version
@@ -134,14 +195,13 @@ public class ExecutorImpl implements Executor {
             // register session
             LOG.info(
                     "Open session to {} with connection version: {}.",
-                    gatewayAddress,
+                    gatewayUrl,
                     connectionVersion);
             OpenSessionResponseBody response =
                     sendRequest(
                                     OpenSessionHeaders.getInstance(),
                                     EmptyMessageParameters.getInstance(),
-                                    new OpenSessionRequestBody(
-                                            sessionId, defaultContext.getFlinkConfig().toMap()))
+                                    new OpenSessionRequestBody(sessionId, flinkConfig.toMap()))
                             .get();
             this.sessionHandle = new SessionHandle(UUID.fromString(response.getSessionHandle()));
             registry.registerCloseable(this::closeSession);
@@ -180,11 +240,19 @@ public class ExecutorImpl implements Executor {
                     .get();
         } catch (Exception e) {
             throw new SqlExecutionException(
-                    String.format("Failed to open session to %s", gatewayAddress), e);
+                    String.format("Failed to open session to %s", gatewayUrl), e);
         }
     }
 
     public ReadableConfig getSessionConfig() {
+        try {
+            return Configuration.fromMap(getSessionConfigMap());
+        } catch (Exception e) {
+            throw new SqlExecutionException("Failed to get the get session config.", e);
+        }
+    }
+
+    public Map<String, String> getSessionConfigMap() {
         try {
             GetSessionConfigResponseBody response =
                     getResponse(
@@ -192,7 +260,7 @@ public class ExecutorImpl implements Executor {
                                     GetSessionConfigHeaders.getInstance(),
                                     new SessionMessageParameters(sessionHandle),
                                     EmptyRequestBody.getInstance()));
-            return Configuration.fromMap(response.getProperties());
+            return response.getProperties();
         } catch (Exception e) {
             throw new SqlExecutionException("Failed to get the get session config.", e);
         }
@@ -342,7 +410,12 @@ public class ExecutorImpl implements Executor {
                     P extends ResponseBody>
             CompletableFuture<P> sendRequest(M messageHeaders, U messageParameters, R request) {
         Preconditions.checkNotNull(connectionVersion, "The connection version should not be null.");
-        return sendRequest(messageHeaders, messageParameters, request, connectionVersion);
+        CustomHeadersDecorator<R, P, U> headers =
+                new CustomHeadersDecorator<>(
+                        new UrlPrefixDecorator<>(messageHeaders, gatewayUrl.getPath()));
+        headers.setCustomHeaders(customHttpHeaders);
+
+        return sendRequest(headers, messageParameters, request, connectionVersion);
     }
 
     private <
@@ -357,8 +430,8 @@ public class ExecutorImpl implements Executor {
                     SqlGatewayRestAPIVersion connectionVersion) {
         try {
             return restClient.sendRequest(
-                    gatewayAddress.getHostName(),
-                    gatewayAddress.getPort(),
+                    gatewayUrl.getHost(),
+                    gatewayUrl.getPort(),
                     messageHeaders,
                     messageParameters,
                     request,
@@ -399,7 +472,7 @@ public class ExecutorImpl implements Executor {
             return sendRequest(
                             FetchResultsHeaders.getDefaultInstance(),
                             new FetchResultsMessageParameters(
-                                    sessionHandle, operationHandle, token, RowFormat.PLAIN_TEXT),
+                                    sessionHandle, operationHandle, token, rowFormat),
                             EmptyRequestBody.getInstance())
                     .get();
         } catch (InterruptedException e) {
@@ -451,12 +524,20 @@ public class ExecutorImpl implements Executor {
     }
 
     private SqlGatewayRestAPIVersion negotiateVersion() throws Exception {
+
+        CustomHeadersDecorator<EmptyRequestBody, GetApiVersionResponseBody, EmptyMessageParameters>
+                headers =
+                        new CustomHeadersDecorator<>(
+                                new UrlPrefixDecorator<>(
+                                        GetApiVersionHeaders.getInstance(), gatewayUrl.getPath()));
+        headers.setCustomHeaders(customHttpHeaders);
+
         List<SqlGatewayRestAPIVersion> gatewayVersions =
                 getResponse(
                                 restClient.sendRequest(
-                                        gatewayAddress.getHostName(),
-                                        gatewayAddress.getPort(),
-                                        GetApiVersionHeaders.getInstance(),
+                                        gatewayUrl.getHost(),
+                                        gatewayUrl.getPort(),
+                                        headers,
                                         EmptyMessageParameters.getInstance(),
                                         EmptyRequestBody.getInstance(),
                                         Collections.emptyList(),
@@ -513,5 +594,10 @@ public class ExecutorImpl implements Executor {
                     e);
             // ignore any throwable to keep the cleanup running
         }
+    }
+
+    @VisibleForTesting
+    Collection<HttpHeader> getCustomHttpHeaders() {
+        return customHttpHeaders;
     }
 }

@@ -47,7 +47,7 @@ import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -204,9 +204,7 @@ public class JobMasterTester implements Closeable {
                                                                     "Task descriptor for %s not found.",
                                                                     executionAttemptId)));
                     try {
-                        return descriptor
-                                .getSerializedTaskInformation()
-                                .deserializeValue(Thread.currentThread().getContextClassLoader());
+                        return descriptor.getTaskInformation();
                     } catch (Exception e) {
                         throw new IllegalStateException(
                                 String.format(

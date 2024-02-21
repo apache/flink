@@ -26,14 +26,23 @@ import java.util.concurrent.Callable;
 
 /**
  * An interface that allows source and sink to use global lock to some transaction-related things.
+ *
+ * @deprecated This interface will be removed soon. Please see FLIP-346 for more details.
  */
+@Deprecated
 @Internal
 public interface CatalogLock extends Closeable {
 
     /** Run with catalog lock. The caller should tell catalog the database and table name. */
     <T> T runWithLock(String database, String table, Callable<T> callable) throws Exception;
 
-    /** Factory to create {@link CatalogLock}. */
+    /**
+     * Factory to create {@link CatalogLock}.
+     *
+     * @deprecated This interface will be removed soon. Please see FLIP-346 for more details.
+     */
+    @Deprecated
+    @Internal
     interface Factory extends Serializable {
         CatalogLock create();
     }

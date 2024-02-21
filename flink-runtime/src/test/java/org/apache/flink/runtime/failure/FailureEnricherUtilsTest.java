@@ -24,6 +24,7 @@ import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.failure.FailureEnricherFactory;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.TestingPluginManager;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.commons.collections.IteratorUtils;
@@ -54,31 +55,30 @@ class FailureEnricherUtilsTest {
         Configuration conf = new Configuration();
 
         // Disabled feature
-        conf.setString(JobManagerOptions.FAILURE_ENRICHERS_LIST, "");
+        conf.set(JobManagerOptions.FAILURE_ENRICHERS_LIST, "");
         Set<String> result = FailureEnricherUtils.getIncludedFailureEnrichers(conf);
         assertThat(result).hasSize(0);
 
         // Single enricher
-        conf.setString(JobManagerOptions.FAILURE_ENRICHERS_LIST, "enricher1");
+        conf.set(JobManagerOptions.FAILURE_ENRICHERS_LIST, "enricher1");
         result = FailureEnricherUtils.getIncludedFailureEnrichers(conf);
         assertThat(result).hasSize(1);
         assertThat(result).contains("enricher1");
 
         // Multiple enrichers with spaces
-        conf.setString(JobManagerOptions.FAILURE_ENRICHERS_LIST, "enricher1, enricher2, enricher3");
+        conf.set(JobManagerOptions.FAILURE_ENRICHERS_LIST, "enricher1, enricher2, enricher3");
         result = FailureEnricherUtils.getIncludedFailureEnrichers(conf);
         assertThat(result).hasSize(3);
         assertThat(result).contains("enricher1", "enricher2", "enricher3");
 
         // Bad delimiter
-        conf.setString(JobManagerOptions.FAILURE_ENRICHERS_LIST, "enricher1. enricher2. enricher3");
+        conf.set(JobManagerOptions.FAILURE_ENRICHERS_LIST, "enricher1. enricher2. enricher3");
         result = FailureEnricherUtils.getIncludedFailureEnrichers(conf);
         assertThat(result).hasSize(1);
         assertThat(result).contains("enricher1. enricher2. enricher3");
 
         // Multiple enrichers with spaces and empty values
-        conf.setString(
-                JobManagerOptions.FAILURE_ENRICHERS_LIST, "enricher1, ,enricher2,   enricher3");
+        conf.set(JobManagerOptions.FAILURE_ENRICHERS_LIST, "enricher1, ,enricher2,   enricher3");
         result = FailureEnricherUtils.getIncludedFailureEnrichers(conf);
         assertThat(result).hasSize(3);
         assertThat(result).contains("enricher1", "enricher2", "enricher3");
@@ -107,7 +107,20 @@ class FailureEnricherUtilsTest {
                 FailureEnricherUtils.getFailureEnrichers(configuration, createPluginManager());
         assertThat(enrichers).hasSize(1);
         // verify that the failure enricher was created and returned
-        assertThat(enrichers.iterator().next()).isInstanceOf(TestEnricher.class);
+        assertThat(enrichers)
+                .satisfiesExactly(
+                        enricher -> assertThat(enricher).isInstanceOf(TestEnricher.class));
+
+        // Valid plus Invalid Name combination
+        configuration.set(
+                JobManagerOptions.FAILURE_ENRICHERS_LIST,
+                FailureEnricherUtilsTest.class.getName() + "," + TestEnricher.class.getName());
+        final Collection<FailureEnricher> validInvalidEnrichers =
+                FailureEnricherUtils.getFailureEnrichers(configuration, createPluginManager());
+        assertThat(validInvalidEnrichers).hasSize(1);
+        assertThat(validInvalidEnrichers)
+                .satisfiesExactly(
+                        enricher -> assertThat(enricher).isInstanceOf(TestEnricher.class));
     }
 
     @Test
@@ -163,7 +176,11 @@ class FailureEnricherUtilsTest {
         failureEnrichers.add(validEnricher);
 
         final CompletableFuture<Map<String, String>> result =
-                FailureEnricherUtils.labelFailure(cause, null, failureEnrichers);
+                FailureEnricherUtils.labelFailure(
+                        cause,
+                        null,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        failureEnrichers);
 
         assertThatFuture(result)
                 .eventuallySucceeds()
@@ -188,9 +205,45 @@ class FailureEnricherUtilsTest {
         failureEnrichers.add(invalidEnricher);
 
         final CompletableFuture<Map<String, String>> result =
-                FailureEnricherUtils.labelFailure(cause, null, failureEnrichers);
+                FailureEnricherUtils.labelFailure(
+                        cause,
+                        null,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        failureEnrichers);
         // Ignoring labels
         assertThatFuture(result).eventuallySucceeds().satisfies(labels -> labels.isEmpty());
+    }
+
+    @Test
+    public void testLabelFailureWithValidAndThrowingEnricher() {
+        // A failing enricher shouldn't affect remaining enrichers with valid labels
+        final Throwable cause = new RuntimeException("test exception");
+        final FailureEnricher validEnricher = new TestEnricher("enricherKey");
+        final FailureEnricher throwingEnricher = new ThrowingEnricher("throwingKey");
+
+        final Set<FailureEnricher> enrichers =
+                new HashSet<FailureEnricher>() {
+                    {
+                        add(validEnricher);
+                        add(throwingEnricher);
+                    }
+                };
+
+        final CompletableFuture<Map<String, String>> result =
+                FailureEnricherUtils.labelFailure(
+                        cause,
+                        null,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        enrichers);
+
+        assertThatFuture(result)
+                .eventuallySucceeds()
+                .satisfies(
+                        labels -> {
+                            assertThat(labels).hasSize(1);
+                            assertThat(labels).containsKey("enricherKey");
+                            assertThat(labels).containsValue("enricherKeyValue");
+                        });
     }
 
     @Test
@@ -208,7 +261,11 @@ class FailureEnricherUtilsTest {
                 };
 
         final CompletableFuture<Map<String, String>> result =
-                FailureEnricherUtils.labelFailure(cause, null, enrichers);
+                FailureEnricherUtils.labelFailure(
+                        cause,
+                        null,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        enrichers);
 
         try {
             result.get();
@@ -237,6 +294,20 @@ class FailureEnricherUtilsTest {
         @Override
         public FailureEnricher createFailureEnricher(Configuration conf) {
             return new TestEnricher();
+        }
+    }
+
+    private static class ThrowingEnricher extends TestEnricher {
+        ThrowingEnricher(String... outputKeys) {
+            super(outputKeys);
+        }
+
+        @Override
+        public CompletableFuture<Map<String, String>> processFailure(
+                Throwable cause, Context context) {
+            final CompletableFuture<Map<String, String>> future = new CompletableFuture<>();
+            future.completeExceptionally(new RuntimeException("test failure"));
+            return future;
         }
     }
 

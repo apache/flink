@@ -32,6 +32,7 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -59,6 +60,7 @@ import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.util.LongArrayList;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -170,6 +172,7 @@ public class StateInitializationContextImplTest {
                         new JobID(),
                         createExecutionAttemptId(),
                         new TestTaskLocalStateStore(),
+                        null,
                         new InMemoryStateChangelogStorage(),
                         new TaskExecutorStateChangelogStoragesManager(),
                         jobManagerTaskRestore,
@@ -184,6 +187,8 @@ public class StateInitializationContextImplTest {
                 new StreamTaskStateInitializerImpl(
                         environment,
                         stateBackend,
+                        new SubTaskInitializationMetricsBuilder(
+                                SystemClock.getInstance().absoluteTimeMillis()),
                         TtlTimeProvider.DEFAULT,
                         new InternalTimeServiceManager.Provider() {
                             @Override

@@ -171,8 +171,7 @@ public class WebFrontendBootstrap {
 
         if (inetAddress.isAnyLocalAddress()) {
             address =
-                    config.getString(
-                            JobManagerOptions.ADDRESS, InetAddress.getLocalHost().getHostName());
+                    config.get(JobManagerOptions.ADDRESS, InetAddress.getLocalHost().getHostName());
         } else {
             address = inetAddress.getHostAddress();
         }

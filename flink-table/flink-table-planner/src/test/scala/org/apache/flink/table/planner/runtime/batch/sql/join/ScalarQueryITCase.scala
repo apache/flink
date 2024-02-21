@@ -21,9 +21,8 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 
-import org.junit.{Before, Test}
-
-import scala.collection.Seq
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class ScalarQueryITCase extends BatchTestBase {
 
@@ -48,7 +47,7 @@ class ScalarQueryITCase extends BatchTestBase {
     row(6, null)
   )
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     registerCollection("l", l, INT_DOUBLE, "a, b")
@@ -60,8 +59,11 @@ class ScalarQueryITCase extends BatchTestBase {
     checkResult("SELECT * FROM l WHERE a = (SELECT c FROM r where c = 3)", Seq(row(3, 3.0)))
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testScalarSubQueryException(): Unit = {
-    checkResult("SELECT * FROM l WHERE a = (SELECT c FROM r)", Seq(row(3, 3.0)))
+    assertThatThrownBy(
+      () => {
+        checkResult("SELECT * FROM l WHERE a = (SELECT c FROM r)", Seq(row(3, 3.0)))
+      }).isInstanceOf(classOf[RuntimeException])
   }
 }

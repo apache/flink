@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.typeutils
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
-import org.apache.flink.shaded.guava30.com.google.common.cache.{Cache, CacheBuilder}
+import org.apache.flink.shaded.guava31.com.google.common.cache.{Cache, CacheBuilder}
 
 import java.io.ObjectInputStream
 import java.util.concurrent.Callable

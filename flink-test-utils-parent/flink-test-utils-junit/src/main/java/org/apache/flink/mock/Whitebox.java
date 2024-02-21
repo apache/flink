@@ -27,12 +27,13 @@ import java.lang.reflect.Field;
  * the terms of the MIT License.
  */
 public class Whitebox {
-    public static Object getInternalState(Object target, String field) {
+    @SuppressWarnings("unchecked")
+    public static <T> T getInternalState(Object target, String field) {
         Class<?> c = target.getClass();
         try {
             Field f = getFieldFromHierarchy(c, field);
             f.setAccessible(true);
-            return f.get(target);
+            return (T) f.get(target);
         } catch (Exception e) {
             throw new RuntimeException(
                     "Unable to set internal state on a private field. Please report to mockito mailing list.",

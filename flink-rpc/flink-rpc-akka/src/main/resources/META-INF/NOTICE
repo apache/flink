@@ -1,5 +1,5 @@
 flink-rpc-akka
-Copyright 2014-2023 The Apache Software Foundation
+Copyright 2014-2024 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -8,28 +8,24 @@ This project bundles the following dependencies under the Apache Software Licens
 
 - com.hierynomus:asn-one:0.5.0
 - com.typesafe:config:1.4.2
-- com.typesafe:ssl-config-core_2.12:0.4.3
-- com.typesafe.akka:akka-actor_2.12:2.6.20
-- com.typesafe.akka:akka-remote_2.12:2.6.20
-- com.typesafe.akka:akka-pki_2.12:2.6.20
-- com.typesafe.akka:akka-protobuf-v3_2.12:2.6.20
-- com.typesafe.akka:akka-slf4j_2.12:2.6.20
-- com.typesafe.akka:akka-stream_2.12:2.6.20
+- com.typesafe:ssl-config-core_2.12:0.6.1
 - io.netty:netty:3.10.6.Final
 - org.agrona:agrona:1.15.1
-- org.scala-lang:scala-compiler:2.12.16
+- org.apache.pekko:pekko-actor_2.12:1.0.1
+- org.apache.pekko:pekko-remote_2.12:1.0.1
+- org.apache.pekko:pekko-pki_2.12:1.0.1
+- org.apache.pekko:pekko-protobuf-v3_2.12:1.0.1
+- org.apache.pekko:pekko-slf4j_2.12:1.0.1
+- org.apache.pekko:pekko-stream_2.12:1.0.1
 - org.scala-lang:scala-library:2.12.16
-- org.scala-lang:scala-reflect:2.12.16
-- org.scala-lang.modules:scala-parser-combinators_2.12:1.1.2
 
 The following dependencies all share the same BSD license which you find under licenses/LICENSE.scala.
 
-- org.scala-lang.modules:scala-java8-compat_2.12:0.8.0
-- org.scala-lang.modules:scala-xml_2.12:1.0.6
+- org.scala-lang.modules:scala-java8-compat_2.12:1.0.2
 
 This project bundles the following dependencies under the Creative Commons CC0 "No Rights Reserved".
 
-- org.reactivestreams:reactive-streams:1.0.3
+- org.reactivestreams:reactive-streams:1.0.4
 
 This project bundles io.netty:netty:3.10.6.Final from which it inherits the following notices:
 

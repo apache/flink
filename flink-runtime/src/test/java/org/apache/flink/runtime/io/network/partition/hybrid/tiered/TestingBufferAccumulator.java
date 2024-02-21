@@ -18,27 +18,42 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered;
 
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.BufferAccumulator;
+import org.apache.flink.util.function.TriConsumer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.function.BiConsumer;
 
 /** Test implementation for {@link BufferAccumulator}. */
 public class TestingBufferAccumulator implements BufferAccumulator {
 
+    private TriConsumer<TieredStorageSubpartitionId, Buffer, Integer> bufferFlusher;
+
     @Override
-    public void setup(
-            int numSubpartitions,
-            BiConsumer<TieredStorageSubpartitionId, List<Buffer>> bufferFlusher) {}
+    public void setup(TriConsumer<TieredStorageSubpartitionId, Buffer, Integer> bufferFlusher) {
+        this.bufferFlusher = bufferFlusher;
+    }
 
     @Override
     public void receive(
-            ByteBuffer record, TieredStorageSubpartitionId subpartitionId, Buffer.DataType dataType)
-            throws IOException {}
+            ByteBuffer record,
+            TieredStorageSubpartitionId subpartitionId,
+            Buffer.DataType dataType,
+            boolean isBroadcast)
+            throws IOException {
+        MemorySegment recordData = MemorySegmentFactory.wrap(record.array());
+        bufferFlusher.accept(
+                subpartitionId,
+                new NetworkBuffer(
+                        recordData, FreeingBufferRecycler.INSTANCE, dataType, recordData.size()),
+                0);
+    }
 
     @Override
     public void close() {}

@@ -20,8 +20,9 @@ package org.apache.flink.runtime.deployment;
 
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffloaded;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.NonOffloaded;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.NonOffloadedRaw;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -38,12 +39,10 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
-import org.apache.flink.util.CompressedSerializedValue;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -83,13 +82,13 @@ class CachedShuffleDescriptorsTest {
                         consumedPartitionGroup,
                         createSingleShuffleDescriptorAndIndex(shuffleDescriptor, 0));
 
-        assertThat(cachedShuffleDescriptors.getAllSerializedShuffleDescriptors()).isEmpty();
+        assertThat(cachedShuffleDescriptors.getAllSerializedShuffleDescriptorGroups()).isEmpty();
         cachedShuffleDescriptors.serializeShuffleDescriptors(
-                CachedShuffleDescriptorsTest::nonOffloadedShuffleDescriptor);
-        assertThat(cachedShuffleDescriptors.getAllSerializedShuffleDescriptors()).hasSize(1);
-        MaybeOffloaded<ShuffleDescriptorAndIndex[]> maybeOffloadedShuffleDescriptor =
-                cachedShuffleDescriptors.getAllSerializedShuffleDescriptors().get(0);
-        assertNonOffloadedShuffleDescriptorAndIndexEquals(
+                new TestingShuffleDescriptorSerializer());
+        assertThat(cachedShuffleDescriptors.getAllSerializedShuffleDescriptorGroups()).hasSize(1);
+        MaybeOffloaded<ShuffleDescriptorGroup> maybeOffloadedShuffleDescriptor =
+                cachedShuffleDescriptors.getAllSerializedShuffleDescriptorGroups().get(0);
+        assertNonOffloadedRawShuffleDescriptorAndIndexEquals(
                 maybeOffloadedShuffleDescriptor,
                 Collections.singletonList(shuffleDescriptor),
                 Collections.singletonList(0));
@@ -122,17 +121,17 @@ class CachedShuffleDescriptorsTest {
                 new CachedShuffleDescriptors(
                         consumedPartitionGroup1,
                         createSingleShuffleDescriptorAndIndex(shuffleDescriptor, 0));
-        cachedShuffleDescriptors.serializeShuffleDescriptors(
-                CachedShuffleDescriptorsTest::nonOffloadedShuffleDescriptor);
+        TestingShuffleDescriptorSerializer testingShuffleDescriptorSerializer =
+                new TestingShuffleDescriptorSerializer();
+        cachedShuffleDescriptors.serializeShuffleDescriptors(testingShuffleDescriptorSerializer);
 
         cachedShuffleDescriptors.markPartitionFinished(intermediateResultPartition1);
         cachedShuffleDescriptors.markPartitionFinished(intermediateResultPartition2);
-        cachedShuffleDescriptors.serializeShuffleDescriptors(
-                CachedShuffleDescriptorsTest::nonOffloadedShuffleDescriptor);
-        assertThat(cachedShuffleDescriptors.getAllSerializedShuffleDescriptors()).hasSize(2);
+        cachedShuffleDescriptors.serializeShuffleDescriptors(testingShuffleDescriptorSerializer);
+        assertThat(cachedShuffleDescriptors.getAllSerializedShuffleDescriptorGroups()).hasSize(2);
 
-        MaybeOffloaded<ShuffleDescriptorAndIndex[]> maybeOffloaded =
-                cachedShuffleDescriptors.getAllSerializedShuffleDescriptors().get(1);
+        MaybeOffloaded<ShuffleDescriptorGroup> maybeOffloaded =
+                cachedShuffleDescriptors.getAllSerializedShuffleDescriptorGroups().get(1);
         ShuffleDescriptor expectedShuffleDescriptor1 =
                 TaskDeploymentDescriptorFactory.getConsumedPartitionShuffleDescriptor(
                         intermediateResultPartition1,
@@ -143,28 +142,22 @@ class CachedShuffleDescriptorsTest {
                         intermediateResultPartition2,
                         TaskDeploymentDescriptorFactory.PartitionLocationConstraint.MUST_BE_KNOWN,
                         false);
-        assertNonOffloadedShuffleDescriptorAndIndexEquals(
+        assertNonOffloadedRawShuffleDescriptorAndIndexEquals(
                 maybeOffloaded,
                 Arrays.asList(expectedShuffleDescriptor1, expectedShuffleDescriptor2),
                 Arrays.asList(0, 1));
     }
 
-    private static MaybeOffloaded<ShuffleDescriptorAndIndex[]> nonOffloadedShuffleDescriptor(
-            ShuffleDescriptorAndIndex[] toBeSerialized) throws IOException {
-        return new NonOffloaded<>(CompressedSerializedValue.fromObject(toBeSerialized));
-    }
-
-    private void assertNonOffloadedShuffleDescriptorAndIndexEquals(
-            MaybeOffloaded<ShuffleDescriptorAndIndex[]> maybeOffloaded,
+    private void assertNonOffloadedRawShuffleDescriptorAndIndexEquals(
+            MaybeOffloaded<ShuffleDescriptorGroup> maybeOffloaded,
             List<ShuffleDescriptor> expectedDescriptors,
-            List<Integer> expectedIndices)
-            throws Exception {
+            List<Integer> expectedIndices) {
         assertThat(expectedDescriptors).hasSameSizeAs(expectedIndices);
-        assertThat(maybeOffloaded).isInstanceOf(NonOffloaded.class);
-        NonOffloaded<ShuffleDescriptorAndIndex[]> nonOffloaded =
-                (NonOffloaded<ShuffleDescriptorAndIndex[]>) maybeOffloaded;
+        assertThat(maybeOffloaded).isInstanceOf(NonOffloadedRaw.class);
+        NonOffloadedRaw<ShuffleDescriptorGroup> nonOffloadedRaw =
+                (NonOffloadedRaw<ShuffleDescriptorGroup>) maybeOffloaded;
         ShuffleDescriptorAndIndex[] shuffleDescriptorAndIndices =
-                nonOffloaded.serializedValue.deserializeValue(getClass().getClassLoader());
+                nonOffloadedRaw.value.getShuffleDescriptors();
         assertThat(shuffleDescriptorAndIndices).hasSameSizeAs(expectedDescriptors);
         for (int i = 0; i < shuffleDescriptorAndIndices.length; i++) {
             assertThat(shuffleDescriptorAndIndices[i].getIndex()).isEqualTo(expectedIndices.get(i));
@@ -213,5 +206,15 @@ class CachedShuffleDescriptorsTest {
                         .build();
         scheduler.startScheduling();
         return scheduler.getExecutionGraph();
+    }
+
+    private static class TestingShuffleDescriptorSerializer
+            implements TaskDeploymentDescriptorFactory.ShuffleDescriptorSerializer {
+
+        @Override
+        public MaybeOffloaded<ShuffleDescriptorGroup> trySerializeAndOffloadShuffleDescriptor(
+                ShuffleDescriptorGroup shuffleDescriptorGroup, int numConsumer) {
+            return new NonOffloadedRaw<>(shuffleDescriptorGroup);
+        }
     }
 }

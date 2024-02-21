@@ -31,9 +31,7 @@ public class LockableTypeSerializerSnapshot<E>
     private static final int CURRENT_VERSION = 1;
 
     /** Constructor for read instantiation. */
-    public LockableTypeSerializerSnapshot() {
-        super(Lockable.LockableTypeSerializer.class);
-    }
+    public LockableTypeSerializerSnapshot() {}
 
     /** Constructor to create the snapshot for writing. */
     public LockableTypeSerializerSnapshot(

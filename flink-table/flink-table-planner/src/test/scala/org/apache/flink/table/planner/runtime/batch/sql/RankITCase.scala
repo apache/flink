@@ -21,13 +21,11 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 
-import org.junit._
-
-import scala.collection.Seq
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class RankITCase extends BatchTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)

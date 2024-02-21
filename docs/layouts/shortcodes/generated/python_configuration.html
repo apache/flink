@@ -18,13 +18,13 @@
             <td><h5>python.client.executable</h5></td>
             <td style="word-wrap: break-word;">"python"</td>
             <td>String</td>
-            <td>The path of the Python interpreter used to launch the Python process when submitting the Python jobs via "flink run" or compiling the Java/Scala jobs containing Python UDFs. Equivalent to the command line option "-pyclientexec" or the environment variable PYFLINK_CLIENT_EXECUTABLE. The priority is as following: <br />1. the configuration 'python.client.executable' defined in the source code(Only used in Flink Java SQL/Table API job call Python UDF);<br />2. the command line option "-pyclientexec";<br />3. the configuration 'python.client.executable' defined in flink-conf.yaml<br />4. the environment variable PYFLINK_CLIENT_EXECUTABLE;</td>
+            <td>The path of the Python interpreter used to launch the Python process when submitting the Python jobs via "flink run" or compiling the Java/Scala jobs containing Python UDFs. Equivalent to the command line option "-pyclientexec" or the environment variable PYFLINK_CLIENT_EXECUTABLE. The priority is as following: <br />1. the configuration 'python.client.executable' defined in the source code(Only used in Flink Java SQL/Table API job call Python UDF);<br />2. the command line option "-pyclientexec";<br />3. the configuration 'python.client.executable' defined in config.yaml<br />4. the environment variable PYFLINK_CLIENT_EXECUTABLE;</td>
         </tr>
         <tr>
             <td><h5>python.executable</h5></td>
             <td style="word-wrap: break-word;">"python"</td>
             <td>String</td>
-            <td>Specify the path of the python interpreter used to execute the python UDF worker. The python UDF worker depends on Python 3.7+, Apache Beam (version == 2.43.0), Pip (version &gt;= 20.3) and SetupTools (version &gt;= 37.0.0). Please ensure that the specified environment meets the above requirements. The option is equivalent to the command line option "-pyexec".</td>
+            <td>Specify the path of the python interpreter used to execute the python UDF worker. The python UDF worker depends on Python 3.8+, Apache Beam (version == 2.43.0), Pip (version &gt;= 20.3) and SetupTools (version &gt;= 37.0.0). Please ensure that the specified environment meets the above requirements. The option is equivalent to the command line option "-pyexec".</td>
         </tr>
         <tr>
             <td><h5>python.execution-mode</h5></td>

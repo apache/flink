@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.runtime.operators.join.window;
 
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
@@ -43,9 +43,9 @@ import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.operators.join.JoinConditionWithNullFilters;
-import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
-import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerServiceImpl;
-import org.apache.flink.table.runtime.operators.window.state.WindowListState;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowTimerServiceImpl;
+import org.apache.flink.table.runtime.operators.window.tvf.state.WindowListState;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.types.RowKind;
 
@@ -141,14 +141,15 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
 
         InternalTimerService<Long> internalTimerService =
                 getInternalTimerService("window-timers", windowSerializer, this);
-        this.windowTimerService = new WindowTimerServiceImpl(internalTimerService, shiftTimeZone);
+        this.windowTimerService =
+                new SlicingWindowTimerServiceImpl(internalTimerService, shiftTimeZone);
 
         // init join condition
         JoinCondition condition =
                 generatedJoinCondition.newInstance(getRuntimeContext().getUserCodeClassLoader());
         this.joinCondition = new JoinConditionWithNullFilters(condition, filterNullKeys, this);
         this.joinCondition.setRuntimeContext(getRuntimeContext());
-        this.joinCondition.open(new Configuration());
+        this.joinCondition.open(DefaultOpenContext.INSTANCE);
 
         // init state
         ListStateDescriptor<RowData> leftRecordStateDesc =

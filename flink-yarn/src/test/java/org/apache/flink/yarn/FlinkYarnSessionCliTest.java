@@ -27,13 +27,13 @@ import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.util.ConfigurationException;
@@ -41,8 +41,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
-
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -60,6 +58,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.UUID;
 
+import static org.apache.flink.yarn.Utils.getPathFromLocalFile;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -101,7 +100,7 @@ class FlinkYarnSessionCliTest {
                             "-j",
                             "fake.jar",
                             "-D",
-                            AkkaOptions.ASK_TIMEOUT_DURATION.key() + "=5 min",
+                            RpcOptions.ASK_TIMEOUT_DURATION.key() + "=5 min",
                             "-D",
                             CoreOptions.FLINK_JVM_OPTIONS.key() + "=-DappName=foobar",
                             "-D",
@@ -109,7 +108,7 @@ class FlinkYarnSessionCliTest {
                         });
 
         Configuration executorConfig = cli.toConfiguration(cmd);
-        assertThat(executorConfig.get(AkkaOptions.ASK_TIMEOUT_DURATION)).hasMinutes(5);
+        assertThat(executorConfig.get(RpcOptions.ASK_TIMEOUT_DURATION)).hasMinutes(5);
         assertThat(executorConfig.get(CoreOptions.FLINK_JVM_OPTIONS)).isEqualTo("-DappName=foobar");
         assertThat(executorConfig.get(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD))
                 .isEqualTo("changeit");
@@ -186,7 +185,7 @@ class FlinkYarnSessionCliTest {
         final File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
 
         final Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
 
         validateYarnCLIisActive(configuration);
@@ -233,7 +232,7 @@ class FlinkYarnSessionCliTest {
         File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
 
         final Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
 
         final FlinkYarnSessionCli flinkYarnSessionCli = createFlinkYarnSessionCli(configuration);
@@ -259,7 +258,7 @@ class FlinkYarnSessionCliTest {
         File directoryPath = writeYarnPropertiesFile(invalidPropertiesFile);
 
         final Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
         assertThatThrownBy(() -> createFlinkYarnSessionCli(configuration))
                 .isInstanceOf(FlinkException.class);
@@ -334,7 +333,7 @@ class FlinkYarnSessionCliTest {
         File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
 
         final Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
 
         final FlinkYarnSessionCli flinkYarnSessionCli = createFlinkYarnSessionCli(configuration);
@@ -365,7 +364,7 @@ class FlinkYarnSessionCliTest {
                 JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(jobManagerMemory));
         configuration.set(
                 TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(taskManagerMemory));
-        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
+        configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
         final String[] args = {
             "-yjm",
@@ -402,7 +401,7 @@ class FlinkYarnSessionCliTest {
         configuration.set(
                 TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(taskManagerMemory));
         final int slotsPerTaskManager = 42;
-        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
+        configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
         final String[] args = {};
         final FlinkYarnSessionCli flinkYarnSessionCli = createFlinkYarnSessionCli(configuration);
@@ -565,7 +564,8 @@ class FlinkYarnSessionCliTest {
         YarnClusterDescriptor flinkYarnDescriptor =
                 (YarnClusterDescriptor) clientFactory.createClusterDescriptor(executorConfig);
 
-        assertThat(flinkYarnDescriptor.getShipFiles()).isEqualTo(Lists.newArrayList(tmpFile));
+        assertThat(flinkYarnDescriptor.getShipFiles())
+                .containsExactly(getPathFromLocalFile(tmpFile));
     }
 
     @Test

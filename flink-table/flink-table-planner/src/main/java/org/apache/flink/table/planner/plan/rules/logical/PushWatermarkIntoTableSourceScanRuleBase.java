@@ -20,6 +20,8 @@ package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -31,6 +33,7 @@ import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilityContext;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.abilities.source.SourceWatermarkSpec;
@@ -39,15 +42,25 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSource
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWatermarkAssigner;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.watermark.WatermarkParams;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleOperand;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
+import static org.apache.flink.table.factories.FactoryUtil.SOURCE_IDLE_TIMEOUT;
+import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_ALIGNMENT_GROUP;
+import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_ALIGNMENT_MAX_DRIFT;
+import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_ALIGNMENT_UPDATE_INTERVAL;
+import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_EMIT_STRATEGY;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapFunctionDefinition;
 
 /**
@@ -108,17 +121,45 @@ public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRul
             sourceWatermarkSpec.apply(newDynamicTableSource, abilityContext);
             abilitySpec = sourceWatermarkSpec;
         } else {
-            final Duration idleTimeout =
+            final Duration globalIdleTimeout =
                     tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT);
-            final long idleTimeoutMillis;
-            if (!idleTimeout.isZero() && !idleTimeout.isNegative()) {
-                idleTimeoutMillis = idleTimeout.toMillis();
+            final long globalIdleTimeoutMillis;
+            if (!globalIdleTimeout.isZero() && !globalIdleTimeout.isNegative()) {
+                globalIdleTimeoutMillis = globalIdleTimeout.toMillis();
             } else {
-                idleTimeoutMillis = -1L;
+                globalIdleTimeoutMillis = -1L;
             }
 
+            Optional<RelHint> optionsHintOptional =
+                    scan.getHints().stream()
+                            .filter(
+                                    relHint ->
+                                            relHint.hintName.equalsIgnoreCase(
+                                                    FlinkHints.HINT_NAME_OPTIONS))
+                            .findFirst();
+            Configuration hintOptions =
+                    optionsHintOptional
+                            .map(relHint -> Configuration.fromMap(relHint.kvOptions))
+                            .orElseGet(Configuration::new);
+            RelOptTable table = scan.getTable();
+            Configuration tableOptions =
+                    Optional.of(table)
+                            .filter(TableSourceTable.class::isInstance)
+                            .map(
+                                    t -> {
+                                        Map<String, String> tableConfigs =
+                                                ((TableSourceTable) t)
+                                                        .contextResolvedTable()
+                                                        .getResolvedTable()
+                                                        .getOptions();
+                                        return Configuration.fromMap(tableConfigs);
+                                    })
+                            .orElseGet(Configuration::new);
+            WatermarkParams watermarkParams = parseWatermarkParams(hintOptions, tableOptions);
+
             final WatermarkPushDownSpec watermarkPushDownSpec =
-                    new WatermarkPushDownSpec(watermarkExpr, idleTimeoutMillis, producedType);
+                    new WatermarkPushDownSpec(
+                            watermarkExpr, globalIdleTimeoutMillis, producedType, watermarkParams);
             watermarkPushDownSpec.apply(newDynamicTableSource, abilityContext);
             abilitySpec = watermarkPushDownSpec;
         }
@@ -156,5 +197,27 @@ public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRul
     private boolean hasSourceWatermarkDeclaration(RexNode rexNode) {
         final FunctionDefinition function = unwrapFunctionDefinition(rexNode);
         return function == BuiltInFunctionDefinitions.SOURCE_WATERMARK;
+    }
+
+    private WatermarkParams parseWatermarkParams(
+            Configuration hintOptions, Configuration tableOptions) {
+        WatermarkParams.WatermarkParamsBuilder builder = WatermarkParams.builder();
+        getOptions(WATERMARK_EMIT_STRATEGY, hintOptions, tableOptions)
+                .ifPresent(builder::emitStrategy);
+        getOptions(WATERMARK_ALIGNMENT_GROUP, hintOptions, tableOptions)
+                .ifPresent(builder::alignGroupName);
+        getOptions(WATERMARK_ALIGNMENT_MAX_DRIFT, hintOptions, tableOptions)
+                .ifPresent(builder::alignMaxDrift);
+        getOptions(WATERMARK_ALIGNMENT_UPDATE_INTERVAL, hintOptions, tableOptions)
+                .ifPresent(builder::alignUpdateInterval);
+        getOptions(SOURCE_IDLE_TIMEOUT, hintOptions, tableOptions)
+                .ifPresent(timeout -> builder.sourceIdleTimeout(timeout.toMillis()));
+        return builder.build();
+    }
+
+    private <T> Optional<T> getOptions(
+            ConfigOption<T> option, Configuration priorityOptions, Configuration secondOptions) {
+        Optional<T> result = priorityOptions.getOptional(option);
+        return result.isPresent() ? result : secondOptions.getOptional(option);
     }
 }

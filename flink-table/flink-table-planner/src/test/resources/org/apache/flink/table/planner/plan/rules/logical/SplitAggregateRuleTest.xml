@@ -98,9 +98,10 @@ LogicalProject(c=[$0], b=[$1], d=[$2], a=[$3], a0=[$4], b0=[$5], c0=[$6])
    :- LogicalProject(c=[$0], b=[$1], d=[$1], a=[$2])
    :  +- LogicalAggregate(group=[{0}], d=[SUM($1)], a=[COUNT(DISTINCT $2)])
    :     +- LogicalProject(c=[$2], b=[$1], a=[$0])
-   :        +- LogicalAggregate(group=[{0}], b=[COUNT(DISTINCT $1)], d=[SUM($1)])
-   :           +- LogicalProject(a=[$0], b=[$1])
-   :              +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   :        +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$2])
+   :           +- LogicalAggregate(group=[{0}], b=[COUNT(DISTINCT $1)], d=[SUM($1)])
+   :              +- LogicalProject(a=[$0], b=[$1])
+   :                 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>

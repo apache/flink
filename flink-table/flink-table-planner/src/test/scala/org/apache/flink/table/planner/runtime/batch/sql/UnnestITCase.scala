@@ -24,10 +24,9 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConverters._
-import scala.collection.Seq
 
 class UnnestITCase extends BatchTestBase {
 

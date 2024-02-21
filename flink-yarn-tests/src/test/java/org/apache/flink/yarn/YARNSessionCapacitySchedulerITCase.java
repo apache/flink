@@ -39,7 +39,7 @@ import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.util.TestUtils;
 
-import org.apache.flink.shaded.guava30.com.google.common.net.HostAndPort;
+import org.apache.flink.shaded.guava31.com.google.common.net.HostAndPort;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.yarn.api.records.ApplicationId;

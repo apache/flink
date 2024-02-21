@@ -45,6 +45,7 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import java.io.IOException;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -202,7 +203,12 @@ class TransformationsTest {
     @Test
     public void testUidDefaults() throws IOException {
         checkUidModification(
-                config -> {}, json -> {}, "\\d+_sink", "\\d+_constraint-validator", "\\d+_values");
+                config -> {},
+                json -> {},
+                env -> planFromCurrentFlinkVersion(env).asJsonString(),
+                "\\d+_sink",
+                "\\d+_constraint-validator",
+                "\\d+_values");
     }
 
     @Test
@@ -211,6 +217,19 @@ class TransformationsTest {
                 config ->
                         config.set(TABLE_EXEC_UID_FORMAT, "<id>_<type>_<version>_<transformation>"),
                 json -> {},
+                env -> planFromFlink1_15(env).asJsonString(),
+                "\\d+_stream-exec-sink_1_sink",
+                "\\d+_stream-exec-sink_1_constraint-validator",
+                "\\d+_stream-exec-values_1_values");
+    }
+
+    @Test
+    public void testUidFlink1_18() throws IOException {
+        checkUidModification(
+                config ->
+                        config.set(TABLE_EXEC_UID_FORMAT, "<id>_<type>_<version>_<transformation>"),
+                json -> {},
+                env -> planFromCurrentFlinkVersion(env).asJsonString(),
                 "\\d+_stream-exec-sink_1_sink",
                 "\\d+_stream-exec-sink_1_constraint-validator",
                 "\\d+_stream-exec-values_1_values");
@@ -226,6 +245,7 @@ class TransformationsTest {
                                 "stream-exec-sink_1",
                                 TABLE_EXEC_UID_FORMAT.key(),
                                 "my_custom_<transformation>_<id>"),
+                env -> planFromCurrentFlinkVersion(env).asJsonString(),
                 "my_custom_sink_\\d+",
                 "my_custom_constraint-validator_\\d+",
                 "\\d+_values");
@@ -234,12 +254,12 @@ class TransformationsTest {
     private static void checkUidModification(
             Consumer<TableConfig> configModifier,
             Consumer<JsonNode> jsonModifier,
+            Function<TableEnvironment, String> planGenerator,
             String... expectedUidPatterns)
             throws IOException {
         final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         configModifier.accept(env.getConfig());
-        final String plan = minimalPlan(env).asJsonString();
-        final JsonNode json = JsonTestUtils.readFromString(plan);
+        final JsonNode json = JsonTestUtils.readFromString(planGenerator.apply(env));
         jsonModifier.accept(json);
         final List<String> planUids =
                 CompiledPlanUtils.toTransformations(
@@ -256,10 +276,15 @@ class TransformationsTest {
     // Helper methods
     // --------------------------------------------------------------------------------------------
 
-    private static CompiledPlan minimalPlan(TableEnvironment env) {
+    private static CompiledPlan planFromCurrentFlinkVersion(TableEnvironment env) {
         return env.fromValues(1, 2, 3)
                 .insertInto(TableDescriptor.forConnector("blackhole").build())
                 .compilePlan();
+    }
+
+    private static CompiledPlan planFromFlink1_15(TableEnvironment env) {
+        // plan content is compiled using release-1.15 with exec node version 1
+        return env.loadPlan(PlanReference.fromResource("/jsonplan/testUidFlink1_15.out"));
     }
 
     private static LegacySourceTransformation<?> toLegacySourceTransformation(

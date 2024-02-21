@@ -39,6 +39,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.messages.LogInfo;
+import org.apache.flink.runtime.rest.messages.ProfilingInfo;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
@@ -46,6 +47,7 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.SerializedValue;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -255,7 +257,19 @@ public interface TaskExecutorGateway
      * @return Future which is completed with the {@link TransientBlobKey} of the uploaded file.
      */
     CompletableFuture<TransientBlobKey> requestFileUploadByName(
-            String fileName, @RpcTimeout Time timeout);
+            String fileName, @RpcTimeout Duration timeout);
+
+    /**
+     * Requests the file upload of the specified name and file type to the cluster's {@link
+     * BlobServer}.
+     *
+     * @param fileName to upload
+     * @param fileType to upload
+     * @param timeout for the asynchronous operation
+     * @return Future which is completed with the {@link TransientBlobKey} of the uploaded file.
+     */
+    CompletableFuture<TransientBlobKey> requestFileUploadByNameAndType(
+            String fileName, FileType fileType, @RpcTimeout Duration timeout);
 
     /**
      * Returns the gateway of Metric Query Service on the TaskManager.
@@ -301,4 +315,22 @@ public interface TaskExecutorGateway
      */
     CompletableFuture<Acknowledge> updateDelegationTokens(
             ResourceManagerId resourceManagerId, byte[] tokens);
+
+    /**
+     * Requests the profiling from this TaskManager.
+     *
+     * @param duration profiling duration
+     * @param mode profiling mode {@link ProfilingInfo.ProfilingMode}
+     * @param timeout timeout for the asynchronous operation
+     * @return the {@link ProfilingInfo} for this TaskManager.
+     */
+    CompletableFuture<ProfilingInfo> requestProfiling(
+            int duration, ProfilingInfo.ProfilingMode mode, @RpcTimeout Duration timeout);
+
+    /**
+     * Requests for the historical profiling file names on the TaskManager.
+     *
+     * @return A Collection with all profiling instances information.
+     */
+    CompletableFuture<Collection<ProfilingInfo>> requestProfilingList(@RpcTimeout Duration timeout);
 }

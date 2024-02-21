@@ -35,7 +35,7 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
 
     private static final long serialVersionUID = -3135772379944924519L;
 
-    // true if it is anti join, otherwise is semi joinp
+    // true if it is anti join, otherwise is semi join
     private final boolean isAntiJoin;
 
     // left join state
@@ -51,7 +51,8 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
             JoinInputSideSpec leftInputSideSpec,
             JoinInputSideSpec rightInputSideSpec,
             boolean[] filterNullKeys,
-            long stateRetentionTime) {
+            long leftStateRetentionTime,
+            long rightStateRetentionTIme) {
         super(
                 leftType,
                 rightType,
@@ -59,7 +60,8 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
                 leftInputSideSpec,
                 rightInputSideSpec,
                 filterNullKeys,
-                stateRetentionTime);
+                leftStateRetentionTime,
+                rightStateRetentionTIme);
         this.isAntiJoin = isAntiJoin;
     }
 
@@ -73,7 +75,7 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
                         LEFT_RECORDS_STATE_NAME,
                         leftInputSideSpec,
                         leftType,
-                        stateRetentionTime);
+                        leftStateRetentionTime);
 
         this.rightRecordStateView =
                 JoinRecordStateViews.create(
@@ -81,7 +83,7 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
                         RIGHT_RECORDS_STATE_NAME,
                         rightInputSideSpec,
                         rightType,
-                        stateRetentionTime);
+                        rightStateRetentionTime);
     }
 
     /**

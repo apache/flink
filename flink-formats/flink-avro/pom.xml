@@ -25,13 +25,26 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-formats</artifactId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-avro</artifactId>
 	<name>Flink : Formats : Avro</name>
 
 	<packaging>jar</packaging>
+
+	<properties>
+		<surefire.module.config><!--
+			Kryo ByteBuffer
+			-->--add-opens=java.base/java.nio=ALL-UNNAMED <!--
+			Kryo LocalDate
+			-->--add-opens=java.base/java.time=ALL-UNNAMED <!--
+			Kryo
+			-->--add-opens=java.base/java.lang=ALL-UNNAMED <!--
+			chill ArraysAsListSerializer
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
 
 	<dependencies>
 
@@ -113,7 +126,7 @@ under the License.
 			<type>test-jar</type>
 		</dependency>
 
-		<!-- ArchUit test dependencies -->
+		<!-- ArchUnit test dependencies -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>

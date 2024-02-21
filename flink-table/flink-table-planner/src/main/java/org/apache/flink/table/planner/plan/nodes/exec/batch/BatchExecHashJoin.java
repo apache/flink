@@ -28,6 +28,9 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.LongHashJoinGenerator;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.fusion.OpFusionCodegenSpecGenerator;
+import org.apache.flink.table.planner.plan.fusion.generator.TwoInputOpFusionCodegenSpecGenerator;
+import org.apache.flink.table.planner.plan.fusion.spec.HashJoinFusionCodegenSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
@@ -56,6 +59,7 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
         implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     private final JoinSpec joinSpec;
+    private final boolean isBroadcast;
     private final boolean leftIsBuild;
     private final int estimatedLeftAvgRowSize;
     private final int estimatedRightAvgRowSize;
@@ -70,6 +74,7 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
             int estimatedRightAvgRowSize,
             long estimatedLeftRowCount,
             long estimatedRightRowCount,
+            boolean isBroadcast,
             boolean leftIsBuild,
             boolean tryDistinctBuildRow,
             InputProperty leftInputProperty,
@@ -84,6 +89,7 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
                 outputType,
                 description);
         this.joinSpec = joinSpec;
+        this.isBroadcast = isBroadcast;
         this.leftIsBuild = leftIsBuild;
         this.estimatedLeftAvgRowSize = estimatedLeftAvgRowSize;
         this.estimatedRightAvgRowSize = estimatedRightAvgRowSize;
@@ -292,5 +298,64 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
         // Due to hash join maybe fallback to sort merge join, so here managed memory choose the
         // large one
         return Math.max(hashJoinManagedMemory, sortMergeJoinManagedMemory);
+    }
+
+    @Override
+    public boolean supportFusionCodegen() {
+        RowType leftType = (RowType) getInputEdges().get(0).getOutputType();
+        LogicalType[] keyFieldTypes =
+                IntStream.of(joinSpec.getLeftKeys())
+                        .mapToObj(leftType::getTypeAt)
+                        .toArray(LogicalType[]::new);
+        RowType keyType = RowType.of(keyFieldTypes);
+        FlinkJoinType joinType = joinSpec.getJoinType();
+        HashJoinType hashJoinType =
+                HashJoinType.of(
+                        leftIsBuild,
+                        joinType.isLeftOuter(),
+                        joinType.isRightOuter(),
+                        joinType == FlinkJoinType.SEMI,
+                        joinType == FlinkJoinType.ANTI);
+        // TODO decimal and multiKeys support and all HashJoinType support.
+        return LongHashJoinGenerator.support(hashJoinType, keyType, joinSpec.getFilterNulls());
+    }
+
+    @Override
+    protected OpFusionCodegenSpecGenerator translateToFusionCodegenSpecInternal(
+            PlannerBase planner, ExecNodeConfig config, CodeGeneratorContext parentCtx) {
+        OpFusionCodegenSpecGenerator leftInput =
+                getInputEdges().get(0).translateToFusionCodegenSpec(planner, parentCtx);
+        OpFusionCodegenSpecGenerator rightInput =
+                getInputEdges().get(1).translateToFusionCodegenSpec(planner, parentCtx);
+        boolean compressionEnabled =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED);
+        int compressionBlockSize =
+                (int)
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                .getBytes();
+        long managedMemory = getLargeManagedMemory(joinSpec.getJoinType(), config);
+        OpFusionCodegenSpecGenerator hashJoinGenerator =
+                new TwoInputOpFusionCodegenSpecGenerator(
+                        leftInput,
+                        rightInput,
+                        managedMemory,
+                        (RowType) getOutputType(),
+                        new HashJoinFusionCodegenSpec(
+                                new CodeGeneratorContext(
+                                        config,
+                                        planner.getFlinkContext().getClassLoader(),
+                                        parentCtx),
+                                isBroadcast,
+                                leftIsBuild,
+                                joinSpec,
+                                estimatedLeftAvgRowSize,
+                                estimatedRightAvgRowSize,
+                                estimatedLeftRowCount,
+                                estimatedRightRowCount,
+                                compressionEnabled,
+                                compressionBlockSize));
+        leftInput.addOutput(1, hashJoinGenerator);
+        rightInput.addOutput(2, hashJoinGenerator);
+        return hashJoinGenerator;
     }
 }

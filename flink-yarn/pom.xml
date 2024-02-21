@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-yarn</artifactId>
@@ -34,6 +34,10 @@ under the License.
 		<!-- for testing (will override Hadoop's default dependency on too low SDK versions that
 			do not work with our httpcomponents version) -->
 		<aws.sdk.version>1.12.319</aws.sdk.version>
+		<surefire.module.config><!--
+			CommonTestUtils#setEnv
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
 	</properties>
 
 	<dependencies>

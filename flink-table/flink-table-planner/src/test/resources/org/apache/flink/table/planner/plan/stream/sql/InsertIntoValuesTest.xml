@@ -1,0 +1,57 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+	<TestCase name="testTypeInferenceWithNestedTypes">
+		<Resource name="ast">
+			<![CDATA[
+LogicalSink(table=[default_catalog.default_database.t1], fields=[EXPR$0, EXPR$1])
++- LogicalUnion(all=[true])
+   :- LogicalProject(EXPR$0=[MAP(_UTF-16LE'a', _UTF-16LE'123':VARCHAR(6) CHARACTER SET "UTF-16LE", _UTF-16LE'b', _UTF-16LE'123456':VARCHAR(6) CHARACTER SET "UTF-16LE")], EXPR$1=[MAP(_UTF-16LE'k1', X'c0ffee':VARBINARY(3), _UTF-16LE'k2', X'babe':VARBINARY(3))])
+   :  +- LogicalValues(tuples=[[{ 0 }]])
+   :- LogicalProject(EXPR$0=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", VARCHAR(2147483647) CHARACTER SET "UTF-16LE") MAP], EXPR$1=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", VARBINARY(2147483647)) MAP])
+   :  +- LogicalValues(tuples=[[{ 0 }]])
+   +- LogicalProject(EXPR$0=[MAP(_UTF-16LE'a', _UTF-16LE'1', _UTF-16LE'b', _UTF-16LE'1')], EXPR$1=[MAP(_UTF-16LE'k1', X'10':BINARY(1), _UTF-16LE'k2', X'20':BINARY(1))])
+      +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Sink(table=[default_catalog.default_database.t1], fields=[EXPR$0, EXPR$1])
++- Union(all=[true], union=[EXPR$0, EXPR$1])
+   :- Calc(select=[CAST(MAP('a', '123', 'b', '123456') AS (VARCHAR(2147483647), VARCHAR(2147483647)) MAP) AS EXPR$0, CAST(MAP('k1', X'c0ffee', 'k2', X'babe') AS (VARCHAR(2147483647), VARBINARY(2147483647)) MAP) AS EXPR$1])
+   :  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
+   :- Calc(select=[null:(VARCHAR(2147483647), VARCHAR(2147483647)) MAP AS EXPR$0, null:(VARCHAR(2147483647), VARBINARY(2147483647)) MAP AS EXPR$1])
+   :  +- Reused(reference_id=[1])
+   +- Calc(select=[CAST(MAP('a', '1', 'b', '1') AS (VARCHAR(2147483647), VARCHAR(2147483647)) MAP) AS EXPR$0, CAST(MAP('k1', X'10', 'k2', X'20') AS (VARCHAR(2147483647), VARBINARY(2147483647)) MAP) AS EXPR$1])
+      +- Reused(reference_id=[1])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Sink(table=[default_catalog.default_database.t1], fields=[EXPR$0, EXPR$1])
++- Union(all=[true], union=[EXPR$0, EXPR$1])
+   :- Calc(select=[CAST(MAP('a', '123', 'b', '123456') AS (VARCHAR(2147483647), VARCHAR(2147483647)) MAP) AS EXPR$0, CAST(MAP('k1', X'c0ffee', 'k2', X'babe') AS (VARCHAR(2147483647), VARBINARY(2147483647)) MAP) AS EXPR$1])
+   :  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
+   :- Calc(select=[null:(VARCHAR(2147483647), VARCHAR(2147483647)) MAP AS EXPR$0, null:(VARCHAR(2147483647), VARBINARY(2147483647)) MAP AS EXPR$1])
+   :  +- Reused(reference_id=[1])
+   +- Calc(select=[CAST(MAP('a', '1', 'b', '1') AS (VARCHAR(2147483647), VARCHAR(2147483647)) MAP) AS EXPR$0, CAST(MAP('k1', X'10', 'k2', X'20') AS (VARCHAR(2147483647), VARBINARY(2147483647)) MAP) AS EXPR$1])
+      +- Reused(reference_id=[1])
+]]>
+		</Resource>
+	</TestCase>
+</Root>

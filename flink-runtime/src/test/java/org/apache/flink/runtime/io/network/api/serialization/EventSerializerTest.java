@@ -27,8 +27,10 @@ import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.EndOfSegmentEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.EventAnnouncement;
+import org.apache.flink.runtime.io.network.api.RecoveryMetadata;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.SubtaskConnectionDescriptor;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -36,18 +38,15 @@ import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link EventSerializer}. */
-public class EventSerializerTest {
+class EventSerializerTest {
 
     private final AbstractEvent[] events = {
         EndOfPartitionEvent.INSTANCE,
@@ -114,53 +113,65 @@ public class EventSerializerTest {
                                 10)),
                 44),
         new SubtaskConnectionDescriptor(23, 42),
+        EndOfSegmentEvent.INSTANCE,
+        new RecoveryMetadata(3)
     };
 
     @Test
-    public void testSerializeDeserializeEvent() throws Exception {
+    void testSerializeDeserializeEvent() throws Exception {
         for (AbstractEvent evt : events) {
             ByteBuffer serializedEvent = EventSerializer.toSerializedEvent(evt);
-            assertTrue(serializedEvent.hasRemaining());
+            assertThat(serializedEvent.hasRemaining()).isTrue();
 
             AbstractEvent deserialized =
                     EventSerializer.fromSerializedEvent(
                             serializedEvent, getClass().getClassLoader());
-            assertNotNull(deserialized);
-            assertEquals(evt, deserialized);
+            assertThat(deserialized).isNotNull().isEqualTo(evt);
         }
     }
 
     @Test
-    public void testToBufferConsumer() throws IOException {
+    void testToBufferConsumer() throws IOException {
         for (AbstractEvent evt : events) {
             BufferConsumer bufferConsumer = EventSerializer.toBufferConsumer(evt, false);
 
-            assertFalse(bufferConsumer.isBuffer());
-            assertTrue(bufferConsumer.isFinished());
-            assertTrue(bufferConsumer.isDataAvailable());
-            assertFalse(bufferConsumer.isRecycled());
+            assertThat(bufferConsumer.isBuffer()).isFalse();
+            assertThat(bufferConsumer.isFinished()).isTrue();
+            assertThat(bufferConsumer.isDataAvailable()).isTrue();
+            assertThat(bufferConsumer.isRecycled()).isFalse();
 
             if (evt instanceof CheckpointBarrier) {
-                assertTrue(bufferConsumer.build().getDataType().isBlockingUpstream());
+                assertThat(bufferConsumer.build().getDataType().isBlockingUpstream()).isTrue();
+            } else if (evt instanceof EndOfData) {
+                assertThat(bufferConsumer.build().getDataType())
+                        .isEqualTo(Buffer.DataType.END_OF_DATA);
+            } else if (evt instanceof EndOfPartitionEvent) {
+                assertThat(bufferConsumer.build().getDataType())
+                        .isEqualTo(Buffer.DataType.END_OF_PARTITION);
             } else {
-                assertEquals(Buffer.DataType.EVENT_BUFFER, bufferConsumer.build().getDataType());
+                assertThat(bufferConsumer.build().getDataType())
+                        .isEqualTo(Buffer.DataType.EVENT_BUFFER);
             }
         }
     }
 
     @Test
-    public void testToBuffer() throws IOException {
+    void testToBuffer() throws IOException {
         for (AbstractEvent evt : events) {
             Buffer buffer = EventSerializer.toBuffer(evt, false);
 
-            assertFalse(buffer.isBuffer());
-            assertTrue(buffer.readableBytes() > 0);
-            assertFalse(buffer.isRecycled());
+            assertThat(buffer.isBuffer()).isFalse();
+            assertThat(buffer.readableBytes()).isGreaterThan(0);
+            assertThat(buffer.isRecycled()).isFalse();
 
             if (evt instanceof CheckpointBarrier) {
-                assertTrue(buffer.getDataType().isBlockingUpstream());
+                assertThat(buffer.getDataType().isBlockingUpstream()).isTrue();
+            } else if (evt instanceof EndOfData) {
+                assertThat(buffer.getDataType()).isEqualTo(Buffer.DataType.END_OF_DATA);
+            } else if (evt instanceof EndOfPartitionEvent) {
+                assertThat(buffer.getDataType()).isEqualTo(Buffer.DataType.END_OF_PARTITION);
             } else {
-                assertEquals(Buffer.DataType.EVENT_BUFFER, buffer.getDataType());
+                assertThat(buffer.getDataType()).isEqualTo(Buffer.DataType.EVENT_BUFFER);
             }
         }
     }

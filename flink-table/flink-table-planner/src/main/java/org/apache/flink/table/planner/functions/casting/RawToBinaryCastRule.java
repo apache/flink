@@ -86,7 +86,8 @@ class RawToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object,
 
         // Get serializer for RAW type
         final String typeSerializer = context.declareTypeSerializer(inputLogicalType);
-        final String deserializedByteArrayTerm = CodeGenUtils.newName("deserializedByteArray");
+        final String deserializedByteArrayTerm =
+                CodeGenUtils.newName(context.getCodeGeneratorContext(), "deserializedByteArray");
 
         if (context.legacyBehaviour()
                 || !(couldTrim(targetLength) || (couldPad(targetLogicalType, targetLength)))) {

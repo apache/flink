@@ -21,9 +21,11 @@ package org.apache.flink.table.api.config;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.code;
 
 /**
  * This class holds configuration constants used by Flink's table planner module.
@@ -165,6 +167,64 @@ public class OptimizerConfigOptions {
                             "When it is true, the optimizer will try to push dynamic filtering into scan table source,"
                                     + " the irrelevant partitions or input data will be filtered to reduce scan I/O in runtime.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_RUNTIME_FILTER_ENABLED =
+            key("table.optimizer.runtime-filter.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "A flag to enable or disable the runtime filter. "
+                                    + "When it is true, the optimizer will try to inject a runtime filter for eligible join.");
+
+    /**
+     * The data volume of build side needs to be under this value. If the data volume of build side
+     * is too large, the building overhead will be too large, which may lead to a negative impact on
+     * job performance.
+     */
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<MemorySize>
+            TABLE_OPTIMIZER_RUNTIME_FILTER_MAX_BUILD_DATA_SIZE =
+                    key("table.optimizer.runtime-filter.max-build-data-size")
+                            .memoryType()
+                            .defaultValue(MemorySize.parse("150m"))
+                            .withDescription(
+                                    "Max data volume threshold of the runtime filter build side. "
+                                            + "Estimated data volume needs to be under this value to try to inject runtime filter.");
+
+    /**
+     * The data volume of probe side needs to be over this value. If the data volume on the probe
+     * side is too small, the overhead of building runtime filter is not worth it.
+     */
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<MemorySize>
+            TABLE_OPTIMIZER_RUNTIME_FILTER_MIN_PROBE_DATA_SIZE =
+                    key("table.optimizer.runtime-filter.min-probe-data-size")
+                            .memoryType()
+                            .defaultValue(MemorySize.parse("10g"))
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "Min data volume threshold of the runtime filter probe side. "
+                                                            + "Estimated data volume needs to be over this value to try to inject runtime filter."
+                                                            + "This value should be larger than %s.",
+                                                    code(
+                                                            TABLE_OPTIMIZER_RUNTIME_FILTER_MAX_BUILD_DATA_SIZE
+                                                                    .key()))
+                                            .build());
+
+    /**
+     * The filtering ratio of runtime filter needs to be over this value. A low filter rate is not
+     * worth it to build runtime filter.
+     */
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<Double> TABLE_OPTIMIZER_RUNTIME_FILTER_MIN_FILTER_RATIO =
+            key("table.optimizer.runtime-filter.min-filter-ratio")
+                    .doubleType()
+                    .defaultValue(0.5)
+                    .withDescription(
+                            "Min filter ratio threshold of the runtime filter. "
+                                    + "Estimated filter ratio needs to be over this value to try to inject runtime filter.");
+
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<NonDeterministicUpdateStrategy>
             TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY =
@@ -197,6 +257,22 @@ public class OptimizerConfigOptions {
                                             .text(
                                                     "Default value is `IGNORE`, the optimizer does no changes.")
                                             .build());
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SQL2REL_PROJECT_MERGE_ENABLED =
+            key("table.optimizer.sql2rel.project-merge.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDeprecatedKeys("table.optimizer.sql-to-rel.project.merge.enabled")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "If set to true, it will merge projects when converting SqlNode to RelNode.")
+                                    .linebreak()
+                                    .text(
+                                            "Note: it is not recommended to turn on unless you are aware of possible side effects, "
+                                                    + "such as causing the output of certain non-deterministic expressions to not meet expectations(see FLINK-20887).")
+                                    .build());
 
     /** Strategy for handling non-deterministic updates. */
     @PublicEvolving

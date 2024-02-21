@@ -21,10 +21,12 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.SerializerFactory;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -54,7 +56,7 @@ import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.IOUtils;
 
-import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava31.com.google.common.io.Closer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,7 +98,17 @@ public class StreamOperatorStateHandler {
         this.closeableRegistry = closeableRegistry;
 
         if (keyedStateBackend != null) {
-            keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, executionConfig);
+            keyedStateStore =
+                    new DefaultKeyedStateStore(
+                            keyedStateBackend,
+                            new SerializerFactory() {
+                                @Override
+                                public <T> TypeSerializer<T> createSerializer(
+                                        TypeInformation<T> typeInformation) {
+                                    return typeInformation.createSerializer(
+                                            executionConfig.getSerializerConfig());
+                                }
+                            });
         } else {
             keyedStateStore = null;
         }

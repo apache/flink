@@ -1,12 +1,12 @@
 flink-azure-fs-hadoop
-Copyright 2014-2023 The Apache Software Foundation
+Copyright 2014-2024 The Apache Software Foundation
 
 This project includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.fasterxml.jackson.core:jackson-core:2.13.4
+- com.fasterxml.jackson.core:jackson-core:2.15.3
 - com.google.guava:guava:20.0
 - commons-codec:commons-codec:1.15
 - commons-logging:commons-logging:1.1.3

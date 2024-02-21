@@ -103,6 +103,11 @@ public class VertexwiseSchedulingStrategy
                     IterableUtils.toStream(executionVertex.getProducedResults())
                             .map(SchedulingResultPartition::getConsumerVertexGroups)
                             .flatMap(Collection::stream)
+                            .filter(
+                                    group ->
+                                            inputConsumableDecider
+                                                    .isConsumableBasedOnFinishedProducers(
+                                                            group.getConsumedPartitionGroup()))
                             .flatMap(IterableUtils::toStream)
                             .collect(Collectors.toSet());
 

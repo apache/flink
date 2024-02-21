@@ -31,4 +31,7 @@ public class NoOpTaskManagerActions implements TaskManagerActions {
 
     @Override
     public void updateTaskExecutionState(TaskExecutionState taskExecutionState) {}
+
+    @Override
+    public void notifyEndOfData(ExecutionAttemptID executionAttemptID) {}
 }

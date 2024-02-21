@@ -39,6 +39,18 @@
             <td>The port that the server binds itself. Accepts a list of ports (“50100,50101”), ranges (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid collisions when multiple Rest servers are running on the same machine.</td>
         </tr>
         <tr>
+            <td><h5>rest.cache.checkpoint-statistics.size</h5></td>
+            <td style="word-wrap: break-word;">1000</td>
+            <td>Integer</td>
+            <td>Maximum number of entries in the checkpoint statistics cache.</td>
+        </tr>
+        <tr>
+            <td><h5>rest.cache.checkpoint-statistics.timeout</h5></td>
+            <td style="word-wrap: break-word;">3 s</td>
+            <td>Duration</td>
+            <td>Duration from write after which cached checkpoints statistics are cleaned up. For backwards compatibility, if no value is configured, <code class="highlighter-rouge">web.refresh-interval</code> will be used instead.</td>
+        </tr>
+        <tr>
             <td><h5>rest.client.max-content-length</h5></td>
             <td style="word-wrap: break-word;">104857600</td>
             <td>Integer</td>
@@ -93,10 +105,40 @@
             <td>The maximum time in ms for a connection to stay idle before failing.</td>
         </tr>
         <tr>
+            <td><h5>rest.path</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The path that should be used by clients to interact to the server which is accessible via URL.</td>
+        </tr>
+        <tr>
             <td><h5>rest.port</h5></td>
             <td style="word-wrap: break-word;">8081</td>
             <td>Integer</td>
             <td>The port that the client connects to. If rest.bind-port has not been specified, then the REST server will bind to this port. Attention: This option is respected only if the high-availability configuration is NONE.</td>
+        </tr>
+        <tr>
+            <td><h5>rest.profiling.dir</h5></td>
+            <td style="word-wrap: break-word;">System.getProperty("java.io.tmpdir")</td>
+            <td>String</td>
+            <td>Profiling result storing directory.</td>
+        </tr>
+        <tr>
+            <td><h5>rest.profiling.duration-max</h5></td>
+            <td style="word-wrap: break-word;">5 min</td>
+            <td>Duration</td>
+            <td>Maximum profiling duration for each profiling request. Any profiling request's duration exceeding this value will not be accepted.</td>
+        </tr>
+        <tr>
+            <td><h5>rest.profiling.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Enables the experimental profiler feature.</td>
+        </tr>
+        <tr>
+            <td><h5>rest.profiling.history-size</h5></td>
+            <td style="word-wrap: break-word;">10</td>
+            <td>Integer</td>
+            <td>Maximum profiling history instance to be maintained for JobManager or each TaskManager. The oldest instance will be removed on a rolling basis when the history size exceeds this value.</td>
         </tr>
         <tr>
             <td><h5>rest.retry.delay</h5></td>
@@ -127,6 +169,12 @@
             <td style="word-wrap: break-word;">5</td>
             <td>Integer</td>
             <td>Thread priority of the REST server's executor for processing asynchronous requests. Lowering the thread priority will give Flink's main components more CPU time whereas increasing will allocate more time for the REST server's processing.</td>
+        </tr>
+        <tr>
+            <td><h5>rest.url-prefix</h5></td>
+            <td style="word-wrap: break-word;">"/"</td>
+            <td>String</td>
+            <td>The url prefix that should be used by clients to construct the full target url, must start and end with '/'. This will be added between the address and version prefix. For example, if the option is set to '/foo/', the overview query URL will be transformed to 'localhost:8081/foo/v1/overview'. Attention: This option is respected only if the high-availability configuration is NONE.</td>
         </tr>
     </tbody>
 </table>

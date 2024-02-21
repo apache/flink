@@ -19,6 +19,7 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -109,8 +110,8 @@ public class RegionFailoverITCase extends TestLogger {
     @Before
     public void setup() throws Exception {
         Configuration configuration = new Configuration();
-        configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "region");
-        configuration.setString(HighAvailabilityOptions.HA_MODE, TestingHAFactory.class.getName());
+        configuration.set(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "region");
+        configuration.set(HighAvailabilityOptions.HA_MODE, TestingHAFactory.class.getName());
 
         cluster =
                 new MiniClusterWithClientResource(
@@ -241,7 +242,7 @@ public class RegionFailoverITCase extends TestLogger {
                 index = 0;
             }
 
-            int subTaskIndex = getRuntimeContext().getIndexOfThisSubtask();
+            int subTaskIndex = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             while (isRunning && index < numElements) {
 
                 synchronized (ctx.getCheckpointLock()) {
@@ -283,22 +284,20 @@ public class RegionFailoverITCase extends TestLogger {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            int indexOfThisSubtask = getRuntimeContext().getIndexOfThisSubtask();
+            int indexOfThisSubtask = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             if (indexOfThisSubtask != 0) {
-                listState.clear();
-                listState.add(index);
+                listState.update(Collections.singletonList(index));
                 if (indexOfThisSubtask == NUM_OF_REGIONS - 1) {
                     lastRegionIndex = index;
                     snapshotIndicesOfSubTask.put(context.getCheckpointId(), lastRegionIndex);
                 }
             }
-            unionListState.clear();
-            unionListState.add(indexOfThisSubtask);
+            unionListState.update(Collections.singletonList(indexOfThisSubtask));
         }
 
         @Override
         public void initializeState(FunctionInitializationContext context) throws Exception {
-            int indexOfThisSubtask = getRuntimeContext().getIndexOfThisSubtask();
+            int indexOfThisSubtask = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             if (context.isRestored()) {
                 restoredState = true;
 
@@ -307,7 +306,10 @@ public class RegionFailoverITCase extends TestLogger {
                 Set<Integer> actualIndices =
                         StreamSupport.stream(unionListState.get().spliterator(), false)
                                 .collect(Collectors.toSet());
-                if (getRuntimeContext().getTaskName().contains(SINGLE_REGION_SOURCE_NAME)) {
+                if (getRuntimeContext()
+                        .getTaskInfo()
+                        .getTaskName()
+                        .contains(SINGLE_REGION_SOURCE_NAME)) {
                     Assert.assertTrue(
                             CollectionUtils.isEqualCollection(
                                     EXPECTED_INDICES_SINGLE_REGION, actualIndices));
@@ -358,8 +360,8 @@ public class RegionFailoverITCase extends TestLogger {
         private ValueState<Integer> valueState;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             valueState =
                     getRuntimeContext()
                             .getState(new ValueStateDescriptor<>("value", Integer.class));
@@ -371,7 +373,7 @@ public class RegionFailoverITCase extends TestLogger {
 
         @Override
         public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> input) throws Exception {
-            int indexOfThisSubtask = getRuntimeContext().getIndexOfThisSubtask();
+            int indexOfThisSubtask = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
 
             if (input.f1 > FAIL_BASE * (jobFailedCnt.get() + 1)) {
 
@@ -416,7 +418,7 @@ public class RegionFailoverITCase extends TestLogger {
 
         @Override
         public void close() throws Exception {
-            maps[getRuntimeContext().getIndexOfThisSubtask()] = counts;
+            maps[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = counts;
         }
 
         @Override

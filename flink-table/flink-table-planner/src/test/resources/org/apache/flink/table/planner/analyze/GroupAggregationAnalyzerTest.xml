@@ -234,7 +234,8 @@ Sink(table=[default_catalog.default_database.MySink2], fields=[avg_a, cnt, cnt_b
 Sink(table=[default_catalog.default_database.MySink3], fields=[b, sum_a, cnt_c])
 +- GroupAggregate(advice=[1], groupBy=[b], select=[b, SUM(a) AS sum_a, COUNT(c) AS cnt_c])
    +- Exchange(distribution=[hash[b]])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, a, c], metadata=[]]], fields=[b, a, c])
+      +- Calc(select=[b, a, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
 
 advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.exec.mini-batch.enabled' to 'true').
 
@@ -261,7 +262,8 @@ Sink(table=[default_catalog.default_database.MySink2], fields=[avg_a, cnt, cnt_b
 Sink(table=[default_catalog.default_database.MySink3], fields=[b, sum_a, cnt_c])
 +- GroupAggregate(advice=[1], groupBy=[b], select=[b, SUM(a) AS sum_a, COUNT(c) AS cnt_c])
    +- Exchange(distribution=[hash[b]])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, a, c], metadata=[]]], fields=[b, a, c])
+      +- Calc(select=[b, a, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
 
 advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.optimizer.agg-phase-strategy' to 'AUTO', 'table.exec.mini-batch.enabled' to 'true', 'table.exec.mini-batch.allow-latency' to a positive long value, 'table.exec.mini-batch.size' to a positive long value).
 
@@ -294,7 +296,8 @@ Sink(table=[default_catalog.default_database.MySink3], fields=[b, sum_a, cnt_c])
    +- Exchange(distribution=[hash[b]])
       +- LocalGroupAggregate(groupBy=[b], select=[b, SUM(a) AS sum$0, COUNT(c) AS count$1])
          +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, a, c], metadata=[]]], fields=[b, a, c])
+            +- Calc(select=[b, a, c])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
 
 No available advice...
 
@@ -324,7 +327,8 @@ Sink(table=[default_catalog.default_database.MySink3], fields=[b, sum_a, cnt_c])
 +- GroupAggregate(advice=[1], groupBy=[b], select=[b, SUM(a) AS sum_a, COUNT(c) AS cnt_c])
    +- Exchange(distribution=[hash[b]])
       +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, a, c], metadata=[]]], fields=[b, a, c])
+         +- Calc(select=[b, a, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
 
 advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.optimizer.agg-phase-strategy' to 'AUTO').
 
@@ -387,7 +391,7 @@ SELECT * FROM r r1, r r2 WHERE r1.a = CAST(r2.b AS BIGINT) AND r2.a > 1]]>
     <Resource name="optimized rel plan with advice">
       <![CDATA[
 Calc(select=[c, a, b, c0, a0, b0])
-+- Join(joinType=[InnerJoin], where=[=(a, b00)], select=[c, a, b, c0, a0, b0, b00], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[=(a, b00)], select=[c, a, b, c0, a0, b0, b00], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], miniBatch=[true])
    :- Exchange(distribution=[hash[a]])
    :  +- GlobalGroupAggregate(groupBy=[c], select=[c, SUM(sum$0) AS a, SUM(sum$1) AS b])
    :     +- Exchange(distribution=[hash[c]])
@@ -415,7 +419,7 @@ SELECT * FROM r r1, r r2 WHERE r1.a = CAST(r2.b AS BIGINT) AND r2.a > 1]]>
     <Resource name="optimized rel plan with advice">
       <![CDATA[
 Calc(select=[c, a, b, c0, a0, b0])
-+- Join(joinType=[InnerJoin], where=[=(a, b00)], select=[c, a, b, c0, a0, b0, b00], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[=(a, b00)], select=[c, a, b, c0, a0, b0, b00], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], miniBatch=[true])
    :- Exchange(distribution=[hash[a]])
    :  +- GroupAggregate(advice=[1], groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b])
    :     +- Exchange(distribution=[hash[c]])

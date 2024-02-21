@@ -22,16 +22,16 @@ import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.io.network.api.writer.RoundRobinChannelSelector;
 import org.apache.flink.types.StringValue;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** This class checks the functionality of the {@link RoundRobinChannelSelector} class. */
-public class DefaultChannelSelectorTest {
+class DefaultChannelSelectorTest {
 
     /** This test checks the channel selection. */
     @Test
-    public void channelSelect() {
+    void channelSelect() {
         final StringValue dummyRecord = new StringValue("abc");
         final RoundRobinChannelSelector<StringValue> selector = new RoundRobinChannelSelector<>();
         selector.setup(2);
@@ -44,6 +44,6 @@ public class DefaultChannelSelectorTest {
             ChannelSelector<StringValue> selector, StringValue record, int expectedChannel) {
 
         int actualResult = selector.selectChannel(record);
-        assertEquals(expectedChannel, actualResult);
+        assertThat(actualResult).isEqualTo(expectedChannel);
     }
 }

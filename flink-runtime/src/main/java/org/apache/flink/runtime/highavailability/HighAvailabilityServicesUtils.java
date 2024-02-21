@@ -34,7 +34,7 @@ import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneClie
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaServices;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperClientHAServices;
-import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperMultipleComponentLeaderElectionHaServices;
+import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperLeaderElectionHaServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.AddressResolution;
@@ -91,12 +91,8 @@ public class HighAvailabilityServicesUtils {
         final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
                 ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler);
 
-        return new ZooKeeperMultipleComponentLeaderElectionHaServices(
-                curatorFrameworkWrapper,
-                configuration,
-                executor,
-                blobStoreService,
-                fatalErrorHandler);
+        return new ZooKeeperLeaderElectionHaServices(
+                curatorFrameworkWrapper, configuration, executor, blobStoreService);
     }
 
     public static HighAvailabilityServices createHighAvailabilityServices(
@@ -185,8 +181,8 @@ public class HighAvailabilityServicesUtils {
     public static Tuple2<String, Integer> getJobManagerAddress(Configuration configuration)
             throws ConfigurationException {
 
-        final String hostname = configuration.getString(JobManagerOptions.ADDRESS);
-        final int port = configuration.getInteger(JobManagerOptions.PORT);
+        final String hostname = configuration.get(JobManagerOptions.ADDRESS);
+        final int port = configuration.get(JobManagerOptions.PORT);
 
         if (hostname == null) {
             throw new ConfigurationException(
@@ -219,7 +215,7 @@ public class HighAvailabilityServicesUtils {
             Configuration configuration, AddressResolution resolution) throws UnknownHostException {
         final String address =
                 checkNotNull(
-                        configuration.getString(RestOptions.ADDRESS),
+                        configuration.get(RestOptions.ADDRESS),
                         "%s must be set",
                         RestOptions.ADDRESS.key());
 
@@ -229,7 +225,7 @@ public class HighAvailabilityServicesUtils {
             InetAddress.getByName(address);
         }
 
-        final int port = configuration.getInteger(RestOptions.PORT);
+        final int port = configuration.get(RestOptions.PORT);
         final boolean enableSSL = SecurityOptions.isRestSSLEnabled(configuration);
         final String protocol = enableSSL ? "https://" : "http://";
 
@@ -283,7 +279,7 @@ public class HighAvailabilityServicesUtils {
     private static HighAvailabilityServices createCustomHAServices(
             Configuration config, Executor executor) throws FlinkException {
         return createCustomHAServices(
-                config.getString(HighAvailabilityOptions.HA_MODE), config, executor);
+                config.get(HighAvailabilityOptions.HA_MODE), config, executor);
     }
 
     private static HighAvailabilityServices createCustomHAServices(
@@ -315,8 +311,7 @@ public class HighAvailabilityServicesUtils {
 
     private static ClientHighAvailabilityServices createCustomClientHAServices(Configuration config)
             throws FlinkException {
-        return createCustomClientHAServices(
-                config.getString(HighAvailabilityOptions.HA_MODE), config);
+        return createCustomClientHAServices(config.get(HighAvailabilityOptions.HA_MODE), config);
     }
 
     private static ClientHighAvailabilityServices createCustomClientHAServices(

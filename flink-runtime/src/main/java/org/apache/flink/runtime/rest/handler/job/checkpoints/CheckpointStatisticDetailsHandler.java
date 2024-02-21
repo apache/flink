@@ -18,13 +18,13 @@
 
 package org.apache.flink.runtime.rest.handler.job.checkpoints;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsHistory;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
-import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
@@ -37,12 +37,15 @@ import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
+import org.apache.flink.shaded.guava31.com.google.common.cache.Cache;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /** REST handler which returns the details for a checkpoint. */
@@ -56,16 +59,16 @@ public class CheckpointStatisticDetailsHandler
             Map<String, String> responseHeaders,
             MessageHeaders<EmptyRequestBody, CheckpointStatistics, CheckpointMessageParameters>
                     messageHeaders,
-            ExecutionGraphCache executionGraphCache,
             Executor executor,
+            Cache<JobID, CompletableFuture<CheckpointStatsSnapshot>> checkpointStatsSnapshotCache,
             CheckpointStatsCache checkpointStatsCache) {
         super(
                 leaderRetriever,
                 timeout,
                 responseHeaders,
                 messageHeaders,
-                executionGraphCache,
                 executor,
+                checkpointStatsSnapshotCache,
                 checkpointStatsCache);
     }
 

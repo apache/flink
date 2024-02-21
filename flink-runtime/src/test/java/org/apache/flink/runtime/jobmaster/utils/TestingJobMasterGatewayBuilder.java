@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster.utils;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple6;
@@ -27,6 +28,7 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -44,7 +46,6 @@ import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.jobmaster.TaskManagerRegistrationInformation;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
@@ -79,7 +80,7 @@ public class TestingJobMasterGatewayBuilder {
     private static final ResourceID RESOURCE_MANAGER_ID = ResourceID.generate();
     private static final JobMasterId JOB_MASTER_ID = JobMasterId.generate();
 
-    private String address = "akka.tcp://flink@localhost:6130/user/jobmanager";
+    private String address = "pekko.tcp://flink@localhost:6130/user/jobmanager";
     private String hostname = "localhost";
     private Supplier<CompletableFuture<Acknowledge>> cancelFunction =
             () -> CompletableFuture.completedFuture(Acknowledge.get());
@@ -117,9 +118,11 @@ public class TestingJobMasterGatewayBuilder {
                     (ignoredA, ignoredB) -> FutureUtils.completedVoidFuture();
     private Function<ResourceID, CompletableFuture<Void>> resourceManagerHeartbeatFunction =
             ignored -> FutureUtils.completedVoidFuture();
-    private Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier =
+    private Supplier<CompletableFuture<JobStatus>> requestJobStatusSupplier =
             () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
     private Supplier<CompletableFuture<ExecutionGraphInfo>> requestJobSupplier =
+            () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
+    private Supplier<CompletableFuture<CheckpointStatsSnapshot>> checkpointStatsSnapshotSupplier =
             () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
     private TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
             triggerSavepointFunction =
@@ -277,15 +280,21 @@ public class TestingJobMasterGatewayBuilder {
         return this;
     }
 
-    public TestingJobMasterGatewayBuilder setRequestJobDetailsSupplier(
-            Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier) {
-        this.requestJobDetailsSupplier = requestJobDetailsSupplier;
+    public TestingJobMasterGatewayBuilder setRequestJobStatusSupplier(
+            Supplier<CompletableFuture<JobStatus>> requestJobStatusSupplier) {
+        this.requestJobStatusSupplier = requestJobStatusSupplier;
         return this;
     }
 
     public TestingJobMasterGatewayBuilder setRequestJobSupplier(
             Supplier<CompletableFuture<ExecutionGraphInfo>> requestJobSupplier) {
         this.requestJobSupplier = requestJobSupplier;
+        return this;
+    }
+
+    public TestingJobMasterGatewayBuilder setCheckpointStatsSnapshotSupplier(
+            Supplier<CompletableFuture<CheckpointStatsSnapshot>> checkpointStatsSnapshotSupplier) {
+        this.checkpointStatsSnapshotSupplier = checkpointStatsSnapshotSupplier;
         return this;
     }
 
@@ -437,8 +446,9 @@ public class TestingJobMasterGatewayBuilder {
                 registerTaskManagerFunction,
                 taskManagerHeartbeatFunction,
                 resourceManagerHeartbeatFunction,
-                requestJobDetailsSupplier,
+                requestJobStatusSupplier,
                 requestJobSupplier,
+                checkpointStatsSnapshotSupplier,
                 triggerSavepointFunction,
                 triggerCheckpointFunction,
                 stopWithSavepointFunction,

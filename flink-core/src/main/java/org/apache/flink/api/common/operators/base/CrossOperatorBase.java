@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.CrossFunction;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
@@ -98,16 +99,22 @@ public class CrossOperatorBase<IN1, IN2, OUT, FT extends CrossFunction<IN1, IN2,
         CrossFunction<IN1, IN2, OUT> function = this.userFunction.getUserCodeObject();
 
         FunctionUtils.setFunctionRuntimeContext(function, ctx);
-        FunctionUtils.openFunction(function, this.parameters);
+        FunctionUtils.openFunction(function, DefaultOpenContext.INSTANCE);
 
         ArrayList<OUT> result = new ArrayList<OUT>(inputData1.size() * inputData2.size());
 
         TypeSerializer<IN1> inSerializer1 =
-                getOperatorInfo().getFirstInputType().createSerializer(executionConfig);
+                getOperatorInfo()
+                        .getFirstInputType()
+                        .createSerializer(executionConfig.getSerializerConfig());
         TypeSerializer<IN2> inSerializer2 =
-                getOperatorInfo().getSecondInputType().createSerializer(executionConfig);
+                getOperatorInfo()
+                        .getSecondInputType()
+                        .createSerializer(executionConfig.getSerializerConfig());
         TypeSerializer<OUT> outSerializer =
-                getOperatorInfo().getOutputType().createSerializer(executionConfig);
+                getOperatorInfo()
+                        .getOutputType()
+                        .createSerializer(executionConfig.getSerializerConfig());
 
         for (IN1 element1 : inputData1) {
             for (IN2 element2 : inputData2) {

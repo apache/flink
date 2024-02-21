@@ -48,7 +48,6 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
-import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
@@ -108,7 +107,8 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSemanticAna
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserStorageFormat;
 import org.apache.flink.table.planner.delegation.hive.operations.HiveExecutableOperation;
 import org.apache.flink.table.planner.delegation.hive.operations.HiveShowCreateTableOperation;
-import org.apache.flink.table.planner.utils.OperationConverterUtils;
+import org.apache.flink.table.planner.utils.HiveCatalogUtils;
+import org.apache.flink.table.planner.utils.TableSchemaUtils;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 
@@ -199,7 +199,7 @@ public class HiveParserDDLSemanticAnalyzer {
     private final Set<String> reservedPartitionValues;
     private final HiveConf conf;
     private final HiveParserQueryState queryState;
-    private final HiveCatalog hiveCatalog;
+    private final Catalog hiveCatalog;
     private final CatalogRegistry catalogRegistry;
     private final String currentDB;
     private final HiveParser hiveParser;
@@ -266,7 +266,7 @@ public class HiveParserDDLSemanticAnalyzer {
 
     public HiveParserDDLSemanticAnalyzer(
             HiveParserQueryState queryState,
-            HiveCatalog hiveCatalog,
+            Catalog hiveCatalog,
             CatalogRegistry catalogRegistry,
             HiveParser hiveParser,
             HiveShim hiveShim,
@@ -305,11 +305,7 @@ public class HiveParserDDLSemanticAnalyzer {
     }
 
     private Table getTable(ObjectPath tablePath) {
-        try {
-            return new Table(hiveCatalog.getHiveTable(tablePath));
-        } catch (TableNotExistException e) {
-            throw new ValidationException("Table not found", e);
-        }
+        return new Table(HiveCatalogUtils.getTable(hiveCatalog, tablePath));
     }
 
     public Operation convertToOperation(HiveParserASTNode ast) throws SemanticException {
@@ -1949,25 +1945,30 @@ public class HiveParserDDLSemanticAnalyzer {
                         newName,
                         HiveTypeUtil.toFlinkType(TypeInfoUtils.getTypeInfoFromTypeString(newType)));
         ResolvedSchema newSchema =
-                OperationConverterUtils.changeColumn(
-                        oldSchema, oldName, newTableColumn, first, flagCol);
+                TableSchemaUtils.changeColumn(oldSchema, oldName, newTableColumn, first, flagCol);
         Map<String, String> props = new HashMap<>(oldTable.getOptions());
         props.put(ALTER_TABLE_OP, ALTER_COLUMNS.name());
         if (isCascade) {
             props.put(ALTER_COL_CASCADE, "true");
         }
 
+        Column oldColumn =
+                oldSchema
+                        .getColumn(oldName)
+                        .orElseThrow(
+                                () ->
+                                        new ValidationException(
+                                                "Can not find the old column: " + oldColName));
+        if (newComment != null) {
+            newTableColumn = newTableColumn.withComment(newComment);
+        } else {
+            newTableColumn = newTableColumn.withComment(oldColumn.getComment().orElse(null));
+        }
+
         List<TableChange> tableChanges =
-                OperationConverterUtils.buildModifyColumnChange(
-                        oldTable.getResolvedSchema()
-                                .getColumn(oldName)
-                                .orElseThrow(
-                                        () ->
-                                                new ValidationException(
-                                                        "Can not find the old column: "
-                                                                + oldColName)),
-                        Column.physical(newTableColumn.getName(), newTableColumn.getDataType())
-                                .withComment(newComment),
+                TableSchemaUtils.buildModifyColumnChange(
+                        oldColumn,
+                        newTableColumn,
                         first
                                 ? TableChange.ColumnPosition.first()
                                 : (flagCol == null

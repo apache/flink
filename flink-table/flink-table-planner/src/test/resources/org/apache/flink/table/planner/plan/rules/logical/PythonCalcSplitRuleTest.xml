@@ -414,8 +414,9 @@ FlinkLogicalCalc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[pyFunc5($3._1).f0], f1=[pyFunc5($3._1).f1])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+LogicalProject(f0=[$0.f0], f1=[$0.f1])
++- LogicalProject(e=[pyFunc5($3._1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -472,8 +473,9 @@ FlinkLogicalCalc(select=[+(a, 1) AS EXPR$0], where=[AND(IS NULL(f0.f0), >(b, 0))
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[pyFunc5($0).f0], f1=[pyFunc5($0).f1])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+LogicalProject(f0=[$0.f0], f1=[$0.f1])
++- LogicalProject(e=[pyFunc5($0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -490,8 +492,9 @@ FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[pyFunc5($0).f0], f1=[pyFunc5($0).f1], f00=[pyFunc5($1).f0], f10=[pyFunc5($1).f1])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+LogicalProject(f0=[$0.f0], f1=[$0.f1], f00=[$1.f0], f10=[$1.f1])
++- LogicalProject(e=[pyFunc5($0)], f=[pyFunc5($1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">

@@ -55,8 +55,8 @@ import org.apache.flink.table.runtime.groupwindow.WindowProperty;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.window.CountWindow;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
-import org.apache.flink.table.runtime.operators.window.WindowOperator;
-import org.apache.flink.table.runtime.operators.window.WindowOperatorBuilder;
+import org.apache.flink.table.runtime.operators.window.groupwindow.operator.WindowOperator;
+import org.apache.flink.table.runtime.operators.window.groupwindow.operator.WindowOperatorBuilder;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
@@ -84,7 +84,6 @@ import static org.apache.flink.table.planner.plan.utils.AggregateUtil.hasTimeInt
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.isProctimeAttribute;
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.isRowtimeAttribute;
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.isTableAggregate;
-import static org.apache.flink.table.planner.plan.utils.AggregateUtil.timeFieldIndex;
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.toDuration;
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.toLong;
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToStreamAggregateInfoList;
@@ -211,11 +210,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
 
         final int inputTimeFieldIndex;
         if (isRowtimeAttribute(window.timeAttribute())) {
-            inputTimeFieldIndex =
-                    timeFieldIndex(
-                            planner.getTypeFactory().buildRelNodeRowType(inputRowType),
-                            planner.createRelBuilder(),
-                            window.timeAttribute());
+            inputTimeFieldIndex = window.timeAttribute().getFieldIndex();
             if (inputTimeFieldIndex < 0) {
                 throw new TableException(
                         "Group window must defined on a time attribute, "

@@ -22,13 +22,11 @@ import org.apache.flink.table.planner.runtime.FileSystemITCaseBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.types.Row
 
-import org.junit.Before
-
-import scala.collection.Seq
+import org.junit.jupiter.api.BeforeEach
 
 /** Batch [[FileSystemITCaseBase]]. */
 abstract class BatchFileSystemITCaseBase extends BatchTestBase with FileSystemITCaseBase {
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     super.open()

@@ -44,9 +44,8 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime
 import org.apache.flink.types.Row
 
-import org.junit._
-import org.junit.Assert.assertEquals
-import org.junit.rules.ExpectedException
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.junit.jupiter.api.{BeforeEach, Disabled, Test}
 
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
@@ -55,12 +54,7 @@ import java.util
 
 class CalcITCase extends BatchTestBase {
 
-  var _expectedEx: ExpectedException = ExpectedException.none
-
-  @Rule
-  def expectedEx: ExpectedException = _expectedEx
-
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
@@ -398,9 +392,10 @@ class CalcITCase extends BatchTestBase {
     checkResult("SELECT `1-_./Ü`, b, c FROM (SELECT a as `1-_./Ü`, b, c FROM Table3)", data3)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidFields(): Unit = {
-    checkResult("SELECT a, foo FROM Table3", data3)
+    assertThatThrownBy(() => checkResult("SELECT a, foo FROM Table3", data3))
+      .isInstanceOf(classOf[ValidationException])
   }
 
   @Test
@@ -421,6 +416,41 @@ class CalcITCase extends BatchTestBase {
         row(3, 2L, "Hello world"),
         row(4, 3L, "Hello world, how are you?")
       ))
+
+    val rows = Seq(row(3, "H.llo"), row(3, "Hello"))
+    val dataId = TestValuesTableFactory.registerData(rows)
+
+    val ddl =
+      s"""
+         |CREATE TABLE MyTable (
+         |  a int,
+         |  c string
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+    tEnv.executeSql(ddl)
+
+    checkResult(
+      s"""
+         |SELECT c FROM MyTable
+         |  WHERE c LIKE 'H.llo'
+         |""".stripMargin,
+      Seq(row("H.llo"))
+    )
+    checkResult(
+      s"""
+         |SELECT c FROM MyTable
+         |  WHERE c SIMILAR TO 'H.llo'
+         |""".stripMargin,
+      Seq(row("H.llo"), row("Hello"))
+    )
+    checkEmptyResult(s"""
+                        |SELECT c FROM MyTable
+                        |  WHERE c NOT SIMILAR TO 'H.llo'
+                        |""".stripMargin)
   }
 
   @Test
@@ -524,7 +554,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testUserDefinedScalarFunction(): Unit = {
-    registerFunction("hashCode", MyHashCode)
+    tEnv.createTemporarySystemFunction("hashCode", MyHashCode)
     val data = Seq(row("a"), row("b"), row("c"))
     registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
 
@@ -535,7 +565,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testDecimalReturnType(): Unit = {
-    registerFunction("myNegative", MyNegative)
+    tEnv.createTemporarySystemFunction("myNegative", MyNegative)
     checkResult(
       "SELECT myNegative(5.1)",
       Seq(row(new java.math.BigDecimal("-5.100000000000000000"))))
@@ -543,7 +573,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testUDFWithInternalClass(): Unit = {
-    registerFunction("func", BinaryStringFunction)
+    tEnv.createTemporaryFunction("func", BinaryStringFunction)
     val data = Seq(row("a"), row("b"), row("c"))
     registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
 
@@ -591,13 +621,13 @@ class CalcITCase extends BatchTestBase {
       new RowTypeInfo(LOCAL_DATE, DATE, LOCAL_TIME, TIME, LOCAL_DATE_TIME, TIMESTAMP, INSTANT),
       "a, b, c, d, e, f, g")
 
-    tEnv.registerFunction("dateFunc", DateFunction)
-    tEnv.registerFunction("localDateFunc", LocalDateFunction)
-    tEnv.registerFunction("timeFunc", TimeFunction)
-    tEnv.registerFunction("localTimeFunc", LocalTimeFunction)
-    tEnv.registerFunction("timestampFunc", TimestampFunction)
-    tEnv.registerFunction("datetimeFunc", DateTimeFunction)
-    tEnv.registerFunction("instantFunc", InstantFunction)
+    tEnv.createTemporarySystemFunction("dateFunc", DateFunction)
+    tEnv.createTemporarySystemFunction("localDateFunc", LocalDateFunction)
+    tEnv.createTemporarySystemFunction("timeFunc", TimeFunction)
+    tEnv.createTemporarySystemFunction("localTimeFunc", LocalTimeFunction)
+    tEnv.createTemporarySystemFunction("timestampFunc", TimestampFunction)
+    tEnv.createTemporarySystemFunction("datetimeFunc", DateTimeFunction)
+    tEnv.createTemporarySystemFunction("instantFunc", InstantFunction)
 
     val v1 = "1984-07-12"
     val v2 = "08:03:09"
@@ -716,7 +746,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testUserDefinedScalarFunctionWithParameter(): Unit = {
-    registerFunction("RichFunc2", new RichFunc2)
+    tEnv.createTemporarySystemFunction("RichFunc2", new RichFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "ABC"))
 
     checkResult(
@@ -730,7 +760,7 @@ class CalcITCase extends BatchTestBase {
     val words = "Hello\nWord"
     val filePath = UserDefinedFunctionTestUtils.writeCacheFile("test_words", words)
     env.registerCachedFile(filePath, "words")
-    registerFunction("RichFunc3", new RichFunc3)
+    tEnv.createTemporarySystemFunction("RichFunc3", new RichFunc3)
 
     checkResult(
       "SELECT c FROM SmallTable3 where RichFunc3(c)=true",
@@ -740,8 +770,8 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testMultipleUserDefinedScalarFunctions(): Unit = {
-    registerFunction("RichFunc1", new RichFunc1)
-    registerFunction("RichFunc2", new RichFunc2)
+    tEnv.createTemporarySystemFunction("RichFunc1", new RichFunc1)
+    tEnv.createTemporarySystemFunction("RichFunc2", new RichFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "Abc"))
 
     checkResult(
@@ -752,10 +782,10 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testExternalTypeFunc1(): Unit = {
-    registerFunction("func1", RowFunc)
-    registerFunction("rowToStr", RowToStrFunc)
-    registerFunction("func2", ListFunc)
-    registerFunction("func3", StringFunc)
+    tEnv.createTemporarySystemFunction("func1", RowFunc)
+    tEnv.createTemporarySystemFunction("rowToStr", RowToStrFunc)
+    tEnv.createTemporarySystemFunction("func2", ListFunc)
+    tEnv.createTemporarySystemFunction("func3", StringFunc)
     val data = Seq(row("a"), row("b"), row("c"))
     registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
 
@@ -771,10 +801,10 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testExternalTypeFunc2(): Unit = {
-    registerFunction("func1", RowFunc)
-    registerFunction("rowToStr", RowToStrFunc)
-    registerFunction("func2", ListFunc)
-    registerFunction("func3", StringFunc)
+    tEnv.createTemporarySystemFunction("func1", RowFunc)
+    tEnv.createTemporarySystemFunction("rowToStr", RowToStrFunc)
+    tEnv.createTemporarySystemFunction("func2", ListFunc)
+    tEnv.createTemporarySystemFunction("func3", StringFunc)
     val data = Seq(row("a"), row("b"), row("c"))
     registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
 
@@ -818,14 +848,14 @@ class CalcITCase extends BatchTestBase {
       "a")
 
     // 1. external type for udf parameter
-    registerFunction("pojoFunc", MyPojoFunc)
-    registerFunction("toPojoFunc", MyToPojoFunc)
+    tEnv.createTemporarySystemFunction("pojoFunc", MyPojoFunc)
+    tEnv.createTemporarySystemFunction("toPojoFunc", MyToPojoFunc)
     checkResult("SELECT pojoFunc(a) FROM MyTable", Seq(row(105), row(11), row(12)))
 
     // 2. external type return in udf
     checkResult(
       "SELECT toPojoFunc(pojoFunc(a)) FROM MyTable",
-      Seq(row(row(11, 11)), row(row(12, 12)), row(row(105, 105))))
+      Seq(row(new MyPojo(11, 11)), row(new MyPojo(12, 12)), row(new MyPojo(105, 105))))
   }
 
   // TODO
@@ -1032,12 +1062,11 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testMapTypeGroupBy(): Unit = {
-    _expectedEx.expectMessage(
-      "Type(MAP<INT NOT NULL, VARCHAR(5) NOT NULL> NOT NULL) is not an orderable data type, it is not supported as a ORDER_BY/GROUP_BY/JOIN_EQUAL field.")
-    checkResult(
-      "SELECT COUNT(*) FROM SmallTable3 GROUP BY MAP[1, 'Hello', 2, 'Hi']",
-      Seq()
-    )
+    assertThatThrownBy(
+      () =>
+        checkResult("SELECT COUNT(*) FROM SmallTable3 GROUP BY MAP[1, 'Hello', 2, 'Hi']", Seq()))
+      .hasMessage(
+        "Type(MAP<INT NOT NULL, VARCHAR(5) NOT NULL> NOT NULL) is not an orderable data type, it is not supported as a ORDER_BY/GROUP_BY/JOIN_EQUAL field.")
   }
 
   @Test
@@ -1058,16 +1087,17 @@ class CalcITCase extends BatchTestBase {
     val result = executeQuery(table)
 
     val nestedRow = result.head.getField(0).asInstanceOf[Row]
-    assertEquals(data.head.getField(0), nestedRow.getField(0))
-    assertEquals(data.head.getField(1), nestedRow.getField(1))
-    assertEquals(data.head.getField(2), nestedRow.getField(2))
+    assertThat(data.head.getField(0)).isEqualTo(nestedRow.getField(0))
+    assertThat(data.head.getField(1)).isEqualTo(nestedRow.getField(1))
+    assertThat(data.head.getField(2)).isEqualTo(nestedRow.getField(2))
 
     val arr = result.head.getField(1).asInstanceOf[Array[Integer]]
-    assertEquals(12, arr(0))
-    assertEquals(data.head.getField(1), arr(1))
+    assertThat(12).isEqualTo(arr(0))
+    assertThat(data.head.getField(1)).isEqualTo(arr(1))
 
     val hashMap = result.head.getField(2).asInstanceOf[util.HashMap[String, Timestamp]]
-    assertEquals(data.head.getField(2), hashMap.get(data.head.getField(0).asInstanceOf[String]))
+    assertThat(data.head.getField(2))
+      .isEqualTo(hashMap.get(data.head.getField(0).asInstanceOf[String]))
   }
 
   @Test
@@ -1144,7 +1174,7 @@ class CalcITCase extends BatchTestBase {
     )
   }
 
-  @Ignore // TODO support Unicode
+  @Disabled // TODO support Unicode
   @Test
   def testFunctionWithUnicodeParameters(): Unit = {
     val data = List(
@@ -1155,8 +1185,8 @@ class CalcITCase extends BatchTestBase {
     val splitUDF0 = new SplitUDF(deterministic = true)
     val splitUDF1 = new SplitUDF(deterministic = false)
 
-    registerFunction("splitUDF0", splitUDF0)
-    registerFunction("splitUDF1", splitUDF1)
+    tEnv.createTemporaryFunction("splitUDF0", splitUDF0)
+    tEnv.createTemporaryFunction("splitUDF1", splitUDF1)
 
     val t1 = BatchTableEnvUtil.fromCollection(tEnv, data, "a, b, c")
     tEnv.createTemporaryView("T1", t1)
@@ -1301,13 +1331,13 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testStringUdf(): Unit = {
-    registerFunction("myFunc", MyStringFunc)
+    tEnv.createTemporarySystemFunction("myFunc", MyStringFunc)
     checkResult("SELECT myFunc(c) FROM Table3 WHERE a = 1", Seq(row("Hihaha")))
   }
 
   @Test
   def testNestUdf(): Unit = {
-    registerFunction("func", MyStringFunc)
+    tEnv.createTemporarySystemFunction("func", MyStringFunc)
     checkResult(
       "SELECT func(func(func(c))) FROM SmallTable3",
       Seq(row("Hello worldhahahahahaha"), row("Hellohahahahahaha"), row("Hihahahahahaha")))
@@ -1326,7 +1356,7 @@ class CalcITCase extends BatchTestBase {
     val d1 =
       LocalDateConverter.INSTANCE.toInternal(result.toList.head.getField(0).asInstanceOf[LocalDate])
 
-    Assert.assertTrue(d0 <= d1 && d1 - d0 <= 1)
+    assertThat(d0 <= d1 && d1 - d0 <= 1).isTrue
   }
 
   @Test
@@ -1346,7 +1376,7 @@ class CalcITCase extends BatchTestBase {
 
     val ts2 = System.currentTimeMillis()
 
-    Assert.assertTrue(ts0 <= ts1 && ts1 <= ts2)
+    assertThat(ts0 <= ts1 && ts1 <= ts2).isTrue
   }
 
   @Test
@@ -1534,7 +1564,7 @@ class CalcITCase extends BatchTestBase {
     )
   }
 
-  @Test(expected = classOf[UnsupportedOperationException])
+  @Test
   def testOrderByBinary(): Unit = {
     registerCollection(
       "BinaryT",
@@ -1550,18 +1580,21 @@ class CalcITCase extends BatchTestBase {
     )
     tableConfig.set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
     tableConfig.set(BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED, Boolean.box(true))
-    checkResult(
-      "select * from BinaryT order by c",
-      nullData3
-        .sortBy((x: Row) => x.getField(2).asInstanceOf[String])
-        .map(
-          r =>
-            row(
-              r.getField(0),
-              r.getField(1),
-              r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
-      isSorted = true
-    )
+
+    assertThatThrownBy(
+      () =>
+        checkResult(
+          "select * from BinaryT order by c",
+          nullData3
+            .sortBy((x: Row) => x.getField(2).asInstanceOf[String])
+            .map(
+              r =>
+                row(
+                  r.getField(0),
+                  r.getField(1),
+                  r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
+          isSorted = true
+        )).isInstanceOf(classOf[UnsupportedOperationException])
   }
 
   @Test
@@ -2284,5 +2317,20 @@ class CalcITCase extends BatchTestBase {
         | SELECT * FROM MyTable WHERE b LIKE '%"%'
         |""".stripMargin,
       Seq(row(2, "cbc\"ddd")))
+  }
+
+  @Test
+  def testNonMergeableRandCall(): Unit = {
+    // reported in FLINK-20887
+    checkResult(
+      s"""
+         |SELECT b - a FROM (
+         |  SELECT r + 5 AS a, r + 7 AS b FROM (
+         |    SELECT RAND() AS r FROM SmallTable3
+         |  ) t1
+         |) t2
+         |""".stripMargin,
+      Seq(row(2.0), row(2.0), row(2.0))
+    )
   }
 }

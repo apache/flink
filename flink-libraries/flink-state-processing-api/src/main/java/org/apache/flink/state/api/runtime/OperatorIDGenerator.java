@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
-import org.apache.flink.shaded.guava30.com.google.common.hash.Hashing;
+import org.apache.flink.shaded.guava31.com.google.common.hash.Hashing;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 

@@ -27,6 +27,7 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.CollectionUtil;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -35,8 +36,8 @@ import org.apache.avro.util.Utf8;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -71,6 +72,11 @@ public class RowDataToAvroConverters {
      * Flink Table & SQL internal data structures to corresponding Avro data structures.
      */
     public static RowDataToAvroConverter createConverter(LogicalType type) {
+        return createConverter(type, true);
+    }
+
+    public static RowDataToAvroConverter createConverter(
+            LogicalType type, boolean legacyTimestampMapping) {
         final RowDataToAvroConverter converter;
         switch (type.getTypeRoot()) {
             case NULL:
@@ -150,15 +156,45 @@ public class RowDataToAvroConverters {
                         };
                 break;
             case TIMESTAMP_WITHOUT_TIME_ZONE:
-                converter =
-                        new RowDataToAvroConverter() {
-                            private static final long serialVersionUID = 1L;
+                if (legacyTimestampMapping) {
+                    converter =
+                            new RowDataToAvroConverter() {
+                                private static final long serialVersionUID = 1L;
 
-                            @Override
-                            public Object convert(Schema schema, Object object) {
-                                return ((TimestampData) object).toInstant().toEpochMilli();
-                            }
-                        };
+                                @Override
+                                public Object convert(Schema schema, Object object) {
+                                    return ((TimestampData) object).toInstant().toEpochMilli();
+                                }
+                            };
+                } else {
+                    converter =
+                            new RowDataToAvroConverter() {
+                                private static final long serialVersionUID = 1L;
+
+                                @Override
+                                public Object convert(Schema schema, Object object) {
+                                    return ((TimestampData) object)
+                                            .toLocalDateTime()
+                                            .toInstant(ZoneOffset.UTC)
+                                            .toEpochMilli();
+                                }
+                            };
+                }
+                break;
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                if (legacyTimestampMapping) {
+                    throw new UnsupportedOperationException("Unsupported type: " + type);
+                } else {
+                    converter =
+                            new RowDataToAvroConverter() {
+                                private static final long serialVersionUID = 1L;
+
+                                @Override
+                                public Object convert(Schema schema, Object object) {
+                                    return ((TimestampData) object).toInstant().toEpochMilli();
+                                }
+                            };
+                }
                 break;
             case DECIMAL:
                 converter =
@@ -172,14 +208,14 @@ public class RowDataToAvroConverters {
                         };
                 break;
             case ARRAY:
-                converter = createArrayConverter((ArrayType) type);
+                converter = createArrayConverter((ArrayType) type, legacyTimestampMapping);
                 break;
             case ROW:
-                converter = createRowConverter((RowType) type);
+                converter = createRowConverter((RowType) type, legacyTimestampMapping);
                 break;
             case MAP:
             case MULTISET:
-                converter = createMapConverter(type);
+                converter = createMapConverter(type, legacyTimestampMapping);
                 break;
             case RAW:
             default:
@@ -217,10 +253,11 @@ public class RowDataToAvroConverters {
         };
     }
 
-    private static RowDataToAvroConverter createRowConverter(RowType rowType) {
+    private static RowDataToAvroConverter createRowConverter(
+            RowType rowType, boolean legacyTimestampMapping) {
         final RowDataToAvroConverter[] fieldConverters =
                 rowType.getChildren().stream()
-                        .map(RowDataToAvroConverters::createConverter)
+                        .map(legacyType -> createConverter(legacyType, legacyTimestampMapping))
                         .toArray(RowDataToAvroConverter[]::new);
         final LogicalType[] fieldTypes =
                 rowType.getFields().stream()
@@ -259,10 +296,12 @@ public class RowDataToAvroConverters {
         };
     }
 
-    private static RowDataToAvroConverter createArrayConverter(ArrayType arrayType) {
+    private static RowDataToAvroConverter createArrayConverter(
+            ArrayType arrayType, boolean legacyTimestampMapping) {
         LogicalType elementType = arrayType.getElementType();
         final ArrayData.ElementGetter elementGetter = ArrayData.createElementGetter(elementType);
-        final RowDataToAvroConverter elementConverter = createConverter(arrayType.getElementType());
+        final RowDataToAvroConverter elementConverter =
+                createConverter(arrayType.getElementType(), legacyTimestampMapping);
 
         return new RowDataToAvroConverter() {
             private static final long serialVersionUID = 1L;
@@ -282,10 +321,12 @@ public class RowDataToAvroConverters {
         };
     }
 
-    private static RowDataToAvroConverter createMapConverter(LogicalType type) {
+    private static RowDataToAvroConverter createMapConverter(
+            LogicalType type, boolean legacyTimestampMapping) {
         LogicalType valueType = extractValueTypeToAvroMap(type);
         final ArrayData.ElementGetter valueGetter = ArrayData.createElementGetter(valueType);
-        final RowDataToAvroConverter valueConverter = createConverter(valueType);
+        final RowDataToAvroConverter valueConverter =
+                createConverter(valueType, legacyTimestampMapping);
 
         return new RowDataToAvroConverter() {
             private static final long serialVersionUID = 1L;
@@ -296,7 +337,8 @@ public class RowDataToAvroConverters {
                 final MapData mapData = (MapData) object;
                 final ArrayData keyArray = mapData.keyArray();
                 final ArrayData valueArray = mapData.valueArray();
-                final Map<Object, Object> map = new HashMap<>(mapData.size());
+                final Map<Object, Object> map =
+                        CollectionUtil.newHashMapWithExpectedSize(mapData.size());
                 for (int i = 0; i < mapData.size(); ++i) {
                     final String key = keyArray.getString(i).toString();
                     final Object value =

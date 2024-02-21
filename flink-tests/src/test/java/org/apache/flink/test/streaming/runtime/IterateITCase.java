@@ -79,7 +79,7 @@ public class IterateITCase extends AbstractTestBase {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Integer> source = env.fromElements(1, 10);
+        DataStream<Integer> source = env.fromData(1, 10);
 
         IterativeStream<Integer> iter1 = source.iterate();
         SingleOutputStreamOperator<Integer> map1 = iter1.map(noOpIntMap);
@@ -92,7 +92,7 @@ public class IterateITCase extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // introduce dummy mapper to get to correct parallelism
-        DataStream<Integer> source = env.fromElements(1, 10).map(noOpIntMap);
+        DataStream<Integer> source = env.fromData(1, 10).map(noOpIntMap);
 
         IterativeStream<Integer> iter1 = source.iterate();
 
@@ -106,7 +106,7 @@ public class IterateITCase extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // introduce dummy mapper to get to correct parallelism
-        DataStream<Integer> source = env.fromElements(1, 10).map(noOpIntMap);
+        DataStream<Integer> source = env.fromData(1, 10).map(noOpIntMap);
 
         IterativeStream<Integer> iter1 = source.iterate();
 
@@ -119,7 +119,7 @@ public class IterateITCase extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // introduce dummy mapper to get to correct parallelism
-        DataStream<Integer> source = env.fromElements(1, 10).map(noOpIntMap);
+        DataStream<Integer> source = env.fromData(1, 10).map(noOpIntMap);
 
         ConnectedIterativeStreams<Integer, Integer> coIter =
                 source.iterate().withFeedbackType(Integer.class);
@@ -136,7 +136,7 @@ public class IterateITCase extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // introduce dummy mapper to get to correct parallelism
-        DataStream<Integer> source = env.fromElements(1, 10).map(noOpIntMap);
+        DataStream<Integer> source = env.fromData(1, 10).map(noOpIntMap);
 
         IterativeStream<Integer> iter1 = source.iterate();
         IterativeStream<Integer> iter2 = source.iterate();
@@ -153,7 +153,7 @@ public class IterateITCase extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // introduce dummy mapper to get to correct parallelism
-        DataStream<Integer> source = env.fromElements(1, 10).map(noOpIntMap);
+        DataStream<Integer> source = env.fromData(1, 10).map(noOpIntMap);
 
         IterativeStream<Integer> iter1 = source.iterate();
         ConnectedIterativeStreams<Integer, Integer> coIter =
@@ -167,7 +167,7 @@ public class IterateITCase extends AbstractTestBase {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Integer> source = env.fromElements(1, 10).map(noOpIntMap);
+        DataStream<Integer> source = env.fromData(1, 10).map(noOpIntMap);
 
         IterativeStream<Integer> iter1 = source.iterate();
 
@@ -180,7 +180,7 @@ public class IterateITCase extends AbstractTestBase {
     public void testImmutabilityWithCoiteration() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Integer> source = env.fromElements(1, 10).map(noOpIntMap); // for rebalance
+        DataStream<Integer> source = env.fromData(1, 10).map(noOpIntMap); // for rebalance
 
         IterativeStream<Integer> iter1 = source.iterate();
         // Calling withFeedbackType should create a new iteration
@@ -205,12 +205,9 @@ public class IterateITCase extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Integer> source1 =
-                env.fromElements(1, 2, 3, 4, 5)
-                        .shuffle()
-                        .map(noOpIntMap)
-                        .name("ParallelizeMapShuffle");
+                env.fromData(1, 2, 3, 4, 5).shuffle().map(noOpIntMap).name("ParallelizeMapShuffle");
         DataStream<Integer> source2 =
-                env.fromElements(1, 2, 3, 4, 5).map(noOpIntMap).name("ParallelizeMapRebalance");
+                env.fromData(1, 2, 3, 4, 5).map(noOpIntMap).name("ParallelizeMapRebalance");
 
         IterativeStream<Integer> iter1 = source1.union(source2).iterate();
 
@@ -227,7 +224,7 @@ public class IterateITCase extends AbstractTestBase {
         OutputTag<Integer> even = new OutputTag<Integer>("even") {};
         OutputTag<Integer> odd = new OutputTag<Integer>("odd") {};
         SingleOutputStreamOperator<Object> source3 =
-                env.fromElements(1, 2, 3, 4, 5)
+                env.fromData(1, 2, 3, 4, 5)
                         .map(noOpIntMap)
                         .name("EvenOddSourceMap")
                         .process(
@@ -313,9 +310,9 @@ public class IterateITCase extends AbstractTestBase {
     public void testmultipleHeadsTailsWithTailPartitioning() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Integer> source1 = env.fromElements(1, 2, 3, 4, 5).shuffle().map(noOpIntMap);
+        DataStream<Integer> source1 = env.fromData(1, 2, 3, 4, 5).shuffle().map(noOpIntMap);
 
-        DataStream<Integer> source2 = env.fromElements(1, 2, 3, 4, 5).map(noOpIntMap);
+        DataStream<Integer> source2 = env.fromData(1, 2, 3, 4, 5).map(noOpIntMap);
 
         IterativeStream<Integer> iter1 = source1.union(source2).iterate();
 
@@ -332,7 +329,7 @@ public class IterateITCase extends AbstractTestBase {
         OutputTag<Integer> even = new OutputTag<Integer>("even") {};
         OutputTag<Integer> odd = new OutputTag<Integer>("odd") {};
         SingleOutputStreamOperator<Object> source3 =
-                env.fromElements(1, 2, 3, 4, 5)
+                env.fromData(1, 2, 3, 4, 5)
                         .map(noOpIntMap)
                         .name("split")
                         .process(
@@ -423,7 +420,7 @@ public class IterateITCase extends AbstractTestBase {
                 iterated = new boolean[parallelism];
 
                 DataStream<Boolean> source =
-                        env.fromCollection(Collections.nCopies(parallelism * 2, false))
+                        env.fromData(Collections.nCopies(parallelism * 2, false))
                                 .map(noOpBoolMap)
                                 .name("ParallelizeMap");
 
@@ -469,10 +466,10 @@ public class IterateITCase extends AbstractTestBase {
                 env.setParallelism(2);
 
                 DataStream<String> otherSource =
-                        env.fromElements("1000", "2000").map(noOpStrMap).name("ParallelizeMap");
+                        env.fromData("1000", "2000").map(noOpStrMap).name("ParallelizeMap");
 
                 ConnectedIterativeStreams<Integer, String> coIt =
-                        env.fromElements(0, 0)
+                        env.fromData(0, 0)
                                 .map(noOpIntMap)
                                 .name("ParallelizeMap")
                                 .iterate(2000 * timeoutScale)
@@ -586,7 +583,7 @@ public class IterateITCase extends AbstractTestBase {
                         };
 
                 DataStream<Integer> source =
-                        env.fromElements(1, 2, 3).map(noOpIntMap).name("ParallelizeMap");
+                        env.fromData(1, 2, 3).map(noOpIntMap).name("ParallelizeMap");
 
                 IterativeStream<Integer> it = source.keyBy(key).iterate(3000 * timeoutScale);
 
@@ -696,7 +693,7 @@ public class IterateITCase extends AbstractTestBase {
         env.enableCheckpointing();
 
         DataStream<Boolean> source =
-                env.fromCollection(Collections.nCopies(parallelism * 2, false))
+                env.fromData(Collections.nCopies(parallelism * 2, false))
                         .map(noOpBoolMap)
                         .name("ParallelizeMap");
 
@@ -709,7 +706,7 @@ public class IterateITCase extends AbstractTestBase {
 
     private static final class IterationHead extends RichFlatMapFunction<Boolean, Boolean> {
         public void flatMap(Boolean value, Collector<Boolean> out) throws Exception {
-            int indx = getRuntimeContext().getIndexOfThisSubtask();
+            int indx = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             if (value) {
                 iterated[indx] = true;
             } else {

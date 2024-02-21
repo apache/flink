@@ -19,8 +19,6 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.table.planner.runtime.stream.FsStreamingSinkITCaseBase
 
-import scala.collection.Seq
-
 /** Test checkpoint for file system table factory with testcsv format. */
 class FsStreamingSinkTestCsvITCase extends FsStreamingSinkITCaseBase {
 

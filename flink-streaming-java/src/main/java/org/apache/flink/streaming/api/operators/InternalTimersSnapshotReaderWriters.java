@@ -24,11 +24,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.CollectionUtil;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -225,7 +225,7 @@ public class InternalTimersSnapshotReaderWriters {
             // read the event time timers
             int sizeOfEventTimeTimers = in.readInt();
             Set<TimerHeapInternalTimer<K, N>> restoredEventTimers =
-                    new HashSet<>(sizeOfEventTimeTimers);
+                    CollectionUtil.newHashSetWithExpectedSize(sizeOfEventTimeTimers);
             if (sizeOfEventTimeTimers > 0) {
                 for (int i = 0; i < sizeOfEventTimeTimers; i++) {
                     TimerHeapInternalTimer<K, N> timer = timerSerializer.deserialize(in);
@@ -237,7 +237,7 @@ public class InternalTimersSnapshotReaderWriters {
             // read the processing time timers
             int sizeOfProcessingTimeTimers = in.readInt();
             Set<TimerHeapInternalTimer<K, N>> restoredProcessingTimers =
-                    new HashSet<>(sizeOfProcessingTimeTimers);
+                    CollectionUtil.newHashSetWithExpectedSize(sizeOfProcessingTimeTimers);
             if (sizeOfProcessingTimeTimers > 0) {
                 for (int i = 0; i < sizeOfProcessingTimeTimers; i++) {
                     TimerHeapInternalTimer<K, N> timer = timerSerializer.deserialize(in);

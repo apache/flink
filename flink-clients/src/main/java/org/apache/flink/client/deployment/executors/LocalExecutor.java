@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.program.PerJobMiniClusterFactory;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -77,7 +76,7 @@ public class LocalExecutor implements PipelineExecutor {
         effectiveConfig.addAll(configuration);
 
         // we only support attached execution with the local executor.
-        checkState(configuration.getBoolean(DeploymentOptions.ATTACHED));
+        checkState(configuration.get(DeploymentOptions.ATTACHED));
 
         final JobGraph jobGraph = getJobGraph(pipeline, effectiveConfig, userCodeClassloader);
 
@@ -94,10 +93,10 @@ public class LocalExecutor implements PipelineExecutor {
         if (pipeline instanceof Plan) {
             Plan plan = (Plan) pipeline;
             final int slotsPerTaskManager =
-                    configuration.getInteger(
+                    configuration.get(
                             TaskManagerOptions.NUM_TASK_SLOTS, plan.getMaximumParallelism());
             final int numTaskManagers =
-                    configuration.getInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
+                    configuration.get(TaskManagerOptions.MINI_CLUSTER_NUM_TASK_MANAGERS);
 
             plan.setDefaultParallelism(slotsPerTaskManager * numTaskManagers);
         }

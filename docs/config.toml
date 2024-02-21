@@ -34,11 +34,11 @@ pygmentsUseClasses = true
   # we change the version for the complete docs when forking of a release branch
   # etc.
   # The full version string as referenced in Maven (e.g. 1.2.1)
-  Version = "1.18-SNAPSHOT"
+  Version = "1.20-SNAPSHOT"
 
   # For stable releases, leave the bugfix version out (e.g. 1.2). For snapshot
   # release this should be the same as the regular version
-  VersionTitle = "1.18-SNAPSHOT"
+  VersionTitle = "1.20-SNAPSHOT"
 
   # The branch for this version of Apache Flink
   Branch = "master"
@@ -76,6 +76,7 @@ pygmentsUseClasses = true
   ]
 
   PreviousDocs = [
+    ["1.18", "http://nightlies.apache.org/flink/flink-docs-release-1.18"],
     ["1.17", "http://nightlies.apache.org/flink/flink-docs-release-1.17"],
     ["1.16", "http://nightlies.apache.org/flink/flink-docs-release-1.16"],
     ["1.15", "http://nightlies.apache.org/flink/flink-docs-release-1.15"],
@@ -99,6 +100,8 @@ pygmentsUseClasses = true
 [markup]
 [markup.goldmark.renderer]
   unsafe = true
+[markup.tableOfContents]
+  startLevel = 1
 
 [languages]
 [languages.en]

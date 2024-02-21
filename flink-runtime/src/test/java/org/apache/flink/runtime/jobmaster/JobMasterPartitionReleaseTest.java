@@ -242,7 +242,7 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
                     clusterPartitionsForPromote::complete);
 
             Configuration configuration = new Configuration();
-            configuration.setString(
+            configuration.set(
                     BlobServerOptions.STORAGE_DIRECTORY,
                     temporaryFolder.newFolder().getAbsolutePath());
 

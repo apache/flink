@@ -19,21 +19,16 @@
 package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.JsonOnNull;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.types.CollectionDataType;
-import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
-import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType;
-
-import java.util.Optional;
+import org.apache.flink.table.types.logical.TimestampKind;
 
 import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
@@ -43,6 +38,7 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.logical
 import static org.apache.flink.table.types.inference.InputTypeStrategies.or;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.repeatingSequence;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.symbol;
+import static org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
 
 /**
  * Entry point for specific input type strategies not covered in {@link InputTypeStrategies}.
@@ -56,12 +52,27 @@ public final class SpecificInputTypeStrategies {
     /** See {@link CastInputTypeStrategy}. */
     public static final InputTypeStrategy CAST = new CastInputTypeStrategy();
 
+    public static final InputTypeStrategy REINTERPRET_CAST = new ReinterpretCastInputTypeStrategy();
+
     /** See {@link MapInputTypeStrategy}. */
     public static final InputTypeStrategy MAP = new MapInputTypeStrategy();
 
-    /** See {@link CurrentWatermarkTypeStrategy}. */
+    /** See {@link CurrentWatermarkInputTypeStrategy}. */
     public static final InputTypeStrategy CURRENT_WATERMARK =
             new CurrentWatermarkInputTypeStrategy();
+
+    /** See {@link OverTypeStrategy}. */
+    public static final InputTypeStrategy OVER = new OverTypeStrategy();
+
+    /** See {@link WindowTimeIndictorInputTypeStrategy}. */
+    public static InputTypeStrategy windowTimeIndicator(TimestampKind timestampKind) {
+        return new WindowTimeIndictorInputTypeStrategy(timestampKind);
+    }
+
+    /** See {@link WindowTimeIndictorInputTypeStrategy}. */
+    public static InputTypeStrategy windowTimeIndicator() {
+        return new WindowTimeIndictorInputTypeStrategy(null);
+    }
 
     /** Argument type representing all types supported in a JSON context. */
     public static final ArgumentTypeStrategy JSON_ARGUMENT =
@@ -78,6 +89,10 @@ public final class SpecificInputTypeStrategies {
     /** Argument type derived from the array element type. */
     public static final ArgumentTypeStrategy ARRAY_ELEMENT_ARG =
             new ArrayElementArgumentTypeStrategy();
+
+    /** Argument type representing the array is comparable. */
+    public static final ArgumentTypeStrategy ARRAY_FULLY_COMPARABLE =
+            new ArrayComparableElementArgumentTypeStrategy(StructuredComparison.FULL);
 
     /**
      * Input strategy for {@link BuiltInFunctionDefinitions#JSON_OBJECT}.
@@ -126,31 +141,8 @@ public final class SpecificInputTypeStrategies {
     public static final InputTypeStrategy TWO_EQUALS_COMPARABLE =
             comparable(ConstantArgumentCount.of(2), StructuredType.StructuredComparison.EQUALS);
 
-    /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_KEYS}. */
-    public static final TypeStrategy MAP_KEYS =
-            callContext ->
-                    Optional.of(
-                            DataTypes.ARRAY(
-                                    ((KeyValueDataType) callContext.getArgumentDataTypes().get(0))
-                                            .getKeyDataType()));
-
-    /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_VALUES}. */
-    public static final TypeStrategy MAP_VALUES =
-            callContext ->
-                    Optional.of(
-                            DataTypes.ARRAY(
-                                    ((KeyValueDataType) callContext.getArgumentDataTypes().get(0))
-                                            .getValueDataType()));
-
-    /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_FROM_ARRAYS}. */
-    public static final TypeStrategy ARRAYS_FOR_MAP =
-            callContext ->
-                    Optional.of(
-                            DataTypes.MAP(
-                                    ((CollectionDataType) callContext.getArgumentDataTypes().get(0))
-                                            .getElementDataType(),
-                                    ((CollectionDataType) callContext.getArgumentDataTypes().get(1))
-                                            .getElementDataType()));
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#IN}. */
+    public static final InputTypeStrategy IN = new SubQueryInputTypeStrategy();
 
     private SpecificInputTypeStrategies() {
         // no instantiation

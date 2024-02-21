@@ -326,7 +326,9 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
                     testSpecification.verifier.createUpgradedSerializer();
 
             TypeSerializerSchemaCompatibility<UpgradedElementT> upgradeCompatibility =
-                    restoredSerializerSnapshot.resolveSchemaCompatibility(upgradedSerializer);
+                    upgradedSerializer
+                            .snapshotConfiguration()
+                            .resolveSchemaCompatibility(restoredSerializerSnapshot);
 
             assertThat(upgradeCompatibility)
                     .is(
@@ -350,7 +352,9 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
                     testSpecification.verifier.createUpgradedSerializer();
 
             TypeSerializerSchemaCompatibility<UpgradedElementT> upgradeCompatibility =
-                    restoredSerializerSnapshot.resolveSchemaCompatibility(upgradedSerializer);
+                    upgradedSerializer
+                            .snapshotConfiguration()
+                            .resolveSchemaCompatibility(restoredSerializerSnapshot);
             assumeThat(upgradeCompatibility)
                     .as(
                             "This test only applies for test specifications that verify an upgraded serializer that requires migration to be compatible.")
@@ -387,7 +391,9 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
                     testSpecification.verifier.createUpgradedSerializer();
 
             TypeSerializerSchemaCompatibility<UpgradedElementT> upgradeCompatibility =
-                    restoredSerializerSnapshot.resolveSchemaCompatibility(upgradedSerializer);
+                    upgradedSerializer
+                            .snapshotConfiguration()
+                            .resolveSchemaCompatibility(restoredSerializerSnapshot);
             assumeThat(upgradeCompatibility)
                     .as(
                             "This test only applies for test specifications that verify an upgraded serializer that requires reconfiguration to be compatible.")
@@ -418,7 +424,9 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
                     testSpecification.verifier.createUpgradedSerializer();
 
             TypeSerializerSchemaCompatibility<UpgradedElementT> upgradeCompatibility =
-                    restoredSerializerSnapshot.resolveSchemaCompatibility(upgradedSerializer);
+                    upgradedSerializer
+                            .snapshotConfiguration()
+                            .resolveSchemaCompatibility(restoredSerializerSnapshot);
             assumeThat(upgradeCompatibility)
                     .as(
                             "This test only applies for test specifications that verify an upgraded serializer that is compatible as is.")

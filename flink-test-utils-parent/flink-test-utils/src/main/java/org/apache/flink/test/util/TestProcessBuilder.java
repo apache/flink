@@ -61,6 +61,14 @@ public class TestProcessBuilder {
         jvmArgs.add("-Dlog4j.configurationFile=file:" + tempLogFile.getAbsolutePath());
         jvmArgs.add("-classpath");
         jvmArgs.add(getCurrentClasspath());
+        jvmArgs.add("-XX:+IgnoreUnrecognizedVMOptions");
+
+        final String moduleConfig = System.getProperty("surefire.module.config");
+        if (moduleConfig != null) {
+            for (String moduleArg : moduleConfig.split(" ")) {
+                addJvmArg(moduleArg);
+            }
+        }
 
         this.mainClass = mainClass;
     }

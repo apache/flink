@@ -19,6 +19,7 @@
 package org.apache.flink.connector.testframe.container;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.test.util.FileUtils;
 
@@ -40,7 +41,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -125,7 +125,7 @@ public class FlinkImageBuilder {
     }
 
     /**
-     * Sets Flink configuration. This configuration will be used for generating flink-conf.yaml for
+     * Sets Flink configuration. This configuration will be used for generating config.yaml for
      * configuring JobManager and TaskManager.
      */
     public FlinkImageBuilder setConfiguration(Configuration conf) {
@@ -209,7 +209,7 @@ public class FlinkImageBuilder {
             final Path flinkConfFile = createTemporaryFlinkConfFile(conf, tempDirectory);
 
             final Path log4jPropertiesFile = createTemporaryLog4jPropertiesFile(tempDirectory);
-            // Copy flink-conf.yaml into image
+            // Copy config.yaml into image
             filesToCopy.put(
                     flinkConfFile,
                     Paths.get(flinkHome, "conf", GlobalConfiguration.FLINK_CONF_FILENAME));
@@ -245,7 +245,10 @@ public class FlinkImageBuilder {
         new ImageFromDockerfile(FLINK_BASE_IMAGE_BUILD_NAME)
                 .withDockerfileFromBuilder(
                         builder ->
-                                builder.from("openjdk:" + getJavaVersionSuffix())
+                                builder.from(
+                                                "eclipse-temurin:"
+                                                        + getJavaVersionSuffix()
+                                                        + "-jre-jammy")
                                         .copy(flinkHome, flinkHome)
                                         .build())
                 .withFileFromPath(flinkHome, flinkDist)
@@ -277,6 +280,8 @@ public class FlinkImageBuilder {
                     return "11";
                 case "17":
                     return "17";
+                case "21":
+                    return "21";
                 default:
                     throw new IllegalStateException("Unexpected Java version: " + javaSpecVersion);
             }
@@ -285,13 +290,10 @@ public class FlinkImageBuilder {
 
     private Path createTemporaryFlinkConfFile(Configuration finalConfiguration, Path tempDirectory)
             throws IOException {
-        // Create a temporary flink-conf.yaml file and write merged configurations into it
         Path flinkConfFile = tempDirectory.resolve(GlobalConfiguration.FLINK_CONF_FILENAME);
         Files.write(
                 flinkConfFile,
-                finalConfiguration.toMap().entrySet().stream()
-                        .map(entry -> entry.getKey() + ": " + entry.getValue())
-                        .collect(Collectors.toList()));
+                ConfigurationUtils.convertConfigToWritableLines(finalConfiguration, false));
 
         return flinkConfFile;
     }

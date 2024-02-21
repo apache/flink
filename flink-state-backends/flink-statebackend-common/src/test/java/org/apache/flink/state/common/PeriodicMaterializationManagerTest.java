@@ -25,7 +25,7 @@ import org.apache.flink.state.common.PeriodicMaterializationManager.Materializat
 import org.junit.jupiter.api.Test;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.apache.flink.shaded.guava30.com.google.common.collect.Iterators.getOnlyElement;
+import static org.apache.flink.shaded.guava31.com.google.common.collect.Iterators.getOnlyElement;
 import static org.apache.flink.util.concurrent.Executors.newDirectExecutorService;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -47,6 +47,7 @@ class PeriodicMaterializationManagerTest {
                         MaterializationTarget.NO_OP,
                         new ChangelogMaterializationMetricGroup(
                                 UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup()),
+                        true,
                         periodicMaterializeDelay,
                         0,
                         "subtask-0",

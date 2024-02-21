@@ -17,8 +17,8 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.api.connector.sink2.Sink.InitContext;
 import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.runtime.state.StateInitializationContext;
 
 /**
@@ -38,6 +38,6 @@ interface SinkWriterStateHandler<InputT> {
     void snapshotState(long checkpointId) throws Exception;
 
     /** Creates a writer, potentially using state from {@link StateInitializationContext}. */
-    SinkWriter<InputT> createWriter(InitContext initContext, StateInitializationContext context)
-            throws Exception;
+    SinkWriter<InputT> createWriter(
+            WriterInitContext initContext, StateInitializationContext context) throws Exception;
 }

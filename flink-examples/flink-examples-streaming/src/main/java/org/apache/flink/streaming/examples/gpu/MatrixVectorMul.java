@@ -18,16 +18,19 @@
 
 package org.apache.flink.streaming.examples.gpu;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.datagen.source.DataGeneratorSource;
+import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.util.Preconditions;
 
 import jcuda.Pointer;
@@ -44,10 +47,10 @@ import java.util.UUID;
 /**
  * Implements the matrix-vector multiplication program that shows how to use GPU resources in Flink.
  *
- * <p>The input is a vector stream from a {@link RandomVectorSource}, which will generate random
- * vectors with specified dimension. The data size of the vector stream could be specified by user.
- * Each vector will be multiplied with a random dimension * dimension matrix in {@link Multiplier}
- * and the result would be emitted to output.
+ * <p>The input is a vector stream, which will generate random vectors with specified dimension. The
+ * data size of the vector stream could be specified by user. Each vector will be multiplied with a
+ * random dimension * dimension matrix in {@link Multiplier} and the result would be emitted to
+ * output.
  *
  * <p>Usage: MatrixVectorMul [--output &lt;path&gt;] [--dimension &lt;dimension&gt; --data-size
  * &lt;data_size&gt;]
@@ -95,8 +98,21 @@ public class MatrixVectorMul {
         final int dataSize = params.getInt("data-size", DEFAULT_DATA_SIZE);
         final String resourceName = params.get("resource-name", DEFAULT_RESOURCE_NAME);
 
+        GeneratorFunction<Long, List<Float>> generatorFunction =
+                index -> {
+                    List<Float> randomRecord = new ArrayList<>();
+                    for (int i = 0; i < dimension; ++i) {
+                        randomRecord.add((float) Math.random());
+                    }
+                    return randomRecord;
+                };
+
+        // Generates random vectors with specified dimension
+        DataGeneratorSource<List<Float>> generatorSource =
+                new DataGeneratorSource<>(generatorFunction, dataSize, Types.LIST(Types.FLOAT));
+
         DataStream<List<Float>> result =
-                env.addSource(new RandomVectorSource(dimension, dataSize))
+                env.fromSource(generatorSource, WatermarkStrategy.noWatermarks(), "Vectors Source")
                         .map(new Multiplier(dimension, resourceName));
 
         // Emit result
@@ -118,45 +134,6 @@ public class MatrixVectorMul {
     // USER FUNCTIONS
     // *************************************************************************
 
-    /**
-     * Random vector source which generates random vectors with specified dimension and total data
-     * size.
-     */
-    private static final class RandomVectorSource extends RichSourceFunction<List<Float>> {
-
-        private transient volatile boolean running;
-        private final int dimension;
-        private final int dataSize;
-
-        RandomVectorSource(int dimension, int dataSize) {
-            this.dimension = dimension;
-            this.dataSize = dataSize;
-        }
-
-        @Override
-        public void open(Configuration parameters) {
-            running = true;
-        }
-
-        @Override
-        public void run(SourceContext<List<Float>> ctx) {
-            int count = 0;
-            while (running && count < dataSize) {
-                List<Float> randomRecord = new ArrayList<>();
-                for (int i = 0; i < dimension; ++i) {
-                    randomRecord.add((float) Math.random());
-                }
-                ctx.collect(randomRecord);
-                count += 1;
-            }
-        }
-
-        @Override
-        public void cancel() {
-            running = false;
-        }
-    }
-
     /** Matrix-Vector multiplier using CUBLAS library. */
     private static final class Multiplier extends RichMapFunction<List<Float>, List<Float>> {
         private final int dimension;
@@ -169,7 +146,7 @@ public class MatrixVectorMul {
         }
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             // When multiple instances of this class and JCuda exist in different class loaders,
             // then we will get UnsatisfiedLinkError.
             // To avoid that, we need to temporarily override the java.io.tmpdir, where the JCuda

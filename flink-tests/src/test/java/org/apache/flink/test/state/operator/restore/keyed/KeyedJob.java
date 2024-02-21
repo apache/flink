@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.state.operator.restore.keyed;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListState;
@@ -61,7 +62,7 @@ public class KeyedJob {
         String savepointsPath = pt.getRequired("savepoint-path");
 
         Configuration config = new Configuration();
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointsPath);
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointsPath);
 
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(config);
@@ -173,7 +174,7 @@ public class KeyedJob {
         }
 
         @Override
-        public void open(Configuration config) {
+        public void open(OpenContext openContext) {
             this.state =
                     getRuntimeContext()
                             .getListState(new ListStateDescriptor<>("values", Integer.class));
@@ -232,7 +233,8 @@ public class KeyedJob {
 
         @Override
         public List<String> snapshotState(long checkpointId, long timestamp) throws Exception {
-            return Arrays.asList(valueToStore + getRuntimeContext().getIndexOfThisSubtask());
+            return Arrays.asList(
+                    valueToStore + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
         }
 
         @Override
@@ -245,12 +247,14 @@ public class KeyedJob {
                     Assert.assertEquals(
                             "Failed for "
                                     + valueToStore
-                                    + getRuntimeContext().getIndexOfThisSubtask(),
+                                    + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
                             1,
                             state.size());
                     String value = state.get(0);
                     Assert.assertEquals(
-                            valueToStore + getRuntimeContext().getIndexOfThisSubtask(), value);
+                            valueToStore
+                                    + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                            value);
             }
         }
     }

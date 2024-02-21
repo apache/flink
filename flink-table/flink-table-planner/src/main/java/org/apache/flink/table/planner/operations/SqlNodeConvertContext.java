@@ -20,15 +20,28 @@ package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
+import org.apache.flink.table.planner.calcite.SqlToRexConverter;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter;
+import org.apache.flink.table.planner.typeutils.LogicalRelDataTypeConverter;
 import org.apache.flink.table.planner.utils.Expander;
+import org.apache.flink.table.types.DataType;
 
+import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.dialect.CalciteSqlDialect;
+import org.apache.calcite.sql.dialect.AnsiSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.validate.SqlValidator;
+
+import javax.annotation.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 /** An implementation of {@link SqlNodeConverter.ConvertContext}. */
 public class SqlNodeConvertContext implements SqlNodeConverter.ConvertContext {
@@ -57,16 +70,44 @@ public class SqlNodeConvertContext implements SqlNodeConverter.ConvertContext {
     }
 
     @Override
+    public RexNode toRexNode(
+            SqlNode sqlNode, RelDataType inputRowType, @Nullable DataType outputType) {
+        RelDataTypeFactory relDataTypeFactory = getSqlValidator().getTypeFactory();
+        SqlDialect sqlDialect = getSqlDialect();
+        RelDataType outputRelType =
+                outputType == null
+                        ? null
+                        : LogicalRelDataTypeConverter.toRelDataType(
+                                outputType.getLogicalType(), relDataTypeFactory);
+        return new SqlToRexConverter(flinkPlanner, sqlDialect, inputRowType, outputRelType)
+                .convertToRexNode(sqlNode);
+    }
+
+    @Override
+    public List<RexNode> reduceRexNodes(List<RexNode> rexNodes) {
+        List<RexNode> reducedNodes = new ArrayList<>();
+        RelOptCluster relOptCluster = flinkPlanner.cluster();
+        Objects.requireNonNull(relOptCluster.getPlanner().getExecutor())
+                .reduce(relOptCluster.getRexBuilder(), rexNodes, reducedNodes);
+        return reducedNodes;
+    }
+
+    @Override
     public String toQuotedSqlString(SqlNode sqlNode) {
+        return sqlNode.toSqlString(getSqlDialect()).getSql();
+    }
+
+    private SqlDialect getSqlDialect() {
         SqlParser.Config parserConfig = flinkPlanner.config().getParserConfig();
-        SqlDialect dialect =
-                new CalciteSqlDialect(
-                        SqlDialect.EMPTY_CONTEXT
-                                .withQuotedCasing(parserConfig.unquotedCasing())
-                                .withConformance(parserConfig.conformance())
-                                .withUnquotedCasing(parserConfig.unquotedCasing())
-                                .withIdentifierQuoteString(parserConfig.quoting().string));
-        return sqlNode.toSqlString(dialect).getSql();
+        return
+        // The default implementation of SqlDialect suppresses all table hints since
+        // CALCITE-4640, so we should use AnsiSqlDialect instead to reserve table hints.
+        new AnsiSqlDialect(
+                SqlDialect.EMPTY_CONTEXT
+                        .withQuotedCasing(parserConfig.unquotedCasing())
+                        .withConformance(parserConfig.conformance())
+                        .withUnquotedCasing(parserConfig.unquotedCasing())
+                        .withIdentifierQuoteString(parserConfig.quoting().string));
     }
 
     @Override

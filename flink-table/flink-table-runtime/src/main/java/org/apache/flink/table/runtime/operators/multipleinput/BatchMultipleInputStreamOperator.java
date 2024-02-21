@@ -46,7 +46,7 @@ public class BatchMultipleInputStreamOperator extends MultipleInputStreamOperato
             List<TableOperatorWrapper<?>> headWrapper,
             TableOperatorWrapper<?> tailWrapper) {
         super(parameters, inputSpecs, headWrapper, tailWrapper);
-        inputSelectionHandler = new InputSelectionHandler(inputSpecs);
+        inputSelectionHandler = InputSelectionHandler.fromInputSpecs(inputSpecs);
     }
 
     @Override
@@ -74,6 +74,7 @@ public class BatchMultipleInputStreamOperator extends MultipleInputStreamOperato
                                 .getStreamConfig()
                                 .getManagedMemoryFractionOperatorUseCaseOfSlot(
                                         ManagedMemoryUseCase.OPERATOR,
+                                        getRuntimeContext().getJobConfiguration(),
                                         taskManagerConfig,
                                         getRuntimeContext().getUserCodeClassLoader())
                         * wrapper.getManagedMemoryFraction();

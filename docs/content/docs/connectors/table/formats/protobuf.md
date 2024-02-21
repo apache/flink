@@ -236,6 +236,11 @@ The following table lists the type mapping from Flink type to Protobuf type.
       <td><code>enum</code></td>
       <td>The enum value of protobuf can be mapped to string or number of flink row accordingly.</td>
     </tr>
+    <tr>
+      <td><code>ROW&lt;seconds BIGINT, nanos INT&gt;</code></td>
+      <td><code>google.protobuf.timestamp</code></td>
+      <td>The google.protobuf.timestamp type can be mapped to seconds and fractions of seconds at nanosecond resolution in UTC epoch time using the row type as well as the protobuf definition.</td>
+    </tr>
     </tbody>
 </table>
 

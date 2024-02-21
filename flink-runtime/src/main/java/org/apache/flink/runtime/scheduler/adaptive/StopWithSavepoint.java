@@ -24,6 +24,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
+import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointStoppingException;
@@ -251,7 +252,7 @@ class StopWithSavepoint extends StateWithExecutionGraph {
                                 return null;
                             }));
         } else {
-            handleGlobalFailure(
+            context.handleGlobalFailure(
                     new FlinkException(
                             "Job did not reach the FINISHED state while performing stop-with-savepoint."));
         }
@@ -271,7 +272,8 @@ class StopWithSavepoint extends StateWithExecutionGraph {
                     StateTransitions.ToCancelling,
                     StateTransitions.ToExecuting,
                     StateTransitions.ToFailing,
-                    StateTransitions.ToRestarting {
+                    StateTransitions.ToRestarting,
+                    GlobalFailureHandler {
 
         /**
          * Asks how to handle the failure.

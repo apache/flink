@@ -26,7 +26,7 @@ import org.apache.flink.runtime.state.PriorityComparator;
 import javax.annotation.Nonnull;
 
 /** Test for {@link KeyGroupPartitionedPriorityQueue}. */
-public class KeyGroupPartitionedPriorityQueueTest extends InternalPriorityQueueTestBase {
+class KeyGroupPartitionedPriorityQueueTest extends InternalPriorityQueueTestBase {
 
     @Override
     protected InternalPriorityQueue<TestElement> newPriorityQueue(int initialCapacity) {

@@ -241,7 +241,7 @@ WatermarkStrategy \
 {{< /tab >}}
 {{< /tabs >}}
 
-## Watermark alignment _`Beta`_
+## Watermark alignment
 
 In the previous paragraph we discussed a situation when splits/partitions/shards or sources are idle
 and can stall increasing watermarks. On the other side of the spectrum, a split/partition/shard or
@@ -304,19 +304,21 @@ other sources/tasks which can move the combined watermark forward and that way u
 one.
 
 {{< hint warning >}}
-**Note:** As of 1.15, Flink supports aligning across tasks of the same source and/or different
-sources. It does not support aligning splits/partitions/shards in the same task.
+**Note:** As of Flink 1.17, split level watermark alignment is supported by the FLIP-27 source framework. 
+Source connectors have to implement an interface to resume and pause splits so that splits/partitions/shards 
+can be aligned in the same task. More detail on the pause and resume interfaces can found in the [Source API]({{< ref "docs/dev/datastream/sources" >}}#split-level-watermark-alignment).
 
-In a case where there are e.g. two Kafka partitions that produce watermarks at different pace, that
-get assigned to the same task watermark might not behave as expected. Fortunately, worst case it
-should not perform worse than without alignment.
+If you are upgrading from a Flink version between 1.15.x and 1.16.x inclusive, you can disable split level alignment by setting
+`pipeline.watermark-alignment.allow-unaligned-source-splits` to true. Moreover, you can tell if your source supports split level alignment
+by checking if it throws an `UnsupportedOperationException` at runtime or by reading the javadocs. In this case, it would be desirable to 
+to disable split level watermark alignment to avoid fatal exceptions.
 
-Given the limitation above, we suggest applying watermark alignment in two situations:
+When setting the flag to true, watermark alignment will be only working properly when the number of splits/shards/partitions is equal to the
+parallelism of the source operator. This results in every subtask being assigned a single unit of work. On the other hand, if there are two Kafka partitions, which produce watermarks at different paces and
+get assigned to the same task, then watermarks might not behave as expected. Fortunately, even in the worst case, the basic alignment should not perform worse than having no alignment at all.
 
-1. You have two different sources (e.g. Kafka and File) that produce watermarks at different speeds
-2. You run your source with parallelism equal to the number of splits/shards/partitions, which
-   results in every subtask being assigned a single unit of work.
-
+Furthermore, Flink also supports aligning across tasks of the same sources and/or different
+sources, which is useful when you have two different sources (e.g. Kafka and File) that produce watermarks at different speeds.
 {{< /hint >}}
 
 ## Writing WatermarkGenerators

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.shuffle;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageConfiguration;
@@ -26,12 +25,10 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.Tiere
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierMasterAgent;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.NettyShuffleEnvironmentOptions.NETWORK_HYBRID_SHUFFLE_REMOTE_STORAGE_BASE_PATH;
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageIdMappingUtils.convertId;
 
 /**
@@ -42,56 +39,24 @@ public class TieredInternalShuffleMaster {
 
     private final TieredStorageMasterClient tieredStorageMasterClient;
 
-    private final Map<JobID, List<ResultPartitionID>> jobPartitionIds;
-
-    private final Map<ResultPartitionID, JobID> partitionJobIds;
-
     public TieredInternalShuffleMaster(Configuration conf) {
         TieredStorageConfiguration tieredStorageConfiguration =
-                TieredStorageConfiguration.fromConfiguration(conf);
+                TieredStorageConfiguration.builder(
+                                conf.get(NETWORK_HYBRID_SHUFFLE_REMOTE_STORAGE_BASE_PATH))
+                        .build();
         TieredStorageResourceRegistry resourceRegistry = new TieredStorageResourceRegistry();
         List<TierMasterAgent> tierFactories =
                 tieredStorageConfiguration.getTierFactories().stream()
                         .map(tierFactory -> tierFactory.createMasterAgent(resourceRegistry))
                         .collect(Collectors.toList());
         this.tieredStorageMasterClient = new TieredStorageMasterClient(tierFactories);
-        this.jobPartitionIds = new HashMap<>();
-        this.partitionJobIds = new HashMap<>();
     }
 
-    public void addPartition(JobID jobID, ResultPartitionID resultPartitionID) {
-        jobPartitionIds.computeIfAbsent(jobID, ignore -> new ArrayList<>()).add(resultPartitionID);
-        partitionJobIds.put(resultPartitionID, jobID);
+    public void addPartition(ResultPartitionID resultPartitionID) {
         tieredStorageMasterClient.addPartition(convertId(resultPartitionID));
     }
 
     public void releasePartition(ResultPartitionID resultPartitionID) {
         tieredStorageMasterClient.releasePartition(convertId(resultPartitionID));
-        JobID jobID = partitionJobIds.remove(resultPartitionID);
-        if (jobID == null) {
-            return;
-        }
-
-        List<ResultPartitionID> resultPartitionIDs = jobPartitionIds.get(jobID);
-        if (resultPartitionIDs == null) {
-            return;
-        }
-
-        resultPartitionIDs.remove(resultPartitionID);
-        // If the result partition id list has been empty, remove the jobID from the map eagerly
-        if (resultPartitionIDs.isEmpty()) {
-            jobPartitionIds.remove(jobID);
-        }
-    }
-
-    public void unregisterJob(JobID jobID) {
-        List<ResultPartitionID> resultPartitionIDs = jobPartitionIds.remove(jobID);
-        if (resultPartitionIDs != null) {
-            resultPartitionIDs.forEach(
-                    resultPartitionID -> {
-                        tieredStorageMasterClient.releasePartition(convertId(resultPartitionID));
-                        partitionJobIds.remove(resultPartitionID);
-                    });
-        }
     }
 }

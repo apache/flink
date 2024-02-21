@@ -154,7 +154,7 @@ public abstract class SerializerTestBase<T> {
         }
 
         TypeSerializerSchemaCompatibility<T> strategy =
-                restoredConfig.resolveSchemaCompatibility(getSerializer());
+                getSerializer().snapshotConfiguration().resolveSchemaCompatibility(restoredConfig);
         final TypeSerializer<T> restoreSerializer;
         if (strategy.isCompatibleAsIs()) {
             restoreSerializer = restoredConfig.restoreSerializer();
@@ -186,8 +186,11 @@ public abstract class SerializerTestBase<T> {
 
     @Test
     protected void testCopy() {
+        testCopy(getSerializer());
+    }
+
+    protected void testCopy(TypeSerializer<T> serializer) {
         try {
-            TypeSerializer<T> serializer = getSerializer();
             T[] testData = getData();
 
             for (T datum : testData) {
@@ -445,6 +448,9 @@ public abstract class SerializerTestBase<T> {
 
             assertEquals(
                     "The copy of the serializer is not equal to the original one.", ser1, ser2);
+
+            // Make sure the serializer can be used after cloning
+            testCopy(ser2);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();

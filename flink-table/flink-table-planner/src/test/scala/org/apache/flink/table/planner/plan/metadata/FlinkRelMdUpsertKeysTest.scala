@@ -28,8 +28,8 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{EQUALS, LESS_THAN}
 import org.apache.calcite.util.ImmutableBitSet
-import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
 
 import java.util.Collections
 
@@ -104,6 +104,11 @@ class FlinkRelMdUpsertKeysTest extends FlinkRelMdHandlerTestBase {
   @Test
   def testGetUpsertKeysOnWatermark(): Unit = {
     assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(logicalWatermarkAssigner).toSet)
+  }
+
+  @Test
+  def testGetUpsertKeysOnMiniBatchAssigner(): Unit = {
+    assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(streamMiniBatchAssigner).toSet)
   }
 
   @Test

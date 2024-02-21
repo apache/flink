@@ -21,12 +21,12 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -44,7 +44,7 @@ public class DefaultJobManagerRunnerRegistry implements JobManagerRunnerRegistry
 
     public DefaultJobManagerRunnerRegistry(int initialCapacity) {
         Preconditions.checkArgument(initialCapacity > 0);
-        jobManagerRunners = new HashMap<>(initialCapacity);
+        jobManagerRunners = CollectionUtil.newHashMapWithExpectedSize(initialCapacity);
     }
 
     @Override

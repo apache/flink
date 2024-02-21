@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Additional tests for {@link PipelinedApproximateSubpartitionView} which require an availability
@@ -31,26 +31,23 @@ import static org.junit.Assert.assertTrue;
  *
  * @see PipelinedSubpartitionTest
  */
-public class PipelinedApproximateSubpartitionWithReadViewTest
+class PipelinedApproximateSubpartitionWithReadViewTest
         extends PipelinedSubpartitionWithReadViewTest {
 
-    @Before
+    @BeforeEach
     @Override
-    public void before() throws IOException {
+    void before() throws IOException {
         setup(ResultPartitionType.PIPELINED_APPROXIMATE);
         subpartition = new PipelinedApproximateSubpartition(0, 2, resultPartition);
         availablityListener = new AwaitableBufferAvailablityListener();
         readView = subpartition.createReadView(availablityListener);
     }
 
-    @Test
+    @TestTemplate
     @Override
-    public void testRelease() {
+    void testRelease() {
         readView.releaseAllResources();
-        assertTrue(
-                resultPartition
-                        .getPartitionManager()
-                        .getUnreleasedPartitions()
-                        .contains(resultPartition.getPartitionId()));
+        assertThat(resultPartition.getPartitionManager().getUnreleasedPartitions())
+                .contains(resultPartition.getPartitionId());
     }
 }

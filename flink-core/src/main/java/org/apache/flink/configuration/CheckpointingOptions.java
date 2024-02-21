@@ -109,6 +109,19 @@ public class CheckpointingOptions {
                     .defaultValue(1)
                     .withDescription("The maximum number of completed checkpoints to retain.");
 
+    /* Option whether to clean individual checkpoint's operatorstates in parallel. If enabled,
+     * operator states are discarded in parallel using the ExecutorService passed to the cleaner.
+     * This speeds up checkpoints cleaning, but adds load to the IO.
+     */
+    @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
+    public static final ConfigOption<Boolean> CLEANER_PARALLEL_MODE =
+            ConfigOptions.key("state.checkpoint.cleaner.parallel-mode")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Option whether to discard a checkpoint's states in parallel using"
+                                    + " the ExecutorService passed into the cleaner");
+
     /** @deprecated Checkpoints are always asynchronous. */
     @Deprecated
     public static final ConfigOption<Boolean> ASYNC_SNAPSHOTS =
@@ -214,6 +227,32 @@ public class CheckpointingOptions {
                             "The default directory used for storing the data files and meta data of checkpoints "
                                     + "in a Flink supported filesystem. The storage path must be accessible from all participating processes/nodes"
                                     + "(i.e. all TaskManagers and JobManagers).");
+
+    /**
+     * Whether to create sub-directories named by job id to store the data files and meta data of
+     * checkpoints. The default value is true to enable user could run several jobs with the same
+     * checkpoint directory at the same time. If this value is set to false, pay attention not to
+     * run several jobs with the same directory simultaneously.
+     */
+    @Documentation.Section(Documentation.Sections.EXPERT_STATE_BACKENDS)
+    public static final ConfigOption<Boolean> CREATE_CHECKPOINT_SUB_DIR =
+            ConfigOptions.key("state.checkpoints.create-subdir")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether to create sub-directories named by job id under the '%s' to store the data files and meta data "
+                                                    + "of checkpoints. The default value is true to enable user could run several jobs with the same "
+                                                    + "checkpoint directory at the same time. If this value is set to false, pay attention not to "
+                                                    + "run several jobs with the same directory simultaneously. ",
+                                            TextElement.code(CHECKPOINTS_DIRECTORY.key()))
+                                    .linebreak()
+                                    .text(
+                                            "WARNING: This is an advanced configuration. If set to false, users must ensure that no multiple jobs are run "
+                                                    + "with the same checkpoint directory, and that no files exist other than those necessary for the "
+                                                    + "restoration of the current job when starting a new job.")
+                                    .build());
 
     /**
      * The minimum size of state data files. All state chunks smaller than that are stored inline in

@@ -27,6 +27,7 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -160,7 +161,8 @@ class BucketStateSerializer<BucketID> implements SimpleVersionedSerializer<Bucke
         final int committableVersion = in.readInt();
         final int numCheckpoints = in.readInt();
         final HashMap<Long, List<InProgressFileWriter.PendingFileRecoverable>>
-                pendingFileRecoverablePerCheckpoint = new HashMap<>(numCheckpoints);
+                pendingFileRecoverablePerCheckpoint =
+                        CollectionUtil.newHashMapWithExpectedSize(numCheckpoints);
 
         for (int i = 0; i < numCheckpoints; i++) {
             final long checkpointId = in.readLong();
@@ -204,7 +206,8 @@ class BucketStateSerializer<BucketID> implements SimpleVersionedSerializer<Bucke
         final int pendingFileRecoverableSerializerVersion = dataInputView.readInt();
         final int numCheckpoints = dataInputView.readInt();
         final HashMap<Long, List<InProgressFileWriter.PendingFileRecoverable>>
-                pendingFileRecoverablesPerCheckpoint = new HashMap<>(numCheckpoints);
+                pendingFileRecoverablesPerCheckpoint =
+                        CollectionUtil.newHashMapWithExpectedSize(numCheckpoints);
 
         for (int i = 0; i < numCheckpoints; i++) {
             final long checkpointId = dataInputView.readLong();

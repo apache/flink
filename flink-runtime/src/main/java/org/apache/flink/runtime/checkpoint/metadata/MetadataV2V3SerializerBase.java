@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -50,6 +51,7 @@ import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAcce
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.RelativeFileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.BiFunctionWithException;
@@ -68,7 +70,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -340,10 +341,10 @@ public abstract class MetadataV2V3SerializerBase {
             dos.writeInt(incrementalKeyedStateHandle.getKeyGroupRange().getNumberOfKeyGroups());
             dos.writeLong(incrementalKeyedStateHandle.getCheckpointedSize());
 
-            serializeStreamStateHandle(incrementalKeyedStateHandle.getMetaStateHandle(), dos);
+            serializeStreamStateHandle(incrementalKeyedStateHandle.getMetaDataStateHandle(), dos);
 
-            serializeStreamStateHandleMap(incrementalKeyedStateHandle.getSharedState(), dos);
-            serializeStreamStateHandleMap(incrementalKeyedStateHandle.getPrivateState(), dos);
+            serializeHandleAndLocalPathList(incrementalKeyedStateHandle.getSharedState(), dos);
+            serializeHandleAndLocalPathList(incrementalKeyedStateHandle.getPrivateState(), dos);
 
             writeStateHandleId(incrementalKeyedStateHandle, dos);
         } else if (stateHandle instanceof ChangelogStateBackendHandle) {
@@ -553,10 +554,8 @@ public abstract class MetadataV2V3SerializerBase {
                 KeyGroupRange.of(startKeyGroup, startKeyGroup + numKeyGroups - 1);
 
         StreamStateHandle metaDataStateHandle = deserializeStreamStateHandle(dis, context);
-        Map<StateHandleID, StreamStateHandle> sharedStates =
-                deserializeStreamStateHandleMap(dis, context);
-        Map<StateHandleID, StreamStateHandle> privateStates =
-                deserializeStreamStateHandleMap(dis, context);
+        List<HandleAndLocalPath> sharedStates = deserializeHandleAndLocalPathList(dis, context);
+        List<HandleAndLocalPath> privateStates = deserializeHandleAndLocalPathList(dis, context);
 
         UUID uuid;
 
@@ -616,7 +615,8 @@ public abstract class MetadataV2V3SerializerBase {
             return null;
         } else if (PARTITIONABLE_OPERATOR_STATE_HANDLE == type) {
             int mapSize = dis.readInt();
-            Map<String, OperatorStateHandle.StateMetaInfo> offsetsMap = new HashMap<>(mapSize);
+            Map<String, OperatorStateHandle.StateMetaInfo> offsetsMap =
+                    CollectionUtil.newHashMapWithExpectedSize(mapSize);
             for (int i = 0; i < mapSize; ++i) {
                 String key = dis.readUTF();
 
@@ -809,26 +809,26 @@ public abstract class MetadataV2V3SerializerBase {
         return new StateObjectCollection<>(result);
     }
 
-    private static void serializeStreamStateHandleMap(
-            Map<StateHandleID, StreamStateHandle> map, DataOutputStream dos) throws IOException {
+    private static void serializeHandleAndLocalPathList(
+            List<HandleAndLocalPath> list, DataOutputStream dos) throws IOException {
 
-        dos.writeInt(map.size());
-        for (Map.Entry<StateHandleID, StreamStateHandle> entry : map.entrySet()) {
-            dos.writeUTF(entry.getKey().toString());
-            serializeStreamStateHandle(entry.getValue(), dos);
+        dos.writeInt(list.size());
+        for (HandleAndLocalPath handleAndLocalPath : list) {
+            dos.writeUTF(handleAndLocalPath.getLocalPath());
+            serializeStreamStateHandle(handleAndLocalPath.getHandle(), dos);
         }
     }
 
-    private static Map<StateHandleID, StreamStateHandle> deserializeStreamStateHandleMap(
+    private static List<HandleAndLocalPath> deserializeHandleAndLocalPathList(
             DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
 
         final int size = dis.readInt();
-        Map<StateHandleID, StreamStateHandle> result = new HashMap<>(size);
+        List<HandleAndLocalPath> result = new ArrayList<>(size);
 
         for (int i = 0; i < size; ++i) {
-            StateHandleID stateHandleID = new StateHandleID(dis.readUTF());
+            String localPath = dis.readUTF();
             StreamStateHandle stateHandle = deserializeStreamStateHandle(dis, context);
-            result.put(stateHandleID, stateHandle);
+            result.add(HandleAndLocalPath.of(stateHandle, localPath));
         }
 
         return result;

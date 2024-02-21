@@ -50,7 +50,7 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 import org.apache.flink.util.clock.SystemClock;
 
-import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava31.com.google.common.io.Closer;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -218,7 +218,7 @@ public class CheckpointedInputGateTest {
                                 .setChannelFactory(InputChannelBuilder::buildRemoteChannel)
                                 .build();
                 singleInputGate.setup();
-                ((RemoteInputChannel) singleInputGate.getChannel(0)).requestSubpartition();
+                ((RemoteInputChannel) singleInputGate.getChannel(0)).requestSubpartitions();
 
                 final TaskMailboxImpl mailbox = new TaskMailboxImpl();
                 MailboxExecutorImpl mailboxExecutor =
@@ -312,7 +312,7 @@ public class CheckpointedInputGateTest {
                         channelIndex,
                         (key, oldSequence) -> oldSequence == null ? 0 : oldSequence + 1);
         ((RemoteInputChannel) checkpointedInputGate.getChannel(channelIndex))
-                .onBuffer(buffer, sequenceNumber, 0);
+                .onBuffer(buffer, sequenceNumber, 0, 0);
     }
 
     private CheckpointedInputGate setupInputGate(
@@ -355,7 +355,7 @@ public class CheckpointedInputGateTest {
                         mailboxExecutor,
                         UpstreamRecoveryTracker.forInputGate(singleInputGate));
         for (int i = 0; i < numberOfChannels; i++) {
-            ((RemoteInputChannel) checkpointedInputGate.getChannel(i)).requestSubpartition();
+            ((RemoteInputChannel) checkpointedInputGate.getChannel(i)).requestSubpartitions();
         }
         return checkpointedInputGate;
     }
@@ -395,7 +395,7 @@ public class CheckpointedInputGateTest {
                         mailboxExecutor,
                         UpstreamRecoveryTracker.forInputGate(singleInputGate));
         for (int i = 0; i < numberOfChannels; i++) {
-            ((RemoteInputChannel) checkpointedInputGate.getChannel(i)).requestSubpartition();
+            ((RemoteInputChannel) checkpointedInputGate.getChannel(i)).requestSubpartitions();
         }
         return checkpointedInputGate;
     }

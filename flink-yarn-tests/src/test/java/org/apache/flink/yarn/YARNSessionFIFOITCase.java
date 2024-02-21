@@ -37,7 +37,6 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoSchedule
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +60,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 class YARNSessionFIFOITCase extends YarnTestBase {
     private static final Logger log = LoggerFactory.getLogger(YARNSessionFIFOITCase.class);
 
+    protected static final String VIEW_ACLS = "user group";
+    protected static final String MODIFY_ACLS = "admin groupAdmin";
+    protected static final String VIEW_ACLS_WITH_WILDCARD = "*";
+    protected static final String MODIFY_ACLS_WITH_WILDCARD = "*";
+    protected static final String WILDCARD = "*";
+
     @RegisterExtension
     protected final LoggerAuditingExtension yarLoggerAuditingExtension =
             new LoggerAuditingExtension(YarnClusterDescriptor.class, Level.WARN);
@@ -81,14 +86,15 @@ class YARNSessionFIFOITCase extends YarnTestBase {
         ensureNoProhibitedStringInLogFiles(PROHIBITED_STRINGS, WHITELISTED_STRINGS);
     }
 
-    @Timeout(value = 60)
     @Test
     void testDetachedMode() throws Exception {
-        runTest(() -> runDetachedModeTest(Collections.emptyMap()));
+        runTest(() -> runDetachedModeTest(Collections.emptyMap(), VIEW_ACLS, MODIFY_ACLS));
     }
 
     /** Test regular operation, including command line parameter parsing. */
-    ApplicationId runDetachedModeTest(Map<String, String> securityProperties) throws Exception {
+    ApplicationId runDetachedModeTest(
+            Map<String, String> securityProperties, String viewAcls, String modifyAcls)
+            throws Exception {
         log.info("Starting testDetachedMode()");
 
         File exampleJarLocation = getTestJarPath("StreamingWordCount.jar");
@@ -115,6 +121,9 @@ class YARNSessionFIFOITCase extends YarnTestBase {
                 args.add("-D" + property.getKey() + "=" + property.getValue());
             }
         }
+
+        args.add("-D" + YarnConfigOptions.APPLICATION_VIEW_ACLS.key() + "=" + viewAcls);
+        args.add("-D" + YarnConfigOptions.APPLICATION_MODIFY_ACLS.key() + "=" + modifyAcls);
 
         args.add("--name");
         args.add("MyCustomName");
@@ -213,8 +222,7 @@ class YARNSessionFIFOITCase extends YarnTestBase {
             try {
                 File yarnPropertiesFile =
                         FlinkYarnSessionCli.getYarnPropertiesLocation(
-                                configuration.getString(
-                                        YarnConfigOptions.PROPERTIES_FILE_LOCATION));
+                                configuration.get(YarnConfigOptions.PROPERTIES_FILE_LOCATION));
                 if (yarnPropertiesFile.exists()) {
                     log.info(
                             "testDetachedPerJobYarnClusterInternal: Cleaning up temporary Yarn address reference: {}",

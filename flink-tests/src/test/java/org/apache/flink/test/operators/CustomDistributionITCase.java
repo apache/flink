@@ -80,7 +80,10 @@ public class CustomDistributionITCase extends TestLogger {
                                             Iterable<Tuple3<Integer, Long, String>> values,
                                             Collector<Boolean> out)
                                             throws Exception {
-                                        int pIdx = getRuntimeContext().getIndexOfThisSubtask();
+                                        int pIdx =
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getIndexOfThisSubtask();
 
                                         for (Tuple3<Integer, Long, String> s : values) {
                                             boolean correctlyPartitioned = true;
@@ -157,7 +160,10 @@ public class CustomDistributionITCase extends TestLogger {
                                             Iterable<Tuple3<Integer, Integer, String>> values,
                                             Collector<Boolean> out)
                                             throws Exception {
-                                        int pIdx = getRuntimeContext().getIndexOfThisSubtask();
+                                        int pIdx =
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getIndexOfThisSubtask();
                                         boolean correctlyPartitioned = true;
 
                                         for (Tuple3<Integer, Integer, String> s : values) {
@@ -227,7 +233,10 @@ public class CustomDistributionITCase extends TestLogger {
                                             Iterable<Tuple3<Integer, Long, String>> values,
                                             Collector<Boolean> out)
                                             throws Exception {
-                                        int pIdx = getRuntimeContext().getIndexOfThisSubtask();
+                                        int pIdx =
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getIndexOfThisSubtask();
 
                                         for (Tuple3<Integer, Long, String> s : values) {
                                             boolean correctlyPartitioned = true;

@@ -29,9 +29,15 @@ import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.NetworkPartitionC
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.PartitionConnectionInfo;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
+import javax.annotation.Nullable;
+
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.api.common.BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL;
+import static org.apache.flink.api.common.BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE;
+import static org.apache.flink.configuration.ExecutionOptions.BATCH_SHUFFLE_MODE;
+import static org.apache.flink.configuration.NettyShuffleEnvironmentOptions.NETWORK_HYBRID_SHUFFLE_ENABLE_NEW_MODE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -50,24 +56,28 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
 
     private final int networkBufferSize;
 
-    private final TieredInternalShuffleMaster tieredInternalShuffleMaster;
+    @Nullable private final TieredInternalShuffleMaster tieredInternalShuffleMaster;
 
     public NettyShuffleMaster(Configuration conf) {
         checkNotNull(conf);
         buffersPerInputChannel =
-                conf.getInteger(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL);
+                conf.get(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL);
         floatingBuffersPerGate =
-                conf.getInteger(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
+                conf.get(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
         maxRequiredBuffersPerGate =
                 conf.getOptional(
                         NettyShuffleEnvironmentOptions.NETWORK_READ_MAX_REQUIRED_BUFFERS_PER_GATE);
         sortShuffleMinParallelism =
-                conf.getInteger(
-                        NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM);
+                conf.get(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM);
         sortShuffleMinBuffers =
-                conf.getInteger(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
+                conf.get(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
         networkBufferSize = ConfigurationParserUtils.getPageSize(conf);
-        tieredInternalShuffleMaster = new TieredInternalShuffleMaster(conf);
+
+        if (isHybridShuffleNewModeEnabled(conf)) {
+            tieredInternalShuffleMaster = new TieredInternalShuffleMaster(conf);
+        } else {
+            tieredInternalShuffleMaster = null;
+        }
 
         checkArgument(
                 !maxRequiredBuffersPerGate.isPresent() || maxRequiredBuffersPerGate.get() >= 1,
@@ -100,19 +110,17 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
                                 producerDescriptor, partitionDescriptor.getConnectionIndex()),
                         resultPartitionID);
 
-        tieredInternalShuffleMaster.addPartition(jobID, resultPartitionID);
-
+        if (tieredInternalShuffleMaster != null) {
+            tieredInternalShuffleMaster.addPartition(resultPartitionID);
+        }
         return CompletableFuture.completedFuture(shuffleDeploymentDescriptor);
     }
 
     @Override
     public void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor) {
-        tieredInternalShuffleMaster.releasePartition(shuffleDescriptor.getResultPartitionID());
-    }
-
-    @Override
-    public void unregisterJob(JobID jobID) {
-        tieredInternalShuffleMaster.unregisterJob(jobID);
+        if (tieredInternalShuffleMaster != null) {
+            tieredInternalShuffleMaster.releasePartition(shuffleDescriptor.getResultPartitionID());
+        }
     }
 
     private static PartitionConnectionInfo createConnectionInfo(
@@ -150,5 +158,11 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
                         desc.getPartitionTypes());
 
         return new MemorySize((long) networkBufferSize * numRequiredNetworkBuffers);
+    }
+
+    private boolean isHybridShuffleNewModeEnabled(Configuration conf) {
+        return (conf.get(BATCH_SHUFFLE_MODE) == ALL_EXCHANGES_HYBRID_FULL
+                        || conf.get(BATCH_SHUFFLE_MODE) == ALL_EXCHANGES_HYBRID_SELECTIVE)
+                && conf.get(NETWORK_HYBRID_SHUFFLE_ENABLE_NEW_MODE);
     }
 }

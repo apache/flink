@@ -43,12 +43,10 @@ import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
-import org.apache.flink.util.TestLoggerExtension;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterators;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nullable;
 
@@ -64,7 +62,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link MetricRegistryImpl}. */
-@ExtendWith(TestLoggerExtension.class)
 class MetricRegistryImplTest {
 
     private static final char GLOBAL_DEFAULT_DELIMITER = '.';
@@ -290,10 +287,10 @@ class MetricRegistryImplTest {
     void testScopeConfig() {
         Configuration config = new Configuration();
 
-        config.setString(MetricOptions.SCOPE_NAMING_TM, "A");
-        config.setString(MetricOptions.SCOPE_NAMING_TM_JOB, "B");
-        config.setString(MetricOptions.SCOPE_NAMING_TASK, "C");
-        config.setString(MetricOptions.SCOPE_NAMING_OPERATOR, "D");
+        config.set(MetricOptions.SCOPE_NAMING_TM, "A");
+        config.set(MetricOptions.SCOPE_NAMING_TM_JOB, "B");
+        config.set(MetricOptions.SCOPE_NAMING_TASK, "C");
+        config.set(MetricOptions.SCOPE_NAMING_OPERATOR, "D");
 
         ScopeFormats scopeConfig = ScopeFormats.fromConfig(config);
 
@@ -306,8 +303,8 @@ class MetricRegistryImplTest {
     @Test
     void testConfigurableDelimiter() throws Exception {
         Configuration config = new Configuration();
-        config.setString(MetricOptions.SCOPE_DELIMITER, "_");
-        config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D.E");
+        config.set(MetricOptions.SCOPE_DELIMITER, "_");
+        config.set(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D.E");
 
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
@@ -364,7 +361,7 @@ class MetricRegistryImplTest {
         config3.setProperty(MetricOptions.REPORTER_SCOPE_DELIMITER.key(), "AA");
 
         Configuration config = new Configuration();
-        config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B");
+        config.set(MetricOptions.SCOPE_NAMING_TM, "A.B");
 
         List<ReporterSetup> reporterConfigurations =
                 Arrays.asList(

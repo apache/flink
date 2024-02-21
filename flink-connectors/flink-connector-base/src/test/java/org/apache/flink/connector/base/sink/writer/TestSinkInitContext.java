@@ -17,16 +17,22 @@
 
 package org.apache.flink.connector.base.sink.writer;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
+import org.apache.flink.connector.testutils.source.TestingJobInfo;
+import org.apache.flink.connector.testutils.source.TestingTaskInfo;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.metrics.testutils.MetricListener;
-import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
+import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
@@ -42,16 +48,20 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ScheduledFuture;
 
 /** A mock implementation of a {@code Sink.InitContext} to be used in sink unit tests. */
-public class TestSinkInitContext implements Sink.InitContext {
+public class TestSinkInitContext implements WriterInitContext {
 
     private static final TestProcessingTimeService processingTimeService;
     private final MetricListener metricListener = new MetricListener();
     private final OperatorIOMetricGroup operatorIOMetricGroup =
             UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup().getIOMetricGroup();
     private final SinkWriterMetricGroup metricGroup =
-            InternalSinkWriterMetricGroup.mock(
+            MetricsGroupTestUtils.mockWriterMetricGroup(
                     metricListener.getMetricGroup(), operatorIOMetricGroup);
     private final MailboxExecutor mailboxExecutor;
+
+    private final JobInfo jobInfo;
+
+    private final TaskInfo taskInfo;
 
     StreamTaskActionExecutor streamTaskActionExecutor =
             new StreamTaskActionExecutor() {
@@ -78,6 +88,15 @@ public class TestSinkInitContext implements Sink.InitContext {
                         new TaskMailboxImpl(Thread.currentThread()),
                         Integer.MAX_VALUE,
                         streamTaskActionExecutor);
+        jobInfo = new TestingJobInfo.Builder().setJobID(new JobID()).setJobName("TestJob").build();
+        taskInfo =
+                new TestingTaskInfo.Builder()
+                        .setTaskName("TestTask")
+                        .setMaxNumberOfParallelSubtasks(1)
+                        .setIndexOfThisSubtask(0)
+                        .setAttemptNumber(0)
+                        .setNumberOfParallelSubtasks(1)
+                        .build();
     }
 
     static {
@@ -113,21 +132,6 @@ public class TestSinkInitContext implements Sink.InitContext {
     }
 
     @Override
-    public int getSubtaskId() {
-        return 0;
-    }
-
-    @Override
-    public int getNumberOfParallelSubtasks() {
-        return 0;
-    }
-
-    @Override
-    public int getAttemptNumber() {
-        return 0;
-    }
-
-    @Override
     public SinkWriterMetricGroup metricGroup() {
         return metricGroup;
     }
@@ -139,6 +143,16 @@ public class TestSinkInitContext implements Sink.InitContext {
 
     @Override
     public SerializationSchema.InitializationContext asSerializationSchemaInitializationContext() {
+        return null;
+    }
+
+    @Override
+    public boolean isObjectReuseEnabled() {
+        return false;
+    }
+
+    @Override
+    public <IN> TypeSerializer<IN> createInputSerializer() {
         return null;
     }
 
@@ -156,5 +170,15 @@ public class TestSinkInitContext implements Sink.InitContext {
 
     public Counter getNumBytesOutCounter() {
         return metricGroup.getIOMetricGroup().getNumBytesOutCounter();
+    }
+
+    @Override
+    public JobInfo getJobInfo() {
+        return jobInfo;
+    }
+
+    @Override
+    public TaskInfo getTaskInfo() {
+        return taskInfo;
     }
 }

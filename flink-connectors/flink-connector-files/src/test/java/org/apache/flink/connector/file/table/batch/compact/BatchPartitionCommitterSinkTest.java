@@ -18,8 +18,8 @@
 
 package org.apache.flink.connector.file.table.batch.compact;
 
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.FileSystemCommitterTest;
 import org.apache.flink.connector.file.table.FileSystemFactory;
 import org.apache.flink.connector.file.table.PartitionCommitPolicyFactory;
@@ -28,12 +28,12 @@ import org.apache.flink.connector.file.table.stream.compact.CompactMessages;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.IOException;
@@ -46,7 +46,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.doReturn;
 
 /** Test for {@link BatchPartitionCommitterSink}. */
 public class BatchPartitionCommitterSinkTest {
@@ -77,8 +76,8 @@ public class BatchPartitionCommitterSinkTest {
                         new String[] {"p1", "p2"},
                         new LinkedHashMap<>(),
                         identifier,
-                        new PartitionCommitPolicyFactory(null, null, null));
-        committerSink.open(new Configuration());
+                        new PartitionCommitPolicyFactory(null, null, null, null));
+        committerSink.open(DefaultOpenContext.INSTANCE);
 
         List<Path> pathList1 = createFiles(path, "task-1/p1=0/p2=0/", "f1", "f2");
         List<Path> pathList2 = createFiles(path, "task-2/p1=0/p2=0/", "f3");
@@ -128,10 +127,11 @@ public class BatchPartitionCommitterSinkTest {
             };
 
     private static RuntimeContext getMockRuntimeContext() {
-        RuntimeContext context = Mockito.mock(RuntimeContext.class);
-        doReturn(Thread.currentThread().getContextClassLoader())
-                .when(context)
-                .getUserCodeClassLoader();
-        return context;
+        return new MockStreamingRuntimeContext(false, 1, 0) {
+            @Override
+            public ClassLoader getUserCodeClassLoader() {
+                return Thread.currentThread().getContextClassLoader();
+            }
+        };
     }
 }

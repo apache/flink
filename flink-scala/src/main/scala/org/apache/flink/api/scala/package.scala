@@ -19,6 +19,7 @@ package org.apache.flink.api
 
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.{SerializerConfig, SerializerConfigImpl}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
@@ -45,11 +46,14 @@ import language.experimental.macros
  *   still build your application in Scala, but you should move to the Java version of either the
  *   DataStream and/or Table API.
  * @see
- *   <a
- *   href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-265+Deprecate+and+remove+Scala+API+support">
- *   FLIP-265 Deprecate and remove Scala API support</a>
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
 package object scala {
+
+  val FLIP_265_WARNING: String = "All Flink Scala APIs are deprecated and will be removed in a " +
+    "future Flink version. You can still build your application in Scala, but you should move " +
+    "to the Java version of either the DataStream and/or Table API."
+
   // We have this here so that we always have generated TypeInformationS when
   // using the Scala API
   implicit def createTypeInformation[T]: TypeInformation[T] = macro TypeUtils.createTypeInfo[T]
@@ -134,14 +138,19 @@ package object scala {
       Seq(t1, t2),
       Array("_1", "_2")) {
 
-      override def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[(T1, T2)] = {
+      override def createSerializer(
+          serializerConfig: SerializerConfig): TypeSerializer[(T1, T2)] = {
         val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)
         for (i <- 0 until getArity) {
-          fieldSerializers(i) = types(i).createSerializer(executionConfig)
+          fieldSerializers(i) = types(i).createSerializer(serializerConfig)
         }
 
         new Tuple2CaseClassSerializer[T1, T2](classOf[(T1, T2)], fieldSerializers)
       }
+
+      override def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[(T1, T2)] =
+        createSerializer(executionConfig.getSerializerConfig)
+
     }
 
   class Tuple2CaseClassSerializer[T1, T2](

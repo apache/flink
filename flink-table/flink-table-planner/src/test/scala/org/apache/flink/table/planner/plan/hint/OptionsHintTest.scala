@@ -25,23 +25,22 @@ import org.apache.flink.table.planner.JHashMap
 import org.apache.flink.table.planner.plan.hint.OptionsHintTest.{IS_BOUNDED, Param}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
 import org.apache.flink.table.planner.utils.{OptionsTableSink, TableTestBase, TableTestUtil}
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
-import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.hamcrest.Matchers._
-import org.junit.{Before, Test}
-import org.junit.Assert.{assertEquals, assertThat}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
-import org.junit.runners.Parameterized.Parameters
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
+
+import java.util
 
 import scala.collection.JavaConversions._
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class OptionsHintTest(param: Param) extends TableTestBase {
   private val util = param.utilSupplier.apply(this)
   private val is_bounded = param.isBounded
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util.addTable(s"""
                      |create table t1(
@@ -70,18 +69,19 @@ class OptionsHintTest(param: Param) extends TableTestBase {
        """.stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testOptionsWithGlobalConfDisabled(): Unit = {
     util.tableEnv.getConfig
       .set(TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, Boolean.box(false))
-    expectedException.expect(isA(classOf[ValidationException]))
-    expectedException.expectMessage(
-      s"OPTIONS hint is allowed only when "
+
+    assertThatThrownBy(
+      () => util.verifyExecPlan("select * from t1/*+ OPTIONS(connector='COLLECTION', k2='#v2') */"))
+      .hasMessageContaining(s"OPTIONS hint is allowed only when "
         + s"${TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED.key} is set to true")
-    util.verifyExecPlan("select * from t1/*+ OPTIONS(connector='COLLECTION', k2='#v2') */")
+      .isInstanceOf[ValidationException]
   }
 
-  @Test
+  @TestTemplate
   def testInsertWithDynamicOptions(): Unit = {
     val sql =
       s"""
@@ -92,23 +92,24 @@ class OptionsHintTest(param: Param) extends TableTestBase {
     stmtSet.addInsertSql(sql)
     val testStmtSet = stmtSet.asInstanceOf[StatementSetImpl[_]]
     val relNodes = testStmtSet.getOperations.map(util.getPlanner.translateToRel)
-    assertThat(relNodes.length, is(1))
+    assertThat(relNodes.length).isOne
     assert(relNodes.head.isInstanceOf[LogicalLegacySink])
     val sink = relNodes.head.asInstanceOf[LogicalLegacySink]
-    assertEquals("{k1=#v1, k2=v2, k5=v5}", sink.sink.asInstanceOf[OptionsTableSink].props.toString)
+    assertThat(sink.sink.asInstanceOf[OptionsTableSink].props.toString)
+      .isEqualTo("{k1=#v1, k2=v2, k5=v5}")
   }
 
-  @Test
+  @TestTemplate
   def testAppendOptions(): Unit = {
     util.verifyExecPlan("select * from t1/*+ OPTIONS(k5='v5', 'a.b.c'='fakeVal') */")
   }
 
-  @Test
+  @TestTemplate
   def testOverrideOptions(): Unit = {
     util.verifyExecPlan("select * from t1/*+ OPTIONS(k1='#v1', k2='#v2') */")
   }
 
-  @Test
+  @TestTemplate
   def testJoinWithAppendedOptions(): Unit = {
     val sql =
       s"""
@@ -121,7 +122,7 @@ class OptionsHintTest(param: Param) extends TableTestBase {
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinWithOverriddenOptions(): Unit = {
     val sql =
       s"""
@@ -134,7 +135,7 @@ class OptionsHintTest(param: Param) extends TableTestBase {
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testOptionsHintOnTableApiView(): Unit = {
     val view1 = util.tableEnv.sqlQuery("select * from t1 join t2 on t1.a = t2.d")
     util.tableEnv.createTemporaryView("view1", view1)
@@ -146,7 +147,7 @@ class OptionsHintTest(param: Param) extends TableTestBase {
       .isInstanceOf[ValidationException]
   }
 
-  @Test
+  @TestTemplate
   def testOptionsHintOnSQLView(): Unit = {
     // Equivalent SQL:
     // select * from t1 join t2 on t1.a = t2.d
@@ -181,6 +182,15 @@ class OptionsHintTest(param: Param) extends TableTestBase {
         "cannot be enriched with new options. Hints can only be applied to tables.")
       .isInstanceOf[ValidationException]
   }
+
+  @TestTemplate
+  def testOptionsHintInsideView(): Unit = {
+    util.tableEnv.executeSql(
+      "create view v1 as select * from t1 /*+ OPTIONS(k1='#v111', k4='#v444')*/")
+    util.verifyExecPlan(s"""
+                           |select * from t2 join v1 on v1.a = t2.d
+                           |""".stripMargin)
+  }
 }
 
 object OptionsHintTest {
@@ -190,8 +200,10 @@ object OptionsHintTest {
     override def toString: String = s"$IS_BOUNDED=$isBounded"
   }
 
-  @Parameters(name = "{index}: {0}")
-  def parameters(): Array[Param] = {
-    Array(Param(_.batchTestUtil(), isBounded = true), Param(_.streamTestUtil(), isBounded = false))
+  @Parameters(name = "{0}")
+  def parameters(): util.Collection[Param] = {
+    util.Arrays.asList(
+      Param(_.batchTestUtil(), isBounded = true),
+      Param(_.streamTestUtil(), isBounded = false))
   }
 }

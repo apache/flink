@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.co;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -36,8 +36,8 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OutputTag;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -901,7 +901,7 @@ public class IntervalJoinOperatorTest {
 
         public static TypeSerializer<TestElem> serializer() {
             return TypeInformation.of(new TypeHint<TestElem>() {})
-                    .createSerializer(new ExecutionConfig());
+                    .createSerializer(new SerializerConfigImpl());
         }
     }
 

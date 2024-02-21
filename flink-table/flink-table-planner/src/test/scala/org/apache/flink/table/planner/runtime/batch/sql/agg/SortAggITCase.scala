@@ -17,52 +17,52 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql.agg
 
-import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo, TupleTypeInfo, TypeExtractor}
-import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
+import org.apache.flink.api.java.typeutils._
+import org.apache.flink.table.annotation.{DataTypeHint, FunctionHint}
+import org.apache.flink.table.api.{DataTypes, Types}
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_DISABLED_OPERATORS, TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM}
+import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.{JInt, JLong}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData
-import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{MyPojo, MyToPojoFunc}
+import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.MyPojo
 import org.apache.flink.table.planner.utils.{CountAccumulator, CountAggFunction, IntSumAggFunction}
+import org.apache.flink.table.types.inference.{TypeInference, TypeStrategies}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.lang
 import java.lang.{Iterable => JIterable}
 
 import scala.annotation.varargs
 import scala.collection.JavaConverters._
-import scala.collection.Seq
 
 /** AggregateITCase using SortAgg Operator. */
 class SortAggITCase extends AggregateITCaseBase("SortAggregate") {
   override def prepareAggOp(): Unit = {
     tEnv.getConfig.set(TABLE_EXEC_DISABLED_OPERATORS, "HashAgg")
 
-    registerFunction("countFun", new CountAggFunction())
-    registerFunction("intSumFun", new IntSumAggFunction())
+    tEnv.createTemporarySystemFunction("countFun", new CountAggFunction())
+    tEnv.createTemporarySystemFunction("intSumFun", new IntSumAggFunction())
     registerTemporarySystemFunction("weightedAvg", classOf[WeightedAvgWithMergeAndReset])
 
-    registerFunction("myPrimitiveArrayUdaf", new MyPrimitiveArrayUdaf())
-    registerFunction("myObjectArrayUdaf", new MyObjectArrayUdaf())
-    registerFunction("myNestedLongArrayUdaf", new MyNestedLongArrayUdaf())
+    tEnv.createTemporarySystemFunction("myPrimitiveArrayUdaf", new MyPrimitiveArrayUdaf())
+    tEnv.createTemporarySystemFunction("myObjectArrayUdaf", new MyObjectArrayUdaf())
+    tEnv.createTemporarySystemFunction("myNestedLongArrayUdaf", new MyNestedLongArrayUdaf())
     registerTemporarySystemFunction("myNestedStringArrayUdaf", classOf[MyNestedStringArrayUdaf])
 
-    registerFunction("myPrimitiveMapUdaf", new MyPrimitiveMapUdaf())
-    registerFunction("myObjectMapUdaf", new MyObjectMapUdaf())
+    tEnv.createTemporarySystemFunction("myPrimitiveMapUdaf", new MyPrimitiveMapUdaf())
+    tEnv.createTemporarySystemFunction("myObjectMapUdaf", new MyObjectMapUdaf())
     registerTemporarySystemFunction("myNestedMapUdaf", classOf[MyNestedMapUdf])
   }
 
   @Test
   def testBigDataSimpleArrayUDAF(): Unit = {
     tEnv.getConfig.set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
-    registerFunction("simplePrimitiveArrayUdaf", new SimplePrimitiveArrayUdaf())
+    tEnv.createTemporarySystemFunction("simplePrimitiveArrayUdaf", new SimplePrimitiveArrayUdaf())
     registerRange("RangeT", 1000000)
     env.setParallelism(1)
     checkResult("SELECT simplePrimitiveArrayUdaf(id) FROM RangeT", Seq(row(499999500000L)))
@@ -168,8 +168,8 @@ class SortAggITCase extends AggregateITCaseBase("SortAggregate") {
       new RowTypeInfo(Types.INT, TypeExtractor.createTypeInfo(classOf[MyPojo])),
       "a, b")
 
-    registerFunction("pojoFunc", new MyPojoAggFunction)
-    checkResult("SELECT pojoFunc(b) FROM MyTable group by a", Seq(row(row(128, 128))))
+    tEnv.createTemporarySystemFunction("pojoFunc", new MyPojoAggFunction)
+    checkResult("SELECT pojoFunc(b) FROM MyTable group by a", Seq(row(new MyPojo(128, 128))))
   }
 
   @Test
@@ -181,7 +181,7 @@ class SortAggITCase extends AggregateITCaseBase("SortAggregate") {
       new RowTypeInfo(Types.INT, Types.LONG, Types.STRING, Types.STRING),
       "id, s, s1, s2")
     val func = new VarArgsAggFunction
-    registerFunction("func", func)
+    tEnv.createTemporaryFunction("func", func)
 
     // no group
     checkResult("SELECT func(s, s1, s2) FROM MyTable", Seq(row(140)))
@@ -365,6 +365,42 @@ class SortAggITCase extends AggregateITCaseBase("SortAggregate") {
       Seq(row(4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L))
     )
   }
+
+  @Test
+  def testJsonArrayAggAndJsonObjectAggWithOtherAggs(): Unit = {
+    val sql =
+      s"""
+         |SELECT
+         |  MAX(d), JSON_OBJECTAGG(g VALUE d), JSON_ARRAYAGG(d), JSON_ARRAYAGG(g)
+         |FROM Table5 WHERE d <= 3
+         |""".stripMargin
+    checkResult(
+      sql,
+      Seq(row("3, {\"ABC\":3,\"BCD\":3,\"Hallo\":1,\"Hallo Welt\":2," +
+        "\"Hallo Welt wie\":2,\"Hallo Welt wie gehts?\":3}, [1,2,2,3,3,3], " +
+        "[\"Hallo\",\"Hallo Welt\",\"Hallo Welt wie\",\"Hallo Welt wie gehts?\",\"ABC\",\"BCD\"]"))
+    )
+  }
+
+  @Test
+  def testGroupJsonArrayAggAndJsonObjectAggWithOtherAggs(): Unit = {
+    val sql =
+      s"""
+         |SELECT
+         |  d, JSON_OBJECTAGG(g VALUE f), JSON_ARRAYAGG(g), JSON_ARRAYAGG(f), max(f)
+         |FROM Table5 WHERE d <= 3 GROUP BY d
+         |""".stripMargin
+    checkResult(
+      sql,
+      Seq(
+        row("1, {\"Hallo\":0}, [\"Hallo\"], [0], 0"),
+        row(
+          "2, {\"Hallo Welt\":1,\"Hallo Welt wie\":2}, [\"Hallo Welt\",\"Hallo Welt wie\"], [1,2], 2"),
+        row(
+          "3, {\"ABC\":4,\"BCD\":5,\"Hallo Welt wie gehts?\":3}, [\"Hallo Welt wie gehts?\",\"ABC\",\"BCD\"], [3,4,5], 5")
+      )
+    )
+  }
 }
 
 class MyPojoAggFunction extends AggregateFunction[MyPojo, CountAccumulator] {
@@ -396,11 +432,27 @@ class MyPojoAggFunction extends AggregateFunction[MyPojo, CountAccumulator] {
     new CountAccumulator
   }
 
-  override def getAccumulatorType: TypeInformation[CountAccumulator] = {
-    new TupleTypeInfo[CountAccumulator](classOf[CountAccumulator], Types.LONG)
+  override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+    TypeInference.newBuilder
+      .typedArguments(
+        DataTypes.STRUCTURED(
+          classOf[MyPojo],
+          DataTypes.FIELD("f1", DataTypes.INT()),
+          DataTypes.FIELD("f2", DataTypes.INT())))
+      .accumulatorTypeStrategy(
+        TypeStrategies.explicit(
+          DataTypes.STRUCTURED(
+            classOf[CountAccumulator],
+            DataTypes.FIELD("f0", DataTypes.BIGINT())
+          )))
+      .outputTypeStrategy(
+        TypeStrategies.explicit(
+          DataTypes.STRUCTURED(
+            classOf[MyPojo],
+            DataTypes.FIELD("f1", DataTypes.INT()),
+            DataTypes.FIELD("f2", DataTypes.INT()))))
+      .build
   }
-
-  override def getResultType: TypeInformation[MyPojo] = MyToPojoFunc.getResultType(null)
 }
 
 class VarArgsAggFunction extends AggregateFunction[JLong, CountAccumulator] {
@@ -441,18 +493,13 @@ class SimplePrimitiveArrayUdaf extends AggregateFunction[lang.Long, Array[Long]]
 
   override def getValue(accumulator: Array[Long]): lang.Long = Long.box(accumulator.sum)
 
-  def accumulate(accumulator: Array[Long], a: Long): Unit = {
+  def accumulate(accumulator: Array[Long], @DataTypeHint("BIGINT") a: Long): Unit = {
     accumulator(i) += a
     i += 1
     if (i >= accumulator.length) {
       i = 0
     }
   }
-
-  override def getAccumulatorType: TypeInformation[Array[Long]] =
-    PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO
-
-  override def getResultType: TypeInformation[lang.Long] = Types.LONG
 }
 
 class MyPrimitiveArrayUdaf extends AggregateFunction[Array[Long], Array[Long]] {
@@ -461,16 +508,13 @@ class MyPrimitiveArrayUdaf extends AggregateFunction[Array[Long], Array[Long]] {
 
   override def getValue(accumulator: Array[Long]): Array[Long] = accumulator
 
-  def accumulate(accumulator: Array[Long], a: Int, b: Long): Unit = {
+  def accumulate(
+      accumulator: Array[Long],
+      @DataTypeHint("INT") a: Int,
+      @DataTypeHint("BIGINT") b: Long): Unit = {
     accumulator(0) += a
     accumulator(1) += b
   }
-
-  override def getAccumulatorType: TypeInformation[Array[Long]] =
-    PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO
-
-  override def getResultType: TypeInformation[Array[Long]] =
-    PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO
 }
 
 class MyObjectArrayUdaf extends AggregateFunction[Array[String], Array[String]] {
@@ -483,12 +527,6 @@ class MyObjectArrayUdaf extends AggregateFunction[Array[String], Array[String]] 
     accumulator(0) = accumulator(0) + c.charAt(0)
     accumulator(1) = accumulator(1) + c.charAt(c.length - 1)
   }
-
-  override def getAccumulatorType: TypeInformation[Array[String]] =
-    BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO
-
-  override def getResultType: TypeInformation[Array[String]] =
-    BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO
 }
 
 class MyNestedLongArrayUdaf extends AggregateFunction[Array[Array[Long]], Array[Array[Long]]] {
@@ -497,17 +535,15 @@ class MyNestedLongArrayUdaf extends AggregateFunction[Array[Array[Long]], Array[
 
   override def getValue(accumulator: Array[Array[Long]]): Array[Array[Long]] = accumulator
 
-  def accumulate(accumulator: Array[Array[Long]], a: Int, b: Long): Unit = {
+  def accumulate(
+      accumulator: Array[Array[Long]],
+      @DataTypeHint("INT") a: Int,
+      @DataTypeHint("BIGINT") b: Long): Unit = {
     accumulator(0)(0) += a
     accumulator(0)(1) += b
     accumulator(1)(0) += b
     accumulator(1)(1) += a
   }
-
-  override def getAccumulatorType =
-    ObjectArrayTypeInfo.getInfoFor(PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO)
-
-  override def getResultType = getAccumulatorType
 }
 
 class MyNestedStringArrayUdaf
@@ -525,6 +561,10 @@ class MyNestedStringArrayUdaf
   }
 }
 
+@FunctionHint(
+  input = Array(new DataTypeHint("INT"), new DataTypeHint("BIGINT")),
+  accumulator = new DataTypeHint("MAP<BIGINT, INT>"),
+  output = new DataTypeHint("MAP<BIGINT, INT>"))
 class MyPrimitiveMapUdaf
   extends AggregateFunction[java.util.Map[Long, Int], java.util.Map[Long, Int]] {
 
@@ -538,15 +578,12 @@ class MyPrimitiveMapUdaf
     accumulator.putIfAbsent(b, 0)
     accumulator.put(b, accumulator.get(b) + a)
   }
-
-  override def getAccumulatorType =
-    new MapTypeInfo(Types.LONG, Types.INT)
-      .asInstanceOf[TypeInformation[java.util.Map[Long, Int]]]
-
-  override def getResultType =
-    getAccumulatorType
 }
 
+@FunctionHint(
+  input = Array(new DataTypeHint("INT"), new DataTypeHint("STRING")),
+  accumulator = new DataTypeHint("MAP<STRING, INT>"),
+  output = new DataTypeHint("MAP<STRING, INT>"))
 class MyObjectMapUdaf
   extends AggregateFunction[java.util.Map[String, Int], java.util.Map[String, Int]] {
 
@@ -561,12 +598,6 @@ class MyObjectMapUdaf
     accumulator.putIfAbsent(key, 0)
     accumulator.put(key, accumulator.get(key) + a)
   }
-
-  override def getAccumulatorType =
-    new MapTypeInfo(Types.STRING, Types.INT)
-      .asInstanceOf[TypeInformation[java.util.Map[String, Int]]]
-
-  override def getResultType = getAccumulatorType
 }
 
 class MyNestedMapUdf

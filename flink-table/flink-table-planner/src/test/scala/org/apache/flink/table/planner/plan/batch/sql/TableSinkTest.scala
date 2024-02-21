@@ -19,15 +19,11 @@ package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.config.TableConfigOptions
-import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
-import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase
-import org.apache.flink.table.planner.runtime.utils.TestData.smallData3
-import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
+import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.logical.{BigIntType, IntType}
 
-import org.junit.{Assert, Test}
+import org.junit.jupiter.api.Test
 
 class TableSinkTest extends TableTestBase {
 
@@ -87,6 +83,23 @@ class TableSinkTest extends TableTestBase {
                      |  `a` INT,
                      |  `b` BIGINT
                      |) PARTITIONED BY (
+                     |  `b`
+                     |) WITH (
+                     |  'connector' = 'values'
+                     |)
+                     |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sink SELECT a,b FROM MyTable ORDER BY a")
+    util.verifyExecPlan(stmtSet)
+  }
+
+  @Test
+  def testDistribution(): Unit = {
+    util.addTable(s"""
+                     |CREATE TABLE sink (
+                     |  `a` INT,
+                     |  `b` BIGINT
+                     |) DISTRIBUTED BY (
                      |  `b`
                      |) WITH (
                      |  'connector' = 'values'

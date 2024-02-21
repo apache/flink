@@ -1,0 +1,445 @@
+<?xml version="1.0" ?>
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<Root>
+	<TestCase name="testMultipleInputWithDPP[mode = ALL_EXCHANGES_BLOCKING]">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM (Select count(*) c1 from fact_part, dim where fact_part.fact_date_sk = dim_date_sk and fact_part.price < 100) s1, (Select count(*) c2 from fact_part, dim where fact_part.fact_date_sk = dim_date_sk and dim.price < 200) s2, (Select count(*) c3 from fact_part, dim where fact_part.fact_date_sk = dim_date_sk and dim.price < 400) s3]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(c1=[$0], c2=[$1], c3=[$2])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalJoin(condition=[true], joinType=[inner])
+   :  :- LogicalAggregate(group=[{}], c1=[COUNT()])
+   :  :  +- LogicalProject($f0=[0])
+   :  :     +- LogicalFilter(condition=[AND(=($4, $9), <($3, 100))])
+   :  :        +- LogicalJoin(condition=[true], joinType=[inner])
+   :  :           :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+   :  :           +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+   :  +- LogicalAggregate(group=[{}], c2=[COUNT()])
+   :     +- LogicalProject($f0=[0])
+   :        +- LogicalFilter(condition=[AND(=($4, $9), <($8, 200))])
+   :           +- LogicalJoin(condition=[true], joinType=[inner])
+   :              :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+   :              +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+   +- LogicalAggregate(group=[{}], c3=[COUNT()])
+      +- LogicalProject($f0=[0])
+         +- LogicalFilter(condition=[AND(=($4, $9), <($8, 400))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+               +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[InnerJoin], where=[true], select=[c1, c2, c3], build=[right], singleRowJoin=[true])\n:- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[c1, c2], build=[left], singleRowJoin=[true])\n:  :- [#2] Exchange(distribution=[broadcast])\n:  +- [#3] HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c2])\n+- [#1] Exchange(distribution=[broadcast])\n])
+:- Exchange(distribution=[broadcast])
+:  +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c3])
+:     +- Exchange(distribution=[single])
+:        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+:           +- Calc(select=[0 AS $f0])
+:              +- HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[fact_date_sk, dim_date_sk], build=[right])
+:                 :- Exchange(distribution=[hash[fact_date_sk]])
+:                 :  +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, project=[fact_date_sk], metadata=[]]], fields=[fact_date_sk])\n])
+:                 :     :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+:                 :     :  +- DynamicFilteringDataCollector(fields=[dim_date_sk])
+:                 :     :     +- Calc(select=[dim_date_sk], where=[(price < 400)])(reuse_id=[1])
+:                 :     :        +- TableSourceScan(table=[[testCatalog, test_database, dim, project=[price, dim_date_sk], metadata=[]]], fields=[price, dim_date_sk])(reuse_id=[2])
+:                 :     +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, project=[fact_date_sk], metadata=[]]], fields=[fact_date_sk])
+:                 +- Exchange(distribution=[hash[dim_date_sk]])
+:                    +- Reused(reference_id=[1])
+:- Exchange(distribution=[broadcast])
+:  +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c1])
+:     +- Exchange(distribution=[single])
+:        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+:           +- Calc(select=[0 AS $f0])
+:              +- HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[fact_date_sk, dim_date_sk], build=[left])
+:                 :- Exchange(distribution=[hash[fact_date_sk]])
+:                 :  +- Calc(select=[fact_date_sk], where=[(price < 100)])
+:                 :     +- TableSourceScan(table=[[testCatalog, test_database, fact_part, filter=[], project=[price, fact_date_sk], metadata=[]]], fields=[price, fact_date_sk])
+:                 +- Exchange(distribution=[hash[dim_date_sk]])
+:                    +- Calc(select=[dim_date_sk])
+:                       +- Reused(reference_id=[2])
++- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c2])
+   +- Exchange(distribution=[single])
+      +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+         +- Calc(select=[0 AS $f0])
+            +- HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[fact_date_sk, dim_date_sk], build=[right])
+               :- Exchange(distribution=[hash[fact_date_sk]])
+               :  +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, project=[fact_date_sk], metadata=[]]], fields=[fact_date_sk])\n])
+               :     :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+               :     :  +- DynamicFilteringDataCollector(fields=[dim_date_sk])
+               :     :     +- Calc(select=[dim_date_sk], where=[(price < 200)])(reuse_id=[3])
+               :     :        +- Reused(reference_id=[2])
+               :     +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, project=[fact_date_sk], metadata=[]]], fields=[fact_date_sk])
+               +- Exchange(distribution=[hash[dim_date_sk]])
+                  +- Reused(reference_id=[3])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testMultipleInputWithDPP[mode = ALL_EXCHANGES_HYBRID_SELECTIVE]">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM (Select count(*) c1 from fact_part, dim where fact_part.fact_date_sk = dim_date_sk and fact_part.price < 100) s1, (Select count(*) c2 from fact_part, dim where fact_part.fact_date_sk = dim_date_sk and dim.price < 200) s2, (Select count(*) c3 from fact_part, dim where fact_part.fact_date_sk = dim_date_sk and dim.price < 400) s3]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(c1=[$0], c2=[$1], c3=[$2])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalJoin(condition=[true], joinType=[inner])
+   :  :- LogicalAggregate(group=[{}], c1=[COUNT()])
+   :  :  +- LogicalProject($f0=[0])
+   :  :     +- LogicalFilter(condition=[AND(=($4, $9), <($3, 100))])
+   :  :        +- LogicalJoin(condition=[true], joinType=[inner])
+   :  :           :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+   :  :           +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+   :  +- LogicalAggregate(group=[{}], c2=[COUNT()])
+   :     +- LogicalProject($f0=[0])
+   :        +- LogicalFilter(condition=[AND(=($4, $9), <($8, 200))])
+   :           +- LogicalJoin(condition=[true], joinType=[inner])
+   :              :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+   :              +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+   +- LogicalAggregate(group=[{}], c3=[COUNT()])
+      +- LogicalProject($f0=[0])
+         +- LogicalFilter(condition=[AND(=($4, $9), <($8, 400))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+               +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[InnerJoin], where=[true], select=[c1, c2, c3], build=[right], singleRowJoin=[true])\n:- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[c1, c2], build=[left], singleRowJoin=[true])\n:  :- [#2] Exchange(distribution=[broadcast])\n:  +- [#3] HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c2])\n+- [#1] Exchange(distribution=[broadcast])\n])
+:- Exchange(distribution=[broadcast])
+:  +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c3])
+:     +- Exchange(distribution=[single])
+:        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+:           +- Calc(select=[0 AS $f0])
+:              +- HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[fact_date_sk, dim_date_sk], build=[right])
+:                 :- Exchange(distribution=[hash[fact_date_sk]])
+:                 :  +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, project=[fact_date_sk], metadata=[]]], fields=[fact_date_sk])\n])
+:                 :     :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+:                 :     :  +- DynamicFilteringDataCollector(fields=[dim_date_sk])
+:                 :     :     +- Calc(select=[dim_date_sk], where=[(price < 400)])(reuse_id=[1])
+:                 :     :        +- TableSourceScan(table=[[testCatalog, test_database, dim, project=[price, dim_date_sk], metadata=[]]], fields=[price, dim_date_sk])(reuse_id=[2])
+:                 :     +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, project=[fact_date_sk], metadata=[]]], fields=[fact_date_sk])
+:                 +- Exchange(distribution=[hash[dim_date_sk]], shuffle_mode=[BATCH])
+:                    +- Reused(reference_id=[1])
+:- Exchange(distribution=[broadcast])
+:  +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c1])
+:     +- Exchange(distribution=[single])
+:        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+:           +- Calc(select=[0 AS $f0])
+:              +- HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[fact_date_sk, dim_date_sk], build=[left])
+:                 :- Exchange(distribution=[hash[fact_date_sk]])
+:                 :  +- Calc(select=[fact_date_sk], where=[(price < 100)])
+:                 :     +- TableSourceScan(table=[[testCatalog, test_database, fact_part, filter=[], project=[price, fact_date_sk], metadata=[]]], fields=[price, fact_date_sk])
+:                 +- Exchange(distribution=[hash[dim_date_sk]])
+:                    +- Calc(select=[dim_date_sk])
+:                       +- Exchange(distribution=[any], shuffle_mode=[BATCH])
+:                          +- Reused(reference_id=[2])
++- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c2])
+   +- Exchange(distribution=[single])
+      +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+         +- Calc(select=[0 AS $f0])
+            +- HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[fact_date_sk, dim_date_sk], build=[right])
+               :- Exchange(distribution=[hash[fact_date_sk]])
+               :  +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, project=[fact_date_sk], metadata=[]]], fields=[fact_date_sk])\n])
+               :     :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+               :     :  +- DynamicFilteringDataCollector(fields=[dim_date_sk])
+               :     :     +- Calc(select=[dim_date_sk], where=[(price < 200)])(reuse_id=[3])
+               :     :        +- Reused(reference_id=[2])
+               :     +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, project=[fact_date_sk], metadata=[]]], fields=[fact_date_sk])
+               +- Exchange(distribution=[hash[dim_date_sk]], shuffle_mode=[BATCH])
+                  +- Reused(reference_id=[3])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testMultipleInputWithDPP[mode = ALL_EXCHANGES_HYBRID_FULL]">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM (Select count(*) c1 from fact_part, dim where fact_part.fact_date_sk = dim_date_sk and fact_part.price < 100) s1, (Select count(*) c2 from fact_part, dim where fact_part.fact_date_sk = dim_date_sk and dim.price < 200) s2, (Select count(*) c3 from fact_part, dim where fact_part.fact_date_sk = dim_date_sk and dim.price < 400) s3]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(c1=[$0], c2=[$1], c3=[$2])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalJoin(condition=[true], joinType=[inner])
+   :  :- LogicalAggregate(group=[{}], c1=[COUNT()])
+   :  :  +- LogicalProject($f0=[0])
+   :  :     +- LogicalFilter(condition=[AND(=($4, $9), <($3, 100))])
+   :  :        +- LogicalJoin(condition=[true], joinType=[inner])
+   :  :           :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+   :  :           +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+   :  +- LogicalAggregate(group=[{}], c2=[COUNT()])
+   :     +- LogicalProject($f0=[0])
+   :        +- LogicalFilter(condition=[AND(=($4, $9), <($8, 200))])
+   :           +- LogicalJoin(condition=[true], joinType=[inner])
+   :              :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+   :              +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+   +- LogicalAggregate(group=[{}], c3=[COUNT()])
+      +- LogicalProject($f0=[0])
+         +- LogicalFilter(condition=[AND(=($4, $9), <($8, 400))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+               +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[InnerJoin], where=[true], select=[c1, c2, c3], build=[right], singleRowJoin=[true])\n:- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[c1, c2], build=[left], singleRowJoin=[true])\n:  :- [#2] Exchange(distribution=[broadcast])\n:  +- [#3] HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c2])\n+- [#1] Exchange(distribution=[broadcast])\n])
+:- Exchange(distribution=[broadcast])
+:  +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c3])
+:     +- Exchange(distribution=[single])
+:        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+:           +- Calc(select=[0 AS $f0])
+:              +- HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[fact_date_sk, dim_date_sk], build=[right])
+:                 :- Exchange(distribution=[hash[fact_date_sk]])
+:                 :  +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, project=[fact_date_sk], metadata=[]]], fields=[fact_date_sk])\n])
+:                 :     :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+:                 :     :  +- DynamicFilteringDataCollector(fields=[dim_date_sk])
+:                 :     :     +- Calc(select=[dim_date_sk], where=[(price < 400)])(reuse_id=[1])
+:                 :     :        +- TableSourceScan(table=[[testCatalog, test_database, dim, project=[price, dim_date_sk], metadata=[]]], fields=[price, dim_date_sk])(reuse_id=[2])
+:                 :     +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, project=[fact_date_sk], metadata=[]]], fields=[fact_date_sk])
+:                 +- Exchange(distribution=[hash[dim_date_sk]], shuffle_mode=[BATCH])
+:                    +- Reused(reference_id=[1])
+:- Exchange(distribution=[broadcast])
+:  +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c1])
+:     +- Exchange(distribution=[single])
+:        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+:           +- Calc(select=[0 AS $f0])
+:              +- HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[fact_date_sk, dim_date_sk], build=[left])
+:                 :- Exchange(distribution=[hash[fact_date_sk]])
+:                 :  +- Calc(select=[fact_date_sk], where=[(price < 100)])
+:                 :     +- TableSourceScan(table=[[testCatalog, test_database, fact_part, filter=[], project=[price, fact_date_sk], metadata=[]]], fields=[price, fact_date_sk])
+:                 +- Exchange(distribution=[hash[dim_date_sk]])
+:                    +- Calc(select=[dim_date_sk])
+:                       +- Exchange(distribution=[any], shuffle_mode=[BATCH])
+:                          +- Reused(reference_id=[2])
++- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c2])
+   +- Exchange(distribution=[single])
+      +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+         +- Calc(select=[0 AS $f0])
+            +- HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[fact_date_sk, dim_date_sk], build=[right])
+               :- Exchange(distribution=[hash[fact_date_sk]])
+               :  +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, project=[fact_date_sk], metadata=[]]], fields=[fact_date_sk])\n])
+               :     :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+               :     :  +- DynamicFilteringDataCollector(fields=[dim_date_sk])
+               :     :     +- Calc(select=[dim_date_sk], where=[(price < 200)])(reuse_id=[3])
+               :     :        +- Reused(reference_id=[2])
+               :     +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, project=[fact_date_sk], metadata=[]]], fields=[fact_date_sk])
+               +- Exchange(distribution=[hash[dim_date_sk]], shuffle_mode=[BATCH])
+                  +- Reused(reference_id=[3])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testMultipleInputWithoutDPP[mode = ALL_EXCHANGES_BLOCKING]">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM (Select count(*) c1 from fact_part, dim where fact_part.fact_date_sk = dim_date_sk and fact_part.price < 100) s1, (Select count(*) c2 from fact_part, dim where fact_part.fact_date_sk = dim_date_sk and fact_part.price < 200) s2, (Select count(*) c3 from fact_part, dim where fact_part.fact_date_sk = dim_date_sk and fact_part.price < 400) s3]]>
+		</Resource>
+		<Resource name="ast">
+		<![CDATA[
+LogicalProject(c1=[$0], c2=[$1], c3=[$2])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalJoin(condition=[true], joinType=[inner])
+   :  :- LogicalAggregate(group=[{}], c1=[COUNT()])
+   :  :  +- LogicalProject($f0=[0])
+   :  :     +- LogicalFilter(condition=[AND(=($4, $9), <($3, 100))])
+   :  :        +- LogicalJoin(condition=[true], joinType=[inner])
+   :  :           :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+   :  :           +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+   :  +- LogicalAggregate(group=[{}], c2=[COUNT()])
+   :     +- LogicalProject($f0=[0])
+   :        +- LogicalFilter(condition=[AND(=($4, $9), <($3, 200))])
+   :           +- LogicalJoin(condition=[true], joinType=[inner])
+   :              :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+   :              +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+   +- LogicalAggregate(group=[{}], c3=[COUNT()])
+      +- LogicalProject($f0=[0])
+         +- LogicalFilter(condition=[AND(=($4, $9), <($3, 400))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+               +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+		<![CDATA[
+MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[InnerJoin], where=[true], select=[c1, c2, c3], build=[right], singleRowJoin=[true])\n:- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[c1, c2], build=[left], singleRowJoin=[true])\n:  :- [#2] Exchange(distribution=[broadcast])\n:  +- [#3] HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c2])\n+- [#1] Exchange(distribution=[broadcast])\n])
+:- Exchange(distribution=[broadcast])
+:  +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c3])
+:     +- Exchange(distribution=[single])
+:        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+:           +- Calc(select=[0 AS $f0])
+:              +- HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[fact_date_sk, dim_date_sk], build=[left])
+:                 :- Exchange(distribution=[hash[fact_date_sk]])
+:                 :  +- Calc(select=[fact_date_sk], where=[(price < 400)])
+:                 :     +- TableSourceScan(table=[[testCatalog, test_database, fact_part, filter=[], project=[price, fact_date_sk], metadata=[]]], fields=[price, fact_date_sk])(reuse_id=[1])
+:                 +- Exchange(distribution=[hash[dim_date_sk]])(reuse_id=[2])
+:                    +- TableSourceScan(table=[[testCatalog, test_database, dim, project=[dim_date_sk], metadata=[]]], fields=[dim_date_sk])
+:- Exchange(distribution=[broadcast])
+:  +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c1])
+:     +- Exchange(distribution=[single])
+:        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+:           +- Calc(select=[0 AS $f0])
+:              +- HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[fact_date_sk, dim_date_sk], build=[left])
+:                 :- Exchange(distribution=[hash[fact_date_sk]])
+:                 :  +- Calc(select=[fact_date_sk], where=[(price < 100)])
+:                 :     +- Reused(reference_id=[1])
+:                 +- Reused(reference_id=[2])
++- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c2])
+   +- Exchange(distribution=[single])
+      +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+         +- Calc(select=[0 AS $f0])
+            +- HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[fact_date_sk, dim_date_sk], build=[left])
+               :- Exchange(distribution=[hash[fact_date_sk]])
+               :  +- Calc(select=[fact_date_sk], where=[(price < 200)])
+               :     +- Reused(reference_id=[1])
+               +- Reused(reference_id=[2])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testMultipleInputWithoutDPP[mode = ALL_EXCHANGES_HYBRID_SELECTIVE]">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM (Select count(*) c1 from fact_part, dim where fact_part.fact_date_sk = dim_date_sk and fact_part.price < 100) s1, (Select count(*) c2 from fact_part, dim where fact_part.fact_date_sk = dim_date_sk and fact_part.price < 200) s2, (Select count(*) c3 from fact_part, dim where fact_part.fact_date_sk = dim_date_sk and fact_part.price < 400) s3]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(c1=[$0], c2=[$1], c3=[$2])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalJoin(condition=[true], joinType=[inner])
+   :  :- LogicalAggregate(group=[{}], c1=[COUNT()])
+   :  :  +- LogicalProject($f0=[0])
+   :  :     +- LogicalFilter(condition=[AND(=($4, $9), <($3, 100))])
+   :  :        +- LogicalJoin(condition=[true], joinType=[inner])
+   :  :           :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+   :  :           +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+   :  +- LogicalAggregate(group=[{}], c2=[COUNT()])
+   :     +- LogicalProject($f0=[0])
+   :        +- LogicalFilter(condition=[AND(=($4, $9), <($3, 200))])
+   :           +- LogicalJoin(condition=[true], joinType=[inner])
+   :              :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+   :              +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+   +- LogicalAggregate(group=[{}], c3=[COUNT()])
+      +- LogicalProject($f0=[0])
+         +- LogicalFilter(condition=[AND(=($4, $9), <($3, 400))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+               +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[InnerJoin], where=[true], select=[c1, c2, c3], build=[right], singleRowJoin=[true])\n:- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[c1, c2], build=[left], singleRowJoin=[true])\n:  :- [#2] Exchange(distribution=[broadcast])\n:  +- [#3] HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c2])\n+- [#1] Exchange(distribution=[broadcast])\n])
+:- Exchange(distribution=[broadcast])
+:  +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c3])
+:     +- Exchange(distribution=[single])
+:        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+:           +- Calc(select=[0 AS $f0])
+:              +- HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[fact_date_sk, dim_date_sk], build=[left])
+:                 :- Exchange(distribution=[hash[fact_date_sk]])
+:                 :  +- Calc(select=[fact_date_sk], where=[(price < 400)])
+:                 :     +- TableSourceScan(table=[[testCatalog, test_database, fact_part, filter=[], project=[price, fact_date_sk], metadata=[]]], fields=[price, fact_date_sk])(reuse_id=[1])
+:                 +- Exchange(distribution=[hash[dim_date_sk]])(reuse_id=[2])
+:                    +- TableSourceScan(table=[[testCatalog, test_database, dim, project=[dim_date_sk], metadata=[]]], fields=[dim_date_sk])
+:- Exchange(distribution=[broadcast])
+:  +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c1])
+:     +- Exchange(distribution=[single])
+:        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+:           +- Calc(select=[0 AS $f0])
+:              +- HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[fact_date_sk, dim_date_sk], build=[left])
+:                 :- Exchange(distribution=[hash[fact_date_sk]])
+:                 :  +- Calc(select=[fact_date_sk], where=[(price < 100)])
+:                 :     +- Reused(reference_id=[1])
+:                 +- Reused(reference_id=[2])
++- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c2])
+   +- Exchange(distribution=[single])
+      +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+         +- Calc(select=[0 AS $f0])
+            +- HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[fact_date_sk, dim_date_sk], build=[left])
+               :- Exchange(distribution=[hash[fact_date_sk]])
+               :  +- Calc(select=[fact_date_sk], where=[(price < 200)])
+               :     +- Reused(reference_id=[1])
+               +- Reused(reference_id=[2])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testMultipleInputWithoutDPP[mode = ALL_EXCHANGES_HYBRID_FULL]">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM (Select count(*) c1 from fact_part, dim where fact_part.fact_date_sk = dim_date_sk and fact_part.price < 100) s1, (Select count(*) c2 from fact_part, dim where fact_part.fact_date_sk = dim_date_sk and fact_part.price < 200) s2, (Select count(*) c3 from fact_part, dim where fact_part.fact_date_sk = dim_date_sk and fact_part.price < 400) s3]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(c1=[$0], c2=[$1], c3=[$2])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalJoin(condition=[true], joinType=[inner])
+   :  :- LogicalAggregate(group=[{}], c1=[COUNT()])
+   :  :  +- LogicalProject($f0=[0])
+   :  :     +- LogicalFilter(condition=[AND(=($4, $9), <($3, 100))])
+   :  :        +- LogicalJoin(condition=[true], joinType=[inner])
+   :  :           :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+   :  :           +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+   :  +- LogicalAggregate(group=[{}], c2=[COUNT()])
+   :     +- LogicalProject($f0=[0])
+   :        +- LogicalFilter(condition=[AND(=($4, $9), <($3, 200))])
+   :           +- LogicalJoin(condition=[true], joinType=[inner])
+   :              :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+   :              +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+   +- LogicalAggregate(group=[{}], c3=[COUNT()])
+      +- LogicalProject($f0=[0])
+         +- LogicalFilter(condition=[AND(=($4, $9), <($3, 400))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+               +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[InnerJoin], where=[true], select=[c1, c2, c3], build=[right], singleRowJoin=[true])\n:- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[c1, c2], build=[left], singleRowJoin=[true])\n:  :- [#2] Exchange(distribution=[broadcast])\n:  +- [#3] HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c2])\n+- [#1] Exchange(distribution=[broadcast])\n])
+:- Exchange(distribution=[broadcast])
+:  +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c3])
+:     +- Exchange(distribution=[single])
+:        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+:           +- Calc(select=[0 AS $f0])
+:              +- HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[fact_date_sk, dim_date_sk], build=[left])
+:                 :- Exchange(distribution=[hash[fact_date_sk]])
+:                 :  +- Calc(select=[fact_date_sk], where=[(price < 400)])
+:                 :     +- TableSourceScan(table=[[testCatalog, test_database, fact_part, filter=[], project=[price, fact_date_sk], metadata=[]]], fields=[price, fact_date_sk])(reuse_id=[1])
+:                 +- Exchange(distribution=[hash[dim_date_sk]])(reuse_id=[2])
+:                    +- TableSourceScan(table=[[testCatalog, test_database, dim, project=[dim_date_sk], metadata=[]]], fields=[dim_date_sk])
+:- Exchange(distribution=[broadcast])
+:  +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c1])
+:     +- Exchange(distribution=[single])
+:        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+:           +- Calc(select=[0 AS $f0])
+:              +- HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[fact_date_sk, dim_date_sk], build=[left])
+:                 :- Exchange(distribution=[hash[fact_date_sk]])
+:                 :  +- Calc(select=[fact_date_sk], where=[(price < 100)])
+:                 :     +- Reused(reference_id=[1])
+:                 +- Reused(reference_id=[2])
++- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c2])
+   +- Exchange(distribution=[single])
+      +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+         +- Calc(select=[0 AS $f0])
+            +- HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[fact_date_sk, dim_date_sk], build=[left])
+               :- Exchange(distribution=[hash[fact_date_sk]])
+               :  +- Calc(select=[fact_date_sk], where=[(price < 200)])
+               :     +- Reused(reference_id=[1])
+               +- Reused(reference_id=[2])
+]]>
+		</Resource>
+	</TestCase>
+</Root>

@@ -20,19 +20,19 @@ package org.apache.flink.table.planner.plan.batch.sql.agg
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.plan.utils.OperatorType
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
-import org.junit.{Before, Test}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.util
 
 import scala.collection.JavaConversions._
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class SortAggregateTest(aggStrategy: AggregatePhaseStrategy) extends AggregateTestBase {
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     // disable hash agg
     util.tableEnv.getConfig
@@ -41,7 +41,7 @@ class SortAggregateTest(aggStrategy: AggregatePhaseStrategy) extends AggregateTe
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggStrategy.toString)
   }
 
-  @Test
+  @TestTemplate
   def testApproximateCountDistinct(): Unit = {
     val sql =
       """
@@ -66,7 +66,7 @@ class SortAggregateTest(aggStrategy: AggregatePhaseStrategy) extends AggregateTe
 
 object SortAggregateTest {
 
-  @Parameterized.Parameters(name = "aggStrategy={0}")
+  @Parameters(name = "aggStrategy={0}")
   def parameters(): util.Collection[AggregatePhaseStrategy] = {
     Seq[AggregatePhaseStrategy](
       AggregatePhaseStrategy.AUTO,

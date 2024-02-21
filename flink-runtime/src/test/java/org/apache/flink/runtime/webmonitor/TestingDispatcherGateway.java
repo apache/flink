@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -83,6 +84,11 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                     (JobID jobId, String targetDirectory, SavepointFormatType formatType) ->
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
 
+    static final BiFunction<JobID, CheckpointType, CompletableFuture<Long>>
+            DEFAULT_TRIGGER_CHECHPOINT_AND_GET_CHECKPOINT_ID_FUNCTION =
+                    (JobID jobId, CheckpointType checkpointType) ->
+                            FutureUtils.completedExceptionally(new UnsupportedOperationException());
+
     private final Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction;
     private final TriFunction<JobID, String, Throwable, CompletableFuture<Acknowledge>>
             submitFailedFunction;
@@ -98,6 +104,9 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
     private final TriFunction<JobID, String, SavepointFormatType, CompletableFuture<String>>
             stopWithSavepointAndGetLocationFunction;
 
+    private final BiFunction<JobID, CheckpointType, CompletableFuture<Long>>
+            triggerCheckpointAndGetCheckpointIdFunction;
+
     public TestingDispatcherGateway() {
         super();
         submitFunction = DEFAULT_SUBMIT_FUNCTION;
@@ -111,6 +120,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                 DEFAULT_TRIGGER_SAVEPOINT_AND_GET_LOCATION_FUNCTION;
         stopWithSavepointAndGetLocationFunction =
                 DEFAULT_STOP_WITH_SAVEPOINT_AND_GET_LOCATION_FUNCTION;
+        triggerCheckpointAndGetCheckpointIdFunction =
+                DEFAULT_TRIGGER_CHECHPOINT_AND_GET_CHECKPOINT_ID_FUNCTION;
     }
 
     public TestingDispatcherGateway(
@@ -120,6 +131,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
             Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction,
             Function<JobID, CompletableFuture<ExecutionGraphInfo>>
                     requestExecutionGraphInfoFunction,
+            Function<JobID, CompletableFuture<CheckpointStatsSnapshot>>
+                    requestCheckpointStatsSnapshotFunction,
             Function<JobID, CompletableFuture<JobResult>> requestJobResultFunction,
             Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction,
             Supplier<CompletableFuture<MultipleJobsDetails>> requestMultipleJobDetailsSupplier,
@@ -151,6 +164,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                     stopWithSavepointAndGetLocationFunction,
             Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
                     getSavepointStatusFunction,
+            BiFunction<JobID, CheckpointType, CompletableFuture<Long>>
+                    triggerCheckpointAndGetCheckpointIdFunction,
             Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction,
             TriFunction<JobID, String, Throwable, CompletableFuture<Acknowledge>>
                     submitFailedFunction,
@@ -173,6 +188,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                 cancelJobFunction,
                 requestJobFunction,
                 requestExecutionGraphInfoFunction,
+                requestCheckpointStatsSnapshotFunction,
                 requestJobResultFunction,
                 requestJobStatusFunction,
                 requestMultipleJobDetailsSupplier,
@@ -196,6 +212,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
         this.clusterShutdownWithStatusFunction = clusterShutdownWithStatusFunction;
         this.triggerSavepointAndGetLocationFunction = triggerSavepointAndGetLocationFunction;
         this.stopWithSavepointAndGetLocationFunction = stopWithSavepointAndGetLocationFunction;
+        this.triggerCheckpointAndGetCheckpointIdFunction =
+                triggerCheckpointAndGetCheckpointIdFunction;
     }
 
     @Override
@@ -254,6 +272,12 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
         return stopWithSavepointAndGetLocationFunction.apply(jobId, targetDirectory, formatType);
     }
 
+    @Override
+    public CompletableFuture<Long> triggerCheckpointAndGetCheckpointID(
+            final JobID jobId, final CheckpointType checkpointType, final Time timeout) {
+        return triggerCheckpointAndGetCheckpointIdFunction.apply(jobId, checkpointType);
+    }
+
     public static Builder newBuilder() {
         return new Builder();
     }
@@ -275,6 +299,9 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                 triggerSavepointAndGetLocationFunction;
         private TriFunction<JobID, String, SavepointFormatType, CompletableFuture<String>>
                 stopWithSavepointAndGetLocationFunction;
+
+        private BiFunction<JobID, CheckpointType, CompletableFuture<Long>>
+                triggerCheckpointAndGetCheckpointIdFunction;
 
         private Builder() {
             // No-op.
@@ -333,6 +360,14 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
             return this;
         }
 
+        public Builder setTriggerCheckpointAndGetCheckpointIdFunction(
+                BiFunction<JobID, CheckpointType, CompletableFuture<Long>>
+                        triggerCheckpointAndGetCheckpointIdFunction) {
+            this.triggerCheckpointAndGetCheckpointIdFunction =
+                    triggerCheckpointAndGetCheckpointIdFunction;
+            return this;
+        }
+
         @Override
         protected Builder self() {
             return this;
@@ -355,6 +390,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                     cancelJobFunction,
                     requestJobFunction,
                     requestExecutionGraphInfoFunction,
+                    requestCheckpointStatsSnapshotFunction,
                     requestJobResultFunction,
                     requestJobStatusFunction,
                     requestMultipleJobDetailsSupplier,
@@ -369,6 +405,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                     stopWithSavepointFunction,
                     stopWithSavepointAndGetLocationFunction,
                     getSavepointStatusFunction,
+                    triggerCheckpointAndGetCheckpointIdFunction,
                     submitFunction,
                     submitFailedFunction,
                     listFunction,

@@ -129,7 +129,8 @@ public final class InstantiationUtil {
 
         // ------------------------------------------------
 
-        private static final HashMap<String, Class<?>> primitiveClasses = new HashMap<>(9);
+        private static final HashMap<String, Class<?>> primitiveClasses =
+                CollectionUtil.newHashMapWithExpectedSize(9);
 
         static {
             primitiveClasses.put("boolean", boolean.class);
@@ -273,7 +274,8 @@ public final class InstantiationUtil {
         }
 
         private static Map<String, ObjectStreamClass> initMap() {
-            final Map<String, ObjectStreamClass> init = new HashMap<>(4);
+            final Map<String, ObjectStreamClass> init =
+                    CollectionUtil.newHashMapWithExpectedSize(4);
             for (MigrationUtil m : MigrationUtil.values()) {
                 init.put(m.oldSerializerName, m.newSerializerStreamClass);
             }

@@ -53,6 +53,10 @@ final class CollectionDataInput<E> implements StreamTaskInput<E> {
                 output.emitRecord(streamElement.asRecord());
             } else if (streamElement instanceof Watermark) {
                 output.emitWatermark(streamElement.asWatermark());
+            } else if (streamElement.isRecordAttributes()) {
+                output.emitRecordAttributes(streamElement.asRecordAttributes());
+            } else if (streamElement.isWatermarkStatus()) {
+                output.emitWatermarkStatus(streamElement.asWatermarkStatus());
             } else {
                 throw new IllegalStateException("Unsupported element type: " + streamElement);
             }

@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.planner.factories;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.DataTypes;
@@ -42,6 +42,7 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsDeletePushDown;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
+import org.apache.flink.table.connector.sink.abilities.SupportsTruncate;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
@@ -75,6 +76,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.data.RowData.createFieldGetter;
 
@@ -331,6 +333,7 @@ public class TestUpdateDeleteTableFactory
         protected final String dataId;
 
         protected boolean isUpdate;
+        protected int[] requiredColumnIndices;
 
         public SupportsRowLevelUpdateSink(
                 ObjectIdentifier tableIdentifier,
@@ -383,10 +386,15 @@ public class TestUpdateDeleteTableFactory
                                     new UpdateDataSinkFunction(
                                             dataId,
                                             getPrimaryKeyFieldGetter(
-                                                    resolvedCatalogTable.getResolvedSchema()),
+                                                    resolvedCatalogTable.getResolvedSchema(),
+                                                    requiredColumnIndices),
                                             getAllFieldGetter(
                                                     resolvedCatalogTable.getResolvedSchema()),
-                                            updateMode))
+                                            getPartialFieldGetter(
+                                                    resolvedCatalogTable.getResolvedSchema(),
+                                                    requiredColumnIndices),
+                                            updateMode,
+                                            requiredColumnIndices))
                             .setParallelism(1);
                 }
             };
@@ -428,6 +436,8 @@ public class TestUpdateDeleteTableFactory
                                         requireColumnsForUpdate,
                                         resolvedCatalogTable.getResolvedSchema());
                     }
+                    requiredColumnIndices =
+                            getRequiredColumnIndexes(resolvedCatalogTable, requiredCols);
                     return Optional.ofNullable(requiredCols);
                 }
 
@@ -450,6 +460,7 @@ public class TestUpdateDeleteTableFactory
         private final List<String> requireColumnsForDelete;
 
         private boolean isDelete;
+        protected int[] requiredColumnIndices;
 
         public SupportsRowLevelModificationSink(
                 ObjectIdentifier tableIdentifier,
@@ -519,6 +530,10 @@ public class TestUpdateDeleteTableFactory
                                     .addSink(
                                             new DeleteDataSinkFunction(
                                                     dataId,
+                                                    getPrimaryKeyFieldGetter(
+                                                            resolvedCatalogTable
+                                                                    .getResolvedSchema(),
+                                                            requiredColumnIndices),
                                                     getAllFieldGetter(
                                                             resolvedCatalogTable
                                                                     .getResolvedSchema()),
@@ -526,7 +541,7 @@ public class TestUpdateDeleteTableFactory
                                     .setParallelism(1);
                         } else {
                             // otherwise, do nothing
-                            return dataStream.addSink(new DiscardingSink<>());
+                            return dataStream.sinkTo(new DiscardingSink<>());
                         }
                     }
                 };
@@ -568,6 +583,8 @@ public class TestUpdateDeleteTableFactory
                                         requireColumnsForDelete,
                                         resolvedCatalogTable.getResolvedSchema());
                     }
+                    requiredColumnIndices =
+                            getRequiredColumnIndexes(resolvedCatalogTable, requiredCols);
                     return Optional.ofNullable(requiredCols);
                 }
 
@@ -582,7 +599,8 @@ public class TestUpdateDeleteTableFactory
     /** The sink for delete existing data. */
     private static class DeleteDataSinkFunction extends RichSinkFunction<RowData> {
         private final String dataId;
-        private final RowData.FieldGetter[] fieldGetters;
+        private final RowData.FieldGetter[] primaryKeyFieldGetters;
+        private final RowData.FieldGetter[] allFieldGetters;
         private final SupportsRowLevelDelete.RowLevelDeleteMode deleteMode;
 
         private transient Collection<RowData> data;
@@ -590,15 +608,17 @@ public class TestUpdateDeleteTableFactory
 
         DeleteDataSinkFunction(
                 String dataId,
-                RowData.FieldGetter[] fieldGetters,
+                RowData.FieldGetter[] primaryKeyFieldGetters,
+                RowData.FieldGetter[] allFieldGetters,
                 SupportsRowLevelDelete.RowLevelDeleteMode deleteMode) {
             this.dataId = dataId;
-            this.fieldGetters = fieldGetters;
+            this.primaryKeyFieldGetters = primaryKeyFieldGetters;
+            this.allFieldGetters = allFieldGetters;
             this.deleteMode = deleteMode;
         }
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             data = registeredRowData.get(dataId);
             newData = new ArrayList<>();
         }
@@ -620,7 +640,7 @@ public class TestUpdateDeleteTableFactory
                     String.format(
                             "The RowKind for the coming rows should be %s in delete mode %s.",
                             RowKind.DELETE, DELETE_MODE));
-            data.removeIf(rowData -> equal(rowData, deletedRow, fieldGetters));
+            data.removeIf(rowData -> equal(rowData, deletedRow, primaryKeyFieldGetters));
         }
 
         private void consumeRemainingRows(RowData remainingRow) {
@@ -629,7 +649,12 @@ public class TestUpdateDeleteTableFactory
                     String.format(
                             "The RowKind for the coming rows should be %s in delete mode %s.",
                             RowKind.INSERT, DELETE_MODE));
-            newData.add(copyRowData(remainingRow, fieldGetters));
+            // find the row that match the remaining row
+            for (RowData oldRow : data) {
+                if (equal(oldRow, remainingRow, primaryKeyFieldGetters)) {
+                    newData.add(copyRowData(oldRow, allFieldGetters));
+                }
+            }
         }
 
         @Override
@@ -642,7 +667,7 @@ public class TestUpdateDeleteTableFactory
 
     /** A sink that supports delete push down and row-level update. */
     public static class SupportsDeletePushDownSink extends SupportsRowLevelUpdateSink
-            implements SupportsDeletePushDown {
+            implements SupportsDeletePushDown, SupportsTruncate {
 
         private final String dataId;
         private final boolean onlyAcceptEqualPredicate;
@@ -717,6 +742,29 @@ public class TestUpdateDeleteTableFactory
                 return Optional.of(rowsBefore - existingRows.size());
             }
             return Optional.empty();
+        }
+
+        @Override
+        public void executeTruncation() {
+            registeredRowData.put(dataId, Collections.emptyList());
+        }
+    }
+
+    private static int[] getRequiredColumnIndexes(
+            ResolvedCatalogTable resolvedCatalogTable, @Nullable List<Column> columns) {
+        if (columns == null) {
+            return IntStream.range(0, resolvedCatalogTable.getResolvedSchema().getColumnCount())
+                    .toArray();
+        } else {
+            List<Column> allColumns = resolvedCatalogTable.getResolvedSchema().getColumns();
+            int[] columnIndexes = new int[columns.size()];
+            for (int i = 0; i < columns.size(); i++) {
+                int colIndex = allColumns.indexOf(columns.get(i));
+                if (colIndex != -1) {
+                    columnIndexes[i] = colIndex;
+                }
+            }
+            return columnIndexes;
         }
     }
 
@@ -817,7 +865,9 @@ public class TestUpdateDeleteTableFactory
         private final String dataId;
         private final RowData.FieldGetter[] primaryKeyFieldGetters;
         private final RowData.FieldGetter[] allFieldGetters;
+        private final RowData.FieldGetter[] requireColumnFieldGetters;
         private final SupportsRowLevelUpdate.RowLevelUpdateMode updateMode;
+        private final int[] requiredColumnIndexes;
         private transient RowData[] oldRows;
         private transient List<Tuple2<Integer, RowData>> updatedRows;
         private transient List<RowData> allNewRows;
@@ -826,15 +876,19 @@ public class TestUpdateDeleteTableFactory
                 String dataId,
                 RowData.FieldGetter[] primaryKeyFieldGetters,
                 RowData.FieldGetter[] allFieldGetters,
-                SupportsRowLevelUpdate.RowLevelUpdateMode updateMode) {
+                RowData.FieldGetter[] requireColumnFieldGetters,
+                SupportsRowLevelUpdate.RowLevelUpdateMode updateMode,
+                int[] requiredColumnIndexes) {
             this.dataId = dataId;
             this.primaryKeyFieldGetters = primaryKeyFieldGetters;
             this.updateMode = updateMode;
             this.allFieldGetters = allFieldGetters;
+            this.requireColumnFieldGetters = requireColumnFieldGetters;
+            this.requiredColumnIndexes = requiredColumnIndexes;
         }
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             oldRows = registeredRowData.get(dataId).toArray(new RowData[0]);
             updatedRows = new ArrayList<>();
             allNewRows = new ArrayList<>();
@@ -858,7 +912,8 @@ public class TestUpdateDeleteTableFactory
 
             for (int i = 0; i < oldRows.length; i++) {
                 if (equal(oldRows[i], updatedRow, primaryKeyFieldGetters)) {
-                    updatedRows.add(new Tuple2<>(i, copyRowData(updatedRow, allFieldGetters)));
+                    updatedRows.add(
+                            new Tuple2<>(i, getUpdatedAfterRowDataWithAllFields(updatedRow)));
                 }
             }
         }
@@ -867,7 +922,25 @@ public class TestUpdateDeleteTableFactory
             Preconditions.checkArgument(
                     rowData.getRowKind() == RowKind.INSERT,
                     "The RowKind for the updated rows should be " + RowKind.INSERT);
-            allNewRows.add(copyRowData(rowData, allFieldGetters));
+            allNewRows.add(getUpdatedAfterRowDataWithAllFields(rowData));
+        }
+
+        private RowData getUpdatedAfterRowDataWithAllFields(RowData updateAfterRowData) {
+            GenericRowData newRowData = null;
+            // first find the old row to be updated and copy the old values
+            for (RowData oldRow : oldRows) {
+                if (equal(oldRow, updateAfterRowData, primaryKeyFieldGetters)) {
+                    newRowData = copyRowData(oldRow, allFieldGetters);
+                }
+            }
+            Preconditions.checkNotNull(newRowData);
+            // then set the new value after updated
+            for (int i = 0; i < requiredColumnIndexes.length; i++) {
+                newRowData.setField(
+                        requiredColumnIndexes[i],
+                        requireColumnFieldGetters[i].getFieldOrNull(updateAfterRowData));
+            }
+            return newRowData;
         }
 
         @Override
@@ -904,15 +977,25 @@ public class TestUpdateDeleteTableFactory
                 "The scan context should contains the object identifier for row-level modification.");
     }
 
-    private static RowData.FieldGetter[] getPrimaryKeyFieldGetter(ResolvedSchema resolvedSchema) {
-        int[] indexes = resolvedSchema.getPrimaryKeyIndexes();
-        RowData.FieldGetter[] fieldGetters = new RowData.FieldGetter[indexes.length];
+    /**
+     * Get the an array of FieldGetter for the primary keys which are also in {@param
+     * requiredColumnIndices}.
+     */
+    private static RowData.FieldGetter[] getPrimaryKeyFieldGetter(
+            ResolvedSchema resolvedSchema, int[] requiredColumnIndices) {
+        List<RowData.FieldGetter> fieldGetters = new ArrayList<>();
+        int[] primaryKeyIndices = resolvedSchema.getPrimaryKeyIndexes();
         List<DataType> dataTypes = resolvedSchema.getColumnDataTypes();
-        for (int i = 0; i < fieldGetters.length; i++) {
-            int colIndex = indexes[i];
-            fieldGetters[i] = createFieldGetter(dataTypes.get(colIndex).getLogicalType(), colIndex);
+        for (final int primaryKeyIndex : primaryKeyIndices) {
+            // find the primaryKeyIndex in requiredColumnIndices
+            for (int i = 0; i < requiredColumnIndices.length; i++) {
+                if (requiredColumnIndices[i] == primaryKeyIndex) {
+                    fieldGetters.add(
+                            createFieldGetter(dataTypes.get(primaryKeyIndex).getLogicalType(), i));
+                }
+            }
         }
-        return fieldGetters;
+        return fieldGetters.toArray(new RowData.FieldGetter[0]);
     }
 
     private static RowData.FieldGetter[] getAllFieldGetter(ResolvedSchema resolvedSchema) {
@@ -920,6 +1003,18 @@ public class TestUpdateDeleteTableFactory
         RowData.FieldGetter[] fieldGetters = new RowData.FieldGetter[dataTypes.size()];
         for (int i = 0; i < dataTypes.size(); i++) {
             fieldGetters[i] = createFieldGetter(dataTypes.get(i).getLogicalType(), i);
+        }
+        return fieldGetters;
+    }
+
+    private static RowData.FieldGetter[] getPartialFieldGetter(
+            ResolvedSchema resolvedSchema, int[] partialColumIndexes) {
+        List<Column> columns = resolvedSchema.getColumns();
+        RowData.FieldGetter[] fieldGetters = new RowData.FieldGetter[partialColumIndexes.length];
+        for (int i = 0; i < fieldGetters.length; i++) {
+            fieldGetters[i] =
+                    createFieldGetter(
+                            columns.get(partialColumIndexes[i]).getDataType().getLogicalType(), i);
         }
         return fieldGetters;
     }
@@ -935,7 +1030,7 @@ public class TestUpdateDeleteTableFactory
         return true;
     }
 
-    private static RowData copyRowData(RowData rowData, RowData.FieldGetter[] fieldGetters) {
+    private static GenericRowData copyRowData(RowData rowData, RowData.FieldGetter[] fieldGetters) {
         Object[] values = new Object[fieldGetters.length];
         for (int i = 0; i < fieldGetters.length; i++) {
             values[i] = fieldGetters[i].getFieldOrNull(rowData);

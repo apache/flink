@@ -17,15 +17,20 @@
 
 package org.apache.flink.streaming.api.functions;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
+import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
+import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
 import org.apache.flink.streaming.api.functions.sink.PrintSink;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -160,10 +165,13 @@ class PrintSinkTest {
     private static class MockInitContext
             implements Sink.InitContext, SerializationSchema.InitializationContext {
 
-        private final int numSubtasks;
+        private final JobInfo jobInfo;
+
+        private final TaskInfo taskInfo;
 
         private MockInitContext(int numSubtasks) {
-            this.numSubtasks = numSubtasks;
+            this.jobInfo = new JobInfoImpl(new JobID(), "MockJob");
+            this.taskInfo = new TaskInfoImpl("MockTask", numSubtasks + 1, 0, numSubtasks, 0);
         }
 
         @Override
@@ -182,23 +190,8 @@ class PrintSinkTest {
         }
 
         @Override
-        public int getSubtaskId() {
-            return 0;
-        }
-
-        @Override
-        public int getNumberOfParallelSubtasks() {
-            return numSubtasks;
-        }
-
-        @Override
-        public int getAttemptNumber() {
-            return 0;
-        }
-
-        @Override
         public SinkWriterMetricGroup metricGroup() {
-            return InternalSinkWriterMetricGroup.mock(new UnregisteredMetricsGroup());
+            return MetricsGroupTestUtils.mockWriterMetricGroup();
         }
 
         @Override
@@ -215,6 +208,26 @@ class PrintSinkTest {
         public SerializationSchema.InitializationContext
                 asSerializationSchemaInitializationContext() {
             return this;
+        }
+
+        @Override
+        public boolean isObjectReuseEnabled() {
+            return false;
+        }
+
+        @Override
+        public <IN> TypeSerializer<IN> createInputSerializer() {
+            return null;
+        }
+
+        @Override
+        public JobInfo getJobInfo() {
+            return jobInfo;
+        }
+
+        @Override
+        public TaskInfo getTaskInfo() {
+            return taskInfo;
         }
     }
 

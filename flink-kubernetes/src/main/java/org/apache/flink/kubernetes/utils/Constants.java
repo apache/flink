@@ -62,7 +62,18 @@ public class Constants {
     public static final String LABEL_COMPONENT_KEY = "component";
     public static final String LABEL_COMPONENT_JOB_MANAGER = "jobmanager";
     public static final String LABEL_COMPONENT_TASK_MANAGER = "taskmanager";
-    public static final String LABEL_CONFIGMAP_TYPE_KEY = "configmap-type";
+
+    /**
+     * This constant is deprecated since we do not use it for deletion currently. We still keep the
+     * constants here for backward compatibility.
+     */
+    @Deprecated public static final String LABEL_CONFIGMAP_TYPE_KEY = "configmap-type";
+
+    /**
+     * This constant is deprecated since we do not use it for deletion currently. We still keep the
+     * constants here for backward compatibility.
+     */
+    @Deprecated
     public static final String LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY = "high-availability";
 
     // Use fixed port in kubernetes, it needs to be exposed.
@@ -115,4 +126,11 @@ public class Constants {
     public static final String KUBERNETES_TASK_MANAGER_SCRIPT_PATH = "kubernetes-taskmanager.sh";
 
     public static final String ENV_TM_JVM_MEM_OPTS = "FLINK_TM_JVM_MEM_OPTS";
+
+    // "resourceVersion="0" is any resource version.It saves time to access etcd and improves
+    // performance.
+    // https://kubernetes.io/docs/reference/using-api/api-concepts/#the-resourceversion-parameter
+    public static final String KUBERNETES_ZERO_RESOURCE_VERSION = "0";
+
+    public static final String USER_ARTIFACTS_VOLUME = "user-artifacts-volume";
 }

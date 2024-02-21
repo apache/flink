@@ -24,14 +24,13 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import scala.collection.JavaConverters._
-import scala.collection.Seq
 
 class AggregateRemoveITCase extends BatchTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     registerCollection(

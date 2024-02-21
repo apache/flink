@@ -88,7 +88,7 @@ public class StreamOperatorChainingTest {
         env.setParallelism(2);
 
         // the actual elements will not be used
-        DataStream<Integer> input = env.fromElements(1, 2, 3);
+        DataStream<Integer> input = env.fromData(1, 2, 3);
 
         sink1Results = new ArrayList<>();
         sink2Results = new ArrayList<>();
@@ -181,7 +181,7 @@ public class StreamOperatorChainingTest {
         env.setParallelism(2);
 
         // the actual elements will not be used
-        DataStream<Integer> input = env.fromElements(1, 2, 3);
+        DataStream<Integer> input = env.fromData(1, 2, 3);
 
         sink1Results = new ArrayList<>();
         sink2Results = new ArrayList<>();

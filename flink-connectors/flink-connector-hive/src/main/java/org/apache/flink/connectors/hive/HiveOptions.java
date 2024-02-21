@@ -134,11 +134,12 @@ public class HiveOptions {
                                     + " custom: use policy class to create a commit policy."
                                     + " Support to configure multiple policies: 'metastore,success-file'.");
 
-    public static final ConfigOption<String> SINK_PARTITION_COMMIT_POLICY_CLASS =
-            FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS;
-
-    public static final ConfigOption<String> SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME =
-            FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME;
+    public static final ConfigOption<Integer> TABLE_EXEC_HIVE_READ_STATISTICS_THREAD_NUM =
+            key("table.exec.hive.read-statistics.thread-num")
+                    .intType()
+                    .defaultValue(Runtime.getRuntime().availableProcessors())
+                    .withDescription(
+                            "The thread number to read input format statistics. It should be bigger than 0.");
 
     public static final ConfigOption<MemorySize> COMPACT_SMALL_FILES_AVG_SIZE =
             key("compaction.small-files.avg-size")

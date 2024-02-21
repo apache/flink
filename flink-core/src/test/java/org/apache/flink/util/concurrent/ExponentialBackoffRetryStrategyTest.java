@@ -20,58 +20,63 @@ package org.apache.flink.util.concurrent;
 
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link ExponentialBackoffRetryStrategy}. */
 public class ExponentialBackoffRetryStrategyTest extends TestLogger {
 
     @Test
-    public void testGettersNotCapped() throws Exception {
+    public void testGettersNotCapped() {
         RetryStrategy retryStrategy =
                 new ExponentialBackoffRetryStrategy(
                         10, Duration.ofMillis(5L), Duration.ofMillis(20L));
-        assertEquals(10, retryStrategy.getNumRemainingRetries());
-        assertEquals(Duration.ofMillis(5L), retryStrategy.getRetryDelay());
+        assertThat(retryStrategy.getNumRemainingRetries()).isEqualTo(10);
+        assertThat(retryStrategy.getRetryDelay()).isEqualTo(Duration.ofMillis(5L));
 
         RetryStrategy nextRetryStrategy = retryStrategy.getNextRetryStrategy();
-        assertEquals(9, nextRetryStrategy.getNumRemainingRetries());
-        assertEquals(Duration.ofMillis(10L), nextRetryStrategy.getRetryDelay());
+        assertThat(nextRetryStrategy.getNumRemainingRetries()).isEqualTo(9);
+        assertThat(nextRetryStrategy.getRetryDelay()).isEqualTo(Duration.ofMillis(10L));
     }
 
     @Test
-    public void testGettersHitCapped() throws Exception {
+    public void testGettersHitCapped() {
         RetryStrategy retryStrategy =
                 new ExponentialBackoffRetryStrategy(
                         5, Duration.ofMillis(15L), Duration.ofMillis(20L));
-        assertEquals(5, retryStrategy.getNumRemainingRetries());
-        assertEquals(Duration.ofMillis(15L), retryStrategy.getRetryDelay());
+        assertThat(retryStrategy.getNumRemainingRetries()).isEqualTo(5);
+        assertThat(retryStrategy.getRetryDelay()).isEqualTo(Duration.ofMillis(15L));
 
         RetryStrategy nextRetryStrategy = retryStrategy.getNextRetryStrategy();
-        assertEquals(4, nextRetryStrategy.getNumRemainingRetries());
-        assertEquals(Duration.ofMillis(20L), nextRetryStrategy.getRetryDelay());
+        assertThat(nextRetryStrategy.getNumRemainingRetries()).isEqualTo(4);
+        assertThat(nextRetryStrategy.getRetryDelay()).isEqualTo(Duration.ofMillis(20L));
     }
 
     @Test
-    public void testGettersAtCap() throws Exception {
+    public void testGettersAtCap() {
         RetryStrategy retryStrategy =
                 new ExponentialBackoffRetryStrategy(
                         5, Duration.ofMillis(20L), Duration.ofMillis(20L));
-        assertEquals(5, retryStrategy.getNumRemainingRetries());
-        assertEquals(Duration.ofMillis(20L), retryStrategy.getRetryDelay());
+        assertThat(retryStrategy.getNumRemainingRetries()).isEqualTo(5);
+        assertThat(retryStrategy.getRetryDelay()).isEqualTo(Duration.ofMillis(20L));
 
         RetryStrategy nextRetryStrategy = retryStrategy.getNextRetryStrategy();
-        assertEquals(4, nextRetryStrategy.getNumRemainingRetries());
-        assertEquals(Duration.ofMillis(20L), nextRetryStrategy.getRetryDelay());
+        assertThat(nextRetryStrategy.getNumRemainingRetries()).isEqualTo(4);
+        assertThat(nextRetryStrategy.getRetryDelay()).isEqualTo(Duration.ofMillis(20L));
     }
 
     /** Tests that getting a next RetryStrategy below zero remaining retries fails. */
-    @Test(expected = IllegalStateException.class)
-    public void testRetryFailure() throws Throwable {
-        new ExponentialBackoffRetryStrategy(0, Duration.ofMillis(20L), Duration.ofMillis(20L))
-                .getNextRetryStrategy();
+    @Test
+    public void testRetryFailure() {
+        assertThatThrownBy(
+                        () ->
+                                new ExponentialBackoffRetryStrategy(
+                                                0, Duration.ofMillis(20L), Duration.ofMillis(20L))
+                                        .getNextRetryStrategy())
+                .isInstanceOf(IllegalStateException.class);
     }
 }

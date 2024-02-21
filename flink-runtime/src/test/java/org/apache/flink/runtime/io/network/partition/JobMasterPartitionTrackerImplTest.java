@@ -27,12 +27,10 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
-import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
-import org.assertj.core.api.Assertions;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,27 +43,24 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link JobMasterPartitionTrackerImpl}. */
-public class JobMasterPartitionTrackerImplTest extends TestLogger {
+class JobMasterPartitionTrackerImplTest {
 
     @Test
-    public void testPipelinedPartitionIsNotTracked() {
+    void testPipelinedPartitionIsNotTracked() {
         testReleaseOnConsumptionHandling(ResultPartitionType.PIPELINED);
     }
 
     @Test
-    public void testBlockingPartitionIsTracked() {
+    void testBlockingPartitionIsTracked() {
         testReleaseOnConsumptionHandling(ResultPartitionType.BLOCKING);
     }
 
     @Test
-    public void testPipelinedApproximatePartitionIsTracked() {
+    void testPipelinedApproximatePartitionIsTracked() {
         testReleaseOnConsumptionHandling(ResultPartitionType.PIPELINED_APPROXIMATE);
     }
 
@@ -81,13 +76,12 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
                 AbstractPartitionTrackerTest.createResultPartitionDeploymentDescriptor(
                         resultPartitionId, resultPartitionType, true));
 
-        assertThat(
-                partitionTracker.isTrackingPartitionsFor(resourceId),
-                is(resultPartitionType.isReleaseByScheduler()));
+        assertThat(partitionTracker.isTrackingPartitionsFor(resourceId))
+                .isEqualTo(resultPartitionType.isReleaseByScheduler());
     }
 
     @Test
-    public void testReleaseCallsWithLocalResources() {
+    void testReleaseCallsWithLocalResources() {
         final TestingShuffleMaster shuffleMaster = new TestingShuffleMaster();
         final JobID jobId = new JobID();
 
@@ -109,22 +103,23 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
                 AbstractPartitionTrackerTest.createResultPartitionDeploymentDescriptor(
                         resultPartitionId, true));
 
-        assertThat(partitionTracker.isTrackingPartitionsFor(tmId), is(true));
+        assertThat(partitionTracker.isTrackingPartitionsFor(tmId)).isTrue();
 
         partitionTracker.stopTrackingAndReleasePartitions(Arrays.asList(resultPartitionId));
 
-        assertEquals(1, releaseCall.size());
+        assertThat(releaseCall).hasSize(1);
         ReleaseCall releaseOrPromoteCall = releaseCall.remove();
-        assertEquals(tmId, releaseOrPromoteCall.getTaskExecutorId());
-        assertEquals(jobId, releaseOrPromoteCall.getJobId());
-        assertThat(releaseOrPromoteCall.getReleasedPartitions(), contains(resultPartitionId));
-        assertEquals(1, shuffleMaster.externallyReleasedPartitions.size());
-        assertEquals(resultPartitionId, shuffleMaster.externallyReleasedPartitions.remove());
-        assertThat(partitionTracker.isTrackingPartitionsFor(tmId), is(false));
+        assertThat(releaseOrPromoteCall.getTaskExecutorId()).isEqualTo(tmId);
+        assertThat(releaseOrPromoteCall.getJobId()).isEqualTo(jobId);
+        assertThat(releaseOrPromoteCall.getReleasedPartitions()).contains(resultPartitionId);
+        assertThat(shuffleMaster.externallyReleasedPartitions).hasSize(1);
+        assertThat(shuffleMaster.externallyReleasedPartitions.remove())
+                .isEqualTo(resultPartitionId);
+        assertThat(partitionTracker.isTrackingPartitionsFor(tmId)).isFalse();
     }
 
     @Test
-    public void testReleaseCallsWithoutLocalResources() {
+    void testReleaseCallsWithoutLocalResources() {
         final TestingShuffleMaster shuffleMaster = new TestingShuffleMaster();
 
         final Queue<ReleaseCall> releaseCalls = new ArrayBlockingQueue<>(4);
@@ -145,18 +140,17 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
                 tmId,
                 AbstractPartitionTrackerTest.createResultPartitionDeploymentDescriptor(
                         resultPartitionId, false));
-        assertThat(partitionTracker.isTrackingPartitionsFor(tmId), is(false));
+        assertThat(partitionTracker.isTrackingPartitionsFor(tmId)).isFalse();
 
         partitionTracker.stopTrackingAndReleasePartitions(Arrays.asList(resultPartitionId));
 
-        assertEquals(0, releaseCalls.size());
-        assertEquals(0, promoteCalls.size());
-        assertEquals(1, shuffleMaster.externallyReleasedPartitions.size());
-        assertThat(shuffleMaster.externallyReleasedPartitions, contains(resultPartitionId));
+        assertThat(releaseCalls).isEmpty();
+        assertThat(promoteCalls).isEmpty();
+        assertThat(shuffleMaster.externallyReleasedPartitions).containsOnly(resultPartitionId);
     }
 
     @Test
-    public void testStopTrackingIssuesNoReleaseCalls() {
+    void testStopTrackingIssuesNoReleaseCalls() {
         final TestingShuffleMaster shuffleMaster = new TestingShuffleMaster();
 
         final Queue<ReleaseCall> releaseCalls = new ArrayBlockingQueue<>(4);
@@ -180,13 +174,13 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
 
         partitionTracker.stopTrackingPartitionsFor(taskExecutorId1);
 
-        assertEquals(0, releaseCalls.size());
-        assertEquals(0, promoteCalls.size());
-        assertEquals(0, shuffleMaster.externallyReleasedPartitions.size());
+        assertThat(releaseCalls).isEmpty();
+        assertThat(promoteCalls).isEmpty();
+        assertThat(shuffleMaster.externallyReleasedPartitions).isEmpty();
     }
 
     @Test
-    public void testTrackingInternalAndExternalPartitionsByTmId() {
+    void testTrackingInternalAndExternalPartitionsByTmId() {
         final TestingShuffleMaster shuffleMaster = new TestingShuffleMaster();
 
         final Queue<ReleaseCall> releaseCalls = new ArrayBlockingQueue<>(4);
@@ -209,35 +203,35 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
                 AbstractPartitionTrackerTest.createResultPartitionDeploymentDescriptor(
                         resultPartitionId2, false));
         // No local resource is occupied
-        assertThat(partitionTracker.isTrackingPartitionsFor(taskExecutorId), is(false));
+        assertThat(partitionTracker.isTrackingPartitionsFor(taskExecutorId)).isFalse();
 
         partitionTracker.startTrackingPartition(
                 taskExecutorId,
                 AbstractPartitionTrackerTest.createResultPartitionDeploymentDescriptor(
                         resultPartitionId1, true));
         // Local resource is occupied
-        assertThat(partitionTracker.isTrackingPartitionsFor(taskExecutorId), is(true));
+        assertThat(partitionTracker.isTrackingPartitionsFor(taskExecutorId)).isTrue();
 
         assertThat(
-                partitionTracker.getAllTrackedPartitions().stream()
-                        .map(desc -> desc.getShuffleDescriptor().getResultPartitionID())
-                        .collect(Collectors.toList()),
-                containsInAnyOrder(resultPartitionId1, resultPartitionId2));
+                        partitionTracker.getAllTrackedPartitions().stream()
+                                .map(desc -> desc.getShuffleDescriptor().getResultPartitionID())
+                                .collect(Collectors.toList()))
+                .containsExactlyInAnyOrder(resultPartitionId1, resultPartitionId2);
 
         partitionTracker.stopTrackingPartitionsFor(taskExecutorId);
 
-        assertThat(partitionTracker.isTrackingPartitionsFor(taskExecutorId), is(false));
-        assertThat(partitionTracker.isPartitionTracked(resultPartitionId1), is(false));
-        assertThat(partitionTracker.isPartitionTracked(resultPartitionId2), is(true));
+        assertThat(partitionTracker.isTrackingPartitionsFor(taskExecutorId)).isFalse();
+        assertThat(partitionTracker.isPartitionTracked(resultPartitionId1)).isFalse();
+        assertThat(partitionTracker.isPartitionTracked(resultPartitionId2)).isTrue();
         assertThat(
-                Iterables.getOnlyElement(partitionTracker.getAllTrackedPartitions())
-                        .getShuffleDescriptor()
-                        .getResultPartitionID(),
-                is(resultPartitionId2));
+                        Iterables.getOnlyElement(partitionTracker.getAllTrackedPartitions())
+                                .getShuffleDescriptor()
+                                .getResultPartitionID())
+                .isEqualTo(resultPartitionId2);
     }
 
     @Test
-    public void testGetJobPartitionClusterPartition() {
+    void testGetJobPartitionClusterPartition() {
         final TestingShuffleMaster shuffleMaster = new TestingShuffleMaster();
 
         final Queue<ReleaseCall> releaseCalls = new ArrayBlockingQueue<>(4);
@@ -264,14 +258,14 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
         partitionTracker.startTrackingPartition(taskExecutorId, clusterPartition);
         partitionTracker.startTrackingPartition(taskExecutorId, jobPartition);
 
-        Assertions.assertThat(partitionTracker.getAllTrackedNonClusterPartitions())
+        assertThat(partitionTracker.getAllTrackedNonClusterPartitions())
                 .containsExactly(jobPartition);
-        Assertions.assertThat(partitionTracker.getAllTrackedClusterPartitions())
+        assertThat(partitionTracker.getAllTrackedClusterPartitions())
                 .containsExactly(clusterPartition);
     }
 
     @Test
-    public void testGetShuffleDescriptors() {
+    void testGetShuffleDescriptors() {
         final TestingShuffleMaster shuffleMaster = new TestingShuffleMaster();
         IntermediateDataSetID intermediateDataSetId = new IntermediateDataSetID();
 
@@ -290,13 +284,12 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
         partitionTracker.connectToResourceManager(resourceManagerGateway);
         partitionTracker.getClusterPartitionShuffleDescriptors(intermediateDataSetId);
 
-        assertThat(
-                resourceManagerGateway.requestedIntermediateDataSetIds,
-                contains(intermediateDataSetId));
+        assertThat(resourceManagerGateway.requestedIntermediateDataSetIds)
+                .contains(intermediateDataSetId);
     }
 
-    @Test(expected = NullPointerException.class)
-    public void testGetShuffleDescriptorsBeforeConnectToResourceManager() {
+    @Test
+    void testGetShuffleDescriptorsBeforeConnectToResourceManager() {
         final TestingShuffleMaster shuffleMaster = new TestingShuffleMaster();
         IntermediateDataSetID intermediateDataSetId = new IntermediateDataSetID();
 
@@ -310,11 +303,16 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
                                 Optional.of(
                                         createTaskExecutorGateway(
                                                 resourceId, releaseCalls, promoteCalls)));
-        partitionTracker.getClusterPartitionShuffleDescriptors(intermediateDataSetId);
+
+        assertThatThrownBy(
+                        () ->
+                                partitionTracker.getClusterPartitionShuffleDescriptors(
+                                        intermediateDataSetId))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
-    public void testReleaseJobPartitionPromoteClusterPartition() {
+    void testReleaseJobPartitionPromoteClusterPartition() {
         final TestingShuffleMaster shuffleMaster = new TestingShuffleMaster();
 
         final Queue<ReleaseCall> taskExecutorReleaseCalls = new ArrayBlockingQueue<>(4);
@@ -368,24 +366,24 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
                 Arrays.asList(clusterPartitionId0, clusterPartitionId1));
 
         // Exactly one call should have been made to the hosting task executor
-        assertEquals(1, taskExecutorReleaseCalls.size());
-        assertEquals(1, taskExecutorPromoteCalls.size());
+        assertThat(taskExecutorReleaseCalls).hasSize(1);
+        assertThat(taskExecutorPromoteCalls).hasSize(1);
 
         final ReleaseCall releaseCall = taskExecutorReleaseCalls.remove();
 
         final PromoteCall promoteCall = taskExecutorPromoteCalls.remove();
 
         // One local partition released and one local partition promoted.
-        assertEquals(
-                jobPartitionId0, Iterables.getOnlyElement(releaseCall.getReleasedPartitions()));
-        assertEquals(
-                clusterPartitionId0, Iterables.getOnlyElement(promoteCall.getPromotedPartitions()));
+        assertThat(Iterables.getOnlyElement(releaseCall.getReleasedPartitions()))
+                .isEqualTo(jobPartitionId0);
+        assertThat(Iterables.getOnlyElement(promoteCall.getPromotedPartitions()))
+                .isEqualTo(clusterPartitionId0);
 
         // Both internal and external partitions will be fed into shuffle-master for releasing.
         Collection<ResultPartitionID> externallyReleasedPartitions =
                 new ArrayList<>(shuffleMaster.externallyReleasedPartitions);
-        assertThat(
-                externallyReleasedPartitions, containsInAnyOrder(jobPartitionId0, jobPartitionId1));
+        assertThat(externallyReleasedPartitions)
+                .containsExactlyInAnyOrder(jobPartitionId0, jobPartitionId1);
     }
 
     private static TaskExecutorGateway createTaskExecutorGateway(

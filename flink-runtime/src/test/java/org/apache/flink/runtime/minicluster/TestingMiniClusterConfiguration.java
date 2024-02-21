@@ -123,13 +123,12 @@ public class TestingMiniClusterConfiguration extends MiniClusterConfiguration {
 
         public TestingMiniClusterConfiguration build() {
             final Configuration modifiedConfiguration = new Configuration(configuration);
-            modifiedConfiguration.setInteger(
-                    TaskManagerOptions.NUM_TASK_SLOTS, numSlotsPerTaskManager);
-            modifiedConfiguration.setString(
+            modifiedConfiguration.set(TaskManagerOptions.NUM_TASK_SLOTS, numSlotsPerTaskManager);
+            modifiedConfiguration.set(
                     RestOptions.ADDRESS,
-                    modifiedConfiguration.getString(RestOptions.ADDRESS, "localhost"));
-            modifiedConfiguration.setInteger(
-                    RestOptions.PORT, modifiedConfiguration.getInteger(RestOptions.PORT, 0));
+                    modifiedConfiguration.get(RestOptions.ADDRESS, "localhost"));
+            modifiedConfiguration.set(
+                    RestOptions.PORT, modifiedConfiguration.get(RestOptions.PORT, 0));
 
             return new TestingMiniClusterConfiguration(
                     modifiedConfiguration,

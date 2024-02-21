@@ -36,11 +36,14 @@ public enum RestoreMode implements DescribedEnum {
                     + " does not depend on any artefacts from the restored snapshot. In order to do that,"
                     + " Flink will take the first checkpoint as a full one, which means it might"
                     + " reupload/duplicate files that are part of the restored checkpoint."),
+    @Deprecated
     LEGACY(
-            "This is the mode in which Flink worked so far. It will not claim ownership of the"
+            "This is the mode in which Flink worked until 1.15. It will not claim ownership of the"
                     + " snapshot and will not delete the files. However, it can directly depend on"
                     + " the existence of the files of the restored checkpoint. It might not be safe"
-                    + " to delete checkpoints that were restored in legacy mode ");
+                    + " to delete checkpoints that were restored in legacy mode. This mode is"
+                    + " deprecated, please use CLAIM or NO_CLAIM mode to get a clear state file"
+                    + " ownership.");
 
     private final String description;
 

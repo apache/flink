@@ -57,7 +57,7 @@ public class AllroundMiniClusterTest extends TestLogger {
 
     private static Configuration createConfiguration() {
         Configuration configuration = new Configuration();
-        configuration.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, true);
+        configuration.set(CheckpointingOptions.LOCAL_RECOVERY, true);
         configuration.setString(EXECUTION_FAILOVER_STRATEGY.key(), "region");
         return configuration;
     }

@@ -42,7 +42,7 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.test.recovery.utils.TaskExecutorProcessEntryPoint;
@@ -253,7 +253,7 @@ class LocalRecoveryITCase {
 
         env.enableCheckpointing(100, CheckpointingMode.EXACTLY_ONCE);
 
-        env.addSource(new LocalRecoverySource()).keyBy(x -> x).addSink(new DiscardingSink<>());
+        env.addSource(new LocalRecoverySource()).keyBy(x -> x).sinkTo(new DiscardingSink<>());
         final JobClient jobClient = env.executeAsync();
         return jobClient;
     }
@@ -288,7 +288,7 @@ class LocalRecoveryITCase {
             StreamingRuntimeContext runtimeContext = (StreamingRuntimeContext) getRuntimeContext();
             String allocationId = runtimeContext.getAllocationIDAsString();
             // Pattern of the name: "Flat Map -> Sink: Unnamed (4/4)#0". Remove "#0" part:
-            String myName = runtimeContext.getTaskNameWithSubtasks().split("#")[0];
+            String myName = runtimeContext.getTaskInfo().getTaskNameWithSubtasks().split("#")[0];
 
             ListStateDescriptor<TaskNameAllocationID> previousAllocationsStateDescriptor =
                     new ListStateDescriptor<>("sourceState", TaskNameAllocationID.class);
@@ -330,8 +330,8 @@ class LocalRecoveryITCase {
                 running = false;
             }
 
-            previousAllocations.clear();
-            previousAllocations.add(new TaskNameAllocationID(myName, allocationId));
+            previousAllocations.update(
+                    Collections.singletonList(new TaskNameAllocationID(myName, allocationId)));
         }
     }
 

@@ -61,6 +61,7 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceAllocator;
 import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceEventListener;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rest.messages.LogInfo;
+import org.apache.flink.runtime.rest.messages.ProfilingInfo;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -80,6 +81,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationRejection;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkExpectedException;
@@ -87,9 +89,9 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -201,10 +203,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
         this.resourceManagerMetricGroup = checkNotNull(resourceManagerMetricGroup);
 
-        this.jobManagerRegistrations = new HashMap<>(4);
-        this.jmResourceIdRegistrations = new HashMap<>(4);
-        this.taskExecutors = new HashMap<>(8);
-        this.taskExecutorGatewayFutures = new HashMap<>(8);
+        this.jobManagerRegistrations = CollectionUtil.newHashMapWithExpectedSize(4);
+        this.jmResourceIdRegistrations = CollectionUtil.newHashMapWithExpectedSize(4);
+        this.taskExecutors = CollectionUtil.newHashMapWithExpectedSize(8);
+        this.taskExecutorGatewayFutures = CollectionUtil.newHashMapWithExpectedSize(8);
         this.blocklistHandler =
                 blocklistHandlerFactory.create(
                         new ResourceManagerBlocklistContext(),
@@ -811,22 +813,33 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     @Override
     public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByName(
             ResourceID taskManagerId, String fileName, Time timeout) {
+        return requestTaskManagerFileUploadByNameAndType(
+                taskManagerId, fileName, FileType.LOG, Duration.ofMillis(timeout.toMilliseconds()));
+    }
+
+    @Override
+    public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByNameAndType(
+            ResourceID taskManagerId, String fileName, FileType fileType, Duration timeout) {
         log.debug(
-                "Request upload of file {} from TaskExecutor {}.",
+                "Request upload of file {} (type: {}) from TaskExecutor {}.",
                 fileName,
+                fileType,
                 taskManagerId.getStringWithMetadata());
 
         final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
 
         if (taskExecutor == null) {
             log.debug(
-                    "Request upload of file {} from unregistered TaskExecutor {}.",
+                    "Request upload of file {} (type: {}) from unregistered TaskExecutor {}.",
                     fileName,
+                    fileType,
                     taskManagerId.getStringWithMetadata());
             return FutureUtils.completedExceptionally(
                     new UnknownTaskExecutorException(taskManagerId));
         } else {
-            return taskExecutor.getTaskExecutorGateway().requestFileUploadByName(fileName, timeout);
+            return taskExecutor
+                    .getTaskExecutorGateway()
+                    .requestFileUploadByNameAndType(fileName, fileType, timeout);
         }
     }
 
@@ -884,6 +897,40 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     new UnknownTaskExecutorException(taskManagerId));
         } else {
             return taskExecutor.getTaskExecutorGateway().requestThreadDump(timeout);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Collection<ProfilingInfo>> requestTaskManagerProfilingList(
+            ResourceID taskManagerId, Duration timeout) {
+        final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
+        if (taskExecutor == null) {
+            log.debug(
+                    "Requested profiling list from unregistered TaskExecutor {}.",
+                    taskManagerId.getStringWithMetadata());
+            return FutureUtils.completedExceptionally(
+                    new UnknownTaskExecutorException(taskManagerId));
+        } else {
+            return taskExecutor.getTaskExecutorGateway().requestProfilingList(timeout);
+        }
+    }
+
+    @Override
+    public CompletableFuture<ProfilingInfo> requestProfiling(
+            ResourceID taskManagerId,
+            int duration,
+            ProfilingInfo.ProfilingMode mode,
+            Duration timeout) {
+        final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
+
+        if (taskExecutor == null) {
+            log.debug(
+                    "Requested profiling from unregistered TaskExecutor {}.",
+                    taskManagerId.getStringWithMetadata());
+            return FutureUtils.completedExceptionally(
+                    new UnknownTaskExecutorException(taskManagerId));
+        } else {
+            return taskExecutor.getTaskExecutorGateway().requestProfiling(duration, mode, timeout);
         }
     }
 

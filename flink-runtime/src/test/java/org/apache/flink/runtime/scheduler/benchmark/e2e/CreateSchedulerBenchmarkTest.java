@@ -19,14 +19,13 @@
 package org.apache.flink.runtime.scheduler.benchmark.e2e;
 
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** The benchmark of creating the scheduler in a STREAMING/BATCH job. */
-public class CreateSchedulerBenchmarkTest extends TestLogger {
+class CreateSchedulerBenchmarkTest {
     @Test
-    public void createSchedulerInStreamingJob() throws Exception {
+    void createSchedulerInStreamingJob() throws Exception {
         CreateSchedulerBenchmark benchmark = new CreateSchedulerBenchmark();
         benchmark.setup(JobConfiguration.STREAMING_TEST);
         benchmark.createScheduler();
@@ -34,7 +33,7 @@ public class CreateSchedulerBenchmarkTest extends TestLogger {
     }
 
     @Test
-    public void createSchedulerInBatchJob() throws Exception {
+    void createSchedulerInBatchJob() throws Exception {
         CreateSchedulerBenchmark benchmark = new CreateSchedulerBenchmark();
         benchmark.setup(JobConfiguration.BATCH_TEST);
         benchmark.createScheduler();

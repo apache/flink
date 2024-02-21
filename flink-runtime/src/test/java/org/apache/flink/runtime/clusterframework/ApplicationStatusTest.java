@@ -19,10 +19,8 @@
 package org.apache.flink.runtime.clusterframework;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
@@ -34,64 +32,63 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link ApplicationStatus}. */
-@ExtendWith(TestLoggerExtension.class)
-public class ApplicationStatusTest {
+class ApplicationStatusTest {
 
     private static final int SUCCESS_EXIT_CODE = 0;
 
     @Test
-    public void succeededStatusMapsToSuccessExitCode() {
+    void succeededStatusMapsToSuccessExitCode() {
         int exitCode = ApplicationStatus.SUCCEEDED.processExitCode();
         assertThat(exitCode).isEqualTo(SUCCESS_EXIT_CODE);
     }
 
     @Test
-    public void cancelledStatusMapsToSuccessExitCode() {
+    void cancelledStatusMapsToSuccessExitCode() {
         int exitCode = ApplicationStatus.CANCELED.processExitCode();
         assertThat(exitCode).isEqualTo(SUCCESS_EXIT_CODE);
     }
 
     @Test
-    public void notSucceededNorCancelledStatusMapsToNonSuccessExitCode() {
+    void notSucceededNorCancelledStatusMapsToNonSuccessExitCode() {
         Iterable<Integer> exitCodes = exitCodes(notSucceededNorCancelledStatus());
         assertThat(exitCodes).doesNotContain(SUCCESS_EXIT_CODE);
     }
 
     @Test
-    public void testJobStatusFromSuccessApplicationStatus() {
+    void testJobStatusFromSuccessApplicationStatus() {
         assertThat(ApplicationStatus.SUCCEEDED.deriveJobStatus()).isEqualTo(JobStatus.FINISHED);
     }
 
     @Test
-    public void testJobStatusFromFailedApplicationStatus() {
+    void testJobStatusFromFailedApplicationStatus() {
         assertThat(ApplicationStatus.FAILED.deriveJobStatus()).isEqualTo(JobStatus.FAILED);
     }
 
     @Test
-    public void testJobStatusFromCancelledApplicationStatus() {
+    void testJobStatusFromCancelledApplicationStatus() {
         assertThat(ApplicationStatus.CANCELED.deriveJobStatus()).isEqualTo(JobStatus.CANCELED);
     }
 
     @Test
-    public void testJobStatusFailsFromUnknownApplicationStatuses() {
+    void testJobStatusFailsFromUnknownApplicationStatuses() {
         assertThatThrownBy(ApplicationStatus.UNKNOWN::deriveJobStatus)
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test
-    public void testSuccessApplicationStatusFromJobStatus() {
+    void testSuccessApplicationStatusFromJobStatus() {
         assertThat(ApplicationStatus.fromJobStatus(JobStatus.FINISHED))
                 .isEqualTo(ApplicationStatus.SUCCEEDED);
     }
 
     @Test
-    public void testFailedApplicationStatusFromJobStatus() {
+    void testFailedApplicationStatusFromJobStatus() {
         assertThat(ApplicationStatus.fromJobStatus(JobStatus.FAILED))
                 .isEqualTo(ApplicationStatus.FAILED);
     }
 
     @Test
-    public void testCancelledApplicationStatusFromJobStatus() {
+    void testCancelledApplicationStatusFromJobStatus() {
         assertThat(ApplicationStatus.fromJobStatus(JobStatus.CANCELED))
                 .isEqualTo(ApplicationStatus.CANCELED);
     }
@@ -114,7 +111,7 @@ public class ApplicationStatusTest {
     }
 
     @Test
-    public void testUnknownApplicationStatusForMissingJobStatus() {
+    void testUnknownApplicationStatusForMissingJobStatus() {
         assertThat(ApplicationStatus.fromJobStatus(null)).isEqualTo(ApplicationStatus.UNKNOWN);
     }
 

@@ -59,11 +59,11 @@ public class PrestoS3RecoverableWriterTest {
         conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
         conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
 
-        conf.setLong(PART_UPLOAD_MIN_SIZE, PART_UPLOAD_MIN_SIZE_VALUE);
-        conf.setInteger(MAX_CONCURRENT_UPLOADS, MAX_CONCURRENT_UPLOADS_VALUE);
+        conf.set(PART_UPLOAD_MIN_SIZE, PART_UPLOAD_MIN_SIZE_VALUE);
+        conf.set(MAX_CONCURRENT_UPLOADS, MAX_CONCURRENT_UPLOADS_VALUE);
 
-        final String defaultTmpDir = conf.getString(CoreOptions.TMP_DIRS) + "s3_tmp_dir";
-        conf.setString(CoreOptions.TMP_DIRS, defaultTmpDir);
+        final String defaultTmpDir = conf.get(CoreOptions.TMP_DIRS) + "s3_tmp_dir";
+        conf.set(CoreOptions.TMP_DIRS, defaultTmpDir);
 
         FileSystem.initialize(conf);
     }

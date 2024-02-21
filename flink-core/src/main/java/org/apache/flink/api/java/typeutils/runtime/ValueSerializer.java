@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Value;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.InstantiationUtil;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -223,7 +224,8 @@ public final class ValueSerializer<T extends Value> extends TypeSerializer<T> {
     private static LinkedHashMap<String, KryoRegistration> asKryoRegistrations(Class<?> type) {
         checkNotNull(type);
 
-        LinkedHashMap<String, KryoRegistration> registration = new LinkedHashMap<>(1);
+        LinkedHashMap<String, KryoRegistration> registration =
+                CollectionUtil.newLinkedHashMapWithExpectedSize(1);
         registration.put(type.getClass().getName(), new KryoRegistration(type));
 
         return registration;

@@ -68,4 +68,18 @@ public final class JsonTestUtils {
                         });
         return target;
     }
+
+    public static JsonNode setExecNodeStateMetadata(
+            JsonNode target, String type, int stateIndex, long stateTtl) {
+        target.get("nodes")
+                .elements()
+                .forEachRemaining(
+                        n -> {
+                            if (n.get("type").asText().startsWith(type) && n.hasNonNull("state")) {
+                                ((ObjectNode) (n.get("state").get(stateIndex)))
+                                        .put("ttl", stateTtl + " ms");
+                            }
+                        });
+        return target;
+    }
 }

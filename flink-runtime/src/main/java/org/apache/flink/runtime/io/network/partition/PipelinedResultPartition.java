@@ -19,10 +19,16 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.StopMode;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
+import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nullable;
@@ -179,8 +185,8 @@ public class PipelinedResultPartition extends BufferWritingResultPartition
     }
 
     @Override
-    public CheckpointedResultSubpartition getCheckpointedSubpartition(int subpartitionIndex) {
-        return (CheckpointedResultSubpartition) subpartitions[subpartitionIndex];
+    public ResultSubpartitionInfo getCheckpointedSubpartitionInfo(int subpartitionIndex) {
+        return subpartitions[subpartitionIndex].getSubpartitionInfo();
     }
 
     @Override
@@ -252,9 +258,38 @@ public class PipelinedResultPartition extends BufferWritingResultPartition
 
     @Override
     public void finishReadRecoveredState(boolean notifyAndBlockOnCompletion) throws IOException {
-        for (ResultSubpartition subpartition : subpartitions) {
-            ((CheckpointedResultSubpartition) subpartition)
-                    .finishReadRecoveredState(notifyAndBlockOnCompletion);
+        if (!notifyAndBlockOnCompletion) {
+            return;
+        }
+        try (BufferConsumer eventBufferConsumer =
+                EventSerializer.toBufferConsumer(EndOfChannelStateEvent.INSTANCE, false)) {
+            for (int i = 0; i < subpartitions.length; i++) {
+                if (((PipelinedSubpartition) subpartitions[i]).isSupportChannelStateRecover()) {
+                    addToSubpartition(i, eventBufferConsumer.copy(), 0);
+                }
+            }
+        }
+    }
+
+    @Override
+    public BufferBuilder requestBufferBuilderBlocking()
+            throws IOException, RuntimeException, InterruptedException {
+        return getBufferPool().requestBufferBuilderBlocking();
+    }
+
+    @Override
+    public void addRecovered(int subpartitionIndex, BufferConsumer bufferConsumer)
+            throws IOException {
+        ResultSubpartition subpartition = subpartitions[subpartitionIndex];
+        NetworkActionsLogger.traceRecover(
+                "PipelinedSubpartition#addRecovered",
+                bufferConsumer,
+                getOwningTaskName(),
+                subpartition.subpartitionInfo);
+
+        if (addToSubpartition(subpartitionIndex, bufferConsumer, Integer.MIN_VALUE)
+                == ResultSubpartition.ADD_BUFFER_ERROR_CODE) {
+            throw new IOException("Buffer consumer couldn't be added to ResultSubpartition");
         }
     }
 

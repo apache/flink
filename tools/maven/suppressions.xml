@@ -40,6 +40,10 @@ under the License.
 		<suppress files="NFAITCase.java" checks="FileLength"/>
 		<suppress files="HyperLogLogPlusPlus.java" checks="FileLength"/>
 
+		<!-- Legacy mockito usages -->
+		<suppress files="AbstractStreamOperatorTestHarnessTest.java|BackendRestorerProcedureTest.java|BufferDataOverWindowOperatorTest.java|CEPOperatorTest.java|CepRuntimeContextTest.java|CliFrontendListTest.java|CliFrontendPackageProgramTest.java|CliFrontendSavepointTest.java|DemultiplexingRecordDeserializerTest.java|DropwizardMeterWrapperTest.java|DynamicEventTimeSessionWindowsTest.java|DynamicProcessingTimeSessionWindowsTest.java|EmbeddedRocksDBStateBackendTest.java|EventTimeSessionWindowsTest.java|FlinkCalciteCatalogReaderTest.java|FlinkMeterWrapperTest.java|GlobalWindowsTest.java|HadoopDataInputStreamTest.java|HadoopInputFormatTest.java|HadoopOutputFormatTest.java|HadoopUtilsTest.java|HiveTableSourceITCase.java|HybridSourceReaderTest.java|HybridSourceSplitEnumeratorTest.java|InternalTimerServiceImplTest.java|InternalWindowFunctionTest.java|InterruptSensitiveRestoreTest.java|LocalStateForwardingTest.java|MergingWindowSetTest.java|NFAITCase.java|NonBufferOverWindowOperatorTest.java|OperatorSnapshotFuturesTest.java|OutputFormatSinkFunctionTest.java|PatternTest.java|ProcessingTimeSessionWindowsTest.java|PurgingTriggerTest.java|PythonOperatorChainingOptimizerTest.java|PythonTestUtils.java|RawFormatSerDeSchemaTest.java|RegisterApplicationMasterResponseReflectorTest.java|RegularWindowOperatorContractTest.java|RichAsyncFunctionTest.java|RocksDBIncrementalCheckpointUtilsTest.java|RocksDBKeyedStateBackendTestFactory.java|RocksDBStateBackendConfigTest.java|S3EntropyFsFactoryTest.java|SessionWindowAssignerTest.java|SlidingEventTimeWindowsTest.java|SlidingProcessingTimeWindowsTest.java|SourceFunctionUtil.java|StateInitializationContextImplTest.java|StateSnapshotContextSynchronousImplTest.java|StreamElementSerializerTest.java|StreamingRuntimeContextTest.java|StreamMockEnvironment.java|StreamSourceOperatorLatencyMetricsTest.java|StreamSourceOperatorWatermarksTest.java|StreamTaskCancellationBarrierTest.java|StreamTaskStateInitializerImplTest.java|StreamTaskSystemExitTest.java|StreamTaskTerminationTest.java|StreamTaskTest.java|SynchronousCheckpointITCase.java|TaskCheckpointingBehaviourTest.java|TestPartitionDiscoverer.java|TestSpyWrapperStateBackend.java|TumblingEventTimeWindowsTest.java|TumblingProcessingTimeWindowsTest.java|Whitebox.java|WindowOperatorContractTest.java|WindowOperatorTest.java|WindowReaderTest.java"
+				  checks="IllegalImport"/>
+
 		<suppress files="org[\\/]apache[\\/]flink[\\/]formats[\\/]avro[\\/]generated[\\/].*.java" checks="[a-zA-Z0-9]*"/>
 		<suppress files="org[\\/]apache[\\/]flink[\\/]formats[\\/]parquet[\\/]generated[\\/].*.java" checks="[a-zA-Z0-9]*"/>
 		<!-- Sometimes we have to temporarily fix very long, different formatted Calcite files. -->
@@ -50,7 +54,7 @@ under the License.
 
 	    <!-- Have to use guava directly -->
 	    <suppress
-			files="OverConvertRule.java|InConverter.java|SymbolUtil.java|RexNodeJsonDeserializer.java|RexNodeJsonSerializer.java|RexNodeJsonSerdeTest.java"
+			files="OverConvertRule.java|InConverter.java|SymbolUtil.java|RexNodeJsonDeserializer.java|RexNodeJsonSerializer.java|RexNodeJsonSerdeTest.java|FlinkAggregateProjectMergeRule.java"
 			checks="IllegalImport"/>
 		<!-- Classes copied from AWS -->
 		<suppress

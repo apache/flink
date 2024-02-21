@@ -18,11 +18,12 @@
 
 package org.apache.flink.cep.operator;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
@@ -44,6 +45,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -109,36 +111,43 @@ public class CepRuntimeContextTest extends TestLogger {
         final String taskName = "foobarTask";
         final OperatorMetricGroup metricGroup =
                 UnregisteredMetricsGroup.createOperatorMetricGroup();
-        final int numberOfParallelSubtasks = 42;
-        final int indexOfSubtask = 43;
+        final int numberOfParallelSubtasks = 43;
+        final int indexOfSubtask = 42;
         final int attemptNumber = 1337;
-        final String taskNameWithSubtask = "barfoo";
-        final ExecutionConfig executionConfig = mock(ExecutionConfig.class);
+        final String taskNameWithSubtask = "foobarTask (43/43)#1337";
+        final Map<String, String> globalJobParameters = new HashMap<>();
+        globalJobParameters.put("k1", "v1");
         final ClassLoader userCodeClassLoader = mock(ClassLoader.class);
         final DistributedCache distributedCache = mock(DistributedCache.class);
+        final boolean isObjectReused = true;
 
         RuntimeContext mockedRuntimeContext = mock(RuntimeContext.class);
-
-        when(mockedRuntimeContext.getTaskName()).thenReturn(taskName);
+        TaskInfoImpl taskInfo =
+                new TaskInfoImpl(
+                        taskName,
+                        numberOfParallelSubtasks,
+                        indexOfSubtask,
+                        numberOfParallelSubtasks,
+                        attemptNumber);
+        when(mockedRuntimeContext.getTaskInfo()).thenReturn(taskInfo);
         when(mockedRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
-        when(mockedRuntimeContext.getNumberOfParallelSubtasks())
-                .thenReturn(numberOfParallelSubtasks);
-        when(mockedRuntimeContext.getIndexOfThisSubtask()).thenReturn(indexOfSubtask);
-        when(mockedRuntimeContext.getAttemptNumber()).thenReturn(attemptNumber);
-        when(mockedRuntimeContext.getTaskNameWithSubtasks()).thenReturn(taskNameWithSubtask);
-        when(mockedRuntimeContext.getExecutionConfig()).thenReturn(executionConfig);
+        when(mockedRuntimeContext.getGlobalJobParameters()).thenReturn(globalJobParameters);
+        when(mockedRuntimeContext.isObjectReuseEnabled()).thenReturn(isObjectReused);
         when(mockedRuntimeContext.getUserCodeClassLoader()).thenReturn(userCodeClassLoader);
         when(mockedRuntimeContext.getDistributedCache()).thenReturn(distributedCache);
 
         RuntimeContext runtimeContext = new CepRuntimeContext(mockedRuntimeContext);
 
-        assertEquals(taskName, runtimeContext.getTaskName());
+        assertEquals(taskName, runtimeContext.getTaskInfo().getTaskName());
         assertEquals(metricGroup, runtimeContext.getMetricGroup());
-        assertEquals(numberOfParallelSubtasks, runtimeContext.getNumberOfParallelSubtasks());
-        assertEquals(indexOfSubtask, runtimeContext.getIndexOfThisSubtask());
-        assertEquals(attemptNumber, runtimeContext.getAttemptNumber());
-        assertEquals(taskNameWithSubtask, runtimeContext.getTaskNameWithSubtasks());
-        assertEquals(executionConfig, runtimeContext.getExecutionConfig());
+        assertEquals(
+                numberOfParallelSubtasks,
+                runtimeContext.getTaskInfo().getNumberOfParallelSubtasks());
+        assertEquals(indexOfSubtask, runtimeContext.getTaskInfo().getIndexOfThisSubtask());
+        assertEquals(attemptNumber, runtimeContext.getTaskInfo().getAttemptNumber());
+        assertEquals(taskNameWithSubtask, runtimeContext.getTaskInfo().getTaskNameWithSubtasks());
+        assertEquals(globalJobParameters, runtimeContext.getGlobalJobParameters());
+        assertEquals(isObjectReused, runtimeContext.isObjectReuseEnabled());
         assertEquals(userCodeClassLoader, runtimeContext.getUserCodeClassLoader());
         assertEquals(distributedCache, runtimeContext.getDistributedCache());
 
@@ -285,8 +294,8 @@ public class CepRuntimeContextTest extends TestLogger {
         boolean processMatchCalled = false;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             verifyContext();
             openCalled = true;
         }

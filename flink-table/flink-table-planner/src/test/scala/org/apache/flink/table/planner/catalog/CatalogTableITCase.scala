@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.catalog
 
+import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
@@ -26,16 +27,17 @@ import org.apache.flink.table.planner.factories.TestValuesCatalog
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
+import org.apache.flink.table.planner.utils.TableITCaseBase
 import org.apache.flink.table.utils.UserDefinedFunctions.{GENERATED_LOWER_UDF_CLASS, GENERATED_LOWER_UDF_CODE}
-import org.apache.flink.test.util.AbstractTestBase
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
+import org.apache.flink.testutils.junit.utils.TempDirUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.{FileUtils, UserClassLoaderJarTestUtils}
 
-import org.junit.{Before, Rule, Test}
-import org.junit.Assert.{assertEquals, fail}
-import org.junit.rules.ExpectedException
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThrownBy}
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.Assertions.{assertEquals, fail}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.io.File
 import java.math.{BigDecimal => JBigDecimal}
@@ -47,8 +49,8 @@ import scala.collection.JavaConversions._
 import scala.util.Random
 
 /** Test cases for catalog table. */
-@RunWith(classOf[Parameterized])
-class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
+class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
   // ~ Instance fields --------------------------------------------------------
 
   private val settings = if (isStreamingMode) {
@@ -59,12 +61,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
   private val tableEnv: TableEnvironment = TableEnvironmentImpl.create(settings)
 
-  var _expectedEx: ExpectedException = ExpectedException.none
-
-  @Rule
-  def expectedEx: ExpectedException = _expectedEx
-
-  @Before
+  @BeforeEach
   def before(): Unit = {
     tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
@@ -117,32 +114,34 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(Seq(toRow(2L)), TestCollectionTableFactory.RESULT.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testUdfWithFullIdentifier(): Unit = {
     testUdf("default_catalog.default_database.")
   }
 
-  @Test
+  @TestTemplate
   def testUdfWithDatabase(): Unit = {
     testUdf("default_database.")
   }
 
-  @Test
+  @TestTemplate
   def testUdfWithNon(): Unit = {
     testUdf("")
   }
 
-  @Test(expected = classOf[ValidationException])
+  @TestTemplate
   def testUdfWithWrongCatalog(): Unit = {
-    testUdf("wrong_catalog.default_database.")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testUdf("wrong_catalog.default_database."))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @TestTemplate
   def testUdfWithWrongDatabase(): Unit = {
-    testUdf("default_catalog.wrong_database.")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testUdf("default_catalog.wrong_database."))
   }
 
-  @Test
+  @TestTemplate
   def testInsertInto(): Unit = {
     val sourceData = List(
       toRow(1, "1000", 2, new JBigDecimal("10.001")),
@@ -185,7 +184,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testReadWriteCsvUsingDDL(): Unit = {
     val csvRecords = Seq(
       "2.02,Euro,2019-12-12 00:00:01.001001",
@@ -249,7 +248,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(expected, FileUtils.readFileUtf8(new File(new URI(sinkFilePath))))
   }
 
-  @Test
+  @TestTemplate
   def testReadWriteCsvWithDynamicTableOptions(): Unit = {
     val csvRecords = Seq(
       "2.02,Euro,2019-12-12 00:00:01.001001",
@@ -311,7 +310,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(expected, FileUtils.readFileUtf8(new File(new URI(sinkFilePath))))
   }
 
-  @Test
+  @TestTemplate
   def testInsertSourceTableExpressionFields(): Unit = {
     val sourceData = List(
       toRow(1, "1000"),
@@ -360,7 +359,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
   }
 
   // Test the computation expression in front of referenced columns.
-  @Test
+  @TestTemplate
   def testInsertSourceTableExpressionFieldsBeforeReferences(): Unit = {
     val sourceData = List(
       toRow(1, "1000"),
@@ -408,7 +407,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testInsertSourceTableWithFuncField(): Unit = {
     val sourceData = List(
       toRow(1, "1990-02-10 12:34:56"),
@@ -456,7 +455,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testInsertSourceTableWithUserDefinedFuncField(): Unit = {
     val sourceData = List(
       toRow(1, "1990-02-10 12:34:56"),
@@ -473,7 +472,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       toRow(2, "2019-09-10 9:23:44", 2, "2019-09-10 9:23:44")
     )
     TestCollectionTableFactory.initData(sourceData)
-    tableEnv.registerFunction("my_udf", Func0)
+    tableEnv.createTemporarySystemFunction("my_udf", Func0)
     val sourceDDL =
       """
         |create table t1(
@@ -507,7 +506,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testInsertSinkTableExpressionFields(): Unit = {
     val sourceData = List(
       toRow(1, "1000"),
@@ -555,7 +554,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testInsertSinkTableWithUnmatchedFields(): Unit = {
     val sourceData = List(
       toRow(1, "1000"),
@@ -592,12 +591,13 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       """.stripMargin
     tableEnv.executeSql(sourceDDL)
     tableEnv.executeSql(sinkDDL)
-    expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage("Incompatible types for sink column 'c' at position 1.")
-    tableEnv.executeSql(query).await()
+
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => tableEnv.executeSql(query).await())
+      .withMessageContaining("Incompatible types for sink column 'c' at position 1.")
   }
 
-  @Test
+  @TestTemplate
   def testInsertWithJoinedSource(): Unit = {
     val sourceData = List(
       toRow(1, 1000, 2),
@@ -649,7 +649,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testInsertWithAggregateSource(): Unit = {
     if (isStreamingMode) {
       return
@@ -698,7 +698,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testTemporaryTableMaskPermanentTableWithSameName(): Unit = {
     val sourceData = List(
       toRow(1, "1000", 2),
@@ -779,7 +779,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(permanentData.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testDropTableWithFullPath(): Unit = {
     val ddl1 =
       """
@@ -808,7 +808,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assert(tableEnv.listTables().sameElements(Array("t1")))
   }
 
-  @Test
+  @TestTemplate
   def testDropTableWithPartialPath(): Unit = {
     val ddl1 =
       """
@@ -838,7 +838,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assert(tableEnv.listTables().isEmpty)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @TestTemplate
   def testDropTableWithInvalidPath(): Unit = {
     val ddl1 =
       """
@@ -853,10 +853,11 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
     tableEnv.executeSql(ddl1)
     assert(tableEnv.listTables().sameElements(Array[String]("t1")))
-    tableEnv.executeSql("DROP TABLE catalog1.database1.t1")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => tableEnv.executeSql("DROP TABLE catalog1.database1.t1"))
   }
 
-  @Test
+  @TestTemplate
   def testDropTableWithInvalidPathIfExists(): Unit = {
     val ddl1 =
       """
@@ -875,7 +876,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assert(tableEnv.listTables().sameElements(Array[String]("t1")))
   }
 
-  @Test
+  @TestTemplate
   def testDropTableSameNameWithTemporaryTable(): Unit = {
     val createTable1 =
       """
@@ -900,15 +901,15 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.executeSql(createTable1)
     tableEnv.executeSql(createTable2)
 
-    expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage(
-      "Temporary table with identifier "
-        + "'`default_catalog`.`default_database`.`t1`' exists. "
-        + "Drop it first before removing the permanent table.")
-    tableEnv.executeSql("drop table t1")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => tableEnv.executeSql("drop table t1"))
+      .withMessageContaining(
+        "Temporary table with identifier "
+          + "'`default_catalog`.`default_database`.`t1`' exists. "
+          + "Drop it first before removing the permanent table.")
   }
 
-  @Test
+  @TestTemplate
   def testDropViewSameNameWithTable(): Unit = {
     val createTable1 =
       """
@@ -922,14 +923,13 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       """.stripMargin
     tableEnv.executeSql(createTable1)
 
-    expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage(
-      "View with identifier "
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => tableEnv.executeSql("drop view t1"))
+      .withMessageContaining("View with identifier "
         + "'default_catalog.default_database.t1' does not exist.")
-    tableEnv.executeSql("drop view t1")
   }
 
-  @Test
+  @TestTemplate
   def testDropViewSameNameWithTableIfNotExists(): Unit = {
     val createTable1 =
       """
@@ -946,7 +946,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assert(tableEnv.listTables().sameElements(Array("t1")))
   }
 
-  @Test
+  @TestTemplate
   def testAlterTable(): Unit = {
     val ddl1 =
       """
@@ -1001,7 +1001,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(false, tableSchema2.getPrimaryKey.isPresent)
   }
 
-  @Test
+  @TestTemplate
   def testCreateTableAndShowCreateTable(): Unit = {
     val executedDDL =
       """
@@ -1020,6 +1020,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |  watermark for ts1 as cast(timestampadd(hour, 8, ts1) as timestamp(3)),
         |  constraint test_constraint primary key (a, b) not enforced
         |) comment 'test show create table statement'
+        |distributed by (a)
         |partitioned by (b,h)
         |with (
         |  'connector' = 'kafka',
@@ -1043,6 +1044,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |  WATERMARK FOR `ts1` AS CAST(TIMESTAMPADD(HOUR, 8, `ts1`) AS TIMESTAMP(3)),
         |  CONSTRAINT `test_constraint` PRIMARY KEY (`a`, `b`) NOT ENFORCED
         |) COMMENT 'test show create table statement'
+        |DISTRIBUTED BY (`a`)
         |PARTITIONED BY (`b`, `h`)
         |WITH (
         |  'connector' = 'kafka',
@@ -1053,14 +1055,13 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     val row = tableEnv.executeSql("SHOW CREATE TABLE `TBL1`").collect().next()
     assertEquals(expectedDDL, row.getField(0))
 
-    expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage(
-      "Could not execute SHOW CREATE TABLE. " +
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => tableEnv.executeSql("SHOW CREATE TABLE `tmp`"))
+      .withMessageContaining("Could not execute SHOW CREATE TABLE. " +
         "Table with identifier `default_catalog`.`default_database`.`tmp` does not exist.")
-    tableEnv.executeSql("SHOW CREATE TABLE `tmp`")
   }
 
-  @Test
+  @TestTemplate
   def testCreateTableWithCommentAndShowCreateTable(): Unit = {
     val executedDDL =
       """
@@ -1080,6 +1081,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |  watermark for ts1 as cast(timestampadd(hour, 8, ts1) as timestamp(3)),
         |  constraint test_constraint primary key (pk1, pk2) not enforced
         |) comment 'test show create table statement'
+        |distributed into 5 buckets
         |partitioned by (h)
         |with (
         |  'connector' = 'kafka',
@@ -1104,6 +1106,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |  WATERMARK FOR `ts1` AS CAST(TIMESTAMPADD(HOUR, 8, `ts1`) AS TIMESTAMP(3)),
         |  CONSTRAINT `test_constraint` PRIMARY KEY (`pk1`, `pk2`) NOT ENFORCED
         |) COMMENT 'test show create table statement'
+        |DISTRIBUTED INTO 5 BUCKETS
         |PARTITIONED BY (`h`)
         |WITH (
         |  'connector' = 'kafka',
@@ -1115,7 +1118,42 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(expectedDDL, row.getField(0).toString)
   }
 
-  @Test
+  @TestTemplate
+  def testCreateTableAndShowCreateTableWithDistributionAlgorithm(): Unit = {
+    val executedDDL =
+      """
+        |create temporary table TBL1 (
+        |  a bigint not null,
+        |  h string,
+        |  b string not null
+        |) comment 'test show create table statement'
+        |distributed by range(a) into 7 buckets
+        |partitioned by (b,h)
+        |with (
+        |  'connector' = 'kafka',
+        |  'kafka.topic' = 'log.test'
+        |)
+        |""".stripMargin
+
+    val expectedDDL =
+      """ |CREATE TEMPORARY TABLE `default_catalog`.`default_database`.`TBL1` (
+        |  `a` BIGINT NOT NULL,
+        |  `h` VARCHAR(2147483647),
+        |  `b` VARCHAR(2147483647) NOT NULL
+        |) COMMENT 'test show create table statement'
+        |DISTRIBUTED BY RANGE(`a`) INTO 7 BUCKETS
+        |PARTITIONED BY (`b`, `h`)
+        |WITH (
+        |  'connector' = 'kafka',
+        |  'kafka.topic' = 'log.test'
+        |)
+        |""".stripMargin
+    tableEnv.executeSql(executedDDL)
+    val row = tableEnv.executeSql("SHOW CREATE TABLE `TBL1`").collect().next()
+    assertEquals(expectedDDL, row.getField(0))
+  }
+
+  @TestTemplate
   def testCreateViewAndShowCreateTable(): Unit = {
     val createTableDDL =
       """ |create table `source` (
@@ -1134,15 +1172,16 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |""".stripMargin
     tableEnv.executeSql(createTableDDL)
     tableEnv.executeSql(createViewDDL)
-    expectedEx.expect(classOf[TableException])
-    expectedEx.expectMessage(
-      "SHOW CREATE TABLE is only supported for tables, " +
-        "but `default_catalog`.`default_database`.`tmp` is a view. " +
-        "Please use SHOW CREATE VIEW instead.")
-    tableEnv.executeSql("SHOW CREATE TABLE `tmp`")
+
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => tableEnv.executeSql("SHOW CREATE TABLE `tmp`"))
+      .withMessageContaining(
+        "SHOW CREATE TABLE is only supported for tables, " +
+          "but `default_catalog`.`default_database`.`tmp` is a view. " +
+          "Please use SHOW CREATE VIEW instead.")
   }
 
-  @Test
+  @TestTemplate
   def testAlterViewRename(): Unit = {
     tableEnv.executeSql("""
                           | CREATE TABLE T (
@@ -1157,7 +1196,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assert(tableEnv.listViews().sameElements(Array[String]("V2")))
   }
 
-  @Test
+  @TestTemplate
   def testAlterViewAs(): Unit = {
     tableEnv.executeSql("""
                           | CREATE TABLE T (
@@ -1180,7 +1219,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals("SELECT `b`\nFROM `T`", view.getOriginalQuery)
   }
 
-  @Test
+  @TestTemplate
   def testUseCatalogAndShowCurrentCatalog(): Unit = {
     tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
     tableEnv.registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
@@ -1191,7 +1230,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals("+I[cat2]", tableEnv.executeSql("show current catalog").collect().next().toString)
   }
 
-  @Test
+  @TestTemplate
   def testUseDatabaseAndShowCurrentDatabase(): Unit = {
     val catalog = new GenericInMemoryCatalog("cat1")
     tableEnv.registerCatalog("cat1", catalog)
@@ -1209,7 +1248,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals("+I[db2]", currentDatabase)
   }
 
-  @Test
+  @TestTemplate
   def testCreateDatabase(): Unit = {
     tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("default"))
     tableEnv.registerCatalog("cat2", new GenericInMemoryCatalog("default"))
@@ -1234,7 +1273,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(expectedProperty, database.getProperties)
   }
 
-  @Test
+  @TestTemplate
   def testDropDatabase(): Unit = {
     tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("default"))
     tableEnv.executeSql("use catalog cat1")
@@ -1271,6 +1310,11 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |)
       """.stripMargin
     tableEnv.executeSql(ddl2)
+    assertThatThrownBy(() => tableEnv.executeSql("drop database db1")).satisfies(
+      anyCauseMatches(
+        classOf[ValidationException],
+        "Cannot drop a database which is currently in use."))
+    tableEnv.executeSql("use `default`")
     try {
       tableEnv.executeSql("drop database db1")
       fail("ValidationException expected")
@@ -1280,7 +1324,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.executeSql("drop database db1 cascade")
   }
 
-  @Test
+  @TestTemplate
   def testAlterDatabase(): Unit = {
     tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("default"))
     tableEnv.executeSql("use catalog cat1")
@@ -1295,7 +1339,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(expectedProperty, database.getProperties)
   }
 
-  @Test
+  @TestTemplate
   def testLoadFunction(): Unit = {
     tableEnv.registerCatalog("cat2", new TestValuesCatalog("cat2", "default", true))
     tableEnv.executeSql("use catalog cat2")
@@ -1304,7 +1348,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     val udfClassName = GENERATED_LOWER_UDF_CLASS + random.nextInt(50)
     val jarPath = UserClassLoaderJarTestUtils
       .createJarFile(
-        AbstractTestBase.TEMPORARY_FOLDER.newFolder(String.format("test-jar-%s", UUID.randomUUID)),
+        TempDirUtils.newFolder(tmpDir, String.format("test-jar-%s", UUID.randomUUID)),
         "test-classloader-udf.jar",
         udfClassName,
         String.format(GENERATED_LOWER_UDF_CODE, udfClassName)
@@ -1331,7 +1375,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 }
 
 object CatalogTableITCase {
-  @Parameterized.Parameters(name = "{0}")
+  @Parameters(name = "{0}")
   def parameters(): java.util.Collection[Boolean] = {
     util.Arrays.asList(true, false)
   }

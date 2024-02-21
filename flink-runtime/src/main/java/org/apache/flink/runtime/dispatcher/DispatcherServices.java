@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.dispatcher.cleanup.CleanupRunnerFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -33,6 +34,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.Collection;
 import java.util.concurrent.Executor;
 
 /** {@link Dispatcher} services container. */
@@ -70,6 +72,8 @@ public class DispatcherServices {
 
     private final Executor ioExecutor;
 
+    private final Collection<FailureEnricher> failureEnrichers;
+
     DispatcherServices(
             Configuration configuration,
             HighAvailabilityServices highAvailabilityServices,
@@ -86,7 +90,8 @@ public class DispatcherServices {
             JobResultStore jobResultStore,
             JobManagerRunnerFactory jobManagerRunnerFactory,
             CleanupRunnerFactory cleanupRunnerFactory,
-            Executor ioExecutor) {
+            Executor ioExecutor,
+            Collection<FailureEnricher> failureEnrichers) {
         this.configuration = Preconditions.checkNotNull(configuration, "Configuration");
         this.highAvailabilityServices =
                 Preconditions.checkNotNull(highAvailabilityServices, "HighAvailabilityServices");
@@ -111,6 +116,7 @@ public class DispatcherServices {
         this.cleanupRunnerFactory =
                 Preconditions.checkNotNull(cleanupRunnerFactory, "CleanupRunnerFactory");
         this.ioExecutor = Preconditions.checkNotNull(ioExecutor, "IOExecutor");
+        this.failureEnrichers = Preconditions.checkNotNull(failureEnrichers, "FailureEnrichers");
     }
 
     public Configuration getConfiguration() {
@@ -178,6 +184,10 @@ public class DispatcherServices {
         return ioExecutor;
     }
 
+    public Collection<FailureEnricher> getFailureEnrichers() {
+        return failureEnrichers;
+    }
+
     public static DispatcherServices from(
             PartialDispatcherServicesWithJobPersistenceComponents
                     partialDispatcherServicesWithJobPersistenceComponents,
@@ -204,6 +214,7 @@ public class DispatcherServices {
                 partialDispatcherServicesWithJobPersistenceComponents.getJobResultStore(),
                 jobManagerRunnerFactory,
                 cleanupRunnerFactory,
-                partialDispatcherServicesWithJobPersistenceComponents.getIoExecutor());
+                partialDispatcherServicesWithJobPersistenceComponents.getIoExecutor(),
+                partialDispatcherServicesWithJobPersistenceComponents.getFailureEnrichers());
     }
 }

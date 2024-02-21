@@ -26,7 +26,7 @@
 	<parent>
 		<artifactId>flink-table</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-sql-jdbc-driver-bundle</artifactId>
@@ -84,19 +84,17 @@
 	<build>
 		<plugins>
 			<plugin>
-				<groupId>io.github.zentol.japicmp</groupId>
+				<groupId>com.github.siom79.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
 				<configuration>
-					<!-- TODO this should be removed after get rid of flink core in issue https://issues.apache.org/jira/browse/FLINK-31687. -->
 					<skip>true</skip>
 				</configuration>
 			</plugin>
-			<!-- Build flink-sql-gateway jar -->
+			<!-- Build flink sql jdbc driver bundle jar -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
-					<!-- Exclude all flink-dist files and only contain sql-gateway files -->
 					<execution>
 						<id>shade-flink</id>
 						<phase>package</phase>
@@ -113,6 +111,13 @@
 									<include>org.apache.flink:flink-table-common</include>
 									<include>org.apache.flink:flink-annotations</include>
 									<include>org.apache.flink:flink-core</include>
+									<incldue>org.apache.flink:flink-runtime</incldue>
+									<include>org.apache.flink:flink-clients</include>
+									<include>org.apache.flink:flink-table-api-java</include>
+									<include>org.apache.flink:flink-json</include>
+									<include>org.apache.flink:flink-shaded-netty</include>
+									<include>org.apache.flink:flink-shaded-jackson</include>
+									<include>org.apache.flink:flink-shaded-guava</include>
 								</includes>
 							</artifactSet>
 						</configuration>

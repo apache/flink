@@ -22,7 +22,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, TABLE_EXEC_MINIBATCH_ENABLED, TABLE_EXEC_MINIBATCH_SIZE}
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.time.Duration
 
@@ -30,7 +30,7 @@ class DeduplicateTest extends TableTestBase {
 
   var util: StreamTableTestUtil = _
 
-  @Before
+  @BeforeEach
   def setUp(): Unit = {
     util = streamTestUtil()
     util.addDataStream[(Int, String, Long)](

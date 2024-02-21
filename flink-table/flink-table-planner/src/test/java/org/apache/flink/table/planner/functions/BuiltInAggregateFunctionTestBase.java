@@ -31,7 +31,11 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
+import org.apache.flink.table.operations.AggregateQueryOperation;
+import org.apache.flink.table.operations.ProjectQueryOperation;
 import org.apache.flink.table.planner.factories.TableFactoryHarness;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.test.junit5.MiniClusterExtension;
@@ -40,8 +44,9 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
@@ -51,10 +56,12 @@ import org.junit.jupiter.params.provider.MethodSource;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.state.StateBackendLoader.HASHMAP_STATE_BACKEND_NAME;
@@ -66,8 +73,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test base for testing aggregate {@link BuiltInFunctionDefinition built-in functions}. */
 @Execution(ExecutionMode.CONCURRENT)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@ExtendWith(MiniClusterExtension.class)
 abstract class BuiltInAggregateFunctionTestBase {
+
+    @RegisterExtension
+    public static final MiniClusterExtension MINI_CLUSTER_EXTENSION = new MiniClusterExtension();
 
     abstract Stream<TestSpec> getTestCaseSpecs();
 
@@ -143,6 +152,27 @@ abstract class BuiltInAggregateFunctionTestBase {
 
     // ---------------------------------------------------------------------------------------------
 
+    protected static final class TableApiAggSpec {
+        private final List<Expression> selectExpr;
+        private final List<Expression> groupByExpr;
+
+        public TableApiAggSpec(List<Expression> selectExpr, List<Expression> groupByExpr) {
+            this.selectExpr = selectExpr;
+            this.groupByExpr = groupByExpr;
+        }
+
+        public static TableApiAggSpec groupBySelect(
+                List<Expression> groupByExpr, Expression... selectExpr) {
+            return new TableApiAggSpec(
+                    Arrays.stream(selectExpr).collect(Collectors.toList()), groupByExpr);
+        }
+
+        public static TableApiAggSpec select(Expression... selectExpr) {
+            return new TableApiAggSpec(
+                    Arrays.stream(selectExpr).collect(Collectors.toList()), null);
+        }
+    }
+
     /** Test specification. */
     protected static class TestSpec {
 
@@ -180,16 +210,29 @@ abstract class BuiltInAggregateFunctionTestBase {
         }
 
         TestSpec testApiResult(
-                Function<Table, Table> tableApiSpec,
+                List<Expression> selectExpr,
+                List<Expression> groupByExpr,
                 DataType expectedRowType,
                 List<Row> expectedRows) {
-            this.testItems.add(new TableApiTestItem(tableApiSpec, expectedRowType, expectedRows));
+            this.testItems.add(
+                    new TableApiTestItem(selectExpr, groupByExpr, expectedRowType, expectedRows));
+            return this;
+        }
+
+        TestSpec testApiSqlResult(
+                List<Expression> selectExpr,
+                List<Expression> groupByExpr,
+                DataType expectedRowType,
+                List<Row> expectedRows) {
+            this.testItems.add(
+                    new TableApiSqlResultTestItem(
+                            selectExpr, groupByExpr, expectedRowType, expectedRows));
             return this;
         }
 
         TestSpec testResult(
                 Function<Table, String> sqlSpec,
-                Function<Table, Table> tableApiSpec,
+                TableApiAggSpec tableApiSpec,
                 DataType expectedRowType,
                 List<Row> expectedRows) {
             return testResult(
@@ -198,12 +241,21 @@ abstract class BuiltInAggregateFunctionTestBase {
 
         TestSpec testResult(
                 Function<Table, String> sqlSpec,
-                Function<Table, Table> tableApiSpec,
+                TableApiAggSpec tableApiSpec,
                 DataType expectedSqlRowType,
                 DataType expectedTableApiRowType,
                 List<Row> expectedRows) {
             testSqlResult(sqlSpec, expectedSqlRowType, expectedRows);
-            testApiResult(tableApiSpec, expectedTableApiRowType, expectedRows);
+            testApiResult(
+                    tableApiSpec.selectExpr,
+                    tableApiSpec.groupByExpr,
+                    expectedTableApiRowType,
+                    expectedRows);
+            testApiSqlResult(
+                    tableApiSpec.selectExpr,
+                    tableApiSpec.groupByExpr,
+                    expectedSqlRowType,
+                    expectedRows);
             return this;
         }
 
@@ -310,19 +362,134 @@ abstract class BuiltInAggregateFunctionTestBase {
     }
 
     private static class TableApiTestItem extends SuccessItem {
-        private final Function<Table, Table> spec;
+        private final List<Expression> selectExpr;
+        private final List<Expression> groupByExpr;
 
         public TableApiTestItem(
-                Function<Table, Table> spec,
+                List<Expression> selectExpr,
+                @Nullable List<Expression> groupByExpr,
                 @Nullable DataType expectedRowType,
                 @Nullable List<Row> expectedRows) {
             super(expectedRowType, expectedRows);
-            this.spec = spec;
+            this.selectExpr = selectExpr;
+            this.groupByExpr = groupByExpr;
         }
 
         @Override
         protected TableResult getResult(TableEnvironment tEnv, Table sourceTable) {
-            return spec.apply(sourceTable).execute();
+            if (groupByExpr != null) {
+                return sourceTable
+                        .groupBy(groupByExpr.toArray(new Expression[0]))
+                        .select(selectExpr.toArray(new Expression[0]))
+                        .execute();
+            } else {
+                return sourceTable.select(selectExpr.toArray(new Expression[0])).execute();
+            }
+        }
+    }
+
+    private static class TableApiSqlResultTestItem extends SuccessItem {
+
+        private final List<Expression> selectExpr;
+        private final List<Expression> groupByExpr;
+
+        public TableApiSqlResultTestItem(
+                List<Expression> selectExpr,
+                @Nullable List<Expression> groupByExpr,
+                @Nullable DataType expectedRowType,
+                @Nullable List<Row> expectedRows) {
+            super(expectedRowType, expectedRows);
+            this.selectExpr = selectExpr;
+            this.groupByExpr = groupByExpr;
+        }
+
+        @Override
+        protected TableResult getResult(TableEnvironment tEnv, Table sourceTable) {
+            final Table select;
+            if (groupByExpr != null) {
+                select =
+                        sourceTable
+                                .groupBy(groupByExpr.toArray(new Expression[0]))
+                                .select(selectExpr.toArray(new Expression[0]));
+
+            } else {
+                select = sourceTable.select(selectExpr.toArray(new Expression[0]));
+            }
+            final ProjectQueryOperation projectQueryOperation =
+                    (ProjectQueryOperation) select.getQueryOperation();
+            final AggregateQueryOperation aggQueryOperation =
+                    (AggregateQueryOperation) select.getQueryOperation().getChildren().get(0);
+
+            final List<ResolvedExpression> selectExpr =
+                    recreateSelectList(aggQueryOperation, projectQueryOperation);
+
+            final String selectAsSerializableString = toSerializableExpr(selectExpr);
+            final String groupByAsSerializableString =
+                    toSerializableExpr(aggQueryOperation.getGroupingExpressions());
+
+            final StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder
+                    .append("SELECT ")
+                    .append(selectAsSerializableString)
+                    .append(" FROM ")
+                    .append(sourceTable);
+            if (!groupByAsSerializableString.isEmpty()) {
+                stringBuilder.append(" GROUP BY ").append(groupByAsSerializableString);
+            }
+
+            return tEnv.sqlQuery(stringBuilder.toString()).execute();
+        }
+
+        @NotNull
+        private static List<ResolvedExpression> recreateSelectList(
+                AggregateQueryOperation aggQueryOperation,
+                ProjectQueryOperation projectQueryOperation) {
+            final List<String> projectSchemaFields =
+                    projectQueryOperation.getResolvedSchema().getColumnNames();
+            final List<String> aggSchemaFields =
+                    aggQueryOperation.getResolvedSchema().getColumnNames();
+            return IntStream.range(0, projectSchemaFields.size())
+                    .mapToObj(
+                            idx -> {
+                                final int indexInAgg =
+                                        aggSchemaFields.indexOf(projectSchemaFields.get(idx));
+                                if (indexInAgg >= 0) {
+                                    final int groupingExprCount =
+                                            aggQueryOperation.getGroupingExpressions().size();
+                                    if (indexInAgg < groupingExprCount) {
+                                        return aggQueryOperation
+                                                .getGroupingExpressions()
+                                                .get(indexInAgg);
+                                    } else {
+                                        return aggQueryOperation
+                                                .getAggregateExpressions()
+                                                .get(indexInAgg - groupingExprCount);
+                                    }
+                                } else {
+                                    return projectQueryOperation.getProjectList().get(idx);
+                                }
+                            })
+                    .collect(Collectors.toList());
+        }
+
+        private static String toSerializableExpr(List<ResolvedExpression> expressions) {
+            return expressions.stream()
+                    .map(ResolvedExpression::asSerializableString)
+                    .collect(Collectors.joining(", "));
+        }
+
+        @Override
+        public String toString() {
+            return String.format(
+                    "[API as SQL] select: [%s] groupBy: [%s]",
+                    selectExpr.stream()
+                            .map(Expression::asSummaryString)
+                            .collect(Collectors.joining(", ")),
+                    groupByExpr != null
+                            ? groupByExpr.stream()
+                                    .map(Expression::asSummaryString)
+                                    .collect(Collectors.joining(", "))
+                            : "");
         }
     }
 

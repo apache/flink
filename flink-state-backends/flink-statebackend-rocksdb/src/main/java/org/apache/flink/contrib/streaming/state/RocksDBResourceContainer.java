@@ -141,7 +141,7 @@ public final class RocksDBResourceContainer implements AutoCloseable {
         }
 
         // add necessary default options
-        opt = opt.setCreateIfMissing(true);
+        opt = opt.setCreateIfMissing(true).setAvoidFlushDuringShutdown(true);
 
         // if sharedResources is non-null, use the write buffer manager from it.
         if (sharedResources != null) {
@@ -356,6 +356,9 @@ public final class RocksDBResourceContainer implements AutoCloseable {
 
         currentOptions.setCompactionStyle(
                 internalGetOption(RocksDBConfigurableOptions.COMPACTION_STYLE));
+
+        currentOptions.setCompressionPerLevel(
+                internalGetOption(RocksDBConfigurableOptions.COMPRESSION_PER_LEVEL));
 
         currentOptions.setLevelCompactionDynamicLevelBytes(
                 internalGetOption(RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE));

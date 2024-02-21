@@ -26,13 +26,20 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-clients</artifactId>
 	<name>Flink : Clients</name>
 
 	<packaging>jar</packaging>
+
+	<properties>
+		<surefire.module.config><!--
+			chill ArraysAsListSerializer
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
 
 	<dependencies>
 
@@ -111,6 +118,14 @@ under the License.
 			<scope>test</scope>
 			<classifier>job-lib-jar</classifier>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-clients-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<classifier>additional-artifact-jar</classifier>
+		</dependency>
 	</dependencies>
 
 	<!-- More information on this:
@@ -150,7 +165,7 @@ under the License.
 				<executions>
 					<execution>
 						<id>copy-dependencies</id>
-						<phase>process-test-resources</phase>
+						<phase>pre-integration-test</phase>
 						<goals>
 							<goal>copy-dependencies</goal>
 						</goals>

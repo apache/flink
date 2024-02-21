@@ -116,7 +116,11 @@ $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
 
 `jobmanager-job.yaml` 中的 `args` 属性必须指定用户作业的主类。也可以参考[如何设置 JobManager 参数]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#jobmanager-additional-command-line-arguments)来了解如何将额外的 `args` 传递给 `jobmanager-job.yaml` 配置中指定的 Flink 镜像。
 
-*job artifacts* 参数必须可以从 [资源定义示例](#application-cluster-resource-definitions) 中的 `job-artifacts-volume` 处获取。假如是在 minikube 集群中创建这些组件，那么定义示例中的 job-artifacts-volume 可以挂载为主机的本地目录。如果不使用 minikube 集群，那么可以使用 Kubernetes 集群中任何其它可用类型的 volume 来提供 *job artifacts*。此外，还可以构建一个已经包含 *job artifacts* 参数的[自定义镜像]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#advanced-customization)。
+*job artifacts* 可由以下方式提供：
+
+* 可以从 [资源定义示例](#application-cluster-resource-definitions) 中的 `job-artifacts-volume` 处获取。假如是在 minikube 集群中创建这些组件，那么定义示例中的 job-artifacts-volume 可以挂载为主机的本地目录。如果不使用 minikube 集群，那么可以使用 Kubernetes 集群中任何其它可用类型的 volume 来提供 *job artifacts*
+* 构建一个已经包含 *job artifacts* 参数的[自定义镜像]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#advanced-customization)。
+* 通过指定[--jars]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#jobmanager-additional-command-line-arguments)参数提供 存储在DFS或者可由HTTP/HTTPS下载的*job artifacts*路径
 
 在创建[通用集群组件](#common-cluster-resource-definitions)后，指定 [Application 集群资源定义](#application-cluster-resource-definitions)文件，执行 `kubectl` 命令来启动 Flink Application 集群：
 
@@ -154,7 +158,7 @@ $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
 
 ### Configuration
 
-所有配置项都展示在[配置页面]({{< ref "docs/deployment/config" >}})上。在 config map 配置文件 `flink-configuration-configmap.yaml` 中，可以将配置添加在 `flink-conf.yaml` 部分。
+所有配置项都展示在[配置页面]({{< ref "docs/deployment/config" >}})上。在 config map 配置文件 `flink-configuration-configmap.yaml` 中，可以将配置添加在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 部分。
 
 <a name="accessing-flink-in-kubernetes"></a>
 
@@ -227,7 +231,7 @@ metadata:
   labels:
     app: flink
 data:
-  flink-conf.yaml: |+
+  config.yaml: |+
   ...
     kubernetes.cluster-id: <cluster-id>
     high-availability.type: kubernetes
@@ -246,15 +250,6 @@ data:
 ####  Standby JobManagers
 
 通常，只启动一个 JobManager pod 就足够了，因为一旦 pod 崩溃，Kubernetes 就会重新启动它。如果要实现更快的恢复，需要将 `jobmanager-session-deployment-ha.yaml` 中的 `replicas` 配置 或 `jobmanager-application-ha.yaml` 中的 `parallelism` 配置设定为大于 `1` 的整型值来启动 Standby JobManagers。
-
-<a name="enabling-queryable-state"></a>
-
-### 启用 Queryable State
-
-如果你为 TaskManager 创建了 `NodePort` service，那么你就可以访问 TaskManager 的 Queryable State 服务：
-
-  1. 运行 `kubectl create -f taskmanager-query-state-service.yaml` 来为 `taskmanager` pod 创建 `NodePort` service。`taskmanager-query-state-service.yaml` 的示例文件可以从[附录](#common-cluster-resource-definitions)中找到。
-  2. 运行 `kubectl get svc flink-taskmanager-query-state` 来查询 service 对应 node-port 的端口号。然后你就可以创建 [QueryableStateClient(&lt;public-node-ip&gt;, &lt;node-port&gt;]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}#querying-state) 来提交状态查询。
 
 <a name="using-standalone-kubernetes-with-reactive-mode"></a>
 
@@ -286,13 +281,12 @@ metadata:
   labels:
     app: flink
 data:
-  flink-conf.yaml: |+
+  config.yaml: |+
     jobmanager.rpc.address: flink-jobmanager
     taskmanager.numberOfTaskSlots: 2
     blob.server.port: 6124
     jobmanager.rpc.port: 6123
     taskmanager.rpc.port: 6122
-    queryable-state.proxy.ports: 6125
     jobmanager.memory.process.size: 1600m
     taskmanager.memory.process.size: 1728m
     parallelism.default: 2
@@ -309,8 +303,8 @@ data:
     # 下面几行将公共 libraries 或 connectors 的日志级别保持在 INFO 级别。
     # root logger 的配置不会覆盖此处配置。
     # 你必须手动修改这里的日志级别。
-    logger.akka.name = akka
-    logger.akka.level = INFO
+    logger.pekko.name = org.apache.pekko
+    logger.pekko.level = INFO
     logger.kafka.name= org.apache.kafka
     logger.kafka.level = INFO
     logger.hadoop.name = org.apache.hadoop
@@ -354,13 +348,12 @@ metadata:
   labels:
     app: flink
 data:
-  flink-conf.yaml: |+
+  config.yaml: |+
     jobmanager.rpc.address: flink-jobmanager
     taskmanager.numberOfTaskSlots: 2
     blob.server.port: 6124
     jobmanager.rpc.port: 6123
     taskmanager.rpc.port: 6122
-    queryable-state.proxy.ports: 6125
     jobmanager.memory.process.size: 1600m
     taskmanager.memory.process.size: 1728m
     parallelism.default: 2
@@ -380,8 +373,8 @@ data:
     # 下面几行将公共 libraries 或 connectors 的日志级别保持在 INFO 级别。
     # root logger 的配置不会覆盖此处配置。
     # 你必须手动修改这里的日志级别。
-    logger.akka.name = akka
-    logger.akka.level = INFO
+    logger.pekko.name = org.apache.pekko
+    logger.pekko.level = INFO
     logger.kafka.name= org.apache.kafka
     logger.kafka.level = INFO
     logger.hadoop.name = org.apache.hadoop
@@ -454,25 +447,6 @@ spec:
     component: jobmanager
 ```
 
-`taskmanager-query-state-service.yaml`。可选的 service，该 service 将 TaskManager 的端口暴露为公共 Kubernetes node 的节点端口，通过该端口来访问 queryable state 服务。  
-
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: flink-taskmanager-query-state
-spec:
-  type: NodePort
-  ports:
-  - name: query-state
-    port: 6125
-    targetPort: 6125
-    nodePort: 30025
-  selector:
-    app: flink
-    component: taskmanager
-```
-
 <a name="session-cluster-resource-definitions"></a>
 
 ### Session 集群资源定义
@@ -521,8 +495,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
 ```
@@ -579,8 +553,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
 ```
@@ -610,8 +584,6 @@ spec:
         ports:
         - containerPort: 6122
           name: rpc
-        - containerPort: 6125
-          name: query-state
         livenessProbe:
           tcpSocket:
             port: 6122
@@ -627,8 +599,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
 ```
@@ -655,7 +627,7 @@ spec:
         - name: jobmanager
           image: apache/flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
           env:
-          args: ["standalone-job", "--job-classname", "com.job.ClassName", <optional arguments>, <job arguments>] # 可选的参数项: ["--job-id", "<job id>", "--fromSavepoint", "/path/to/savepoint", "--allowNonRestoredState"]
+          args: ["standalone-job", "--job-classname", "com.job.ClassName", <optional arguments>, <job arguments>] # 可选的参数项: ["--job-id", "<job id>", "--jars", "/path/to/artifact1,/path/to/artifact2", "--fromSavepoint", "/path/to/savepoint", "--allowNonRestoredState"]
           ports:
             - containerPort: 6123
               name: rpc
@@ -680,8 +652,8 @@ spec:
           configMap:
             name: flink-config
             items:
-              - key: flink-conf.yaml
-                path: flink-conf.yaml
+              - key: config.yaml
+                path: config.yaml
               - key: log4j-console.properties
                 path: log4j-console.properties
         - name: job-artifacts-volume
@@ -714,7 +686,7 @@ spec:
                 apiVersion: v1
                 fieldPath: status.podIP
           # 下面的 args 参数会使用 POD_IP 对应的值覆盖 config map 中 jobmanager.rpc.address 的属性值。
-          args: ["standalone-job", "--host", "$(POD_IP)", "--job-classname", "com.job.ClassName", <optional arguments>, <job arguments>] # 可选参数项: ["--job-id", "<job id>", "--fromSavepoint", "/path/to/savepoint", "--allowNonRestoredState"]
+          args: ["standalone-job", "--host", "$(POD_IP)", "--job-classname", "com.job.ClassName", <optional arguments>, <job arguments>] # 可选参数项: ["--job-id", "<job id>", "--jars", "/path/to/artifact1,/path/to/artifact2", "--fromSavepoint", "/path/to/savepoint", "--allowNonRestoredState"]
           ports:
             - containerPort: 6123
               name: rpc
@@ -740,8 +712,8 @@ spec:
           configMap:
             name: flink-config
             items:
-              - key: flink-conf.yaml
-                path: flink-conf.yaml
+              - key: config.yaml
+                path: config.yaml
               - key: log4j-console.properties
                 path: log4j-console.properties
         - name: job-artifacts-volume
@@ -775,8 +747,6 @@ spec:
         ports:
         - containerPort: 6122
           name: rpc
-        - containerPort: 6125
-          name: query-state
         livenessProbe:
           tcpSocket:
             port: 6122
@@ -794,8 +764,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
       - name: job-artifacts-volume

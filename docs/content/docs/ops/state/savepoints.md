@@ -167,6 +167,16 @@ the savepoint should be taken. By default the savepoint will be taken in canonic
 $ bin/flink savepoint --type [native/canonical] :jobId [:targetDirectory]
 ```
 
+When using the above command to trigger a savepoint, the client needs to wait for the savepoint 
+to be completed. Therefore, the client may time out when the state size of the task is large.
+In this case, you can trigger the savepoint in detached mode.
+
+```shell
+$ bin/flink savepoint :jobId [:targetDirectory] -detached
+```
+When using this command, the client returns immediately after getting the trigger id of 
+the savepoint. You can monitor the status of the savepoint through the REST API [rest api]({{< ref "docs/ops/rest_api" >}}/#jobs-jobid-checkpoints-triggerid).
+
 #### Trigger a Savepoint with YARN
 
 ```shell
@@ -185,6 +195,8 @@ This will atomically trigger a savepoint for the job with ID `:jobid` and stop t
 you can specify a target file system directory to store the savepoint in. The directory needs to be
 accessible by the JobManager(s) and TaskManager(s). You can also pass a type in which the savepoint
 should be taken. By default the savepoint will be taken in canonical format.
+
+If you want to trigger the savepoint in detached mode, add option `-detached` to the command.
 
 ### Resuming from Savepoints
 
@@ -259,7 +271,7 @@ Please note that, when restored in CLAIM mode, subsequent checkpoints might reus
 might delay the deletion the savepoints directory.
 {{< /hint >}}
 
-**LEGACY**
+**LEGACY (deprecated)**
 
 The legacy mode is how Flink worked until 1.15. In this mode Flink will never delete the initial
 checkpoint. At the same time, it is not clear if a user can ever delete it as well. The problem here,
@@ -269,6 +281,11 @@ subsequent checkpoints depend on the restored checkpoint. Overall, the ownership
 <div style="text-align: center">
   {{< img src="/fig/restore-mode-legacy.svg" alt="LEGACY restore mode" width="70%" >}}
 </div>
+
+{{< hint warning >}}
+**Attention:** The LEGACY mode is deprecated and will be removed in Flink 2.0. Please use CLAIM or
+NO_CLAIM mode instead.
+{{< /hint >}}
 
 
 ### Disposing Savepoints
@@ -286,7 +303,7 @@ Note that it is possible to also manually delete a savepoint via regular file sy
 You can configure a default savepoint target directory via the `state.savepoints.dir` key or `StreamExecutionEnvironment`. When triggering savepoints, this directory will be used to store the savepoint. You can overwrite the default by specifying a custom target directory with the trigger commands (see the [`:targetDirectory` argument](#trigger-a-savepoint)).
 
 {{< tabs "config" >}}
-{{< tab "flink-conf.yaml" >}}
+{{< tab "config.yaml" >}}
 ```yaml
 # Default savepoint target directory
 state.savepoints.dir: hdfs:///flink/savepoints

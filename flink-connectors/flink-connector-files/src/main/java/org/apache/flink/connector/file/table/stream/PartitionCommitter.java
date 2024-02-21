@@ -42,6 +42,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS_PARAMETERS;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME;
 import static org.apache.flink.table.utils.PartitionPathUtils.extractPartitionSpecFromPath;
@@ -120,7 +121,8 @@ public class PartitionCommitter extends AbstractStreamOperator<Void>
                 new PartitionCommitPolicyFactory(
                         conf.get(SINK_PARTITION_COMMIT_POLICY_KIND),
                         conf.get(SINK_PARTITION_COMMIT_POLICY_CLASS),
-                        conf.get(SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME));
+                        conf.get(SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME),
+                        conf.get(SINK_PARTITION_COMMIT_POLICY_CLASS_PARAMETERS));
         this.policies =
                 partitionCommitPolicyFactory.createPolicyChain(
                         getUserCodeClassloader(),

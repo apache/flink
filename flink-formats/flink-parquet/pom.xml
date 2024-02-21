@@ -25,13 +25,20 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-formats</artifactId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-parquet</artifactId>
 	<name>Flink : Formats : Parquet</name>
 
 	<packaging>jar</packaging>
+
+	<properties>
+		<surefire.module.config><!--
+			chill ArraysAsListSerializer
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
 
 	<dependencies>
 
@@ -218,7 +225,7 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!-- ArchUit test dependencies -->
+		<!-- ArchUnit test dependencies -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -241,7 +248,7 @@ under the License.
 			<dependency>
 				<groupId>com.google.guava</groupId>
 				<artifactId>guava</artifactId>
-				<version>27.0.1-jre</version>
+				<version>32.0.0-jre</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>

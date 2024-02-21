@@ -27,6 +27,10 @@ public class TestLocalRecoveryConfig {
         return new LocalRecoveryConfig(null);
     }
 
+    public static LocalRecoveryConfig enabledForTest() {
+        return new LocalRecoveryConfig(new TestDummyLocalDirectoryProvider());
+    }
+
     public static class TestDummyLocalDirectoryProvider implements LocalRecoveryDirectoryProvider {
 
         private TestDummyLocalDirectoryProvider() {}

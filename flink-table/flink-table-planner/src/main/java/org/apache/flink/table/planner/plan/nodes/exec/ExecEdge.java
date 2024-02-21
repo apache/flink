@@ -22,6 +22,8 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.plan.fusion.OpFusionCodegenSpecGenerator;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.Arrays;
@@ -255,5 +257,16 @@ public class ExecEdge {
      */
     public Transformation<?> translateToPlan(Planner planner) {
         return source.translateToPlan(planner);
+    }
+
+    /**
+     * Translates this edge into operator fusion codegen spec generator.
+     *
+     * @param planner The {@link Planner} of the translated Table.
+     * @param parentCtx Parent CodeGeneratorContext.
+     */
+    public OpFusionCodegenSpecGenerator translateToFusionCodegenSpec(
+            Planner planner, CodeGeneratorContext parentCtx) {
+        return source.translateToFusionCodegenSpec(planner, parentCtx);
     }
 }

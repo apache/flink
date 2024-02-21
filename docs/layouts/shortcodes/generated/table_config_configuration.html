@@ -21,10 +21,22 @@
             <td>The name of the default database in the initial catalog to be created when instantiating TableEnvironment.</td>
         </tr>
         <tr>
+            <td><h5>table.catalog-modification.listeners</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;String&gt;</td>
+            <td>A (semicolon-separated) list of factories that creates listener for catalog modification which will be notified in catalog manager after it performs database and table ddl operations successfully.</td>
+        </tr>
+        <tr>
+            <td><h5>table.column-expansion-strategy</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;"></td>
+            <td><p>List&lt;Enum&gt;</p></td>
+            <td>Configures the default expansion behavior of 'SELECT *'. By default, all top-level columns of the table's schema are selected and nested fields are retained.<br /><br />Possible values:<ul><li>"EXCLUDE_ALIASED_VIRTUAL_METADATA_COLUMNS": Excludes virtual metadata columns that reference a metadata key via an alias. For example, a column declared as 'c METADATA VIRTUAL FROM k' is not selected by default if the strategy is applied.</li><li>"EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS": Excludes virtual metadata columns that directly reference a metadata key. For example, a column declared as 'k METADATA VIRTUAL' is not selected by default if the strategy is applied.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>table.display.max-column-width</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">30</td>
             <td>Integer</td>
-            <td>When printing the query results to the client console, this parameter determines the number of characters shown on screen before truncating. This only applies to columns with variable-length types (e.g. STRING) in the streaming mode. Fixed-length types are printed in the batch mode using a deterministic column width.</td>
+            <td>When printing the query results to the client console, this parameter determines the number of characters shown on screen before truncating. This only applies to columns with variable-length types (e.g. CHAR, VARCHAR, STRING) in the streaming mode. Fixed-length types are printed in the batch mode using a deterministic column width.</td>
         </tr>
         <tr>
             <td><h5>table.dml-sync</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
@@ -73,6 +85,12 @@
             <td style="word-wrap: break-word;">System.getProperty("java.io.tmpdir")</td>
             <td>String</td>
             <td>Local directory that is used by planner for storing downloaded resources.</td>
+        </tr>
+        <tr>
+            <td><h5>table.rtas-ctas.atomicity-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Specifies if the CREATE TABLE/REPLACE TABLE/CREATE OR REPLACE AS SELECT statement is executed atomically. By default, the statement is non-atomic. The target table is created/replaced on the client side, and it will not be rolled back even though the job fails or is canceled. If set this option to true and the underlying DynamicTableSink implements the SupportsStaging interface, the statement is expected to be executed atomically, the behavior of which depends on the actual DynamicTableSink.</td>
         </tr>
         <tr>
             <td><h5>table.sql-dialect</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>

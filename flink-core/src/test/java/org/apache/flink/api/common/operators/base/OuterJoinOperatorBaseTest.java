@@ -20,14 +20,15 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.Collector;
@@ -46,6 +47,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/** The test for outer join operator. */
 @SuppressWarnings("serial")
 public class OuterJoinOperatorBaseTest implements Serializable {
 
@@ -78,7 +80,7 @@ public class OuterJoinOperatorBaseTest implements Serializable {
         executionConfig = new ExecutionConfig();
 
         String taskName = "Test rich outer join function";
-        TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
+        TaskInfo taskInfo = new TaskInfoImpl(taskName, 1, 0, 1, 0);
         HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<>();
         HashMap<String, Future<Path>> cpTasks = new HashMap<>();
 
@@ -260,10 +262,10 @@ public class OuterJoinOperatorBaseTest implements Serializable {
         final AtomicBoolean closed = new AtomicBoolean(false);
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             opened.compareAndSet(false, true);
-            assertEquals(0, getRuntimeContext().getIndexOfThisSubtask());
-            assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
+            assertEquals(0, getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
+            assertEquals(1, getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
         }
 
         @Override

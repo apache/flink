@@ -23,7 +23,7 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
-import org.apache.flink.shaded.guava30.com.google.common.io.Files;
+import org.apache.flink.shaded.guava31.com.google.common.io.Files;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,15 +77,11 @@ public class FileSystemBlobStore implements BlobStoreService {
     @Override
     public boolean put(File localFile, JobID jobId, BlobKey blobKey) throws IOException {
         createBasePathIfNeeded();
-        return put(localFile, BlobUtils.getStorageLocationPath(basePath, jobId, blobKey));
-    }
-
-    private boolean put(File fromFile, String toBlobPath) throws IOException {
-        createBasePathIfNeeded();
+        String toBlobPath = BlobUtils.getStorageLocationPath(basePath, jobId, blobKey);
         try (FSDataOutputStream os =
                 fileSystem.create(new Path(toBlobPath), FileSystem.WriteMode.OVERWRITE)) {
-            LOG.debug("Copying from {} to {}.", fromFile, toBlobPath);
-            Files.copy(fromFile, os);
+            LOG.debug("Copying from {} to {}.", localFile, toBlobPath);
+            Files.copy(localFile, os);
 
             os.sync();
         }
@@ -190,7 +186,7 @@ public class FileSystemBlobStore implements BlobStoreService {
     }
 
     @Override
-    public void closeAndCleanupAllData() {
+    public void cleanupAllData() {
         try {
             LOG.debug("Cleaning up {}.", basePath);
 

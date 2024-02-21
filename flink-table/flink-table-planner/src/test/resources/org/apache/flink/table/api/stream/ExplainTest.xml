@@ -409,69 +409,77 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], strategy=[AppendFastStrategy])
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
 +- LogicalProject(id1=[$0], EXPR$1=[$2])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[LISTAGG($2, $3)])
-      +- LogicalProject(id1=[$0], $f1=[$TUMBLE($2, 8000:INTERVAL SECOND)], text=[$1], $f3=[_UTF-16LE'#'])
-         +- LogicalFilter(condition=[AND(=($0, $3), >($2, -($7, 300000:INTERVAL MINUTE)), <($2, +($7, 180000:INTERVAL MINUTE)))])
-            +- LogicalJoin(condition=[true], joinType=[inner])
-               :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($2, 0:INTERVAL MILLISECOND)])
-               :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
-                  +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+      +- LogicalProject(id1=[$0], $f1=[$TUMBLE($1, 8000:INTERVAL SECOND)], text=[$2], $f3=[_UTF-16LE'#'])
+         +- LogicalProject(id1=[$0], ts=[$2], text=[$1])
+            +- LogicalFilter(condition=[AND(=($0, $3), >($2, -($7, 300000:INTERVAL MINUTE)), <($2, +($7, 180000:INTERVAL MINUTE)))])
+               +- LogicalJoin(condition=[true], joinType=[inner])
+                  :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($2, 0:INTERVAL MILLISECOND)])
+                  :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
 +- LogicalProject(id1=[$0], EXPR$1=[$2])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[LISTAGG($2, $3)])
-      +- LogicalProject(id1=[$0], $f1=[$HOP($2, 12000:INTERVAL SECOND, 6000:INTERVAL SECOND)], text=[$1], $f3=[_UTF-16LE'*'])
-         +- LogicalFilter(condition=[AND(=($0, $3), >($2, -($7, 300000:INTERVAL MINUTE)), <($2, +($7, 180000:INTERVAL MINUTE)))])
-            +- LogicalJoin(condition=[true], joinType=[inner])
-               :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($2, 0:INTERVAL MILLISECOND)])
-               :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
-                  +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+      +- LogicalProject(id1=[$0], $f1=[$HOP($1, 12000:INTERVAL SECOND, 6000:INTERVAL SECOND)], text=[$2], $f3=[_UTF-16LE'*'])
+         +- LogicalProject(id1=[$0], ts=[$2], text=[$1])
+            +- LogicalFilter(condition=[AND(=($0, $3), >($2, -($7, 300000:INTERVAL MINUTE)), <($2, +($7, 180000:INTERVAL MINUTE)))])
+               +- LogicalJoin(condition=[true], joinType=[inner])
+                  :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($2, 0:INTERVAL MILLISECOND)])
+                  :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
 == Optimized Physical Plan ==
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b], changelogMode=[NONE]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-+- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, ts, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- Exchange(distribution=[hash[id1]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-      +- Calc(select=[id1, rowtime, text, _UTF-16LE'#' AS $f3], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-         +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[AND(=(id1, id2), >(rowtime, -(rowtime0, 300000:INTERVAL MINUTE)), <(rowtime, +(rowtime0, 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-            :- Exchange(distribution=[hash[id1]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-            :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-            :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-            +- Exchange(distribution=[hash[id2]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-                  +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- Calc(select=[id1, ts, text, _UTF-16LE'#' AS $f3], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+         +- Calc(select=[id1, rowtime AS ts, text], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+            +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=1], where=[AND(=(id1, id2), >(rowtime, -(rowtime0, 300000:INTERVAL MINUTE)), <(rowtime, +(rowtime0, 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, rowtime0], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+               :- Exchange(distribution=[hash[id1]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+               :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+               :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+               +- Exchange(distribution=[hash[id2]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+                  +- Calc(select=[id2, rowtime], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+                        +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b], changelogMode=[NONE]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-+- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, rowtime, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, ts, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- Exchange(distribution=[hash[id1]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-      +- Calc(select=[id1, rowtime, text, _UTF-16LE'*' AS $f3], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-         +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[AND(=(id1, id2), >(rowtime, -(rowtime0, 300000:INTERVAL MINUTE)), <(rowtime, +(rowtime0, 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-            :- Exchange(distribution=[hash[id1]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-            :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-            :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-            +- Exchange(distribution=[hash[id2]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-                  +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- Calc(select=[id1, ts, text, _UTF-16LE'*' AS $f3], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+         +- Calc(select=[id1, rowtime AS ts, text], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+            +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=1], where=[AND(=(id1, id2), >(rowtime, -(rowtime0, 300000:INTERVAL MINUTE)), <(rowtime, +(rowtime0, 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, rowtime0], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+               :- Exchange(distribution=[hash[id1]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+               :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+               :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+               +- Exchange(distribution=[hash[id2]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+                  +- Calc(select=[id2, rowtime], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+                        +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
-IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[((id1 = id2) AND (rowtime > (rowtime0 - 300000:INTERVAL MINUTE)) AND (rowtime < (rowtime0 + 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0])(reuse_id=[1])
-:- Exchange(distribution=[hash[id1]])
-:  +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
-:     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime])
-+- Exchange(distribution=[hash[id2]])
-   +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
-      +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
+Calc(select=[id1, rowtime AS ts, text])(reuse_id=[1])
++- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=1], where=[((id1 = id2) AND (rowtime > (rowtime0 - 300000:INTERVAL MINUTE)) AND (rowtime < (rowtime0 + 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, rowtime0])
+   :- Exchange(distribution=[hash[id1]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime])
+   +- Exchange(distribution=[hash[id2]])
+      +- Calc(select=[id2, rowtime])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
+            +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
 
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
-+- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
++- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, ts, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
-      +- Calc(select=[id1, rowtime, text, '#' AS $f3])
+      +- Calc(select=[id1, ts, text, '#' AS $f3])
          +- Reused(reference_id=[1])
 
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
-+- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, rowtime, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
++- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, ts, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
-      +- Calc(select=[id1, rowtime, text, '*' AS $f3])
+      +- Calc(select=[id1, ts, text, '*' AS $f3])
          +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -503,69 +511,77 @@ Union(all=[true], union=[a, b, c])
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
 +- LogicalProject(id1=[$0], EXPR$1=[$2])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[LISTAGG($2, $3)])
-      +- LogicalProject(id1=[$0], $f1=[$TUMBLE($2, 8000:INTERVAL SECOND)], text=[$1], $f3=[_UTF-16LE'#'])
-         +- LogicalFilter(condition=[AND(=($0, $3), >($2, -($7, 300000:INTERVAL MINUTE)), <($2, +($7, 180000:INTERVAL MINUTE)))])
-            +- LogicalJoin(condition=[true], joinType=[inner])
-               :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($2, 0:INTERVAL MILLISECOND)])
-               :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
-                  +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+      +- LogicalProject(id1=[$0], $f1=[$TUMBLE($1, 8000:INTERVAL SECOND)], text=[$2], $f3=[_UTF-16LE'#'])
+         +- LogicalProject(id1=[$0], ts=[$2], text=[$1])
+            +- LogicalFilter(condition=[AND(=($0, $3), >($2, -($7, 300000:INTERVAL MINUTE)), <($2, +($7, 180000:INTERVAL MINUTE)))])
+               +- LogicalJoin(condition=[true], joinType=[inner])
+                  :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($2, 0:INTERVAL MILLISECOND)])
+                  :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
 +- LogicalProject(id1=[$0], EXPR$1=[$2])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[LISTAGG($2, $3)])
-      +- LogicalProject(id1=[$0], $f1=[$HOP($2, 12000:INTERVAL SECOND, 6000:INTERVAL SECOND)], text=[$1], $f3=[_UTF-16LE'*'])
-         +- LogicalFilter(condition=[AND(=($0, $3), >($2, -($7, 300000:INTERVAL MINUTE)), <($2, +($7, 180000:INTERVAL MINUTE)))])
-            +- LogicalJoin(condition=[true], joinType=[inner])
-               :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($2, 0:INTERVAL MILLISECOND)])
-               :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
-                  +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+      +- LogicalProject(id1=[$0], $f1=[$HOP($1, 12000:INTERVAL SECOND, 6000:INTERVAL SECOND)], text=[$2], $f3=[_UTF-16LE'*'])
+         +- LogicalProject(id1=[$0], ts=[$2], text=[$1])
+            +- LogicalFilter(condition=[AND(=($0, $3), >($2, -($7, 300000:INTERVAL MINUTE)), <($2, +($7, 180000:INTERVAL MINUTE)))])
+               +- LogicalJoin(condition=[true], joinType=[inner])
+                  :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($2, 0:INTERVAL MILLISECOND)])
+                  :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
 == Optimized Physical Plan ==
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
-+- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
++- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, ts, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
-      +- Calc(select=[id1, rowtime, text, _UTF-16LE'#' AS $f3])
-         +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[AND(=(id1, id2), >(rowtime, -(rowtime0, 300000:INTERVAL MINUTE)), <(rowtime, +(rowtime0, 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0])
-            :- Exchange(distribution=[hash[id1]])
-            :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
-            :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime])
-            +- Exchange(distribution=[hash[id2]])
-               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
-                  +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
+      +- Calc(select=[id1, ts, text, _UTF-16LE'#' AS $f3])
+         +- Calc(select=[id1, rowtime AS ts, text])
+            +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=1], where=[AND(=(id1, id2), >(rowtime, -(rowtime0, 300000:INTERVAL MINUTE)), <(rowtime, +(rowtime0, 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, rowtime0])
+               :- Exchange(distribution=[hash[id1]])
+               :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+               :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime])
+               +- Exchange(distribution=[hash[id2]])
+                  +- Calc(select=[id2, rowtime])
+                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+                        +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
 
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
-+- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, rowtime, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
++- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, ts, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
-      +- Calc(select=[id1, rowtime, text, _UTF-16LE'*' AS $f3])
-         +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[AND(=(id1, id2), >(rowtime, -(rowtime0, 300000:INTERVAL MINUTE)), <(rowtime, +(rowtime0, 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0])
-            :- Exchange(distribution=[hash[id1]])
-            :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
-            :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime])
-            +- Exchange(distribution=[hash[id2]])
-               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
-                  +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
+      +- Calc(select=[id1, ts, text, _UTF-16LE'*' AS $f3])
+         +- Calc(select=[id1, rowtime AS ts, text])
+            +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=1], where=[AND(=(id1, id2), >(rowtime, -(rowtime0, 300000:INTERVAL MINUTE)), <(rowtime, +(rowtime0, 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, rowtime0])
+               :- Exchange(distribution=[hash[id1]])
+               :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+               :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime])
+               +- Exchange(distribution=[hash[id2]])
+                  +- Calc(select=[id2, rowtime])
+                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+                        +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
 
 == Optimized Execution Plan ==
-IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[((id1 = id2) AND (rowtime > (rowtime0 - 300000:INTERVAL MINUTE)) AND (rowtime < (rowtime0 + 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0])(reuse_id=[1])
-:- Exchange(distribution=[hash[id1]])
-:  +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
-:     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime])
-+- Exchange(distribution=[hash[id2]])
-   +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
-      +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
+Calc(select=[id1, rowtime AS ts, text])(reuse_id=[1])
++- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=1], where=[((id1 = id2) AND (rowtime > (rowtime0 - 300000:INTERVAL MINUTE)) AND (rowtime < (rowtime0 + 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, rowtime0])
+   :- Exchange(distribution=[hash[id1]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime])
+   +- Exchange(distribution=[hash[id2]])
+      +- Calc(select=[id2, rowtime])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
+            +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
 
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
-+- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
++- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, ts, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
-      +- Calc(select=[id1, rowtime, text, '#' AS $f3])
+      +- Calc(select=[id1, ts, text, '#' AS $f3])
          +- Reused(reference_id=[1])
 
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
-+- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, rowtime, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
++- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, ts, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
-      +- Calc(select=[id1, rowtime, text, '*' AS $f3])
+      +- Calc(select=[id1, ts, text, '*' AS $f3])
          +- Reused(reference_id=[1])
 ]]>
     </Resource>

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.tests;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -28,7 +29,6 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
@@ -113,8 +113,8 @@ public class RocksDBStateMemoryControlTestProgram {
         }
 
         @Override
-        public void open(Configuration parameters) {
-            int index = getRuntimeContext().getIndexOfThisSubtask();
+        public void open(OpenContext openContext) {
+            int index = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             if (useValueState) {
                 valueState =
                         getRuntimeContext()
@@ -151,8 +151,8 @@ public class RocksDBStateMemoryControlTestProgram {
         }
 
         @Override
-        public void open(Configuration parameters) {
-            int index = getRuntimeContext().getIndexOfThisSubtask();
+        public void open(OpenContext openContext) {
+            int index = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             if (useListState) {
                 listState =
                         getRuntimeContext()
@@ -184,8 +184,8 @@ public class RocksDBStateMemoryControlTestProgram {
         }
 
         @Override
-        public void open(Configuration parameters) {
-            int index = getRuntimeContext().getIndexOfThisSubtask();
+        public void open(OpenContext openContext) {
+            int index = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             if (useMapState) {
                 mapState =
                         getRuntimeContext()

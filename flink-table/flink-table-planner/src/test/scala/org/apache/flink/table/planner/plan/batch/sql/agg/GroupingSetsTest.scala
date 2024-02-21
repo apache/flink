@@ -22,8 +22,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
 import java.sql.Date
 
@@ -501,7 +501,7 @@ class GroupingSetsTest extends TableTestBase {
     val table2 = util.tableEnv.sqlQuery(sql2)
     val optimized1 = util.getPlanner.optimize(TableTestUtil.toRelNode(table1))
     val optimized2 = util.getPlanner.optimize(TableTestUtil.toRelNode(table2))
-    assertEquals(FlinkRelOptUtil.toString(optimized1), FlinkRelOptUtil.toString(optimized2))
+    assertThat(FlinkRelOptUtil.toString(optimized2)).isEqualTo(FlinkRelOptUtil.toString(optimized1))
   }
 
 }

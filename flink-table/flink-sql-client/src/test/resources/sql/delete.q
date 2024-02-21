@@ -17,25 +17,25 @@
 
 # first set batch mode
 SET 'execution.runtime-mode' = 'batch';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SET 'table.dml-sync' = 'true';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # create a table first
-CREATE TABLE t (a int, b string, c double)
+CREATE TABLE t (a int PRIMARY KEY NOT ENFORCED, b string, c double)
 WITH (
   'connector' = 'test-update-delete',
   'data-id' = '$VAR_DELETE_TABLE_DATA_ID',
   'mix-delete' = 'true'
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # query the table first

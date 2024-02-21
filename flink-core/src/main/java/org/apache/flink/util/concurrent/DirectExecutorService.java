@@ -39,9 +39,24 @@ import java.util.concurrent.TimeoutException;
  * thread.
  */
 class DirectExecutorService implements ExecutorService {
-    static final DirectExecutorService INSTANCE = new DirectExecutorService();
+
+    private final boolean triggerRejectedExecutionException;
 
     private boolean isShutdown = false;
+
+    /**
+     * Creates a new {@link DirectExecutorService} instance.
+     *
+     * @param triggerRejectedExecutionException determines whether proper instance lifecycle
+     *     management is applied. Passing {@code false} enables no-op shutdown functionality.
+     *     Submitting tasks would still work after a shutdown. Passing {@link true} will align the
+     *     instance's behavior with the {@link ExecutorService} contract which states that a {@link
+     *     RejectedExecutionException} is thrown by any task invoking method if the executor service
+     *     is shut down.
+     */
+    DirectExecutorService(boolean triggerRejectedExecutionException) {
+        this.triggerRejectedExecutionException = triggerRejectedExecutionException;
+    }
 
     @Override
     public void shutdown() {
@@ -233,7 +248,7 @@ class DirectExecutorService implements ExecutorService {
     }
 
     private void throwRejectedExecutionExceptionIfShutdown() {
-        if (isShutdown()) {
+        if (isShutdown() && triggerRejectedExecutionException) {
             throw new RejectedExecutionException(
                     "The ExecutorService is shut down already. No Callables can be executed.");
         }

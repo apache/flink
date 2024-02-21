@@ -150,11 +150,11 @@ class SpeculativeExecutionVertexTest {
 
         e1.transitionState(ExecutionState.RUNNING);
         e1.markFinished();
-        assertThat(terminationFuture.isDone()).isFalse();
+        assertThat(terminationFuture).isNotDone();
         assertThat(eg.getState()).isSameAs(JobStatus.RUNNING);
 
         e2.cancel();
-        assertThat(terminationFuture.isDone()).isTrue();
+        assertThat(terminationFuture).isDone();
         assertThat(eg.getState()).isSameAs(JobStatus.FINISHED);
     }
 

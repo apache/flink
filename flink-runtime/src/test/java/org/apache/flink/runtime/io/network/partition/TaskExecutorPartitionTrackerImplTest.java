@@ -31,11 +31,10 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
-import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -44,22 +43,18 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import static org.hamcrest.CoreMatchers.not;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.hasItems;
-import static org.hamcrest.Matchers.is;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link TaskExecutorPartitionTrackerImpl}. */
-public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
+class TaskExecutorPartitionTrackerImplTest {
 
     @Test
-    public void createClusterPartitionReport() {
+    void createClusterPartitionReport() {
         final TaskExecutorPartitionTrackerImpl partitionTracker =
                 new TaskExecutorPartitionTrackerImpl(new NettyShuffleEnvironmentBuilder().build());
 
-        assertThat(partitionTracker.createClusterPartitionReport().getEntries(), is(empty()));
+        assertThat(partitionTracker.createClusterPartitionReport().getEntries()).isEmpty();
 
         final IntermediateDataSetID dataSetId = new IntermediateDataSetID();
         final JobID jobId = new JobID();
@@ -87,13 +82,13 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
 
         final ClusterPartitionReport.ClusterPartitionReportEntry reportEntry =
                 Iterables.getOnlyElement(clusterPartitionReport.getEntries());
-        assertThat(reportEntry.getDataSetId(), is(dataSetId));
-        assertThat(reportEntry.getNumTotalPartitions(), is(numberOfPartitions));
-        assertThat(reportEntry.getHostedPartitions(), hasItems(clusterPartitionId));
+        assertThat(reportEntry.getDataSetId()).isEqualTo(dataSetId);
+        assertThat(reportEntry.getNumTotalPartitions()).isEqualTo(numberOfPartitions);
+        assertThat(reportEntry.getHostedPartitions()).contains(clusterPartitionId);
     }
 
     @Test
-    public void testStopTrackingAndReleaseJobPartitions() throws Exception {
+    void testStopTrackingAndReleaseJobPartitions() throws Exception {
         final TestingShuffleEnvironment testingShuffleEnvironment = new TestingShuffleEnvironment();
         final CompletableFuture<Collection<ResultPartitionID>> shuffleReleaseFuture =
                 new CompletableFuture<>();
@@ -119,11 +114,13 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
         partitionTracker.stopTrackingAndReleaseJobPartitions(
                 Collections.singleton(resultPartitionId1));
 
-        assertThat(shuffleReleaseFuture.get(), hasItem(resultPartitionId1));
+        assertThatFuture(shuffleReleaseFuture)
+                .eventuallySucceeds()
+                .satisfies(actual -> assertThat(actual).containsExactly(resultPartitionId1));
     }
 
     @Test
-    public void testStopTrackingAndReleaseJobPartitionsFor() throws Exception {
+    void testStopTrackingAndReleaseJobPartitionsFor() throws Exception {
         final TestingShuffleEnvironment testingShuffleEnvironment = new TestingShuffleEnvironment();
         final CompletableFuture<Collection<ResultPartitionID>> shuffleReleaseFuture =
                 new CompletableFuture<>();
@@ -150,11 +147,14 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
                         1));
         partitionTracker.stopTrackingAndReleaseJobPartitionsFor(jobId1);
 
-        assertThat(shuffleReleaseFuture.get(), hasItem(resultPartitionId1));
+        assertThatFuture(shuffleReleaseFuture)
+                .eventuallySucceeds()
+                .asList()
+                .contains(resultPartitionId1);
     }
 
     @Test
-    public void promoteJobPartitions() throws Exception {
+    void promoteJobPartitions() throws Exception {
         final TestingShuffleEnvironment testingShuffleEnvironment = new TestingShuffleEnvironment();
         final CompletableFuture<Collection<ResultPartitionID>> shuffleReleaseFuture =
                 new CompletableFuture<>();
@@ -181,11 +181,14 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
         partitionTracker.promoteJobPartitions(Collections.singleton(resultPartitionId1));
 
         partitionTracker.stopTrackingAndReleaseJobPartitionsFor(jobId);
-        assertThat(shuffleReleaseFuture.get(), not(hasItem(resultPartitionId1)));
+        assertThatFuture(shuffleReleaseFuture)
+                .eventuallySucceeds()
+                .asList()
+                .doesNotContain(resultPartitionId1);
     }
 
     @Test
-    public void stopTrackingAndReleaseAllClusterPartitions() throws Exception {
+    void stopTrackingAndReleaseAllClusterPartitions() throws Exception {
         final TestingShuffleEnvironment testingShuffleEnvironment = new TestingShuffleEnvironment();
         final CompletableFuture<Collection<ResultPartitionID>> shuffleReleaseFuture =
                 new CompletableFuture<>();
@@ -211,11 +214,13 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
         partitionTracker.promoteJobPartitions(Collections.singleton(resultPartitionId1));
 
         partitionTracker.stopTrackingAndReleaseAllClusterPartitions();
-        assertThat(shuffleReleaseFuture.get(), hasItem(resultPartitionId1));
+        assertThatFuture(shuffleReleaseFuture)
+                .eventuallySucceeds()
+                .satisfies(actual -> assertThat(actual).contains(resultPartitionId1));
     }
 
     @Test
-    public void stopTrackingAndReleaseClusterPartitions() throws Exception {
+    void stopTrackingAndReleaseClusterPartitions() throws Exception {
         final TestingShuffleEnvironment testingShuffleEnvironment = new TestingShuffleEnvironment();
         final CompletableFuture<Collection<ResultPartitionID>> shuffleReleaseFuture =
                 new CompletableFuture<>();
@@ -240,7 +245,9 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
         partitionTracker.promoteJobPartitions(Collections.singleton(resultPartitionId1));
 
         partitionTracker.stopTrackingAndReleaseClusterPartitions(Collections.singleton(dataSetId1));
-        assertThat(shuffleReleaseFuture.get(), hasItem(resultPartitionId1));
+        assertThatFuture(shuffleReleaseFuture)
+                .eventuallySucceeds()
+                .satisfies(actual -> assertThat(actual).contains(resultPartitionId1));
     }
 
     private static class TestingShuffleEnvironment

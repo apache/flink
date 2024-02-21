@@ -17,15 +17,18 @@
 
 package org.apache.flink.streaming.examples.async;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
-import org.apache.flink.streaming.examples.async.util.SimpleSource;
 
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
@@ -40,7 +43,7 @@ public class AsyncIOExample {
         private transient AsyncClient client;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             client = new AsyncClient();
         }
 
@@ -76,8 +79,19 @@ public class AsyncIOExample {
         // obtain execution environment
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
+        DataGeneratorSource<Integer> generatorSource =
+                new DataGeneratorSource<>(
+                        Long::intValue,
+                        Integer.MAX_VALUE,
+                        RateLimiterStrategy.perSecond(100),
+                        Types.INT);
+
         // create input stream of a single integer
-        DataStream<Integer> inputStream = env.addSource(new SimpleSource());
+        DataStream<Integer> inputStream =
+                env.fromSource(
+                        generatorSource,
+                        WatermarkStrategy.noWatermarks(),
+                        "Integers-generating Source");
 
         AsyncFunction<Integer, String> function = new SampleAsyncFunction();
 

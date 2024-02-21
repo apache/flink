@@ -41,6 +41,7 @@ public class JoinQueryOperation implements QueryOperation {
     private final ResolvedSchema resolvedSchema;
 
     /** Specifies how the two Tables should be joined. */
+    @Internal
     public enum JoinType {
         INNER,
         LEFT_OUTER,
@@ -103,6 +104,29 @@ public class JoinQueryOperation implements QueryOperation {
 
         return OperationUtils.formatWithChildren(
                 "Join", args, getChildren(), Operation::asSummaryString);
+    }
+
+    @Override
+    public String asSerializableString() {
+        return String.format(
+                "SELECT %s FROM (%s\n) %s JOIN %s ON %s",
+                OperationUtils.formatSelectColumns(resolvedSchema),
+                OperationUtils.indent(left.asSerializableString()),
+                joinType.toString().replaceAll("_", " "),
+                rightToSerializable(),
+                condition.asSerializableString());
+    }
+
+    private String rightToSerializable() {
+        final StringBuilder s = new StringBuilder();
+        if (!correlated) {
+            s.append("(");
+        }
+        s.append(OperationUtils.indent(right.asSerializableString()));
+        if (!correlated) {
+            s.append("\n)");
+        }
+        return s.toString();
     }
 
     @Override

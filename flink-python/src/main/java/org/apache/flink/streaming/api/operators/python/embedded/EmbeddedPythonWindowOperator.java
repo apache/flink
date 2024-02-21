@@ -142,7 +142,6 @@ public class EmbeddedPythonWindowOperator<K, IN, OUT, W extends Window>
 
     private void invokeUserFunction(InternalTimer<K, W> timer) throws Exception {
         windowTimerContext.timer = timer;
-        interpreter.invokeMethod("operation", "on_timer", timer.getTimestamp());
 
         PyIterator results =
                 (PyIterator)

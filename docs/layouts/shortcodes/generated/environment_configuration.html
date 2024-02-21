@@ -21,6 +21,24 @@
             <td>Path to hbase configuration directory. It is required to read HBASE configuration. You can also set it via environment variable.</td>
         </tr>
         <tr>
+            <td><h5>env.java.default-opts.all</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>A string of default JVM options to prepend to <code class="highlighter-rouge">env.java.opts.all</code>. This is intended to be set by administrators.</td>
+        </tr>
+        <tr>
+            <td><h5>env.java.default-opts.jobmanager</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>A string of default JVM options to prepend to <code class="highlighter-rouge">env.java.opts.jobmanager</code>. This is intended to be set by administrators.</td>
+        </tr>
+        <tr>
+            <td><h5>env.java.default-opts.taskmanager</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>A string of default JVM options to prepend to <code class="highlighter-rouge">env.java.opts.taskmanager</code>. This is intended to be set by administrators.</td>
+        </tr>
+        <tr>
             <td><h5>env.java.opts.all</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
@@ -45,6 +63,12 @@
             <td>Java options to start the JVM of the JobManager with.</td>
         </tr>
         <tr>
+            <td><h5>env.java.opts.sql-gateway</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Java options to start the JVM of the Flink SQL Gateway with.</td>
+        </tr>
+        <tr>
             <td><h5>env.java.opts.taskmanager</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
@@ -55,6 +79,12 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Defines the directory where the Flink logs are saved. It has to be an absolute path. (Defaults to the log directory under Flink’s home)</td>
+        </tr>
+        <tr>
+            <td><h5>env.log.level</h5></td>
+            <td style="word-wrap: break-word;">"INFO"</td>
+            <td>String</td>
+            <td>Defines the level of the root logger.</td>
         </tr>
         <tr>
             <td><h5>env.log.max</h5></td>
@@ -73,6 +103,12 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Additional command line options passed to SSH clients when starting or stopping JobManager, TaskManager, and Zookeeper services (start-cluster.sh, stop-cluster.sh, start-zookeeper-quorum.sh, stop-zookeeper-quorum.sh).</td>
+        </tr>
+        <tr>
+            <td><h5>env.stdout-err.redirect-to-file</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether redirect stdout and stderr to files when running foreground. If enabled, logs won't append the console too. Note that redirected files do not support rolling rotate.</td>
         </tr>
         <tr>
             <td><h5>env.yarn.conf.dir</h5></td>

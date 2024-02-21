@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.runtime.batch.sql
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinITCaseHelper
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.SortMergeJoin
@@ -28,9 +29,10 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData.{buildInData, buildInType}
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.{BeforeEach, Test}
 
-import scala.collection.Seq
+import java.time.DayOfWeek
 
 /** Misc tests. */
 class MiscITCase extends BatchTestBase {
@@ -39,7 +41,7 @@ class MiscITCase extends BatchTestBase {
 
   private var newTableId = 0
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     registerCollection("testTable", buildInData, buildInType, "a,b,c,d,e,f,g,h,i,j")
@@ -528,82 +530,187 @@ class MiscITCase extends BatchTestBase {
       Seq(row(false, 1), row(true, 3)))
   }
 
-  @Test(expected = classOf[org.apache.flink.table.api.ValidationException])
+  @Test
   def testTableGenerateFunction(): Unit = {
-    checkResult(
-      "SELECT f, g, v FROM testTable," +
-        "LATERAL TABLE(STRING_SPLIT(f, ' ')) AS T(v)",
-      Seq(row("abcd", "f%g", "abcd"), row("e fg", null, "e"), row("e fg", null, "fg"))
-    )
+    assertThatThrownBy(
+      () =>
+        checkResult(
+          "SELECT f, g, v FROM testTable," +
+            "LATERAL TABLE(STRING_SPLIT(f, ' ')) AS T(v)",
+          Seq(row("abcd", "f%g", "abcd"), row("e fg", null, "e"), row("e fg", null, "fg"))
+        )).isInstanceOf(classOf[ValidationException])
 
     // BuildInFunctions in SQL is case insensitive
-    checkResult(
-      "SELECT f, g, v FROM testTable," +
-        "LATERAL TABLE(sTRING_sPLIT(f, ' ')) AS T(v)",
-      Seq(row("abcd", "f%g", "abcd"), row("e fg", null, "e"), row("e fg", null, "fg"))
-    )
+    assertThatThrownBy(
+      () =>
+        checkResult(
+          "SELECT f, g, v FROM testTable," +
+            "LATERAL TABLE(sTRING_sPLIT(f, ' ')) AS T(v)",
+          Seq(row("abcd", "f%g", "abcd"), row("e fg", null, "e"), row("e fg", null, "fg"))
+        )).isInstanceOf(classOf[ValidationException])
 
-    checkResult(
-      "SELECT f, g, v FROM testTable," +
-        "LATERAL TABLE(GENERATE_SERIES(0, CAST(b AS INTEGER))) AS T(v)",
-      Seq(
-        row("abcd", "f%g", 0),
-        row(null, "hij_k", 0),
-        row(null, "hij_k", 1),
-        row("e fg", null, 0),
-        row("e fg", null, 1),
-        row("e fg", null, 2))
-    )
+    assertThatThrownBy(
+      () =>
+        checkResult(
+          "SELECT f, g, v FROM testTable," +
+            "LATERAL TABLE(GENERATE_SERIES(0, CAST(b AS INTEGER))) AS T(v)",
+          Seq(
+            row("abcd", "f%g", 0),
+            row(null, "hij_k", 0),
+            row(null, "hij_k", 1),
+            row("e fg", null, 0),
+            row("e fg", null, 1),
+            row("e fg", null, 2))
+        )).isInstanceOf(classOf[ValidationException])
 
-    checkResult(
-      "SELECT f, g, v FROM testTable," +
-        "LATERAL TABLE(JSON_TUPLE('{\"a1\": \"b1\", \"a2\": \"b2\", \"e fg\": \"b3\"}'," +
-        "'a1', f)) AS T(v)",
-      Seq(
-        row("abcd", "f%g", "b1"),
-        row("abcd", "f%g", null),
-        row(null, "hij_k", "b1"),
-        row(null, "hij_k", null),
-        row("e fg", null, "b1"),
-        row("e fg", null, "b3"))
-    )
+    assertThatThrownBy(
+      () =>
+        checkResult(
+          "SELECT f, g, v FROM testTable," +
+            "LATERAL TABLE(JSON_TUPLE('{\"a1\": \"b1\", \"a2\": \"b2\", \"e fg\": \"b3\"}'," +
+            "'a1', f)) AS T(v)",
+          Seq(
+            row("abcd", "f%g", "b1"),
+            row("abcd", "f%g", null),
+            row(null, "hij_k", "b1"),
+            row(null, "hij_k", null),
+            row("e fg", null, "b1"),
+            row("e fg", null, "b3"))
+        )).isInstanceOf(classOf[ValidationException])
 
-    checkResult(
-      "SELECT f, g, v FROM " +
-        "testTable JOIN LATERAL TABLE(JSON_TUPLE" +
-        "('{\"a1\": \"b1\", \"a2\": \"b2\", \"e fg\": \"b3\"}', 'a1', f)) AS T(v) " +
-        "ON CHAR_LENGTH(f) = CHAR_LENGTH(v) + 2 OR CHAR_LENGTH(g) = CHAR_LENGTH(v) + 3",
-      Seq(
-        row("abcd", "f%g", "b1"),
-        row(null, "hij_k", "b1"),
-        row("e fg", null, "b1"),
-        row("e fg", null, "b3"))
-    )
+    assertThatThrownBy(
+      () =>
+        checkResult(
+          "SELECT f, g, v FROM " +
+            "testTable JOIN LATERAL TABLE(JSON_TUPLE" +
+            "('{\"a1\": \"b1\", \"a2\": \"b2\", \"e fg\": \"b3\"}', 'a1', f)) AS T(v) " +
+            "ON CHAR_LENGTH(f) = CHAR_LENGTH(v) + 2 OR CHAR_LENGTH(g) = CHAR_LENGTH(v) + 3",
+          Seq(
+            row("abcd", "f%g", "b1"),
+            row(null, "hij_k", "b1"),
+            row("e fg", null, "b1"),
+            row("e fg", null, "b3"))
+        )).isInstanceOf(classOf[ValidationException])
 
-    checkResult(
-      "SELECT f, g, v FROM " +
-        "testTable JOIN LATERAL TABLE(JSON_TUPLE" +
-        "('{\"a1\": \"b1\", \"a2\": \"b2\", \"e fg\": \"b3\"}', 'a1', f)) AS T(v) " +
-        "ON CHAR_LENGTH(f) = CHAR_LENGTH(v) + 2 OR CHAR_LENGTH(g) = CHAR_LENGTH(v) + 3",
-      Seq(
-        row("abcd", "f%g", "b1"),
-        row(null, "hij_k", "b1"),
-        row("e fg", null, "b1"),
-        row("e fg", null, "b3"))
-    )
+    assertThatThrownBy(
+      () =>
+        checkResult(
+          "SELECT f, g, v FROM " +
+            "testTable JOIN LATERAL TABLE(JSON_TUPLE" +
+            "('{\"a1\": \"b1\", \"a2\": \"b2\", \"e fg\": \"b3\"}', 'a1', f)) AS T(v) " +
+            "ON CHAR_LENGTH(f) = CHAR_LENGTH(v) + 2 OR CHAR_LENGTH(g) = CHAR_LENGTH(v) + 3",
+          Seq(
+            row("abcd", "f%g", "b1"),
+            row(null, "hij_k", "b1"),
+            row("e fg", null, "b1"),
+            row("e fg", null, "b3"))
+        )).isInstanceOf(classOf[ValidationException])
   }
 
   /**
    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the join
    * predicate can only be empty or literal true (the restriction should be removed in FLINK-7865).
    */
-  @Test(expected = classOf[org.apache.flink.table.api.ValidationException])
+  @Test
   def testTableGenerateFunctionLeftJoin(): Unit = {
-    checkResult(
-      "SELECT f, g, v FROM " +
-        "testTable LEFT OUTER JOIN LATERAL TABLE(GENERATE_SERIES(0, CAST(b AS INTEGER))) AS T(v) " +
-        "ON LENGTH(f) = v + 2 OR LENGTH(g) = v + 4",
-      Seq(row(null, "hij_k", 1), row("e fg", null, 2))
+    assertThatThrownBy(
+      () =>
+        checkResult(
+          "SELECT f, g, v FROM " +
+            "testTable LEFT OUTER JOIN LATERAL TABLE(GENERATE_SERIES(0, CAST(b AS INTEGER))) AS T(v) " +
+            "ON LENGTH(f) = v + 2 OR LENGTH(g) = v + 4",
+          Seq(row(null, "hij_k", 1), row("e fg", null, 2))
+        )).isInstanceOf(classOf[ValidationException])
+
+  }
+
+  @Test
+  def testEqualAndNotEqual(): Unit = {
+    // character string
+    checkQuery(
+      Seq((null, 2), ("b", 1)),
+      "SELECT f1 FROM Table1 WHERE f0 <> 'a'",
+      Seq(Tuple1(1))
+    )
+    checkQuery(
+      Seq(("aa", "aa"), ("aa", "bb"), ("aa", null)),
+      "SELECT * FROM Table1 WHERE SUBSTR(f0, 2, 1) <> SUBSTR(f1, 2, 1)",
+      Seq(("aa", "bb"))
+    )
+    checkQuery(
+      Seq(("aa", "aa"), ("aa", "bb"), ("aa", null)),
+      "SELECT * FROM Table1 WHERE SUBSTR(f0, 2, 1) = SUBSTR(f1, 2, 1)",
+      Seq(("aa", "aa"))
+    )
+
+    // raw
+    checkQuery(
+      Seq(
+        (DayOfWeek.SUNDAY, DayOfWeek.SUNDAY),
+        (DayOfWeek.SUNDAY, DayOfWeek.MONDAY),
+        (DayOfWeek.SUNDAY, null)),
+      "SELECT * FROM Table1 WHERE f0 = f1",
+      Seq((DayOfWeek.SUNDAY, DayOfWeek.SUNDAY))
+    )
+    checkQuery(
+      Seq(
+        (DayOfWeek.SUNDAY, DayOfWeek.SUNDAY),
+        (DayOfWeek.SUNDAY, DayOfWeek.MONDAY),
+        (DayOfWeek.SUNDAY, null)),
+      "SELECT * FROM Table1 WHERE f0 <> f1",
+      Seq((DayOfWeek.SUNDAY, DayOfWeek.MONDAY))
+    )
+
+    // multiset
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT t1.ms = t2.ms FROM " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1 LEFT JOIN " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t2 ON t1.f1 = t2.f1",
+      Seq(Tuple1("true"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT t1.ms = t2.ms FROM " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1 LEFT JOIN " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM (SELECT * FROM Table1 LIMIT 2) GROUP BY f1) t2 " +
+        "ON t1.f1 = t2.f1",
+      Seq(Tuple1("false"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT t1.ms = NULL FROM (SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1",
+      Seq(Tuple1("null"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT NULL = t1.ms FROM (SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1",
+      Seq(Tuple1("null"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT NOT(t1.ms = t2.ms) FROM " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1 LEFT JOIN " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t2 ON t1.f1 = t2.f1",
+      Seq(Tuple1("false"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT NOT(t1.ms = t2.ms) FROM " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1 LEFT JOIN " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM (SELECT * FROM Table1 LIMIT 2) GROUP BY f1) t2 " +
+        "ON t1.f1 = t2.f1",
+      Seq(Tuple1("true"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT NOT(t1.ms = NULL) FROM (SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1",
+      Seq(Tuple1("null"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT NOT(NULL = t1.ms) FROM (SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1",
+      Seq(Tuple1("null"))
     )
   }
 }

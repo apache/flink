@@ -19,21 +19,28 @@ under the License.
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-state-backends</artifactId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-statebackend-rocksdb</artifactId>
 	<name>Flink : State backends : RocksDB</name>
 
 	<packaging>jar</packaging>
+
+	<properties>
+		<surefire.module.config><!--
+			chill ArraysAsListSerializer
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
 
 	<dependencies>
 
@@ -95,11 +102,18 @@ under the License.
 						</goals>
 						<configuration>
 							<includes>
-								<include>**/org/apache/flink/contrib/streaming/state/RocksDBTestUtils*</include>
-								<include>**/org/apache/flink/contrib/streaming/state/EmbeddedRocksDBStateBackendTest*</include>
+								<include>
+									**/org/apache/flink/contrib/streaming/state/RocksDBTestUtils*
+								</include>
+								<include>
+									**/org/apache/flink/contrib/streaming/state/EmbeddedRocksDBStateBackendTest*
+								</include>
 								<!-- Exporting RocksDBStateBackendConfigTest$TestOptionsFactory for pyflink tests -->
-								<include>**/org/apache/flink/contrib/streaming/state/RocksDBStateBackendConfigTest*</include>
-								<include>**/org/apache/flink/contrib/streaming/state/benchmark/*</include>
+								<include>
+									**/org/apache/flink/contrib/streaming/state/RocksDBStateBackendConfigTest*
+								</include>
+								<include>**/org/apache/flink/contrib/streaming/state/benchmark/*
+								</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>

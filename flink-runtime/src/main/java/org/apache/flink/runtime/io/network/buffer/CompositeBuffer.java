@@ -172,6 +172,11 @@ public class CompositeBuffer implements Buffer {
     }
 
     @Override
+    public void setRecycler(BufferRecycler bufferRecycler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public boolean isRecycled() {
         throw new UnsupportedOperationException();
     }

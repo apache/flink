@@ -182,7 +182,7 @@ public class HiveLookupJoinITCase {
         batchEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         batchEnv.useCatalog(hiveCatalog.getName());
         batchEnv.executeSql(
-                        "insert overwrite partition_table values "
+                        "insert overwrite table partition_table values "
                                 + "(1,'a',08,2019,'08','01'),"
                                 + "(1,'a',10,2020,'08','31'),"
                                 + "(2,'a',21,2020,'08','31'),"
@@ -249,7 +249,7 @@ public class HiveLookupJoinITCase {
         batchEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         batchEnv.useCatalog(hiveCatalog.getName());
         batchEnv.executeSql(
-                        "insert overwrite bounded_partition_table values "
+                        "insert overwrite table bounded_partition_table values "
                                 + "(1,'a',08,2019,'08','01'),"
                                 + "(1,'a',10,2020,'08','31'),"
                                 + "(2,'a',21,2020,'08','31'),"
@@ -275,7 +275,7 @@ public class HiveLookupJoinITCase {
         batchEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         batchEnv.useCatalog(hiveCatalog.getName());
         batchEnv.executeSql(
-                        "insert overwrite partition_table_1 values "
+                        "insert overwrite table partition_table_1 values "
                                 + "(1,'a',08,2019,'09','01'),"
                                 + "(1,'a',10,2020,'09','31'),"
                                 + "(2,'a',21,2020,'09','31'),"
@@ -305,7 +305,7 @@ public class HiveLookupJoinITCase {
         batchEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         batchEnv.useCatalog(hiveCatalog.getName());
         batchEnv.executeSql(
-                        "insert overwrite partition_table_2 values "
+                        "insert overwrite table partition_table_2 values "
                                 + "(1,'a',08,2020,'08','01'),"
                                 + "(1,'a',10,2020,'08','31'),"
                                 + "(2,'a',21,2019,'08','31'),"
@@ -334,7 +334,7 @@ public class HiveLookupJoinITCase {
         batchEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         batchEnv.useCatalog(hiveCatalog.getName());
         batchEnv.executeSql(
-                        "insert overwrite partition_table_3 values "
+                        "insert overwrite table partition_table_3 values "
                                 + "(1,'a',08,2020,'month1','01'),"
                                 + "(1,'a',10,2020,'month2','02'),"
                                 + "(2,'a',21,2020,'month1','02'),"
@@ -348,7 +348,7 @@ public class HiveLookupJoinITCase {
 
         // inert a new partition
         batchEnv.executeSql(
-                        "insert overwrite partition_table_3 values "
+                        "insert overwrite table partition_table_3 values "
                                 + "(1,'a',101,2020,'08','01'),"
                                 + "(2,'a',121,2020,'08','01'),"
                                 + "(2,'b',122,2020,'08','01')")
@@ -371,7 +371,7 @@ public class HiveLookupJoinITCase {
         batchEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         batchEnv.useCatalog(hiveCatalog.getName());
         batchEnv.executeSql(
-                        "insert overwrite bounded_table values (1,'a',10),(2,'b',22),(3,'c',33)")
+                        "insert overwrite table bounded_table values (1,'a',10),(2,'b',22),(3,'c',33)")
                 .await();
         tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
         TableImpl flinkTable =

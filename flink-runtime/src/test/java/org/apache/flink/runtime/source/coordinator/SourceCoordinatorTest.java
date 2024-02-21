@@ -20,6 +20,7 @@ package org.apache.flink.runtime.source.coordinator;
 
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.DynamicFilteringInfo;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -118,6 +119,13 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         sourceCoordinator.start();
         sourceCoordinator.close();
         assertThat(getEnumerator().isClosed()).isTrue();
+        assertThat(sourceCoordinator.getContext().isClosed()).isTrue();
+    }
+
+    @Test
+    void testClosedWithoutStart() throws Exception {
+        sourceCoordinator.close();
+        assertThat(sourceCoordinator.getContext().isClosed()).isTrue();
     }
 
     @Test
@@ -527,6 +535,25 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         coordinator.start();
 
         assertThat(store.get(listeningID)).isNotNull().isSameAs(coordinator);
+    }
+
+    @Test
+    public void testInferSourceParallelismAsync() throws Exception {
+        final String listeningID = "testListeningID";
+
+        class TestDynamicFilteringEvent implements SourceEvent, DynamicFilteringInfo {}
+
+        CoordinatorStore store = new CoordinatorStoreImpl();
+        store.putIfAbsent(listeningID, new SourceEventWrapper(new TestDynamicFilteringEvent()));
+        final SourceCoordinator<?, ?> coordinator =
+                new SourceCoordinator<>(
+                        OPERATOR_NAME,
+                        createMockSource(),
+                        context,
+                        store,
+                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
+                        listeningID);
+        assertThat(coordinator.inferSourceParallelismAsync(2, 1).get()).isEqualTo(2);
     }
 
     // ------------------------------------------------------------------------

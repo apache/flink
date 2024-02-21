@@ -88,6 +88,92 @@ SELECT * FROM StreamingTable;
 !ok
 
 # ==========================================================================
+# test streaming insert through compiled plan
+# ==========================================================================
+
+create table StreamingTableForPlan (
+  id int,
+  str string
+) with (
+  'connector' = 'filesystem',
+  'path' = '$VAR_STREAMING_PATH3',
+  'format' = 'csv'
+);
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+# test path with scheme
+COMPILE AND EXECUTE PLAN 'file://$VAR_STREAMING_PLAN_PATH/plan1.json' FOR INSERT INTO StreamingTableForPlan SELECT * FROM (VALUES (1, 'Hello'));
+!output
+Job ID:
+!info
+
+RESET '$internal.pipeline.job-id';
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+SELECT * FROM StreamingTableForPlan;
+!output
++----+----+-------+
+| op | id |   str |
++----+----+-------+
+| +I |  1 | Hello |
++----+----+-------+
+1 row in set
+!ok
+
+
+# test absolute path without scheme
+COMPILE PLAN '$VAR_STREAMING_PLAN_PATH/plan2.json' FOR INSERT INTO StreamingTableForPlan SELECT * FROM (VALUES (1, 'Hello'));
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+# test relative path without scheme
+EXECUTE PLAN '$VAR_STREAMING_PLAN_RELATIVE_PATH/plan2.json';
+!output
+Job ID:
+!info
+
+RESET '$internal.pipeline.job-id';
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+SELECT * FROM StreamingTableForPlan;
+!output
++----+----+-------+
+| op | id |   str |
++----+----+-------+
+| +I |  1 | Hello |
+| +I |  1 | Hello |
++----+----+-------+
+2 rows in set
+!ok
+
+# ==========================================================================
 # test batch insert
 # ==========================================================================
 

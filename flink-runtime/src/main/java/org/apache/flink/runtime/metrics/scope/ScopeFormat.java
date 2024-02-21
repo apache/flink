@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.metrics.scope;
 
 import org.apache.flink.metrics.CharacterFilter;
+import org.apache.flink.util.CollectionUtil;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -226,7 +227,7 @@ public abstract class ScopeFormat {
     }
 
     protected static HashMap<String, Integer> arrayToMap(String[] array) {
-        HashMap<String, Integer> map = new HashMap<>(array.length);
+        HashMap<String, Integer> map = CollectionUtil.newHashMapWithExpectedSize(array.length);
         for (int i = 0; i < array.length; i++) {
             map.put(array[i], i);
         }

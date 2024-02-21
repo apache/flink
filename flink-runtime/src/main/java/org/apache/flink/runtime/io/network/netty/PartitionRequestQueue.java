@@ -22,6 +22,9 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
+import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
+import org.apache.flink.runtime.io.network.partition.PartitionRequestListener;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
@@ -194,6 +197,23 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
         }
     }
 
+    /**
+     * Notify the id of required segment from the consumer.
+     *
+     * @param receiverId The input channel id to identify the consumer.
+     * @param subpartitionId The id of the corresponding subpartition.
+     * @param segmentId The id of required segment.
+     */
+    void notifyRequiredSegmentId(InputChannelID receiverId, int subpartitionId, int segmentId) {
+        if (fatalError) {
+            return;
+        }
+        NetworkSequenceViewReader reader = allReaders.get(receiverId);
+        if (reader != null) {
+            reader.notifyRequiredSegmentId(subpartitionId, segmentId);
+        }
+    }
+
     NetworkSequenceViewReader obtainReader(InputChannelID receiverId) {
         NetworkSequenceViewReader reader = allReaders.get(receiverId);
         if (reader == null) {
@@ -243,6 +263,26 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
             if (toRelease != null) {
                 releaseViewReader(toRelease);
             }
+        } else if (msg instanceof PartitionRequestListener) {
+            PartitionRequestListener partitionRequestListener = (PartitionRequestListener) msg;
+
+            // Send partition not found message to the downstream task when the listener is timeout.
+            final ResultPartitionID resultPartitionId =
+                    partitionRequestListener.getResultPartitionId();
+            final InputChannelID inputChannelId = partitionRequestListener.getReceiverId();
+            availableReaders.remove(partitionRequestListener.getViewReader());
+            allReaders.remove(inputChannelId);
+            try {
+                ctx.writeAndFlush(
+                        new NettyMessage.ErrorResponse(
+                                new PartitionNotFoundException(resultPartitionId), inputChannelId));
+            } catch (Exception e) {
+                LOG.warn(
+                        "Write partition not found exception to {} for result partition {} fail",
+                        inputChannelId,
+                        resultPartitionId,
+                        e);
+            }
         } else {
             ctx.fireUserEventTriggered(msg);
         }
@@ -263,6 +303,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
         // gate and the consumed views as the local input channels.
 
         BufferAndAvailability next = null;
+        int nextSubpartitionId = -1;
         try {
             while (true) {
                 NetworkSequenceViewReader reader = pollAvailableReader();
@@ -273,6 +314,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
                     return;
                 }
 
+                nextSubpartitionId = reader.peekNextBufferSubpartitionId();
                 next = reader.getNextBuffer();
                 if (next == null) {
                     if (!reader.isReleased()) {
@@ -297,6 +339,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
                                     next.buffer(),
                                     next.getSequenceNumber(),
                                     reader.getReceiverId(),
+                                    nextSubpartitionId,
                                     next.buffersInBacklog());
 
                     // Write and flush and wait until this is done before
@@ -342,7 +385,10 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
     }
 
     private void handleException(Channel channel, Throwable cause) throws IOException {
-        LOG.error("Encountered error while consuming partitions", cause);
+        LOG.error(
+                "Encountered error while consuming partitions (connection to {})",
+                channel.remoteAddress(),
+                cause);
 
         fatalError = true;
         releaseAllResources();
@@ -375,6 +421,10 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
             handleException(
                     future.channel(), new IllegalStateException("Sending cancelled by user."));
         }
+    }
+
+    public void notifyPartitionRequestTimeout(PartitionRequestListener partitionRequestListener) {
+        ctx.pipeline().fireUserEventTriggered(partitionRequestListener);
     }
 
     // This listener is called after an element of the current nonEmptyReader has been

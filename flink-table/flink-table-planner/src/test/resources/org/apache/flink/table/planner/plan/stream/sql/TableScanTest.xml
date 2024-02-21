@@ -148,8 +148,9 @@ Calc(select=[ts, a, b], where=[(a > 1)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
-+- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -187,14 +188,15 @@ Calc(select=[ts, a, b, my_ts, PROCTIME_MATERIALIZE(proc) AS proc], where=[(a > 1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], other_metadata=[CAST($4):INTEGER], b=[$1], c=[$2], metadata_1=[$3], computed=[UPPER($3)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
+LogicalProject(a=[$0], other_metadata=[$1], b=[$2], c=[$3], metadata_1=[$4], computed=[$5])
++- LogicalProject(a=[$0], other_metadata=[CAST($4):INTEGER], b=[$1], c=[$2], metadata_1=[$3], computed=[UPPER($3)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, metadata=[metadata_1, metadata_3]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, CAST(other_metadata AS INTEGER) AS other_metadata, b, c, metadata_1, UPPER(metadata_1) AS computed])
-+- TableSourceScan(table=[[default_catalog, default_database, MetadataTable]], fields=[a, b, c, metadata_1, other_metadata])
++- TableSourceScan(table=[[default_catalog, default_database, MetadataTable, metadata=[metadata_1, metadata_3]]], fields=[a, b, c, metadata_1, other_metadata])
 ]]>
     </Resource>
   </TestCase>
@@ -204,8 +206,9 @@ Calc(select=[a, CAST(other_metadata AS INTEGER) AS other_metadata, b, c, metadat
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], other_metadata=[CAST($4):INTEGER])
-+- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
+LogicalProject(b=[$2], other_metadata=[$1])
++- LogicalProject(a=[$0], other_metadata=[CAST($4):INTEGER], b=[$1], c=[$2], metadata_1=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, metadata=[metadata_1, metadata_3]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -221,14 +224,33 @@ Calc(select=[b, CAST(other_metadata AS INTEGER) AS other_metadata])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(timestamp=[$0], metadata_timestamp=[$2], other=[$1], computed_other=[UPPER($1)], computed_timestamp=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
-+- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
+LogicalProject(timestamp=[$0], metadata_timestamp=[$1], other=[$2], computed_other=[$3], computed_timestamp=[$4])
++- LogicalProject(timestamp=[$0], metadata_timestamp=[$2], other=[$1], computed_other=[UPPER($1)], computed_timestamp=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, metadata=[other, timestamp]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[timestamp, metadata_timestamp, other, UPPER(other) AS computed_other, CAST(metadata_timestamp AS VARCHAR(2147483647)) AS computed_timestamp])
-+- TableSourceScan(table=[[default_catalog, default_database, MetadataTable]], fields=[timestamp, other, metadata_timestamp])
++- TableSourceScan(table=[[default_catalog, default_database, MetadataTable, metadata=[other, timestamp]]], fields=[timestamp, other, metadata_timestamp])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDDLWithRowTypeComputedColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[ROW($0, $1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, ROW(a, b) AS c])
++- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -655,7 +677,7 @@ LogicalProject(id=[$0], ts=[$4])
 Calc(select=[id, Reinterpret(TO_TIMESTAMP(c)) AS ts], changelogMode=[I,UA,D])
 +- ChangelogNormalize(key=[id], changelogMode=[I,UA,D])
    +- Exchange(distribution=[hash[id]], changelogMode=[UA,D])
-      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id, c], metadata=[], watermark=[-(TO_TIMESTAMP(c), 1000:INTERVAL SECOND)]]], fields=[id, c], changelogMode=[UA,D])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id, c], metadata=[], watermark=[-(TO_TIMESTAMP(c), 1000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[id, c], changelogMode=[UA,D])
 ]]>
     </Resource>
   </TestCase>
@@ -671,8 +693,9 @@ GROUP BY TUMBLE(ts, INTERVAL '10' SECOND)
       <![CDATA[
 LogicalProject(EXPR$0=[TUMBLE_START($0)], EXPR$1=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
-   +- LogicalProject($f0=[$TUMBLE(PROCTIME(), 10000:INTERVAL SECOND)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+   +- LogicalProject($f0=[$TUMBLE($0, 10000:INTERVAL SECOND)])
+      +- LogicalProject(ts=[PROCTIME()], a=[$0], b=[$1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -703,5 +726,47 @@ Calc(select=[ts, a, b], where=[>(a, 1)], changelogMode=[I,UB,UA,D])
    +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[ts, a, b], changelogMode=[I,UB,UA,D])
 ]]>
     </Resource>
+  </TestCase>
+
+  <TestCase name="testSetParallelismForSource">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM src LEFT JOIN changelog_src on src.id = changelog_src.id WHERE src.c > 1]]>
+    </Resource>
+	<Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], b=[$1], c=[$2], id0=[$3], a=[$4])
++- LogicalFilter(condition=[>($2, 1)])
+   +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, src]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, changelog_src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Join(joinType=[LeftOuterJoin], where=[(id = id0)], select=[id, b, c, id0, a], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+:- Exchange(distribution=[hash[id]])
+:  +- Calc(select=[id, b, c], where=[(c > 1)])
+:     +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[id, b, c])
++- Exchange(distribution=[hash[id]])
+   +- ChangelogNormalize(key=[id])
+      +- Exchange(distribution=[hash[id]])
+         +- TableSourceScan(table=[[default_catalog, default_database, changelog_src]], fields=[id, a])
+]]>
+	</Resource>
+	<Resource name="transformation">
+      <![CDATA[
+TwoInputTransformation{name='Join(joinType=[LeftOuterJoin], where=[(id = id0)], select=[id, b, c, id0, a], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])', outputType=ROW<`id` INT, `b` STRING, `c` INT, `id0` INT, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
+	+- PartitionTransformation{name='Exchange(distribution=[hash[id]])', outputType=ROW<`id` INT, `b` STRING, `c` INT>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
+		+- OneInputTransformation{name='Calc(select=[id, b, c], where=[(c > 1)])', outputType=ROW<`id` INT, `b` STRING, `c` INT>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
+			+- SourceTransformationWrapper{name='ChangeToDefaultParallel', outputType=ROW<`id` INT, `b` STRING, `c` INT>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
+				+- LegacySourceTransformation{name='TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[id, b, c])', outputType=ROW<`id` INT, `b` STRING, `c` INT>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=3}
+	+- PartitionTransformation{name='Exchange(distribution=[hash[id]])', outputType=ROW<`id` INT NOT NULL, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
+		+- OneInputTransformation{name='ChangelogNormalize(key=[id])', outputType=ROW<`id` INT NOT NULL, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
+			+- PartitionTransformation{name='Exchange(distribution=[hash[id]])', outputType=ROW<`id` INT NOT NULL, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
+				+- PartitionTransformation{name='Partitioner', outputType=ROW<`id` INT NOT NULL, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
+					+- SourceTransformationWrapper{name='ChangeToDefaultParallel', outputType=ROW<`id` INT NOT NULL, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
+						+- LegacySourceTransformation{name='TableSourceScan(table=[[default_catalog, default_database, changelog_src]], fields=[id, a])', outputType=ROW<`id` INT NOT NULL, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=5}
+]]>
+	</Resource>
   </TestCase>
 </Root>

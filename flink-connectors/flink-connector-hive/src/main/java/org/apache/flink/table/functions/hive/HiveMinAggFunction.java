@@ -25,10 +25,10 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.isNull;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.lessThan;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullOf;
+import static org.apache.flink.table.planner.delegation.hive.expressions.ExpressionBuilder.ifThenElse;
+import static org.apache.flink.table.planner.delegation.hive.expressions.ExpressionBuilder.isNull;
+import static org.apache.flink.table.planner.delegation.hive.expressions.ExpressionBuilder.lessThan;
+import static org.apache.flink.table.planner.delegation.hive.expressions.ExpressionBuilder.nullOf;
 
 /** built-in hive min aggregate function. */
 public class HiveMinAggFunction extends HiveDeclarativeAggregateFunction {

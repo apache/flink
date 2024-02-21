@@ -46,6 +46,8 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
+import static org.apache.flink.runtime.hadoop.HadoopUserUtils.getIssueDate;
+
 /** Delegation token provider for Hadoop filesystems. */
 @Internal
 public class HadoopFSDelegationTokenProvider implements DelegationTokenProvider {
@@ -170,7 +172,7 @@ public class HadoopFSDelegationTokenProvider implements DelegationTokenProvider 
                         });
 
         // YARN staging dir
-        if (flinkConfiguration.getString(DeploymentOptions.TARGET).toLowerCase().contains("yarn")) {
+        if (flinkConfiguration.get(DeploymentOptions.TARGET, "").toLowerCase().contains("yarn")) {
             LOG.debug("Running on YARN, trying to add staging directory to file systems to access");
             String yarnStagingDirectory =
                     flinkConfiguration.getString("yarn.staging-directory", "");
@@ -296,34 +298,5 @@ public class HadoopFSDelegationTokenProvider implements DelegationTokenProvider 
         LOG.debug("Global renewal date is {}", result);
 
         return result;
-    }
-
-    @VisibleForTesting
-    long getIssueDate(Clock clock, String tokenKind, AbstractDelegationTokenIdentifier identifier) {
-        long now = clock.millis();
-        long issueDate = identifier.getIssueDate();
-
-        if (issueDate > now) {
-            LOG.warn(
-                    "Token {} has set up issue date later than current time. (provided: "
-                            + "{} / current timestamp: {}) Please make sure clocks are in sync between "
-                            + "machines. If the issue is not a clock mismatch, consult token implementor to check "
-                            + "whether issue date is valid.",
-                    tokenKind,
-                    issueDate,
-                    now);
-            return issueDate;
-        } else if (issueDate > 0) {
-            return issueDate;
-        } else {
-            LOG.warn(
-                    "Token {} has not set up issue date properly. (provided: {}) "
-                            + "Using current timestamp ({}) as issue date instead. Consult token implementor to fix "
-                            + "the behavior.",
-                    tokenKind,
-                    issueDate,
-                    now);
-            return now;
-        }
     }
 }

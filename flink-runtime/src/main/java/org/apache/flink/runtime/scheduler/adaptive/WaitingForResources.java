@@ -21,7 +21,6 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.clock.Clock;
@@ -37,11 +36,9 @@ import java.util.concurrent.ScheduledFuture;
 /**
  * State which describes that the scheduler is waiting for resources in order to execute the job.
  */
-class WaitingForResources implements State, ResourceListener {
+class WaitingForResources extends StateWithoutExecutionGraph implements ResourceListener {
 
     private final Context context;
-
-    private final Logger log;
 
     private final Clock clock;
 
@@ -76,8 +73,8 @@ class WaitingForResources implements State, ResourceListener {
             Duration resourceStabilizationTimeout,
             Clock clock,
             @Nullable ExecutionGraph previousExecutionGraph) {
+        super(context, log);
         this.context = Preconditions.checkNotNull(context);
-        this.log = Preconditions.checkNotNull(log);
         this.resourceStabilizationTimeout =
                 Preconditions.checkNotNull(resourceStabilizationTimeout);
         this.clock = clock;
@@ -105,33 +102,8 @@ class WaitingForResources implements State, ResourceListener {
     }
 
     @Override
-    public void cancel() {
-        context.goToFinished(context.getArchivedExecutionGraph(JobStatus.CANCELED, null));
-    }
-
-    @Override
-    public void suspend(Throwable cause) {
-        context.goToFinished(context.getArchivedExecutionGraph(JobStatus.SUSPENDED, cause));
-    }
-
-    @Override
     public JobStatus getJobStatus() {
         return JobStatus.CREATED;
-    }
-
-    @Override
-    public ArchivedExecutionGraph getJob() {
-        return context.getArchivedExecutionGraph(getJobStatus(), null);
-    }
-
-    @Override
-    public void handleGlobalFailure(Throwable cause) {
-        context.goToFinished(context.getArchivedExecutionGraph(JobStatus.FAILED, cause));
-    }
-
-    @Override
-    public Logger getLogger() {
-        return log;
     }
 
     @Override
@@ -171,8 +143,9 @@ class WaitingForResources implements State, ResourceListener {
     }
 
     private void resourceTimeout() {
-        log.debug(
-                "Initial resource allocation timeout triggered: Creating ExecutionGraph with available resources.");
+        getLogger()
+                .debug(
+                        "Initial resource allocation timeout triggered: Creating ExecutionGraph with available resources.");
         createExecutionGraphWithAvailableResources();
     }
 
@@ -182,18 +155,7 @@ class WaitingForResources implements State, ResourceListener {
 
     /** Context of the {@link WaitingForResources} state. */
     interface Context
-            extends StateTransitions.ToCreatingExecutionGraph, StateTransitions.ToFinished {
-
-        /**
-         * Creates the {@link ArchivedExecutionGraph} for the given job status and cause. Cause can
-         * be null if there is no failure.
-         *
-         * @param jobStatus jobStatus to initialize the {@link ArchivedExecutionGraph} with
-         * @param cause cause describing a failure cause; {@code null} if there is none
-         * @return the created {@link ArchivedExecutionGraph}
-         */
-        ArchivedExecutionGraph getArchivedExecutionGraph(
-                JobStatus jobStatus, @Nullable Throwable cause);
+            extends StateWithoutExecutionGraph.Context, StateTransitions.ToCreatingExecutionGraph {
 
         /**
          * Checks whether we have the desired resources.
@@ -234,7 +196,7 @@ class WaitingForResources implements State, ResourceListener {
                 Logger log,
                 Duration initialResourceAllocationTimeout,
                 Duration resourceStabilizationTimeout,
-                ExecutionGraph previousExecutionGraph) {
+                @Nullable ExecutionGraph previousExecutionGraph) {
             this.context = context;
             this.log = log;
             this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
@@ -255,10 +217,5 @@ class WaitingForResources implements State, ResourceListener {
                     SystemClock.getInstance(),
                     previousExecutionGraph);
         }
-    }
-
-    @Nullable
-    public ExecutionGraph getPreviousExecutionGraph() {
-        return previousExecutionGraph;
     }
 }

@@ -428,3 +428,9 @@ The data source API supports running watermark generators individually *per spli
 When implementing a source connector using the *Split Reader API*, this is automatically handled. All implementations based on the Split Reader API have split-aware watermarks out-of-the-box.
 
 For an implementation of the lower level `SourceReader` API to use split-aware watermark generation, the implementation must output events from different splits to different outputs: the *Split-local SourceOutputs*. Split-local outputs can be created and released on the main {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/ReaderOutput.java" name="ReaderOutput" >}} via the `createOutputForSplit(splitId)` and `releaseOutputForSplit(splitId)` methods. Please refer to the JavaDocs of the class and methods for details.
+
+#### Split Level Watermark Alignment
+
+Although source operator watermark alignment is handled by Flink runtime, the source needs to additionally implement `SourceReader#pauseOrResumeSplits` and `SplitReader#pauseOrResumeSplits` to achieve split level watermark alignment. Split level watermark alignment is useful for when 
+there are multiple splits assigned to a source reader. By default, these implementations will throw an `UnsupportedOperationException`, `pipeline.watermark-alignment.allow-unaligned-source-splits` is set to false, when there is more than one split assigned, and the split exceeds the watermark alignment threshold configured by the `WatermarkStrategy`. `SourceReaderBase`
+contains an implementation for `SourceReader#pauseOrResumeSplits` so that inheriting sources only need to implement `SplitReader#pauseOrResumeSplits`. See the javadocs for more implementation hints.

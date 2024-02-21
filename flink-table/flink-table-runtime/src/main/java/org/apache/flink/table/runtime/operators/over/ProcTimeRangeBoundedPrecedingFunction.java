@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -25,7 +26,6 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.table.data.RowData;
@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Process Function used for the aggregate in bounded proc-time OVER window.
@@ -84,7 +85,7 @@ public class ProcTimeRangeBoundedPrecedingFunction<K>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         function = genAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());
         function.open(new PerKeyStateDataViewStore(getRuntimeContext()));
 
@@ -197,13 +198,14 @@ public class ProcTimeRangeBoundedPrecedingFunction<K>
         // when we find timestamps that are out of interest, we retrieve corresponding elements
         // and eliminate them. Multiple elements could have been received at the same timestamp
         // the removal of old elements happens only once per proctime as onTimer is called only once
-        Iterator<Long> iter = inputState.keys().iterator();
+        Iterator<Map.Entry<Long, List<RowData>>> iter = inputState.entries().iterator();
         List<Long> markToRemove = new ArrayList<Long>();
         while (iter.hasNext()) {
-            Long elementKey = iter.next();
+            Map.Entry<Long, List<RowData>> element = iter.next();
+            Long elementKey = element.getKey();
             if (elementKey < limit) {
                 // element key outside of window. Retract values
-                List<RowData> elementsRemove = inputState.get(elementKey);
+                List<RowData> elementsRemove = element.getValue();
                 if (elementsRemove != null) {
                     int iRemove = 0;
                     while (iRemove < elementsRemove.size()) {

@@ -83,6 +83,7 @@ public class ParameterizedTestExtension implements TestTemplateInvocationContext
         // Get parameter values
         final Object parameterValues;
         try {
+            parameterProvider.setAccessible(true);
             parameterValues = parameterProvider.invoke(null);
             context.getStore(NAMESPACE).put(PARAMETERS_STORE_KEY, parameterValues);
         } catch (Exception e) {
@@ -155,6 +156,7 @@ public class ParameterizedTestExtension implements TestTemplateInvocationContext
             @Override
             public void beforeEach(ExtensionContext context) throws Exception {
                 for (int i = 0; i < parameterValues.length; i++) {
+                    getParameterField(i, context).setAccessible(true);
                     getParameterField(i, context)
                             .set(context.getRequiredTestInstance(), parameterValues[i]);
                 }

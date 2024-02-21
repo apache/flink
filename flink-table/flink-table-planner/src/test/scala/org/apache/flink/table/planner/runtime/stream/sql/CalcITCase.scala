@@ -21,6 +21,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.Types
+import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api.{TableDescriptor, _}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
@@ -34,13 +35,14 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.runtime.typeutils.MapDataSerializerTest.CustomMapData
 import org.apache.flink.table.types.logical.{BigIntType, BooleanType, IntType, VarCharType}
-import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
 
-import org.junit._
-import org.junit.Assert._
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.RegisterExtension
 
 import java.time.Instant
 import java.util
@@ -49,8 +51,8 @@ import scala.collection.JavaConversions._
 
 class CalcITCase extends StreamingTestBase {
 
-  @Rule
-  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
   @Test
   def testSelectWithLegacyCastIntToDate(): Unit = {
@@ -59,13 +61,13 @@ class CalcITCase extends StreamingTestBase {
 
     val result = tEnv
       .sqlQuery("SELECT CASE WHEN true THEN CAST(2 AS INT) ELSE CAST('2017-12-11' AS DATE) END")
-      .toAppendStream[Row]
+      .toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
     val expected = List("1970-01-03")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -99,16 +101,16 @@ class CalcITCase extends StreamingTestBase {
 
     val outputType = InternalTypeInfo.ofFields(new IntType(), new BooleanType())
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[RowData]
+    val result = tEnv.sqlQuery(sqlQuery)
     val sink = new TestingAppendRowDataSink(outputType)
-    result.addSink(sink)
+    tEnv.toDataStream(result, outputType.getDataType).addSink(sink)
     env.execute()
 
     val expected = List(
       "+I(1,true)",
       "+I(2,false)"
     )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -134,13 +136,13 @@ class CalcITCase extends StreamingTestBase {
 
     val outputType = InternalTypeInfo.ofFields(new IntType(), new IntType(), new BigIntType())
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[RowData]
+    val result = tEnv.sqlQuery(sqlQuery)
     val sink = new TestingAppendRowDataSink(outputType)
-    result.addSink(sink)
+    tEnv.toDataStream(result, outputType.getDataType).addSink(sink)
     env.execute()
 
     val expected = List("+I(1,1,1)")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -162,13 +164,13 @@ class CalcITCase extends StreamingTestBase {
     val outputType =
       InternalTypeInfo.ofFields(VarCharType.STRING_TYPE, VarCharType.STRING_TYPE, new IntType())
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[RowData]
+    val result = tEnv.sqlQuery(sqlQuery)
     val sink = new TestingAppendRowDataSink(outputType)
-    result.addSink(sink)
+    tEnv.toDataStream(result, outputType.getDataType).addSink(sink)
     env.execute()
 
     val expected = List("+I(Hello,Worlds,1)", "+I(Hello again,Worlds,2)")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -192,13 +194,13 @@ class CalcITCase extends StreamingTestBase {
     val t = ds.toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTableRow", t)
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
     val expected = List("1,1,1")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -217,13 +219,13 @@ class CalcITCase extends StreamingTestBase {
     val t = ds.toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTableRow", t)
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
     val expected = List("Hello,Worlds,1", "Hello again,Worlds,2")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -235,13 +237,13 @@ class CalcITCase extends StreamingTestBase {
       .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTableRow", t)
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
     val expected = List("{1=30, 10=1}", "{2=30, 10=2}", "{2=30, 10=3}")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -253,13 +255,13 @@ class CalcITCase extends StreamingTestBase {
       .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTableRow", t)
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
     val expected = List("{1=Hi}", "{2=Hello}", "{3=Hello world}")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -283,7 +285,7 @@ class CalcITCase extends StreamingTestBase {
     table.executeInsert("MySink").await()
 
     val expected = List("0,0,0", "1,1,1", "2,2,2")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -295,7 +297,7 @@ class CalcITCase extends StreamingTestBase {
       .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTable", t)
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -321,7 +323,7 @@ class CalcITCase extends StreamingTestBase {
       "20,6,Comment#14",
       "21,6,Comment#15"
     )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -333,13 +335,13 @@ class CalcITCase extends StreamingTestBase {
       .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTable", t)
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
     val expected = List("2,2,Hello", "3,2,Hello world")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -356,14 +358,39 @@ class CalcITCase extends StreamingTestBase {
       .mkString(",")
     val sqlQuery = s"select $selectList from MyTable"
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
     val expected = Stream.range(3, 200).map(_.toString).mkString(",")
-    assertEquals(sink.getAppendResults.size, TestData.smallTupleData3.size)
-    sink.getAppendResults.foreach(result => assertEquals(expected, result))
+    assertThat(TestData.smallTupleData3.size).isEqualTo(sink.getAppendResults.size)
+    sink.getAppendResults.foreach(result => assertThat(result).isEqualTo(expected))
+  }
+
+  @Test
+  def testIfFunction(): Unit = {
+    val testDataId = TestValuesTableFactory.registerData(TestData.data1)
+    val ddl =
+      s"""
+         |CREATE TABLE t (
+         |  a int,
+         |  b varchar,
+         |  c int
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$testDataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+    tEnv.executeSql(ddl)
+    val expected = List("false,1", "false,2", "false,3", "true,4", "true,5", "true,6")
+    val actual = tEnv
+      .executeSql("SELECT IF(a > 3, 'true', 'false'), a from t")
+      .collect()
+      .map(r => r.toString)
+      .toList
+    assertThat(actual.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -404,7 +431,7 @@ class CalcITCase extends StreamingTestBase {
 
     val expected = List("1,{1=2}", "2,{4=5}")
     val actual = CollectionUtil.iteratorToList(result.collect()).map(r => r.toString)
-    assertEquals(expected.sorted, actual.sorted)
+    assertThat(actual.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -424,13 +451,13 @@ class CalcITCase extends StreamingTestBase {
        """.stripMargin
     tEnv.executeSql(ddl)
 
-    val result = tEnv.sqlQuery("select a, c from SimpleTable").toAppendStream[Row]
+    val result = tEnv.sqlQuery("select a, c from SimpleTable").toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
     val expected = List("1,Hi", "2,Hello", "3,Hello world")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -467,40 +494,40 @@ class CalcITCase extends StreamingTestBase {
         |    deepNested.nested2.num AS nestedNum
         |from NestedTable
         |""".stripMargin
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
     val expected =
       List("1,HI,1111,true,111", "2,HELLO,2222,false,222", "3,HELLO WORLD,3333,true,333")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
   def testDecimalArrayWithDifferentPrecision(): Unit = {
     val sqlQuery = "SELECT ARRAY[0.12, 0.5, 0.99]"
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
     val expected = List("[0.12, 0.50, 0.99]")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
   def testDecimalMapWithDifferentPrecision(): Unit = {
     val sqlQuery = "SELECT Map['a', 0.12, 'b', 0.5]"
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
     val expected = List("{a=0.12, b=0.50}")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -603,16 +630,31 @@ class CalcITCase extends StreamingTestBase {
                        |)
        """.stripMargin)
 
-    try {
-      tEnv.sqlQuery("SELECT CURRENT_WATERMARK(ts) FROM T")
-      fail("CURRENT_WATERMARK for a non-rowtime attribute should have failed.");
-    } catch {
-      case e: Exception =>
-        assertEquals(
-          "SQL validation failed. Invalid function call:\n" +
-            "CURRENT_WATERMARK(TIMESTAMP_LTZ(3))",
-          e.getMessage)
-    }
+    assertThatThrownBy(() => tEnv.sqlQuery("SELECT CURRENT_WATERMARK(ts) FROM T"))
+      .hasMessage(
+        "SQL validation failed. Invalid function call:\n" +
+          "CURRENT_WATERMARK(TIMESTAMP_LTZ(3))")
+  }
+
+  @Test
+  def testCurrentWatermarkWithoutAnyAttribute(): Unit = {
+    val tableId = TestValuesTableFactory.registerData(Seq())
+    tEnv.executeSql(s"""
+                       |CREATE TABLE T (
+                       |  ts TIMESTAMP_LTZ(3)
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$tableId',
+                       |  'bounded' = 'true'
+                       |)
+       """.stripMargin)
+
+    assertThatThrownBy(() => tEnv.sqlQuery("SELECT ts, CURRENT_WATERMARK() FROM T"))
+      .hasMessage(
+        "SQL validation failed. From line 1, column 12 to line 1, column 30: No match found for function signature CURRENT_WATERMARK().\n" +
+          "Supported signatures are:\n" +
+          "CURRENT_WATERMARK(<TIMESTAMP_WITHOUT_TIME_ZONE *ROWTIME*>)\n" +
+          "CURRENT_WATERMARK(<TIMESTAMP_WITH_LOCAL_TIME_ZONE *ROWTIME*>)")
   }
 
   @Test
@@ -659,13 +701,13 @@ class CalcITCase extends StreamingTestBase {
         |'DH-9908N'
         |)
         |""".stripMargin
-    val result = tEnv.sqlQuery(sql).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sql).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
     val expected =
       List("HC809", "H389N     ")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -699,7 +741,7 @@ class CalcITCase extends StreamingTestBase {
   @Test
   def testCurrentDatabase(): Unit = {
     val result1 = tEnv.sqlQuery("SELECT CURRENT_DATABASE()").execute().collect().toList
-    assertEquals(Seq(row(tEnv.getCurrentDatabase)), result1)
+    assertThat(result1).isEqualTo(Seq(row(tEnv.getCurrentDatabase)))
 
     // switch to another database
     tEnv
@@ -711,7 +753,7 @@ class CalcITCase extends StreamingTestBase {
         false)
     tEnv.useDatabase("db1")
     val result2 = tEnv.sqlQuery("SELECT CURRENT_DATABASE()").execute().collect().toList
-    assertEquals(Seq(row(tEnv.getCurrentDatabase)), result2)
+    assertThat(result2).isEqualTo(Seq(row(tEnv.getCurrentDatabase)))
   }
 
   @Test
@@ -736,12 +778,36 @@ class CalcITCase extends StreamingTestBase {
       .sqlQuery("""
                   | SELECT * FROM MyTable WHERE b LIKE '%"%'
                   |""".stripMargin)
-      .toAppendStream[Row]
+      .toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
     val expected = List("2,cbc\"ddd")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @Test
+  def testNonMergeableRandCall(): Unit = {
+    val t = env
+      .fromCollection(TestData.smallTupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    tEnv.createTemporaryView("SimpleTable", t)
+
+    val result = tEnv
+      .sqlQuery(s"""
+                   |SELECT b - a FROM (
+                   |  SELECT r + 5 AS a, r + 7 AS b FROM (
+                   |    SELECT RAND() AS r FROM SimpleTable
+                   |  ) t1
+                   |) t2
+                   |""".stripMargin)
+
+    val sink = new TestingAppendSink
+    tEnv.toDataStream(result, DataTypes.ROW(DataTypes.DOUBLE())).addSink(sink)
+    env.execute()
+
+    val expected = List("2.0", "2.0", "2.0")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 }

@@ -18,13 +18,16 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.StringValue;
+import org.apache.flink.util.CollectionUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,14 +70,29 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
     /** The log object used for debugging. */
     private static final Logger LOG = LoggerFactory.getLogger(Configuration.class);
 
-    /** Stores the concrete key/value pairs of this configuration object. */
+    /**
+     * Stores the concrete key/value pairs of this configuration object.
+     *
+     * <p>NOTE: This map stores the values that are actually used, and does not include any escaping
+     * that is required by the standard YAML syntax.
+     */
     protected final HashMap<String, Object> confData;
+
+    protected final boolean standardYaml;
 
     // --------------------------------------------------------------------------------------------
 
     /** Creates a new empty configuration. */
     public Configuration() {
         this.confData = new HashMap<>();
+        this.standardYaml = GlobalConfiguration.isStandardYaml();
+    }
+
+    @VisibleForTesting
+    @Internal
+    public Configuration(boolean standardYaml) {
+        this.confData = new HashMap<>();
+        this.standardYaml = standardYaml;
     }
 
     /**
@@ -84,6 +102,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      */
     public Configuration(Configuration other) {
         this.confData = new HashMap<>(other.confData);
+        this.standardYaml = other.standardYaml;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -107,6 +126,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      * @return The value associated with the given key, or the default value, if to entry for the
      *     key exists.
      */
+    @Deprecated
     @SuppressWarnings("unchecked")
     public <T> Class<T> getClass(
             String key, Class<? extends T> defaultValue, ClassLoader classLoader)
@@ -135,23 +155,27 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      * @param klazz The value of the pair to be added
      * @see #getClass(String, Class, ClassLoader)
      */
+    @Deprecated
     public void setClass(String key, Class<?> klazz) {
         setValueInternal(key, klazz.getName());
     }
 
     /**
-     * Returns the value associated with the given key as a string.
+     * Returns the value associated with the given key as a string. We encourage users and
+     * developers to always use ConfigOption for getting the configurations if possible, for its
+     * rich description, type, default-value and other supports. The string-key-based getter should
+     * only be used when ConfigOption is not applicable, e.g., the key is programmatically generated
+     * in runtime.
      *
      * @param key the key pointing to the associated value
      * @param defaultValue the default value which is returned in case there is no value associated
      *     with the given key
      * @return the (default) value associated with the given key
-     * @deprecated use {@link #getString(ConfigOption, String)} or {@link
-     *     #getOptional(ConfigOption)}
      */
-    @Deprecated
     public String getString(String key, String defaultValue) {
-        return getRawValue(key).map(ConfigurationUtils::convertToString).orElse(defaultValue);
+        return getRawValue(key)
+                .map(o -> ConfigurationUtils.convertToString(o, standardYaml))
+                .orElse(defaultValue);
     }
 
     /**
@@ -159,7 +183,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      *
      * @param configOption The configuration option
      * @return the (default) value associated with the given config option
+     * @deprecated use {@link #get(ConfigOption)} or {@link #getOptional(ConfigOption)}
      */
+    @Deprecated
     @PublicEvolving
     public String getString(ConfigOption<String> configOption) {
         return getOptional(configOption).orElseGet(configOption::defaultValue);
@@ -172,14 +198,20 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      *
      * @param configOption The configuration option
      * @return the (default) value associated with the given config option
+     * @deprecated use {@link #get(ConfigOption, Object)}
      */
+    @Deprecated
     @PublicEvolving
     public String getString(ConfigOption<String> configOption, String overrideDefault) {
         return getOptional(configOption).orElse(overrideDefault);
     }
 
     /**
-     * Adds the given key/value pair to the configuration object.
+     * Adds the given key/value pair to the configuration object. We encourage users and developers
+     * to always use ConfigOption for setting the configurations if possible, for its rich
+     * description, type, default-value and other supports. The string-key-based setter should only
+     * be used when ConfigOption is not applicable, e.g., the key is programmatically generated in
+     * runtime.
      *
      * @param key the key of the key/value pair to be added
      * @param value the value of the key/value pair to be added
@@ -194,7 +226,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      *
      * @param key the option specifying the key to be added
      * @param value the value of the key/value pair to be added
+     * @deprecated use {@link #set(ConfigOption, Object)}
      */
+    @Deprecated
     @PublicEvolving
     public void setString(ConfigOption<String> key, String value) {
         setValueInternal(key.key(), value);
@@ -207,7 +241,8 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      * @param defaultValue the default value which is returned in case there is no value associated
      *     with the given key
      * @return the (default) value associated with the given key
-     * @deprecated use {@link #getInteger(ConfigOption, int)} or {@link #getOptional(ConfigOption)}
+     * @deprecated use {@link #get(ConfigOption)}, {@link #get(ConfigOption, Object)} or {@link
+     *     #getOptional(ConfigOption)}
      */
     @Deprecated
     public int getInteger(String key, int defaultValue) {
@@ -219,7 +254,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      *
      * @param configOption The configuration option
      * @return the (default) value associated with the given config option
+     * @deprecated use {@link #get(ConfigOption)} or {@link #getOptional(ConfigOption)}
      */
+    @Deprecated
     @PublicEvolving
     public int getInteger(ConfigOption<Integer> configOption) {
         return getOptional(configOption).orElseGet(configOption::defaultValue);
@@ -233,7 +270,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      * @param configOption The configuration option
      * @param overrideDefault The value to return if no value was mapper for any key of the option
      * @return the configured value associated with the given config option, or the overrideDefault
+     * @deprecated use {@link #get(ConfigOption, Object)}
      */
+    @Deprecated
     @PublicEvolving
     public int getInteger(ConfigOption<Integer> configOption, int overrideDefault) {
         return getOptional(configOption).orElse(overrideDefault);
@@ -244,7 +283,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      *
      * @param key the key of the key/value pair to be added
      * @param value the value of the key/value pair to be added
+     * @deprecated use {@link #set(ConfigOption, Object)}
      */
+    @Deprecated
     public void setInteger(String key, int value) {
         setValueInternal(key, value);
     }
@@ -255,7 +296,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      *
      * @param key the option specifying the key to be added
      * @param value the value of the key/value pair to be added
+     * @deprecated use {@link #set(ConfigOption, Object)}
      */
+    @Deprecated
     @PublicEvolving
     public void setInteger(ConfigOption<Integer> key, int value) {
         setValueInternal(key.key(), value);
@@ -268,7 +311,8 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      * @param defaultValue the default value which is returned in case there is no value associated
      *     with the given key
      * @return the (default) value associated with the given key
-     * @deprecated use {@link #getLong(ConfigOption, long)} or {@link #getOptional(ConfigOption)}
+     * @deprecated use {@link #get(ConfigOption)}, {@link #get(ConfigOption, Object)} or {@link
+     *     #getOptional(ConfigOption)}
      */
     @Deprecated
     public long getLong(String key, long defaultValue) {
@@ -280,7 +324,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      *
      * @param configOption The configuration option
      * @return the (default) value associated with the given config option
+     * @deprecated use {@link #get(ConfigOption)} or {@link #getOptional(ConfigOption)}
      */
+    @Deprecated
     @PublicEvolving
     public long getLong(ConfigOption<Long> configOption) {
         return getOptional(configOption).orElseGet(configOption::defaultValue);
@@ -294,7 +340,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      * @param configOption The configuration option
      * @param overrideDefault The value to return if no value was mapper for any key of the option
      * @return the configured value associated with the given config option, or the overrideDefault
+     * @deprecated use {@link #get(ConfigOption, Object)}
      */
+    @Deprecated
     @PublicEvolving
     public long getLong(ConfigOption<Long> configOption, long overrideDefault) {
         return getOptional(configOption).orElse(overrideDefault);
@@ -305,7 +353,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      *
      * @param key the key of the key/value pair to be added
      * @param value the value of the key/value pair to be added
+     * @deprecated use {@link #set(ConfigOption, Object)}
      */
+    @Deprecated
     public void setLong(String key, long value) {
         setValueInternal(key, value);
     }
@@ -316,7 +366,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      *
      * @param key the option specifying the key to be added
      * @param value the value of the key/value pair to be added
+     * @deprecated use {@link #set(ConfigOption, Object)}
      */
+    @Deprecated
     @PublicEvolving
     public void setLong(ConfigOption<Long> key, long value) {
         setValueInternal(key.key(), value);
@@ -329,7 +381,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      * @param defaultValue the default value which is returned in case there is no value associated
      *     with the given key
      * @return the (default) value associated with the given key
-     * @deprecated use {@link #getBoolean(ConfigOption, boolean)} or {@link
+     * @deprecated use {@link #get(ConfigOption)}, {@link #get(ConfigOption, Object)} or {@link
      *     #getOptional(ConfigOption)}
      */
     @Deprecated
@@ -342,7 +394,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      *
      * @param configOption The configuration option
      * @return the (default) value associated with the given config option
+     * @deprecated use {@link #get(ConfigOption)} or {@link #getOptional(ConfigOption)}
      */
+    @Deprecated
     @PublicEvolving
     public boolean getBoolean(ConfigOption<Boolean> configOption) {
         return getOptional(configOption).orElseGet(configOption::defaultValue);
@@ -356,7 +410,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      * @param configOption The configuration option
      * @param overrideDefault The value to return if no value was mapper for any key of the option
      * @return the configured value associated with the given config option, or the overrideDefault
+     * @deprecated use {@link #get(ConfigOption, Object)}
      */
+    @Deprecated
     @PublicEvolving
     public boolean getBoolean(ConfigOption<Boolean> configOption, boolean overrideDefault) {
         return getOptional(configOption).orElse(overrideDefault);
@@ -367,7 +423,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      *
      * @param key the key of the key/value pair to be added
      * @param value the value of the key/value pair to be added
+     * @deprecated use {@link #set(ConfigOption, Object)}
      */
+    @Deprecated
     public void setBoolean(String key, boolean value) {
         setValueInternal(key, value);
     }
@@ -378,7 +436,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      *
      * @param key the option specifying the key to be added
      * @param value the value of the key/value pair to be added
+     * @deprecated use {@link #set(ConfigOption, Object)}
      */
+    @Deprecated
     @PublicEvolving
     public void setBoolean(ConfigOption<Boolean> key, boolean value) {
         setValueInternal(key.key(), value);
@@ -391,7 +451,8 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      * @param defaultValue the default value which is returned in case there is no value associated
      *     with the given key
      * @return the (default) value associated with the given key
-     * @deprecated use {@link #getFloat(ConfigOption, float)} or {@link #getOptional(ConfigOption)}
+     * @deprecated use {@link #get(ConfigOption)}, {@link #get(ConfigOption, Object)} or {@link
+     *     #getOptional(ConfigOption)}
      */
     @Deprecated
     public float getFloat(String key, float defaultValue) {
@@ -403,7 +464,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      *
      * @param configOption The configuration option
      * @return the (default) value associated with the given config option
+     * @deprecated use {@link #get(ConfigOption)} or {@link #getOptional(ConfigOption)}
      */
+    @Deprecated
     @PublicEvolving
     public float getFloat(ConfigOption<Float> configOption) {
         return getOptional(configOption).orElseGet(configOption::defaultValue);
@@ -417,7 +480,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      * @param configOption The configuration option
      * @param overrideDefault The value to return if no value was mapper for any key of the option
      * @return the configured value associated with the given config option, or the overrideDefault
+     * @deprecated use {@link #get(ConfigOption, Object)}
      */
+    @Deprecated
     @PublicEvolving
     public float getFloat(ConfigOption<Float> configOption, float overrideDefault) {
         return getOptional(configOption).orElse(overrideDefault);
@@ -428,7 +493,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      *
      * @param key the key of the key/value pair to be added
      * @param value the value of the key/value pair to be added
+     * @deprecated use {@link #set(ConfigOption, Object)}
      */
+    @Deprecated
     public void setFloat(String key, float value) {
         setValueInternal(key, value);
     }
@@ -439,7 +506,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      *
      * @param key the option specifying the key to be added
      * @param value the value of the key/value pair to be added
+     * @deprecated use {@link #set(ConfigOption, Object)}
      */
+    @Deprecated
     @PublicEvolving
     public void setFloat(ConfigOption<Float> key, float value) {
         setValueInternal(key.key(), value);
@@ -452,7 +521,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      * @param defaultValue the default value which is returned in case there is no value associated
      *     with the given key
      * @return the (default) value associated with the given key
-     * @deprecated use {@link #getDouble(ConfigOption, double)} or {@link
+     * @deprecated use {@link #get(ConfigOption)}, {@link #get(ConfigOption, Object)} or {@link
      *     #getOptional(ConfigOption)}
      */
     @Deprecated
@@ -465,7 +534,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      *
      * @param configOption The configuration option
      * @return the (default) value associated with the given config option
+     * @deprecated use {@link #get(ConfigOption)} or {@link #getOptional(ConfigOption)}
      */
+    @Deprecated
     @PublicEvolving
     public double getDouble(ConfigOption<Double> configOption) {
         return getOptional(configOption).orElseGet(configOption::defaultValue);
@@ -479,7 +550,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      * @param configOption The configuration option
      * @param overrideDefault The value to return if no value was mapper for any key of the option
      * @return the configured value associated with the given config option, or the overrideDefault
+     * @deprecated use {@link #get(ConfigOption, Object)}
      */
+    @Deprecated
     @PublicEvolving
     public double getDouble(ConfigOption<Double> configOption, double overrideDefault) {
         return getOptional(configOption).orElse(overrideDefault);
@@ -490,7 +563,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      *
      * @param key the key of the key/value pair to be added
      * @param value the value of the key/value pair to be added
+     * @deprecated use {@link #set(ConfigOption, Object)}
      */
+    @Deprecated
     public void setDouble(String key, double value) {
         setValueInternal(key, value);
     }
@@ -501,7 +576,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      *
      * @param key the option specifying the key to be added
      * @param value the value of the key/value pair to be added
+     * @deprecated use {@link #set(ConfigOption, Object)}
      */
+    @Deprecated
     @PublicEvolving
     public void setDouble(ConfigOption<Double> key, double value) {
         setValueInternal(key.key(), value);
@@ -717,6 +794,20 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
         return getOptional(option).orElseGet(option::defaultValue);
     }
 
+    /**
+     * Returns the value associated with the given config option as a T. If no value is mapped under
+     * any key of the option, it returns the specified default instead of the option's default
+     * value.
+     *
+     * @param configOption The configuration option
+     * @param overrideDefault The value to return if no value was mapper for any key of the option
+     * @return the configured value associated with the given config option, or the overrideDefault
+     */
+    @PublicEvolving
+    public <T> T get(ConfigOption<T> configOption, T overrideDefault) {
+        return getOptional(configOption).orElse(overrideDefault);
+    }
+
     @Override
     public <T> Optional<T> getOptional(ConfigOption<T> option) {
         Optional<Object> rawValue = getRawValueFromOption(option);
@@ -724,9 +815,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 
         try {
             if (option.isList()) {
-                return rawValue.map(v -> ConfigurationUtils.convertToList(v, clazz));
+                return rawValue.map(v -> ConfigurationUtils.convertToList(v, clazz, standardYaml));
             } else {
-                return rawValue.map(v -> ConfigurationUtils.convertValue(v, clazz));
+                return rawValue.map(v -> ConfigurationUtils.convertValue(v, clazz, standardYaml));
             }
         } catch (Exception e) {
             throw new IllegalArgumentException(
@@ -751,11 +842,41 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
     @Override
     public Map<String, String> toMap() {
         synchronized (this.confData) {
-            Map<String, String> ret = new HashMap<>(this.confData.size());
+            Map<String, String> ret =
+                    CollectionUtil.newHashMapWithExpectedSize(this.confData.size());
             for (Map.Entry<String, Object> entry : confData.entrySet()) {
-                ret.put(entry.getKey(), ConfigurationUtils.convertToString(entry.getValue()));
+                ret.put(
+                        entry.getKey(),
+                        ConfigurationUtils.convertToString(entry.getValue(), standardYaml));
             }
             return ret;
+        }
+    }
+
+    /**
+     * Convert Config into a {@code Map<String, String>} representation.
+     *
+     * <p>NOTE: This method is extracted from the {@link Configuration#toMap} method and should be
+     * called when Config needs to be written to a file.
+     *
+     * <p>This method ensures the value is properly escaped when writing the key-value pair to a
+     * standard YAML file.
+     */
+    @Internal
+    public Map<String, String> toFileWritableMap() {
+        if (standardYaml) {
+            synchronized (this.confData) {
+                Map<String, String> ret =
+                        CollectionUtil.newHashMapWithExpectedSize(this.confData.size());
+                for (Map.Entry<String, Object> entry : confData.entrySet()) {
+                    // Because some character in standard yaml should be escaped by quotes, such as
+                    // '*', here we should wrap the value by Yaml pattern
+                    ret.put(entry.getKey(), YamlParserUtils.toYAMLString(entry.getValue()));
+                }
+                return ret;
+            }
+        } else {
+            return toMap();
         }
     }
 
@@ -831,7 +952,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
                 return Optional.ofNullable(valueFromExactKey);
             }
             final Map<String, String> valueFromPrefixMap =
-                    convertToPropertiesPrefixed(confData, key);
+                    convertToPropertiesPrefixed(confData, key, standardYaml);
             if (valueFromPrefixMap.isEmpty()) {
                 return Optional.empty();
             }

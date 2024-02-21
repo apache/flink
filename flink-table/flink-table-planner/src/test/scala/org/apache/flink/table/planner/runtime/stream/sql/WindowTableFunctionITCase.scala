@@ -18,23 +18,21 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
-import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{FailingCollectionSource, StreamingWithStateTestBase, TestData, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
-import org.apache.flink.types.Row
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 
-import org.junit.{Before, Test}
-import org.junit.Assert.assertEquals
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class WindowTableFunctionITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     // enable checkpoint, we are using failing source to force have a complete checkpoint
@@ -63,7 +61,7 @@ class WindowTableFunctionITCase(mode: StateBackendMode) extends StreamingWithSta
                        |""".stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testTumbleWindow(): Unit = {
     val sql =
       """
@@ -83,7 +81,7 @@ class WindowTableFunctionITCase(mode: StateBackendMode) extends StreamingWithSta
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -110,10 +108,11 @@ class WindowTableFunctionITCase(mode: StateBackendMode) extends StreamingWithSta
       "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
         "2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testTumbleWindowTVFWithOffset(): Unit = {
     val sql =
       s"""
@@ -134,7 +133,7 @@ class WindowTableFunctionITCase(mode: StateBackendMode) extends StreamingWithSta
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected =
@@ -162,10 +161,11 @@ class WindowTableFunctionITCase(mode: StateBackendMode) extends StreamingWithSta
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
           "2020-10-10T00:00:31,2020-10-10T00:00:36,2020-10-10T00:00:35.999"
       )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testTumbleWindowTVFWithNegativeOffset(): Unit = {
     val sql =
       s"""
@@ -186,7 +186,7 @@ class WindowTableFunctionITCase(mode: StateBackendMode) extends StreamingWithSta
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected =
@@ -214,10 +214,11 @@ class WindowTableFunctionITCase(mode: StateBackendMode) extends StreamingWithSta
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
           "2020-10-10T00:00:34,2020-10-10T00:00:39,2020-10-10T00:00:38.999"
       )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testHopWindow(): Unit = {
     val sql =
       """
@@ -238,7 +239,7 @@ class WindowTableFunctionITCase(mode: StateBackendMode) extends StreamingWithSta
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -287,10 +288,11 @@ class WindowTableFunctionITCase(mode: StateBackendMode) extends StreamingWithSta
       "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
         "2020-10-10T00:00:30,2020-10-10T00:00:40,2020-10-10T00:00:39.999"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testCumulateWindow(): Unit = {
     val sql =
       """
@@ -311,7 +313,7 @@ class WindowTableFunctionITCase(mode: StateBackendMode) extends StreamingWithSta
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -376,6 +378,109 @@ class WindowTableFunctionITCase(mode: StateBackendMode) extends StreamingWithSta
       "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
         "2020-10-10T00:00:30,2020-10-10T00:00:45,2020-10-10T00:00:44.999"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
+  }
+
+  @TestTemplate
+  def testSessionWindow(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  TO_TIMESTAMP(`ts`),
+        |  `int`,
+        |  `double`,
+        |  `float`,
+        |  `bigdec`,
+        |  `string`,
+        |  `name`,
+        |  CAST(`rowtime` AS STRING),
+        |  window_start,
+        |  window_end,
+        |  window_time
+        |FROM TABLE(SESSION(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "2020-10-10T00:00:01,1,1.0,1.0,1.11,Hi,a,2020-10-10 00:00:01.000," +
+        "2020-10-10T00:00:01,2020-10-10T00:00:13,2020-10-10T00:00:12.999",
+      "2020-10-10T00:00:02,2,2.0,2.0,2.22,Comment#1,a,2020-10-10 00:00:02.000," +
+        "2020-10-10T00:00:01,2020-10-10T00:00:13,2020-10-10T00:00:12.999",
+      "2020-10-10T00:00:03,2,2.0,2.0,2.22,Comment#1,a,2020-10-10 00:00:03.000," +
+        "2020-10-10T00:00:01,2020-10-10T00:00:13,2020-10-10T00:00:12.999",
+      "2020-10-10T00:00:04,5,5.0,5.0,5.55,null,a,2020-10-10 00:00:04.000," +
+        "2020-10-10T00:00:01,2020-10-10T00:00:13,2020-10-10T00:00:12.999",
+      "2020-10-10T00:00:04,5,5.0,null,5.55,Hi,a,2020-10-10 00:00:04.000," +
+        "2020-10-10T00:00:01,2020-10-10T00:00:13,2020-10-10T00:00:12.999",
+      "2020-10-10T00:00:06,6,6.0,6.0,6.66,Hi,b,2020-10-10 00:00:06.000," +
+        "2020-10-10T00:00:01,2020-10-10T00:00:13,2020-10-10T00:00:12.999",
+      "2020-10-10T00:00:07,3,3.0,3.0,null,Hello,b,2020-10-10 00:00:07.000," +
+        "2020-10-10T00:00:01,2020-10-10T00:00:13,2020-10-10T00:00:12.999",
+      "2020-10-10T00:00:08,3,null,3.0,3.33,Comment#2,a,2020-10-10 00:00:08.000," +
+        "2020-10-10T00:00:01,2020-10-10T00:00:13,2020-10-10T00:00:12.999",
+      "2020-10-10T00:00:16,4,4.0,4.0,4.44,Hi,b,2020-10-10 00:00:16.000," +
+        "2020-10-10T00:00:16,2020-10-10T00:00:21,2020-10-10T00:00:20.999",
+      "2020-10-10T00:00:32,7,7.0,7.0,7.77,null,null,2020-10-10 00:00:32.000," +
+        "2020-10-10T00:00:32,2020-10-10T00:00:39,2020-10-10T00:00:38.999",
+      "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
+        "2020-10-10T00:00:32,2020-10-10T00:00:39,2020-10-10T00:00:38.999"
+    )
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
+  }
+
+  @TestTemplate
+  def testSessionWindowWithPartitionBy(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  TO_TIMESTAMP(`ts`),
+        |  `int`,
+        |  `double`,
+        |  `float`,
+        |  `bigdec`,
+        |  `string`,
+        |  `name`,
+        |  CAST(`rowtime` AS STRING),
+        |  window_start,
+        |  window_end,
+        |  window_time
+        |FROM TABLE(SESSION(TABLE T1 PARTITION BY `name`, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "2020-10-10T00:00:01,1,1.0,1.0,1.11,Hi,a,2020-10-10 00:00:01.000," +
+        "2020-10-10T00:00:01,2020-10-10T00:00:13,2020-10-10T00:00:12.999",
+      "2020-10-10T00:00:02,2,2.0,2.0,2.22,Comment#1,a,2020-10-10 00:00:02.000," +
+        "2020-10-10T00:00:01,2020-10-10T00:00:13,2020-10-10T00:00:12.999",
+      "2020-10-10T00:00:03,2,2.0,2.0,2.22,Comment#1,a,2020-10-10 00:00:03.000," +
+        "2020-10-10T00:00:01,2020-10-10T00:00:13,2020-10-10T00:00:12.999",
+      "2020-10-10T00:00:04,5,5.0,5.0,5.55,null,a,2020-10-10 00:00:04.000," +
+        "2020-10-10T00:00:01,2020-10-10T00:00:13,2020-10-10T00:00:12.999",
+      "2020-10-10T00:00:04,5,5.0,null,5.55,Hi,a,2020-10-10 00:00:04.000," +
+        "2020-10-10T00:00:01,2020-10-10T00:00:13,2020-10-10T00:00:12.999",
+      "2020-10-10T00:00:06,6,6.0,6.0,6.66,Hi,b,2020-10-10 00:00:06.000," +
+        "2020-10-10T00:00:06,2020-10-10T00:00:12,2020-10-10T00:00:11.999",
+      "2020-10-10T00:00:07,3,3.0,3.0,null,Hello,b,2020-10-10 00:00:07.000," +
+        "2020-10-10T00:00:06,2020-10-10T00:00:12,2020-10-10T00:00:11.999",
+      "2020-10-10T00:00:08,3,null,3.0,3.33,Comment#2,a,2020-10-10 00:00:08.000," +
+        "2020-10-10T00:00:01,2020-10-10T00:00:13,2020-10-10T00:00:12.999",
+      "2020-10-10T00:00:16,4,4.0,4.0,4.44,Hi,b,2020-10-10 00:00:16.000," +
+        "2020-10-10T00:00:16,2020-10-10T00:00:21,2020-10-10T00:00:20.999",
+      "2020-10-10T00:00:32,7,7.0,7.0,7.77,null,null,2020-10-10 00:00:32.000," +
+        "2020-10-10T00:00:32,2020-10-10T00:00:37,2020-10-10T00:00:36.999",
+      "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
+        "2020-10-10T00:00:34,2020-10-10T00:00:39,2020-10-10T00:00:38.999"
+    )
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 }

@@ -291,6 +291,7 @@ public final class ColumnStats {
     }
 
     /** ColumnStats builder. */
+    @PublicEvolving
     public static class Builder {
         private Long ndv = null;
         private Long nullCount = null;

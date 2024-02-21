@@ -85,8 +85,8 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
     @Before
     public void setup() throws Exception {
         Configuration config = new Configuration();
-        config.setString(StateBackendOptions.STATE_BACKEND, "rocksdb");
-        config.setBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
+        config.set(StateBackendOptions.STATE_BACKEND, "rocksdb");
+        config.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
 
         cluster =
                 new MiniClusterWithClientResource(
@@ -303,13 +303,16 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
 
         @Override
         public void run(SourceContext<Integer> ctx) throws Exception {
-            final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
+            final int subtaskIndex = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             while (running) {
                 if (counter < numberElements) {
                     synchronized (ctx.getCheckpointLock()) {
                         for (int value = subtaskIndex;
                                 value < numberKeys;
-                                value += getRuntimeContext().getNumberOfParallelSubtasks()) {
+                                value +=
+                                        getRuntimeContext()
+                                                .getTaskInfo()
+                                                .getNumberOfParallelSubtasks()) {
                             ctx.collect(value);
                         }
                         counter++;
@@ -359,7 +362,8 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
             sum.update(s);
 
             if (count == numberElements) {
-                out.collect(Tuple2.of(getRuntimeContext().getIndexOfThisSubtask(), s));
+                out.collect(
+                        Tuple2.of(getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(), s));
             }
         }
 

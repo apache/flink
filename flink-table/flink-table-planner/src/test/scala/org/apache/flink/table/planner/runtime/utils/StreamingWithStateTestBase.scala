@@ -35,11 +35,12 @@ import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters
 
-import org.junit.{After, Assert, Before}
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{AfterEach, BeforeEach}
 
-import java.io.File
+import java.nio.file.Files
 import java.util
 
 import scala.collection.JavaConversions._
@@ -55,13 +56,13 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
 
   private val classLoader = Thread.currentThread.getContextClassLoader
 
-  var baseCheckpointPath: File = _
-
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     // set state backend
-    baseCheckpointPath = tempFolder.newFolder().getAbsoluteFile
+
+    val baseCheckpointPath = Files.createTempDirectory(getClass.getCanonicalName)
+    baseCheckpointPath.toFile.deleteOnExit();
     state match {
       case HEAP_BACKEND =>
         val conf = new Configuration()
@@ -69,7 +70,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
           new MemoryStateBackend("file://" + baseCheckpointPath, null).configure(conf, classLoader))
       case ROCKSDB_BACKEND =>
         val conf = new Configuration()
-        conf.setBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true)
+        conf.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, Boolean.box(true))
         env.setStateBackend(
           new RocksDBStateBackend("file://" + baseCheckpointPath).configure(conf, classLoader))
     }
@@ -77,10 +78,10 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
     FailingCollectionSource.failedBefore = true
   }
 
-  @After
+  @AfterEach
   override def after(): Unit = {
     super.after()
-    Assert.assertTrue(FailingCollectionSource.failedBefore)
+    assertThat(FailingCollectionSource.failedBefore).isTrue
   }
 
   /** Creates a BinaryRowData DataStream from the given non-empty [[Seq]]. */
@@ -125,7 +126,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
     FromElementsFunction.checkCollection(data, typeInfo.getTypeClass)
 
     val function = new FailingCollectionSource[T](
-      typeInfo.createSerializer(env.getConfig),
+      typeInfo.createSerializer(env.getConfig.getSerializerConfig),
       collection,
       data.length / 2
     ) // fail after half elements
@@ -235,7 +236,7 @@ object StreamingWithStateTestBase {
   val HEAP_BACKEND = StateBackendMode("HEAP")
   val ROCKSDB_BACKEND = StateBackendMode("ROCKSDB")
 
-  @Parameterized.Parameters(name = "StateBackend={0}")
+  @Parameters(name = "StateBackend={0}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](Array(HEAP_BACKEND), Array(ROCKSDB_BACKEND))
   }

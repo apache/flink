@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Utility for keeping track of merging {@link Window Windows} when using a {@link
@@ -97,10 +98,10 @@ public class MergingWindowSet<W extends Window> {
      */
     public void persist() throws Exception {
         if (!mapping.equals(initialMapping)) {
-            state.clear();
-            for (Map.Entry<W, W> window : mapping.entrySet()) {
-                state.add(new Tuple2<>(window.getKey(), window.getValue()));
-            }
+            state.update(
+                    mapping.entrySet().stream()
+                            .map((w) -> new Tuple2<>(w.getKey(), w.getValue()))
+                            .collect(Collectors.toList()));
         }
     }
 

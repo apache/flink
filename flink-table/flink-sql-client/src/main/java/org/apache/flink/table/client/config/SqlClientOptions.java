@@ -67,8 +67,16 @@ public class SqlClientOptions {
                     .withFallbackKeys(TableConfigOptions.DISPLAY_MAX_COLUMN_WIDTH.key())
                     .withDescription(
                             "Deprecated, please use table.display.max-column-width instead. When printing the query results, this parameter determines the number of characters shown on screen before truncating. "
-                                    + "This only applies to columns with variable-length types (e.g. STRING) in streaming mode. "
+                                    + "This only applies to columns with variable-length types (e.g. CHAR, VARCHAR, STRING) in streaming mode. "
                                     + "Fixed-length types and all types in batch mode are printed using a deterministic column width.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<Boolean> DISPLAY_QUERY_TIME_COST =
+            ConfigOptions.key("sql-client.display.print-time-cost")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Determine whether to display the time consumption of the query. By default, no query time cost will be displayed.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<String> DISPLAY_DEFAULT_COLOR_SCHEMA =
@@ -77,4 +85,12 @@ public class SqlClientOptions {
                     .defaultValue(SyntaxHighlightStyle.BuiltInStyle.DEFAULT.name())
                     .withDescription(
                             "SQL highlight color schema to be used at SQL client. Possible values: 'default', 'dark', 'light', 'chester', 'vs2010', 'solarized', 'obsidian', 'geshi'");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> DISPLAY_SHOW_LINE_NUMBERS =
+            ConfigOptions.key("sql-client.display.show-line-numbers")
+                    .booleanType()
+                    .defaultValue(Boolean.FALSE)
+                    .withDescription(
+                            "Determines whether there should be shown line numbers in multiline SQL or not.");
 }

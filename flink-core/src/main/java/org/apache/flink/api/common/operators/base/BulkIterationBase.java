@@ -26,6 +26,7 @@ import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.operators.IterationOperator;
 import org.apache.flink.api.common.operators.Operator;
@@ -35,7 +36,6 @@ import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Visitor;
@@ -238,7 +238,7 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
         private TerminationCriterionAggregator aggregator;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             aggregator =
                     getIterationRuntimeContext()
                             .getIterationAggregator(TERMINATION_CRITERION_AGGREGATOR_NAME);

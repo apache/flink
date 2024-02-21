@@ -39,6 +39,10 @@ import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
@@ -46,11 +50,10 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.orc.OrcFile;
 import org.apache.orc.Reader;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -69,20 +72,16 @@ import java.util.concurrent.ExecutionException;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** ITCase for {@link OrcFileFormatFactory}. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @TempDir public static java.nio.file.Path temporaryFolder;
 
-    private final boolean configure;
+    @Parameter public boolean configure;
 
-    @Parameterized.Parameters(name = "{0}")
+    @Parameters(name = "configure={0}")
     public static Collection<Boolean> parameters() {
         return Arrays.asList(false, true);
-    }
-
-    public OrcFileSystemITCase(boolean configure) {
-        this.configure = configure;
     }
 
     @Override
@@ -96,6 +95,7 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
     }
 
     @Override
+    @TestTemplate
     public void testNonPartition() {
         super.testNonPartition();
 
@@ -119,6 +119,7 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
     }
 
     @Override
+    @BeforeEach
     public void before() {
         super.before();
         super.tableEnv()
@@ -153,8 +154,8 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
                                 super.resultPath(), String.join(",\n", formatProperties())));
     }
 
-    @Test
-    public void testOrcFilterPushDown() throws ExecutionException, InterruptedException {
+    @TestTemplate
+    void testOrcFilterPushDown() throws ExecutionException, InterruptedException {
         super.tableEnv()
                 .executeSql(
                         "insert into orcFilterTable select x, y, a, b, "
@@ -207,8 +208,8 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
                 Collections.singletonList(Row.of("x10", "10")));
     }
 
-    @Test
-    public void testNestedTypes() throws Exception {
+    @TestTemplate
+    void testNestedTypes() throws Exception {
         String path = initNestedTypesFile(initNestedTypesData());
         super.tableEnv()
                 .executeSql(
@@ -309,7 +310,7 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
                 "struct<_col0:string,_col1:int,_col2:array<struct<_col2_col0:string>>,"
                         + "_col3:map<string,struct<_col3_col0:string,_col3_col1:timestamp>>>";
 
-        File outDir = TEMPORARY_FOLDER.newFolder();
+        File outDir = TempDirUtils.newFolder(temporaryFolder);
         Properties writerProps = new Properties();
         writerProps.setProperty("orc.compress", "LZ4");
 
@@ -341,8 +342,8 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
         return outDir.getAbsolutePath();
     }
 
-    @Test
-    public void testLimitableBulkFormat() throws ExecutionException, InterruptedException {
+    @TestTemplate
+    void testLimitableBulkFormat() throws ExecutionException, InterruptedException {
         super.tableEnv()
                 .executeSql(
                         "insert into orcLimitTable select x, y, " + "1 as a " + "from originalT")

@@ -27,8 +27,8 @@ jobs:
       - task: Cache@2
         displayName: Cache Maven local repo
         inputs:
-          key: $(CACHE_KEY)
-          restoreKeys: $(CACHE_FALLBACK_KEY)
+          key: $(PIPELINE_START_YEAR) | $(CACHE_KEY)
+          restoreKeys: $(PIPELINE_START_YEAR) | $(CACHE_FALLBACK_KEY)
           path: $(MAVEN_CACHE_FOLDER)
         continueOnError: true
       - script: |
@@ -40,7 +40,6 @@ jobs:
         inputs:
           script: |
             source ./tools/ci/maven-utils.sh
-            setup_maven
             run_mvn -version
             export MVN="run_mvn"
 
@@ -79,8 +78,8 @@ jobs:
       - task: Cache@2
         displayName: Cache Maven local repo
         inputs:
-          key: $(CACHE_KEY)
-          restoreKeys: $(CACHE_FALLBACK_KEY)
+          key: $(PIPELINE_START_YEAR) | $(CACHE_KEY)
+          restoreKeys: $(PIPELINE_START_YEAR) | $(CACHE_FALLBACK_KEY)
           path: $(MAVEN_CACHE_FOLDER)
         continueOnError: true
       - script: |
@@ -93,7 +92,6 @@ jobs:
         inputs:
           script: |
             source ./tools/ci/maven-utils.sh
-            setup_maven
             run_mvn -version
 
             cd tools

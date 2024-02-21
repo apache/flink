@@ -17,20 +17,22 @@
  */
 package org.apache.flink.table.planner.runtime.batch.table
 
+import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, CollectionBatchExecTable}
 import org.apache.flink.table.planner.runtime.utils.SortTestUtils.{sortExpectedly, tupleDataSetStrings}
-import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.test.util.TestBaseUtils
 
-import org.junit._
+import org.junit.jupiter.api.{Disabled, Test}
+import org.junit.jupiter.api.extension.RegisterExtension
 
 import scala.collection.JavaConverters._
 
 class SortITCase extends BatchTestBase {
 
-  @Rule
-  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
   def compare(t: Table, expected: String): Unit = {
     TestBaseUtils.compareOrderedResultAsText(executeQuery(t).asJava, expected)
@@ -63,7 +65,7 @@ class SortITCase extends BatchTestBase {
     compare(t, sortExpectedly(tupleDataSetStrings))
   }
 
-  @Ignore // TODO something not support?
+  @Disabled // TODO something not support?
   @Test
   def testOrderByOffset(): Unit = {
     val ds = CollectionBatchExecTable.get3TupleDataSet(tEnv)

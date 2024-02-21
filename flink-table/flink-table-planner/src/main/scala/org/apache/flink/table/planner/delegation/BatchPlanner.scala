@@ -29,7 +29,7 @@ import org.apache.flink.table.operations.{ModifyOperation, Operation}
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode
-import org.apache.flink.table.planner.plan.nodes.exec.processor.{DeadlockBreakupProcessor, DynamicFilteringDependencyProcessor, ExecNodeGraphProcessor, ForwardHashExchangeProcessor, MultipleInputNodeCreationProcessor, ResetTransformationProcessor}
+import org.apache.flink.table.planner.plan.nodes.exec.processor.{DeadlockBreakupProcessor, DynamicFilteringDependencyProcessor, ExecNodeGraphProcessor, ForwardHashExchangeProcessor, MultipleInputNodeCreationProcessor}
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
@@ -73,19 +73,18 @@ class BatchPlanner(
     val processors = new util.ArrayList[ExecNodeGraphProcessor]()
     // deadlock breakup
     processors.add(new DeadlockBreakupProcessor())
+    if (getTableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_DYNAMIC_FILTERING_ENABLED)) {
+      processors.add(new DynamicFilteringDependencyProcessor)
+    }
     // multiple input creation
     if (getTableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED)) {
       processors.add(new MultipleInputNodeCreationProcessor(false))
     }
     processors.add(new ForwardHashExchangeProcessor)
-    if (getTableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_DYNAMIC_FILTERING_ENABLED)) {
-      processors.add(new DynamicFilteringDependencyProcessor)
-      processors.add(new ResetTransformationProcessor)
-    }
     processors
   }
 
-  override protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]] = {
+  override def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]] = {
     beforeTranslation()
     val planner = createDummyPlanner()
 

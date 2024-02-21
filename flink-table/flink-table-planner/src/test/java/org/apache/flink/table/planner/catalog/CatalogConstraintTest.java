@@ -31,12 +31,12 @@ import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableSet;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableSet;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.util.ImmutableBitSet;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -53,8 +53,8 @@ public class CatalogConstraintTest {
     private TableEnvironment tEnv;
     private Catalog catalog;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
         tEnv = TableEnvironment.create(settings);
         catalog = tEnv.getCatalog(tEnv.getCurrentCatalog()).orElse(null);
@@ -62,7 +62,7 @@ public class CatalogConstraintTest {
     }
 
     @Test
-    public void testWithPrimaryKey() throws Exception {
+    void testWithPrimaryKey() throws Exception {
         final Schema tableSchema =
                 Schema.newBuilder()
                         .fromResolvedSchema(
@@ -90,7 +90,7 @@ public class CatalogConstraintTest {
     }
 
     @Test
-    public void testWithoutPrimaryKey() throws Exception {
+    void testWithoutPrimaryKey() throws Exception {
 
         final Schema tableSchema =
                 Schema.newBuilder()

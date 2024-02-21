@@ -246,6 +246,7 @@ public class DataStreamCsvITCase {
         return contents;
     }
 
+    /** Test pojo describing a city. */
     @JsonPropertyOrder({
         "city",
         "lat",
@@ -256,7 +257,7 @@ public class DataStreamCsvITCase {
         "capital",
         "population"
     })
-    static class CityPojo implements Serializable {
+    public static class CityPojo implements Serializable {
         public String city;
         public BigDecimal lat;
         public BigDecimal lng;

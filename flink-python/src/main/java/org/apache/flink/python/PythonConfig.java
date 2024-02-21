@@ -48,7 +48,7 @@ public class PythonConfig implements ReadableConfig {
     }
 
     /**
-     * Configuration adopted from the outer layer, e.g. flink-conf.yaml, command line arguments,
+     * Configuration adopted from the outer layer, e.g. config.yaml, command line arguments,
      * TableConfig, etc.
      */
     private final ReadableConfig configuration;
@@ -80,6 +80,15 @@ public class PythonConfig implements ReadableConfig {
             return value;
         }
         return configuration.getOptional(option);
+    }
+
+    @Internal
+    @Override
+    public Map<String, String> toMap() {
+        Map<String, String> pythonDependencyConfigMap = pythonDependencyConfiguration.toMap();
+        Map<String, String> configMap = configuration.toMap();
+        configMap.putAll(pythonDependencyConfigMap);
+        return configMap;
     }
 
     public Configuration toConfiguration() {

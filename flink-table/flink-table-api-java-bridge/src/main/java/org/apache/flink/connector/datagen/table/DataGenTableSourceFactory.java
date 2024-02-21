@@ -28,6 +28,11 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.BinaryType;
+import org.apache.flink.table.types.logical.CharType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.VarBinaryType;
+import org.apache.flink.table.types.logical.VarCharType;
 
 import java.util.HashSet;
 import java.util.List;
@@ -59,6 +64,7 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(DataGenConnectorOptions.ROWS_PER_SECOND);
         options.add(DataGenConnectorOptions.NUMBER_OF_ROWS);
+        options.add(DataGenConnectorOptions.SOURCE_PARALLELISM);
 
         // Placeholder options
         options.add(DataGenConnectorOptions.FIELD_KIND);
@@ -68,6 +74,8 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
         options.add(DataGenConnectorOptions.FIELD_LENGTH);
         options.add(DataGenConnectorOptions.FIELD_START);
         options.add(DataGenConnectorOptions.FIELD_END);
+        options.add(DataGenConnectorOptions.FIELD_NULL_RATE);
+        options.add(DataGenConnectorOptions.FIELD_VAR_LEN);
 
         return options;
     }
@@ -109,6 +117,7 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
         consumedOptionKeys.add(CONNECTOR.key());
         consumedOptionKeys.add(DataGenConnectorOptions.ROWS_PER_SECOND.key());
         consumedOptionKeys.add(DataGenConnectorOptions.NUMBER_OF_ROWS.key());
+        consumedOptionKeys.add(DataGenConnectorOptions.SOURCE_PARALLELISM.key());
         optionalOptions.stream().map(ConfigOption::key).forEach(consumedOptionKeys::add);
         FactoryUtil.validateUnconsumedKeys(
                 factoryIdentifier(), options.keySet(), consumedOptionKeys);
@@ -119,18 +128,78 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
                 name,
                 rowDataType,
                 options.get(DataGenConnectorOptions.ROWS_PER_SECOND),
-                options.get(DataGenConnectorOptions.NUMBER_OF_ROWS));
+                options.get(DataGenConnectorOptions.NUMBER_OF_ROWS),
+                options.getOptional(DataGenConnectorOptions.SOURCE_PARALLELISM).orElse(null));
     }
 
     private DataGeneratorContainer createContainer(
             String name, DataType type, String kind, ReadableConfig options) {
         switch (kind) {
             case DataGenConnectorOptionsUtil.RANDOM:
+                validateFieldOptions(name, type, options);
                 return type.getLogicalType().accept(new RandomGeneratorVisitor(name, options));
             case DataGenConnectorOptionsUtil.SEQUENCE:
                 return type.getLogicalType().accept(new SequenceGeneratorVisitor(name, options));
             default:
                 throw new ValidationException("Unsupported generator kind: " + kind);
         }
+    }
+
+    private void validateFieldOptions(String name, DataType type, ReadableConfig options) {
+        ConfigOption<Boolean> varLenOption =
+                key(DataGenConnectorOptionsUtil.FIELDS
+                                + "."
+                                + name
+                                + "."
+                                + DataGenConnectorOptionsUtil.VAR_LEN)
+                        .booleanType()
+                        .defaultValue(false);
+        options.getOptional(varLenOption)
+                .filter(option -> option)
+                .ifPresent(
+                        option -> {
+                            LogicalType logicalType = type.getLogicalType();
+                            if (!(logicalType instanceof VarCharType
+                                    || logicalType instanceof VarBinaryType)) {
+                                throw new ValidationException(
+                                        String.format(
+                                                "Only supports specifying '%s' option for variable-length types (VARCHAR/STRING/VARBINARY/BYTES). The type of field '%s' is not within this range.",
+                                                DataGenConnectorOptions.FIELD_VAR_LEN.key(), name));
+                            }
+                        });
+
+        ConfigOption<Integer> lenOption =
+                key(DataGenConnectorOptionsUtil.FIELDS
+                                + "."
+                                + name
+                                + "."
+                                + DataGenConnectorOptionsUtil.LENGTH)
+                        .intType()
+                        .noDefaultValue();
+        options.getOptional(lenOption)
+                .ifPresent(
+                        option -> {
+                            LogicalType logicalType = type.getLogicalType();
+                            if (logicalType instanceof CharType
+                                    || logicalType instanceof BinaryType) {
+                                throw new ValidationException(
+                                        String.format(
+                                                "Custom length for fixed-length type (CHAR/BINARY) field '%s' is not supported.",
+                                                name));
+                            }
+                            if (logicalType instanceof VarCharType
+                                    || logicalType instanceof VarBinaryType) {
+                                int length =
+                                        logicalType instanceof VarCharType
+                                                ? ((VarCharType) logicalType).getLength()
+                                                : ((VarBinaryType) logicalType).getLength();
+                                if (option > length) {
+                                    throw new ValidationException(
+                                            String.format(
+                                                    "Custom length '%d' for variable-length type (VARCHAR/STRING/VARBINARY/BYTES) field '%s' should be shorter than '%d' defined in the schema.",
+                                                    option, name, length));
+                                }
+                            }
+                        });
     }
 }

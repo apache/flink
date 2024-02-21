@@ -18,11 +18,11 @@
 # set default streaming mode and tableau result mode
 
 SET 'execution.runtime-mode' = 'streaming';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # ==========================================================================
@@ -37,7 +37,7 @@ create table src (
   'data-id' = 'non-exist',
   'failing-source' = 'true'
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT UPPER(str), id FROM src;
@@ -72,7 +72,7 @@ Received a total of 4 rows
 # ==========================================================================
 
 SET 'table.local-time-zone' = 'Asia/Shanghai';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT TIME '20:12:11' as time0,
@@ -94,7 +94,7 @@ Received a total of 2 rows
 !ok
 
 SET 'table.local-time-zone' = 'UTC';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT TIME '20:12:11' as time0,
@@ -128,7 +128,7 @@ AS (VALUES
   ('8b012d93-6ece-48ad-a2ea-aa75ef7b1d60', TIMESTAMP '1979-03-15 22:13:11.123', false),
   ('09969d9e-d584-11eb-b8bc-0242ac130003', TIMESTAMP '1985-04-16 23:14:11.123', true)
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT * from testUserData;
@@ -146,7 +146,7 @@ Received a total of 4 rows
 # test fallback config option key
 
 SET 'table.display.max-column-width' = '10';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT * from testUserData;
@@ -162,7 +162,7 @@ Received a total of 4 rows
 !ok
 
 SET 'table.display.max-column-width' = '40';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT * from testUserData;
@@ -180,7 +180,7 @@ Received a total of 4 rows
 # test original config option key
 
 SET 'sql-client.display.max-column-width' = '10';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT * from testUserData;
@@ -197,7 +197,7 @@ Received a total of 4 rows
 
 
 SET 'sql-client.display.max-column-width' = '40';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT * from testUserData;
@@ -214,11 +214,11 @@ Received a total of 4 rows
 
 -- post-test cleanup + setting back default max width value
 DROP TEMPORARY VIEW testUserData;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SET 'sql-client.display.max-column-width' = '30';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # ==========================================================================
@@ -226,7 +226,7 @@ SET 'sql-client.display.max-column-width' = '30';
 # ==========================================================================
 
 SET 'execution.runtime-mode' = 'batch';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT id, COUNT(*) as cnt, COUNT(DISTINCT str) as uv
@@ -272,7 +272,7 @@ AS (VALUES
   ('8b012d93-6ece-48ad-a2ea-aa75ef7b1d60', TIMESTAMP '1979-03-15 22:13:11.123', false),
   ('09969d9e-d584-11eb-b8bc-0242ac130003', TIMESTAMP '1985-04-16 23:14:11.123', true)
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT * from testUserData;
@@ -288,7 +288,7 @@ SELECT * from testUserData;
 !ok
 
 SET 'sql-client.display.max-column-width' = '10';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT * from testUserData;
@@ -304,7 +304,7 @@ SELECT * from testUserData;
 !ok
 
 SET 'sql-client.display.max-column-width' = '40';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT * from testUserData;
@@ -321,11 +321,11 @@ SELECT * from testUserData;
 
 -- post-test cleanup + setting back default max width value
 DROP TEMPORARY VIEW testUserData;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SET 'sql-client.display.max-column-width' = '30';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT INTERVAL '1' DAY as dayInterval, INTERVAL '1' YEAR as yearInterval;
@@ -337,7 +337,33 @@ SELECT INTERVAL '1' DAY as dayInterval, INTERVAL '1' YEAR as yearInterval;
 1 row in set
 !ok
 
+SELECT ';
+';
++--------+
+| EXPR$0 |
++--------+
+|     ;
+ |
++--------+
+1 row in set
+!ok
+
 SELECT /*;
-[ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.sql.parser.impl.TokenMgrError: Lexical error at line 1, column 11.  Encountered: <EOF> after : ""
-!error
+'*/ 1;
++--------+
+| EXPR$0 |
++--------+
+|      1 |
++--------+
+1 row in set
+!ok
+
+SELECT --;
+1;
++--------+
+| EXPR$0 |
++--------+
+|      1 |
++--------+
+1 row in set
+!ok

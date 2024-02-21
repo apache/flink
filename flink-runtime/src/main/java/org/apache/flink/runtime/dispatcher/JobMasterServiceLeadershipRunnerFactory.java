@@ -21,6 +21,7 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -35,10 +36,12 @@ import org.apache.flink.runtime.jobmaster.SlotPoolServiceSchedulerFactory;
 import org.apache.flink.runtime.jobmaster.factories.DefaultJobMasterServiceFactory;
 import org.apache.flink.runtime.jobmaster.factories.DefaultJobMasterServiceProcessFactory;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.Preconditions;
+
+import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -56,6 +59,7 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
             JobManagerSharedServices jobManagerServices,
             JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
             FatalErrorHandler fatalErrorHandler,
+            Collection<FailureEnricher> failureEnrichers,
             long initializationTimestamp)
             throws Exception {
 
@@ -66,8 +70,8 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
 
         final JobResultStore jobResultStore = highAvailabilityServices.getJobResultStore();
 
-        final LeaderElectionService jobManagerLeaderElectionService =
-                highAvailabilityServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
+        final LeaderElection jobManagerLeaderElection =
+                highAvailabilityServices.getJobManagerLeaderElection(jobGraph.getJobID());
 
         final SlotPoolServiceSchedulerFactory slotPoolServiceSchedulerFactory =
                 DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
@@ -105,6 +109,7 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
                         jobManagerJobMetricGroupFactory,
                         fatalErrorHandler,
                         userCodeClassLoader,
+                        failureEnrichers,
                         initializationTimestamp);
 
         final DefaultJobMasterServiceProcessFactory jobMasterServiceProcessFactory =
@@ -117,7 +122,7 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
 
         return new JobMasterServiceLeadershipRunner(
                 jobMasterServiceProcessFactory,
-                jobManagerLeaderElectionService,
+                jobManagerLeaderElection,
                 jobResultStore,
                 classLoaderLease,
                 fatalErrorHandler);

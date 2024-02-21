@@ -43,7 +43,7 @@ public class DocumentingSqlGatewayRestEndpoint extends SqlGatewayRestEndpoint
     private static final Configuration config = new Configuration();
 
     static {
-        config.setString(RestOptions.ADDRESS, "localhost");
+        config.set(RestOptions.ADDRESS, "localhost");
     }
 
     public DocumentingSqlGatewayRestEndpoint() throws ConfigurationException, IOException {

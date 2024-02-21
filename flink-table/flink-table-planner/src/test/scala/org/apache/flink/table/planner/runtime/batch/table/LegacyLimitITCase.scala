@@ -22,12 +22,12 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.utils.TestLegacyLimitableTableSource
 
-import org.junit._
-import org.junit.Assert.assertEquals
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class LegacyLimitITCase extends BatchTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
 
@@ -40,16 +40,16 @@ class LegacyLimitITCase extends BatchTestBase {
 
   @Test
   def testFetch(): Unit = {
-    assertEquals(executeQuery(tEnv.from("LimitTable").fetch(5)).size, 5)
+    assertThat(executeQuery(tEnv.from("LimitTable").fetch(5)).size).isEqualTo(5)
   }
 
   @Test
   def testOffset(): Unit = {
-    assertEquals(executeQuery(tEnv.from("LimitTable").offset(5)).size, 16)
+    assertThat(executeQuery(tEnv.from("LimitTable").offset(5)).size).isEqualTo(16)
   }
 
   @Test
   def testOffsetAndFetch(): Unit = {
-    assertEquals(executeQuery(tEnv.from("LimitTable").limit(5, 5)).size, 5)
+    assertThat(executeQuery(tEnv.from("LimitTable").limit(5, 5)).size).isEqualTo(5)
   }
 }

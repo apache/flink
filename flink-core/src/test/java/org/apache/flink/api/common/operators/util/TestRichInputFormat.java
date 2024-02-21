@@ -42,9 +42,9 @@ public class TestRichInputFormat extends GenericInputFormat<String> implements N
     public String nextRecord(String reuse) throws IOException {
         count++;
         return NAMES[count - 1]
-                + getRuntimeContext().getIndexOfThisSubtask()
+                + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()
                 + ""
-                + getRuntimeContext().getNumberOfParallelSubtasks();
+                + getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
     }
 
     public void reset() {

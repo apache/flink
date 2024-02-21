@@ -24,33 +24,31 @@ import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the savepoint request bodies. */
 public class SavepointHandlerRequestBodyTest {
 
     @Test
-    public void testSavepointRequestCanBeParsedFromEmptyObject() throws JsonProcessingException {
+    void testSavepointRequestCanBeParsedFromEmptyObject() throws JsonProcessingException {
         final SavepointTriggerRequestBody defaultParseResult =
                 getDefaultParseResult(SavepointTriggerRequestBody.class);
 
-        assertThat(defaultParseResult.isCancelJob(), is(false));
+        assertThat(defaultParseResult.isCancelJob()).isFalse();
 
-        assertThat(defaultParseResult.getTargetDirectory().isPresent(), is(false));
+        assertThat(defaultParseResult.getTargetDirectory()).isNotPresent();
     }
 
     @Test
-    public void testStopWithSavepointRequestCanBeParsedFromEmptyObject()
-            throws JsonProcessingException {
+    void testStopWithSavepointRequestCanBeParsedFromEmptyObject() throws JsonProcessingException {
         final StopWithSavepointRequestBody defaultParseResult =
                 getDefaultParseResult(StopWithSavepointRequestBody.class);
 
-        assertThat(defaultParseResult.shouldDrain(), is(false));
+        assertThat(defaultParseResult.shouldDrain()).isFalse();
 
-        assertThat(defaultParseResult.getTargetDirectory().isPresent(), is(false));
+        assertThat(defaultParseResult.getTargetDirectory()).isNotPresent();
     }
 
     private static <T> T getDefaultParseResult(Class<T> clazz) throws JsonProcessingException {

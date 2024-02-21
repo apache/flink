@@ -24,9 +24,10 @@ limitations under the License.
       <![CDATA[
 LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT($4)])
 +- LogicalProject(a1=[$0], b1=[$1], a2=[$4], b2=[$5], c1=[$2])
-   +- LogicalJoin(condition=[=($0, $5)], joinType=[full])
-      :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6])
+      +- LogicalJoin(condition=[=($0, $5)], joinType=[full])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -49,9 +50,10 @@ FlinkLogicalCalc(select=[a1, b1, a2, b2, EXPR$4])
       <![CDATA[
 LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT($4)])
 +- LogicalProject(a1=[$0], b1=[$1], a3=[$4], b3=[$5], c1=[$2])
-   +- LogicalJoin(condition=[=($0, $4)], joinType=[full])
-      :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
+   +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a3=[$4], b3=[$5], c3=[$6], d3=[$7])
+      +- LogicalJoin(condition=[=($0, $4)], joinType=[full])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -74,10 +76,11 @@ FlinkLogicalCalc(select=[a1, b1, a3, b3, EXPR$4])
       <![CDATA[
 LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT($4)])
 +- LogicalProject(a1=[$0], b1=[$1], a2=[$4], b2=[$5], c1=[$2])
-   +- LogicalFilter(condition=[=($0, $5)])
-      +- LogicalJoin(condition=[true], joinType=[inner])
-         :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
-         +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6])
+      +- LogicalFilter(condition=[=($0, $5)])
+         +- LogicalJoin(condition=[true], joinType=[inner])
+            :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -99,10 +102,11 @@ FlinkLogicalAggregate(group=[{0}], b1=[AUXILIARY_GROUP($1)], a2=[AUXILIARY_GROUP
       <![CDATA[
 LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT($4)], EXPR$5=[AVG($5)])
 +- LogicalProject(a2=[$0], b2=[$1], a3=[$3], b3=[$4], c2=[$2], d3=[$6])
-   +- LogicalFilter(condition=[=($1, $3)])
-      +- LogicalJoin(condition=[true], joinType=[inner])
-         :- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
-         +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
+   +- LogicalProject(a2=[$0], b2=[$1], c2=[$2], a3=[$3], b3=[$4], c3=[$5], d3=[$6])
+      +- LogicalFilter(condition=[=($1, $3)])
+         +- LogicalJoin(condition=[true], joinType=[inner])
+            :- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -124,12 +128,13 @@ FlinkLogicalCalc(select=[a2, b2, a3, b3, EXPR$4, EXPR$5])
       <![CDATA[
 LogicalAggregate(group=[{0, 1, 2, 3, 4, 5}], EXPR$6=[COUNT($6)])
 +- LogicalProject(a1=[$0], b1=[$1], a2=[$4], b2=[$5], a3=[$7], b3=[$8], c1=[$2])
-   +- LogicalFilter(condition=[AND(=($0, $5), =($0, $7))])
-      +- LogicalJoin(condition=[true], joinType=[inner])
-         :- LogicalJoin(condition=[true], joinType=[inner])
-         :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
-         :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
-         +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
+   +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], a3=[$7], b3=[$8], c3=[$9], d3=[$10])
+      +- LogicalFilter(condition=[AND(=($0, $5), =($0, $7))])
+         +- LogicalJoin(condition=[true], joinType=[inner])
+            :- LogicalJoin(condition=[true], joinType=[inner])
+            :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+            :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -156,9 +161,10 @@ FlinkLogicalCalc(select=[a1, b1, a2, b2, a3, b3, *($f4, $f2) AS $f8])
       <![CDATA[
 LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT($4)])
 +- LogicalProject(a1=[$0], b1=[$1], a2=[$4], b2=[$5], c1=[$2])
-   +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
-      :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6])
+      +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -180,9 +186,10 @@ FlinkLogicalAggregate(group=[{0}], b1=[AUXILIARY_GROUP($1)], a2=[AUXILIARY_GROUP
       <![CDATA[
 LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT($4)])
 +- LogicalProject(a1=[$0], b1=[$1], a3=[$4], b3=[$5], c1=[$2])
-   +- LogicalJoin(condition=[=($0, $4)], joinType=[left])
-      :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
+   +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a3=[$4], b3=[$5], c3=[$6], d3=[$7])
+      +- LogicalJoin(condition=[=($0, $4)], joinType=[left])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -205,9 +212,10 @@ FlinkLogicalCalc(select=[a1, b1, a3, b3, EXPR$4])
       <![CDATA[
 LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT($4)])
 +- LogicalProject(a3=[$0], b3=[$1], a1=[$4], b1=[$5], c1=[$6])
-   +- LogicalJoin(condition=[=($4, $0)], joinType=[left])
-      :- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+   +- LogicalProject(a3=[$0], b3=[$1], c3=[$2], d3=[$3], a1=[$4], b1=[$5], c1=[$6], d1=[$7])
+      +- LogicalJoin(condition=[=($4, $0)], joinType=[left])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -228,8 +236,9 @@ FlinkLogicalAggregate(group=[{0, 1}], a1=[AUXILIARY_GROUP($2)], b1=[AUXILIARY_GR
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT($3)])
-+- LogicalProject(a1=[$0], b1=[$1], c=[COUNT() OVER (PARTITION BY $2)], d1=[$3])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
++- LogicalProject(a1=[$0], b1=[$1], c=[$3], d1=[$2])
+   +- LogicalProject(a1=[$0], b1=[$1], d1=[$3], c=[COUNT() OVER (PARTITION BY $2)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -250,9 +259,10 @@ FlinkLogicalCalc(select=[a1, b1, c, EXPR$3])
       <![CDATA[
 LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT($4)])
 +- LogicalProject(a1=[$0], b1=[$1], a2=[$4], b2=[$5], c1=[$2])
-   +- LogicalJoin(condition=[=($0, $5)], joinType=[right])
-      :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6])
+      +- LogicalJoin(condition=[=($0, $5)], joinType=[right])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -275,9 +285,10 @@ FlinkLogicalCalc(select=[a1, b1, a2, b2, EXPR$4])
       <![CDATA[
 LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT($4)])
 +- LogicalProject(a1=[$0], b1=[$1], a3=[$4], b3=[$5], c1=[$2])
-   +- LogicalJoin(condition=[=($0, $4)], joinType=[right])
-      :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
+   +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a3=[$4], b3=[$5], c3=[$6], d3=[$7])
+      +- LogicalJoin(condition=[=($0, $4)], joinType=[right])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -300,9 +311,10 @@ FlinkLogicalCalc(select=[a1, b1, a3, b3, EXPR$4])
       <![CDATA[
 LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT($4)])
 +- LogicalProject(a3=[$0], b3=[$1], a1=[$4], b1=[$5], c1=[$6])
-   +- LogicalJoin(condition=[=($4, $0)], joinType=[right])
-      :- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+   +- LogicalProject(a3=[$0], b3=[$1], c3=[$2], d3=[$3], a1=[$4], b1=[$5], c1=[$6], d1=[$7])
+      +- LogicalJoin(condition=[=($4, $0)], joinType=[right])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -361,10 +373,11 @@ FlinkLogicalWindowAggregate(group=[{0}], c4=[AUXILIARY_GROUP($2)], EXPR$2=[COUNT
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT($3)])
-+- LogicalProject(a4=[$0], c4=[$1], s=[TUMBLE_START($2)], b4=[$3])
-   +- LogicalAggregate(group=[{0, 1, 2}], b4=[VAR_POP($3)])
-      +- LogicalProject(a4=[$0], c4=[$2], $f2=[$TUMBLE($3, 900000:INTERVAL MINUTE)], b4=[$1])
-         +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]])
++- LogicalProject(a4=[$0], c4=[$1], s=[$3], b4=[$2])
+   +- LogicalProject(a4=[$0], c4=[$1], b4=[$3], s=[TUMBLE_START($2)], e=[TUMBLE_END($2)])
+      +- LogicalAggregate(group=[{0, 1, 2}], b4=[VAR_POP($3)])
+         +- LogicalProject(a4=[$0], c4=[$2], $f2=[$TUMBLE($3, 900000:INTERVAL MINUTE)], b4=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -385,10 +398,11 @@ FlinkLogicalCalc(select=[a4, c4, s, EXPR$3])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT($3)])
-+- LogicalProject(a4=[$0], c4=[$1], e=[TUMBLE_END($2)], b4=[$3])
-   +- LogicalAggregate(group=[{0, 1, 2}], b4=[VAR_POP($3)])
-      +- LogicalProject(a4=[$0], c4=[$2], $f2=[$TUMBLE($3, 900000:INTERVAL MINUTE)], b4=[$1])
-         +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]])
++- LogicalProject(a4=[$0], c4=[$1], e=[$4], b4=[$2])
+   +- LogicalProject(a4=[$0], c4=[$1], b4=[$3], s=[TUMBLE_START($2)], e=[TUMBLE_END($2)])
+      +- LogicalAggregate(group=[{0, 1, 2}], b4=[VAR_POP($3)])
+         +- LogicalProject(a4=[$0], c4=[$2], $f2=[$TUMBLE($3, 900000:INTERVAL MINUTE)], b4=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -409,17 +423,18 @@ FlinkLogicalCalc(select=[a4, c4, e, EXPR$3])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()])
-+- LogicalProject(a4=[$0], b4=[$3], c4=[$1])
-   +- LogicalAggregate(group=[{0, 1, 2}], b4=[VAR_POP($3)])
-      +- LogicalProject(a4=[$0], c4=[$2], $f2=[$TUMBLE($3, 900000:INTERVAL MINUTE)], b4=[$1])
-         +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]])
++- LogicalProject(a4=[$0], b4=[$2], c4=[$1])
+   +- LogicalProject(a4=[$0], c4=[$1], b4=[$3], s=[TUMBLE_START($2)], e=[TUMBLE_END($2)])
+      +- LogicalAggregate(group=[{0, 1, 2}], b4=[VAR_POP($3)])
+         +- LogicalProject(a4=[$0], c4=[$2], $f2=[$TUMBLE($3, 900000:INTERVAL MINUTE)], b4=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalAggregate(group=[{0, 2}], c4=[AUXILIARY_GROUP($1)], EXPR$3=[COUNT()])
-+- FlinkLogicalCalc(select=[a4, c4, CAST(/(-($f2, /(*($f3, $f3), $f4)), $f4) AS INTEGER) AS b4])
-   +- FlinkLogicalWindowAggregate(group=[{0}], c4=[AUXILIARY_GROUP($1)], agg#1=[SUM($4)], agg#2=[SUM($3)], agg#3=[COUNT($3)], window=[TumblingGroupWindow('w$, d4, 900000)], properties=[])
+FlinkLogicalAggregate(group=[{0, 1}], c4=[AUXILIARY_GROUP($2)], EXPR$3=[COUNT()])
++- FlinkLogicalCalc(select=[a4, CAST(/(-($f2, /(*($f3, $f3), $f4)), $f4) AS INTEGER) AS b4, c4])
+   +- FlinkLogicalWindowAggregate(group=[{0}], c4=[AUXILIARY_GROUP($1)], agg#1=[SUM($4)], agg#2=[SUM($3)], agg#3=[COUNT($3)], window=[TumblingGroupWindow('w$, d4, 900000)], properties=[w$start, w$end, w$rowtime])
       +- FlinkLogicalCalc(select=[a4, c4, d4, b4, *(b4, b4) AS $f4])
          +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]], fields=[a4, b4, c4, d4])
 ]]>

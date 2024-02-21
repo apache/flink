@@ -23,7 +23,7 @@ import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.plan.batch.table.CalcTest.{giveMeCaseClass, MyHashCode, TestCaseClass, WC}
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class CalcTest extends TableTestBase {
 
@@ -100,7 +100,7 @@ class CalcTest extends TableTestBase {
     val util = batchTestUtil()
     val sourceTable = util.addTableSource[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
 
-    util.tableEnv.registerFunction("hashCode", MyHashCode)
+    util.addTemporarySystemFunction("hashCode", MyHashCode)
 
     val resultTable = sourceTable.select(call("hashCode", $"c"), $"b")
 

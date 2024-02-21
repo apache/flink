@@ -58,7 +58,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @param <OUT> Type of the output elements of this source.
  * @param <SRC> Type of the source function for the stream source operator
  * @param <OP> Type of the stream source operator
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
+@Deprecated
 @Internal
 public class SourceStreamTask<
                 OUT, SRC extends SourceFunction<OUT>, OP extends StreamSource<OUT, SRC>>
@@ -197,6 +201,7 @@ public class SourceStreamTask<
                             if (sourceThreadThrowable != null) {
                                 mailboxProcessor.reportThrowable(sourceThreadThrowable);
                             } else {
+                                notifyEndOfData();
                                 mailboxProcessor.suspend();
                             }
                         });
@@ -266,7 +271,7 @@ public class SourceStreamTask<
             throw new IllegalStateException(
                     "Using externally induced sources, we can not enforce taking a full checkpoint."
                             + "If you are restoring from a snapshot in NO_CLAIM mode, please use"
-                            + " either CLAIM or LEGACY mode.");
+                            + " CLAIM mode.");
         } else {
             // we do not trigger checkpoints here, we simply state whether we can trigger them
             synchronized (lock) {

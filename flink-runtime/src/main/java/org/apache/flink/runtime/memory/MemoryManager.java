@@ -21,6 +21,7 @@ package org.apache.flink.runtime.memory;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.LongFunctionWithException;
@@ -34,7 +35,6 @@ import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -238,7 +238,7 @@ public class MemoryManager {
                 (o, currentSegmentsForOwner) -> {
                     Set<MemorySegment> segmentsForOwner =
                             currentSegmentsForOwner == null
-                                    ? new HashSet<>(numberOfPages)
+                                    ? CollectionUtil.newHashSetWithExpectedSize(numberOfPages)
                                     : currentSegmentsForOwner;
                     for (long i = numberOfPages; i > 0; i--) {
                         MemorySegment segment =

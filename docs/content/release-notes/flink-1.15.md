@@ -603,3 +603,18 @@ By default Flink now uses a Zookeeper 3.5 client.
 ##### [FLINK-24765](https://issues.apache.org/jira/browse/FLINK-24765)
 
 Kafka connector uses Kafka client 2.8.1 by default now.
+
+## Bind to localhost by default
+
+For security purposes, standalone clusters now bind the REST API and RPC endpoints to 
+localhost by default. The goal is to prevent cases where users unknowingly exposed the cluster to 
+the outside, as they would previously bind to all interfaces.
+
+This can be reverted by removing the:
+
+* `rest.bind-address` 
+* `jobmanager.bind-host`
+* `taskmanager.bind-host`
+settings from the flink-conf.yaml .
+
+Note that within Docker containers, the REST API still binds to 0.0.0.0.

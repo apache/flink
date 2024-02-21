@@ -48,6 +48,7 @@ public class IteratorSourceEnumerator<SplitT extends IteratorSourceSplit<?, ?>>
             SplitEnumeratorContext<SplitT> context, Collection<SplitT> splits) {
         this.context = checkNotNull(context);
         this.remainingSplits = new ArrayDeque<>(splits);
+        this.context.metricGroup().setUnassignedSplitsGauge(() -> (long) remainingSplits.size());
     }
 
     // ------------------------------------------------------------------------

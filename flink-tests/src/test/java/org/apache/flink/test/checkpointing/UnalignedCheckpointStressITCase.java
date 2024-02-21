@@ -49,18 +49,17 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTime
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.LogLevelRule;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.LogLevelExtension;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.event.Level;
 
 import javax.annotation.Nullable;
@@ -76,6 +75,7 @@ import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
@@ -88,14 +88,14 @@ import static java.util.Objects.requireNonNull;
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DIRECTORY;
 import static org.apache.flink.configuration.CheckpointingOptions.MAX_RETAINED_CHECKPOINTS;
 import static org.apache.flink.shaded.curator5.org.apache.curator.shaded.com.google.common.base.Preconditions.checkState;
-import static org.apache.flink.shaded.guava30.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.flink.shaded.guava31.com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 
 /**
  * A stress test that runs for a pre-defined amount of time, verifying data correctness and every
  * couple of checkpoints is triggering fail over to stress test unaligned checkpoints.
  */
-public class UnalignedCheckpointStressITCase extends TestLogger {
+class UnalignedCheckpointStressITCase {
 
     private static final int CHECKPOINT_INTERVAL = 20;
     private static final int MINIMUM_COMPLETED_CHECKPOINTS_BETWEEN_FAILURES = 2;
@@ -109,22 +109,22 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
     private static final int NORMAL_RECORD_SLEEP = 1;
     private static final int SMALL_RECORD_SIZE = (BUFFER_SIZE / BUFFER_TIME) * NORMAL_RECORD_SLEEP;
 
-    @ClassRule
-    public static final LogLevelRule NETWORK_LOGGER =
-            new LogLevelRule().set(NetworkActionsLogger.class, Level.TRACE);
+    @RegisterExtension
+    public static final LogLevelExtension NETWORK_LOGGER =
+            new LogLevelExtension().set(NetworkActionsLogger.class, Level.TRACE);
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir public File temporaryFolder;
 
     // a separate folder is used because temporaryFolder is cleaned up
     // after each checkpoint
-    @Rule public TemporaryFolder changelogFolder = new TemporaryFolder();
+    @TempDir public Path changelogFolder;
 
     private MiniClusterWithClientResource cluster;
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    void setup() throws Exception {
         Configuration configuration = new Configuration();
-        File folder = temporaryFolder.getRoot();
+        File folder = temporaryFolder;
         configuration.set(CHECKPOINTS_DIRECTORY, folder.toURI().toString());
         configuration.set(MAX_RETAINED_CHECKPOINTS, 1);
 
@@ -133,7 +133,7 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
         // Doing it on cluster level unconditionally as randomization currently happens on the job
         // level (environment); while this factory can only be set on the cluster level.
         FsStateChangelogStorageFactory.configure(
-                configuration, changelogFolder.newFolder(), Duration.ofMinutes(1), 10);
+                configuration, TempDirUtils.newFolder(changelogFolder), Duration.ofMinutes(1), 10);
 
         cluster =
                 new MiniClusterWithClientResource(
@@ -145,8 +145,8 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
         cluster.before();
     }
 
-    @After
-    public void shutDownExistingCluster() {
+    @AfterEach
+    void shutDownExistingCluster() {
         if (cluster != null) {
             cluster.after();
             cluster = null;
@@ -154,7 +154,7 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
     }
 
     @Test
-    public void runStressTest() throws Exception {
+    void runStressTest() throws Exception {
         Deadline deadline = Deadline.fromNow(Duration.ofMillis(TEST_DURATION));
         File externalizedCheckpoint = null;
         while (deadline.hasTimeLeft()) {
@@ -234,7 +234,7 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
 
     private void cleanDirectoryExcept(File externalizedCheckpoint) throws IOException {
         File directoryToKeep = externalizedCheckpoint.getParentFile();
-        for (File directory : requireNonNull(temporaryFolder.getRoot().listFiles())) {
+        for (File directory : requireNonNull(temporaryFolder.listFiles())) {
             if (!directory.equals(directoryToKeep)) {
                 FileUtils.deleteDirectory(directory);
             }
@@ -275,7 +275,7 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
 
     private File discoverRetainedCheckpoint() throws Exception {
         // structure: root/attempt/checkpoint/_metadata
-        File rootDir = temporaryFolder.getRoot();
+        File rootDir = temporaryFolder;
         Path checkpointDir = null;
 
         for (int i = 0; i <= 1000 && checkpointDir == null; i++) {
@@ -414,7 +414,8 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
         public void run(SourceContext<Record> ctx) throws Exception {
             RecordGenerator generator =
                     new RecordGenerator(
-                            getRuntimeContext().getIndexOfThisSubtask() + sourceIdOffset);
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()
+                                    + sourceIdOffset);
             while (running) {
                 Record next = generator.next(nextValue);
                 synchronized (ctx.getCheckpointLock()) {
@@ -431,8 +432,7 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            nextState.clear();
-            nextState.add(nextValue);
+            nextState.update(Collections.singletonList(nextValue));
         }
 
         @Override

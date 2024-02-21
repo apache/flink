@@ -42,13 +42,15 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.Valu
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings("deprecation")
-public class HashVsSortMiniBenchmark {
+class HashVsSortMiniBenchmark {
 
     // total memory
     private static final int MEMORY_SIZE = 1024 * 1024 * 32;
@@ -84,8 +86,8 @@ public class HashVsSortMiniBenchmark {
     private TypePairComparator<Tuple2<Integer, String>, Tuple2<Integer, String>> pairComparator11;
 
     @SuppressWarnings("unchecked")
-    @Before
-    public void beforeTest() {
+    @BeforeEach
+    void beforeTest() {
         this.serializer1 = TestData.getIntStringTupleSerializerFactory();
         this.serializer2 = TestData.getIntStringTupleSerializerFactory();
         this.comparator1 = TestData.getIntStringTupleComparator();
@@ -100,12 +102,13 @@ public class HashVsSortMiniBenchmark {
         this.ioManager = new IOManagerAsync();
     }
 
-    @After
-    public void afterTest() throws Exception {
+    @AfterEach
+    void afterTest() throws Exception {
         if (this.memoryManager != null) {
-            Assert.assertTrue(
-                    "Memory Leak: Not all memory has been returned to the memory manager.",
-                    this.memoryManager.verifyEmpty());
+            assertThat(this.memoryManager.verifyEmpty())
+                    .withFailMessage(
+                            "Memory Leak: Not all memory has been returned to the memory manager.")
+                    .isTrue();
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }
@@ -117,7 +120,7 @@ public class HashVsSortMiniBenchmark {
     }
 
     @Test
-    public void testSortBothMerge() {
+    void testSortBothMerge() {
         try {
 
             TestData.TupleGenerator generator1 =
@@ -201,12 +204,12 @@ public class HashVsSortMiniBenchmark {
             System.out.println("Sort-Merge Took " + msecs + " msecs.");
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
     @Test
-    public void testBuildFirst() {
+    void testBuildFirst() {
         try {
             TestData.TupleGenerator generator1 =
                     new TestData.TupleGenerator(
@@ -260,12 +263,12 @@ public class HashVsSortMiniBenchmark {
             System.out.println("Hash Build First Took " + msecs + " msecs.");
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
     @Test
-    public void testBuildSecond() {
+    void testBuildSecond() {
         try {
             TestData.TupleGenerator generator1 =
                     new TestData.TupleGenerator(
@@ -319,12 +322,12 @@ public class HashVsSortMiniBenchmark {
             System.out.println("Hash Build Second took " + msecs + " msecs.");
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
     @Test
-    public void testSortOnly() throws Exception {
+    void testSortOnly() throws Exception {
         TestData.TupleGenerator generator1 =
                 new TestData.TupleGenerator(
                         SEED1, INPUT_1_SIZE / 10, 100, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);

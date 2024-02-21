@@ -18,16 +18,16 @@
 
 package org.apache.flink.yarn.testjob;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -58,7 +58,7 @@ public class YarnTestCacheJob {
                 .setParallelism(1)
                 .map(new MapperFunction(), TypeInformation.of(String.class))
                 .setParallelism(1)
-                .addSink(new DiscardingSink<String>())
+                .sinkTo(new DiscardingSink<String>())
                 .setParallelism(1);
 
         return env.getStreamGraph().getJobGraph();
@@ -69,7 +69,7 @@ public class YarnTestCacheJob {
         private static final long serialVersionUID = -1238033916372648233L;
 
         @Override
-        public void open(Configuration config) throws IOException {
+        public void open(OpenContext openContext) throws IOException {
             // access cached file via RuntimeContext and DistributedCache
             final File cacheFile = getRuntimeContext().getDistributedCache().getFile("cacheFile");
             final FileInputStream inputStream = new FileInputStream(cacheFile);

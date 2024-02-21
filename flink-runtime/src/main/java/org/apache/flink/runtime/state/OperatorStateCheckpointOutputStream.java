@@ -20,9 +20,9 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.runtime.util.LongArrayList;
+import org.apache.flink.util.CollectionUtil;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 
 /** Checkpoint output stream that allows to write raw operator state in a partitioned way. */
@@ -63,7 +63,8 @@ public final class OperatorStateCheckpointOutputStream
             startNewPartition();
         }
 
-        Map<String, OperatorStateHandle.StateMetaInfo> offsetsMap = new HashMap<>(1);
+        Map<String, OperatorStateHandle.StateMetaInfo> offsetsMap =
+                CollectionUtil.newHashMapWithExpectedSize(1);
 
         OperatorStateHandle.StateMetaInfo metaInfo =
                 new OperatorStateHandle.StateMetaInfo(

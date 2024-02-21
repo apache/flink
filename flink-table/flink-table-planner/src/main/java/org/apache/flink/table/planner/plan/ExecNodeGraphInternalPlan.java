@@ -34,17 +34,21 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /** Implementation of {@link CompiledPlan} backed by an {@link ExecNodeGraph}. */
 @Internal
 public class ExecNodeGraphInternalPlan implements InternalPlan {
 
-    private final String serializedPlan;
+    private final Supplier<String> serializedPlanSupplier;
     private final ExecNodeGraph execNodeGraph;
 
-    public ExecNodeGraphInternalPlan(String serializedPlan, ExecNodeGraph execNodeGraph) {
-        this.serializedPlan = serializedPlan;
+    private String serializedPlan;
+
+    public ExecNodeGraphInternalPlan(
+            Supplier<String> serializedPlanSupplier, ExecNodeGraph execNodeGraph) {
+        this.serializedPlanSupplier = serializedPlanSupplier;
         this.execNodeGraph = execNodeGraph;
     }
 
@@ -54,6 +58,9 @@ public class ExecNodeGraphInternalPlan implements InternalPlan {
 
     @Override
     public String asJsonString() {
+        if (serializedPlan == null) {
+            serializedPlan = serializedPlanSupplier.get();
+        }
         return serializedPlan;
     }
 
@@ -75,10 +82,12 @@ public class ExecNodeGraphInternalPlan implements InternalPlan {
             }
         }
         try {
+            Files.createDirectories(file.toPath().getParent());
             Files.write(
                     file.toPath(),
-                    serializedPlan.getBytes(StandardCharsets.UTF_8),
+                    asJsonString().getBytes(StandardCharsets.UTF_8),
                     StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING,
                     StandardOpenOption.WRITE);
         } catch (IOException e) {
             throw new TableException("Cannot write the compiled plan to file '" + file + "'.", e);

@@ -21,8 +21,8 @@ package org.apache.flink.core.plugin;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 
-import org.apache.flink.shaded.guava30.com.google.common.base.Joiner;
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava31.com.google.common.base.Joiner;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterators;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

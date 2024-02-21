@@ -26,7 +26,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 
 import org.junit.After;
@@ -55,9 +55,7 @@ import static org.junit.Assert.fail;
 
 /**
  * A test suite to check that restrictions on recovery with changelog enabled are enforced; and that
- * non-restricted scenarios are not blocked. In particular, recovery from non-changelog checkpoints
- * should not be allowed (see <a
- * href="https://issues.apache.org/jira/browse/FLINK-26079">FLINK-26079</a>).
+ * non-restricted scenarios are not blocked.
  */
 @RunWith(Parameterized.class)
 public class ChangelogCompatibilityITCase {
@@ -140,7 +138,7 @@ public class ChangelogCompatibilityITCase {
         env.fromSequence(Long.MIN_VALUE, Long.MAX_VALUE)
                 .countWindowAll(37) // any stateful transformation suffices
                 .reduce((ReduceFunction<Long>) Long::sum) // overflow is fine, result is discarded
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
         return env.getStreamGraph().getJobGraph();
     }
 
@@ -290,8 +288,8 @@ public class ChangelogCompatibilityITCase {
         checkpointDir = TEMPORARY_FOLDER.newFolder();
         savepointDir = TEMPORARY_FOLDER.newFolder();
         Configuration config = new Configuration();
-        config.setString(CHECKPOINTS_DIRECTORY, pathToString(checkpointDir));
-        config.setString(SAVEPOINT_DIRECTORY, pathToString(savepointDir));
+        config.set(CHECKPOINTS_DIRECTORY, pathToString(checkpointDir));
+        config.set(SAVEPOINT_DIRECTORY, pathToString(savepointDir));
         FsStateChangelogStorageFactory.configure(
                 config, TEMPORARY_FOLDER.newFolder(), Duration.ofMinutes(1), 10);
         miniClusterResource =

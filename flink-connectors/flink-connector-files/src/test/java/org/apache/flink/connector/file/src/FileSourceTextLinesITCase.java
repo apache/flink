@@ -19,10 +19,15 @@
 package org.apache.flink.connector.file.src;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.configuration.BatchExecutionOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
@@ -33,7 +38,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
 import org.apache.flink.test.junit5.InjectMiniCluster;
 import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -64,17 +71,13 @@ class FileSourceTextLinesITCase {
 
     private static final int PARALLELISM = 4;
 
+    private static final int SOURCE_PARALLELISM_UPPER_BOUND = 8;
+
     @TempDir private static java.nio.file.Path tmpDir;
 
     @RegisterExtension
     private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
-            new MiniClusterExtension(
-                    new MiniClusterResourceConfiguration.Builder()
-                            .setNumberTaskManagers(1)
-                            .setNumberSlotsPerTaskManager(PARALLELISM)
-                            .setRpcServiceSharing(RpcServiceSharing.DEDICATED)
-                            .withHaLeadershipControl()
-                            .build());
+            new MiniClusterExtension(createMiniClusterConfiguration());
 
     // ------------------------------------------------------------------------
     //  test cases
@@ -93,10 +96,11 @@ class FileSourceTextLinesITCase {
      * restarts TaskManager.
      */
     @Test
-    void testBoundedTextFileSourceWithTaskManagerFailover(
-            @TempDir java.nio.file.Path tmpTestDir, @InjectMiniCluster MiniCluster miniCluster)
+    void testBoundedTextFileSourceWithTaskManagerFailover(@TempDir java.nio.file.Path tmpTestDir)
             throws Exception {
-        testBoundedTextFileSource(tmpTestDir, FailoverType.TM, miniCluster);
+        // This test will kill TM, so we run it in a new cluster to avoid affecting other tests
+        runTestWithNewMiniCluster(
+                miniCluster -> testBoundedTextFileSource(tmpTestDir, FailoverType.TM, miniCluster));
     }
 
     /**
@@ -104,14 +108,31 @@ class FileSourceTextLinesITCase {
      * triggers JobManager failover.
      */
     @Test
-    void testBoundedTextFileSourceWithJobManagerFailover(
+    void testBoundedTextFileSourceWithJobManagerFailover(@TempDir java.nio.file.Path tmpTestDir)
+            throws Exception {
+        // This test will kill JM, so we run it in a new cluster to avoid affecting other tests
+        runTestWithNewMiniCluster(
+                miniCluster -> testBoundedTextFileSource(tmpTestDir, FailoverType.JM, miniCluster));
+    }
+
+    @Test
+    void testBoundedTextFileSourceWithDynamicParallelismInference(
             @TempDir java.nio.file.Path tmpTestDir, @InjectMiniCluster MiniCluster miniCluster)
             throws Exception {
-        testBoundedTextFileSource(tmpTestDir, FailoverType.JM, miniCluster);
+        testBoundedTextFileSource(tmpTestDir, FailoverType.NONE, miniCluster, true);
     }
 
     private void testBoundedTextFileSource(
             java.nio.file.Path tmpTestDir, FailoverType failoverType, MiniCluster miniCluster)
+            throws Exception {
+        testBoundedTextFileSource(tmpTestDir, failoverType, miniCluster, false);
+    }
+
+    private void testBoundedTextFileSource(
+            java.nio.file.Path tmpTestDir,
+            FailoverType failoverType,
+            MiniCluster miniCluster,
+            boolean batchMode)
             throws Exception {
         final File testDir = tmpTestDir.toFile();
 
@@ -128,11 +149,16 @@ class FileSourceTextLinesITCase {
                         .build();
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(PARALLELISM);
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+        env.setParallelism(PARALLELISM);
+
+        if (batchMode) {
+            env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        }
 
         final DataStream<String> stream =
-                env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
+                env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source")
+                        .setMaxParallelism(PARALLELISM * 2);
 
         final DataStream<String> streamFailingInTheMiddleOfReading =
                 RecordCounterToFail.wrapWithFailureAfter(stream, LINES.length / 2);
@@ -151,6 +177,9 @@ class FileSourceTextLinesITCase {
         }
 
         verifyResult(result);
+        if (batchMode) {
+            verifySourceParallelism(miniCluster.getExecutionGraph(jobId).get());
+        }
     }
 
     /**
@@ -170,10 +199,12 @@ class FileSourceTextLinesITCase {
      */
     @Test
     @Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler") // FLINK-21450
-    void testContinuousTextFileSourceWithTaskManagerFailover(
-            @TempDir java.nio.file.Path tmpTestDir, @InjectMiniCluster MiniCluster miniCluster)
+    void testContinuousTextFileSourceWithTaskManagerFailover(@TempDir java.nio.file.Path tmpTestDir)
             throws Exception {
-        testContinuousTextFileSource(tmpTestDir, FailoverType.TM, miniCluster);
+        // This test will kill TM, so we run it in a new cluster to avoid affecting other tests
+        runTestWithNewMiniCluster(
+                miniCluster ->
+                        testContinuousTextFileSource(tmpTestDir, FailoverType.TM, miniCluster));
     }
 
     /**
@@ -181,10 +212,12 @@ class FileSourceTextLinesITCase {
      * record format (text lines) and triggers JobManager failover.
      */
     @Test
-    void testContinuousTextFileSourceWithJobManagerFailover(
-            @TempDir java.nio.file.Path tmpTestDir, @InjectMiniCluster MiniCluster miniCluster)
+    void testContinuousTextFileSourceWithJobManagerFailover(@TempDir java.nio.file.Path tmpTestDir)
             throws Exception {
-        testContinuousTextFileSource(tmpTestDir, FailoverType.JM, miniCluster);
+        // This test will kill JM, so we run it in a new cluster to avoid affecting other tests
+        runTestWithNewMiniCluster(
+                miniCluster ->
+                        testContinuousTextFileSource(tmpTestDir, FailoverType.JM, miniCluster));
     }
 
     private void testContinuousTextFileSource(
@@ -250,6 +283,34 @@ class FileSourceTextLinesITCase {
         JM
     }
 
+    private static MiniClusterResourceConfiguration createMiniClusterConfiguration() {
+        Configuration configuration = new Configuration();
+        configuration.set(
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM,
+                SOURCE_PARALLELISM_UPPER_BOUND);
+        return new MiniClusterResourceConfiguration.Builder()
+                .setNumberTaskManagers(1)
+                .setNumberSlotsPerTaskManager(PARALLELISM)
+                .setRpcServiceSharing(RpcServiceSharing.DEDICATED)
+                .withHaLeadershipControl()
+                .setConfiguration(configuration)
+                .build();
+    }
+
+    private static void runTestWithNewMiniCluster(
+            ThrowingConsumer<MiniCluster, Exception> testMethod) throws Exception {
+        MiniClusterWithClientResource miniCluster = null;
+        try {
+            miniCluster = new MiniClusterWithClientResource(createMiniClusterConfiguration());
+            miniCluster.before();
+            testMethod.accept(miniCluster.getMiniCluster());
+        } finally {
+            if (miniCluster != null) {
+                miniCluster.after();
+            }
+        }
+    }
+
     private static void triggerFailover(
             FailoverType type, JobID jobId, Runnable afterFailAction, MiniCluster miniCluster)
             throws Exception {
@@ -293,6 +354,12 @@ class FileSourceTextLinesITCase {
         Arrays.sort(actual);
 
         assertThat(actual).isEqualTo(expected);
+    }
+
+    private static void verifySourceParallelism(AccessExecutionGraph executionGraph) {
+        AccessExecutionJobVertex sourceVertex =
+                executionGraph.getVerticesTopologically().iterator().next();
+        assertThat(sourceVertex.getParallelism()).isEqualTo(FILE_PATHS.length);
     }
 
     // ------------------------------------------------------------------------

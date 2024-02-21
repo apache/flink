@@ -115,6 +115,8 @@ public abstract class ResultPartition implements ResultPartitionWriter {
 
     protected ResultPartitionBytesCounter resultPartitionBytes;
 
+    private boolean isNumberOfPartitionConsumerUndefined = false;
+
     public ResultPartition(
             String owningTaskName,
             int partitionIndex,
@@ -181,6 +183,14 @@ public abstract class ResultPartition implements ResultPartitionWriter {
 
     public BufferPool getBufferPool() {
         return bufferPool;
+    }
+
+    public void isNumberOfPartitionConsumerUndefined(boolean isNumberOfPartitionConsumerUndefined) {
+        this.isNumberOfPartitionConsumerUndefined = isNumberOfPartitionConsumerUndefined;
+    }
+
+    public boolean isNumberOfPartitionConsumerUndefined() {
+        return isNumberOfPartitionConsumerUndefined;
     }
 
     /** Returns the total number of queued buffers of all subpartitions. */
@@ -300,6 +310,39 @@ public abstract class ResultPartition implements ResultPartitionWriter {
         metrics.registerResultPartitionBytesCounter(
                 partitionId.getPartitionId(), resultPartitionBytes);
     }
+
+    @Override
+    public ResultSubpartitionView createSubpartitionView(
+            ResultSubpartitionIndexSet indexSet, BufferAvailabilityListener availabilityListener)
+            throws IOException {
+        if (indexSet.size() == 1) {
+            return createSubpartitionView(
+                    indexSet.values().iterator().next(), availabilityListener);
+        } else {
+            UnionResultSubpartitionView unionView =
+                    new UnionResultSubpartitionView(availabilityListener, indexSet.size());
+            try {
+                for (int i : indexSet.values()) {
+                    ResultSubpartitionView view = createSubpartitionView(i, unionView);
+                    unionView.notifyViewCreated(i, view);
+                }
+                return unionView;
+            } catch (Exception e) {
+                unionView.releaseAllResources();
+                throw e;
+            }
+        }
+    }
+
+    /**
+     * Returns a reader for the subpartition with the given index.
+     *
+     * <p>Given that the function to merge outputs from multiple subpartition views is supported
+     * uniformly in {@link UnionResultSubpartitionView}, subclasses of {@link ResultPartition} only
+     * needs to take care of creating subpartition view for a single subpartition.
+     */
+    protected abstract ResultSubpartitionView createSubpartitionView(
+            int index, BufferAvailabilityListener availabilityListener) throws IOException;
 
     /**
      * Whether this partition is released.

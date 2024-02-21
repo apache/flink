@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.operations.command;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.operations.Operation;
 
 /** Operation that represents HELP command. */
+@Internal
 public class HelpOperation implements Operation {
 
     @Override

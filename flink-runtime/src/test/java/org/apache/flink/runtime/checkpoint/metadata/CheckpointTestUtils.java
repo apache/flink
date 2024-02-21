@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
@@ -34,14 +35,15 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
-import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.filesystem.RelativeFileStateHandle;
+import org.apache.flink.runtime.state.TestingRelativeFileStateHandle;
+import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -55,8 +57,7 @@ import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNew
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.empty;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * A collection of utility methods for testing the (de)serialization of checkpoint metadata for
@@ -235,9 +236,9 @@ public class CheckpointTestUtils {
      * well defined in the raw contents.
      */
     public static void assertMasterStateEquality(MasterState a, MasterState b) {
-        assertEquals(a.version(), b.version());
-        assertEquals(a.name(), b.name());
-        assertArrayEquals(a.bytes(), b.bytes());
+        assertThat(b.version()).isEqualTo(a.version());
+        assertThat(b.name()).isEqualTo(a.name());
+        assertThat(b.bytes()).isEqualTo(a.bytes());
     }
 
     // ------------------------------------------------------------------------
@@ -256,18 +257,18 @@ public class CheckpointTestUtils {
                 createRandomUUID(rnd),
                 new KeyGroupRange(1, 1),
                 checkpointId,
-                createRandomStateHandleMap(rnd),
-                createRandomStateHandleMap(rnd),
+                createRandomHandleAndLocalPathList(rnd),
+                createRandomHandleAndLocalPathList(rnd),
                 createDummyStreamStateHandle(rnd, null));
     }
 
-    public static Map<StateHandleID, StreamStateHandle> createRandomStateHandleMap(Random rnd) {
+    public static List<HandleAndLocalPath> createRandomHandleAndLocalPathList(Random rnd) {
         final int size = rnd.nextInt(4);
-        Map<StateHandleID, StreamStateHandle> result = new HashMap<>(size);
+        List<HandleAndLocalPath> result = new ArrayList<>(size);
         for (int i = 0; i < size; ++i) {
-            StateHandleID randomId = new StateHandleID(createRandomUUID(rnd).toString());
+            String localPath = createRandomUUID(rnd).toString();
             StreamStateHandle stateHandle = createDummyStreamStateHandle(rnd, null);
-            result.put(randomId, stateHandle);
+            result.add(HandleAndLocalPath.of(stateHandle, localPath));
         }
 
         return result;
@@ -293,10 +294,9 @@ public class CheckpointTestUtils {
     public static StreamStateHandle createDummyStreamStateHandle(
             Random rnd, @Nullable String basePath) {
         if (!isSavepoint(basePath)) {
-            return new ByteStreamStateHandle(
-                    String.valueOf(createRandomUUID(rnd)),
-                    String.valueOf(createRandomUUID(rnd))
-                            .getBytes(ConfigConstants.DEFAULT_CHARSET));
+            String stateId = String.valueOf(createRandomUUID(rnd));
+            byte[] stateContent = stateId.getBytes(StandardCharsets.UTF_8);
+            return new TestingStreamStateHandle(stateId, stateContent);
         } else {
             long stateSize = rnd.nextLong();
             if (stateSize <= 0) {
@@ -304,7 +304,7 @@ public class CheckpointTestUtils {
             }
             String relativePath = String.valueOf(createRandomUUID(rnd));
             Path statePath = new Path(basePath, relativePath);
-            return new RelativeFileStateHandle(statePath, relativePath, stateSize);
+            return new TestingRelativeFileStateHandle(statePath, relativePath, stateSize);
         }
     }
 

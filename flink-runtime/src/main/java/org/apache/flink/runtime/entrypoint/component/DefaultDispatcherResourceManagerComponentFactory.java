@@ -21,6 +21,7 @@ package org.apache.flink.runtime.entrypoint.component;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -113,6 +114,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
             MetricRegistry metricRegistry,
             ExecutionGraphInfoStore executionGraphInfoStore,
             MetricQueryServiceRetriever metricQueryServiceRetriever,
+            Collection<FailureEnricher> failureEnrichers,
             FatalErrorHandler fatalErrorHandler)
             throws Exception {
 
@@ -147,12 +149,12 @@ public class DefaultDispatcherResourceManagerComponentFactory
 
             final ScheduledExecutorService executor =
                     WebMonitorEndpoint.createExecutorService(
-                            configuration.getInteger(RestOptions.SERVER_NUM_THREADS),
-                            configuration.getInteger(RestOptions.SERVER_THREAD_PRIORITY),
+                            configuration.get(RestOptions.SERVER_NUM_THREADS),
+                            configuration.get(RestOptions.SERVER_THREAD_PRIORITY),
                             "DispatcherRestEndpoint");
 
             final long updateInterval =
-                    configuration.getLong(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL);
+                    configuration.get(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL);
             final MetricFetcher metricFetcher =
                     updateInterval == 0
                             ? VoidMetricFetcher.INSTANCE
@@ -170,7 +172,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             blobServer,
                             executor,
                             metricFetcher,
-                            highAvailabilityServices.getClusterRestEndpointLeaderElectionService(),
+                            highAvailabilityServices.getClusterRestEndpointLeaderElection(),
                             fatalErrorHandler);
 
             log.debug("Starting Dispatcher REST endpoint.");
@@ -217,12 +219,13 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             historyServerArchivist,
                             metricRegistry.getMetricQueryServiceGatewayRpcAddress(),
                             ioExecutor,
-                            dispatcherOperationCaches);
+                            dispatcherOperationCaches,
+                            failureEnrichers);
 
             log.debug("Starting Dispatcher.");
             dispatcherRunner =
                     dispatcherRunnerFactory.createDispatcherRunner(
-                            highAvailabilityServices.getDispatcherLeaderElectionService(),
+                            highAvailabilityServices.getDispatcherLeaderElection(),
                             fatalErrorHandler,
                             new HaServicesJobPersistenceComponentFactory(highAvailabilityServices),
                             ioExecutor,

@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.types.logical.LogicalType;
 
 /**
@@ -70,5 +71,7 @@ public interface CodeGeneratorCastRule<IN, OUT> extends CastRule<IN, OUT> {
 
         /** @return field term. The field is going to be declared as final. */
         String declareClassField(String type, String field, String initialization);
+
+        CodeGeneratorContext getCodeGeneratorContext();
     }
 }

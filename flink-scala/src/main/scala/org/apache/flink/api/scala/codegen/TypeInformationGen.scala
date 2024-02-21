@@ -19,6 +19,7 @@ package org.apache.flink.api.scala.codegen
 
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfig
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.java.typeutils._
@@ -137,10 +138,10 @@ private[flink] trait TypeInformationGen[C <: Context] {
         fieldsExpr.splice,
         fieldNamesExpr.splice) {
 
-        override def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
+        override def createSerializer(serializerConfig: SerializerConfig): TypeSerializer[T] = {
           val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)
           for (i <- 0 until getArity) {
-            fieldSerializers(i) = types(i).createSerializer(executionConfig)
+            fieldSerializers(i) = types(i).createSerializer(serializerConfig)
           }
           // -------------------------------------------------------------------------------------
           // NOTE:
@@ -157,6 +158,9 @@ private[flink] trait TypeInformationGen[C <: Context] {
 
           new ScalaCaseClassSerializer[T](getTypeClass, fieldSerializers)
         }
+
+        override def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] =
+          createSerializer(executionConfig.getSerializerConfig)
       }
     }
   }
@@ -264,10 +268,15 @@ private[flink] trait TypeInformationGen[C <: Context] {
       import org.apache.flink.api.scala.typeutils.TraversableTypeInfo
       import org.apache.flink.api.scala.typeutils.TraversableSerializer
       import org.apache.flink.api.common.ExecutionConfig
+      import org.apache.flink.api.common.serialization.SerializerConfig
 
       val elementTpe = $elementTypeInfo
       new TraversableTypeInfo($collectionClass, elementTpe) {
         def createSerializer(executionConfig: ExecutionConfig) = {
+          createSerializer(executionConfig.getSerializerConfig)
+        }
+
+        override def createSerializer(serializerConfig: SerializerConfig) = {
 
           // -------------------------------------------------------------------------------------
           // NOTE:
@@ -276,14 +285,14 @@ private[flink] trait TypeInformationGen[C <: Context] {
           // with Flink versions pre 1.8, that were using Java deserialization.
           // -------------------------------------------------------------------------------------
           val unused = new TraversableSerializer[${desc.tpe}, ${desc.elem.tpe}](
-              elementTpe.createSerializer(executionConfig),
+              elementTpe.createSerializer(serializerConfig),
               $cbfStringLiteral) {
 
                   override def legacyCbfCode = $cbfStringLiteral
               }
 
           new TraversableSerializer[${desc.tpe}, ${desc.elem.tpe}](
-                                  elementTpe.createSerializer(executionConfig),
+                                  elementTpe.createSerializer(serializerConfig),
                                   $cbfStringLiteral)
         }
       }

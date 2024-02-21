@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
+import org.apache.flink.api.common.functions.{MapFunction, OpenContext, RichMapFunction}
 import org.apache.flink.configuration.{Configuration, PipelineOptions, ReadableConfig}
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.data.{DecimalData, GenericRowData, TimestampData}
@@ -26,6 +26,7 @@ import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator.generateFunction
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.{JSON_ARRAY, JSON_OBJECT}
+import org.apache.flink.table.planner.plan.utils.AsyncUtil
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.planner.utils.Logging
@@ -65,9 +66,9 @@ class ExpressionReducer(
       constExprs: java.util.List[RexNode],
       reducedValues: java.util.List[RexNode]): Unit = {
 
-    val pythonUDFExprs = new ListBuffer[RexNode]()
+    val remoteUDFExprs = new ListBuffer[RexNode]()
 
-    val literals = skipAndValidateExprs(rexBuilder, constExprs, pythonUDFExprs)
+    val literals = skipAndValidateExprs(rexBuilder, constExprs, remoteUDFExprs)
 
     val literalTypes = literals.map(e => FlinkTypeFactory.toLogicalType(e.getType))
     val resultType = RowType.of(literalTypes: _*)
@@ -131,8 +132,8 @@ class ExpressionReducer(
     while (i < constExprs.size()) {
       val unreduced = constExprs.get(i)
       // use eq to compare reference
-      if (pythonUDFExprs.exists(_ eq unreduced)) {
-        // if contains python function then just insert the original expression.
+      if (remoteUDFExprs.exists(_ eq unreduced)) {
+        // if contains async function then just insert the original expression.
         reducedValues.add(unreduced)
       } else
         unreduced match {
@@ -253,15 +254,15 @@ class ExpressionReducer(
   private def skipAndValidateExprs(
       rexBuilder: RexBuilder,
       constExprs: java.util.List[RexNode],
-      pythonUDFExprs: ListBuffer[RexNode]): List[RexNode] = {
+      remoteUDFExprs: ListBuffer[RexNode]): List[RexNode] = {
     constExprs.asScala
       .map(e => (e.getType.getSqlTypeName, e))
       .flatMap {
 
-        // Skip expressions that contain python functions because it's quite expensive to
-        // call Python UDFs during optimization phase. They will be optimized during the runtime.
-        case (_, e) if containsPythonCall(e) =>
-          pythonUDFExprs += e
+        // Skip expressions that contain python or async functions because it's quite expensive to
+        // call async UDFs during optimization phase. They will be optimized during the runtime.
+        case (_, e) if containsPythonCall(e) || AsyncUtil.containsAsyncCall(e) =>
+          remoteUDFExprs += e
           None
 
         // we don't support object literals yet, we skip those constant expressions

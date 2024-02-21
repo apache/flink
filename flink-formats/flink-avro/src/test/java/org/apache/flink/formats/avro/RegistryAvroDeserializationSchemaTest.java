@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.SimpleRecord;
 import org.apache.flink.formats.avro.utils.TestDataGenerator;
@@ -28,6 +29,8 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -74,8 +77,9 @@ class RegistryAvroDeserializationSchemaTest {
         assertThat(genericRecord.get("country")).isNull();
     }
 
-    @Test
-    void testSpecificRecordReadMoreFieldsThanWereWritten() throws IOException {
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testSpecificRecordReadMoreFieldsThanWereWritten(AvroEncoding encoding) throws IOException {
         Schema smallerUserSchema =
                 new Schema.Parser()
                         .parse(
@@ -85,7 +89,7 @@ class RegistryAvroDeserializationSchemaTest {
                                         + " \"fields\": [\n"
                                         + "     {\"name\": \"name\", \"type\": \"string\"}"
                                         + " ]\n"
-                                        + "}]");
+                                        + "}");
         RegistryAvroDeserializationSchema<SimpleRecord> deserializer =
                 new RegistryAvroDeserializationSchema<>(
                         SimpleRecord.class,
@@ -102,13 +106,14 @@ class RegistryAvroDeserializationSchemaTest {
                                             throws IOException {
                                         // Do nothing
                                     }
-                                });
+                                },
+                        encoding);
 
         GenericData.Record smallUser =
                 new GenericRecordBuilder(smallerUserSchema).set("name", "someName").build();
 
         SimpleRecord simpleRecord =
-                deserializer.deserialize(writeRecord(smallUser, smallerUserSchema));
+                deserializer.deserialize(writeRecord(smallUser, smallerUserSchema, encoding));
 
         assertThat(simpleRecord.getName().toString()).isEqualTo("someName");
         assertThat(simpleRecord.getOptionalField()).isNull();

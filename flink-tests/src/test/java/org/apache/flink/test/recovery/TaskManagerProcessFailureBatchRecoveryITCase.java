@@ -25,19 +25,19 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.util.Arrays;
 import java.util.Collection;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test the recovery of a simple batch program in the case of TaskManager process failure. */
-@SuppressWarnings("serial")
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class TaskManagerProcessFailureBatchRecoveryITCase
         extends AbstractTaskManagerProcessFailureRecoveryTest {
 
@@ -51,7 +51,7 @@ public class TaskManagerProcessFailureBatchRecoveryITCase
         this.executionMode = executionMode;
     }
 
-    @Parameterized.Parameters
+    @Parameters(name = "executionMode={0}")
     public static Collection<Object[]> executionMode() {
         return Arrays.asList(new Object[][] {{ExecutionMode.PIPELINED}, {ExecutionMode.BATCH}});
     }
@@ -91,7 +91,9 @@ public class TaskManagerProcessFailureBatchRecoveryITCase
                                     public Long map(Long value) throws Exception {
                                         if (!markerCreated) {
                                             int taskIndex =
-                                                    getRuntimeContext().getIndexOfThisSubtask();
+                                                    getRuntimeContext()
+                                                            .getTaskInfo()
+                                                            .getIndexOfThisSubtask();
                                             touchFile(
                                                     new File(
                                                             coordinateDir,
@@ -120,6 +122,6 @@ public class TaskManagerProcessFailureBatchRecoveryITCase
                                 });
 
         long sum = result.collect().get(0);
-        assertEquals(numElements * (numElements + 1L) / 2L, sum);
+        assertThat(numElements * (numElements + 1L) / 2L).isEqualTo(sum);
     }
 }

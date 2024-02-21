@@ -25,7 +25,13 @@ import org.apache.flink.walkthrough.common.entity.Transaction;
 import java.io.Serializable;
 import java.util.Iterator;
 
-/** A stream of transactions. */
+/**
+ * A stream of transactions.
+ *
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+ */
 @Public
 public class TransactionSource extends FromIteratorFunction<Transaction> {
 

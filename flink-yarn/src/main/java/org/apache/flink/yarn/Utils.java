@@ -20,10 +20,14 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigUtils;
-import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.util.HadoopUtils;
+import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
@@ -41,6 +45,7 @@ import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.util.StringInterner;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
+import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
@@ -57,6 +62,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -69,6 +75,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 import static org.apache.flink.yarn.YarnConfigKeys.LOCAL_RESOURCE_DESCRIPTOR_SEPARATOR;
+import static org.apache.flink.yarn.configuration.YarnConfigOptions.YARN_CONTAINER_START_COMMAND_TEMPLATE;
 
 /** Utility class that provides helper methods to work with Apache Hadoop YARN. */
 public final class Utils {
@@ -80,6 +87,9 @@ public final class Utils {
 
     /** Yarn site xml file name populated in YARN container for secure IT run. */
     public static final String YARN_SITE_FILE_NAME = "yarn-site.xml";
+
+    /** Constant representing a wildcard access control list. */
+    private static final String WILDCARD_ACL = "*";
 
     /** The prefixes that Flink adds to the YARN config. */
     private static final String[] FLINK_CONFIG_PREFIXES = {"flink.yarn."};
@@ -109,6 +119,9 @@ public final class Utils {
     @VisibleForTesting
     static final String YARN_RM_INCREMENT_ALLOCATION_VCORES_LEGACY_KEY =
             "yarn.scheduler.increment-allocation-vcores";
+
+    @VisibleForTesting
+    static final String IGNORE_UNRECOGNIZED_VM_OPTIONS = "-XX:+IgnoreUnrecognizedVMOptions";
 
     private static final int DEFAULT_YARN_RM_INCREMENT_ALLOCATION_VCORES = 1;
 
@@ -382,7 +395,7 @@ public final class Utils {
         boolean hasLog4j = new File(workingDirectory, "log4j.properties").exists();
 
         String launchCommand =
-                BootstrapTools.getTaskManagerShellCommand(
+                getTaskManagerShellCommand(
                         flinkConfig,
                         tmParams,
                         ".",
@@ -425,6 +438,8 @@ public final class Utils {
 
         ctx.setEnvironment(containerEnv);
 
+        setAclsFor(ctx, flinkConfig);
+
         // For TaskManager YARN container context, read the tokens from the jobmanager yarn
         // container local file.
         // NOTE: must read the tokens from the local file, not from the UGI context, because if UGI
@@ -463,6 +478,133 @@ public final class Utils {
         }
 
         return ctx;
+    }
+
+    /**
+     * Generates the shell command to start a task manager.
+     *
+     * @param flinkConfig The Flink configuration.
+     * @param tmParams Parameters for the task manager.
+     * @param configDirectory The configuration directory for the config.yaml
+     * @param logDirectory The log directory.
+     * @param hasLogback Uses logback?
+     * @param hasLog4j Uses log4j?
+     * @param mainClass The main class to start with.
+     * @return A String containing the task manager startup command.
+     */
+    public static String getTaskManagerShellCommand(
+            org.apache.flink.configuration.Configuration flinkConfig,
+            ContaineredTaskManagerParameters tmParams,
+            String configDirectory,
+            String logDirectory,
+            boolean hasLogback,
+            boolean hasLog4j,
+            boolean hasKrb5,
+            Class<?> mainClass,
+            String mainArgs) {
+
+        final Map<String, String> startCommandValues = new HashMap<>();
+        startCommandValues.put("java", "$JAVA_HOME/bin/java");
+
+        final TaskExecutorProcessSpec taskExecutorProcessSpec =
+                tmParams.getTaskExecutorProcessSpec();
+        startCommandValues.put(
+                "jvmmem", ProcessMemoryUtils.generateJvmParametersStr(taskExecutorProcessSpec));
+
+        List<ConfigOption<String>> jvmOptions =
+                Arrays.asList(
+                        CoreOptions.FLINK_DEFAULT_JVM_OPTIONS,
+                        CoreOptions.FLINK_JVM_OPTIONS,
+                        CoreOptions.FLINK_DEFAULT_TM_JVM_OPTIONS,
+                        CoreOptions.FLINK_TM_JVM_OPTIONS);
+        startCommandValues.put("jvmopts", generateJvmOptsString(flinkConfig, jvmOptions, hasKrb5));
+
+        String logging = "";
+        if (hasLogback || hasLog4j) {
+            logging = "-Dlog.file=" + logDirectory + "/taskmanager.log";
+            if (hasLogback) {
+                logging += " -Dlogback.configurationFile=file:" + configDirectory + "/logback.xml";
+            }
+            if (hasLog4j) {
+                logging += " -Dlog4j.configuration=file:" + configDirectory + "/log4j.properties";
+                logging +=
+                        " -Dlog4j.configurationFile=file:" + configDirectory + "/log4j.properties";
+            }
+        }
+
+        startCommandValues.put("logging", logging);
+        startCommandValues.put("class", mainClass.getName());
+        startCommandValues.put(
+                "redirects",
+                "1> "
+                        + logDirectory
+                        + "/taskmanager.out "
+                        + "2> "
+                        + logDirectory
+                        + "/taskmanager.err");
+
+        String argsStr =
+                TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec)
+                        + " --configDir "
+                        + configDirectory;
+        if (!mainArgs.isEmpty()) {
+            argsStr += " " + mainArgs;
+        }
+        startCommandValues.put("args", argsStr);
+
+        final String commandTemplate = flinkConfig.get(YARN_CONTAINER_START_COMMAND_TEMPLATE);
+        String startCommand = getStartCommand(commandTemplate, startCommandValues);
+        LOG.debug("TaskManager start command: " + startCommand);
+
+        return startCommand;
+    }
+
+    /**
+     * Replaces placeholders in the template start command with values from startCommandValues.
+     *
+     * <p>If the default template {@link
+     * ConfigConstants#DEFAULT_YARN_CONTAINER_START_COMMAND_TEMPLATE} is used, the following keys
+     * must be present in the map or the resulting command will still contain placeholders:
+     *
+     * <ul>
+     *   <li><tt>java</tt> = path to the Java executable
+     *   <li><tt>jvmmem</tt> = JVM memory limits and tweaks
+     *   <li><tt>jvmopts</tt> = misc options for the Java VM
+     *   <li><tt>logging</tt> = logging-related configuration settings
+     *   <li><tt>class</tt> = main class to execute
+     *   <li><tt>args</tt> = arguments for the main class
+     *   <li><tt>redirects</tt> = output redirects
+     * </ul>
+     *
+     * @param template a template start command with placeholders
+     * @param startCommandValues a replacement map <tt>placeholder -&gt; value</tt>
+     * @return the start command with placeholders filled in
+     */
+    public static String getStartCommand(String template, Map<String, String> startCommandValues) {
+        for (Map.Entry<String, String> variable : startCommandValues.entrySet()) {
+            template =
+                    template.replace("%" + variable.getKey() + "%", variable.getValue())
+                            .replace("  ", " ")
+                            .trim();
+        }
+        return template;
+    }
+
+    public static String generateJvmOptsString(
+            org.apache.flink.configuration.Configuration conf,
+            List<ConfigOption<String>> jvmOptions,
+            boolean hasKrb5) {
+        StringBuilder javaOptsSb = new StringBuilder();
+        for (ConfigOption<String> option : jvmOptions) {
+            concatWithSpace(javaOptsSb, conf.get(option));
+        }
+        concatWithSpace(javaOptsSb, IGNORE_UNRECOGNIZED_VM_OPTIONS);
+
+        // krb5.conf file will be available as local resource in JM/TM container
+        if (hasKrb5) {
+            concatWithSpace(javaOptsSb, "-Djava.security.krb5.conf=krb5.conf");
+        }
+        return javaOptsSb.toString().trim();
     }
 
     static boolean isRemotePath(String path) throws IOException {
@@ -566,7 +708,7 @@ public final class Utils {
             org.apache.flink.configuration.Configuration configuration,
             YarnConfiguration yarnConfiguration)
             throws IOException, IllegalArgumentException {
-        String usrlib = configuration.getString(YarnConfigOptions.PROVIDED_USRLIB_DIR);
+        String usrlib = configuration.get(YarnConfigOptions.PROVIDED_USRLIB_DIR);
         if (usrlib == null) {
             return Optional.empty();
         }
@@ -619,5 +761,62 @@ public final class Utils {
         }
 
         return yarnConfig;
+    }
+
+    /**
+     * Sets the application ACLs for the given ContainerLaunchContext based on the values specified
+     * in the given Flink configuration. Only ApplicationAccessType.VIEW_APP and
+     * ApplicationAccessType.MODIFY_APP ACLs are set, and only if they are configured in the Flink
+     * configuration. If the viewAcls or modifyAcls string contains the WILDCARD_ACL constant, it
+     * will replace the entire string with the WILDCARD_ACL. The resulting map is then set as the
+     * application acls for the given container launch context.
+     *
+     * @param amContainer the ContainerLaunchContext to set the ACLs for.
+     * @param flinkConfig the Flink configuration to read the ACL values from.
+     */
+    public static void setAclsFor(
+            ContainerLaunchContext amContainer,
+            org.apache.flink.configuration.Configuration flinkConfig) {
+        Map<ApplicationAccessType, String> acls = new HashMap<>();
+        final String viewAcls = flinkConfig.get(YarnConfigOptions.APPLICATION_VIEW_ACLS);
+        final String modifyAcls = flinkConfig.get(YarnConfigOptions.APPLICATION_MODIFY_ACLS);
+        validateAclString(viewAcls);
+        validateAclString(modifyAcls);
+
+        if (viewAcls != null && !viewAcls.isEmpty()) {
+            acls.put(ApplicationAccessType.VIEW_APP, viewAcls);
+        }
+        if (modifyAcls != null && !modifyAcls.isEmpty()) {
+            acls.put(ApplicationAccessType.MODIFY_APP, modifyAcls);
+        }
+        if (!acls.isEmpty()) {
+            amContainer.setApplicationACLs(acls);
+        }
+    }
+
+    /* Validates the ACL string to ensure that it is either null or the wildcard ACL. */
+    private static void validateAclString(String acl) {
+        if (acl != null && acl.contains("*") && !acl.equals("*")) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Invalid wildcard ACL %s. The ACL wildcard does not support regex. The only valid wildcard ACL is '*'.",
+                            acl));
+        }
+    }
+
+    public static Path getPathFromLocalFile(File localFile) {
+        return new Path(localFile.toURI());
+    }
+
+    public static Path getPathFromLocalFilePathStr(String localPathStr) {
+        return getPathFromLocalFile(new File(localPathStr));
+    }
+
+    public static void concatWithSpace(StringBuilder sb, String value) {
+        if (value == null || value.isEmpty()) {
+            return;
+        }
+        sb.append(' ');
+        sb.append(value);
     }
 }

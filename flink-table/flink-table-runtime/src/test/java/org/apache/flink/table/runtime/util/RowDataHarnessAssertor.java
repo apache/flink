@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.util;
 
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -49,6 +50,17 @@ public class RowDataHarnessAssertor {
         this(types, new StringComparator());
     }
 
+    /** Assert the test harness should not emit any records. */
+    public void shouldEmitNothing(AbstractStreamOperatorTestHarness<RowData> harness) {
+        assertThat(getEmittedRows(harness)).isEmpty();
+    }
+
+    /** Assert the test harness should emit records exactly same as the expected records. */
+    public void shouldEmit(
+            AbstractStreamOperatorTestHarness<RowData> harness, RowData... expected) {
+        assertThat(getEmittedRows(harness)).containsExactly(expected);
+    }
+
     /**
      * Compare the two queues containing operator/task output by converting them to an array first.
      * Asserts two converted array should be same.
@@ -65,6 +77,26 @@ public class RowDataHarnessAssertor {
     public void assertOutputEqualsSorted(
             String message, Collection<Object> expected, Collection<Object> actual) {
         assertOutputEquals(message, expected, actual, true);
+    }
+
+    private List<RowData> getEmittedRows(AbstractStreamOperatorTestHarness<RowData> harness) {
+        final RowData.FieldGetter[] fieldGetters = new RowData.FieldGetter[types.length];
+        for (int i = 0; i < types.length; i++) {
+            fieldGetters[i] = RowData.createFieldGetter(types[i], i);
+        }
+        final List<RowData> rows = new ArrayList<>();
+        Object o;
+        while ((o = harness.getOutput().poll()) != null) {
+            RowData value = (RowData) ((StreamRecord<?>) o).getValue();
+            Object[] row = new Object[types.length];
+            for (int i = 0; i < types.length; i++) {
+                row[i] = fieldGetters[i].getFieldOrNull(value);
+            }
+            GenericRowData newRow = GenericRowData.of(row);
+            newRow.setRowKind(value.getRowKind());
+            rows.add(newRow);
+        }
+        return rows;
     }
 
     private void assertOutputEquals(

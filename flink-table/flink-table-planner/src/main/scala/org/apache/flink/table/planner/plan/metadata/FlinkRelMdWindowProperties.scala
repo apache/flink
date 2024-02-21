@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.{JArrayList, JHashMap, JList}
 import org.apache.flink.table.planner.plan.`trait`.RelWindowProperties
-import org.apache.flink.table.planner.plan.logical.WindowSpec
+import org.apache.flink.table.planner.plan.logical.{SessionWindowSpec, WindowSpec}
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, WatermarkAssigner}
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalAggregate, FlinkLogicalCorrelate, FlinkLogicalJoin, FlinkLogicalRank}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.satisfyWindowJoi
 import org.apache.flink.table.planner.plan.utils.WindowUtil.{convertToWindowingStrategy, groupingContainsWindowStartEnd, isWindowTableFunctionCall}
 import org.apache.flink.table.runtime.groupwindow._
 import org.apache.flink.table.types.logical.LogicalType
+import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
@@ -92,11 +93,54 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
       return null
     }
 
+    val windowSpec = childProps.getWindowSpec
+    if (!validWindowProperties(windowSpec, mapInToOutPos)) {
+      // If the window becomes illegal after passing through calc or project,
+      // return no window properties
+      return null
+    }
+
     childProps.copy(
       transformColumnIndex(childProps.getWindowStartColumns, mapInToOutPos),
       transformColumnIndex(childProps.getWindowEndColumns, mapInToOutPos),
-      transformColumnIndex(childProps.getWindowTimeColumns, mapInToOutPos)
+      transformColumnIndex(childProps.getWindowTimeColumns, mapInToOutPos),
+      updateWindowSpec(windowSpec, mapInToOutPos)
     )
+  }
+
+  /**
+   * Validate the window properties when passing through calc or project.
+   *
+   * This method only checks the window like session window that contains partition keys. See more
+   * at [[WindowUtil.validatePartitionKeyIfNecessary]]
+   */
+  private def validWindowProperties(
+      windowSpec: WindowSpec,
+      mapInToOutPos: JHashMap[Int, JList[Int]]): Boolean = {
+    windowSpec match {
+      case session: SessionWindowSpec =>
+        val oldPartitionKeys = session.getPartitionKeyIndices
+        oldPartitionKeys.forall(oldPartitionKey => mapInToOutPos.contains(oldPartitionKey))
+      case _ => true
+    }
+  }
+
+  /** Update partition key indices in session window spec according to the projection map. */
+  private def updateWindowSpec(
+      oldWindowSpec: WindowSpec,
+      mapInToOutPos: JHashMap[Int, JList[Int]]): WindowSpec = {
+    oldWindowSpec match {
+      case session: SessionWindowSpec =>
+        val oldPartitionKeys = session.getPartitionKeyIndices
+        val newPartitionKeys = oldPartitionKeys.map(
+          oldPartitionKey => {
+            val newPartitionKey = mapInToOutPos.get(oldPartitionKey)
+            Preconditions.checkArgument(newPartitionKey.size == 1)
+            newPartitionKey.head
+          })
+        new SessionWindowSpec(session.getGap, newPartitionKeys)
+      case _ => oldWindowSpec
+    }
   }
 
   private def transformColumnIndex(
@@ -196,7 +240,7 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
     if (isWindowTableFunctionCall(rel.getCall)) {
       val fieldCount = rel.getRowType.getFieldCount
       val windowingStrategy =
-        convertToWindowingStrategy(rel.getCall.asInstanceOf[RexCall], rel.getInput(0).getRowType)
+        convertToWindowingStrategy(rel.getCall.asInstanceOf[RexCall], rel.getInput(0))
 
       RelWindowProperties.create(
         ImmutableBitSet.of(fieldCount - 3),

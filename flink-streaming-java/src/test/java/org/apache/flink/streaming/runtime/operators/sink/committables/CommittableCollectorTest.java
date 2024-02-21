@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.runtime.operators.sink.committables;
 
+import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
+import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 import org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions;
 
@@ -26,10 +28,13 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class CommittableCollectorTest {
+    private static final SinkCommitterMetricGroup METRIC_GROUP =
+            MetricsGroupTestUtils.mockCommitterMetricGroup();
 
     @Test
     void testGetCheckpointCommittablesUpTo() {
-        final CommittableCollector<Integer> committableCollector = new CommittableCollector<>(1, 1);
+        final CommittableCollector<Integer> committableCollector =
+                new CommittableCollector<>(1, 1, METRIC_GROUP);
         CommittableSummary<Integer> first = new CommittableSummary<>(1, 1, 1L, 1, 0, 0);
         committableCollector.addMessage(first);
         CommittableSummary<Integer> second = new CommittableSummary<>(1, 1, 2L, 1, 0, 0);
@@ -43,7 +48,8 @@ class CommittableCollectorTest {
 
     @Test
     void testGetEndOfInputCommittable() {
-        final CommittableCollector<Integer> committableCollector = new CommittableCollector<>(1, 1);
+        final CommittableCollector<Integer> committableCollector =
+                new CommittableCollector<>(1, 1, METRIC_GROUP);
         CommittableSummary<Integer> first = new CommittableSummary<>(1, 1, null, 1, 0, 0);
         committableCollector.addMessage(first);
 

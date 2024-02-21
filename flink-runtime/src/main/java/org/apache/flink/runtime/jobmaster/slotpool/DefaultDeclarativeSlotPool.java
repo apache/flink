@@ -52,7 +52,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * Default {@link DeclarativeSlotPool} implementation.
@@ -487,7 +486,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     @Override
     public void releaseIdleSlots(long currentTimeMillis) {
         final Collection<AllocatedSlotPool.FreeSlotInfo> freeSlotsInformation =
-                slotPool.getFreeSlotsInformation();
+                slotPool.getFreeSlotInfoTracker().getFreeSlotsWithIdleSinceInformation();
 
         ResourceCounter excessResources =
                 fulfilledResourceRequirements.subtract(totalResourceRequirements);
@@ -564,10 +563,8 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     @Override
-    public Collection<SlotInfoWithUtilization> getFreeSlotsInformation() {
-        return slotPool.getFreeSlotsInformation().stream()
-                .map(AllocatedSlotPool.FreeSlotInfo::asSlotInfo)
-                .collect(Collectors.toList());
+    public FreeSlotInfoTracker getFreeSlotInfoTracker() {
+        return slotPool.getFreeSlotInfoTracker();
     }
 
     @Override

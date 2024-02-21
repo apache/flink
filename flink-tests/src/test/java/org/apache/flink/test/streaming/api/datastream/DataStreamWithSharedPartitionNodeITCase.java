@@ -57,7 +57,7 @@ public class DataStreamWithSharedPartitionNodeITCase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         DataStream<Integer> source =
-                env.fromElements(1, 2, 3, 4).partitionCustom(new TestPartitioner(), f -> f);
+                env.fromData(1, 2, 3, 4).partitionCustom(new TestPartitioner(), f -> f);
         source.addSink(new CollectSink("first"));
         source.addSink(new CollectSink("second")).setParallelism(2);
 
@@ -98,7 +98,7 @@ public class DataStreamWithSharedPartitionNodeITCase {
         @Override
         public void invoke(Integer value, Context context) throws Exception {
             synchronized (resultLock) {
-                String key = name + "-" + getRuntimeContext().getIndexOfThisSubtask();
+                String key = name + "-" + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
                 result.compute(key, (k, v) -> v == null ? new ArrayList<>() : v).add(value);
             }
         }

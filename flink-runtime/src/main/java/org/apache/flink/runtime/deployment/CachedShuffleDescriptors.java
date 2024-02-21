@@ -20,11 +20,11 @@ package org.apache.flink.runtime.deployment;
 
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffloaded;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorGroup;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
-import org.apache.flink.util.function.FunctionWithException;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -43,51 +43,55 @@ public class CachedShuffleDescriptors {
      * serialized unknown shuffle descriptor to this list first, and then added the real descriptor
      * later.
      */
-    private final List<MaybeOffloaded<ShuffleDescriptorAndIndex[]>> serializedShuffleDescriptors;
+    private final List<MaybeOffloaded<ShuffleDescriptorGroup>> serializedShuffleDescriptorGroups;
 
     /**
      * Stores all to be serialized shuffle descriptors, They will be serialized and added to
-     * serializedShuffleDescriptors during the next time TaskDeploymentDescriptor is generated.
+     * serializedShuffleDescriptorGroups during the next time TaskDeploymentDescriptor is generated.
      */
     private final Queue<ShuffleDescriptorAndIndex> toBeSerialized;
 
     /** Stores the mapping of resultPartitionId to index subscripts in consumed partition group. */
     private final Map<IntermediateResultPartitionID, Integer> resultPartitionIdToIndex;
 
+    /** The number of consumers for {@link ConsumedPartitionGroup}. */
+    private final int numConsumers;
+
     public CachedShuffleDescriptors(
             ConsumedPartitionGroup consumedPartitionGroup,
             ShuffleDescriptorAndIndex[] shuffleDescriptors) {
         this.resultPartitionIdToIndex = new HashMap<>();
+        this.numConsumers = consumedPartitionGroup.getNumConsumers();
         int index = 0;
         for (IntermediateResultPartitionID resultPartitionID : consumedPartitionGroup) {
             resultPartitionIdToIndex.put(resultPartitionID, index++);
         }
         this.toBeSerialized = new ArrayDeque<>(consumedPartitionGroup.size());
-        this.serializedShuffleDescriptors = new ArrayList<>();
+        this.serializedShuffleDescriptorGroups = new ArrayList<>();
         for (ShuffleDescriptorAndIndex shuffleDescriptor : shuffleDescriptors) {
             toBeSerialized.offer(shuffleDescriptor);
         }
     }
 
-    public List<MaybeOffloaded<ShuffleDescriptorAndIndex[]>> getAllSerializedShuffleDescriptors() {
+    public List<MaybeOffloaded<ShuffleDescriptorGroup>> getAllSerializedShuffleDescriptorGroups() {
         // the deployment of task is not executed in jobMaster's main thread, copy this list to
         // avoid new element added to the serializedShuffleDescriptors before TDD is not serialized.
-        return new ArrayList<>(serializedShuffleDescriptors);
+        return new ArrayList<>(serializedShuffleDescriptorGroups);
     }
 
     public void serializeShuffleDescriptors(
-            FunctionWithException<
-                            ShuffleDescriptorAndIndex[],
-                            MaybeOffloaded<ShuffleDescriptorAndIndex[]>,
-                            IOException>
-                    shuffleDescriptorSerializer)
+            TaskDeploymentDescriptorFactory.ShuffleDescriptorSerializer shuffleDescriptorSerializer)
             throws IOException {
         if (!toBeSerialized.isEmpty()) {
-            MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializedShuffleDescriptor =
-                    shuffleDescriptorSerializer.apply(
+            ShuffleDescriptorGroup shuffleDescriptorGroup =
+                    new ShuffleDescriptorGroup(
                             toBeSerialized.toArray(new ShuffleDescriptorAndIndex[0]));
+            MaybeOffloaded<ShuffleDescriptorGroup> serializedShuffleDescriptorGroup =
+                    shuffleDescriptorSerializer.trySerializeAndOffloadShuffleDescriptor(
+                            shuffleDescriptorGroup, numConsumers);
+
             toBeSerialized.clear();
-            serializedShuffleDescriptors.add(serializedShuffleDescriptor);
+            serializedShuffleDescriptorGroups.add(serializedShuffleDescriptorGroup);
         }
     }
 

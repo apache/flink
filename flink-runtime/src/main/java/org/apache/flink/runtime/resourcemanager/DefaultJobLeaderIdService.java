@@ -24,6 +24,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -33,7 +34,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -74,7 +74,7 @@ public class DefaultJobLeaderIdService implements JobLeaderIdService {
         this.scheduledExecutor = Preconditions.checkNotNull(scheduledExecutor, "scheduledExecutor");
         this.jobTimeout = Preconditions.checkNotNull(jobTimeout, "jobTimeout");
 
-        jobLeaderIdListeners = new HashMap<>(4);
+        jobLeaderIdListeners = CollectionUtil.newHashMapWithExpectedSize(4);
 
         jobLeaderIdActions = null;
     }

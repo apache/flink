@@ -26,12 +26,19 @@ under the License.
     <parent>
         <groupId>org.apache.flink</groupId>
         <artifactId>flink-libraries</artifactId>
-        <version>1.18-SNAPSHOT</version>
+        <version>1.20-SNAPSHOT</version>
     </parent>
 
     <artifactId>flink-cep</artifactId>
     <name>Flink : Libraries : CEP</name>
     <packaging>jar</packaging>
+
+	<properties>
+		<surefire.module.config><!--
+			chill ArraysAsListSerializer
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
 
     <dependencies>
 

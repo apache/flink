@@ -18,12 +18,12 @@
 
 package org.apache.flink.test.iterative;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.api.java.operators.IterativeDataSet;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
 
@@ -61,7 +61,7 @@ public class BulkIterationWithAllReducerITCase extends JavaProgramTestBase {
         private Integer bcValue;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             List<Integer> bc = getRuntimeContext().getBroadcastVariable("bc");
             this.bcValue = bc.isEmpty() ? null : bc.get(0);
         }

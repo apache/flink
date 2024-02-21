@@ -467,14 +467,15 @@ GROUP BY b
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)])
 +- LogicalProject(b=[$0], a=[$1], c=[$2], d=[$3])
-   +- LogicalFilter(condition=[>($7, 10)])
-      +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 4}])
-         :- LogicalProject(b=[$1], a=[$0], c=[$2], d=[$3], proc=[PROCTIME()])
-         :  +- LogicalAggregate(group=[{0, 1}], c=[SUM($2)], d=[SUM($3)])
-         :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-         +- LogicalFilter(condition=[=($cor0.a, $0)])
-            +- LogicalSnapshot(period=[$cor0.proc])
-               +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
+   +- LogicalProject(b=[$0], a=[$1], c=[$2], d=[$3], proc=[$4])
+      +- LogicalFilter(condition=[>($7, 10)])
+         +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 4}])
+            :- LogicalProject(b=[$1], a=[$0], c=[$2], d=[$3], proc=[PROCTIME()])
+            :  +- LogicalAggregate(group=[{0, 1}], c=[SUM($2)], d=[SUM($3)])
+            :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+            +- LogicalFilter(condition=[=($cor0.a, $0)])
+               +- LogicalSnapshot(period=[$cor0.proc])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -511,14 +512,15 @@ GROUP BY b
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)])
 +- LogicalProject(b=[$0], a=[$1], c=[$2], d=[$3])
-   +- LogicalFilter(condition=[>($7, 10)])
-      +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 4}])
-         :- LogicalProject(b=[$1], a=[$0], c=[$2], d=[$3], proc=[PROCTIME()])
-         :  +- LogicalAggregate(group=[{0, 1}], c=[SUM($2)], d=[SUM($3)])
-         :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-         +- LogicalFilter(condition=[=($cor0.a, $0)])
-            +- LogicalSnapshot(period=[$cor0.proc])
-               +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
+   +- LogicalProject(b=[$0], a=[$1], c=[$2], d=[$3], proc=[$4])
+      +- LogicalFilter(condition=[>($7, 10)])
+         +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 4}])
+            :- LogicalProject(b=[$1], a=[$0], c=[$2], d=[$3], proc=[PROCTIME()])
+            :  +- LogicalAggregate(group=[{0, 1}], c=[SUM($2)], d=[SUM($3)])
+            :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+            +- LogicalFilter(condition=[=($cor0.a, $0)])
+               +- LogicalSnapshot(period=[$cor0.proc])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

@@ -19,10 +19,13 @@
 package org.apache.flink.formats.avro.utils;
 
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed16;
 import org.apache.flink.formats.avro.generated.Fixed2;
+import org.apache.flink.formats.avro.generated.Timestamps;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.formats.avro.typeutils.AvroSerializerLargeGenericRecordTest;
 import org.apache.flink.types.Row;
@@ -32,13 +35,14 @@ import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.BinaryEncoder;
+import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecord;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.sql.Date;
@@ -46,6 +50,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -261,6 +266,53 @@ public final class AvroTestUtils {
         return t;
     }
 
+    public static Tuple4<Class<? extends SpecificRecord>, SpecificRecord, GenericRecord, Row>
+            getTimestampTestData() {
+
+        final String schemaString =
+                "{\"type\":\"record\",\"name\":\"GenericTimestamps\",\"namespace\":\"org.apache.flink.formats.avro.generated\","
+                        + "\"fields\": [{\"name\":\"type_timestamp_millis\",\"type\":{\"type\":\"long\","
+                        + "\"logicalType\":\"timestamp-millis\"}},{\"name\":\"type_timestamp_micros\",\"type\":{\"type\":\"long\","
+                        + "\"logicalType\":\"timestamp-micros\"}},{\"name\": \"type_local_timestamp_millis\", \"type\": {\"type\": \"long\", \"logicalType\": \"local-timestamp-millis\"}},"
+                        + "{\"name\": \"type_local_timestamp_micros\", \"type\": {\"type\": \"long\", \"logicalType\": \"local-timestamp-micros\"}}]}";
+        final Schema schema = new Schema.Parser().parse(schemaString);
+        final GenericRecord timestampRecord = new GenericData.Record(schema);
+        timestampRecord.put("type_timestamp_millis", Instant.parse("2014-03-01T12:12:12.321Z"));
+        timestampRecord.put(
+                "type_timestamp_micros", Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS));
+        timestampRecord.put(
+                "type_local_timestamp_millis", LocalDateTime.parse("2014-03-01T12:12:12.321"));
+        timestampRecord.put(
+                "type_local_timestamp_micros", LocalDateTime.parse("1970-01-01T00:00:00.123456"));
+
+        final Timestamps timestamps =
+                Timestamps.newBuilder()
+                        .setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
+                        .setTypeTimestampMicros(
+                                Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS))
+                        .setTypeLocalTimestampMillis(LocalDateTime.parse("2014-03-01T12:12:12.321"))
+                        .setTypeLocalTimestampMicros(
+                                LocalDateTime.parse("1970-01-01T00:00:00.123456"))
+                        .build();
+
+        final Row timestampRow = new Row(4);
+        timestampRow.setField(0, Timestamp.valueOf("2014-03-01 12:12:12.321"));
+        timestampRow.setField(
+                1, Timestamp.from(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS)));
+        timestampRow.setField(2, Timestamp.valueOf(LocalDateTime.parse("2014-03-01T12:12:12.321")));
+        timestampRow.setField(
+                3, Timestamp.valueOf(LocalDateTime.parse("1970-01-01T00:00:00.123456")));
+
+        final Tuple4<Class<? extends SpecificRecord>, SpecificRecord, GenericRecord, Row> t =
+                new Tuple4<>();
+        t.f0 = Timestamps.class;
+        t.f1 = timestamps;
+        t.f2 = timestampRecord;
+        t.f3 = timestampRow;
+
+        return t;
+    }
+
     /**
      * Craft a large Avro Schema which contains more than 0xFFFF characters.
      *
@@ -297,8 +349,21 @@ public final class AvroTestUtils {
      * @return serialized record
      */
     public static byte[] writeRecord(GenericRecord record, Schema schema) throws IOException {
+        return writeRecord(record, schema, AvroEncoding.BINARY);
+    }
+
+    /**
+     * Writes given record using specified schema.
+     *
+     * @param record record to serialize
+     * @param schema schema to use for serialization
+     * @param encoding serialization approach to use
+     * @return serialized record
+     */
+    public static byte[] writeRecord(GenericRecord record, Schema schema, AvroEncoding encoding)
+            throws IOException {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(stream, null);
+        Encoder encoder = createEncoder(encoding, schema, stream);
 
         new GenericDatumWriter<>(schema).write(record, encoder);
         encoder.flush();
@@ -311,14 +376,25 @@ public final class AvroTestUtils {
      * @param record record to serialize
      * @return serialized record
      */
-    public static <T extends SpecificRecord> byte[] writeRecord(T record) throws IOException {
+    public static <T extends SpecificRecord> byte[] writeRecord(T record, AvroEncoding encoding)
+            throws IOException {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(stream, null);
+        Encoder encoder = createEncoder(encoding, record.getSchema(), stream);
 
         @SuppressWarnings("unchecked")
         SpecificDatumWriter<T> writer = new SpecificDatumWriter<>((Class<T>) record.getClass());
         writer.write(record, encoder);
         encoder.flush();
         return stream.toByteArray();
+    }
+
+    /** Creates an Avro encoder using the requested serialization approach. */
+    public static Encoder createEncoder(
+            AvroEncoding encoding, Schema schema, OutputStream outputStream) throws IOException {
+        if (encoding == AvroEncoding.JSON) {
+            return EncoderFactory.get().jsonEncoder(schema, outputStream);
+        } else {
+            return EncoderFactory.get().binaryEncoder(outputStream, null);
+        }
     }
 }

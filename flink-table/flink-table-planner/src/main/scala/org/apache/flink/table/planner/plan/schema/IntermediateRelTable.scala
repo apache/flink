@@ -18,14 +18,15 @@
 package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.table.planner.plan.`trait`.{ModifyKindSet, UpdateKind}
+import org.apache.flink.table.planner.plan.`trait`.ModifyKindSet
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 
-import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.{RelCollation, RelDistribution, RelNode}
 import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
-import java.util.{List => JList, Set}
+import java.util.{List => JList}
 
 /**
  * An intermediate Table to wrap a optimized RelNode inside. The input data of this Table is
@@ -53,5 +54,15 @@ class IntermediateRelTable(
 
   def this(names: JList[String], relNode: RelNode) {
     this(names, relNode, ModifyKindSet.INSERT_ONLY, false, new util.HashSet[ImmutableBitSet]())
+  }
+
+  override def getCollationList: util.List[RelCollation] = {
+    val mq = relNode.getCluster.getMetadataQuery
+    mq.collations(relNode)
+  }
+
+  override def getDistribution: RelDistribution = {
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(relNode.getCluster.getMetadataQuery)
+    fmq.flinkDistribution(relNode)
   }
 }

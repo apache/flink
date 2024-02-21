@@ -101,13 +101,6 @@ cd flink-playgrounds/operations-playground
 docker-compose build
 ```
 
-Then before starting the playground, create the checkpoint and savepoint directories on the Docker host machine (these volumes are mounted by the jobmanager and taskmanager, as specified in docker-compose.yaml):
-
-```bash
-mkdir -p /tmp/flink-checkpoints-directory
-mkdir -p /tmp/flink-savepoints-directory
-```
-
 Then start the playground:
 
 ```bash
@@ -374,7 +367,7 @@ Suspending job "<job-id>" with a savepoint.
 Savepoint completed. Path: file:<savepoint-path>
 ```
 
-The Savepoint has been stored to the `state.savepoints.dir` configured in the *flink-conf.yaml*,
+The Savepoint has been stored to the `state.savepoints.dir` configured in the [*Flink configuration file*]({{< ref "docs/deployment/config#flink-configuration-file" >}}),
 which is mounted under */tmp/flink-savepoints-directory/* on your local machine. You will need the 
 path to this Savepoint in the next step. 
 

@@ -309,7 +309,7 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
                 resourceAllocatorBuilder.setDeclareResourceNeededConsumer(
                         (resourceDeclarations) -> {
                             if (!resourceDeclarations.isEmpty()) {
-                                assertThat(requestCount.get()).isLessThan(2);
+                                assertThat(requestCount).hasValueLessThan(2);
                                 allocateResourceFutures
                                         .get(requestCount.getAndIncrement())
                                         .complete(null);
@@ -586,7 +586,7 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
                 resourceAllocatorBuilder.setDeclareResourceNeededConsumer(
                         (resourceDeclarations) -> {
                             if (!resourceDeclarations.isEmpty()) {
-                                assertThat(requestCount.get()).isLessThan(2);
+                                assertThat(requestCount).hasValueLessThan(2);
                                 allocateResourceFutures
                                         .get(requestCount.getAndIncrement())
                                         .complete(null);

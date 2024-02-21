@@ -18,7 +18,9 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.fs.Path;
@@ -118,6 +120,8 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                     Duration.ofSeconds(0),
                     Duration.ofMillis(100),
                     Duration.ofSeconds(2));
+            randomize(conf, CheckpointingOptions.CLEANER_PARALLEL_MODE, true, false);
+            randomize(conf, ExecutionOptions.SNAPSHOT_COMPRESSION, true, false);
         }
 
         // randomize ITTests for enabling state change log
@@ -131,14 +135,21 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                 boolean enabled =
                         randomize(conf, StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true, false);
                 if (enabled) {
+                    // More situations about enabling periodic materialization should be tested
+                    randomize(
+                            conf,
+                            StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED,
+                            true,
+                            true,
+                            true,
+                            false);
                     randomize(
                             conf,
                             StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL,
                             Duration.ofMillis(100),
                             Duration.ofMillis(500),
                             Duration.ofSeconds(1),
-                            Duration.ofSeconds(5),
-                            Duration.ofSeconds(-1));
+                            Duration.ofSeconds(5));
                     miniCluster.overrideRestoreModeForChangelogStateBackend();
                 }
             }

@@ -210,7 +210,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
             // the table's option "SINK_PARTITION_COMMIT_POLICY_KIND" should contain 'metastore'
             org.apache.flink.configuration.Configuration flinkConf =
                     org.apache.flink.configuration.Configuration.fromMap(catalogTable.getOptions());
-            String policyKind = flinkConf.getString(HiveOptions.SINK_PARTITION_COMMIT_POLICY_KIND);
+            String policyKind = flinkConf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_KIND);
             String[] policyStrings = policyKind.split(",");
             Arrays.stream(policyStrings)
                     .filter(policy -> policy.equalsIgnoreCase(PartitionCommitPolicy.METASTORE))
@@ -223,7 +223,8 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                                                     HiveOptions
                                                             .TABLE_EXEC_HIVE_SINK_STATISTIC_AUTO_GATHER_ENABLE
                                                             .key(),
-                                                    HiveOptions.SINK_PARTITION_COMMIT_POLICY_CLASS,
+                                                    FileSystemConnectorOptions
+                                                            .SINK_PARTITION_COMMIT_POLICY_CLASS,
                                                     identifier,
                                                     PartitionCommitPolicy.METASTORE)));
         }
@@ -382,7 +383,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         org.apache.flink.configuration.Configuration conf =
                 new org.apache.flink.configuration.Configuration();
         catalogTable.getOptions().forEach(conf::setString);
-        boolean autoCompaction = conf.getBoolean(FileSystemConnectorOptions.AUTO_COMPACTION);
+        boolean autoCompaction = conf.get(FileSystemConnectorOptions.AUTO_COMPACTION);
         if (autoCompaction) {
             Optional<Integer> compactParallelismOptional =
                     conf.getOptional(FileSystemConnectorOptions.COMPACTION_PARALLELISM);
@@ -455,8 +456,12 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         PartitionCommitPolicyFactory partitionCommitPolicyFactory =
                 new PartitionCommitPolicyFactory(
                         conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_KIND),
-                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_CLASS),
-                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME));
+                        conf.get(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS),
+                        conf.get(
+                                FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME),
+                        conf.get(
+                                FileSystemConnectorOptions
+                                        .SINK_PARTITION_COMMIT_POLICY_CLASS_PARAMETERS));
 
         org.apache.flink.core.fs.Path path = new org.apache.flink.core.fs.Path(sd.getLocation());
         BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> builder =
@@ -609,8 +614,12 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         builder.setPartitionCommitPolicyFactory(
                 new PartitionCommitPolicyFactory(
                         conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_KIND),
-                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_CLASS),
-                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME)));
+                        conf.get(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS),
+                        conf.get(
+                                FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME),
+                        conf.get(
+                                FileSystemConnectorOptions
+                                        .SINK_PARTITION_COMMIT_POLICY_CLASS_PARAMETERS)));
         return BatchSink.createBatchNoCompactSink(
                 dataStream, converter, builder.build(), sinkParallelism, sinkParallelismConfigured);
     }
@@ -629,7 +638,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         catalogTable.getOptions().forEach(conf::setString);
 
         String commitPolicies =
-                conf.getString(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND);
+                conf.get(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND);
         if (!getPartitionKeys().isEmpty() && StringUtils.isNullOrWhitespaceOnly(commitPolicies)) {
             throw new FlinkHiveException(
                     String.format(
@@ -639,7 +648,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                             FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND.key()));
         }
 
-        boolean autoCompaction = conf.getBoolean(FileSystemConnectorOptions.AUTO_COMPACTION);
+        boolean autoCompaction = conf.get(FileSystemConnectorOptions.AUTO_COMPACTION);
         if (autoCompaction) {
             fileNamingBuilder.withPartPrefix(
                     convertToUncompacted(fileNamingBuilder.build().getPartPrefix()));
@@ -716,7 +725,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 identifier.getDatabaseName(),
                 identifier.getObjectName(),
                 org.apache.flink.configuration.Configuration.fromMap(catalogTable.getOptions())
-                        .get(HiveOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME),
+                        .get(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME),
                 autoGatherStatistic,
                 gatherStatsThreadNum);
     }

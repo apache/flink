@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes;
 
+import io.fabric8.kubernetes.client.Client;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.fabric8.mockwebserver.Context;
@@ -30,7 +31,9 @@ import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 
@@ -38,17 +41,19 @@ import java.util.concurrent.TimeUnit;
 public class MixedKubernetesServerExtension implements BeforeEachCallback, AfterEachCallback {
 
     private KubernetesMockServer mock;
-    private NamespacedKubernetesClient client;
     private final boolean https;
 
     private final boolean crudMode;
 
     private final MockWebServer mockWebServer;
 
+    private final List<Client> clients;
+
     public MixedKubernetesServerExtension(boolean https, boolean crudMode) {
         this.https = https;
         this.crudMode = crudMode;
         mockWebServer = new MockWebServer();
+        clients = new ArrayList<>();
     }
 
     @Override
@@ -64,16 +69,17 @@ public class MixedKubernetesServerExtension implements BeforeEachCallback, After
                                 true)
                         : new KubernetesMockServer(mockWebServer, response, https);
         mock.init();
-        client = mock.createClient();
     }
 
     @Override
     public void afterEach(ExtensionContext extensionContext) throws Exception {
         mock.destroy();
-        client.close();
+        clients.forEach(Client::close);
     }
 
-    public NamespacedKubernetesClient getClient() {
+    public NamespacedKubernetesClient createClient() {
+        NamespacedKubernetesClient client = mock.createClient();
+        clients.add(client);
         return client;
     }
 

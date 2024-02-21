@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.util.CollectionUtil;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -112,14 +113,15 @@ public class TestManagedSinkCommittableSerializer
     private void serializePaths(DataOutputSerializer out, Set<Path> paths) throws IOException {
         out.writeInt(paths.size());
         for (Path path : paths) {
-            path.write(out);
+            Path.serializeToDataOutputView(path, out);
         }
     }
 
     private CatalogPartitionSpec deserializePartitionSpec(DataInputDeserializer in)
             throws IOException {
         int size = in.readInt();
-        LinkedHashMap<String, String> partitionKVs = new LinkedHashMap<>(size);
+        LinkedHashMap<String, String> partitionKVs =
+                CollectionUtil.newLinkedHashMapWithExpectedSize(size);
         for (int i = 0; i < size; i++) {
             String partitionKey = in.readUTF();
             String partitionValue = in.readUTF();
@@ -141,9 +143,8 @@ public class TestManagedSinkCommittableSerializer
         int size = in.readInt();
         Set<Path> paths = new HashSet<>(size);
         for (int i = 0; i < size; i++) {
-            Path path = new Path();
-            path.read(in);
-            paths.add(path);
+            Path result = Path.deserializeFromDataInputView(in);
+            paths.add(result == null ? new Path() : result);
         }
         return paths;
     }

@@ -40,7 +40,7 @@ import java.util.Map;
 import java.util.concurrent.Executor;
 
 /** Tests for the {@link AggregatingSubtasksMetricsHandler}. */
-public class AggregatingSubtasksMetricsHandlerTest
+class AggregatingSubtasksMetricsHandlerTest
         extends AggregatingMetricsHandlerTestBase<
                 AggregatingSubtasksMetricsHandler, AggregatedSubtaskMetricsParameters> {
 

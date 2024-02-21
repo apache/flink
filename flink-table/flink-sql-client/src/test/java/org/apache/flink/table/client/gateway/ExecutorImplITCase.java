@@ -29,6 +29,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.runtime.rest.HttpHeader;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.DataTypes;
@@ -186,9 +187,9 @@ class ExecutorImplITCase {
     private static Configuration getConfig() {
         Configuration config = new Configuration();
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
-        config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
-        config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
-        config.setBoolean(WebOptions.SUBMIT_ENABLE, false);
+        config.set(TaskManagerOptions.MINI_CLUSTER_NUM_TASK_MANAGERS, NUM_TMS);
+        config.set(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
+        config.set(WebOptions.SUBMIT_ENABLE, false);
         config.set(StateBackendOptions.STATE_BACKEND, "hashmap");
         config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
         config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, tempFolder.toURI().toString());
@@ -574,6 +575,24 @@ class ExecutorImplITCase {
                         ((SessionManagerImpl) SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager())
                                 .isSessionAlive(sessionHandle))
                 .isFalse();
+    }
+
+    @Test
+    void testCustomHeadersSupport() {
+        final Map<String, String> envMap =
+                Collections.singletonMap(
+                        ConfigConstants.FLINK_REST_CLIENT_HEADERS,
+                        "Cookie:authCookie=12:345\nCustomHeader:value1,value2\nMalformedHeaderSkipped");
+        org.apache.flink.core.testutils.CommonTestUtils.setEnv(envMap);
+        try (final ExecutorImpl executor = (ExecutorImpl) createTestServiceExecutor()) {
+            final List<HttpHeader> customHttpHeaders =
+                    new ArrayList<>(executor.getCustomHttpHeaders());
+            final HttpHeader expectedHeader1 = new HttpHeader("Cookie", "authCookie=12:345");
+            final HttpHeader expectedHeader2 = new HttpHeader("CustomHeader", "value1,value2");
+            assertThat(customHttpHeaders).hasSize(2);
+            assertThat(customHttpHeaders.get(0)).isEqualTo(expectedHeader1);
+            assertThat(customHttpHeaders.get(1)).isEqualTo(expectedHeader2);
+        }
     }
 
     // --------------------------------------------------------------------------------------------

@@ -30,9 +30,7 @@ public class TimerSerializerSnapshot<K, N>
 
     private static final int VERSION = 2;
 
-    public TimerSerializerSnapshot() {
-        super(TimerSerializer.class);
-    }
+    public TimerSerializerSnapshot() {}
 
     public TimerSerializerSnapshot(TimerSerializer<K, N> timerSerializer) {
         super(timerSerializer);

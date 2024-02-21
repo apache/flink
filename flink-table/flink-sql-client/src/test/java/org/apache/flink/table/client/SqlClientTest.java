@@ -88,9 +88,9 @@ class SqlClientTest {
 
         // prepare conf dir
         File confFolder = Files.createTempDirectory(tempFolder, "conf").toFile();
-        File confYaml = new File(confFolder, "flink-conf.yaml");
+        File confYaml = new File(confFolder, "config.yaml");
         if (!confYaml.createNewFile()) {
-            throw new IOException("Can't create testing flink-conf.yaml file.");
+            throw new IOException("Can't create testing config.yaml file.");
         }
 
         // adjust the test environment for the purposes of this test
@@ -142,13 +142,28 @@ class SqlClientTest {
     }
 
     @Test
-    void testGatewayMode() throws Exception {
+    void testGatewayModeHostnamePort() throws Exception {
         String[] args =
                 new String[] {
                     "gateway",
                     "-e",
                     String.format(
                             "%s:%d",
+                            SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
+                            SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort())
+                };
+        String actual = runSqlClient(args, String.join("\n", "SET;", "QUIT;"), false);
+        assertThat(actual).contains("execution.target", "yarn-session");
+    }
+
+    @Test
+    void testGatewayModeUrl() throws Exception {
+        String[] args =
+                new String[] {
+                    "gateway",
+                    "-e",
+                    String.format(
+                            "http://%s:%d",
                             SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
                             SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort())
                 };

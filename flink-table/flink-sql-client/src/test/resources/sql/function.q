@@ -16,7 +16,7 @@
 # limitations under the License.
 
 ADD JAR '$VAR_UDF_JAR_PATH';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SHOW JARS;
@@ -30,7 +30,7 @@ SHOW JARS;
 
 # this also tests user classloader because the LowerUDF is in user jar
 create function func1 as 'LowerUDF' LANGUAGE JAVA;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show user functions;
@@ -42,8 +42,26 @@ show user functions;
 1 row in set
 !ok
 
+show user functions like 'func%';
++---------------+
+| function name |
++---------------+
+|         func1 |
++---------------+
+1 row in set
+!ok
+
+show user functions ilike 'func%';
++---------------+
+| function name |
++---------------+
+|         func1 |
++---------------+
+1 row in set
+!ok
+
 SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # run a query to verify the registered UDF works
@@ -60,7 +78,7 @@ Received a total of 2 rows
 # ====== test temporary function ======
 
 create temporary function if not exists func2 as 'LowerUDF' LANGUAGE JAVA;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show user functions;
@@ -73,30 +91,48 @@ show user functions;
 2 rows in set
 !ok
 
+show user functions like 'func1%';
++---------------+
+| function name |
++---------------+
+|         func1 |
++---------------+
+1 row in set
+!ok
+
+show user functions ilike 'func2%';
++---------------+
+| function name |
++---------------+
+|         func2 |
++---------------+
+1 row in set
+!ok
+
 # ====== test function with full qualified name ======
 
 create catalog c1 with ('type'='generic_in_memory');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 use catalog c1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create database db;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 use catalog default_catalog;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create function c1.db.func3 as 'LowerUDF' LANGUAGE JAVA;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create temporary function if not exists c1.db.func4 as 'LowerUDF' LANGUAGE JAVA;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # no func3 and func4 because we are not under catalog c1
@@ -110,12 +146,44 @@ show user functions;
 2 rows in set
 !ok
 
+# ====== test function with specified catalog and db ======
+
+# we are not under catalog c1
+
+show user functions from c1.db;
++---------------+
+| function name |
++---------------+
+|         func3 |
+|         func4 |
++---------------+
+2 rows in set
+!ok
+
+show user functions from c1.db like 'func3%';
++---------------+
+| function name |
++---------------+
+|         func3 |
++---------------+
+1 row in set
+!ok
+
+show user functions in c1.db ilike 'FUNC3%';
++---------------+
+| function name |
++---------------+
+|         func3 |
++---------------+
+1 row in set
+!ok
+
 use catalog c1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 use db;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # should show func3 and func4 now
@@ -131,15 +199,15 @@ show user functions;
 
 # test create function with database name
 create function `default`.func5 as 'LowerUDF';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create function `default`.func6 as 'LowerUDF';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 use `default`;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # should show func5 and func6
@@ -158,27 +226,27 @@ show user functions;
 # ==========================================================================
 
 create function c1.db.func10 as 'LowerUDF';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create function c1.db.func11 as 'LowerUDF';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 drop function if exists c1.db.func10;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 use catalog c1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 use db;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 drop function if exists non_func;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # should contain func11, not contain func10
@@ -198,13 +266,13 @@ show user functions;
 # ==========================================================================
 
 alter function func11 as 'org.apache.flink.table.client.gateway.local.ExecutorImplITCase$TestScalaFunction';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # TODO: show func11 when we support DESCRIBE FUNCTION
 
 create temporary function tmp_func as 'LowerUDF';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # should throw unsupported error
@@ -219,7 +287,15 @@ org.apache.flink.table.api.ValidationException: Alter temporary catalog function
 # ==========================================================================
 
 REMOVE JAR '$VAR_UDF_JAR_PATH';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
+!info
+
+SHOW JARS;
+Empty set
+!ok
+
+create temporary function temp_upperudf AS 'UpperUDF' using jar '$VAR_UDF_JAR_PATH';
+[INFO] Execute statement succeeded.
 !info
 
 SHOW JARS;
@@ -227,8 +303,13 @@ Empty set
 !ok
 
 create function upperudf AS 'UpperUDF' using jar '$VAR_UDF_JAR_PATH';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
+
+# `SHOW JARS` does not list the jars being used by function, it only list all the jars added by `ADD JAR`
+SHOW JARS;
+Empty set
+!ok
 
 # run a query to verify the registered UDF works
 SELECT id, upperudf(str) FROM (VALUES (1, 'hello world'), (2, 'hi')) as T(id, str);
@@ -241,44 +322,27 @@ SELECT id, upperudf(str) FROM (VALUES (1, 'hello world'), (2, 'hi')) as T(id, st
 Received a total of 2 rows
 !ok
 
+# Each query registers its jar to resource manager could not affect the session in sql gateway
 SHOW JARS;
-+-$VAR_UDF_JAR_PATH_DASH-----+
-| $VAR_UDF_JAR_PATH_SPACEjars |
-+-$VAR_UDF_JAR_PATH_DASH-----+
-| $VAR_UDF_JAR_PATH |
-+-$VAR_UDF_JAR_PATH_DASH-----+
-1 row in set
+Empty set
 !ok
 
-# ==========================================================================
-# test function with hive catalog
-# ==========================================================================
-
-create catalog hivecatalog with ('type'='hive-test', 'hive-version'='2.3.4');
-[INFO] Execute statement succeed.
-!info
-
-use catalog hivecatalog;
-[INFO] Execute statement succeed.
-!info
-
-create function lowerudf AS 'LowerUDF';
-[INFO] Execute statement succeed.
-!info
-
+# Show all users functions which should not add function jars to session resource manager
 show user functions;
 +---------------+
 | function name |
 +---------------+
-|      lowerudf |
+|        func11 |
+|         func3 |
+|         func4 |
+| temp_upperudf |
+|      tmp_func |
+|      upperudf |
 +---------------+
-1 row in set
+6 rows in set
 !ok
 
-REMOVE JAR '$VAR_UDF_JAR_PATH';
-[INFO] Execute statement succeed.
-!info
-
+# Show functions will not affect the session in sql gateway
 SHOW JARS;
 Empty set
 !ok

@@ -20,18 +20,17 @@ package org.apache.flink.runtime.scheduler.benchmark.e2e;
 
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * The benchmark of scheduling tasks in a STREAMING/BATCH job. The related method is {@link
  * DefaultScheduler#startScheduling}.
  */
-public class SchedulingAndDeployingBenchmarkTest extends TestLogger {
+class SchedulingAndDeployingBenchmarkTest {
 
     @Test
-    public void scheduleAndDeployInStreamingJob() throws Exception {
+    void scheduleAndDeployInStreamingJob() throws Exception {
         SchedulingAndDeployingBenchmark benchmark = new SchedulingAndDeployingBenchmark();
         benchmark.setup(JobConfiguration.STREAMING_TEST);
         benchmark.startScheduling();
@@ -39,7 +38,7 @@ public class SchedulingAndDeployingBenchmarkTest extends TestLogger {
     }
 
     @Test
-    public void scheduleAndDeployInBatchJob() throws Exception {
+    void scheduleAndDeployInBatchJob() throws Exception {
         SchedulingAndDeployingBenchmark benchmark = new SchedulingAndDeployingBenchmark();
         benchmark.setup(JobConfiguration.BATCH_TEST);
         benchmark.startScheduling();

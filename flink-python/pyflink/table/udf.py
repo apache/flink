@@ -220,7 +220,7 @@ class AggregateFunction(ImperativeAggregateFunction):
     """
 
     @abc.abstractmethod
-    def get_value(self, accumulator: ACC) -> T:
+    def get_value(self, accumulator: ACC) -> T:  # type: ignore[type-var]
         """
         Called every time when an aggregation result should be materialized. The returned value
         could be either an early and incomplete result (periodically emitted as data arrives) or

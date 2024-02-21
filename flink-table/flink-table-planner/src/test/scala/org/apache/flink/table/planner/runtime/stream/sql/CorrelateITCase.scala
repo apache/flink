@@ -27,8 +27,8 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunction
 import org.apache.flink.table.planner.utils.{RF, TableFunc7}
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
-import org.junit.Assert.{assertEquals, assertTrue}
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.lang.{Boolean => JBoolean}
 
@@ -36,10 +36,10 @@ import scala.collection.mutable
 
 class CorrelateITCase extends StreamingTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
-    tEnv.registerFunction("STRING_SPLIT", new StringSplit())
+    tEnv.createTemporarySystemFunction("STRING_SPLIT", new StringSplit())
   }
 
   @Test
@@ -70,35 +70,35 @@ class CorrelateITCase extends StreamingTestBase {
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List("1,abc", "1,abc", "1,bcd", "1,bcd", "1,hhh", "1,hhh", "1,xxx", "1,xxx")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
   def testConstantTableFunc(): Unit = {
-    tEnv.registerFunction("str_split", new StringSplit())
+    tEnv.createTemporarySystemFunction("str_split", new StringSplit())
     val query = "SELECT * FROM LATERAL TABLE(str_split()) as T0(d)"
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List("a", "b", "c")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
   def testConstantTableFunc2(): Unit = {
-    tEnv.registerFunction("str_split", new StringSplit())
+    tEnv.createTemporarySystemFunction("str_split", new StringSplit())
     val query = "SELECT * FROM LATERAL TABLE(str_split('Jack,John', ',')) as T0(d)"
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List("Jack", "John")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -108,10 +108,10 @@ class CorrelateITCase extends StreamingTestBase {
     val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T1", t1)
 
-    tEnv.registerFunction("str_split", new StringSplit())
+    tEnv.createTemporarySystemFunction("str_split", new StringSplit())
     val query = "SELECT * FROM T1, LATERAL TABLE(str_split('Jack,John', ',')) as T0(d)"
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List(
@@ -121,20 +121,20 @@ class CorrelateITCase extends StreamingTestBase {
       "1,2,hhh,John",
       "1,2,xxx,Jack",
       "1,2,xxx,John")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
   def testConstantNonDeterministicTableFunc(): Unit = {
-    tEnv.registerFunction("str_split", new NonDeterministicTableFunc())
+    tEnv.createTemporarySystemFunction("str_split", new NonDeterministicTableFunc())
     val query = "SELECT * FROM LATERAL TABLE(str_split('Jack#John')) as T0(d)"
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
     env.execute()
 
-    val res = sink.getAppendResults;
-    assertEquals(1, res.size)
-    assertTrue(res(0).equals("Jack") || res(0).equals("John"))
+    val res = sink.getAppendResults
+    assertThat(res.size).isOne
+    assertThat(res(0)).isIn("Jack", "John")
   }
 
   @Test
@@ -144,14 +144,14 @@ class CorrelateITCase extends StreamingTestBase {
     val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T1", t1)
 
-    tEnv.registerFunction("str_split", new NonDeterministicTableFunc())
+    tEnv.createTemporarySystemFunction("str_split", new NonDeterministicTableFunc())
     val query = "SELECT * FROM T1, LATERAL TABLE(str_split('Jack#John')) as T0(d)"
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
     env.execute()
 
-    val res = sink.getAppendResults;
-    assertEquals(3, res.size)
+    val res = sink.getAppendResults
+    assertThat(res.size).isEqualTo(3)
   }
 
   @Test
@@ -162,7 +162,7 @@ class CorrelateITCase extends StreamingTestBase {
     tEnv.createTemporaryView("T1", t1)
 
     // UdfWithOpen checks open method is opened, and add a '$' prefix to the given string
-    tEnv.registerFunction("func", new UdfWithOpen)
+    tEnv.createTemporarySystemFunction("func", new UdfWithOpen)
 
     val query1 =
       """
@@ -172,11 +172,11 @@ class CorrelateITCase extends StreamingTestBase {
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(query1).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(query1).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List("1,abc", "1,bcd", "1,hhh", "1,xxx")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -187,7 +187,7 @@ class CorrelateITCase extends StreamingTestBase {
 
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T1", t)
-    tEnv.registerFunction("str_split", new StringSplit())
+    tEnv.createTemporarySystemFunction("str_split", new StringSplit())
     val sink1 = new TestingAppendSink
     val sink2 = new TestingAppendSink
 
@@ -196,20 +196,20 @@ class CorrelateITCase extends StreamingTestBase {
                               |SELECT a, b, s
                               |FROM T1, LATERAL TABLE(str_split(c, ',')) as T2(s)
        """.stripMargin)
-    t1.toAppendStream[Row].addSink(sink1)
+    t1.toDataStream.addSink(sink1)
 
     // correlate 2
     val t2 = tEnv.sqlQuery(s"""
                               |SELECT a, c, s
                               |FROM T1, LATERAL TABLE(str_split(b, ',')) as T3(s)
       """.stripMargin)
-    t2.toAppendStream[Row].addSink(sink2)
+    t2.toDataStream.addSink(sink2)
 
     env.execute()
 
     val expected =
       List("1,1,L,A", "1,1,L,B", "1,A,B,1", "1,A,B,L", "2,2,L,B", "2,2,L,C", "2,B,C,2", "2,B,C,L")
-    assertEquals(expected.sorted, (sink1.getAppendResults ++ sink2.getAppendResults).sorted)
+    assertThat((sink1.getAppendResults ++ sink2.getAppendResults).sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -226,16 +226,16 @@ class CorrelateITCase extends StreamingTestBase {
     val sink = new TestingAppendSink
 
     tEnv.createTemporaryView("MyTable", in)
-    tEnv.registerFunction("rfFunc", new RF)
-    tEnv.registerFunction("tfFunc", new TableFunc7)
+    tEnv.createTemporarySystemFunction("rfFunc", new RF)
+    tEnv.createTemporarySystemFunction("tfFunc", new TableFunc7)
     tEnv
       .sqlQuery("SELECT rfFunc(a) as d, e FROM MyTable, LATERAL TABLE(tfFunc(rfFunc(a))) as T(e)")
-      .toAppendStream[Row]
+      .toDataStream
       .addSink(sink)
 
     env.execute()
 
-    assertEquals(List(), sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(List())
   }
 
   @Test
@@ -255,11 +255,11 @@ class CorrelateITCase extends StreamingTestBase {
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List("1,3018-06-10")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -277,7 +277,7 @@ class CorrelateITCase extends StreamingTestBase {
     result.executeInsert("MySink").await()
 
     val expected = List("1,2,,null", "1,3,,null")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -295,7 +295,7 @@ class CorrelateITCase extends StreamingTestBase {
     result.executeInsert("MySink").await()
 
     val expected = List("3018-06-10", "2018-06-03", "2018-06-01", "2018-06-02")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -313,7 +313,7 @@ class CorrelateITCase extends StreamingTestBase {
     result.executeInsert("MySink").await()
 
     val expected = List("1,3018-06-10", "1,2018-06-03", "1,2018-06-01", "1,2018-06-02")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -331,7 +331,7 @@ class CorrelateITCase extends StreamingTestBase {
     result.executeInsert("MySink").await()
 
     val expected = List("a")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -350,7 +350,7 @@ class CorrelateITCase extends StreamingTestBase {
 
     // output two null
     val expected = List("null", "null")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -368,7 +368,7 @@ class CorrelateITCase extends StreamingTestBase {
     result.executeInsert("MySink").await()
 
     val expected = List("1,a")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -386,7 +386,7 @@ class CorrelateITCase extends StreamingTestBase {
     result.executeInsert("MySink").await()
 
     val expected = List("2,null", "3,null")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   // TODO support agg

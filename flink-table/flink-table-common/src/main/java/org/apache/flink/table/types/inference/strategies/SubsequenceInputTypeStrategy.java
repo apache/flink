@@ -198,6 +198,7 @@ public final class SubsequenceInputTypeStrategy implements InputTypeStrategy {
     }
 
     /** A Builder for {@link SubsequenceInputTypeStrategy}. */
+    @Internal
     public static final class SubsequenceStrategyBuilder {
         private final List<ArgumentsSplit> argumentsSplits = new ArrayList<>();
         private int currentPos = 0;

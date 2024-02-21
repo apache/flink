@@ -22,7 +22,7 @@ under the License.
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
@@ -51,7 +51,14 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-kafka</artifactId>
-			<version>${project.version}</version>
+			<version>3.0.0-1.17</version>
+		</dependency>
+		<!-- Make sure that Shaded Guava matches the one used in the flink-connector-kafka,
+		 or remove when FLINK-32462 is resolved -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-guava</artifactId>
+			<version>30.1.1-jre-16.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>

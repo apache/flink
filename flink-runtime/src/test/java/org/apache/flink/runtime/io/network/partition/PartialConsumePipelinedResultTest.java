@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -32,18 +32,17 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.nio.ByteBuffer;
 
 /** Test for consuming a pipelined result only partially. */
-public class PartialConsumePipelinedResultTest extends TestLogger {
+class PartialConsumePipelinedResultTest {
 
     // Test configuration
     private static final int NUMBER_OF_TMS = 1;
@@ -52,9 +51,9 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 
     private static final int NUMBER_OF_NETWORK_BUFFERS = 128;
 
-    @ClassRule
-    public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterResource(
+    @RegisterExtension
+    private static final InternalMiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new InternalMiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getFlinkConfiguration())
                             .setNumberTaskManagers(NUMBER_OF_TMS)
@@ -63,9 +62,8 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 
     private static Configuration getFlinkConfiguration() {
         final Configuration config = new Configuration();
-        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT);
-        config.setInteger(
-                NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, NUMBER_OF_NETWORK_BUFFERS);
+        config.set(RpcOptions.ASK_TIMEOUT_DURATION, TestingUtils.DEFAULT_ASK_TIMEOUT);
+        config.set(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, NUMBER_OF_NETWORK_BUFFERS);
 
         return config;
     }
@@ -81,7 +79,7 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
      * @see <a href="https://issues.apache.org/jira/browse/FLINK-1930">FLINK-1930</a>
      */
     @Test
-    public void testPartialConsumePipelinedResultReceiver() throws Exception {
+    void testPartialConsumePipelinedResultReceiver() throws Exception {
         final JobVertex sender = new JobVertex("Sender");
         sender.setInvokableClass(SlowBufferSender.class);
         sender.setParallelism(PARALLELISM);

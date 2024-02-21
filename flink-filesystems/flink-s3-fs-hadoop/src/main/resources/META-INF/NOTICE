@@ -1,5 +1,5 @@
 flink-s3-fs-hadoop
-Copyright 2014-2023 The Apache Software Foundation
+Copyright 2014-2024 The Apache Software Foundation
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
@@ -9,10 +9,10 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.amazonaws:aws-java-sdk-s3:1.12.319
 - com.amazonaws:aws-java-sdk-sts:1.12.319
 - com.amazonaws:jmespath-java:1.12.319
-- com.fasterxml.jackson.core:jackson-annotations:2.13.4
-- com.fasterxml.jackson.core:jackson-core:2.13.4
-- com.fasterxml.jackson.core:jackson-databind:2.13.4.2
-- com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.13.4
+- com.fasterxml.jackson.core:jackson-annotations:2.15.3
+- com.fasterxml.jackson.core:jackson-core:2.15.3
+- com.fasterxml.jackson.core:jackson-databind:2.15.3
+- com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.15.3
 - com.fasterxml.woodstox:woodstox-core:5.3.0
 - com.google.guava:failureaccess:1.0
 - com.google.guava:guava:27.0-jre
@@ -24,7 +24,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - commons-io:commons-io:2.11.0
 - commons-logging:commons-logging:1.1.3
 - joda-time:joda-time:2.5
-- org.apache.commons:commons-compress:1.21
+- org.apache.commons:commons-compress:1.24.0
 - org.apache.commons:commons-configuration2:2.1.1
 - org.apache.commons:commons-lang3:3.12.0
 - org.apache.commons:commons-text:1.10.0
@@ -41,7 +41,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.kerby:kerby-pkix:1.0.1
 - org.apache.kerby:kerby-util:1.0.1
 - org.wildfly.openssl:wildfly-openssl:1.0.7.Final
-- org.xerial.snappy:snappy-java:1.1.8.3
+- org.xerial.snappy:snappy-java:1.1.10.4
 - software.amazon.ion:ion-java:1.0.2
 
 This project bundles the following dependencies under BSD-2 License (https://opensource.org/licenses/BSD-2-Clause).

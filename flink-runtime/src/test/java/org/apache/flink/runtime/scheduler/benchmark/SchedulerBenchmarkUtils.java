@@ -31,12 +31,19 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
+import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
+import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
+import org.apache.flink.runtime.scheduler.strategy.TestingSchedulerOperations;
+import org.apache.flink.runtime.scheduler.strategy.VertexwiseSchedulingStrategy;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
@@ -47,6 +54,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+
+import static org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder.createCustomParallelismDecider;
+import static org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchSchedulerFactory.loadInputConsumableDeciderFactory;
 
 /** Utilities for scheduler benchmarks. */
 public class SchedulerBenchmarkUtils {
@@ -92,7 +102,7 @@ public class SchedulerBenchmarkUtils {
         return jobGraph;
     }
 
-    public static ExecutionGraph createAndInitExecutionGraph(
+    public static DefaultScheduler createAndInitScheduler(
             List<JobVertex> jobVertices,
             JobConfiguration jobConfiguration,
             ScheduledExecutorService scheduledExecutorService)
@@ -103,15 +113,59 @@ public class SchedulerBenchmarkUtils {
         final ComponentMainThreadExecutor mainThreadExecutor =
                 ComponentMainThreadExecutorServiceAdapter.forMainThread();
 
-        final DefaultScheduler scheduler =
+        DefaultSchedulerBuilder schedulerBuilder =
                 new DefaultSchedulerBuilder(jobGraph, mainThreadExecutor, scheduledExecutorService)
                         .setIoExecutor(scheduledExecutorService)
                         .setFutureExecutor(scheduledExecutorService)
                         .setDelayExecutor(
-                                new ScheduledExecutorServiceAdapter(scheduledExecutorService))
-                        .build();
+                                new ScheduledExecutorServiceAdapter(scheduledExecutorService));
+        if (jobConfiguration.getJobType() == JobType.BATCH) {
+            AdaptiveBatchScheduler adaptiveBatchScheduler =
+                    createAdaptiveBatchScheduler(schedulerBuilder, jobConfiguration);
+            adaptiveBatchScheduler.initializeVerticesIfPossible();
+            return adaptiveBatchScheduler;
+        } else {
+            return schedulerBuilder.build();
+        }
+    }
 
+    public static AdaptiveBatchScheduler createAdaptiveBatchScheduler(
+            DefaultSchedulerBuilder schedulerBuilder, JobConfiguration jobConfiguration)
+            throws Exception {
+        return schedulerBuilder
+                .setVertexParallelismAndInputInfosDecider(
+                        createCustomParallelismDecider(jobConfiguration.getParallelism()))
+                .setHybridPartitionDataConsumeConstraint(
+                        jobConfiguration.getHybridPartitionDataConsumeConstraint())
+                .setInputConsumableDeciderFactory(
+                        loadInputConsumableDeciderFactory(
+                                jobConfiguration.getHybridPartitionDataConsumeConstraint()))
+                .buildAdaptiveBatchJobScheduler();
+    }
+
+    public static ExecutionGraph createAndInitExecutionGraph(
+            List<JobVertex> jobVertices,
+            JobConfiguration jobConfiguration,
+            ScheduledExecutorService scheduledExecutorService)
+            throws Exception {
+        DefaultScheduler scheduler =
+                createAndInitScheduler(jobVertices, jobConfiguration, scheduledExecutorService);
         return scheduler.getExecutionGraph();
+    }
+
+    public static SchedulingStrategy createSchedulingStrategy(
+            JobConfiguration jobConfiguration, SchedulingTopology schedulingTopology) {
+        TestingSchedulerOperations schedulerOperations = new TestingSchedulerOperations();
+
+        if (jobConfiguration.getJobType() == JobType.BATCH) {
+            return new VertexwiseSchedulingStrategy(
+                    schedulerOperations,
+                    schedulingTopology,
+                    loadInputConsumableDeciderFactory(
+                            jobConfiguration.getHybridPartitionDataConsumeConstraint()));
+        } else {
+            return new PipelinedRegionSchedulingStrategy(schedulerOperations, schedulingTopology);
+        }
     }
 
     public static void deployTasks(

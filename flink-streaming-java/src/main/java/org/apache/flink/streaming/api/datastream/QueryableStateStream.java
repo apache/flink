@@ -28,8 +28,11 @@ import org.apache.flink.util.Preconditions;
  *
  * @param <K> State key type
  * @param <V> State value type
+ * @deprecated The Queryable State feature is deprecated since Flink 1.18, and will be removed in a
+ *     future Flink major version.
  */
 @PublicEvolving
+@Deprecated
 public class QueryableStateStream<K, V> {
 
     /** Name under which the state is queryable. */

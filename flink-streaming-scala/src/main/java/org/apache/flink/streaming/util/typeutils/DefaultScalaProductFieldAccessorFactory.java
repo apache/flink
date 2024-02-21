@@ -32,7 +32,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>There are two versions of ProductFieldAccessor, differing in whether there is another
  * FieldAccessor nested inside. The no inner accessor version is probably a little faster.
+ *
+ * @deprecated All Flink Scala APIs are deprecated and will be removed in a future Flink major
+ *     version. You can still build your application in Scala, but you should move to the Java
+ *     version of either the DataStream and/or Table API.
+ * @see <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
+@Deprecated
 public class DefaultScalaProductFieldAccessorFactory implements ScalaProductFieldAccessorFactory {
 
     public <T, F> FieldAccessor<T, F> createSimpleProductFieldAccessor(
@@ -71,7 +77,10 @@ public class DefaultScalaProductFieldAccessorFactory implements ScalaProductFiel
 
             this.pos = pos;
             this.fieldType = ((TupleTypeInfoBase<T>) typeInfo).getTypeAt(pos);
-            this.serializer = (TupleSerializerBase<T>) typeInfo.createSerializer(config);
+            this.serializer =
+                    (TupleSerializerBase<T>)
+                            typeInfo.createSerializer(
+                                    config == null ? null : config.getSerializerConfig());
             this.length = this.serializer.getArity();
             this.fields = new Object[this.length];
         }
@@ -122,7 +131,10 @@ public class DefaultScalaProductFieldAccessorFactory implements ScalaProductFiel
             checkNotNull(innerAccessor, "innerAccessor must not be null.");
 
             this.pos = pos;
-            this.serializer = (TupleSerializerBase<T>) typeInfo.createSerializer(config);
+            this.serializer =
+                    (TupleSerializerBase<T>)
+                            typeInfo.createSerializer(
+                                    config == null ? null : config.getSerializerConfig());
             this.length = this.serializer.getArity();
             this.fields = new Object[this.length];
             this.innerAccessor = innerAccessor;

@@ -101,7 +101,7 @@ public class KubernetesPodTemplateTestUtils {
             new VolumeBuilder()
                     .withName("flink-volume-hostpath")
                     .withNewHostPath()
-                    .withNewPath("/tmp")
+                    .withPath("/tmp")
                     .withType("Directory")
                     .endHostPath()
                     .build(),

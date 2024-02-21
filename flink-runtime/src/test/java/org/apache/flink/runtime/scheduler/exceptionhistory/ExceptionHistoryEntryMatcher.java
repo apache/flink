@@ -19,21 +19,23 @@
 package org.apache.flink.runtime.scheduler.exceptionhistory;
 
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.ExceptionUtils;
 
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
-import org.hamcrest.TypeSafeDiagnosingMatcher;
+import java.util.Collections;
+import java.util.Map;
+import java.util.function.Predicate;
 
 /** Matches {@link ExceptionHistoryEntry} instances. */
-public class ExceptionHistoryEntryMatcher extends TypeSafeDiagnosingMatcher<ExceptionHistoryEntry> {
+public class ExceptionHistoryEntryMatcher implements Predicate<ExceptionHistoryEntry> {
 
-    public static Matcher<ExceptionHistoryEntry> matchesGlobalFailure(
-            Throwable expectedException, long expectedTimestamp) {
-        return matchesFailure(expectedException, expectedTimestamp, null, null);
+    public static Predicate<ExceptionHistoryEntry> matchesGlobalFailure(
+            Throwable expectedException,
+            long expectedTimestamp,
+            Map<String, String> expectedFailureLabels) {
+        return matchesFailure(
+                expectedException, expectedTimestamp, expectedFailureLabels, null, null);
     }
 
-    public static Matcher<ExceptionHistoryEntry> matchesFailure(
+    public static Predicate<ExceptionHistoryEntry> matchesFailure(
             Throwable expectedException,
             long expectedTimestamp,
             String expectedTaskName,
@@ -41,81 +43,73 @@ public class ExceptionHistoryEntryMatcher extends TypeSafeDiagnosingMatcher<Exce
         return new ExceptionHistoryEntryMatcher(
                 expectedException,
                 expectedTimestamp,
+                Collections.emptyMap(),
+                expectedTaskName,
+                expectedTaskManagerLocation);
+    }
+
+    public static Predicate<ExceptionHistoryEntry> matchesFailure(
+            Throwable expectedException,
+            long expectedTimestamp,
+            Map<String, String> expectedFailureLabels,
+            String expectedTaskName,
+            TaskManagerLocation expectedTaskManagerLocation) {
+        return new ExceptionHistoryEntryMatcher(
+                expectedException,
+                expectedTimestamp,
+                expectedFailureLabels,
                 expectedTaskName,
                 expectedTaskManagerLocation);
     }
 
     private final Throwable expectedException;
     private final long expectedTimestamp;
+    private final Map<String, String> expectedFailureLabels;
     private final String expectedTaskName;
     private final ArchivedTaskManagerLocationMatcher taskManagerLocationMatcher;
 
     public ExceptionHistoryEntryMatcher(
             Throwable expectedException,
             long expectedTimestamp,
+            Map<String, String> expectedFailureLabels,
             String expectedTaskName,
             TaskManagerLocation expectedTaskManagerLocation) {
         this.expectedException = expectedException;
         this.expectedTimestamp = expectedTimestamp;
+        this.expectedFailureLabels = expectedFailureLabels;
         this.expectedTaskName = expectedTaskName;
         this.taskManagerLocationMatcher =
                 new ArchivedTaskManagerLocationMatcher(expectedTaskManagerLocation);
     }
 
     @Override
-    protected boolean matchesSafely(
-            ExceptionHistoryEntry exceptionHistoryEntry, Description description) {
+    public boolean test(ExceptionHistoryEntry exceptionHistoryEntry) {
         boolean match = true;
         if (!exceptionHistoryEntry
                 .getException()
                 .deserializeError(ClassLoader.getSystemClassLoader())
                 .equals(expectedException)) {
-            description
-                    .appendText(" actualException=")
-                    .appendText(
-                            ExceptionUtils.stringifyException(
-                                    exceptionHistoryEntry
-                                            .getException()
-                                            .deserializeError(ClassLoader.getSystemClassLoader())));
             match = false;
         }
 
         if (exceptionHistoryEntry.getTimestamp() != expectedTimestamp) {
-            description
-                    .appendText(" actualTimestamp=")
-                    .appendText(String.valueOf(exceptionHistoryEntry.getTimestamp()));
+            match = false;
+        }
+
+        if (!exceptionHistoryEntry.getFailureLabelsFuture().equals(expectedFailureLabels)) {
             match = false;
         }
 
         if (exceptionHistoryEntry.getFailingTaskName() == null) {
             if (expectedTaskName != null) {
-                description.appendText(" actualTaskName=null");
                 match = false;
             }
         } else if (exceptionHistoryEntry.getFailingTaskName().equals(expectedTaskName)) {
-            description
-                    .appendText(" actualTaskName=")
-                    .appendText(exceptionHistoryEntry.getFailingTaskName());
             match = false;
         }
 
-        match |=
-                taskManagerLocationMatcher.matchesSafely(
-                        exceptionHistoryEntry.getTaskManagerLocation(), description);
+        match |= taskManagerLocationMatcher.test(exceptionHistoryEntry.getTaskManagerLocation());
 
         return match;
-    }
-
-    @Override
-    public void describeTo(Description description) {
-        description
-                .appendText("expectedException=")
-                .appendText(ExceptionUtils.stringifyException(expectedException))
-                .appendText(" expectedTimestamp=")
-                .appendText(String.valueOf(expectedTimestamp))
-                .appendText(" expectedTaskName=")
-                .appendText(expectedTaskName)
-                .appendText(" expectedTaskManagerLocation=");
-        taskManagerLocationMatcher.describeTo(description);
     }
 }

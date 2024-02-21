@@ -312,6 +312,7 @@ object FlinkRexUtil {
 
   /**
    * Find all inputRefs.
+   *
    * @return
    *   InputRef HashSet.
    */
@@ -612,6 +613,7 @@ object FlinkRexUtil {
 
   /**
    * Returns whether a given [[RexProgram]] is deterministic.
+   *
    * @return
    *   false if any expression of the program is not deterministic
    */
@@ -642,7 +644,8 @@ object FlinkRexUtil {
         inputNames,
         context.getFunctionCatalog,
         context.getCatalogManager,
-        TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(context.getTableConfig)));
+        TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(context.getTableConfig)),
+        Some(rel.getRowType));
 
     RexNodeExtractor.extractConjunctiveConditions(
       filterExpression,

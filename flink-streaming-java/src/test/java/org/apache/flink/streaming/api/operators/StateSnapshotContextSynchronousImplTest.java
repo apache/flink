@@ -40,7 +40,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.Mockito.when;
 
 /** Tests for {@link StateSnapshotContextSynchronousImpl}. */
 public class StateSnapshotContextSynchronousImplTest extends TestLogger {

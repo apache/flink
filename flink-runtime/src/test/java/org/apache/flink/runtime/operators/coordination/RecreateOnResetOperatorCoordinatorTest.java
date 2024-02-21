@@ -21,7 +21,8 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -33,13 +34,13 @@ import java.util.concurrent.CountDownLatch;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link RecreateOnResetOperatorCoordinator}. */
-public class RecreateOnResetOperatorCoordinatorTest {
+class RecreateOnResetOperatorCoordinatorTest {
 
     private static final OperatorID OPERATOR_ID = new OperatorID(1234L, 5678L);
     private static final int NUM_SUBTASKS = 1;
 
     @Test
-    public void testQuiesceableContextForwardsProperties() {
+    void testQuiesceableContextForwardsProperties() {
         MockOperatorCoordinatorContext context =
                 new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS);
         RecreateOnResetOperatorCoordinator.QuiesceableContext quiesceableContext =
@@ -50,7 +51,7 @@ public class RecreateOnResetOperatorCoordinatorTest {
     }
 
     @Test
-    public void testQuiesceableContextNotQuiesced() {
+    void testQuiesceableContextNotQuiesced() {
         MockOperatorCoordinatorContext context =
                 new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS);
         RecreateOnResetOperatorCoordinator.QuiesceableContext quiesceableContext =
@@ -64,7 +65,7 @@ public class RecreateOnResetOperatorCoordinatorTest {
     }
 
     @Test
-    public void testQuiescedContext() {
+    void testQuiescedContext() {
         MockOperatorCoordinatorContext context =
                 new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS);
         RecreateOnResetOperatorCoordinator.QuiesceableContext quiesceableContext =
@@ -77,7 +78,7 @@ public class RecreateOnResetOperatorCoordinatorTest {
     }
 
     @Test
-    public void testResetToCheckpoint() throws Exception {
+    void testResetToCheckpoint() throws Exception {
         TestingCoordinatorProvider provider = new TestingCoordinatorProvider(null);
         MockOperatorCoordinatorContext context =
                 new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS);
@@ -105,7 +106,7 @@ public class RecreateOnResetOperatorCoordinatorTest {
     }
 
     @Test
-    public void testResetToCheckpointTimeout() throws Exception {
+    void testResetToCheckpointTimeout() throws Exception {
         final long closingTimeoutMs = 1L;
         // Let the user coordinator block on close.
         TestingCoordinatorProvider provider = new TestingCoordinatorProvider(new CountDownLatch(1));
@@ -122,7 +123,7 @@ public class RecreateOnResetOperatorCoordinatorTest {
     }
 
     @Test
-    public void testMethodCallsOnLongResetToCheckpoint() throws Exception {
+    void testMethodCallsOnLongResetToCheckpoint() throws Exception {
         final long closingTimeoutMs = Long.MAX_VALUE;
         final CountDownLatch blockOnCloseLatch = new CountDownLatch(1);
         // Let the user coordinator block on close.
@@ -184,8 +185,9 @@ public class RecreateOnResetOperatorCoordinatorTest {
                 .isEqualTo(completedCheckpointId);
     }
 
-    @Test(timeout = 30000L)
-    public void testConsecutiveResetToCheckpoint() throws Exception {
+    @Test
+    @Timeout(30)
+    void testConsecutiveResetToCheckpoint() throws Exception {
         final long closingTimeoutMs = Long.MAX_VALUE;
         final int numResets = 1000;
         // Let the user coordinator block on close.
@@ -262,6 +264,21 @@ public class RecreateOnResetOperatorCoordinatorTest {
                 internalCoordinator::isClosed,
                 Duration.ofSeconds(5),
                 "Timed out when waiting for the coordinator to close.");
+    }
+
+    @Test
+    void testNotifyCheckpointAbortedSuccess() throws Exception {
+        TestingCoordinatorProvider provider = new TestingCoordinatorProvider(null);
+        MockOperatorCoordinatorContext context =
+                new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS);
+        RecreateOnResetOperatorCoordinator coordinator = createCoordinator(provider, context);
+        TestingOperatorCoordinator internalCoordinatorAfterReset =
+                getInternalCoordinator(coordinator);
+
+        long checkpointId = 10L;
+        coordinator.notifyCheckpointAborted(checkpointId);
+        assertThat(internalCoordinatorAfterReset.getLastCheckpointAborted())
+                .isEqualTo(checkpointId);
     }
 
     // ---------------

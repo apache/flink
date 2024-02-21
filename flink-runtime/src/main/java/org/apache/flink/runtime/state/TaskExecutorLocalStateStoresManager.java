@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateChangelogOptions;
-import org.apache.flink.configuration.StateChangelogOptionsInternal;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.FileUtils;
@@ -47,6 +46,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * This class holds the all {@link TaskLocalStateStoreImpl} objects for a task executor (manager).
@@ -171,11 +171,9 @@ public class TaskExecutorLocalStateStoresManager {
 
                 boolean changelogEnabled =
                         jobConfiguration
-                                .getOptional(
-                                        StateChangelogOptionsInternal
-                                                .ENABLE_CHANGE_LOG_FOR_APPLICATION)
+                                .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
                                 .orElse(
-                                        clusterConfiguration.getBoolean(
+                                        clusterConfiguration.get(
                                                 StateChangelogOptions.ENABLE_STATE_CHANGE_LOG));
 
                 if (localRecoveryConfig.isLocalRecoveryEnabled() && changelogEnabled) {
@@ -296,9 +294,11 @@ public class TaskExecutorLocalStateStoresManager {
     @Nonnull
     static Collection<Path> listAllocationDirectoriesIn(File localStateRootDirectory)
             throws IOException {
-        return Files.list(localStateRootDirectory.toPath())
-                .filter(path -> path.getFileName().toString().startsWith(ALLOCATION_DIR_PREFIX))
-                .collect(Collectors.toList());
+        try (Stream<Path> fileListStream = Files.list(localStateRootDirectory.toPath())) {
+            return fileListStream
+                    .filter(path -> path.getFileName().toString().startsWith(ALLOCATION_DIR_PREFIX))
+                    .collect(Collectors.toList());
+        }
     }
 
     public void shutdown() {

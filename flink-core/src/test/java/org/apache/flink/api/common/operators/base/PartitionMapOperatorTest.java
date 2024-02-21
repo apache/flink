@@ -20,14 +20,15 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.Collector;
@@ -45,6 +46,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/** The test for partition map operator. */
 @SuppressWarnings("serial")
 public class PartitionMapOperatorTest implements java.io.Serializable {
 
@@ -59,12 +61,12 @@ public class PartitionMapOperatorTest implements java.io.Serializable {
                     new RichMapPartitionFunction<String, Integer>() {
 
                         @Override
-                        public void open(Configuration parameters) throws Exception {
+                        public void open(OpenContext openContext) throws Exception {
                             opened.set(true);
                             RuntimeContext ctx = getRuntimeContext();
-                            assertEquals(0, ctx.getIndexOfThisSubtask());
-                            assertEquals(1, ctx.getNumberOfParallelSubtasks());
-                            assertEquals(taskName, ctx.getTaskName());
+                            assertEquals(0, ctx.getTaskInfo().getIndexOfThisSubtask());
+                            assertEquals(1, ctx.getTaskInfo().getNumberOfParallelSubtasks());
+                            assertEquals(taskName, ctx.getTaskInfo().getTaskName());
                         }
 
                         @Override
@@ -90,7 +92,7 @@ public class PartitionMapOperatorTest implements java.io.Serializable {
 
             List<String> input = new ArrayList<String>(asList("1", "2", "3", "4", "5", "6"));
 
-            final TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
+            final TaskInfo taskInfo = new TaskInfoImpl(taskName, 1, 0, 1, 0);
 
             ExecutionConfig executionConfig = new ExecutionConfig();
             executionConfig.disableObjectReuse();

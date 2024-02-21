@@ -35,6 +35,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.WRITE_BATCH_SIZE;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /** Tests to guard {@link RocksDBWriteBatchWrapper}. */
 public class RocksDBWriteBatchWrapperTest {
@@ -121,6 +123,41 @@ public class RocksDBWriteBatchWrapperTest {
             }
             writeBatchWrapper.put(handle, dummy, dummy);
             assertEquals(initBatchSize, writeBatchWrapper.getDataSize());
+        }
+    }
+
+    /**
+     * Test that {@link RocksDBWriteBatchWrapper} creates default {@link WriteOptions} with disabled
+     * WAL and closes them correctly.
+     */
+    @Test
+    public void testDefaultWriteOptionsHaveDisabledWAL() throws Exception {
+        WriteOptions options;
+        try (RocksDB db = RocksDB.open(folder.newFolder().getAbsolutePath());
+                RocksDBWriteBatchWrapper writeBatchWrapper =
+                        new RocksDBWriteBatchWrapper(db, null, 200, 50)) {
+            options = writeBatchWrapper.getOptions();
+            assertTrue(options.isOwningHandle());
+            assertTrue(options.disableWAL());
+        }
+        assertFalse(options.isOwningHandle());
+    }
+
+    /**
+     * Test that {@link RocksDBWriteBatchWrapper} respects passed in {@link WriteOptions} and does
+     * not close them.
+     */
+    @Test
+    public void testNotClosingPassedInWriteOption() throws Exception {
+        try (WriteOptions passInOption = new WriteOptions().setDisableWAL(false)) {
+            try (RocksDB db = RocksDB.open(folder.newFolder().getAbsolutePath());
+                    RocksDBWriteBatchWrapper writeBatchWrapper =
+                            new RocksDBWriteBatchWrapper(db, passInOption, 200, 50)) {
+                WriteOptions options = writeBatchWrapper.getOptions();
+                assertTrue(options.isOwningHandle());
+                assertFalse(options.disableWAL());
+            }
+            assertTrue(passInOption.isOwningHandle());
         }
     }
 }

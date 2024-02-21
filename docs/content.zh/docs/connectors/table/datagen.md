@@ -29,51 +29,207 @@ under the License.
 {{< label "Scan Source: 有界" >}}
 {{< label "Scan Source: 无界" >}}
 
-DataGen 连接器允许按数据生成规则进行读取。
+DataGen 连接器允许基于内存生成数据来创建表。
+在本地开发时，若不访问外部系统（如 Kafka），这会非常有用。
+可以使用[计算列语法]({{< ref "docs/dev/table/sql/create" >}}#create-table)灵活地生成记录。
 
-DataGen 连接器可以使用[计算列语法]({{< ref "docs/dev/table/sql/create" >}}#create-table)。
-这使您可以灵活地生成记录。
+DataGen 连接器是内置的，不需要额外的依赖项。
 
-DataGen 连接器是内置的。
+用法
+-----
 
-<span class="label label-danger">注意</span> 不支持复杂类型: Array，Map，Row。 请用计算列构造这些类型。
+默认情况下，DataGen 表将创建无限数量的行，每列都有一个随机值。
+还可以指定总行数，从而生成有界表。
 
-怎么创建一个 DataGen 的表
-----------------
+DataGen 连接器可以生成符合其 schema 的数据，应该注意的是，它按如下方式处理长度受限的字段：
 
-表的有界性：当表中字段的数据全部生成完成后，source 就结束了。 因此，表的有界性取决于字段的有界性。
+* 对于固定长度的数据类型（char、binary），字段长度只能由 schema 定义，且不支持自定义；
+* 对于可变长度数据类型 （varchar、varbinary），字段默认长度由 schema 定义，且自定义长度不能大于 schema 定义；
+* 对于超长字段（string、bytes），字段默认长度为 100，但可以定义为小于 2^31 的长度。
 
-每个列，都有两种生成数据的方法：
+还支持序列生成器，您可以指定序列的起始和结束值。
+如果表中有任一列是序列类型，则该表将是有界的，并在第一个序列完成时结束。
 
-- 随机生成器是默认的生成器，您可以指定随机生成的最大和最小值。char、varchar、binary、varbinary, string （类型）可以指定长度。它是无界的生成器。
-
-- 序列生成器，您可以指定序列的起始和结束值。它是有界的生成器，当序列数字达到结束值，读取结束。
+时间类型字段对应的值始终是本地机器当前系统时间。
 
 ```sql
-CREATE TABLE datagen (
- f_sequence INT,
- f_random INT,
- f_random_str STRING,
- ts AS localtimestamp,
- WATERMARK FOR ts AS ts
+CREATE TABLE Orders (
+    order_number BIGINT,
+    price        DECIMAL(32,2),
+    buyer        ROW<first_name STRING, last_name STRING>,
+    order_time   TIMESTAMP(3)
 ) WITH (
- 'connector' = 'datagen',
-
- -- optional options --
-
- 'rows-per-second'='5',
-
- 'fields.f_sequence.kind'='sequence',
- 'fields.f_sequence.start'='1',
- 'fields.f_sequence.end'='1000',
-
- 'fields.f_random.min'='1',
- 'fields.f_random.max'='1000',
-
- 'fields.f_random_str.length'='10'
+  'connector' = 'datagen'
 )
 ```
 
+DataGen 连接器通常与 ``LIKE`` 子句结合使用，以模拟物理表。
+
+```sql
+CREATE TABLE Orders (
+    order_number BIGINT,
+    price        DECIMAL(32,2),
+    buyer        ROW<first_name STRING, last_name STRING>,
+    order_time   TIMESTAMP(3)
+) WITH (...)
+
+-- create a bounded mock table
+CREATE TEMPORARY TABLE GenOrders
+WITH (
+    'connector' = 'datagen',
+    'number-of-rows' = '10'
+)
+LIKE Orders (EXCLUDING ALL)
+```
+
+此外，对于可变长度类型（varchar、string、varbinary 和 bytes），您可以指定是否生成可变长度的数据。
+
+```sql
+CREATE TABLE Orders (
+    order_number BIGINT,
+    price        DECIMAL(32,2),
+    buyer        ROW<first_name STRING, last_name STRING>,
+    order_time   TIMESTAMP(3),
+    seller       VARCHAR(150)
+) WITH (
+  'connector' = 'datagen',
+  'fields.seller.var-len' = 'true'
+)
+```
+
+字段类型
+-----
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 25%">Type</th>
+            <th class="text-center" style="width: 25%">Supported Generators</th>
+            <th class="text-center" style="width: 50%">Notes</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>BOOLEAN</td>
+            <td>random</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>CHAR</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>VARCHAR</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>BINARY</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>VARBINARY</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>STRING</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>DECIMAL</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>TINYINT</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>SMALLINT</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>INT</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>BIGINT</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>FLOAT</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>DOUBLE</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>DATE</td>
+            <td>random</td>
+            <td>总是解析为本地机器的当前日期。</td>
+        </tr>
+        <tr>
+            <td>TIME</td>
+            <td>random</td>
+            <td>总是解析为本地机器的当前时间。</td>
+        </tr>
+        <tr>
+            <td>TIMESTAMP</td>
+            <td>random</td>
+            <td>
+                解析为相对于本地机器的当前时间戳向过去偏移的时间戳。偏移的最大值可以通过 'max-past' 选项指定。
+            </td>
+        </tr>
+        <tr>
+            <td>TIMESTAMP_LTZ</td>
+            <td>random</td>
+            <td>
+                解析为相对于本地机器的当前时间戳向过去偏移的时间戳。偏移的最大值可以通过 'max-past' 选项指定。
+            </td>
+        </tr>
+        <tr>
+            <td>INTERVAL YEAR TO MONTH</td>
+            <td>random</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>INTERVAL DAY TO MONTH</td>
+            <td>random</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>ROW</td>
+            <td>random</td>
+            <td>生成具有随机字段数据的行。</td>
+        </tr>
+        <tr>
+            <td>ARRAY</td>
+            <td>random</td>
+            <td>生成具有随机元素的数组。</td>
+        </tr>
+        <tr>
+            <td>MAP</td>
+            <td>random</td>
+            <td>生成具有随机元素的 Map。</td>
+        </tr>
+        <tr>
+            <td>MULTISET</td>
+            <td>random</td>
+            <td>生成具有随机元素的多重集。</td>
+        </tr>
+    </tbody>
+</table>
 
 连接器参数
 ----------------
@@ -102,6 +258,20 @@ CREATE TABLE datagen (
       <td style="word-wrap: break-word;">10000</td>
       <td>Long</td>
       <td>每秒生成的行数，用以控制数据发出速率。</td>
+    </tr>
+    <tr>
+      <td><h5>number-of-rows</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Long</td>
+      <td>生成数据的总行数。默认情况下，该表是无界的。</td>
+    </tr>
+    <tr>
+      <td><h5>scan.parallelism</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Integer</td>
+      <td>定义算子并行度。不设置将使用全局默认并发。</td>
     </tr>
     <tr>
       <td><h5>fields.#.kind</h5></td>
@@ -136,7 +306,19 @@ CREATE TABLE datagen (
       <td>可选</td>
       <td style="word-wrap: break-word;">100</td>
       <td>Integer</td>
-      <td>随机生成器生成字符的长度，适用于 char、varchar、binary、varbinary、string。</td>
+      <td>
+          随机生成器生成字符的长度，适用于 varchar、varbinary、string、bytes、array、map、multiset。
+          请注意对于可变长字段（varchar、varbinary），默认长度由 schema 定义，且长度不可设置为大于它；
+          对于超长字段（string、bytes），默认长度是 100 且可设置为小于 2^31 的长度；
+          对于结构化字段（数组、Map、多重集），默认元素数量为 3 且可以自定义。
+      </td>
+    </tr>
+    <tr>
+      <td><h5>fields.#.var-len</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>是否生成变长数据，请注意只能用于变长类型（varchar、string、varbinary、bytes）。</td>
     </tr>
     <tr>
       <td><h5>fields.#.start</h5></td>
@@ -151,6 +333,13 @@ CREATE TABLE datagen (
       <td style="word-wrap: break-word;">(none)</td>
       <td>(Type of field)</td>
       <td>序列生成器的结束值。</td>
+    </tr>
+    <tr>
+      <td><h5>fields.#.null-rate</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>(Type of field)</td>
+      <td>空值比例。</td>
     </tr>
     </tbody>
 </table>

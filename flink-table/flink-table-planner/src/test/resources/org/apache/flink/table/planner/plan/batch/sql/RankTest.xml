@@ -346,12 +346,13 @@ FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(url=[CONCAT(_UTF-16LE'http://txmov2.a.yximgs.com', $0)], download_count=[$1], timestamp=[$2])
-+- LogicalFilter(condition=[<=($3, 100000)])
-   +- LogicalProject(uri=[$0], reqcount=[$1], start_time=[$2], rownum_2=[RANK() OVER (PARTITION BY $2 ORDER BY $1 DESC NULLS LAST)])
-      +- LogicalFilter(condition=[<=($3, 100000)])
-         +- LogicalProject(uri=[$0], reqcount=[$1], start_time=[$2], rownum_1=[RANK() OVER (PARTITION BY $2, $3 ORDER BY $1 DESC NULLS LAST)])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+LogicalProject(url=[CONCAT(_UTF-16LE'http://txmov2.a.yximgs.com', $0)], download_count=[$1], timestamp=[$3])
++- LogicalProject(uri=[$0], reqcount=[$1], rownum_2=[$3], start_time=[$2])
+   +- LogicalFilter(condition=[<=($3, 100000)])
+      +- LogicalProject(uri=[$0], reqcount=[$1], start_time=[$2], rownum_2=[RANK() OVER (PARTITION BY $2 ORDER BY $1 DESC NULLS LAST)])
+         +- LogicalFilter(condition=[<=($3, 100000)])
+            +- LogicalProject(uri=[$0], reqcount=[$1], start_time=[$2], rownum_1=[RANK() OVER (PARTITION BY $2, $3 ORDER BY $1 DESC NULLS LAST)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

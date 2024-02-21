@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.planner.codegen.CodeGenUtils;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -145,12 +146,13 @@ class StructuredToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
         StructuredType inputStructuredType = (StructuredType) inputLogicalType;
+        CodeGeneratorContext codeGeneratorContext = context.getCodeGeneratorContext();
 
-        final String builderTerm = newName("builder");
+        final String builderTerm = newName(codeGeneratorContext, "builder");
         context.declareClassField(
                 className(StringBuilder.class), builderTerm, constructorCall(StringBuilder.class));
 
-        final String resultStringTerm = newName("resultString");
+        final String resultStringTerm = newName(codeGeneratorContext, "resultString");
         final int length = LogicalTypeChecks.getLength(targetLogicalType);
         final CastRuleUtils.CodeWriter writer =
                 new CastRuleUtils.CodeWriter()
@@ -162,8 +164,9 @@ class StructuredToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<
             final StructuredType.StructuredAttribute attribute =
                     inputStructuredType.getAttributes().get(fieldIndex);
 
-            final String fieldTerm = newName("f" + fieldIndex + "Value");
-            final String fieldIsNullTerm = newName("f" + fieldIndex + "IsNull");
+            final String fieldTerm = newName(codeGeneratorContext, "f" + fieldIndex + "Value");
+            final String fieldIsNullTerm =
+                    newName(codeGeneratorContext, "f" + fieldIndex + "IsNull");
 
             final CastCodeBlock codeBlock =
                     // Null check is done at the row access level
@@ -222,7 +225,8 @@ class StructuredToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<
                         context.legacyBehaviour(),
                         length,
                         resultStringTerm,
-                        builderTerm)
+                        builderTerm,
+                        context.getCodeGeneratorContext())
                 // Assign the result value
                 .assignStmt(
                         returnVariable,

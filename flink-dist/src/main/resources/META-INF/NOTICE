@@ -1,5 +1,5 @@
 flink-dist
-Copyright 2014-2023 The Apache Software Foundation
+Copyright 2014-2024 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -12,14 +12,16 @@ This project bundles the following dependencies under the Apache Software Licens
 - commons-cli:commons-cli:1.5.0
 - commons-collections:commons-collections:3.2.2
 - commons-io:commons-io:2.11.0
-- org.apache.commons:commons-compress:1.21
+- org.apache.commons:commons-compress:1.24.0
 - org.apache.commons:commons-lang3:3.12.0
 - org.apache.commons:commons-math3:3.6.1
 - org.apache.commons:commons-text:1.10.0
 - org.javassist:javassist:3.24.0-GA
 - org.lz4:lz4-java:1.8.0
 - org.objenesis:objenesis:2.1
-- org.xerial.snappy:snappy-java:1.1.8.3
+- org.xerial.snappy:snappy-java:1.1.10.4
+- tools.profiler:async-profiler:2.9
+- org.snakeyaml:snakeyaml-engine:2.6
 
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details.

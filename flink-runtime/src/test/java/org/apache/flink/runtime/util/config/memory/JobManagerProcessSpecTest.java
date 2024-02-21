@@ -20,18 +20,15 @@ package org.apache.flink.runtime.util.config.memory;
 
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link JobManagerProcessSpec}. */
-public class JobManagerProcessSpecTest extends TestLogger {
+class JobManagerProcessSpecTest {
     @Test
-    public void testEquals() {
+    void testEquals() {
         JobManagerProcessSpec spec1 =
                 new JobManagerProcessSpec(
                         MemorySize.parse("1m"),
@@ -46,11 +43,11 @@ public class JobManagerProcessSpecTest extends TestLogger {
                         MemorySize.parse("3m"),
                         MemorySize.parse("4m"));
 
-        assertThat(spec1, is(spec2));
+        assertThat(spec1).isEqualTo(spec2);
     }
 
     @Test
-    public void testNotEquals() {
+    void testNotEquals() {
         JobManagerProcessSpec spec1 =
                 new JobManagerProcessSpec(
                         MemorySize.parse("1m"),
@@ -62,6 +59,6 @@ public class JobManagerProcessSpecTest extends TestLogger {
                 new JobManagerProcessSpec(
                         MemorySize.ZERO, MemorySize.ZERO, MemorySize.ZERO, MemorySize.ZERO);
 
-        assertThat(spec1, not(spec2));
+        assertThat(spec1).isNotEqualTo(spec2);
     }
 }

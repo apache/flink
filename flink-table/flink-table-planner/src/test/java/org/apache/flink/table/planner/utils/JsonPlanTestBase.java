@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -27,24 +28,29 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.internal.CompiledPlanUtils;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.StringUtils;
 
-import org.junit.After;
-import org.junit.Before;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -52,26 +58,43 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The base class for json plan testing. */
-public abstract class JsonPlanTestBase extends AbstractTestBase {
+public abstract class JsonPlanTestBase {
+
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(4)
+                            .build());
+
+    @TempDir protected Path tempFolder;
 
     protected TableEnvironment tableEnv;
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    protected void setup() throws Exception {
         tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
     }
 
-    @After
-    public void after() {
+    @AfterEach
+    protected void after() {
         TestValuesTableFactory.clearAllData();
     }
 
     protected TableResult compileSqlAndExecutePlan(String sql) {
+        return compileSqlAndExecutePlan(sql, json -> json);
+    }
+
+    protected TableResult compileSqlAndExecutePlan(
+            String sql, Function<String, String> jsonPlanTransformer) {
         CompiledPlan compiledPlan = tableEnv.compilePlanSql(sql);
         checkTransformationUids(compiledPlan);
         // try to execute the string json plan to validate to ser/de result
-        String jsonPlan = compiledPlan.asJsonString();
-        CompiledPlan newCompiledPlan = tableEnv.loadPlan(PlanReference.fromJsonString(jsonPlan));
+        CompiledPlan newCompiledPlan =
+                tableEnv.loadPlan(
+                        PlanReference.fromJsonString(
+                                jsonPlanTransformer.apply(compiledPlan.asJsonString())));
         return newCompiledPlan.execute();
     }
 
@@ -208,7 +231,7 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
     protected void createTestCsvSourceTable(
             String tableName, List<String> data, String... fieldNameAndTypes) throws IOException {
         checkArgument(fieldNameAndTypes.length > 0);
-        File sourceFile = TEMPORARY_FOLDER.newFile();
+        File sourceFile = TempDirUtils.newFile(tempFolder);
         Collections.shuffle(data);
         Files.write(sourceFile.toPath(), String.join("\n", data).getBytes());
         String ddl =
@@ -238,7 +261,7 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
                 StringUtils.isNullOrWhitespaceOnly(partitionFields)
                         ? ""
                         : "\n partitioned by (" + partitionFields + ") \n";
-        File sinkPath = TEMPORARY_FOLDER.newFolder();
+        File sinkPath = TempDirUtils.newFolder(tempFolder);
         String ddl =
                 String.format(
                         "CREATE TABLE %s (\n"

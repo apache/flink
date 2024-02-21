@@ -85,6 +85,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_FORMATTER;
 import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_CONSUME_START_OFFSET;
 import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_ENABLE;
+import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_READ_STATISTICS_THREAD_NUM;
 import static org.apache.flink.connectors.hive.util.HivePartitionUtils.getAllPartitions;
 
 /** A TableSource implementation to read data from Hive tables. */
@@ -373,13 +374,21 @@ public class HiveTableSource
                         .toLowerCase();
         List<Path> files =
                 inputSplits.stream().map(FileSourceSplit::path).collect(Collectors.toList());
+        int statisticsThreadNum = flinkConf.get(TABLE_EXEC_HIVE_READ_STATISTICS_THREAD_NUM);
+        Preconditions.checkArgument(
+                statisticsThreadNum >= 1,
+                TABLE_EXEC_HIVE_READ_STATISTICS_THREAD_NUM.key() + " cannot be less than 1");
         // Now we only support Parquet, Orc formats.
         if (serializationLib.contains("parquet")) {
             return ParquetFormatStatisticsReportUtil.getTableStatistics(
-                    files, producedDataType, jobConf, hiveVersion.startsWith("3"));
+                    files,
+                    producedDataType,
+                    jobConf,
+                    hiveVersion.startsWith("3"),
+                    statisticsThreadNum);
         } else if (serializationLib.contains("orc")) {
             return OrcFormatStatisticsReportUtil.getTableStatistics(
-                    files, producedDataType, jobConf);
+                    files, producedDataType, jobConf, statisticsThreadNum);
         } else {
             // Now, only support Orc and Parquet Formats.
             LOG.info(
@@ -420,7 +429,7 @@ public class HiveTableSource
                 case PARTITION_NAME:
                     if (configuration.contains(STREAMING_SOURCE_CONSUME_START_OFFSET)) {
                         String consumeOffsetStr =
-                                configuration.getString(STREAMING_SOURCE_CONSUME_START_OFFSET);
+                                configuration.get(STREAMING_SOURCE_CONSUME_START_OFFSET);
                         consumeStartOffset = (T) consumeOffsetStr;
                     } else {
                         consumeStartOffset = (T) DEFAULT_MIN_NAME_OFFSET;
@@ -431,12 +440,12 @@ public class HiveTableSource
                 case CREATE_TIME:
                     if (configuration.contains(STREAMING_SOURCE_CONSUME_START_OFFSET)) {
                         String consumeOffsetStr =
-                                configuration.getString(STREAMING_SOURCE_CONSUME_START_OFFSET);
+                                configuration.get(STREAMING_SOURCE_CONSUME_START_OFFSET);
 
                         LocalDateTime localDateTime =
                                 DefaultPartTimeExtractor.toLocalDateTime(
                                         consumeOffsetStr,
-                                        configuration.getString(
+                                        configuration.get(
                                                 PARTITION_TIME_EXTRACTOR_TIMESTAMP_FORMATTER));
 
                         consumeStartOffset =

@@ -88,4 +88,10 @@ public class SqlDropPartitions extends SqlAlterTable {
         operands.addAll(partSpecs);
         return operands;
     }
+
+    /** Alter table add partition context. */
+    public static class AlterTableDropPartitionsContext {
+        public boolean ifExists;
+        public List<SqlNodeList> partSpecs;
+    }
 }

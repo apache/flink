@@ -18,18 +18,26 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingPayload;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequest;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.function.BiConsumerWithException;
 
 import org.junit.jupiter.api.Test;
 
+import java.net.InetAddress;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 
@@ -232,9 +240,29 @@ class SimpleExecutionSlotAllocatorTest {
         assertThat(context.getSlotProvider().isBatchSlotRequestTimeoutCheckEnabled()).isTrue();
     }
 
+    @Test
+    void testPreferredLocationsOfSlotProfile() {
+        final AllocationContext context = new AllocationContext();
+        List<TaskManagerLocation> taskManagerLocations =
+                Collections.singletonList(
+                        new TaskManagerLocation(
+                                ResourceID.generate(), InetAddress.getLoopbackAddress(), 41));
+        context.getLocations()
+                .put(EXECUTION_ATTEMPT_ID.getExecutionVertexId(), taskManagerLocations);
+        context.allocateSlotsFor(EXECUTION_ATTEMPT_ID);
+        assertThat(context.getSlotProvider().getRequests()).hasSize(1);
+        final PhysicalSlotRequest slotRequest =
+                context.getSlotProvider().getRequests().values().iterator().next();
+
+        assertThat(slotRequest.getSlotProfile().getPreferredLocations()).hasSize(1);
+        assertThat(slotRequest.getSlotProfile().getPreferredLocations())
+                .isEqualTo(taskManagerLocations);
+    }
+
     private static class AllocationContext {
         private final TestingPhysicalSlotProvider slotProvider;
         private final boolean slotWillBeOccupiedIndefinitely;
+        private final Map<ExecutionVertexID, Collection<TaskManagerLocation>> locations;
         private final SimpleExecutionSlotAllocator allocator;
 
         public AllocationContext() {
@@ -245,10 +273,14 @@ class SimpleExecutionSlotAllocatorTest {
                 TestingPhysicalSlotProvider slotProvider, boolean slotWillBeOccupiedIndefinitely) {
             this.slotProvider = slotProvider;
             this.slotWillBeOccupiedIndefinitely = slotWillBeOccupiedIndefinitely;
+            this.locations = new HashMap<>();
             this.allocator =
                     new SimpleExecutionSlotAllocator(
                             slotProvider,
                             executionAttemptId -> RESOURCE_PROFILE,
+                            (executionVertexId, producersToIgnore) ->
+                                    locations.getOrDefault(
+                                            executionVertexId, Collections.emptyList()),
                             slotWillBeOccupiedIndefinitely);
         }
 
@@ -256,7 +288,7 @@ class SimpleExecutionSlotAllocatorTest {
                 ExecutionAttemptID executionAttemptId) {
             return allocator
                     .allocateSlotsFor(Collections.singletonList(executionAttemptId))
-                    .get(0)
+                    .get(executionAttemptId)
                     .getLogicalSlotFuture();
         }
 
@@ -266,6 +298,10 @@ class SimpleExecutionSlotAllocatorTest {
 
         public boolean isSlotWillBeOccupiedIndefinitely() {
             return slotWillBeOccupiedIndefinitely;
+        }
+
+        public Map<ExecutionVertexID, Collection<TaskManagerLocation>> getLocations() {
+            return locations;
         }
 
         public SimpleExecutionSlotAllocator getAllocator() {

@@ -45,11 +45,16 @@ import scala.annotation.tailrec
 /** Batch aggregate code generate helper. */
 object AggCodeGenHelper {
 
+  /**
+   * The aggBufferPrefix is used to guarantee the variable name unique in OFCG case, so user should
+   * guarantee the aggBufferPrefix unique in this case.
+   */
   def getAggBufferNames(
+      aggBufferPrefix: String,
       auxGrouping: Array[Int],
       aggInfos: Seq[AggregateInfo]): Array[Array[String]] = {
     val auxGroupingNames = auxGrouping.indices
-      .map(index => Array(s"aux_group$index"))
+      .map(index => Array(s"${aggBufferPrefix}_aux_group$index"))
 
     val aggNames = aggInfos.map {
       aggInfo =>
@@ -59,11 +64,12 @@ object AggCodeGenHelper {
 
           // create one buffer for each attribute in declarative functions
           case function: DeclarativeAggregateFunction =>
-            function.aggBufferAttributes.map(attr => s"agg${aggBufferIdx}_${attr.getName}")
+            function.aggBufferAttributes.map(
+              attr => s"${aggBufferPrefix}_agg${aggBufferIdx}_${attr.getName}")
 
           // create one buffer for imperative functions
           case _: AggregateFunction[_, _] =>
-            Array(s"agg$aggBufferIdx")
+            Array(s"${aggBufferPrefix}_agg$aggBufferIdx")
         }
     }
 
@@ -98,7 +104,7 @@ object AggCodeGenHelper {
       ctx: CodeGeneratorContext,
       aggsHandlerCtx: CodeGeneratorContext): String = {
     ctx.addReusableInnerClass(aggsHandler.getClassName, aggsHandler.getCode)
-    val handler = CodeGenUtils.newName("handler")
+    val handler = CodeGenUtils.newName(ctx, "handler")
     ctx.addReusableMember(s"${aggsHandler.getClassName} $handler = null;")
     val aggRefers = ctx.addReusableObject(aggsHandlerCtx.references.toArray, "Object[]")
     ctx.addReusableOpenStatement(
@@ -138,6 +144,7 @@ object AggCodeGenHelper {
       functionIdentifiers: Map[AggregateFunction[_, _], String],
       inputTerm: String,
       inputType: RowType,
+      aggBufferPrefix: String,
       aggBufferNames: Array[Array[String]],
       aggBufferTypes: Array[Array[LogicalType]],
       outputType: RowType,
@@ -158,6 +165,7 @@ object AggCodeGenHelper {
       auxGrouping,
       aggInfos,
       argsMapping,
+      aggBufferPrefix,
       aggBufferNames,
       aggBufferTypes)
 
@@ -183,9 +191,11 @@ object AggCodeGenHelper {
       aggInfos,
       functionIdentifiers,
       argsMapping,
+      aggBufferPrefix,
       aggBufferNames,
       aggBufferTypes,
-      aggBufferExprs)
+      aggBufferExprs
+    )
 
     val aggOutputExpr = genSortAggOutputExpr(
       isMerge,
@@ -197,10 +207,12 @@ object AggCodeGenHelper {
       aggInfos,
       functionIdentifiers,
       argsMapping,
+      aggBufferPrefix,
       aggBufferNames,
       aggBufferTypes,
       aggBufferExprs,
-      outputType)
+      outputType
+    )
 
     (initAggBufferCode, doAggregateCode, aggOutputExpr)
   }
@@ -258,6 +270,7 @@ object AggCodeGenHelper {
       agg: DeclarativeAggregateFunction,
       aggIndex: Int,
       argsMapping: Array[Array[(Int, LogicalType)]],
+      aggBufferPrefix: String,
       aggBufferTypes: Array[Array[LogicalType]])
     extends DeclarativeExpressionResolver(relBuilder, agg, isMerge) {
 
@@ -272,7 +285,7 @@ object AggCodeGenHelper {
     }
 
     override def toAggBufferExpr(name: String, localIndex: Int): ResolvedExpression = {
-      val variableName = s"agg${aggIndex}_$name"
+      val variableName = s"${aggBufferPrefix}_agg${aggIndex}_$name"
       newLocalReference(variableName, aggBufferTypes(aggIndex)(localIndex))
     }
   }
@@ -285,6 +298,7 @@ object AggCodeGenHelper {
       auxGrouping: Array[Int],
       aggInfos: Seq[AggregateInfo],
       argsMapping: Array[Array[(Int, LogicalType)]],
+      aggBufferPrefix: String,
       aggBufferNames: Array[Array[String]],
       aggBufferTypes: Array[Array[LogicalType]]): Seq[GeneratedExpression] = {
     val exprCodeGen = new ExprCodeGenerator(ctx, false)
@@ -308,6 +322,7 @@ object AggCodeGenHelper {
               function,
               aggBufferIdx,
               argsMapping,
+              aggBufferPrefix,
               aggBufferTypes)
             function.aggBufferAttributes().map(_.accept(ref))
 
@@ -419,6 +434,7 @@ object AggCodeGenHelper {
       aggInfos: Seq[AggregateInfo],
       functionIdentifiers: Map[AggregateFunction[_, _], String],
       argsMapping: Array[Array[(Int, LogicalType)]],
+      aggBufferPrefix: String,
       aggBufferNames: Array[Array[String]],
       aggBufferTypes: Array[Array[LogicalType]],
       aggBufferExprs: Seq[GeneratedExpression]): String = {
@@ -432,6 +448,7 @@ object AggCodeGenHelper {
         aggInfos,
         functionIdentifiers,
         argsMapping,
+        aggBufferPrefix,
         aggBufferNames,
         aggBufferTypes,
         aggBufferExprs)
@@ -445,6 +462,7 @@ object AggCodeGenHelper {
         aggInfos,
         functionIdentifiers,
         argsMapping,
+        aggBufferPrefix,
         aggBufferNames,
         aggBufferTypes,
         aggBufferExprs)
@@ -461,11 +479,12 @@ object AggCodeGenHelper {
       aggInfos: Seq[AggregateInfo],
       functionIdentifiers: Map[AggregateFunction[_, _], String],
       argsMapping: Array[Array[(Int, LogicalType)]],
+      aggBufferPrefix: String,
       aggBufferNames: Array[Array[String]],
       aggBufferTypes: Array[Array[LogicalType]],
       aggBufferExprs: Seq[GeneratedExpression],
       outputType: RowType): GeneratedExpression = {
-    val valueRow = CodeGenUtils.newName("valueRow")
+    val valueRow = CodeGenUtils.newName(ctx, "valueRow")
     val resultCodeGen = new ExprCodeGenerator(ctx, false)
     if (isFinal) {
       val getValueExprs = genGetValueFromFlatAggregateBuffer(
@@ -476,6 +495,7 @@ object AggCodeGenHelper {
         aggInfos,
         functionIdentifiers,
         argsMapping,
+        aggBufferPrefix,
         aggBufferNames,
         aggBufferTypes,
         outputType)
@@ -504,6 +524,7 @@ object AggCodeGenHelper {
       aggInfos: Seq[AggregateInfo],
       functionIdentifiers: Map[AggregateFunction[_, _], String],
       argsMapping: Array[Array[(Int, LogicalType)]],
+      aggBufferPrefix: String,
       aggBufferNames: Array[Array[String]],
       aggBufferTypes: Array[Array[LogicalType]],
       outputType: RowType): Seq[GeneratedExpression] = {
@@ -533,6 +554,7 @@ object AggCodeGenHelper {
               function,
               aggBufferIdx,
               argsMapping,
+              aggBufferPrefix,
               aggBufferTypes)
             val getValueRexNode = function.getValueExpression
               .accept(ref)
@@ -566,6 +588,7 @@ object AggCodeGenHelper {
       aggInfos: Seq[AggregateInfo],
       functionIdentifiers: Map[AggregateFunction[_, _], String],
       argsMapping: Array[Array[(Int, LogicalType)]],
+      aggBufferPrefix: String,
       aggBufferNames: Array[Array[String]],
       aggBufferTypes: Array[Array[LogicalType]],
       aggBufferExprs: Seq[GeneratedExpression]): String = {
@@ -590,6 +613,7 @@ object AggCodeGenHelper {
               function,
               aggBufferIdx,
               argsMapping,
+              aggBufferPrefix,
               aggBufferTypes)
             val mergeExprs = function.mergeExpressions
               .map(_.accept(ref))
@@ -621,7 +645,7 @@ object AggCodeGenHelper {
             val iterableTypeTerm = className[SingleElementIterator[_]]
             val externalAccType = aggInfo.externalAccTypes.head
             val externalAccTypeTerm = typeTerm(externalAccType.getConversionClass)
-            val externalAccTerm = newName("acc")
+            val externalAccTerm = newName(ctx, "acc")
             val aggIndex = aggInfo.aggIndex
             s"""
                |$iterableTypeTerm accIt$aggIndex = new $iterableTypeTerm();
@@ -647,6 +671,7 @@ object AggCodeGenHelper {
       aggInfos: Seq[AggregateInfo],
       functionIdentifiers: Map[AggregateFunction[_, _], String],
       argsMapping: Array[Array[(Int, LogicalType)]],
+      aggBufferPrefix: String,
       aggBufferNames: Array[Array[String]],
       aggBufferTypes: Array[Array[LogicalType]],
       aggBufferExprs: Seq[GeneratedExpression]): String = {
@@ -673,6 +698,7 @@ object AggCodeGenHelper {
               function,
               aggBufferIdx,
               argsMapping,
+              aggBufferPrefix,
               aggBufferTypes)
             val accExprs = function.accumulateExpressions
               .map(_.accept(ref))
@@ -711,7 +737,7 @@ object AggCodeGenHelper {
             currentAggBufferExprIdx += 1
             val externalAccType = aggInfo.externalAccTypes.head
             val externalAccTypeTerm = typeTerm(externalAccType.getConversionClass)
-            val externalAccTerm = newName("acc")
+            val externalAccTerm = newName(ctx, "acc")
             val externalAccCode = genToExternalConverter(ctx, externalAccType, aggBufferName)
             val aggParametersCode = s"""${(Seq(externalAccTerm) ++ operandTerms).mkString(", ")}"""
             s"""
@@ -724,9 +750,12 @@ object AggCodeGenHelper {
         }
 
         // apply filter if present
-        if (aggInfo.agg.filterArg >= 0) {
+        if (aggInfo.agg.hasFilter) {
+          val expr = getFieldExpr(ctx, inputTerm, inputType, aggCall.filterArg)
+          val filterTerm = s"!${expr.nullTerm} && ${expr.resultTerm}"
           s"""
-             |if ($inputTerm.getBoolean(${aggCall.filterArg})) {
+             |${expr.code}
+             |if ($filterTerm) {
              |  $accCode
              |}
         """.stripMargin

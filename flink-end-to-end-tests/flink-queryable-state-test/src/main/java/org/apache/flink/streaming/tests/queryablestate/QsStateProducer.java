@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.tests.queryablestate;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.MapState;
@@ -25,7 +26,6 @@ import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -37,7 +37,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.util.Collector;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -95,6 +95,12 @@ public class QsStateProducer {
         env.execute();
     }
 
+    /**
+     * @deprecated This class is based on the {@link
+     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+     *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+     */
+    @Deprecated
     private static class EmailSource extends RichSourceFunction<Email> {
 
         private static final long serialVersionUID = -7286937645300388040L;
@@ -104,8 +110,8 @@ public class QsStateProducer {
         private transient Random random;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             this.random = new Random();
             this.isRunning = true;
         }
@@ -152,7 +158,7 @@ public class QsStateProducer {
         private transient long lastCompletedCheckpoint;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             MapStateDescriptor<EmailId, EmailInformation> stateDescriptor =
                     new MapStateDescriptor<>(
                             QsConstants.STATE_NAME,

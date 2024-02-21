@@ -102,7 +102,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @see LocalEnvironment
  * @see RemoteEnvironment
+ * @deprecated All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a
+ *     future Flink major version. You can still build your application in DataSet, but you should
+ *     move to either the DataStream and/or Table API.
+ * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
+ *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet API</a>
  */
+@Deprecated
 @Public
 public class ExecutionEnvironment {
 
@@ -346,7 +352,7 @@ public class ExecutionEnvironment {
      */
     public <T extends Serializer<?> & Serializable> void addDefaultKryoSerializer(
             Class<?> type, T serializer) {
-        config.addDefaultKryoSerializer(type, serializer);
+        config.getSerializerConfig().addDefaultKryoSerializer(type, serializer);
     }
 
     /**
@@ -357,7 +363,7 @@ public class ExecutionEnvironment {
      */
     public void addDefaultKryoSerializer(
             Class<?> type, Class<? extends Serializer<?>> serializerClass) {
-        config.addDefaultKryoSerializer(type, serializerClass);
+        config.getSerializerConfig().addDefaultKryoSerializer(type, serializerClass);
     }
 
     /**
@@ -372,7 +378,7 @@ public class ExecutionEnvironment {
      */
     public <T extends Serializer<?> & Serializable> void registerTypeWithKryoSerializer(
             Class<?> type, T serializer) {
-        config.registerTypeWithKryoSerializer(type, serializer);
+        config.getSerializerConfig().registerTypeWithKryoSerializer(type, serializer);
     }
 
     /**
@@ -384,7 +390,7 @@ public class ExecutionEnvironment {
      */
     public void registerTypeWithKryoSerializer(
             Class<?> type, Class<? extends Serializer<?>> serializerClass) {
-        config.registerTypeWithKryoSerializer(type, serializerClass);
+        config.getSerializerConfig().registerTypeWithKryoSerializer(type, serializerClass);
     }
 
     /**
@@ -403,9 +409,9 @@ public class ExecutionEnvironment {
         TypeInformation<?> typeInfo = TypeExtractor.createTypeInfo(type);
 
         if (typeInfo instanceof PojoTypeInfo) {
-            config.registerPojoType(type);
+            config.getSerializerConfig().registerPojoType(type);
         } else {
-            config.registerKryoType(type);
+            config.getSerializerConfig().registerKryoType(type);
         }
     }
 
@@ -719,7 +725,8 @@ public class ExecutionEnvironment {
         CollectionInputFormat.checkCollection(data, type.getTypeClass());
         return new DataSource<>(
                 this,
-                new CollectionInputFormat<>(data, type.createSerializer(config)),
+                new CollectionInputFormat<>(
+                        data, type.createSerializer(config.getSerializerConfig())),
                 type,
                 Utils.getCallLocationName());
     }
@@ -744,7 +751,8 @@ public class ExecutionEnvironment {
         CollectionInputFormat.checkCollection(data, type.getTypeClass());
         return new DataSource<>(
                 this,
-                new CollectionInputFormat<>(data, type.createSerializer(config)),
+                new CollectionInputFormat<>(
+                        data, type.createSerializer(config.getSerializerConfig())),
                 type,
                 callLocationName);
     }
@@ -958,7 +966,7 @@ public class ExecutionEnvironment {
         final JobClient jobClient = executeAsync(jobName);
 
         try {
-            if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
+            if (configuration.get(DeploymentOptions.ATTACHED)) {
                 lastJobExecutionResult = jobClient.getJobExecutionResult().get();
             } else {
                 lastJobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
@@ -1205,7 +1213,7 @@ public class ExecutionEnvironment {
      * @return A job name.
      */
     private String getJobName() {
-        return configuration.getString(
+        return configuration.get(
                 PipelineOptions.NAME, "Flink Java Job at " + Calendar.getInstance().getTime());
     }
 
@@ -1296,7 +1304,7 @@ public class ExecutionEnvironment {
 
         if (!conf.contains(RestOptions.PORT)) {
             // explicitly set this option so that it's not set to 0 later
-            conf.setInteger(RestOptions.PORT, RestOptions.PORT.defaultValue());
+            conf.set(RestOptions.PORT, RestOptions.PORT.defaultValue());
         }
 
         return createLocalEnvironment(conf, -1);
@@ -1342,7 +1350,7 @@ public class ExecutionEnvironment {
     /**
      * Creates a {@link RemoteEnvironment}. The remote environment sends (parts of) the program to a
      * cluster for execution. Note that all file paths used in the program must be accessible from
-     * the cluster. The custom configuration file is used to configure Akka specific configuration
+     * the cluster. The custom configuration file is used to configure Pekko specific configuration
      * parameters for the Client only; Program parallelism can be set via {@link
      * ExecutionEnvironment#setParallelism(int)}.
      *
@@ -1422,7 +1430,7 @@ public class ExecutionEnvironment {
      */
     protected static void initializeContextEnvironment(ExecutionEnvironmentFactory ctx) {
         contextEnvironmentFactory = Preconditions.checkNotNull(ctx);
-        threadLocalContextEnvironmentFactory.set(contextEnvironmentFactory);
+        threadLocalContextEnvironmentFactory.set(ctx);
     }
 
     /**

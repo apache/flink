@@ -90,7 +90,7 @@ class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
     @Test
     void testFinishBundleTriggeredByCount() throws Exception {
         Configuration conf = new Configuration();
-        conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 3);
+        conf.set(PythonOptions.MAX_BUNDLE_SIZE, 3);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
 
         long initialTime = 0L;
@@ -125,8 +125,8 @@ class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
     @Test
     void testFinishBundleTriggeredByTime() throws Exception {
         Configuration conf = new Configuration();
-        conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-        conf.setLong(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
+        conf.set(PythonOptions.MAX_BUNDLE_SIZE, 10);
+        conf.set(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
 
         long initialTime = 0L;
@@ -306,7 +306,7 @@ class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
         @Override
         public PythonFunctionRunner createPythonFunctionRunner() {
             return new PassThroughPythonAggregateFunctionRunner(
-                    getRuntimeContext().getTaskName(),
+                    getRuntimeContext().getTaskInfo().getTaskName(),
                     PythonTestUtils.createTestProcessEnvironmentManager(),
                     udfInputType,
                     udfOutputType,

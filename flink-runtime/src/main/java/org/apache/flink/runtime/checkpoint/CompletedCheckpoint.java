@@ -25,9 +25,12 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.FutureUtils.ConjunctFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +46,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -240,8 +246,8 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
     // ------------------------------------------------------------------------
 
     /**
-     * Register all shared states in the given registry. This is method is called before the
-     * checkpoint is added into the store.
+     * Register all shared states in the given registry. This method is called before the checkpoint
+     * is added into the store.
      *
      * @param sharedStateRegistry The registry where shared states are registered
      * @param restoreMode the mode in which this checkpoint was restored from
@@ -327,7 +333,6 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
     /** Implementation of {@link org.apache.flink.runtime.checkpoint.Checkpoint.DiscardObject}. */
     @NotThreadSafe
     public class CompletedCheckpointDiscardObject implements DiscardObject {
-
         @Override
         public void discard() throws Exception {
             LOG.trace("Executing discard procedure for {}.", this);
@@ -370,6 +375,35 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
 
         private boolean isMarkedAsDiscarded() {
             return completedCheckpointStats == null || completedCheckpointStats.isDiscarded();
+        }
+
+        @Override
+        public CompletableFuture<Void> discardAsync(Executor ioExecutor) {
+            checkState(
+                    isMarkedAsDiscarded(),
+                    "Checkpoint should be marked as discarded before discard.");
+
+            List<StateObject> discardables =
+                    operatorStates.values().stream()
+                            .flatMap(op -> op.getDiscardables().stream())
+                            .collect(Collectors.toList());
+            discardables.add(metadataHandle);
+
+            ConjunctFuture<Void> discardStates =
+                    FutureUtils.completeAll(
+                            discardables.stream()
+                                    .map(
+                                            item ->
+                                                    FutureUtils.runAsync(
+                                                            item::discardState, ioExecutor))
+                                    .collect(Collectors.toList()));
+
+            return FutureUtils.runAfterwards(
+                    discardStates,
+                    () -> {
+                        operatorStates.clear();
+                        storageLocation.disposeStorageLocation();
+                    });
         }
     }
 }

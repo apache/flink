@@ -25,10 +25,10 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
-import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProcessor;
-import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
-import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerServiceImpl;
-import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowTimerServiceImpl;
+import org.apache.flink.table.runtime.operators.window.tvf.state.WindowValueState;
 
 import java.time.ZoneId;
 
@@ -76,7 +76,8 @@ public final class RowTimeWindowDeduplicateProcessor implements SlicingWindowPro
         ValueState<RowData> state =
                 ctx.getKeyedStateBackend()
                         .getOrCreateKeyedState(namespaceSerializer, valueStateDescriptor);
-        this.windowTimerService = new WindowTimerServiceImpl(ctx.getTimerService(), shiftTimeZone);
+        this.windowTimerService =
+                new SlicingWindowTimerServiceImpl(ctx.getTimerService(), shiftTimeZone);
         this.windowState =
                 new WindowValueState<>((InternalValueState<RowData, Long, RowData>) state);
         this.windowBuffer =
@@ -123,7 +124,7 @@ public final class RowTimeWindowDeduplicateProcessor implements SlicingWindowPro
     }
 
     @Override
-    public void clearWindow(Long windowEnd) throws Exception {
+    public void clearWindow(long timerTimestamp, Long windowEnd) throws Exception {
         windowState.clear(windowEnd);
     }
 
@@ -140,7 +141,7 @@ public final class RowTimeWindowDeduplicateProcessor implements SlicingWindowPro
     }
 
     @Override
-    public void fireWindow(Long windowEnd) throws Exception {
+    public void fireWindow(long timerTimestamp, Long windowEnd) throws Exception {
         RowData data = windowState.value(windowEnd);
         if (data != null) {
             ctx.output(data);

@@ -69,9 +69,9 @@ public class KubernetesTestBase {
     protected FlinkKubeClient flinkKubeClient;
 
     protected void setupFlinkConfig() {
-        flinkConfig.setString(KubernetesConfigOptions.NAMESPACE, NAMESPACE);
-        flinkConfig.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
-        flinkConfig.setString(KubernetesConfigOptions.CONTAINER_IMAGE, CONTAINER_IMAGE);
+        flinkConfig.set(KubernetesConfigOptions.NAMESPACE, NAMESPACE);
+        flinkConfig.set(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
+        flinkConfig.set(KubernetesConfigOptions.CONTAINER_IMAGE, CONTAINER_IMAGE);
         flinkConfig.set(
                 KubernetesConfigOptions.CONTAINER_IMAGE_PULL_POLICY, CONTAINER_IMAGE_PULL_POLICY);
         flinkConfig.set(
@@ -91,7 +91,7 @@ public class KubernetesTestBase {
         setupFlinkConfig();
         writeFlinkConfiguration();
 
-        kubeClient = server.getClient().inNamespace(NAMESPACE);
+        kubeClient = server.createClient().inNamespace(NAMESPACE);
         flinkKubeClient =
                 new Fabric8FlinkKubeClient(
                         flinkConfig, kubeClient, Executors.newDirectExecutorService());
@@ -105,8 +105,7 @@ public class KubernetesTestBase {
     }
 
     protected void writeFlinkConfiguration() throws IOException {
-        BootstrapTools.writeConfiguration(
-                this.flinkConfig, new File(flinkConfDir, "flink-conf.yaml"));
+        BootstrapTools.writeConfiguration(this.flinkConfig, new File(flinkConfDir, "config.yaml"));
     }
 
     protected Map<String, String> getCommonLabels() {

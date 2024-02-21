@@ -20,11 +20,11 @@ package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
-import org.apache.flink.kubernetes.utils.Constants;
 
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
+import java.util.UUID;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatChainOfCauses;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -67,9 +67,8 @@ class KubernetesLeaderRetrievalDriverTest extends KubernetesHighAvailabilityTest
 
                             // Leader changed
                             final String newLeader = LEADER_ADDRESS + "_" + 2;
-                            getLeaderConfigMap()
-                                    .getData()
-                                    .put(Constants.LEADER_ADDRESS_KEY, newLeader);
+                            putLeaderInformationIntoConfigMap(UUID.randomUUID(), newLeader);
+
                             callbackHandler.onModified(
                                     Collections.singletonList(getLeaderConfigMap()));
 

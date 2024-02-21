@@ -83,8 +83,8 @@ tableEnv.executeSql(
         " `id` BIGINT NOT NULl," +
         " `product` VARCHAR(32)," +
         " `amount` INT," +
-        " `sold_year` BIGINT", +
-        " `sold_month` BIGINT", +
+        " `sold_year` BIGINT," +
+        " `sold_month` BIGINT," +
         " `sold_day` BIGINT" +
         ") PARTITIONED BY (`sold_year`, `sold_month`, `sold_day`) "
         ") with (...)");
@@ -152,8 +152,8 @@ tableEnv.executeSql(
           " `id` BIGINT NOT NULl," +
           " `product` VARCHAR(32)," +
           " `amount` INT," +
-          " `sold_year` BIGINT", +
-          " `sold_month` BIGINT", +
+          " `sold_year` BIGINT," +
+          " `sold_month` BIGINT," +
           " `sold_day` BIGINT" +
           ") PARTITIONED BY (`sold_year`, `sold_month`, `sold_day`) "
 ") with (...)");
@@ -221,8 +221,8 @@ table_env.execute_sql(
           " `id` BIGINT NOT NULl," +
           " `product` VARCHAR(32)," +
           " `amount` INT," +
-          " `sold_year` BIGINT", +
-          " `sold_month` BIGINT", +
+          " `sold_year` BIGINT," +
+          " `sold_month` BIGINT," +
           " `sold_day` BIGINT" +
           ") PARTITIONED BY (`sold_year`, `sold_month`, `sold_day`) "
 ") with (...)");
@@ -297,40 +297,40 @@ Flink SQL> CREATE TABLE Orders (
 [INFO] Table has been created.
 
 Flink SQL> ANALYZE TABLE Store COMPUTE STATISTICS;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
     
 Flink SQL> ANALYZE TABLE Store COMPUTE STATISTICS FOR ALL COLUMNS;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS location;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
     
 Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day='10') COMPUTE STATISTICS;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day='10') COMPUTE STATISTICS FOR ALL COLUMNS;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS FOR ALL COLUMNS;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
     
 Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS FOR ALL COLUMNS;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
     
 Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day='10') COMPUTE STATISTICS FOR COLUMNS amount;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
     
 Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS FOR COLUMNS amount, product;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
     
 Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS FOR COLUMNS amount, product;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 ```
 {{< /tab >}}
 {{< /tabs >}}

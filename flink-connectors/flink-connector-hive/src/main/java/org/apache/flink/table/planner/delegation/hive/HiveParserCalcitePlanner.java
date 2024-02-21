@@ -53,12 +53,12 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserWindowingSp
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.plan.nodes.hive.LogicalDistribution;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -478,6 +478,7 @@ public class HiveParserCalcitePlanner {
             HiveParserJoinTypeCheckCtx jCtx =
                     new HiveParserJoinTypeCheckCtx(
                             leftRR, rightRR, hiveJoinType, frameworkConfig, cluster);
+            jCtx.setUnparseTranslator(semanticAnalyzer.unparseTranslator);
             HiveParserRowResolver combinedRR = HiveParserRowResolver.getCombinedRR(leftRR, rightRR);
             if (joinCondAst.getType() == HiveASTParser.TOK_TABCOLNAME
                     && !hiveJoinType.equals(JoinType.LEFTSEMI)) {
@@ -895,7 +896,7 @@ public class HiveParserCalcitePlanner {
             throws SemanticException {
         ExprNodeDesc filterCond =
                 semanticAnalyzer.genExprNodeDesc(
-                        filterExpr, relToRowResolver.get(srcRel), outerRR, null, useCaching);
+                        filterExpr, relToRowResolver.get(srcRel), outerRR, null, useCaching, true);
         if (filterCond instanceof ExprNodeConstantDesc
                 && !filterCond.getTypeString().equals(serdeConstants.BOOLEAN_TYPE_NAME)) {
             throw new SemanticException("Filter expression with non-boolean return type.");
@@ -1151,7 +1152,7 @@ public class HiveParserCalcitePlanner {
         // Grouping sets: we need to transform them into ImmutableBitSet objects for Calcite
         List<ImmutableBitSet> transformedGroupSets = null;
         if (hasGroupSets) {
-            Set<ImmutableBitSet> set = new HashSet<>(groupSets.size());
+            Set<ImmutableBitSet> set = CollectionUtil.newHashSetWithExpectedSize(groupSets.size());
             for (int val : groupSets) {
                 set.add(convert(val, groupSet.cardinality()));
             }
@@ -2586,9 +2587,9 @@ public class HiveParserCalcitePlanner {
 
         SqlOperator convertedOperator = convertedCall.getOperator();
         Preconditions.checkState(
-                convertedOperator instanceof BridgingSqlFunction,
+                HiveParserUtils.isBridgingSqlFunction(convertedOperator),
                 "Expect operator to be "
-                        + BridgingSqlFunction.class.getSimpleName()
+                        + HiveParserUtils.BRIDGING_SQL_FUNCTION_CLZ_NAME
                         + ", actually got "
                         + convertedOperator.getClass().getSimpleName());
 

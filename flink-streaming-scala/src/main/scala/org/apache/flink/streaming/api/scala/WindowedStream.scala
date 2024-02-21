@@ -56,7 +56,14 @@ import org.apache.flink.util.Collector
  * @tparam W
  *   The type of [[Window]] that the
  *   [[org.apache.flink.streaming.api.windowing.assigners.WindowAssigner]] assigns the elements to.
+ * @deprecated
+ *   All Flink Scala APIs are deprecated and will be removed in a future Flink major version. You
+ *   can still build your application in Scala, but you should move to the Java version of either
+ *   the DataStream and/or Table API.
+ * @see
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
+@deprecated(org.apache.flink.api.scala.FLIP_265_WARNING, since = "1.18.0")
 @Public
 class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
 
@@ -532,26 +539,24 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
   // ------------------------------------------------------------------------
 
   /**
-   * Applies an aggregation that that gives the maximum of the elements in the window at the given
+   * Applies an aggregation that gives the maximum of the elements in the window at the given
    * position.
    */
   def max(position: Int): DataStream[T] = aggregate(AggregationType.MAX, position)
 
   /**
-   * Applies an aggregation that that gives the maximum of the elements in the window at the given
-   * field.
+   * Applies an aggregation that gives the maximum of the elements in the window at the given field.
    */
   def max(field: String): DataStream[T] = aggregate(AggregationType.MAX, field)
 
   /**
-   * Applies an aggregation that that gives the minimum of the elements in the window at the given
+   * Applies an aggregation that gives the minimum of the elements in the window at the given
    * position.
    */
   def min(position: Int): DataStream[T] = aggregate(AggregationType.MIN, position)
 
   /**
-   * Applies an aggregation that that gives the minimum of the elements in the window at the given
-   * field.
+   * Applies an aggregation that gives the minimum of the elements in the window at the given field.
    */
   def min(field: String): DataStream[T] = aggregate(AggregationType.MIN, field)
 
@@ -562,26 +567,26 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
   def sum(field: String): DataStream[T] = aggregate(AggregationType.SUM, field)
 
   /**
-   * Applies an aggregation that that gives the maximum element of the window by the given position.
-   * When equality, returns the first.
+   * Applies an aggregation that gives the maximum element of the window by the given position. When
+   * equality, returns the first.
    */
   def maxBy(position: Int): DataStream[T] = aggregate(AggregationType.MAXBY, position)
 
   /**
-   * Applies an aggregation that that gives the maximum element of the window by the given field.
-   * When equality, returns the first.
+   * Applies an aggregation that gives the maximum element of the window by the given field. When
+   * equality, returns the first.
    */
   def maxBy(field: String): DataStream[T] = aggregate(AggregationType.MAXBY, field)
 
   /**
-   * Applies an aggregation that that gives the minimum element of the window by the given position.
-   * When equality, returns the first.
+   * Applies an aggregation that gives the minimum element of the window by the given position. When
+   * equality, returns the first.
    */
   def minBy(position: Int): DataStream[T] = aggregate(AggregationType.MINBY, position)
 
   /**
-   * Applies an aggregation that that gives the minimum element of the window by the given field.
-   * When equality, returns the first.
+   * Applies an aggregation that gives the minimum element of the window by the given field. When
+   * equality, returns the first.
    */
   def minBy(field: String): DataStream[T] = aggregate(AggregationType.MINBY, field)
 

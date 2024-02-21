@@ -38,10 +38,11 @@ public class InputGateSpecUtils {
             int configuredNetworkBuffersPerChannel,
             int configuredFloatingNetworkBuffersPerGate,
             ResultPartitionType partitionType,
-            int numInputChannels) {
+            int numInputChannels,
+            boolean enableTieredStorage) {
         int maxRequiredBuffersThresholdPerGate =
                 getEffectiveMaxRequiredBuffersPerGate(
-                        partitionType, configuredMaxRequiredBuffersPerGate);
+                        partitionType, configuredMaxRequiredBuffersPerGate, enableTieredStorage);
         int targetRequiredBuffersPerGate =
                 getRequiredBuffersTargetPerGate(
                         numInputChannels, configuredNetworkBuffersPerChannel);
@@ -80,14 +81,16 @@ public class InputGateSpecUtils {
     @VisibleForTesting
     static int getEffectiveMaxRequiredBuffersPerGate(
             ResultPartitionType partitionType,
-            Optional<Integer> configuredMaxRequiredBuffersPerGate) {
+            Optional<Integer> configuredMaxRequiredBuffersPerGate,
+            boolean enableTieredStorage) {
         return configuredMaxRequiredBuffersPerGate.orElseGet(
                 () ->
                         partitionType.isPipelinedOrPipelinedBoundedResultPartition()
                                         // hybrid partition may calculate a backlog that is larger
                                         // than the accurate value. If all buffers are floating, it
                                         // will seriously affect the performance.
-                                        || partitionType.isHybridResultPartition()
+                                        || (partitionType.isHybridResultPartition()
+                                                && !enableTieredStorage)
                                 ? DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_STREAM
                                 : DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_BATCH);
     }

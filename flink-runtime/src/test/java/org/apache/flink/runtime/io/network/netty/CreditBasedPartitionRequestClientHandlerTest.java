@@ -41,6 +41,7 @@ import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportExcept
 import org.apache.flink.runtime.io.network.netty.exception.TransportException;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
@@ -71,7 +72,7 @@ import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtil
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assumptions.assumeThat;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -162,8 +163,8 @@ class CreditBasedPartitionRequestClientHandlerTest {
     }
 
     /**
-     * Verifies that {@link RemoteInputChannel#onBuffer(Buffer, int, int)} is called when a {@link
-     * BufferResponse} is received.
+     * Verifies that {@link RemoteInputChannel#onBuffer(Buffer, int, int, int)} is called when a
+     * {@link BufferResponse} is received.
      */
     @Test
     void testReceiveBuffer() throws Exception {
@@ -191,7 +192,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
                             new NetworkBufferAllocator(handler));
             handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
 
-            assertThat(inputChannel.getNumberOfQueuedBuffers()).isEqualTo(1);
+            assertThat(inputChannel.getNumberOfQueuedBuffers()).isOne();
             assertThat(inputChannel.getSenderBacklog()).isEqualTo(2);
         } finally {
             releaseResource(inputGate, networkBufferPool);
@@ -307,7 +308,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
 
         assertThat(inputChannel.getNumberOfAvailableBuffers())
                 .as("There should be no buffers available in the channel.")
-                .isEqualTo(0);
+                .isZero();
 
         final BufferResponse bufferResponse =
                 createBufferResponse(
@@ -402,8 +403,8 @@ class CreditBasedPartitionRequestClientHandlerTest {
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
 
-            inputChannels[0].requestSubpartition();
-            inputChannels[1].requestSubpartition();
+            inputChannels[0].requestSubpartitions();
+            inputChannels[1].requestSubpartitions();
 
             // The two input channels should send partition requests
             assertThat(channel.isWritable()).isTrue();
@@ -471,7 +472,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
                             allocator);
             handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse3);
 
-            assertThat(inputChannels[0].getUnannouncedCredit()).isEqualTo(1);
+            assertThat(inputChannels[0].getUnannouncedCredit()).isOne();
             assertThat(inputChannels[1].getUnannouncedCredit()).isZero();
 
             channel.runPendingTasks();
@@ -488,7 +489,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
             assertThat(channel.isWritable()).isTrue();
             readFromOutbound = channel.readOutbound();
             assertThat(readFromOutbound).isInstanceOf(AddCredit.class);
-            assertThat(((AddCredit) readFromOutbound).credit).isEqualTo(1);
+            assertThat(((AddCredit) readFromOutbound).credit).isOne();
             assertThat(inputChannels[0].getUnannouncedCredit()).isZero();
             assertThat(inputChannels[1].getUnannouncedCredit()).isZero();
 
@@ -525,7 +526,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
 
-            inputChannel.requestSubpartition();
+            inputChannel.requestSubpartitions();
 
             // This should send the partition request
             Object readFromOutbound = channel.readOutbound();
@@ -688,8 +689,8 @@ class CreditBasedPartitionRequestClientHandlerTest {
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
 
-            inputChannels[0].requestSubpartition();
-            inputChannels[1].requestSubpartition();
+            inputChannels[0].requestSubpartitions();
+            inputChannels[1].requestSubpartitions();
             channel.readOutbound();
             channel.readOutbound();
 
@@ -794,7 +795,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
             throws IOException {
         // Mock buffer to serialize
         BufferResponse resp =
-                new BufferResponse(buffer, sequenceNumber, receivingChannelId, backlog);
+                new BufferResponse(buffer, sequenceNumber, receivingChannelId, 0, backlog);
 
         ByteBuf serialized = resp.write(UnpooledByteBufAllocator.DEFAULT);
 
@@ -807,7 +808,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
 
     /**
      * The test remote input channel to throw expected exception while calling {@link
-     * RemoteInputChannel#onBuffer(Buffer, int, int)}.
+     * RemoteInputChannel#onBuffer(Buffer, int, int, int)}.
      */
     private static class TestRemoteInputChannelForError extends RemoteInputChannel {
         private final String expectedMessage;
@@ -817,10 +818,11 @@ class CreditBasedPartitionRequestClientHandlerTest {
                     inputGate,
                     0,
                     new ResultPartitionID(),
-                    0,
+                    new ResultSubpartitionIndexSet(0),
                     InputChannelBuilder.STUB_CONNECTION_ID,
                     new TestingConnectionManager(),
                     0,
+                    100,
                     100,
                     2,
                     new SimpleCounter(),
@@ -830,7 +832,8 @@ class CreditBasedPartitionRequestClientHandlerTest {
         }
 
         @Override
-        public void onBuffer(Buffer buffer, int sequenceNumber, int backlog) throws IOException {
+        public void onBuffer(Buffer buffer, int sequenceNumber, int backlog, int subpartitionId)
+                throws IOException {
             buffer.recycleBuffer();
             throw new IOException(expectedMessage);
         }

@@ -29,15 +29,17 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class BlockResettableMutableObjectIteratorTest {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+
+class BlockResettableMutableObjectIteratorTest {
 
     private static final int MEMORY_CAPACITY = 3 * 128 * 1024;
 
@@ -53,8 +55,8 @@ public class BlockResettableMutableObjectIteratorTest {
 
     private List<Record> objects;
 
-    @Before
-    public void startup() {
+    @BeforeEach
+    void startup() {
         // set up IO and memory manager
         this.memman = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_CAPACITY).build();
 
@@ -68,22 +70,22 @@ public class BlockResettableMutableObjectIteratorTest {
         this.reader = new MutableObjectIteratorWrapper(this.objects.iterator());
     }
 
-    @After
-    public void shutdown() {
+    @AfterEach
+    void shutdown() {
         this.objects = null;
 
         // check that the memory manager got all segments back
-        if (!this.memman.verifyEmpty()) {
-            Assert.fail(
-                    "A memory leak has occurred: Not all memory was properly returned to the memory manager.");
-        }
+        assertThat(this.memman.verifyEmpty())
+                .withFailMessage(
+                        "A memory leak has occurred: Not all memory was properly returned to the memory manager.")
+                .isTrue();
 
         this.memman.shutdown();
         this.memman = null;
     }
 
     @Test
-    public void testSerialBlockResettableIterator() throws Exception {
+    void testSerialBlockResettableIterator() throws Exception {
         try {
             // create the resettable Iterator
             final BlockResettableMutableObjectIterator<Record> iterator =
@@ -102,7 +104,7 @@ public class BlockResettableMutableObjectIteratorTest {
                 Record target = new Record();
                 while ((target = iterator.next(target)) != null) {
                     int val = target.getField(0, IntValue.class).getValue();
-                    Assert.assertEquals(upper++, val);
+                    assertThat(val).isEqualTo(upper++);
                 }
                 // now reset the buffer a few times
                 for (int i = 0; i < 5; ++i) {
@@ -111,21 +113,21 @@ public class BlockResettableMutableObjectIteratorTest {
                     int count = 0;
                     while ((target = iterator.next(target)) != null) {
                         int val = target.getField(0, IntValue.class).getValue();
-                        Assert.assertEquals(lower + (count++), val);
+                        assertThat(val).isEqualTo(lower + (count++));
                     }
-                    Assert.assertEquals(upper - lower, count);
+                    assertThat(count).isEqualTo(upper - lower);
                 }
             } while (iterator.nextBlock());
-            Assert.assertEquals(NUM_VALUES, upper);
+            assertThat(upper).isEqualTo(NUM_VALUES);
             // close the iterator
             iterator.close();
         } catch (Exception ex) {
-            Assert.fail("Test encountered an exception: " + ex.getMessage());
+            fail("Test encountered an exception: " + ex.getMessage());
         }
     }
 
     @Test
-    public void testDoubleBufferedBlockResettableIterator() throws Exception {
+    void testDoubleBufferedBlockResettableIterator() throws Exception {
         try {
             // create the resettable Iterator
             final BlockResettableMutableObjectIterator<Record> iterator =
@@ -145,7 +147,7 @@ public class BlockResettableMutableObjectIteratorTest {
                 // find the upper bound
                 while ((target = iterator.next(target)) != null) {
                     int val = target.getField(0, IntValue.class).getValue();
-                    Assert.assertEquals(upper++, val);
+                    assertThat(val).isEqualTo(upper++);
                 }
                 // now reset the buffer a few times
                 for (int i = 0; i < 5; ++i) {
@@ -154,21 +156,21 @@ public class BlockResettableMutableObjectIteratorTest {
                     int count = 0;
                     while ((target = iterator.next(target)) != null) {
                         int val = target.getField(0, IntValue.class).getValue();
-                        Assert.assertEquals(lower + (count++), val);
+                        assertThat(val).isEqualTo(lower + (count++));
                     }
-                    Assert.assertEquals(upper - lower, count);
+                    assertThat(count).isEqualTo(upper - lower);
                 }
             } while (iterator.nextBlock());
-            Assert.assertEquals(NUM_VALUES, upper);
+            assertThat(upper).isEqualTo(NUM_VALUES);
             // close the iterator
             iterator.close();
         } catch (Exception ex) {
-            Assert.fail("Test encountered an exception: " + ex.getMessage());
+            fail("Test encountered an exception: " + ex.getMessage());
         }
     }
 
     @Test
-    public void testTwelveFoldBufferedBlockResettableIterator() throws Exception {
+    void testTwelveFoldBufferedBlockResettableIterator() throws Exception {
         try {
             // create the resettable Iterator
             final BlockResettableMutableObjectIterator<Record> iterator =
@@ -188,7 +190,7 @@ public class BlockResettableMutableObjectIteratorTest {
                 // find the upper bound
                 while ((target = iterator.next(target)) != null) {
                     int val = target.getField(0, IntValue.class).getValue();
-                    Assert.assertEquals(upper++, val);
+                    assertThat(val).isEqualTo(upper++);
                 }
                 // now reset the buffer a few times
                 for (int i = 0; i < 5; ++i) {
@@ -197,16 +199,16 @@ public class BlockResettableMutableObjectIteratorTest {
                     int count = 0;
                     while ((target = iterator.next(target)) != null) {
                         int val = target.getField(0, IntValue.class).getValue();
-                        Assert.assertEquals(lower + (count++), val);
+                        assertThat(val).isEqualTo(lower + (count++));
                     }
-                    Assert.assertEquals(upper - lower, count);
+                    assertThat(count).isEqualTo(upper - lower);
                 }
             } while (iterator.nextBlock());
-            Assert.assertEquals(NUM_VALUES, upper);
+            assertThat(upper).isEqualTo(NUM_VALUES);
             // close the iterator
             iterator.close();
         } catch (Exception ex) {
-            Assert.fail("Test encountered an exception: " + ex.getMessage());
+            fail("Test encountered an exception: " + ex.getMessage());
         }
     }
 }

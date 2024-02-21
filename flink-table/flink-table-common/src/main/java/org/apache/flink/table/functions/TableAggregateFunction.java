@@ -160,6 +160,7 @@ public abstract class TableAggregateFunction<T, ACC> extends ImperativeAggregate
      * Collects a record and forwards it. The collector can output retract messages with the retract
      * method. Note: This collector can only be used in the {@code emitUpdateWithRetract()} method.
      */
+    @PublicEvolving
     public interface RetractableCollector<T> extends Collector<T> {
 
         /**

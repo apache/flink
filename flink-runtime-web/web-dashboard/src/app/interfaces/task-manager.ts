@@ -31,6 +31,22 @@ export interface TaskManagerDetail {
   metrics: Metrics;
   memoryConfiguration: MemoryConfiguration;
   blocked?: boolean;
+  freeResource: Resources;
+  totalResource: Resources;
+  allocatedSlots: AllocatedSlot[];
+}
+
+export interface AllocatedSlot {
+  jobId: string;
+  resource: Resources;
+}
+
+export interface Resources {
+  cpuCores: number;
+  taskHeapMemory: number;
+  taskOffHeapMemory: number;
+  managedMemory: number;
+  networkMemory: number;
 }
 
 export interface TaskManagerLogItem {

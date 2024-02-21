@@ -22,23 +22,21 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class TaskSlotTest extends TestLogger {
+class TaskSlotTest {
     private static final JobID JOB_ID = new JobID();
     private static final AllocationID ALLOCATION_ID = new AllocationID();
 
     @Test
-    public void testTaskSlotClosedOnlyWhenAddedTasksTerminated() throws Exception {
+    void testTaskSlotClosedOnlyWhenAddedTasksTerminated() throws Exception {
         try (TaskSlot<TaskSlotPayload> taskSlot = createTaskSlot()) {
             taskSlot.markActive();
             TestingTaskSlotPayload task =
@@ -49,11 +47,11 @@ public class TaskSlotTest extends TestLogger {
             task.waitForFailure();
             MemoryManager memoryManager = taskSlot.getMemoryManager();
 
-            assertThat(closingFuture.isDone(), is(false));
-            assertThat(memoryManager.isShutdown(), is(false));
+            assertThat(closingFuture).isNotDone();
+            assertThat(memoryManager.isShutdown()).isFalse();
             task.terminate();
             closingFuture.get();
-            assertThat(memoryManager.isShutdown(), is(true));
+            assertThat(memoryManager.isShutdown()).isTrue();
         }
     }
 

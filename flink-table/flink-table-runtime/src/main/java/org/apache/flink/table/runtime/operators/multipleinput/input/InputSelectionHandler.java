@@ -26,6 +26,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -37,16 +38,23 @@ import static org.apache.flink.util.Preconditions.checkState;
  * first, the inputs with same priorities will be read fairly.
  */
 public class InputSelectionHandler {
-    private final List<InputSpec> inputSpecs;
+    private final List<InputSelectionSpec> inputSelectionSpecs;
     private final int numberOfInput;
     /** All inputs ids sorted by priority. */
     private final List<List<Integer>> sortedAvailableInputs;
 
     private InputSelection inputSelection;
 
-    public InputSelectionHandler(List<InputSpec> inputSpecs) {
-        this.inputSpecs = inputSpecs;
-        this.numberOfInput = inputSpecs.size();
+    public static InputSelectionHandler fromInputSpecs(List<InputSpec> inputSpecs) {
+        return new InputSelectionHandler(
+                inputSpecs.stream()
+                        .map(InputSpec::getInputSelectionSpec)
+                        .collect(Collectors.toList()));
+    }
+
+    public InputSelectionHandler(List<InputSelectionSpec> inputSelectionSpecs) {
+        this.inputSelectionSpecs = inputSelectionSpecs;
+        this.numberOfInput = inputSelectionSpecs.size();
         this.sortedAvailableInputs = buildSortedAvailableInputs();
         // read the highest priority inputs first
         this.inputSelection = buildInputSelection(sortedAvailableInputs.get(0));
@@ -76,11 +84,11 @@ public class InputSelectionHandler {
 
     private List<List<Integer>> buildSortedAvailableInputs() {
         final SortedMap<Integer, List<Integer>> orderedAvailableInputIds = new TreeMap<>();
-        for (InputSpec inputSpec : inputSpecs) {
+        for (InputSelectionSpec inputSelectionSpecs : inputSelectionSpecs) {
             List<Integer> inputIds =
                     orderedAvailableInputIds.computeIfAbsent(
-                            inputSpec.getReadOrder(), k -> new LinkedList<>());
-            inputIds.add(inputSpec.getMultipleInputId());
+                            inputSelectionSpecs.getReadOrder(), k -> new LinkedList<>());
+            inputIds.add(inputSelectionSpecs.getMultipleInputId());
         }
         return new LinkedList<>(orderedAvailableInputIds.values());
     }

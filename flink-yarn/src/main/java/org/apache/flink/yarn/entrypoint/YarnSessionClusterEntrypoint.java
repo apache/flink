@@ -45,7 +45,7 @@ public class YarnSessionClusterEntrypoint extends SessionClusterEntrypoint {
 
     @Override
     protected String getRPCPortRange(Configuration configuration) {
-        return configuration.getString(YarnConfigOptions.APPLICATION_MASTER_PORT);
+        return configuration.get(YarnConfigOptions.APPLICATION_MASTER_PORT);
     }
 
     @Override

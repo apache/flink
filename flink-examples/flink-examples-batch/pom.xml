@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-examples</artifactId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-examples-batch</artifactId>
@@ -44,35 +44,17 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
-	
-	
+
+
 	<build>
 		<plugins>
-			<!-- Fail compilation on deprecation warnings to prevent from showing users outdated examples. -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>compile</id>
-						<phase>process-sources</phase>
-						<goals>
-							<goal>compile</goal>
-						</goals>
-						<configuration>
-							<compilerArgument>-Xlint:deprecation</compilerArgument>
-							<failOnWarning>true</failOnWarning>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			
+
 			<!-- create the example JAR files -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
 				<executions>
-				
+
 					<!-- KMeans -->
 					<execution>
 						<id>KMeans</id>
@@ -95,6 +77,7 @@ under the License.
 								<include>**/java/clustering/KMeans$*.class</include>
 								<include>**/java/clustering/util/KMeansDataGenerator.class</include>
 								<include>**/java/clustering/util/KMeansData.class</include>
+								<include>**/java/util/DataSetDeprecationInfo.class</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>
@@ -110,17 +93,18 @@ under the License.
 						</goals>
 						<configuration>
 							<classifier>TransitiveClosure</classifier>
-				
+
 							<archive>
 								<manifestEntries>
 									<program-class>org.apache.flink.examples.java.graph.TransitiveClosureNaive</program-class>
 								</manifestEntries>
 							</archive>
-				
+
 							<includes>
 								<include>**/java/graph/TransitiveClosureNaive.class</include>
 								<include>**/java/graph/TransitiveClosureNaive$*.class</include>
 								<include>**/java/graph/util/ConnectedComponentsData.class</include>
+								<include>**/java/util/DataSetDeprecationInfo.class</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>
@@ -147,12 +131,13 @@ under the License.
 								<include>**/java/graph/ConnectedComponents.class</include>
 								<include>**/java/graph/ConnectedComponents$*.class</include>
 								<include>**/java/graph/util/ConnectedComponentsData.class</include>
+								<include>**/java/util/DataSetDeprecationInfo.class</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>
 						</configuration>
 					</execution>
-					
+
 					<!-- EnumTriangles Basic -->
 					<execution>
 						<id>EnumTriangles</id>
@@ -175,12 +160,13 @@ under the License.
 								<include>**/java/graph/util/EnumTrianglesDataTypes.class</include>
 								<include>**/java/graph/util/EnumTrianglesDataTypes$*.class</include>
 								<include>**/java/graph/util/EnumTrianglesData.class</include>
+								<include>**/java/util/DataSetDeprecationInfo.class</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>
 						</configuration>
 					</execution>
-					
+
 					<!-- PageRank -->
 					<execution>
 						<id>PageRank</id>
@@ -201,6 +187,7 @@ under the License.
 								<include>**/java/graph/PageRank.class</include>
 								<include>**/java/graph/PageRank$*.class</include>
 								<include>**/java/graph/util/PageRankData.class</include>
+								<include>**/java/util/DataSetDeprecationInfo.class</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>
@@ -228,6 +215,7 @@ under the License.
 								<include>**/java/relational/WebLogAnalysis$*.class</include>
 								<include>**/java/relational/util/WebLogData.class</include>
 								<include>**/java/relational/util/WebLogDataGenerator.class</include>
+								<include>**/java/util/DataSetDeprecationInfo.class</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>
@@ -254,6 +242,7 @@ under the License.
 								<include>**/java/wordcount/WordCount.class</include>
 								<include>**/java/wordcount/WordCount$*.class</include>
 								<include>**/java/wordcount/util/WordCountData.class</include>
+								<include>**/java/util/DataSetDeprecationInfo.class</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>
@@ -278,6 +267,7 @@ under the License.
 
 							<includes>
 								<include>**/java/distcp/*</include>
+								<include>**/java/util/DataSetDeprecationInfo.class</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>

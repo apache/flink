@@ -31,14 +31,17 @@ public class TestingContender extends TestingLeaderBase implements LeaderContend
     private static final Logger LOG = LoggerFactory.getLogger(TestingContender.class);
 
     private final String address;
-    private final LeaderElectionService leaderElectionService;
+    private final LeaderElection leaderElection;
 
     private UUID leaderSessionID = null;
 
-    public TestingContender(
-            final String address, final LeaderElectionService leaderElectionService) {
+    public TestingContender(final String address, final LeaderElection leaderElection) {
         this.address = address;
-        this.leaderElectionService = leaderElectionService;
+        this.leaderElection = leaderElection;
+    }
+
+    public void startLeaderElection() throws Exception {
+        leaderElection.startLeaderElection(this);
     }
 
     @Override
@@ -47,7 +50,7 @@ public class TestingContender extends TestingLeaderBase implements LeaderContend
 
         this.leaderSessionID = leaderSessionID;
 
-        leaderElectionService.confirmLeadership(leaderSessionID, address);
+        leaderElection.confirmLeadership(leaderSessionID, address);
 
         leaderEventQueue.offer(LeaderInformation.known(leaderSessionID, address));
     }
@@ -58,11 +61,6 @@ public class TestingContender extends TestingLeaderBase implements LeaderContend
 
         leaderSessionID = null;
         leaderEventQueue.offer(LeaderInformation.empty());
-    }
-
-    @Override
-    public String getDescription() {
-        return address;
     }
 
     @Override

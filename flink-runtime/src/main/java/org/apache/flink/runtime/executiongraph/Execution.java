@@ -52,6 +52,7 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
@@ -66,7 +67,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -490,7 +490,9 @@ public class Execution
                 .thenApply(
                         rpdds -> {
                             Map<IntermediateResultPartitionID, ResultPartitionDeploymentDescriptor>
-                                    producedPartitions = new LinkedHashMap<>(partitions.size());
+                                    producedPartitions =
+                                            CollectionUtil.newLinkedHashMapWithExpectedSize(
+                                                    partitions.size());
                             rpdds.forEach(
                                     rpdd -> producedPartitions.put(rpdd.getPartitionId(), rpdd));
                             return producedPartitions;
@@ -568,8 +570,10 @@ public class Execution
                     slot.getAllocationId());
 
             final TaskDeploymentDescriptor deployment =
-                    TaskDeploymentDescriptorFactory.fromExecution(this)
+                    vertex.getExecutionGraphAccessor()
+                            .getTaskDeploymentDescriptorFactory()
                             .createDeploymentDescriptor(
+                                    this,
                                     slot.getAllocationId(),
                                     taskRestore,
                                     producedPartitions.values());
@@ -1186,7 +1190,7 @@ public class Execution
         }
     }
 
-    boolean switchToRecovering() {
+    boolean switchToInitializing() {
         if (switchTo(DEPLOYING, INITIALIZING)) {
             sendPartitionInfos();
             return true;

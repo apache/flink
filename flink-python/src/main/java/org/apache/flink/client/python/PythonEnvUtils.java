@@ -31,7 +31,7 @@ import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
-import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
+import org.apache.flink.shaded.guava31.com.google.common.base.Strings;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

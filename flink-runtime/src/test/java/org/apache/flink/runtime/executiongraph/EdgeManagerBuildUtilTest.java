@@ -22,6 +22,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 import org.apache.flink.testutils.TestingUtils;
@@ -255,7 +256,7 @@ class EdgeManagerBuildUtilTest {
                         downstream, upstream, pattern);
         int actualMaxForDownstream = -1;
         for (ExecutionVertex ev : downstreamEJV.getTaskVertices()) {
-            assertThat(ev.getNumberOfInputs()).isEqualTo(1);
+            assertThat(ev.getNumberOfInputs()).isOne();
 
             int actual = ev.getConsumedPartitionGroup(0).size();
             if (actual > actualMaxForDownstream) {
@@ -302,7 +303,8 @@ class EdgeManagerBuildUtilTest {
             eg = builder.build(EXECUTOR_RESOURCE.getExecutor());
         }
 
-        eg.attachJobGraph(ordered);
+        eg.attachJobGraph(
+                ordered, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
         return eg;
     }
 }

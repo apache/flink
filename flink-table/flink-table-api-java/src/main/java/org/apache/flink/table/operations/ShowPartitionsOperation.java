@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultInternal;
@@ -36,22 +37,23 @@ import java.util.Map;
 import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
 
 /** Operation to describe a SHOW PARTITIONS statement. */
+@Internal
 public class ShowPartitionsOperation implements ShowOperation {
 
     protected final ObjectIdentifier tableIdentifier;
-    private final CatalogPartitionSpec partitionSpec;
+    @Nullable private final CatalogPartitionSpec partitionSpec;
     // the name for the default partition, which usually means the partition's value is null or
     // empty string
     @Nullable private final String defaultPartitionName;
 
     public ShowPartitionsOperation(
-            ObjectIdentifier tableIdentifier, CatalogPartitionSpec partitionSpec) {
+            ObjectIdentifier tableIdentifier, @Nullable CatalogPartitionSpec partitionSpec) {
         this(tableIdentifier, partitionSpec, null);
     }
 
     public ShowPartitionsOperation(
             ObjectIdentifier tableIdentifier,
-            CatalogPartitionSpec partitionSpec,
+            @Nullable CatalogPartitionSpec partitionSpec,
             @Nullable String defaultPartitionName) {
         this.tableIdentifier = tableIdentifier;
         this.partitionSpec = partitionSpec;
@@ -64,10 +66,6 @@ public class ShowPartitionsOperation implements ShowOperation {
 
     public CatalogPartitionSpec getPartitionSpec() {
         return partitionSpec;
-    }
-
-    public String getDefaultPartitionName() {
-        return defaultPartitionName;
     }
 
     @Override

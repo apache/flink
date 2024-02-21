@@ -17,7 +17,7 @@
 
 package org.apache.flink.runtime.operators.lifecycle.graph;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommand;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher.CommandExecutor;
@@ -60,8 +60,8 @@ public class TestEventSource extends RichSourceFunction<TestDataElement>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         this.isRunning = true;
         this.scheduledCommands = new LinkedBlockingQueue<>();
         this.commandExecutor = cmd -> scheduledCommands.add(cmd);
@@ -69,8 +69,8 @@ public class TestEventSource extends RichSourceFunction<TestDataElement>
         this.eventQueue.add(
                 new OperatorStartedEvent(
                         operatorID,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber()));
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber()));
     }
 
     @Override
@@ -90,7 +90,7 @@ public class TestEventSource extends RichSourceFunction<TestDataElement>
                     ctx.collect(
                             new TestDataElement(
                                     operatorID,
-                                    getRuntimeContext().getIndexOfThisSubtask(),
+                                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
                                     ++lastSent));
                 }
             } else {
@@ -103,8 +103,8 @@ public class TestEventSource extends RichSourceFunction<TestDataElement>
         eventQueue.add(
                 new TestCommandAckEvent(
                         operatorID,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
                         cmd));
     }
 

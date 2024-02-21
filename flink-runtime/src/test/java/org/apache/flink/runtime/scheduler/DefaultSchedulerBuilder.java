@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.blocklist.BlocklistOperations;
@@ -34,10 +35,10 @@ import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.ParallelismAndInputInfos;
 import org.apache.flink.runtime.executiongraph.SpeculativeExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.VertexInputInfoComputationUtils;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
-import org.apache.flink.runtime.executiongraph.failover.flip1.NoRestartBackoffTimeStrategy;
-import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
-import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionFailoverStrategy;
+import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
+import org.apache.flink.runtime.executiongraph.failover.NoRestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.failover.RestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.failover.RestartPipelinedRegionFailoverStrategy;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -47,6 +48,7 @@ import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
+import org.apache.flink.runtime.scheduler.adaptivebatch.BlockingResultInfo;
 import org.apache.flink.runtime.scheduler.adaptivebatch.SpeculativeScheduler;
 import org.apache.flink.runtime.scheduler.adaptivebatch.VertexParallelismAndInputInfosDecider;
 import org.apache.flink.runtime.scheduler.strategy.AllFinishedInputConsumableDecider;
@@ -62,7 +64,10 @@ import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
@@ -102,6 +107,7 @@ public class DefaultSchedulerBuilder {
     private ExecutionSlotAllocatorFactory executionSlotAllocatorFactory =
             new TestExecutionSlotAllocatorFactory();
     private JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC) -> {};
+    private Collection<FailureEnricher> failureEnrichers = new HashSet<>();
     private ExecutionDeployer.Factory executionDeployerFactory =
             new DefaultExecutionDeployer.Factory();
     private VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider =
@@ -246,6 +252,12 @@ public class DefaultSchedulerBuilder {
         return this;
     }
 
+    public DefaultSchedulerBuilder setFailureEnrichers(
+            Collection<FailureEnricher> failureEnrichers) {
+        this.failureEnrichers = failureEnrichers;
+        return this;
+    }
+
     public DefaultSchedulerBuilder setExecutionDeployerFactory(
             ExecutionDeployer.Factory executionDeployerFactory) {
         this.executionDeployerFactory = executionDeployerFactory;
@@ -301,6 +313,7 @@ public class DefaultSchedulerBuilder {
                 System.currentTimeMillis(),
                 mainThreadExecutor,
                 jobStatusListener,
+                failureEnrichers,
                 createExecutionGraphFactory(false),
                 shuffleMaster,
                 rpcTimeout,
@@ -329,6 +342,7 @@ public class DefaultSchedulerBuilder {
                 System.currentTimeMillis(),
                 mainThreadExecutor,
                 jobStatusListener,
+                failureEnrichers,
                 createExecutionGraphFactory(true),
                 shuffleMaster,
                 rpcTimeout,
@@ -360,6 +374,7 @@ public class DefaultSchedulerBuilder {
                 System.currentTimeMillis(),
                 mainThreadExecutor,
                 jobStatusListener,
+                failureEnrichers,
                 createExecutionGraphFactory(true, new SpeculativeExecutionJobVertex.Factory()),
                 shuffleMaster,
                 rpcTimeout,
@@ -402,17 +417,36 @@ public class DefaultSchedulerBuilder {
 
     public static VertexParallelismAndInputInfosDecider createCustomParallelismDecider(
             Function<JobVertexID, Integer> parallelismFunction) {
-        return (jobVertexId, consumedResults, vertexInitialParallelism, ignored) -> {
-            int parallelism =
-                    vertexInitialParallelism > 0
-                            ? vertexInitialParallelism
-                            : parallelismFunction.apply(jobVertexId);
-            return new ParallelismAndInputInfos(
-                    parallelism,
-                    consumedResults.isEmpty()
-                            ? Collections.emptyMap()
-                            : VertexInputInfoComputationUtils.computeVertexInputInfos(
-                                    parallelism, consumedResults, true));
+        return new VertexParallelismAndInputInfosDecider() {
+            @Override
+            public ParallelismAndInputInfos decideParallelismAndInputInfosForVertex(
+                    JobVertexID jobVertexId,
+                    List<BlockingResultInfo> consumedResults,
+                    int vertexInitialParallelism,
+                    int vertexMinParallelism,
+                    int vertexMaxParallelism) {
+                int parallelism =
+                        vertexInitialParallelism > 0
+                                ? vertexInitialParallelism
+                                : parallelismFunction.apply(jobVertexId);
+                return new ParallelismAndInputInfos(
+                        parallelism,
+                        consumedResults.isEmpty()
+                                ? Collections.emptyMap()
+                                : VertexInputInfoComputationUtils.computeVertexInputInfos(
+                                        parallelism, consumedResults, true));
+            }
+
+            @Override
+            public int computeSourceParallelismUpperBound(
+                    JobVertexID jobVertexId, int maxParallelism) {
+                return parallelismFunction.apply(jobVertexId);
+            }
+
+            @Override
+            public long getDataVolumePerTask() {
+                return 1;
+            }
         };
     }
 }

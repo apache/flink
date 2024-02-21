@@ -24,7 +24,6 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
@@ -36,10 +35,12 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.plan.utils.MinibatchUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
@@ -53,11 +54,14 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -84,6 +88,8 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
 
     public static final String GROUP_AGGREGATE_TRANSFORMATION = "group-aggregate";
 
+    public static final String STATE_NAME = "groupAggregateState";
+
     @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;
 
@@ -102,6 +108,11 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
     @JsonProperty(FIELD_NAME_NEED_RETRACTION)
     private final boolean needRetraction;
 
+    @Nullable
+    @JsonProperty(FIELD_NAME_STATE)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final List<StateMetadata> stateMetadataList;
+
     public StreamExecGroupAggregate(
             ReadableConfig tableConfig,
             int[] grouping,
@@ -109,6 +120,7 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
             boolean[] aggCallNeedRetractions,
             boolean generateUpdateBefore,
             boolean needRetraction,
+            @Nullable Long stateTtlFromHint,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -121,6 +133,8 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
                 aggCallNeedRetractions,
                 generateUpdateBefore,
                 needRetraction,
+                StateMetadata.getOneInputOperatorDefaultMeta(
+                        stateTtlFromHint, tableConfig, STATE_NAME),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -136,6 +150,7 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
             @JsonProperty(FIELD_NAME_AGG_CALL_NEED_RETRACTIONS) boolean[] aggCallNeedRetractions,
             @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
             @JsonProperty(FIELD_NAME_NEED_RETRACTION) boolean needRetraction,
+            @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
@@ -146,13 +161,17 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
         checkArgument(aggCalls.length == aggCallNeedRetractions.length);
         this.generateUpdateBefore = generateUpdateBefore;
         this.needRetraction = needRetraction;
+        this.stateMetadataList = stateMetadataList;
     }
 
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
-        if (grouping.length > 0 && config.getStateRetentionTime() < 0) {
+
+        final long stateRetentionTime =
+                StateMetadata.getStateTtlForOneInputOperator(config, stateMetadataList);
+        if (grouping.length > 0 && stateRetentionTime < 0) {
             LOG.warn(
                     "No state retention interval configured for a query which accumulates state. "
                             + "Please provide a query configuration with valid retention interval to prevent excessive "
@@ -207,8 +226,7 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
                                 aggValueTypes, planner.getFlinkContext().getClassLoader())
                         .generateRecordEqualiser("GroupAggValueEqualiser");
         final int inputCountIndex = aggInfoList.getIndexOfCountStar();
-        final boolean isMiniBatchEnabled =
-                config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
+        final boolean isMiniBatchEnabled = MinibatchUtil.isMiniBatchEnabled(config);
 
         final OneInputStreamOperator<RowData, RowData> operator;
         if (isMiniBatchEnabled) {
@@ -220,10 +238,10 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
                             inputRowType,
                             inputCountIndex,
                             generateUpdateBefore,
-                            config.getStateRetentionTime());
+                            stateRetentionTime);
             operator =
                     new KeyedMapBundleOperator<>(
-                            aggFunction, AggregateUtil.createMiniBatchTrigger(config));
+                            aggFunction, MinibatchUtil.createMiniBatchTrigger(config));
         } else {
             GroupAggFunction aggFunction =
                     new GroupAggFunction(
@@ -232,7 +250,7 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
                             accTypes,
                             inputCountIndex,
                             generateUpdateBefore,
-                            config.getStateRetentionTime());
+                            stateRetentionTime);
             operator = new KeyedProcessOperator<>(aggFunction);
         }
 

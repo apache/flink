@@ -22,7 +22,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.{Func1, Func23, Func24}
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class CalcTest extends TableTestBase {
 

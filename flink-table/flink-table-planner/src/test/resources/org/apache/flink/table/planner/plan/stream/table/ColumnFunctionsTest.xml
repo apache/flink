@@ -25,7 +25,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[TestFunc($0, $1)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c, TestFunc$(a, b) AS d])
+Calc(select=[a, b, c, TestFunc(a, b) AS d])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -173,7 +173,7 @@ LogicalProject(c=[$2], mycount=[AS(countFun($1) OVER (PARTITION BY $2 ORDER BY $
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, w0$o0 AS mycount, w0$o1 AS wAvg, w0$o2 AS countDist])
-+- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, $4, CountAggFunction(b) AS w0$o0, weightAvgFun(a, $4) AS w0$o1, CountDistinct(a) AS w0$o2])
++- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, $4, countFun(b) AS w0$o0, weightAvgFun(a, $4) AS w0$o1, countDist(a) AS w0$o2])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, b, c, proctime, CAST(b AS BIGINT) AS $4])
          +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, proctime])
@@ -203,7 +203,7 @@ LogicalProject(_c0=[TestFunc($0, $1)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[TestFunc$(double, long) AS _c0])
+Calc(select=[TestFunc(double, long) AS _c0])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(double, long)]]], fields=[double, long])
 ]]>
     </Resource>

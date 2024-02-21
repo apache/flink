@@ -21,7 +21,10 @@ package org.apache.flink.runtime.taskmanager;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
@@ -166,7 +169,10 @@ public class Task
     /** ID which identifies the slot in which the task is supposed to run. */
     private final AllocationID allocationId;
 
-    /** TaskInfo object for this task. */
+    /** The meta information of current job. */
+    private final JobInfo jobInfo;
+
+    /** The meta information of current task. */
     private final TaskInfo taskInfo;
 
     /** The name of the task, including subtask indexes. */
@@ -333,9 +339,9 @@ public class Task
 
         Preconditions.checkNotNull(jobInformation);
         Preconditions.checkNotNull(taskInformation);
-
+        this.jobInfo = new JobInfoImpl(jobInformation.getJobId(), jobInformation.getJobName());
         this.taskInfo =
-                new TaskInfo(
+                new TaskInfoImpl(
                         taskInformation.getTaskName(),
                         taskInformation.getMaxNumberOfSubtasks(),
                         executionAttemptID.getSubtaskIndex(),
@@ -356,10 +362,8 @@ public class Task
         this.serializedExecutionConfig = jobInformation.getSerializedExecutionConfig();
 
         Configuration tmConfig = taskManagerConfig.getConfiguration();
-        this.taskCancellationInterval =
-                tmConfig.getLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL);
-        this.taskCancellationTimeout =
-                tmConfig.getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT);
+        this.taskCancellationInterval = tmConfig.get(TaskManagerOptions.TASK_CANCELLATION_INTERVAL);
+        this.taskCancellationTimeout = tmConfig.get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT);
 
         this.memoryManager = Preconditions.checkNotNull(memManager);
         this.sharedResources = Preconditions.checkNotNull(sharedResources);
@@ -692,6 +696,7 @@ public class Task
                             vertexId,
                             executionId,
                             executionConfig,
+                            jobInfo,
                             taskInfo,
                             jobConfiguration,
                             taskConfiguration,
@@ -715,7 +720,8 @@ public class Task
                             metrics,
                             this,
                             externalResourceInfoProvider,
-                            channelStateExecutorFactory);
+                            channelStateExecutorFactory,
+                            taskManagerActions);
 
             // Make sure the user code classloader is accessible thread-locally.
             // We are setting the correct context class loader before instantiating the invokable

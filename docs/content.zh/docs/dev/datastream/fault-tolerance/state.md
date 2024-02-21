@@ -381,6 +381,8 @@ Heap state backend 会额外存储一个包括用户状态以及时间戳的 Jav
 
 - TTL 的配置并不会保存在 checkpoint/savepoint 中，仅对当前 Job 有效。
 
+- 不建议checkpoint恢复前后将state TTL从短调长，这可能会产生潜在的数据错误。
+
 - 当前开启 TTL 的 map state 仅在用户值序列化器支持 null 的情况下，才支持用户值为 null。如果用户值序列化器不支持 null，
 可以用 `NullableSerializer` 包装一层。
   
@@ -536,7 +538,7 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 
 StateTtlConfig ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
-    .cleanupInRocksdbCompactFilter(1000)
+    .cleanupInRocksdbCompactFilter(1000, Time.hours(1))
     .build();
 ```
 {{< /tab >}}
@@ -546,7 +548,7 @@ import org.apache.flink.api.common.state.StateTtlConfig
 
 val ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
-    .cleanupInRocksdbCompactFilter(1000)
+    .cleanupInRocksdbCompactFilter(1000, Time.hours(1))
     .build
 ```
 {{< /tab >}}
@@ -557,7 +559,7 @@ from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
   .new_builder(Time.seconds(1)) \
-  .cleanup_in_rocksdb_compact_filter(1000) \
+  .cleanup_in_rocksdb_compact_filter(1000, Time.hours(1)) \
   .build()
 ```
 {{< /tab >}}
@@ -568,6 +570,14 @@ Flink 处理一定条数的状态数据后，会使用当前时间戳来检测 R
 时间戳更新的越频繁，状态的清理越及时，但由于压缩会有调用 JNI 的开销，因此会影响整体的压缩性能。
 RocksDB backend 的默认后台清理策略会每处理 1000 条数据进行一次。
 
+定期压缩可以加速过期状态条目的清理，特别是对于很少访问的状态条目。
+比这个值早的文件将被选取进行压缩，并重新写入与之前相同的 Level 中。 
+该功能可以确保文件定期通过压缩过滤器压缩。
+您可以通过`StateTtlConfig.newBuilder(...).cleanupInRocksdbCompactFilter(long queryTimeAfterNumEntries, Time periodicCompactionTime)` 
+方法设定定期压缩的时间。
+定期压缩的时间的默认值是 30 天。
+您可以将其设置为 0 以关闭定期压缩或设置一个较小的值以加速过期状态条目的清理，但它将会触发更多压缩。
+
 你还可以通过配置开启 RocksDB 过滤器的 debug 日志：
 `log4j.logger.org.rocksdb.FlinkCompactionFilter=DEBUG`
 
@@ -577,6 +587,7 @@ RocksDB backend 的默认后台清理策略会每处理 1000 条数据进行一�
 - 对于元素序列化后长度不固定的列表状态，TTL 过滤器需要在每次 JNI 调用过程中，额外调用 Flink 的 java 序列化器，
 从而确定下一个未过期数据的位置。
 - 对已有的作业，这个清理方式可以在任何时候通过 `StateTtlConfig` 启用或禁用该特性，比如从 savepoint 重启后。
+- 定期压缩功能只在 TTL 启用时生效。
 
 ### DataStream 状态相关的 Scala API 
 
@@ -676,10 +687,7 @@ public class BufferingSink
 
     @Override
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
-        checkpointedState.clear();
-        for (Tuple2<String, Integer> element : bufferedElements) {
-            checkpointedState.add(element);
-        }
+        checkpointedState.update(bufferedElements);
     }
 
     @Override
@@ -722,10 +730,7 @@ class BufferingSink(threshold: Int = 0)
   }
 
   override def snapshotState(context: FunctionSnapshotContext): Unit = {
-    checkpointedState.clear()
-    for (element <- bufferedElements) {
-      checkpointedState.add(element)
-    }
+    checkpointedState.update(bufferedElements.asJava)
   }
 
   override def initializeState(context: FunctionInitializationContext): Unit = {
@@ -842,8 +847,7 @@ public static class CounterSource
 
     @Override
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
-        state.clear();
-        state.add(offset);
+        state.update(Collections.singletonList(offset));
     }
 }
 ```
@@ -885,8 +889,7 @@ class CounterSource
   }
 
   override def snapshotState(context: FunctionSnapshotContext): Unit = {
-    state.clear()
-    state.add(offset)
+    state.update(java.util.Collections.singletonList(offset))
   }
 }
 ```

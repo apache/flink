@@ -80,13 +80,13 @@ public class YarnTaskExecutorRunnerTest {
             fail("Can not find HadoopModule!");
         }
 
-        assertThat(configuration.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB))
+        assertThat(configuration.get(SecurityOptions.KERBEROS_LOGIN_KEYTAB))
                 .isEqualTo(
                         new File(
                                         resourceDirPath,
                                         YarnConfigOptions.LOCALIZED_KEYTAB_PATH.defaultValue())
                                 .getAbsolutePath());
-        assertThat(configuration.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL))
+        assertThat(configuration.get(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL))
                 .isEqualTo("testuser1@domain");
     }
 
@@ -122,9 +122,9 @@ public class YarnTaskExecutorRunnerTest {
             fail("Can not find HadoopModule!");
         }
 
-        assertThat(configuration.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB))
+        assertThat(configuration.get(SecurityOptions.KERBEROS_LOGIN_KEYTAB))
                 .containsSequence("src/test/resources/krb5.keytab");
-        assertThat(configuration.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL))
+        assertThat(configuration.get(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL))
                 .isEqualTo("testuser1@domain");
     }
 
@@ -137,7 +137,7 @@ public class YarnTaskExecutorRunnerTest {
                 configuration,
                 resourceDirPath,
                 Collections.singletonMap(YarnResourceManagerDriver.ENV_FLINK_NODE_ID, "test"));
-        assertThat(configuration.getString(TaskManagerOptionsInternal.TASK_MANAGER_NODE_ID))
+        assertThat(configuration.get(TaskManagerOptionsInternal.TASK_MANAGER_NODE_ID))
                 .isEqualTo("test");
     }
 }

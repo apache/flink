@@ -277,8 +277,9 @@ Calc(select=[a._1 AS _1, a._2 AS _2, c, b._1 AS _10, b._2 AS _20])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+LogicalProject(c=[$1])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -474,7 +475,8 @@ Calc(select=[a, b, c, 1984-07-12 AS EXPR$3, 14:34:24 AS EXPR$4, 1984-07-12 14:34
     <Resource name="ast">
       <![CDATA[
 LogicalProject(1-_./Ü=[$0], b=[$1], c=[$2])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(1-_./Ü=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

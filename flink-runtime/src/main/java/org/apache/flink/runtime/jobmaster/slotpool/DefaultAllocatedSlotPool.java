@@ -188,24 +188,20 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
     }
 
     @Override
-    public Collection<FreeSlotInfo> getFreeSlotsInformation() {
-        final Collection<FreeSlotInfo> freeSlotInfos = new ArrayList<>();
-
-        for (Map.Entry<AllocationID, Long> freeSlot : freeSlots.getFreeSlotsSince().entrySet()) {
-            final AllocatedSlot allocatedSlot =
-                    Preconditions.checkNotNull(registeredSlots.get(freeSlot.getKey()));
-
-            final SlotInfoWithUtilization slotInfoWithUtilization =
-                    SlotInfoWithUtilization.from(allocatedSlot, this::getTaskExecutorUtilization);
-
-            freeSlotInfos.add(
-                    DefaultFreeSlotInfo.create(slotInfoWithUtilization, freeSlot.getValue()));
-        }
-
-        return freeSlotInfos;
+    public FreeSlotInfoTracker getFreeSlotInfoTracker() {
+        return new DefaultFreeSlotInfoTracker(
+                freeSlots.getFreeSlotsSince().keySet(),
+                registeredSlots::get,
+                this::getFreeSlotInfo,
+                this::getTaskExecutorUtilization);
     }
 
-    public double getTaskExecutorUtilization(ResourceID resourceId) {
+    @Override
+    public Collection<? extends SlotInfo> getAllSlotsInformation() {
+        return registeredSlots.values();
+    }
+
+    private double getTaskExecutorUtilization(ResourceID resourceId) {
         Set<AllocationID> slots = slotsPerTaskExecutor.get(resourceId);
         Preconditions.checkNotNull(slots, "There is no slots on %s", resourceId);
 
@@ -213,9 +209,12 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
                 / slots.size();
     }
 
-    @Override
-    public Collection<? extends SlotInfo> getAllSlotsInformation() {
-        return registeredSlots.values();
+    private FreeSlotInfo getFreeSlotInfo(AllocationID allocationId) {
+        final AllocatedSlot allocatedSlot =
+                Preconditions.checkNotNull(registeredSlots.get(allocationId));
+        final Long idleSince =
+                Preconditions.checkNotNull(freeSlots.getFreeSlotsSince().get(allocationId));
+        return DefaultFreeSlotInfo.create(allocatedSlot, idleSince);
     }
 
     private static final class FreeSlots {
@@ -261,19 +260,18 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
 
     private static final class DefaultFreeSlotInfo implements AllocatedSlotPool.FreeSlotInfo {
 
-        private final SlotInfoWithUtilization slotInfoWithUtilization;
+        private final SlotInfo slotInfo;
 
         private final long freeSince;
 
-        private DefaultFreeSlotInfo(
-                SlotInfoWithUtilization slotInfoWithUtilization, long freeSince) {
-            this.slotInfoWithUtilization = slotInfoWithUtilization;
+        private DefaultFreeSlotInfo(SlotInfo slotInfo, long freeSince) {
+            this.slotInfo = slotInfo;
             this.freeSince = freeSince;
         }
 
         @Override
-        public SlotInfoWithUtilization asSlotInfo() {
-            return slotInfoWithUtilization;
+        public SlotInfo asSlotInfo() {
+            return slotInfo;
         }
 
         @Override
@@ -281,10 +279,8 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
             return freeSince;
         }
 
-        private static DefaultFreeSlotInfo create(
-                SlotInfoWithUtilization slotInfoWithUtilization, long idleSince) {
-            return new DefaultFreeSlotInfo(
-                    Preconditions.checkNotNull(slotInfoWithUtilization), idleSince);
+        private static DefaultFreeSlotInfo create(SlotInfo slotInfo, long idleSince) {
+            return new DefaultFreeSlotInfo(Preconditions.checkNotNull(slotInfo), idleSince);
         }
     }
 

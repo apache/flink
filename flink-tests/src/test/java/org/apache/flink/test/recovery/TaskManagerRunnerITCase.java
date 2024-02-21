@@ -18,10 +18,10 @@
 
 package org.apache.flink.test.recovery;
 
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
@@ -31,7 +31,7 @@ import org.apache.flink.test.recovery.utils.TaskExecutorProcessEntryPoint;
 import org.apache.flink.test.util.TestProcessBuilder;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -62,7 +62,7 @@ public class TaskManagerRunnerITCase extends TestLogger {
                 ClusterOptions.PROCESS_WORKING_DIR_BASE, workingDirBase.getAbsolutePath());
         configuration.set(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID, resourceId.toString());
         configuration.set(JobManagerOptions.ADDRESS, "localhost");
-        configuration.set(AkkaOptions.LOOKUP_TIMEOUT_DURATION, Duration.ZERO);
+        configuration.set(RpcOptions.LOOKUP_TIMEOUT_DURATION, Duration.ZERO);
 
         final File workingDirectory =
                 ClusterEntrypointUtils.generateTaskManagerWorkingDirectoryFile(
@@ -99,7 +99,7 @@ public class TaskManagerRunnerITCase extends TestLogger {
         configuration.set(
                 ClusterOptions.PROCESS_WORKING_DIR_BASE, workingDirBase.getAbsolutePath());
         configuration.set(JobManagerOptions.ADDRESS, "localhost");
-        configuration.set(AkkaOptions.LOOKUP_TIMEOUT_DURATION, Duration.ZERO);
+        configuration.set(RpcOptions.LOOKUP_TIMEOUT_DURATION, Duration.ZERO);
 
         final TestProcessBuilder.TestProcess taskManagerProcess =
                 new TestProcessBuilder(TaskExecutorProcessEntryPoint.class.getName())

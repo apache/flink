@@ -43,17 +43,19 @@ LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a])
       <![CDATA[
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
 +- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
-   +- LogicalProject(sum_a=[$1])
-      +- LogicalAggregate(group=[{0}], sum_a=[SUM($1)])
-         +- LogicalProject(c=[$2], a=[$0])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalProject(sum_a=[$0])
+      +- LogicalProject(sum_a=[$1], c=[$0])
+         +- LogicalAggregate(group=[{0}], sum_a=[SUM($1)])
+            +- LogicalProject(c=[$2], a=[$0])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
 +- LogicalAggregate(group=[{}], total_min=[MIN($0)])
-   +- LogicalProject(sum_a=[$1])
-      +- LogicalAggregate(group=[{0}], sum_a=[SUM($1)])
-         +- LogicalProject(c=[$2], a=[$0])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalProject(sum_a=[$0])
+      +- LogicalProject(sum_a=[$1], c=[$0])
+         +- LogicalAggregate(group=[{0}], sum_a=[SUM($1)])
+            +- LogicalProject(c=[$2], a=[$0])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

@@ -26,8 +26,8 @@ import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.types.logical._
 
 import org.apache.calcite.rel.core.AggregateCall
-import org.junit.Test
-import org.powermock.api.mockito.PowerMockito.{mock, when}
+import org.junit.jupiter.api.Test
+import org.mockito.Mockito.{mock, when}
 
 /** Test for [[HashAggCodeGenerator]]. */
 class HashAggCodeGeneratorTest extends BatchAggTestBase {
@@ -57,12 +57,13 @@ class HashAggCodeGeneratorTest extends BatchAggTestBase {
   override val aggInfo3: AggregateInfo = {
     val aggInfo = mock(classOf[AggregateInfo])
     val call = mock(classOf[AggregateCall])
-    when(aggInfo, "agg").thenReturn(call)
-    when(call, "getName").thenReturn("avg3")
-    when(aggInfo, "function").thenReturn(new LongAvgAggFunction)
-    when(aggInfo, "externalAccTypes").thenReturn(Array(DataTypes.BIGINT, DataTypes.BIGINT))
-    when(aggInfo, "argIndexes").thenReturn(Array(3))
-    when(aggInfo, "aggIndex").thenReturn(2)
+    when(aggInfo.agg).thenReturn(call)
+    when(call.getName).thenReturn("avg3")
+    when(call.hasFilter).thenReturn(false)
+    when(aggInfo.function).thenReturn(new LongAvgAggFunction)
+    when(aggInfo.externalAccTypes).thenReturn(Array(DataTypes.BIGINT, DataTypes.BIGINT))
+    when(aggInfo.argIndexes).thenReturn(Array(3))
+    when(aggInfo.aggIndex).thenReturn(2)
     aggInfo
   }
 

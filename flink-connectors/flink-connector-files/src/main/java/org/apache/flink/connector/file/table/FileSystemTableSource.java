@@ -24,6 +24,8 @@ import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.FileSourceSplit;
+import org.apache.flink.connector.file.src.enumerate.BlockSplittingRecursiveAllDirEnumerator;
+import org.apache.flink.connector.file.src.enumerate.NonSplittingRecursiveAllDirEnumerator;
 import org.apache.flink.connector.file.src.enumerate.NonSplittingRecursiveEnumerator;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.table.format.BulkDecodingFormat;
@@ -269,6 +271,18 @@ public class FileSystemTableSource extends AbstractFileSystemTable
         tableOptions
                 .getOptional(FileSystemConnectorOptions.SOURCE_MONITOR_INTERVAL)
                 .ifPresent(fileSourceBuilder::monitorContinuously);
+        tableOptions
+                .getOptional(FileSystemConnectorOptions.SOURCE_PATH_REGEX_PATTERN)
+                .ifPresent(
+                        regex ->
+                                fileSourceBuilder.setFileEnumerator(
+                                        bulkFormat.isSplittable()
+                                                ? () ->
+                                                        new BlockSplittingRecursiveAllDirEnumerator(
+                                                                regex)
+                                                : () ->
+                                                        new NonSplittingRecursiveAllDirEnumerator(
+                                                                regex)));
 
         return SourceProvider.of(fileSourceBuilder.build());
     }

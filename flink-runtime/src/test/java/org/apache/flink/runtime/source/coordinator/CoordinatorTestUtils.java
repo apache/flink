@@ -20,6 +20,7 @@ package org.apache.flink.runtime.source.coordinator;
 
 import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import java.util.ArrayList;
@@ -27,6 +28,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -65,5 +68,18 @@ class CoordinatorTestUtils {
     static void verifyException(
             ThrowingRunnable<Throwable> runnable, String failureMessage, String errorMessage) {
         assertThatThrownBy(runnable::run, failureMessage).hasStackTraceContaining(errorMessage);
+    }
+
+    static void waitForCoordinatorToProcessActions(SourceCoordinatorContext<?> context) {
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        context.runInCoordinatorThread(() -> future.complete(null));
+
+        try {
+            future.get();
+        } catch (InterruptedException e) {
+            throw new AssertionError("test interrupted");
+        } catch (ExecutionException e) {
+            ExceptionUtils.rethrow(ExceptionUtils.stripExecutionException(e));
+        }
     }
 }

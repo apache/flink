@@ -19,7 +19,9 @@
 package org.apache.flink.table.client.cli.parser;
 
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.SqlParserEOFException;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.client.cli.CliClient;
 import org.apache.flink.table.client.cli.Printer;
 import org.apache.flink.table.client.config.ResultMode;
@@ -74,7 +76,16 @@ public class SqlMultiLineParser extends DefaultParser {
         if (context != ParseContext.ACCEPT_LINE) {
             return parseInternal(line, cursor, context);
         }
-        if (!line.trim().endsWith(STATEMENT_DELIMITER)) {
+        ReadableConfig configuration = executor.getSessionConfig();
+        final String dialectName = configuration.get(TableConfigOptions.TABLE_SQL_DIALECT);
+        final SqlDialect dialect =
+                SqlDialect.HIVE.name().equalsIgnoreCase(dialectName)
+                        ? SqlDialect.HIVE
+                        : SqlDialect.DEFAULT;
+        SqlClientParserState currentParseState =
+                SqlClientParserState.computeCurrentStateAtTheEndOfLine(line, dialect);
+        if (currentParseState != SqlClientParserState.DEFAULT
+                || !line.trim().endsWith(STATEMENT_DELIMITER)) {
             throw new EOFError(-1, -1, "New line without EOF character.", NEW_LINE_PROMPT);
         }
         try {
@@ -99,6 +110,7 @@ public class SqlMultiLineParser extends DefaultParser {
                             executor.configureSession(line);
                             printer = Printer.createInitializationCommandPrinter();
                         } else {
+                            long queryBeginTime = System.currentTimeMillis();
                             StatementResult result = executor.executeStatement(line);
                             ReadableConfig sessionConfig = executor.getSessionConfig();
                             if (mode == CliClient.ExecutionMode.NON_INTERACTIVE_EXECUTION
@@ -114,7 +126,9 @@ public class SqlMultiLineParser extends DefaultParser {
                                                 EXECUTION_RESULT_MODE.key(),
                                                 TABLEAU));
                             }
-                            printer = Printer.createStatementCommandPrinter(result, sessionConfig);
+                            printer =
+                                    Printer.createStatementCommandPrinter(
+                                            result, sessionConfig, queryBeginTime);
                         }
                         break;
                     }

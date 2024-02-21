@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.json.JobVertexIDKeyDeserializer;
 import org.apache.flink.runtime.rest.messages.json.JobVertexIDKeySerializer;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -40,11 +41,13 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -64,6 +67,19 @@ import java.util.Objects;
             value = CheckpointStatistics.PendingCheckpointStatistics.class,
             name = "in_progress")
 })
+@Schema(
+        discriminatorProperty = "className",
+        discriminatorMapping = {
+            @DiscriminatorMapping(
+                    value = "completed",
+                    schema = CheckpointStatistics.CompletedCheckpointStatistics.class),
+            @DiscriminatorMapping(
+                    value = "failed",
+                    schema = CheckpointStatistics.FailedCheckpointStatistics.class),
+            @DiscriminatorMapping(
+                    value = "in_progress",
+                    schema = CheckpointStatistics.PendingCheckpointStatistics.class),
+        })
 public class CheckpointStatistics implements ResponseBody {
 
     public static final String FIELD_NAME_ID = "id";
@@ -300,7 +316,8 @@ public class CheckpointStatistics implements ResponseBody {
         if (includeTaskCheckpointStatistics) {
             Collection<TaskStateStats> taskStateStats = checkpointStats.getAllTaskStateStats();
 
-            checkpointStatisticsPerTask = new HashMap<>(taskStateStats.size());
+            checkpointStatisticsPerTask =
+                    CollectionUtil.newHashMapWithExpectedSize(taskStateStats.size());
 
             for (TaskStateStats taskStateStat : taskStateStats) {
                 checkpointStatisticsPerTask.put(

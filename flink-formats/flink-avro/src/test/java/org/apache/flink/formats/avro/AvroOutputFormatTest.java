@@ -120,9 +120,8 @@ class AvroOutputFormatTest {
             @SuppressWarnings("unchecked")
             final AvroOutputFormat<User> restored = (AvroOutputFormat<User>) o;
             final AvroOutputFormat.Codec restoredCodec =
-                    (AvroOutputFormat.Codec) Whitebox.getInternalState(restored, "codec");
-            final Schema restoredSchema =
-                    (Schema) Whitebox.getInternalState(restored, "userDefinedSchema");
+                    Whitebox.getInternalState(restored, "codec");
+            final Schema restoredSchema = Whitebox.getInternalState(restored, "userDefinedSchema");
 
             assertThat(codec).isSameAs(restoredCodec);
             assertThat(schema).isEqualTo(restoredSchema);

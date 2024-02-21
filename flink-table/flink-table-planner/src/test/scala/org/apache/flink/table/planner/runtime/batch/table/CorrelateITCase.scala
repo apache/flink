@@ -18,15 +18,18 @@
 package org.apache.flink.table.planner.runtime.batch.table
 
 import org.apache.flink.api.scala._
+import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.{Func1, Func18, FuncWithOpen, RichFunc2}
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc0
 import org.apache.flink.table.planner.utils._
-import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.test.util.TestBaseUtils
 
-import org.junit.{Assert, Rule, Test}
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.RegisterExtension
 
 import java.sql.{Date, Timestamp}
 
@@ -35,8 +38,8 @@ import scala.collection.mutable
 
 class CorrelateITCase extends BatchTestBase {
 
-  @Rule
-  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
   @Test
   def testCrossJoin(): Unit = {
@@ -83,17 +86,21 @@ class CorrelateITCase extends BatchTestBase {
   }
 
   /** Common join predicates are temporarily forbidden (see FLINK-7865). */
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testLeftOuterJoinWithPredicates(): Unit = {
     val in = testData.as("a", "b", "c")
 
     val func2 = new TableFunc2
-    val result = in
-      .leftOuterJoinLateral(func2('c).as('s, 'l), 'a === 'l)
-      .select('c, 's, 'l)
-    val results = executeQuery(result)
-    val expected = "John#19,19,2\n" + "nosharp,null,null"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    assertThatThrownBy(
+      () => {
+        val result = in
+          .leftOuterJoinLateral(func2('c).as('s, 'l), 'a === 'l)
+          .select('c, 's, 'l)
+        val results = executeQuery(result)
+        val expected = "John#19,19,2\n" + "nosharp,null,null"
+        TestBaseUtils.compareResultAsText(results.asJava, expected)
+      })
+      .isInstanceOf(classOf[ValidationException])
   }
 
   @Test
@@ -230,7 +237,7 @@ class CorrelateITCase extends BatchTestBase {
   @Test
   def testUserDefinedTableFunctionWithParameter(): Unit = {
     val richTableFunc1 = new RichTableFunc1
-    registerFunction("RichTableFunc1", richTableFunc1)
+    tEnv.createTemporarySystemFunction("RichTableFunc1", richTableFunc1)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("word_separator" -> "#"))
 
     val result = testData
@@ -245,9 +252,9 @@ class CorrelateITCase extends BatchTestBase {
   @Test
   def testUserDefinedTableFunctionWithScalarFunctionWithParameters(): Unit = {
     val richTableFunc1 = new RichTableFunc1
-    registerFunction("RichTableFunc1", richTableFunc1)
+    tEnv.createTemporarySystemFunction("RichTableFunc1", richTableFunc1)
     val richFunc2 = new RichFunc2
-    registerFunction("RichFunc2", richFunc2)
+    tEnv.createTemporarySystemFunction("RichFunc2", richFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(
       env,
       Map("word_separator" -> "#", "string.value" -> "test"))
@@ -288,7 +295,7 @@ class CorrelateITCase extends BatchTestBase {
   @Test
   def testTableFunctionWithVariableArguments(): Unit = {
     val varArgsFunc0 = new VarArgsFunc0
-    registerFunction("VarArgsFunc0", varArgsFunc0)
+    tEnv.createTemporarySystemFunction("VarArgsFunc0", varArgsFunc0)
 
     val result = testData
       .select('c)
@@ -308,13 +315,13 @@ class CorrelateITCase extends BatchTestBase {
       "nosharp,nosharp"
     val results = executeQuery(result)
     TestBaseUtils.compareResultAsText(results.asJava, expected)
-//
-//    // Test for empty cases
+    //
+    //    // Test for empty cases
     val result0 = testData
       .select('c)
       .joinLateral(varArgsFunc0())
     val results0 = executeQuery(result0)
-    Assert.assertTrue(results0.isEmpty)
+    assertThat(results0.isEmpty).isTrue
   }
 
   @Test

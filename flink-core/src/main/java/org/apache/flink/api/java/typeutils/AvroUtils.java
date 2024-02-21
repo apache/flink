@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.KryoRegistration;
@@ -63,7 +63,7 @@ public abstract class AvroUtils {
      * Loads the utility class from <code>flink-avro</code> and adds Avro-specific serializers. This
      * method will throw an exception if we see an Avro type but flink-avro is not in the classpath.
      */
-    public abstract void addAvroSerializersIfRequired(ExecutionConfig reg, Class<?> type);
+    public abstract void addAvroSerializersIfRequired(SerializerConfig reg, Class<?> type);
 
     /** Registers a special Serializer for GenericData.Array. */
     public abstract void addAvroGenericDataArrayRegistration(
@@ -92,7 +92,7 @@ public abstract class AvroUtils {
                 "org.apache.avro.generic.GenericData$Array";
 
         @Override
-        public void addAvroSerializersIfRequired(ExecutionConfig reg, Class<?> type) {
+        public void addAvroSerializersIfRequired(SerializerConfig reg, Class<?> type) {
             if (hasSuperclass(type, AVRO_SPECIFIC_RECORD_BASE)
                     || hasSuperclass(type, AVRO_GENERIC_RECORD)) {
 

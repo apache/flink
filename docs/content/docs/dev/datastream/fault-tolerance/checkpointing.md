@@ -83,7 +83,7 @@ Other parameters for checkpointing include:
 
     This option cannot be used when a minimum time between checkpoints is defined.
 
-  - *externalized checkpoints*: You can configure periodic checkpoints to be persisted externally. Externalized checkpoints write their meta data out to persistent storage and are *not* automatically cleaned up when the job fails. This way, you will have a checkpoint around to resume from if your job fails. There are more details in the [deployment notes on externalized checkpoints]({{< ref "docs/ops/state/checkpoints" >}}#externalized-checkpoints).
+  - *externalized checkpoints*: You can configure periodic checkpoints to be persisted externally. Externalized checkpoints write their meta data out to persistent storage and are *not* automatically cleaned up when the job fails. This way, you will have a checkpoint around to resume from if your job fails. There are more details in the [deployment notes on externalized checkpoints]({{< ref "docs/ops/state/checkpoints" >}}#retained-checkpoints).
 
   - *unaligned checkpoints*: You can enable [unaligned checkpoints]({{< ref "docs/ops/state/checkpointing_under_backpressure" >}}#unaligned-checkpoints) to greatly reduce checkpointing times under backpressure. This only works for exactly-once checkpoints and with one concurrent checkpoint.
 
@@ -123,7 +123,10 @@ env.getCheckpointConfig().setExternalizedCheckpointCleanup(
 env.getCheckpointConfig().enableUnalignedCheckpoints();
 
 // sets the checkpoint storage where checkpoint snapshots will be written
-env.getCheckpointConfig().setCheckpointStorage("hdfs:///my/checkpoint/dir");
+Configuration config = new Configuration();
+config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "hdfs:///my/checkpoint/dir");
+env.configure(config);
 
 // enable checkpointing with finished tasks
 Configuration config = new Configuration();
@@ -207,7 +210,7 @@ env.get_checkpoint_config().enable_unaligned_checkpoints()
 
 ### Related Config Options
 
-Some more parameters and/or defaults may be set via `conf/flink-conf.yaml` (see [configuration]({{< ref "docs/deployment/config" >}}) for a full guide):
+Some more parameters and/or defaults may be set via Flink configuration file (see [configuration]({{< ref "docs/deployment/config" >}}))` for a full guide):
 
 {{< generated/checkpointing_configuration >}}
 
@@ -222,7 +225,13 @@ Where the checkpoints are stored (e.g., JobManager memory, file system, database
 
 By default, checkpoints are stored in memory in the JobManager. For proper persistence of large state,
 Flink supports various approaches for checkpointing state in other locations.
-The choice of checkpoint storage can be configured via `StreamExecutionEnvironment.getCheckpointConfig().setCheckpointStorage(…)`.
+The choice of checkpoint storage can be configured like the following code snippet.
+```java
+Configuration config = new Configuration();
+config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "...");
+env.configure(config);
+```
 It is strongly encouraged that checkpoints be stored in a highly-available filesystem for production deployments. 
 
 See [checkpoint storage]({{< ref "docs/ops/state/checkpoints#checkpoint-storage" >}}) for more details on the available options for job-wide and cluster-wide configuration.
@@ -279,9 +288,8 @@ task with the number of new subtasks equal to the number of running tasks.
 
 To ensure all the records could be committed for operators using the two-phase commit, 
 the tasks would wait for the final checkpoint completed successfully after all the operators finished. 
-It needs to be noted that this behavior would prolong the execution time of tasks. 
-If the checkpoint interval is long, the execution time would also be prolonged largely. 
-For the worst case, if the checkpoint interval is set to `Long.MAX_VALUE`, 
-the tasks would in fact be blocked forever since the final checkpoint would never happen.
+The final checkpoint would be triggered immediately after all operators have reached end of data, 
+without waiting for periodic triggering, but the job will need to wait for this final checkpoint 
+to be completed.
 
 {{< top >}}

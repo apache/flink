@@ -201,6 +201,72 @@ class CatalogBaseTableResolutionTest {
         }
     }
 
+    @Test
+    void testValidDistributionKeys() {
+        final CatalogTable catalogTable =
+                new DefaultCatalogTable(
+                        TABLE_SCHEMA,
+                        null,
+                        Collections.emptyList(),
+                        Collections.emptyMap(),
+                        null,
+                        TableDistribution.ofHash(Collections.singletonList("county"), 6));
+        final ResolvedCatalogTable resolvedTable =
+                resolveCatalogBaseTable(ResolvedCatalogTable.class, catalogTable);
+        assertThat(resolvedTable.getDistribution().get().getBucketKeys())
+                .isEqualTo(Collections.singletonList("county"));
+        assertThat(resolvedTable.getDistribution().get().getKind())
+                .isEqualTo(TableDistribution.Kind.HASH);
+    }
+
+    @Test
+    void testInvalidDistributionKeys() {
+        final CatalogTable catalogTable =
+                new DefaultCatalogTable(
+                        TABLE_SCHEMA,
+                        null,
+                        Collections.emptyList(),
+                        Collections.emptyMap(),
+                        null,
+                        TableDistribution.ofHash(Collections.singletonList("countyINVALID"), 6));
+        try {
+            resolveCatalogBaseTable(ResolvedCatalogTable.class, catalogTable);
+            fail("Invalid bucket keys expected.");
+        } catch (Exception e) {
+            assertThat(e)
+                    .satisfies(
+                            matching(
+                                    containsMessage(
+                                            "Invalid bucket key 'countyINVALID'. A bucket key for a distribution must "
+                                                    + "reference a physical column in the schema. "
+                                                    + "Available columns are: [id, region, county]")));
+        }
+    }
+
+    @Test
+    void testInvalidDistributionBucketCount() {
+        final CatalogTable catalogTable =
+                new DefaultCatalogTable(
+                        TABLE_SCHEMA,
+                        null,
+                        Collections.emptyList(),
+                        Collections.emptyMap(),
+                        null,
+                        TableDistribution.ofHash(Collections.singletonList("id"), 0));
+
+        try {
+            resolveCatalogBaseTable(ResolvedCatalogTable.class, catalogTable);
+            fail("Invalid bucket keys expected.");
+        } catch (Exception e) {
+            assertThat(e)
+                    .satisfies(
+                            matching(
+                                    containsMessage(
+                                            "Invalid bucket count '0'. The number of buckets for a "
+                                                    + "distributed table must be at least 1.")));
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
     // Utilities
     // --------------------------------------------------------------------------------------------
@@ -249,6 +315,7 @@ class CatalogBaseTableResolutionTest {
         properties.put("version", "12");
         properties.put("connector", "custom");
         properties.put("comment", "This is an example table.");
+        properties.put("snapshot", "1688918400000");
         return properties;
     }
 

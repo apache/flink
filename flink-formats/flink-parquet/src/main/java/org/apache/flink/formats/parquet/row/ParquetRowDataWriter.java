@@ -35,6 +35,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.io.api.RecordConsumer;
 import org.apache.parquet.schema.GroupType;
@@ -47,9 +48,14 @@ import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.flink.formats.parquet.ParquetFileFormatFactory.IDENTIFIER;
+import static org.apache.flink.formats.parquet.ParquetFileFormatFactory.TIMESTAMP_TIME_UNIT;
+import static org.apache.flink.formats.parquet.ParquetFileFormatFactory.WRITE_INT64_TIMESTAMP;
 import static org.apache.flink.formats.parquet.utils.ParquetSchemaConverter.computeMinBytesForDecimalPrecision;
 import static org.apache.flink.formats.parquet.vector.reader.TimestampColumnReader.JULIAN_EPOCH_OFFSET_DAYS;
+import static org.apache.flink.formats.parquet.vector.reader.TimestampColumnReader.MICROS_PER_MILLISECOND;
 import static org.apache.flink.formats.parquet.vector.reader.TimestampColumnReader.MILLIS_IN_DAY;
+import static org.apache.flink.formats.parquet.vector.reader.TimestampColumnReader.NANOS_PER_MICROSECONDS;
 import static org.apache.flink.formats.parquet.vector.reader.TimestampColumnReader.NANOS_PER_MILLISECOND;
 import static org.apache.flink.formats.parquet.vector.reader.TimestampColumnReader.NANOS_PER_SECOND;
 
@@ -60,14 +66,34 @@ public class ParquetRowDataWriter {
     private final RecordConsumer recordConsumer;
     private final boolean utcTimestamp;
 
+    private final Configuration conf;
+    private boolean useInt64 = false;
+    private LogicalTypeAnnotation.TimeUnit timeUnit;
+
     public ParquetRowDataWriter(
             RecordConsumer recordConsumer,
             RowType rowType,
             GroupType schema,
-            boolean utcTimestamp) {
+            boolean utcTimestamp,
+            Configuration conf) {
         this.recordConsumer = recordConsumer;
         this.utcTimestamp = utcTimestamp;
-
+        this.conf = conf;
+        if (this.conf != null) {
+            useInt64 =
+                    this.conf.getBoolean(
+                            IDENTIFIER + "." + WRITE_INT64_TIMESTAMP.key(),
+                            WRITE_INT64_TIMESTAMP.defaultValue());
+            if (useInt64) {
+                timeUnit =
+                        LogicalTypeAnnotation.TimeUnit.valueOf(
+                                this.conf
+                                        .get(
+                                                IDENTIFIER + "." + TIMESTAMP_TIME_UNIT.key(),
+                                                TIMESTAMP_TIME_UNIT.defaultValue())
+                                        .toUpperCase());
+            }
+        }
         rowWriter = new RowWriter(rowType, schema);
     }
 
@@ -326,7 +352,7 @@ public class ParquetRowDataWriter {
         }
 
         private void writeTimestamp(TimestampData value) {
-            recordConsumer.addBinary(timestampToInt96(value));
+            ParquetRowDataWriter.this.writeTimestamp(recordConsumer, value);
         }
     }
 
@@ -475,6 +501,41 @@ public class ParquetRowDataWriter {
 
         @Override
         public void write(ArrayData arrayData, int ordinal) {}
+    }
+
+    private void writeTimestamp(RecordConsumer recordConsumer, TimestampData timestampData) {
+        if (useInt64) {
+            recordConsumer.addLong(timestampToInt64(timestampData));
+        } else {
+            recordConsumer.addBinary(timestampToInt96(timestampData));
+        }
+    }
+
+    private Long convertInt64ToLong(long mills, long nanosOfMillisecond) {
+        switch (timeUnit) {
+            case NANOS:
+                return mills * NANOS_PER_MILLISECOND + nanosOfMillisecond;
+            case MICROS:
+                return mills * MICROS_PER_MILLISECOND + nanosOfMillisecond / NANOS_PER_MICROSECONDS;
+            case MILLIS:
+                return mills;
+            default:
+                throw new IllegalArgumentException("Time unit not recognized");
+        }
+    }
+
+    private Long timestampToInt64(TimestampData timestampData) {
+        long mills = 0L;
+        long nanosOfMillisecond = 0L;
+        if (utcTimestamp) {
+            mills = timestampData.getMillisecond();
+            nanosOfMillisecond = timestampData.getNanoOfMillisecond();
+        } else {
+            Timestamp timestamp = timestampData.toTimestamp();
+            mills = timestamp.getTime();
+            nanosOfMillisecond = timestamp.getNanos() % NANOS_PER_MILLISECOND;
+        }
+        return convertInt64ToLong(mills, nanosOfMillisecond);
     }
 
     private Binary timestampToInt96(TimestampData timestampData) {

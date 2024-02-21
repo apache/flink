@@ -29,10 +29,14 @@ import org.apache.flink.runtime.operators.coordination.OperatorInfo;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.FutureUtils.ConjunctFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +56,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -152,7 +157,9 @@ public class PendingCheckpoint implements Checkpoint {
         this.checkpointTimestamp = checkpointTimestamp;
         this.checkpointPlan = checkNotNull(checkpointPlan);
 
-        this.notYetAcknowledgedTasks = new HashMap<>(checkpointPlan.getTasksToWaitFor().size());
+        this.notYetAcknowledgedTasks =
+                CollectionUtil.newHashMapWithExpectedSize(
+                        checkpointPlan.getTasksToWaitFor().size());
         for (Execution execution : checkpointPlan.getTasksToWaitFor()) {
             notYetAcknowledgedTasks.put(execution.getAttemptId(), execution.getVertex());
         }
@@ -169,7 +176,9 @@ public class PendingCheckpoint implements Checkpoint {
                 operatorCoordinatorsToConfirm.isEmpty()
                         ? Collections.emptySet()
                         : new HashSet<>(operatorCoordinatorsToConfirm);
-        this.acknowledgedTasks = new HashSet<>(checkpointPlan.getTasksToWaitFor().size());
+        this.acknowledgedTasks =
+                CollectionUtil.newHashSetWithExpectedSize(
+                        checkpointPlan.getTasksToWaitFor().size());
         this.onCompletionPromise = checkNotNull(onCompletionPromise);
         this.pendingCheckpointStats = pendingCheckpointStats;
         this.masterTriggerCompletionPromise = checkNotNull(masterTriggerCompletionPromise);
@@ -646,6 +655,40 @@ public class PendingCheckpoint implements Checkpoint {
             } finally {
                 operatorStates.clear();
             }
+        }
+
+        @Override
+        public CompletableFuture<Void> discardAsync(Executor ioExecutor) {
+            synchronized (lock) {
+                if (discarded) {
+                    Preconditions.checkState(
+                            disposed, "Checkpoint should be disposed before being discarded");
+                } else {
+                    discarded = true;
+                }
+            }
+            List<StateObject> discardables =
+                    operatorStates.values().stream()
+                            .flatMap(op -> op.getDiscardables().stream())
+                            .collect(Collectors.toList());
+
+            ConjunctFuture<Void> discardStates =
+                    FutureUtils.completeAll(
+                            discardables.stream()
+                                    .map(
+                                            item ->
+                                                    FutureUtils.runAsync(
+                                                            item::discardState, ioExecutor))
+                                    .collect(Collectors.toList()));
+
+            return FutureUtils.runAfterwards(
+                    discardStates,
+                    () -> {
+                        operatorStates.clear();
+                        if (targetLocation != null) {
+                            targetLocation.disposeOnFailure();
+                        }
+                    });
         }
     }
 }

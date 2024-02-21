@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.SerializerFactory;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.AppendingState;
@@ -240,15 +241,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
             // store a typed reference for the state of merging windows - sanity check
             if (windowState instanceof InternalMergingState) {
                 windowMergingState = (InternalMergingState<K, W, IN, ACC, ACC>) windowState;
+            } else if (windowState != null) {
+                throw new IllegalStateException(
+                        "The window uses a merging assigner, but the window state is not mergeable.");
             }
-            // TODO this sanity check should be here, but is prevented by an incorrect test (pending
-            // validation)
-            // TODO see WindowOperatorTest.testCleanupTimerWithEmptyFoldingStateForSessionWindows()
-            // TODO activate the sanity check once resolved
-            //			else if (windowState != null) {
-            //				throw new IllegalStateException(
-            //						"The window uses a merging assigner, but the window state is not mergeable.");
-            //			}
 
             @SuppressWarnings("unchecked")
             final Class<Tuple2<W, W>> typedTuple = (Class<Tuple2<W, W>>) (Class<?>) Tuple2.class;
@@ -675,7 +671,16 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
         public AbstractPerWindowStateStore(
                 KeyedStateBackend<?> keyedStateBackend, ExecutionConfig executionConfig) {
-            super(keyedStateBackend, executionConfig);
+            super(
+                    keyedStateBackend,
+                    new SerializerFactory() {
+                        @Override
+                        public <T> TypeSerializer<T> createSerializer(
+                                TypeInformation<T> typeInformation) {
+                            return typeInformation.createSerializer(
+                                    executionConfig.getSerializerConfig());
+                        }
+                    });
         }
     }
 
@@ -851,7 +856,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
             ValueStateDescriptor<S> stateDesc =
                     new ValueStateDescriptor<>(
-                            name, stateType.createSerializer(getExecutionConfig()), defaultState);
+                            name,
+                            stateType.createSerializer(getExecutionConfig().getSerializerConfig()),
+                            defaultState);
             return getPartitionedState(stateDesc);
         }
 

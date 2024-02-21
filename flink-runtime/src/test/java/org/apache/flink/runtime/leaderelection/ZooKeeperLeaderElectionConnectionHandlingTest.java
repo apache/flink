@@ -45,8 +45,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class ZooKeeperLeaderElectionConnectionHandlingTest {
 
-    private static final String PATH = "/path";
-
     @RegisterExtension
     private static final EachCallbackWrapper<ZooKeeperExtension> zooKeeperResource =
             new EachCallbackWrapper<>(new ZooKeeperExtension());
@@ -136,17 +134,20 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
                         testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
         CuratorFramework client = curatorFrameworkWrapper.asCuratorFramework();
         LeaderElectionDriverFactory leaderElectionDriverFactory =
-                new ZooKeeperLeaderElectionDriverFactory(client, PATH);
+                new ZooKeeperLeaderElectionDriverFactory(client);
         DefaultLeaderElectionService leaderElectionService =
-                new DefaultLeaderElectionService(leaderElectionDriverFactory);
+                new DefaultLeaderElectionService(
+                        leaderElectionDriverFactory,
+                        testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
 
-        try {
-            final TestingConnectionStateListener connectionStateListener =
-                    new TestingConnectionStateListener();
-            client.getConnectionStateListenable().addListener(connectionStateListener);
+        final TestingConnectionStateListener connectionStateListener =
+                new TestingConnectionStateListener();
+        client.getConnectionStateListenable().addListener(connectionStateListener);
 
-            final TestingContender contender = new TestingContender();
-            leaderElectionService.start(contender);
+        final TestingContender contender = new TestingContender();
+        try (LeaderElection leaderElection =
+                leaderElectionService.createLeaderElection("random-component-id")) {
+            leaderElection.startLeaderElection(contender);
 
             contender.awaitGrantLeadership();
 
@@ -164,7 +165,7 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
 
             validationLogic.accept(connectionStateListener, contender);
         } finally {
-            leaderElectionService.stop();
+            leaderElectionService.close();
             curatorFrameworkWrapper.close();
 
             if (problem == Problem.LOST_CONNECTION) {

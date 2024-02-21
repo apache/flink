@@ -31,7 +31,11 @@ import org.apache.flink.streaming.runtime.tasks.OperatorChain;
  *
  * @param <OUT> Type of the output elements
  * @param <SRC> Type of the source function of this stream source operator
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
+@Deprecated
 @Internal
 public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
         extends AbstractUdfStreamOperator<OUT, SRC> {
@@ -80,7 +84,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
         final long latencyTrackingInterval =
                 getExecutionConfig().isLatencyTrackingConfigured()
                         ? getExecutionConfig().getLatencyTrackingInterval()
-                        : configuration.getLong(MetricOptions.LATENCY_INTERVAL);
+                        : configuration.get(MetricOptions.LATENCY_INTERVAL);
 
         LatencyMarkerEmitter<OUT> latencyEmitter = null;
         if (latencyTrackingInterval > 0) {
@@ -90,11 +94,10 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
                             collector::emitLatencyMarker,
                             latencyTrackingInterval,
                             this.getOperatorID(),
-                            getRuntimeContext().getIndexOfThisSubtask());
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
         }
 
-        final long watermarkInterval =
-                getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval();
+        final long watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
 
         this.ctx =
                 StreamSourceContexts.getSourceContext(

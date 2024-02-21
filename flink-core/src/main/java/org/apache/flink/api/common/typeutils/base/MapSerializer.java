@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -104,7 +105,7 @@ public final class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 
     @Override
     public Map<K, V> copy(Map<K, V> from) {
-        Map<K, V> newMap = new HashMap<>(from.size());
+        Map<K, V> newMap = CollectionUtil.newHashMapWithExpectedSize(from.size());
 
         for (Map.Entry<K, V> entry : from.entrySet()) {
             K newKey = keySerializer.copy(entry.getKey());
@@ -147,7 +148,7 @@ public final class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
     public Map<K, V> deserialize(DataInputView source) throws IOException {
         final int size = source.readInt();
 
-        final Map<K, V> map = new HashMap<>(size);
+        final Map<K, V> map = CollectionUtil.newHashMapWithExpectedSize(size);
         for (int i = 0; i < size; ++i) {
             K key = keySerializer.deserialize(source);
 

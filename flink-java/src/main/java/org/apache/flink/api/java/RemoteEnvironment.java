@@ -39,7 +39,14 @@ import java.util.List;
  * may be the classes of functions (transformation, aggregation, ...) or libraries. Those classes
  * must be attached to the remote environment as JAR files, to allow the environment to ship the
  * classes into the cluster for the distributed execution.
+ *
+ * @deprecated All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a
+ *     future Flink major version. You can still build your application in DataSet, but you should
+ *     move to either the DataStream and/or Table API.
+ * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
+ *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet API</a>
  */
+@Deprecated
 @Public
 public class RemoteEnvironment extends ExecutionEnvironment {
 
@@ -147,16 +154,16 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 
         // these should be set in the end to overwrite any values from the client config provided in
         // the constructor.
-        effectiveConfiguration.setString(DeploymentOptions.TARGET, "remote");
-        effectiveConfiguration.setBoolean(DeploymentOptions.ATTACHED, true);
+        effectiveConfiguration.set(DeploymentOptions.TARGET, "remote");
+        effectiveConfiguration.set(DeploymentOptions.ATTACHED, true);
 
         return effectiveConfiguration;
     }
 
     @Override
     public String toString() {
-        final String host = getConfiguration().getString(JobManagerOptions.ADDRESS);
-        final int port = getConfiguration().getInteger(JobManagerOptions.PORT);
+        final String host = getConfiguration().get(JobManagerOptions.ADDRESS);
+        final int port = getConfiguration().get(JobManagerOptions.PORT);
         final String parallelism = (getParallelism() == -1 ? "default" : "" + getParallelism());
 
         return "Remote Environment ("

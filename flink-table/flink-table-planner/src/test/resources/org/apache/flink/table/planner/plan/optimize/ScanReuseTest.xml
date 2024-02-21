@@ -1,0 +1,1354 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testProject1[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.b, T1.c, T2.c FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], c0=[$9])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c, c0])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, a0, c0], build=[right])
+   :- Exchange(distribution=[hash[a]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProject1[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.b, T1.c, T2.c FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], c0=[$10])
++- LogicalFilter(condition=[=($0, $8)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c, c0])
++- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, a0, c0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, nested_s], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested_s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c, nested_s])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProject2[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.b, T2.c FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$9])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, a0, c], build=[left])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, b])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProject2[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.b, T2.c FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$10])
++- LogicalFilter(condition=[=($0, $8)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c])
++- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, a0, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, b])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, nested_s], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested_s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c, nested_s])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProject[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.c, T2.c FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], c0=[$9])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, c0])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], build=[left])
+   :- Exchange(distribution=[hash[a]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c], metadata=[]]], fields=[a, c])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProject[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.c, T2.c FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], c0=[$10])
++- LogicalFilter(condition=[=($0, $8)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, c0])
++- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])(reuse_id=[1])
+   :  +- Calc(select=[a, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, nested_s], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested_s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, c, nested_s])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectNested1[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.i, T2.j FROM (SELECT a, nested.i as i FROM MyTable) T1, (SELECT a, nested.j as j FROM MyTable) T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], i=[$1], j=[$3])
++- LogicalFilter(condition=[=($0, $2)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], i=[$3.i])
+      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], j=[$3.j])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, nested_i AS i, nested_j AS j])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, nested_i, a0, nested_j], build=[left])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, nested_i])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, nested_i, nested_j], metadata=[]]], fields=[a, nested_i, nested_j])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, nested_j])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectNested1[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.i, T2.j FROM (SELECT a, nested.i as i FROM MyTable) T1, (SELECT a, nested.j as j FROM MyTable) T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], i=[$1], j=[$3])
++- LogicalFilter(condition=[=($0, $2)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], i=[$3.i])
+      :  +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], j=[$3.j])
+         +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, i, j])
++- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, i, a0, j], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, nested.i AS i])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, nested, c], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested.s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, nested, c])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, nested.j AS j])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectNested2[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.i, T2.i FROM (SELECT a, nested.i as i FROM MyTable) T1, (SELECT a, nested.i as i FROM MyTable) T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], i=[$1], i0=[$3])
++- LogicalFilter(condition=[=($0, $2)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], i=[$3.i])
+      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], i=[$3.i])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, nested_i AS i, nested_i0 AS i0])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, nested_i, a0, nested_i0], build=[left])
+   :- Exchange(distribution=[hash[a]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, nested_i], metadata=[]]], fields=[a, nested_i])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectNested2[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.i, T2.i FROM (SELECT a, nested.i as i FROM MyTable) T1, (SELECT a, nested.i as i FROM MyTable) T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], i=[$1], i0=[$3])
++- LogicalFilter(condition=[=($0, $2)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], i=[$3.i])
+      :  +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], i=[$3.i])
+         +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, i, i0])
++- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, i, a0, i0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])(reuse_id=[1])
+   :  +- Calc(select=[a, nested.i AS i])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, nested, c], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested.s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, nested, c])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectNestedWithWholeField[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (SELECT a, nested.i FROM MyTable) T1, (SELECT a, nested FROM MyTable) T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], i=[$1], a0=[$2], nested=[$3])
++- LogicalFilter(condition=[=($0, $2)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], i=[$3.i])
+      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], nested=[$3])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, nested_i, a0, nested], build=[left])
+:- Exchange(distribution=[hash[a]])
+:  +- Calc(select=[a, nested_i])
+:     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, nested, nested_i], metadata=[]]], fields=[a, nested, nested_i])(reuse_id=[1])
++- Exchange(distribution=[hash[a]])
+   +- Calc(select=[a, nested])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectNestedWithWholeField[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (SELECT a, nested.i FROM MyTable) T1, (SELECT a, nested FROM MyTable) T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], i=[$1], a0=[$2], nested=[$3])
++- LogicalFilter(condition=[=($0, $2)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], i=[$3.i])
+      :  +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], nested=[$3])
+         +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, i, a0, nested], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[a]])
+:  +- Calc(select=[a, nested.i AS i])
+:     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, nested, c], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested.s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, nested, c])(reuse_id=[1])
++- Exchange(distribution=[hash[a]])
+   +- Calc(select=[a, nested])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectReuseWithFilterPushDown[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.c, T2.c FROM (SELECT * FROM MyTable /*+ OPTIONS('filterable-fields'='b') */ WHERE b = 1) T1, (SELECT * FROM MyTable /*+ OPTIONS('filterable-fields'='b') */ WHERE b = 1) T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], c0=[$9])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+      :  +- LogicalFilter(condition=[=($1, 1)])
+      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{filterable-fields=b}]]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+         +- LogicalFilter(condition=[=($1, 1)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{filterable-fields=b}]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, c0])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], build=[left])
+   :- Exchange(distribution=[hash[a]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[=(b, 1:BIGINT)], project=[a, c], metadata=[]]], fields=[a, c], hints=[[[OPTIONS options:{filterable-fields=b}]]])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectReuseWithFilterPushDown[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.c, T2.c FROM (SELECT * FROM MyTable /*+ OPTIONS('filterable-fields'='b') */ WHERE b = 1) T1, (SELECT * FROM MyTable /*+ OPTIONS('filterable-fields'='b') */ WHERE b = 1) T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], c0=[$10])
++- LogicalFilter(condition=[=($0, $8)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6], rtime=[$7])
+      :  +- LogicalFilter(condition=[=($1, 1)])
+      :     +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+      :        +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{filterable-fields=b}]]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6], rtime=[$7])
+         +- LogicalFilter(condition=[=($1, 1)])
+            +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+               +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{filterable-fields=b}]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, c0])
++- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])(reuse_id=[1])
+   :  +- Calc(select=[a, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, nested_s], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested_s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic], filter=[=(b, 1:BIGINT)]]], fields=[a, b, c, nested_s], hints=[[[OPTIONS options:{filterable-fields=b}]]])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectReuseWithHints[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.c, T2.c FROM MyTable /*+ OPTIONS('source.num-element-to-skip'='1') */ T1, MyTable /*+ OPTIONS('source.num-element-to-skip'='1') */ T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], c0=[$9])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, c0])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], build=[left])
+   :- Exchange(distribution=[hash[a]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c], metadata=[]]], fields=[a, c], hints=[[[OPTIONS options:{source.num-element-to-skip=1}]]])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectReuseWithHints[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.c, T2.c FROM MyTable /*+ OPTIONS('source.num-element-to-skip'='1') */ T1, MyTable /*+ OPTIONS('source.num-element-to-skip'='1') */ T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], c0=[$10])
++- LogicalFilter(condition=[=($0, $8)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
+      +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, c0])
++- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])(reuse_id=[1])
+   :  +- Calc(select=[a, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, nested_s], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested_s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, c, nested_s], hints=[[[OPTIONS options:{source.num-element-to-skip=1}]]])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectReuseWithLimitPushDown[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.c, T2.c FROM (SELECT * FROM MyTable LIMIT 10) T1, (SELECT * FROM MyTable LIMIT 10) T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], c0=[$9])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalSort(fetch=[10])
+      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalSort(fetch=[10])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, c0])
++- NestedLoopJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], build=[left])
+   :- Exchange(distribution=[broadcast])
+   :  +- Calc(select=[a, c])(reuse_id=[1])
+   :     +- Limit(offset=[0], fetch=[10], global=[true])
+   :        +- Exchange(distribution=[single])
+   :           +- Limit(offset=[0], fetch=[10], global=[false])
+   :              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, limit=[10]]], fields=[a, b, c, nested, metadata_1, metadata_2])
+   +- Exchange(distribution=[any], shuffle_mode=[BATCH])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectReuseWithLimitPushDown[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.c, T2.c FROM (SELECT * FROM MyTable LIMIT 10) T1, (SELECT * FROM MyTable LIMIT 10) T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], c0=[$10])
++- LogicalFilter(condition=[=($0, $8)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalSort(fetch=[10])
+      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6], rtime=[$7])
+      :     +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+      :        +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalSort(fetch=[10])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6], rtime=[$7])
+            +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+               +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, c0])
++- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])(reuse_id=[1])
+   :  +- Calc(select=[a, c])
+   :     +- Limit(offset=[0], fetch=[10])
+   :        +- Exchange(distribution=[single])
+   :           +- Calc(select=[a, b, c, nested, metadata_1, (metadata_1 * 2) AS compute_metadata, metadata_2, Reinterpret(TO_TIMESTAMP(c, nested.s)) AS rtime])
+   :              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(TO_TIMESTAMP(c, nested.s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c, nested, metadata_1, metadata_2])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectReuseWithPartitionPushDown[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.c, T2.c FROM (SELECT * FROM MyTable /*+ OPTIONS('partition-list'='c:1;c:2') */ WHERE c = '1') T1, (SELECT * FROM MyTable /*+ OPTIONS('partition-list'='c:1;c:2') */ WHERE c = '1') T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], c0=[$9])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+      :  +- LogicalFilter(condition=[=($2, _UTF-16LE'1')])
+      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{partition-list=c:1;c:2}]]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+         +- LogicalFilter(condition=[=($2, _UTF-16LE'1')])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{partition-list=c:1;c:2}]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, c0])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], build=[left])
+   :- Exchange(distribution=[keep_input_as_is[hash[a]]])
+   :  +- Calc(select=[a, CAST('1' AS VARCHAR(2147483647)) AS c])(reuse_id=[1])
+   :     +- Exchange(distribution=[hash[a]])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable, partitions=[{c=1}], project=[a], metadata=[]]], fields=[a], hints=[[[OPTIONS options:{partition-list=c:1;c:2}]]])
+   +- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectReuseWithWatermark[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.c, T2.b FROM (SELECT MIN(a) as a, MIN(c) as c FROM W_T GROUP BY TUMBLE(rtime, INTERVAL '10' SECOND)) T1, (SELECT MIN(a) as a, MIN(b) as b FROM W_T GROUP BY TUMBLE(rtime, INTERVAL '10' SECOND)) T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$1], b=[$3])
++- LogicalFilter(condition=[=($0, $2)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$1], c=[$2])
+      :  +- LogicalAggregate(group=[{0}], a=[MIN($1)], c=[MIN($2)])
+      :     +- LogicalProject($f0=[$TUMBLE($3, 10000:INTERVAL SECOND)], a=[$0], c=[$2])
+      :        +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($3, 5000:INTERVAL SECOND)])
+      :           +- LogicalTableScan(table=[[default_catalog, default_database, W_T]])
+      +- LogicalProject(a=[$1], b=[$2])
+         +- LogicalAggregate(group=[{0}], a=[MIN($1)], b=[MIN($2)])
+            +- LogicalProject($f0=[$TUMBLE($3, 10000:INTERVAL SECOND)], a=[$0], b=[$1])
+               +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($3, 5000:INTERVAL SECOND)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, W_T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, b])
++- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, b], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- GroupWindowAggregate(window=[TumblingGroupWindow('w$, rtime, 10000)], select=[MIN(a) AS a, MIN(c) AS c])
+   :     +- Exchange(distribution=[single])
+   :        +- Calc(select=[rtime, a, c])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, W_T, project=[a, b, c, rtime], metadata=[], watermark=[-(rtime, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c, rtime])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- GroupWindowAggregate(window=[TumblingGroupWindow('w$, rtime, 10000)], select=[MIN(a) AS a, MIN(b) AS b])
+         +- Exchange(distribution=[single])
+            +- Calc(select=[rtime, a, b])
+               +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithDifferentHints[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.c, T2.c FROM MyTable /*+ OPTIONS('source.num-element-to-skip'='1') */ T1, MyTable /*+ OPTIONS('source.num-element-to-skip'='10') */ T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], c0=[$9])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=10}]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, c0])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], build=[left])
+   :- Exchange(distribution=[hash[a]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c], metadata=[]]], fields=[a, c], hints=[[[OPTIONS options:{source.num-element-to-skip=1}]]])
+   +- Exchange(distribution=[hash[a]])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c], metadata=[]]], fields=[a, c], hints=[[[OPTIONS options:{source.num-element-to-skip=10}]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithDifferentHints[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.c, T2.c FROM MyTable /*+ OPTIONS('source.num-element-to-skip'='1') */ T1, MyTable /*+ OPTIONS('source.num-element-to-skip'='10') */ T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], c0=[$10])
++- LogicalFilter(condition=[=($0, $8)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
+      +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=10}]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, c0])
++- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, nested_s], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested_s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, c, nested_s], hints=[[[OPTIONS options:{source.num-element-to-skip=1}]]])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, nested_s], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested_s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, c, nested_s], hints=[[[OPTIONS options:{source.num-element-to-skip=10}]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithExpr[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.b, T2.c FROM (SELECT a, b + 1 as b FROM MyTable) T1, MyTable T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$4])
++- LogicalFilter(condition=[=($0, $2)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[+($1, 1)])
+      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, a0, c], build=[left])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, (b + 1) AS b])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithExpr[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.b, T2.c FROM (SELECT a, b + 1 as b FROM MyTable) T1, MyTable T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$4])
++- LogicalFilter(condition=[=($0, $2)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[+($1, 1)])
+      :  +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c])
++- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, a0, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, (b + 1) AS b])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, nested_s], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested_s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c, nested_s])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithFilter[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.b, T2.c FROM (SELECT * FROM MyTable WHERE b = 2) T1, (SELECT * FROM MyTable WHERE b = 3) T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$9])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+      :  +- LogicalFilter(condition=[=($1, 2)])
+      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+         +- LogicalFilter(condition=[=($1, 3)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, a0, c], build=[left])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, CAST(2 AS BIGINT) AS b], where=[(b = 2)])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], project=[a, b, c], metadata=[]]], fields=[a, b, c])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c], where=[(b = 3)])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithFilter[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.b, T2.c FROM (SELECT * FROM MyTable WHERE b = 2) T1, (SELECT * FROM MyTable WHERE b = 3) T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$10])
++- LogicalFilter(condition=[=($0, $8)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6], rtime=[$7])
+      :  +- LogicalFilter(condition=[=($1, 2)])
+      :     +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+      :        +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6], rtime=[$7])
+         +- LogicalFilter(condition=[=($1, 3)])
+            +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+               +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c])
++- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, a0, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, CAST(2 AS BIGINT) AS b], where=[(b = 2)])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, nested_s], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested_s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic], filter=[]]], fields=[a, b, c, nested_s])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c], where=[(b = 3)])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithFilterPushDown[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.c, T2.c FROM (SELECT * FROM MyTable /*+ OPTIONS('filterable-fields'='b') */ WHERE b = 2) T1, (SELECT * FROM MyTable /*+ OPTIONS('filterable-fields'='b') */ WHERE b = 1) T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], c0=[$9])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+      :  +- LogicalFilter(condition=[=($1, 2)])
+      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{filterable-fields=b}]]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+         +- LogicalFilter(condition=[=($1, 1)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{filterable-fields=b}]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, c0])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], build=[left])
+   :- Exchange(distribution=[hash[a]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[=(b, 2:BIGINT)], project=[a, c], metadata=[]]], fields=[a, c], hints=[[[OPTIONS options:{filterable-fields=b}]]])
+   +- Exchange(distribution=[hash[a]])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[=(b, 1:BIGINT)], project=[a, c], metadata=[]]], fields=[a, c], hints=[[[OPTIONS options:{filterable-fields=b}]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithFilterPushDown[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.c, T2.c FROM (SELECT * FROM MyTable /*+ OPTIONS('filterable-fields'='b') */ WHERE b = 2) T1, (SELECT * FROM MyTable /*+ OPTIONS('filterable-fields'='b') */ WHERE b = 1) T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], c0=[$10])
++- LogicalFilter(condition=[=($0, $8)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6], rtime=[$7])
+      :  +- LogicalFilter(condition=[=($1, 2)])
+      :     +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+      :        +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{filterable-fields=b}]]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6], rtime=[$7])
+         +- LogicalFilter(condition=[=($1, 1)])
+            +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+               +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{filterable-fields=b}]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, c0])
++- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, nested_s], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested_s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic], filter=[=(b, 2:BIGINT)]]], fields=[a, b, c, nested_s], hints=[[[OPTIONS options:{filterable-fields=b}]]])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, nested_s], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested_s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic], filter=[=(b, 1:BIGINT)]]], fields=[a, b, c, nested_s], hints=[[[OPTIONS options:{filterable-fields=b}]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithHints[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.c, T2.c FROM MyTable /*+ OPTIONS('source.num-element-to-skip'='1') */ T1, MyTable T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], c0=[$9])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, c0])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], build=[left])
+   :- Exchange(distribution=[hash[a]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c], metadata=[]]], fields=[a, c], hints=[[[OPTIONS options:{source.num-element-to-skip=1}]]])
+   +- Exchange(distribution=[hash[a]])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c], metadata=[]]], fields=[a, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithHints[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.c, T2.c FROM MyTable /*+ OPTIONS('source.num-element-to-skip'='1') */ T1, MyTable T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], c0=[$10])
++- LogicalFilter(condition=[=($0, $8)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
+      +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, c0])
++- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, nested_s], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested_s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, c, nested_s], hints=[[[OPTIONS options:{source.num-element-to-skip=1}]]])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, nested_s], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested_s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, c, nested_s])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithLimitPushDown[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.c, T2.c FROM (SELECT * FROM MyTable LIMIT 11) T1, (SELECT * FROM MyTable LIMIT 10) T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], c0=[$9])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalSort(fetch=[11])
+      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalSort(fetch=[10])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, c0])
++- NestedLoopJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], build=[right])
+   :- Calc(select=[a, c])
+   :  +- Limit(offset=[0], fetch=[11], global=[true])
+   :     +- Exchange(distribution=[single])
+   :        +- Limit(offset=[0], fetch=[11], global=[false])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, limit=[11]]], fields=[a, b, c, nested, metadata_1, metadata_2])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[a, c])
+         +- Limit(offset=[0], fetch=[10], global=[true])
+            +- Exchange(distribution=[single])
+               +- Limit(offset=[0], fetch=[10], global=[false])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, limit=[10]]], fields=[a, b, c, nested, metadata_1, metadata_2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithLimitPushDown[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.c, T2.c FROM (SELECT * FROM MyTable LIMIT 11) T1, (SELECT * FROM MyTable LIMIT 10) T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], c0=[$10])
++- LogicalFilter(condition=[=($0, $8)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalSort(fetch=[11])
+      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6], rtime=[$7])
+      :     +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+      :        +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalSort(fetch=[10])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6], rtime=[$7])
+            +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+               +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, c0])
++- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, c])
+   :     +- Limit(offset=[0], fetch=[11])
+   :        +- Exchange(distribution=[single])(reuse_id=[1])
+   :           +- Calc(select=[a, b, c, nested, metadata_1, (metadata_1 * 2) AS compute_metadata, metadata_2, Reinterpret(TO_TIMESTAMP(c, nested.s)) AS rtime])
+   :              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(TO_TIMESTAMP(c, nested.s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c, nested, metadata_1, metadata_2])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c])
+         +- Limit(offset=[0], fetch=[10])
+            +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithMeta1[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.b, T1.metadata_1, T1.metadata_2, T2.c, T2.metadata_2 FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], metadata_1=[$4], metadata_2=[$6], c=[$9], metadata_20=[$13])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, metadata_1, metadata_2, c, metadata_20])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, metadata_1, metadata_2, a0, c, metadata_20], build=[left])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, b, metadata_1, metadata_2])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, metadata_1, metadata_2], metadata=[]]], fields=[a, b, c, metadata_1, metadata_2])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c, metadata_2])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithMeta1[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.b, T1.metadata_1, T1.metadata_2, T2.c, T2.metadata_2 FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], metadata_1=[$4], metadata_2=[$6], c=[$10], metadata_20=[$14])
++- LogicalFilter(condition=[=($0, $8)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, metadata_1, metadata_2, c, metadata_20])
++- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, metadata_1, metadata_2, a0, c, metadata_20], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, b, metadata_1, metadata_2])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, nested_s, metadata_1, metadata_2], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested_s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c, nested_s, metadata_1, metadata_2])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c, metadata_2])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithMeta2[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.b, T1.metadata_1, T2.c, T2.metadata_2 FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], metadata_1=[$4], c=[$9], metadata_2=[$13])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, metadata_1, c, metadata_2])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, metadata_1, a0, c, metadata_2], build=[left])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, b, metadata_1])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, metadata_1, metadata_2], metadata=[]]], fields=[a, b, c, metadata_1, metadata_2])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c, metadata_2])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithMeta2[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.b, T1.metadata_1, T2.c, T2.metadata_2 FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], metadata_1=[$4], c=[$10], metadata_2=[$14])
++- LogicalFilter(condition=[=($0, $8)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, metadata_1, c, metadata_2])
++- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, metadata_1, a0, c, metadata_2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, b, metadata_1])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, nested_s, metadata_1, metadata_2], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested_s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c, nested_s, metadata_1, metadata_2])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c, metadata_2])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithMeta3[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.b, T1.metadata_1, T2.c, T2.metadata_1 FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], metadata_1=[$4], c=[$9], metadata_10=[$11])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, metadata_1, c, metadata_10])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, metadata_1, a0, c, metadata_10], build=[left])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, b, metadata_1])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, metadata_1], metadata=[]]], fields=[a, b, c, metadata_1])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c, metadata_1])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithMeta3[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.b, T1.metadata_1, T2.c, T2.metadata_1 FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], metadata_1=[$4], c=[$10], metadata_10=[$12])
++- LogicalFilter(condition=[=($0, $8)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, metadata_1, c, metadata_10])
++- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, metadata_1, a0, c, metadata_10], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, b, metadata_1])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, nested_s, metadata_1], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested_s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c, nested_s, metadata_1])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c, metadata_1])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithMetaAndCompute[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.b, T1.metadata_1, T1.compute_metadata, T2.c, T2.metadata_2 FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], metadata_1=[$4], compute_metadata=[$5], c=[$9], metadata_2=[$13])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, metadata_1, compute_metadata, c, metadata_2])
++- MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, metadata_1, compute_metadata, a0, c, metadata_2], build=[left])\n:- Calc(select=[a, b, metadata_1, (metadata_1 * 2) AS compute_metadata])\n:  +- [#2] Exchange(distribution=[hash[a]])\n+- [#1] Exchange(distribution=[hash[a]])\n])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, c, metadata_2])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, metadata_1, metadata_2], metadata=[]]], fields=[a, b, c, metadata_1, metadata_2])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, metadata_1])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithMetaAndCompute[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.b, T1.metadata_1, T1.compute_metadata, T2.c, T2.metadata_2 FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], metadata_1=[$4], compute_metadata=[$5], c=[$10], metadata_2=[$14])
++- LogicalFilter(condition=[=($0, $8)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, metadata_1, compute_metadata, c, metadata_2])
++- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, metadata_1, compute_metadata, a0, c, metadata_2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, b, metadata_1, (metadata_1 * 2) AS compute_metadata])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, nested_s, metadata_1, metadata_2], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested_s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c, nested_s, metadata_1, metadata_2])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c, metadata_2])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithPartitionPushDown[isStreaming: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a, T1.c, T2.c FROM (SELECT * FROM MyTable /*+ OPTIONS('partition-list'='c:1;c:2') */ WHERE c = '1') T1, (SELECT * FROM MyTable /*+ OPTIONS('partition-list'='c:1;c:2') */ WHERE c = '2') T2 WHERE T1.a = T2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], c0=[$9])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+      :  +- LogicalFilter(condition=[=($2, _UTF-16LE'1')])
+      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{partition-list=c:1;c:2}]]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+         +- LogicalFilter(condition=[=($2, _UTF-16LE'2')])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{partition-list=c:1;c:2}]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, c0])
++- MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], build=[left])\n:- Calc(select=[a, CAST('1' AS VARCHAR(2147483647)) AS c])\n:  +- [#1] Exchange(distribution=[hash[a]])\n+- Calc(select=[a, CAST('2' AS VARCHAR(2147483647)) AS c])\n   +- [#2] Exchange(distribution=[hash[a]])\n])
+   :- Exchange(distribution=[hash[a]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, partitions=[{c=1}], project=[a], metadata=[]]], fields=[a], hints=[[[OPTIONS options:{partition-list=c:1;c:2}]]])
+   +- Exchange(distribution=[hash[a]])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, partitions=[{c=2}], project=[a], metadata=[]]], fields=[a], hints=[[[OPTIONS options:{partition-list=c:1;c:2}]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReuseWithReadMetadataAndWatermarkPushDown1[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a1, T1.a2 FROM (SELECT a0, window_start, window_end, MIN(a1) as a1, MIN(a2) as a2, MIN(metadata_0) as metadata_0 FROM TABLE(   TUMBLE(TABLE MyTable1, DESCRIPTOR(rowtime), INTERVAL '1' SECOND))  GROUP BY a0, window_start, window_end) T1, (SELECT a0, window_start, window_end, MIN(a1) as a1  FROM TABLE(   TUMBLE(TABLE MyTable1, DESCRIPTOR(rowtime), INTERVAL '1' SECOND))  GROUP BY a0, window_start, window_end) T2 WHERE T1.a1 = T2.a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$3], a2=[$4])
++- LogicalFilter(condition=[=($3, $9)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalAggregate(group=[{0, 1, 2}], a1=[MIN($3)], a2=[MIN($4)], metadata_0=[MIN($5)])
+      :  +- LogicalProject(a0=[$1], window_start=[$6], window_end=[$7], a1=[$2], a2=[$3], metadata_0=[$0])
+      :     +- LogicalTableFunctionScan(invocation=[TUMBLE(DESCRIPTOR($5), 1000:INTERVAL SECOND)], rowType=[RecordType(INTEGER metadata_0, INTEGER a0, INTEGER a1, INTEGER a2, VARCHAR(2147483647) ts, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+      :        +- LogicalProject(metadata_0=[$0], a0=[$1], a1=[$2], a2=[$3], ts=[$4], rowtime=[$5])
+      :           +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+      :              +- LogicalProject(metadata_0=[$4], a0=[$0], a1=[$1], a2=[$2], ts=[$3], rowtime=[TO_TIMESTAMP($3)])
+      :                 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, metadata=[metadata_0]]])
+      +- LogicalAggregate(group=[{0, 1, 2}], a1=[MIN($3)])
+         +- LogicalProject(a0=[$1], window_start=[$6], window_end=[$7], a1=[$2])
+            +- LogicalTableFunctionScan(invocation=[TUMBLE(DESCRIPTOR($5), 1000:INTERVAL SECOND)], rowType=[RecordType(INTEGER metadata_0, INTEGER a0, INTEGER a1, INTEGER a2, VARCHAR(2147483647) ts, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+               +- LogicalProject(metadata_0=[$0], a0=[$1], a1=[$2], a2=[$3], ts=[$4], rowtime=[$5])
+                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+                     +- LogicalProject(metadata_0=[$4], a0=[$0], a1=[$1], a2=[$2], ts=[$3], rowtime=[TO_TIMESTAMP($3)])
+                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, metadata=[metadata_0]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a1, a2])
++- Join(joinType=[InnerJoin], where=[(a1 = a10)], select=[a1, a2, a10], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a1]])
+   :  +- Calc(select=[a1, a2])
+   :     +- GlobalWindowAggregate(groupBy=[a0], window=[TUMBLE(slice_end=[$slice_end], size=[1 s])], select=[a0, MIN(min$0) AS a1, MIN(min$1) AS a2, start('w$) AS window_start, end('w$) AS window_end])
+   :        +- Exchange(distribution=[hash[a0]])
+   :           +- LocalWindowAggregate(groupBy=[a0], window=[TUMBLE(time_col=[rowtime], size=[1 s])], select=[a0, MIN(a1) AS min$0, MIN(a2) AS min$1, slice_end('w$) AS $slice_end])
+   :              +- Calc(select=[a0, a1, a2, metadata_0, Reinterpret(TO_TIMESTAMP(ts)) AS rowtime])
+   :                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, project=[a0, a1, a2, ts, metadata_0], metadata=[metadata_0], watermark=[-(TO_TIMESTAMP(ts), 1000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a0, a1, a2, ts, metadata_0])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a1]])
+      +- Calc(select=[a1])
+         +- GlobalWindowAggregate(groupBy=[a0], window=[TUMBLE(slice_end=[$slice_end], size=[1 s])], select=[a0, MIN(min$0) AS a1, start('w$) AS window_start, end('w$) AS window_end])
+            +- Exchange(distribution=[hash[a0]])
+               +- LocalWindowAggregate(groupBy=[a0], window=[TUMBLE(time_col=[rowtime], size=[1 s])], select=[a0, MIN(a1) AS min$0, slice_end('w$) AS $slice_end])
+                  +- Calc(select=[a0, a1, Reinterpret(TO_TIMESTAMP(ts)) AS rowtime])
+                     +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReuseWithReadMetadataAndWatermarkPushDown2[isStreaming: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT T1.a1, T2.a2 FROM (SELECT a0, window_start, window_end, MIN(a1) as a1  FROM TABLE(   TUMBLE(TABLE MyTable1, DESCRIPTOR(rowtime), INTERVAL '1' SECOND))  GROUP BY a0, window_start, window_end) T1, (SELECT a0, window_start, window_end, MIN(a1) as a1, MIN(a2) as a2, MIN(metadata_0) as metadata_0 FROM TABLE(   TUMBLE(TABLE MyTable1, DESCRIPTOR(rowtime), INTERVAL '1' SECOND))  GROUP BY a0, window_start, window_end) T2 WHERE T1.a1 = T2.a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$3], a2=[$8])
++- LogicalFilter(condition=[=($3, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalAggregate(group=[{0, 1, 2}], a1=[MIN($3)])
+      :  +- LogicalProject(a0=[$1], window_start=[$6], window_end=[$7], a1=[$2])
+      :     +- LogicalTableFunctionScan(invocation=[TUMBLE(DESCRIPTOR($5), 1000:INTERVAL SECOND)], rowType=[RecordType(INTEGER metadata_0, INTEGER a0, INTEGER a1, INTEGER a2, VARCHAR(2147483647) ts, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+      :        +- LogicalProject(metadata_0=[$0], a0=[$1], a1=[$2], a2=[$3], ts=[$4], rowtime=[$5])
+      :           +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+      :              +- LogicalProject(metadata_0=[$4], a0=[$0], a1=[$1], a2=[$2], ts=[$3], rowtime=[TO_TIMESTAMP($3)])
+      :                 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, metadata=[metadata_0]]])
+      +- LogicalAggregate(group=[{0, 1, 2}], a1=[MIN($3)], a2=[MIN($4)], metadata_0=[MIN($5)])
+         +- LogicalProject(a0=[$1], window_start=[$6], window_end=[$7], a1=[$2], a2=[$3], metadata_0=[$0])
+            +- LogicalTableFunctionScan(invocation=[TUMBLE(DESCRIPTOR($5), 1000:INTERVAL SECOND)], rowType=[RecordType(INTEGER metadata_0, INTEGER a0, INTEGER a1, INTEGER a2, VARCHAR(2147483647) ts, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+               +- LogicalProject(metadata_0=[$0], a0=[$1], a1=[$2], a2=[$3], ts=[$4], rowtime=[$5])
+                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+                     +- LogicalProject(metadata_0=[$4], a0=[$0], a1=[$1], a2=[$2], ts=[$3], rowtime=[TO_TIMESTAMP($3)])
+                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, metadata=[metadata_0]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a1, a2])
++- Join(joinType=[InnerJoin], where=[(a1 = a10)], select=[a1, a10, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a1]])
+   :  +- Calc(select=[a1])
+   :     +- GlobalWindowAggregate(groupBy=[a0], window=[TUMBLE(slice_end=[$slice_end], size=[1 s])], select=[a0, MIN(min$0) AS a1, start('w$) AS window_start, end('w$) AS window_end])
+   :        +- Exchange(distribution=[hash[a0]])
+   :           +- LocalWindowAggregate(groupBy=[a0], window=[TUMBLE(time_col=[rowtime], size=[1 s])], select=[a0, MIN(a1) AS min$0, slice_end('w$) AS $slice_end])
+   :              +- Calc(select=[a0, a1, Reinterpret(TO_TIMESTAMP(ts)) AS rowtime])
+   :                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, project=[a0, a1, a2, ts, metadata_0], metadata=[metadata_0], watermark=[-(TO_TIMESTAMP(ts), 1000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a0, a1, a2, ts, metadata_0])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a1]])
+      +- Calc(select=[a1, a2])
+         +- GlobalWindowAggregate(groupBy=[a0], window=[TUMBLE(slice_end=[$slice_end], size=[1 s])], select=[a0, MIN(min$0) AS a1, MIN(min$1) AS a2, start('w$) AS window_start, end('w$) AS window_end])
+            +- Exchange(distribution=[hash[a0]])
+               +- LocalWindowAggregate(groupBy=[a0], window=[TUMBLE(time_col=[rowtime], size=[1 s])], select=[a0, MIN(a1) AS min$0, MIN(a2) AS min$1, slice_end('w$) AS $slice_end])
+                  +- Calc(select=[a0, a1, a2, metadata_0, Reinterpret(TO_TIMESTAMP(ts)) AS rowtime])
+                     +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

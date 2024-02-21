@@ -28,7 +28,7 @@ under the License.
 
 Flink provides different state backends that specify how and where state is stored.
 
-State can be located on Java’s heap or off-heap. Depending on your state backend, Flink can also manage the state for the application, meaning Flink deals with the memory management (possibly spilling to disk if necessary) to allow applications to hold very large state. By default, the configuration file *flink-conf.yaml* determines the state backend for all Flink jobs.
+State can be located on Java’s heap or off-heap. Depending on your state backend, Flink can also manage the state for the application, meaning Flink deals with the memory management (possibly spilling to disk if necessary) to allow applications to hold very large state. By default, the [*Flink configuration file*]({{< ref "docs/deployment/config#flink-configuration-file" >}}) determines the state backend for all Flink jobs.
 
 However, the default state backend can be overridden on a per-job basis, as shown below.
 
@@ -37,8 +37,9 @@ For more information about the available state backends, their advantages, limit
 {{< tabs "65b41d30-c7c8-4b6b-b31b-7ff99b4d341d" >}}
 {{< tab "Java" >}}
 ```java
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setStateBackend(...);
+Configuration config = new Configuration();
+config.set(StateBackendOptions.STATE_BACKEND, "hashmap");
+env.configure(config);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -49,8 +50,9 @@ env.setStateBackend(...)
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-env = StreamExecutionEnvironment.get_execution_environment()
-env.set_state_backend(...)
+config = Configuration()
+config.set_string('state.backend.type', 'hashmap')
+env = StreamExecutionEnvironment.get_execution_environment(config)
 ```
 {{< /tab >}}
 {{< /tabs >}}

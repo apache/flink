@@ -1,5 +1,5 @@
 flink-s3-fs-presto
-Copyright 2014-2023 The Apache Software Foundation
+Copyright 2014-2024 The Apache Software Foundation
 
 This project includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -20,10 +20,10 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.facebook.presto:presto-hive-common:0.272
 - com.facebook.presto:presto-hive-metastore:0.272
 - com.facebook.presto:presto-hive:0.272
-- com.fasterxml.jackson.core:jackson-annotations:2.13.4
-- com.fasterxml.jackson.core:jackson-core:2.13.4
-- com.fasterxml.jackson.core:jackson-databind:2.13.4.2
-- com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.13.4
+- com.fasterxml.jackson.core:jackson-annotations:2.15.3
+- com.fasterxml.jackson.core:jackson-core:2.15.3
+- com.fasterxml.jackson.core:jackson-databind:2.15.3
+- com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.15.3
 - com.fasterxml.woodstox:woodstox-core:5.3.0
 - com.google.guava:guava:26.0-jre
 - com.google.inject:guice:4.2.2
@@ -36,7 +36,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - io.airlift:units:1.3
 - joda-time:joda-time:2.5
 - org.alluxio:alluxio-shaded-client:2.7.3
-- org.apache.commons:commons-compress:1.21
+- org.apache.commons:commons-compress:1.24.0
 - org.apache.commons:commons-configuration2:2.1.1
 - org.apache.commons:commons-lang3:3.12.0
 - org.apache.commons:commons-text:1.10.0
@@ -55,7 +55,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.kerby:kerby-util:1.0.1
 - org.weakref:jmxutils:1.19
 - org.wildfly.openssl:wildfly-openssl:1.0.7.Final
-- org.xerial.snappy:snappy-java:1.1.8.3
+- org.xerial.snappy:snappy-java:1.1.10.4
 - software.amazon.ion:ion-java:1.0.2
 
 This project bundles the following dependencies under BSD-2 License (https://opensource.org/licenses/BSD-2-Clause).

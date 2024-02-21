@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 
 
@@ -36,15 +36,12 @@ under the License.
 
 	<modules>
 		<module>flink-hadoop-compatibility</module>
-		<module>flink-connector-hbase-base</module>
-		<module>flink-connector-hbase-1.4</module>
-		<module>flink-connector-hbase-2.2</module>
 		<module>flink-connector-hive</module>
-		<module>flink-connector-kafka</module>
 		<module>flink-connector-base</module>
 		<module>flink-file-sink-common</module>
 		<module>flink-connector-files</module>
 		<module>flink-connector-datagen</module>
+		<module>flink-connector-datagen-test</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up
@@ -81,11 +78,8 @@ under the License.
 				</property>
 			</activation>
 			<modules>
-				<module>flink-sql-connector-hbase-1.4</module>
-				<module>flink-sql-connector-hbase-2.2</module>
 				<module>flink-sql-connector-hive-2.3.9</module>
 				<module>flink-sql-connector-hive-3.1.3</module>
-				<module>flink-sql-connector-kafka</module>
 			</modules>
 		</profile>
 	</profiles>

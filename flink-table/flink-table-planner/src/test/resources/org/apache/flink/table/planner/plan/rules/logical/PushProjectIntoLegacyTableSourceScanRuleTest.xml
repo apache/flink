@@ -39,14 +39,16 @@ LogicalProject(a=[$0], c=[$2], EXPR$2=[+($1, 1)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], d=[+($0, 1)], EXPR$3=[+($1, 1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a, b, c)]]])
+LogicalProject(a=[$0], c=[$2], d=[$3], EXPR$3=[+($1, 1)])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($0, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], d=[+($0, 1)], EXPR$3=[+($1, 1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a, b, c)]]])
+LogicalProject(a=[$0], c=[$2], d=[$3], EXPR$3=[+($1, 1)])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($0, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a, b, c)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -116,14 +118,16 @@ LogicalProject(a=[$0], EXPR$1=[TRIM(FLAG(BOTH), _UTF-16LE' ', $1)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[my_udf(+($0, 1))])
-+- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a, b, c)]]])
+LogicalProject(a=[$0], EXPR$1=[my_udf($3)])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($0, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[my_udf(+($0, 1))])
-+- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a)]]])
+LogicalProject(a=[$0], EXPR$1=[my_udf($3)])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($0, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a, b, c)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -133,14 +137,16 @@ LogicalProject(a=[$0], EXPR$1=[my_udf(+($0, 1))])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], d=[+($0, 1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a, b, c)]]])
+LogicalProject(a=[$0], d=[$3])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($0, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], d=[+($0, 1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a)]]])
+LogicalProject(a=[$0], d=[$3])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($0, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a, b, c)]]])
 ]]>
     </Resource>
   </TestCase>

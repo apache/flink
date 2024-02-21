@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
@@ -33,6 +34,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.io.network.partition.DataSetMetaInfo;
@@ -42,12 +44,14 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobStatusInfo;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.rest.FileUpload;
+import org.apache.flink.runtime.rest.HttpHeader;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
@@ -57,6 +61,7 @@ import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationInfo;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationResult;
 import org.apache.flink.runtime.rest.handler.async.TriggerResponse;
 import org.apache.flink.runtime.rest.messages.AccumulatorsIncludeSerializedValueQueryParameter;
+import org.apache.flink.runtime.rest.messages.CustomHeadersDecorator;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
@@ -121,12 +126,14 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -148,6 +155,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -180,10 +188,10 @@ class RestClusterClientTest {
 
     static {
         final Configuration config = new Configuration();
-        config.setString(JobManagerOptions.ADDRESS, "localhost");
-        config.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 10);
-        config.setLong(RestOptions.RETRY_DELAY, 0);
-        config.setInteger(RestOptions.PORT, 0);
+        config.set(JobManagerOptions.ADDRESS, "localhost");
+        config.set(RestOptions.RETRY_MAX_ATTEMPTS, 10);
+        config.set(RestOptions.RETRY_DELAY, 0L);
+        config.set(RestOptions.PORT, 0);
 
         restConfig = config;
     }
@@ -214,7 +222,7 @@ class RestClusterClientTest {
 
     private RestClusterClient<StandaloneClusterId> createRestClusterClient(
             int port, Configuration clientConfig) throws Exception {
-        clientConfig.setInteger(RestOptions.PORT, port);
+        clientConfig.set(RestOptions.PORT, port);
         return new RestClusterClient<>(
                 clientConfig,
                 createRestClient(),
@@ -683,20 +691,58 @@ class RestClusterClientTest {
     /** Tests that command line options override the configuration settings. */
     @Test
     void testRESTManualConfigurationOverride() throws Exception {
-        final String configuredHostname = "localhost";
-        final int configuredPort = 1234;
-        final Configuration configuration = new Configuration();
-
-        configuration.setString(JobManagerOptions.ADDRESS, configuredHostname);
-        configuration.setInteger(JobManagerOptions.PORT, configuredPort);
-        configuration.setString(RestOptions.ADDRESS, configuredHostname);
-        configuration.setInteger(RestOptions.PORT, configuredPort);
-
-        final DefaultCLI defaultCLI = new DefaultCLI();
-
         final String manualHostname = "123.123.123.123";
         final int manualPort = 4321;
+        final String httpProtocol = "http";
         final String[] args = {"-m", manualHostname + ':' + manualPort};
+
+        final RestClusterClient<?> clusterClient = getRestClusterClient(args);
+
+        URL webMonitorBaseUrl = clusterClient.getWebMonitorBaseUrl().get();
+        assertThat(webMonitorBaseUrl).hasHost(manualHostname).hasPort(manualPort);
+        assertThat(clusterClient.getJobmanagerUrl())
+                .hasHost(manualHostname)
+                .hasPort(manualPort)
+                .hasNoPath()
+                .hasProtocol(httpProtocol);
+        assertThat(clusterClient.getCustomHttpHeaders()).isEmpty();
+
+        final String urlPath = "/some/path/here/index.html";
+        final String httpsProtocol = "https";
+        final String[] httpsUrlArgs = {
+            "-m", httpsProtocol + "://" + manualHostname + ':' + manualPort + urlPath
+        };
+
+        final Map<String, String> envMap =
+                Collections.singletonMap(
+                        ConfigConstants.FLINK_REST_CLIENT_HEADERS,
+                        "Cookie:authCookie=12:345\nCustomHeader:value1,value2\nMalformedHeaderSkipped");
+        org.apache.flink.core.testutils.CommonTestUtils.setEnv(envMap);
+
+        final RestClusterClient<?> newClusterClient = getRestClusterClient(httpsUrlArgs);
+        assertThat(newClusterClient.getWebMonitorBaseUrl().get())
+                .hasHost(manualHostname)
+                .hasPort(manualPort);
+
+        final URL jobManagerUrl = newClusterClient.getJobmanagerUrl();
+        assertThat(jobManagerUrl)
+                .hasHost(manualHostname)
+                .hasPort(manualPort)
+                .hasPath(urlPath)
+                .hasProtocol(httpsProtocol);
+
+        final List<HttpHeader> customHttpHeaders =
+                new ArrayList<>(newClusterClient.getCustomHttpHeaders());
+        final HttpHeader expectedHeader1 = new HttpHeader("Cookie", "authCookie=12:345");
+        final HttpHeader expectedHeader2 = new HttpHeader("CustomHeader", "value1,value2");
+        assertThat(customHttpHeaders).hasSize(2);
+        assertThat(customHttpHeaders.get(0)).isEqualTo(expectedHeader1);
+        assertThat(customHttpHeaders.get(1)).isEqualTo(expectedHeader2);
+    }
+
+    private static RestClusterClient<?> getRestClusterClient(String[] args)
+            throws CliArgsException, FlinkException {
+        final DefaultCLI defaultCLI = new DefaultCLI();
 
         CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
 
@@ -714,9 +760,7 @@ class RestClusterClientTest {
                         clusterDescriptor
                                 .retrieve(clusterFactory.getClusterId(executorConfig))
                                 .getClusterClient();
-
-        URL webMonitorBaseUrl = clusterClient.getWebMonitorBaseUrl().get();
-        assertThat(webMonitorBaseUrl).hasHost(manualHostname).hasPort(manualPort);
+        return clusterClient;
     }
 
     /** Tests that the send operation is being retried. */
@@ -866,6 +910,11 @@ class RestClusterClientTest {
         final AtomicBoolean firstSubmitRequestFailed = new AtomicBoolean(false);
         failHttpRequest =
                 (messageHeaders, messageParameters, requestBody) -> {
+                    messageHeaders =
+                            ((UrlPrefixDecorator)
+                                            ((CustomHeadersDecorator) messageHeaders)
+                                                    .getDecorated())
+                                    .getDecorated();
                     if (messageHeaders instanceof JobExecutionResultHeaders) {
                         return !firstExecutionResultPollFailed.getAndSet(true);
                     }
@@ -972,6 +1021,33 @@ class RestClusterClientTest {
             }
             fail("Should failed with exception");
         }
+    }
+
+    @Test
+    void testJobGraphFileCleanedUpOnJobSubmissionFailure() throws Exception {
+        final Path jobGraphFileDir = getTempDir();
+        try (final TestRestServerEndpoint restServerEndpoint =
+                createRestServerEndpoint(new SubmissionFailingHandler())) {
+            try (RestClusterClient<?> restClusterClient =
+                    createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
+                assertThatThrownBy(() -> restClusterClient.submitJob(jobGraph).join())
+                        .hasCauseInstanceOf(JobSubmissionException.class);
+                try (Stream<Path> files = Files.list(jobGraphFileDir)) {
+                    assertThat(files)
+                            .noneMatch(
+                                    path ->
+                                            path.toString()
+                                                    .contains(jobGraph.getJobID().toString()));
+                }
+            }
+        }
+    }
+
+    private static Path getTempDir() throws IOException {
+        Path tempFile = Files.createTempFile("test", ".bin");
+        Path tempDir = tempFile.getParent();
+        Files.delete(tempFile);
+        return tempDir;
     }
 
     private final class SubmissionFailingHandler
@@ -1109,6 +1185,32 @@ class RestClusterClientTest {
         }
     }
 
+    @Test
+    void testSendCoordinationRequestException() throws Exception {
+        final TestClientCoordinationHandler handler =
+                new TestClientCoordinationHandler(new FlinkJobNotFoundException(jobId));
+        try (TestRestServerEndpoint restServerEndpoint = createRestServerEndpoint(handler)) {
+            try (RestClusterClient<?> restClusterClient =
+                    createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
+                String payload = "testing payload";
+                TestCoordinationRequest<String> request = new TestCoordinationRequest<>(payload);
+
+                assertThatThrownBy(
+                                () ->
+                                        restClusterClient
+                                                .sendCoordinationRequest(
+                                                        jobId, new OperatorID(), request)
+                                                .get())
+                        .matches(
+                                e ->
+                                        ExceptionUtils.findThrowableWithMessage(
+                                                        e,
+                                                        FlinkJobNotFoundException.class.getName())
+                                                .isPresent());
+            }
+        }
+    }
+
     /**
      * The SUSPENDED job status should never be returned by the client thus client retries until it
      * either receives a different job status or the cluster is not reachable.
@@ -1139,9 +1241,15 @@ class RestClusterClientTest {
                     ClientCoordinationRequestBody,
                     ClientCoordinationResponseBody,
                     ClientCoordinationMessageParameters> {
+        @Nullable private final FlinkJobNotFoundException exception;
 
         private TestClientCoordinationHandler() {
+            this(null);
+        }
+
+        private TestClientCoordinationHandler(@Nullable FlinkJobNotFoundException exception) {
             super(ClientCoordinationHeaders.getInstance());
+            this.exception = exception;
         }
 
         @Override
@@ -1151,6 +1259,9 @@ class RestClusterClientTest {
                 @Nonnull DispatcherGateway gateway)
                 throws RestHandlerException {
             try {
+                if (exception != null) {
+                    throw exception;
+                }
                 TestCoordinationRequest req =
                         (TestCoordinationRequest)
                                 request.getRequestBody()

@@ -386,7 +386,7 @@ Collection-based:
 - `fromParallelCollection(SplittableIterator, Class)` - Creates a data stream from an iterator, in
   parallel. The class specifies the data type of the elements returned by the iterator.
 
-- `generateSequence(from, to)` - Generates the sequence of numbers in the given interval, in
+- `fromSequence(from, to)` - Generates the sequence of numbers in the given interval, in
   parallel.
 
 Custom:
@@ -441,7 +441,7 @@ Collection-based:
 - `fromParallelCollection(SplittableIterator)` - Creates a data stream from an iterator, in
   parallel. The class specifies the data type of the elements returned by the iterator.
 
-- `generateSequence(from, to)` - Generates the sequence of numbers in the given interval, in
+- `fromSequence(from, to)` - Generates the sequence of numbers in the given interval, in
   parallel.
 
 Custom:
@@ -528,108 +528,6 @@ in the target system. Also, in failure cases, those records might be lost.
 For reliable, exactly-once delivery of a stream into a file system, use the `FileSink`.
 Also, custom implementations through the `.addSink(...)` method can participate in Flink's checkpointing
 for exactly-once semantics.
-
-{{< top >}}
-
-Iterations
-----------
-
-{{< tabs "c4cc97af-7ce1-4333-a010-3072b34d5540" >}}
-{{< tab "Java" >}}
-
-Iterative streaming programs implement a step function and embed it into an `IterativeStream`. As a DataStream
-program may never finish, there is no maximum number of iterations. Instead, you need to specify which part
-of the stream is fed back to the iteration and which part is forwarded downstream using a [side output]({{< ref "docs/dev/datastream/side_output" >}})
-or a `filter`. Here, we show an example using filters. First, we define an `IterativeStream`
-
-```java
-IterativeStream<Integer> iteration = input.iterate();
-```
-
-Then, we specify the logic that will be executed inside the loop using a series of transformations (here
-a simple `map` transformation)
-
-```java
-DataStream<Integer> iterationBody = iteration.map(/* this is executed many times */);
-```
-
-To close an iteration and define the iteration tail, call the `closeWith(feedbackStream)` method of the `IterativeStream`.
-The DataStream given to the `closeWith` function will be fed back to the iteration head.
-A common pattern is to use a filter to separate the part of the stream that is fed back,
-and the part of the stream which is propagated forward. These filters can, e.g., define
-the "termination" logic, where an element is allowed to propagate downstream rather
-than being fed back.
-
-```java
-iteration.closeWith(iterationBody.filter(/* one part of the stream */));
-DataStream<Integer> output = iterationBody.filter(/* some other part of the stream */);
-```
-
-For example, here is program that continuously subtracts 1 from a series of integers until they reach zero:
-
-```java
-DataStream<Long> someIntegers = env.generateSequence(0, 1000);
-
-IterativeStream<Long> iteration = someIntegers.iterate();
-
-DataStream<Long> minusOne = iteration.map(new MapFunction<Long, Long>() {
-  @Override
-  public Long map(Long value) throws Exception {
-    return value - 1 ;
-  }
-});
-
-DataStream<Long> stillGreaterThanZero = minusOne.filter(new FilterFunction<Long>() {
-  @Override
-  public boolean filter(Long value) throws Exception {
-    return (value > 0);
-  }
-});
-
-iteration.closeWith(stillGreaterThanZero);
-
-DataStream<Long> lessThanZero = minusOne.filter(new FilterFunction<Long>() {
-  @Override
-  public boolean filter(Long value) throws Exception {
-    return (value <= 0);
-  }
-});
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-
-Iterative streaming programs implement a step function and embed it into an `IterativeStream`. As a DataStream
-program may never finish, there is no maximum number of iterations. Instead, you need to specify which part
-of the stream is fed back to the iteration and which part is forwarded downstream using a [side output]({{< ref "docs/dev/datastream/side_output" >}})
-or a `filter`. Here, we show an example iteration where the body (the part of the computation that is repeated)
-is a simple map transformation, and the elements that are fed back are distinguished by the elements that
-are forwarded downstream using filters.
-
-```scala
-val iteratedStream = someDataStream.iterate(
-  iteration => {
-    val iterationBody = iteration.map(/* this is executed many times */)
-    (iterationBody.filter(/* one part of the stream */), iterationBody.filter(/* some other part of the stream */))
-})
-```
-
-For example, here is program that continuously subtracts 1 from a series of integers until they reach zero:
-
-```scala
-val someIntegers: DataStream[Long] = env.generateSequence(0, 1000)
-
-val iteratedStream = someIntegers.iterate(
-  iteration => {
-    val minusOne = iteration.map( v => v - 1)
-    val stillGreaterThanZero = minusOne.filter (_ > 0)
-    val lessThanZero = minusOne.filter(_ <= 0)
-    (stillGreaterThanZero, lessThanZero)
-  }
-)
-```
-
-{{< /tab >}}
-{{< /tabs >}}
 
 {{< top >}}
 

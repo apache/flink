@@ -18,13 +18,25 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.InlineElement;
+import org.apache.flink.configuration.description.TextElement;
+
+import org.apache.commons.compress.utils.Sets;
 
 import java.time.Duration;
+import java.util.Set;
 
+import static org.apache.flink.configuration.RestartStrategyOptions.RESTART_STRATEGY_CONFIG_PREFIX;
+import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.EXPONENTIAL_DELAY;
+import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.FAILURE_RATE;
+import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.FIXED_DELAY;
+import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.NO_RESTART_STRATEGY;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
@@ -40,21 +52,71 @@ import static org.apache.flink.configuration.description.TextElement.text;
         groups = {
             @ConfigGroup(
                     name = "ExponentialDelayRestartStrategy",
-                    keyPrefix = "restart-strategy.exponential-delay"),
+                    keyPrefix = RESTART_STRATEGY_CONFIG_PREFIX + ".exponential-delay"),
             @ConfigGroup(
                     name = "FixedDelayRestartStrategy",
-                    keyPrefix = "restart-strategy.fixed-delay"),
+                    keyPrefix = RESTART_STRATEGY_CONFIG_PREFIX + ".fixed-delay"),
             @ConfigGroup(
                     name = "FailureRateRestartStrategy",
-                    keyPrefix = "restart-strategy.failure-rate")
+                    keyPrefix = RESTART_STRATEGY_CONFIG_PREFIX + ".failure-rate")
         })
 public class RestartStrategyOptions {
 
+    @Internal public static final String RESTART_STRATEGY_CONFIG_PREFIX = "restart-strategy";
+
+    /** The restart strategy type. */
+    @Internal
+    public enum RestartStrategyType {
+        NO_RESTART_STRATEGY("disable", Sets.newHashSet("none", "off")),
+        FIXED_DELAY("fixed-delay", Sets.newHashSet("fixeddelay")),
+        FAILURE_RATE("failure-rate", Sets.newHashSet("failurerate")),
+        EXPONENTIAL_DELAY("exponential-delay", Sets.newHashSet("exponentialdelay"));
+
+        private final String mainValue;
+        private final Set<String> allAvailableValues;
+
+        RestartStrategyType(String mainValue, Set<String> otherAvailableValues) {
+            this.mainValue = mainValue;
+            this.allAvailableValues = Sets.newHashSet(mainValue);
+            allAvailableValues.addAll(otherAvailableValues);
+        }
+
+        /** Return the corresponding RestartStrategyType based on the displayed value. */
+        public static RestartStrategyType of(String value) {
+            for (RestartStrategyType restartStrategyType : RestartStrategyType.values()) {
+                if (restartStrategyType.getAllAvailableValues().contains(value)) {
+                    return restartStrategyType;
+                }
+            }
+            throw new IllegalArgumentException(
+                    String.format("%s is an unknown value of RestartStrategyType.", value));
+        }
+
+        public String getMainValue() {
+            return mainValue;
+        }
+
+        public Set<String> getAllAvailableValues() {
+            return allAvailableValues;
+        }
+
+        public TextElement[] getAllTextElement() {
+            return allAvailableValues.stream().map(TextElement::code).toArray(TextElement[]::new);
+        }
+    }
+
+    private static InlineElement[] concat(InlineElement[] first, InlineElement... second) {
+        InlineElement[] result = new InlineElement[first.length + second.length];
+        System.arraycopy(first, 0, result, 0, first.length);
+        System.arraycopy(second, 0, result, first.length, second.length);
+        return result;
+    }
+
     public static final ConfigOption<String> RESTART_STRATEGY =
-            ConfigOptions.key("restart-strategy.type")
+            ConfigOptions.key(RESTART_STRATEGY_CONFIG_PREFIX + ".type")
                     .stringType()
                     .noDefaultValue()
-                    .withDeprecatedKeys("restart-strategy")
+                    .withDeprecatedKeys(RESTART_STRATEGY_CONFIG_PREFIX)
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -64,50 +126,50 @@ public class RestartStrategyOptions {
                                     .list(
                                             text(
                                                     "%s, %s, %s: No restart strategy.",
-                                                    code("none"), code("off"), code("disable")),
+                                                    NO_RESTART_STRATEGY.getAllTextElement()),
                                             text(
                                                     "%s, %s: Fixed delay restart strategy. More details can be found %s.",
-                                                    code("fixeddelay"),
-                                                    code("fixed-delay"),
-                                                    link(
-                                                            "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/state/task_failure_recovery#fixed-delay-restart-strategy",
-                                                            "here")),
+                                                    concat(
+                                                            FIXED_DELAY.getAllTextElement(),
+                                                            link(
+                                                                    "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/state/task_failure_recovery#fixed-delay-restart-strategy",
+                                                                    "here"))),
                                             text(
                                                     "%s, %s: Failure rate restart strategy. More details can be found %s.",
-                                                    code("failurerate"),
-                                                    code("failure-rate"),
-                                                    link(
-                                                            "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/state/task_failure_recovery#failure-rate-restart-strategy",
-                                                            "here")),
+                                                    concat(
+                                                            FAILURE_RATE.getAllTextElement(),
+                                                            link(
+                                                                    "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/state/task_failure_recovery#failure-rate-restart-strategy",
+                                                                    "here"))),
                                             text(
                                                     "%s, %s: Exponential delay restart strategy. More details can be found %s.",
-                                                    code("exponentialdelay"),
-                                                    code("exponential-delay"),
-                                                    link(
-                                                            "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/state/task_failure_recovery#exponential-delay-restart-strategy",
-                                                            "here")))
+                                                    concat(
+                                                            EXPONENTIAL_DELAY.getAllTextElement(),
+                                                            link(
+                                                                    "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/state/task_failure_recovery#exponential-delay-restart-strategy",
+                                                                    "here"))))
                                     .text(
                                             "If checkpointing is disabled, the default value is %s. "
-                                                    + "If checkpointing is enabled, the default value is %s with %s restart attempts and '%s' delay.",
-                                            code("none"),
-                                            code("fixed-delay"),
-                                            code("Integer.MAX_VALUE"),
-                                            code("1 s"))
+                                                    + "If checkpointing is enabled, the default value is %s, and the default values of %s related config options will be used.",
+                                            code(NO_RESTART_STRATEGY.getMainValue()),
+                                            code(EXPONENTIAL_DELAY.getMainValue()),
+                                            code(EXPONENTIAL_DELAY.getMainValue()))
                                     .build());
 
     public static final ConfigOption<Integer> RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS =
-            ConfigOptions.key("restart-strategy.fixed-delay.attempts")
+            ConfigOptions.key(RESTART_STRATEGY_CONFIG_PREFIX + ".fixed-delay.attempts")
                     .intType()
                     .defaultValue(1)
                     .withDescription(
                             Description.builder()
                                     .text(
                                             "The number of times that Flink retries the execution before the job is declared as failed if %s has been set to %s.",
-                                            code(RESTART_STRATEGY.key()), code("fixed-delay"))
+                                            code(RESTART_STRATEGY.key()),
+                                            code(FIXED_DELAY.getMainValue()))
                                     .build());
 
     public static final ConfigOption<Duration> RESTART_STRATEGY_FIXED_DELAY_DELAY =
-            ConfigOptions.key("restart-strategy.fixed-delay.delay")
+            ConfigOptions.key(RESTART_STRATEGY_CONFIG_PREFIX + ".fixed-delay.delay")
                     .durationType()
                     .defaultValue(Duration.ofSeconds(1))
                     .withDescription(
@@ -117,12 +179,15 @@ public class RestartStrategyOptions {
                                                     + "Delaying the retries can be helpful when the program interacts with external systems where "
                                                     + "for example connections or pending transactions should reach a timeout before re-execution "
                                                     + "is attempted. It can be specified using notation: \"1 min\", \"20 s\"",
-                                            code(RESTART_STRATEGY.key()), code("fixed-delay"))
+                                            code(RESTART_STRATEGY.key()),
+                                            code(FIXED_DELAY.getMainValue()))
                                     .build());
 
     public static final ConfigOption<Integer>
             RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL =
-                    ConfigOptions.key("restart-strategy.failure-rate.max-failures-per-interval")
+                    ConfigOptions.key(
+                                    RESTART_STRATEGY_CONFIG_PREFIX
+                                            + ".failure-rate.max-failures-per-interval")
                             .intType()
                             .defaultValue(1)
                             .withDescription(
@@ -130,11 +195,12 @@ public class RestartStrategyOptions {
                                             .text(
                                                     "Maximum number of restarts in given time interval before failing a job if %s has been set to %s.",
                                                     code(RESTART_STRATEGY.key()),
-                                                    code("failure-rate"))
+                                                    code(FAILURE_RATE.getMainValue()))
                                             .build());
 
     public static final ConfigOption<Duration> RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL =
-            ConfigOptions.key("restart-strategy.failure-rate.failure-rate-interval")
+            ConfigOptions.key(
+                            RESTART_STRATEGY_CONFIG_PREFIX + ".failure-rate.failure-rate-interval")
                     .durationType()
                     .defaultValue(Duration.ofMinutes(1))
                     .withDescription(
@@ -142,11 +208,12 @@ public class RestartStrategyOptions {
                                     .text(
                                             "Time interval for measuring failure rate if %s has been set to %s. "
                                                     + "It can be specified using notation: \"1 min\", \"20 s\"",
-                                            code(RESTART_STRATEGY.key()), code("failure-rate"))
+                                            code(RESTART_STRATEGY.key()),
+                                            code(FAILURE_RATE.getMainValue()))
                                     .build());
 
     public static final ConfigOption<Duration> RESTART_STRATEGY_FAILURE_RATE_DELAY =
-            ConfigOptions.key("restart-strategy.failure-rate.delay")
+            ConfigOptions.key(RESTART_STRATEGY_CONFIG_PREFIX + ".failure-rate.delay")
                     .durationType()
                     .defaultValue(Duration.ofSeconds(1))
                     .withDescription(
@@ -154,11 +221,12 @@ public class RestartStrategyOptions {
                                     .text(
                                             "Delay between two consecutive restart attempts if %s has been set to %s. "
                                                     + "It can be specified using notation: \"1 min\", \"20 s\"",
-                                            code(RESTART_STRATEGY.key()), code("failure-rate"))
+                                            code(RESTART_STRATEGY.key()),
+                                            code(FAILURE_RATE.getMainValue()))
                                     .build());
 
     public static final ConfigOption<Duration> RESTART_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF =
-            ConfigOptions.key("restart-strategy.exponential-delay.initial-backoff")
+            ConfigOptions.key(RESTART_STRATEGY_CONFIG_PREFIX + ".exponential-delay.initial-backoff")
                     .durationType()
                     .defaultValue(Duration.ofSeconds(1))
                     .withDescription(
@@ -166,36 +234,43 @@ public class RestartStrategyOptions {
                                     .text(
                                             "Starting duration between restarts if %s has been set to %s. "
                                                     + "It can be specified using notation: \"1 min\", \"20 s\"",
-                                            code(RESTART_STRATEGY.key()), code("exponential-delay"))
+                                            code(RESTART_STRATEGY.key()),
+                                            code(EXPONENTIAL_DELAY.getMainValue()))
                                     .build());
 
     public static final ConfigOption<Duration> RESTART_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF =
-            ConfigOptions.key("restart-strategy.exponential-delay.max-backoff")
+            ConfigOptions.key(RESTART_STRATEGY_CONFIG_PREFIX + ".exponential-delay.max-backoff")
                     .durationType()
-                    .defaultValue(Duration.ofMinutes(5))
+                    .defaultValue(Duration.ofMinutes(1))
                     .withDescription(
                             Description.builder()
                                     .text(
                                             "The highest possible duration between restarts if %s has been set to %s. "
                                                     + "It can be specified using notation: \"1 min\", \"20 s\"",
-                                            code(RESTART_STRATEGY.key()), code("exponential-delay"))
+                                            code(RESTART_STRATEGY.key()),
+                                            code(EXPONENTIAL_DELAY.getMainValue()))
                                     .build());
 
     public static final ConfigOption<Double> RESTART_STRATEGY_EXPONENTIAL_DELAY_BACKOFF_MULTIPLIER =
-            ConfigOptions.key("restart-strategy.exponential-delay.backoff-multiplier")
+            ConfigOptions.key(
+                            RESTART_STRATEGY_CONFIG_PREFIX
+                                    + ".exponential-delay.backoff-multiplier")
                     .doubleType()
-                    .defaultValue(2.0)
+                    .defaultValue(1.5)
                     .withDescription(
                             Description.builder()
                                     .text(
                                             "Backoff value is multiplied by this value after every failure,"
                                                     + "until max backoff is reached if %s has been set to %s.",
-                                            code(RESTART_STRATEGY.key()), code("exponential-delay"))
+                                            code(RESTART_STRATEGY.key()),
+                                            code(EXPONENTIAL_DELAY.getMainValue()))
                                     .build());
 
     public static final ConfigOption<Duration>
             RESTART_STRATEGY_EXPONENTIAL_DELAY_RESET_BACKOFF_THRESHOLD =
-                    ConfigOptions.key("restart-strategy.exponential-delay.reset-backoff-threshold")
+                    ConfigOptions.key(
+                                    RESTART_STRATEGY_CONFIG_PREFIX
+                                            + ".exponential-delay.reset-backoff-threshold")
                             .durationType()
                             .defaultValue(Duration.ofHours(1))
                             .withDescription(
@@ -206,11 +281,11 @@ public class RestartStrategyOptions {
                                                             + "to reset the exponentially increasing backoff to its initial value. "
                                                             + "It can be specified using notation: \"1 min\", \"20 s\"",
                                                     code(RESTART_STRATEGY.key()),
-                                                    code("exponential-delay"))
+                                                    code(EXPONENTIAL_DELAY.getMainValue()))
                                             .build());
 
     public static final ConfigOption<Double> RESTART_STRATEGY_EXPONENTIAL_DELAY_JITTER_FACTOR =
-            ConfigOptions.key("restart-strategy.exponential-delay.jitter-factor")
+            ConfigOptions.key(RESTART_STRATEGY_CONFIG_PREFIX + ".exponential-delay.jitter-factor")
                     .doubleType()
                     .defaultValue(0.1)
                     .withDescription(
@@ -219,7 +294,22 @@ public class RestartStrategyOptions {
                                             "Jitter specified as a portion of the backoff if %s has been set to %s. "
                                                     + "It represents how large random value will be added or subtracted to the backoff. "
                                                     + "Useful when you want to avoid restarting multiple jobs at the same time.",
-                                            code(RESTART_STRATEGY.key()), code("exponential-delay"))
+                                            code(RESTART_STRATEGY.key()),
+                                            code(EXPONENTIAL_DELAY.getMainValue()))
+                                    .build());
+
+    @Documentation.OverrideDefault("infinite")
+    public static final ConfigOption<Integer> RESTART_STRATEGY_EXPONENTIAL_DELAY_ATTEMPTS =
+            ConfigOptions.key("restart-strategy.exponential-delay.attempts-before-reset-backoff")
+                    .intType()
+                    .defaultValue(Integer.MAX_VALUE)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The number of times that Flink retries the execution before failing the job if %s has been set to %s. "
+                                                    + "The number will be reset once the backoff is reset to its initial value.",
+                                            code(RESTART_STRATEGY.key()),
+                                            code(EXPONENTIAL_DELAY.getMainValue()))
                                     .build());
 
     private RestartStrategyOptions() {

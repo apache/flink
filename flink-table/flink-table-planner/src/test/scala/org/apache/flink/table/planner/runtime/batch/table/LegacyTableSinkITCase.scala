@@ -17,16 +17,18 @@
  */
 package org.apache.flink.table.planner.runtime.batch.table
 
+import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil
-import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.test.util.TestBaseUtils
 
-import org.junit._
-import org.junit.Assert._
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{Disabled, Test}
+import org.junit.jupiter.api.extension.RegisterExtension
 
 import java.util.TimeZone
 
@@ -34,8 +36,8 @@ import scala.collection.JavaConverters._
 
 class LegacyTableSinkITCase extends BatchTestBase {
 
-  @Rule
-  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
   @Test
   def testDecimalOutputFormatTableSink(): Unit = {
@@ -90,7 +92,7 @@ class LegacyTableSinkITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results, expected)
   }
 
-  @Ignore
+  @Disabled
   @Test
   def testDecimalForLegacyTypeTableSink(): Unit = {
     MemoryTableSourceSinkUtil.clear()
@@ -159,7 +161,7 @@ class LegacyTableSinkITCase extends BatchTestBase {
 
     val result = sink.getUpsertResults.sorted
     val expected = List("1,0.1", "2,0.4", "3,1.0", "4,2.2", "5,3.9").sorted
-    assertEquals(expected, result)
+    assertThat(result).isEqualTo(expected)
   }
 
   @Test
@@ -176,7 +178,7 @@ class LegacyTableSinkITCase extends BatchTestBase {
 
     val result = sink.getRawResults.sorted
     val expected = List("(true,1,0.1)", "(true,2,0.2)", "(true,2,0.2)").sorted
-    assertEquals(expected, result)
+    assertThat(result).isEqualTo(expected)
   }
 
   private def prepareForRetractSink(): TestingRetractTableSink = {
@@ -208,6 +210,6 @@ class LegacyTableSinkITCase extends BatchTestBase {
     val result = sink.getRawResults.sorted
     val expected =
       List("(true,1,0.1)", "(true,2,0.4)", "(true,3,1.0)", "(true,4,2.2)", "(true,5,3.9)").sorted
-    assertEquals(expected, result)
+    assertThat(result).isEqualTo(expected)
   }
 }

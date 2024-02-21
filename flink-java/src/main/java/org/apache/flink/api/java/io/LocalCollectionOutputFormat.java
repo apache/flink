@@ -32,7 +32,16 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-/** An output format that adds records to a collection. */
+/**
+ * An output format that adds records to a collection.
+ *
+ * @deprecated All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a
+ *     future Flink major version. You can still build your application in DataSet, but you should
+ *     move to either the DataStream and/or Table API.
+ * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
+ *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet API</a>
+ */
+@Deprecated
 @PublicEvolving
 public class LocalCollectionOutputFormat<T> extends RichOutputFormat<T>
         implements InputTypeConfigurable {
@@ -90,6 +99,7 @@ public class LocalCollectionOutputFormat<T> extends RichOutputFormat<T>
     @Override
     @SuppressWarnings("unchecked")
     public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
-        this.typeSerializer = (TypeSerializer<T>) type.createSerializer(executionConfig);
+        this.typeSerializer =
+                (TypeSerializer<T>) type.createSerializer(executionConfig.getSerializerConfig());
     }
 }

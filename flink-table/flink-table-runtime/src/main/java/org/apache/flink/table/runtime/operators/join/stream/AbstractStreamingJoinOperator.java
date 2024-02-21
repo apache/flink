@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.join.stream;
 
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -60,7 +60,8 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 
     private final boolean[] filterNullKeys;
 
-    protected final long stateRetentionTime;
+    protected final long leftStateRetentionTime;
+    protected final long rightStateRetentionTime;
 
     protected transient JoinConditionWithNullFilters joinCondition;
     protected transient TimestampedCollector<RowData> collector;
@@ -72,13 +73,15 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
             JoinInputSideSpec leftInputSideSpec,
             JoinInputSideSpec rightInputSideSpec,
             boolean[] filterNullKeys,
-            long stateRetentionTime) {
+            long leftStateRetentionTime,
+            long rightStateRetentionTime) {
         this.leftType = leftType;
         this.rightType = rightType;
         this.generatedJoinCondition = generatedJoinCondition;
         this.leftInputSideSpec = leftInputSideSpec;
         this.rightInputSideSpec = rightInputSideSpec;
-        this.stateRetentionTime = stateRetentionTime;
+        this.leftStateRetentionTime = leftStateRetentionTime;
+        this.rightStateRetentionTime = rightStateRetentionTime;
         this.filterNullKeys = filterNullKeys;
     }
 
@@ -89,7 +92,7 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
                 generatedJoinCondition.newInstance(getRuntimeContext().getUserCodeClassLoader());
         this.joinCondition = new JoinConditionWithNullFilters(condition, filterNullKeys, this);
         this.joinCondition.setRuntimeContext(getRuntimeContext());
-        this.joinCondition.open(new Configuration());
+        this.joinCondition.open(DefaultOpenContext.INSTANCE);
 
         this.collector = new TimestampedCollector<>(output);
     }

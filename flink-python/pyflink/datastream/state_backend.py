@@ -280,7 +280,7 @@ class EmbeddedRocksDBStateBackend(StateBackend):
         Sets the predefined options for RocksDB.
 
         If user-configured options within ``RocksDBConfigurableOptions`` is set (through
-        flink-conf.yaml) or a user-defined options factory is set (via :func:`setOptions`),
+        config.yaml) or a user-defined options factory is set (via :func:`setOptions`),
         then the options from the factory are applied on top of the here specified
         predefined options and customized options.
 
@@ -301,7 +301,7 @@ class EmbeddedRocksDBStateBackend(StateBackend):
         are :data:`PredefinedOptions.DEFAULT`.
 
         If user-configured options within ``RocksDBConfigurableOptions`` is set (through
-        flink-conf.yaml) or a user-defined options factory is set (via :func:`setOptions`),
+        config.yaml) or a user-defined options factory is set (via :func:`setOptions`),
         then the options from the factory are applied on top of the predefined and customized
         options.
 
@@ -320,7 +320,7 @@ class EmbeddedRocksDBStateBackend(StateBackend):
 
         The options created by the factory here are applied on top of the pre-defined
         options profile selected via :func:`set_predefined_options`  and user-configured
-        options from configuration set through flink-conf.yaml with keys in
+        options from configuration set through config.yaml with keys in
         ``RocksDBConfigurableOptions``.
 
         :param options_factory_class_name: The fully-qualified class name of the options
@@ -383,7 +383,7 @@ class MemoryStateBackend(StateBackend):
         >> env.set_state_backend(HashMapStateBackend())
         >> env.get_checkpoint_config().set_checkpoint_storage(JobManagerCheckpointStorage())
 
-    If you are configuring your state backend via the `flink-conf.yaml` please make the following
+    If you are configuring your state backend via the `config.yaml` please make the following
     changes.
 
     ```
@@ -535,7 +535,7 @@ class FsStateBackend(StateBackend):
         >> env.set_state_backend(HashMapStateBackend())
         >> env.get_checkpoint_config().set_checkpoint_storage("hdfs://checkpoints")
 
-    If you are configuring your state backend via the `flink-conf.yaml` please set your state
+    If you are configuring your state backend via the `config.yaml` please set your state
     backend type to `hashmap`.
 
     This state backend holds the working state in the memory (JVM heap) of the TaskManagers.
@@ -717,7 +717,7 @@ class RocksDBStateBackend(StateBackend):
         >> env.set_state_backend(EmbeddedRocksDBStateBackend())
         >> env.get_checkpoint_config().set_checkpoint_storage("hdfs://checkpoints")
 
-    If you are configuring your state backend via the `flink-conf.yaml` no changes are required.
+    If you are configuring your state backend via the `config.yaml` no changes are required.
 
     A State Backend that stores its state in ``RocksDB``. This state backend can
     store very large state that exceeds memory and spills to disk.
@@ -862,7 +862,7 @@ class RocksDBStateBackend(StateBackend):
         Sets the predefined options for RocksDB.
 
         If user-configured options within ``RocksDBConfigurableOptions`` is set (through
-        flink-conf.yaml) or a user-defined options factory is set (via :func:`setOptions`),
+        config.yaml) or a user-defined options factory is set (via :func:`setOptions`),
         then the options from the factory are applied on top of the here specified
         predefined options and customized options.
 
@@ -882,7 +882,7 @@ class RocksDBStateBackend(StateBackend):
         are :data:`PredefinedOptions.DEFAULT`.
 
         If user-configured options within ``RocksDBConfigurableOptions`` is set (through
-        flink-conf.yaml) or a user-defined options factory is set (via :func:`setOptions`),
+        config.yaml) or a user-defined options factory is set (via :func:`setOptions`),
         then the options from the factory are applied on top of the predefined and customized
         options.
 
@@ -956,16 +956,16 @@ class PredefinedOptions(Enum):
     determined to be beneficial for performance under different settings.
 
     Some of these settings are based on experiments by the Flink community, some follow
-    guides from the RocksDB project.
+    guides from the RocksDB project. If some configurations should be enabled unconditionally, they
+    are not included in any of the pre-defined options. See the documentation for
+    RocksDBResourceContainer in the Java API for further details. Note that setUseFsync(false) is
+    set by default irrespective of the :class:`PredefinedOptions` setting. Because Flink does not
+    rely on RocksDB data on disk for recovery, there is no need to sync data to stable storage.
 
     :data:`DEFAULT`:
 
-    Default options for all settings, except that writes are not forced to the
-    disk.
+    Default options for all settings. No additional options are set.
 
-    .. note::
-        Because Flink does not rely on RocksDB data on disk for recovery,
-        there is no need to sync data to stable storage.
 
     :data:`SPINNING_DISK_OPTIMIZED`:
 
@@ -979,14 +979,10 @@ class PredefinedOptions(Enum):
 
     - setCompactionStyle(CompactionStyle.LEVEL)
     - setLevelCompactionDynamicLevelBytes(true)
-    - setIncreaseParallelism(4)
-    - setUseFsync(false)
-    - setDisableDataSync(true)
+    - setMaxBackgroundJobs(4)
     - setMaxOpenFiles(-1)
 
-    .. note::
-        Because Flink does not rely on RocksDB data on disk for recovery,
-        there is no need to sync data to stable storage.
+
 
     :data:`SPINNING_DISK_OPTIMIZED_HIGH_MEM`:
 
@@ -1000,21 +996,24 @@ class PredefinedOptions(Enum):
 
     The following options are set:
 
-    - setLevelCompactionDynamicLevelBytes(true)
-    - setTargetFileSizeBase(256 MBytes)
-    - setMaxBytesForLevelBase(1 GByte)
-    - setWriteBufferSize(64 MBytes)
-    - setIncreaseParallelism(4)
-    - setMinWriteBufferNumberToMerge(3)
-    - setMaxWriteBufferNumber(4)
-    - setUseFsync(false)
-    - setMaxOpenFiles(-1)
     - BlockBasedTableConfig.setBlockCacheSize(256 MBytes)
-    - BlockBasedTableConfigsetBlockSize(128 KBytes)
+    - BlockBasedTableConfig.setBlockSize(128 KBytes)
+    - BlockBasedTableConfig.setFilterPolicy(BloomFilter(
+        `BLOOM_FILTER_BITS_PER_KEY`,
+        `BLOOM_FILTER_BLOCK_BASED_MODE`)
+    - setLevelCompactionDynamicLevelBytes(true)
+    - setMaxBackgroundJobs(4)
+    - setMaxBytesForLevelBase(1 GByte)
+    - setMaxOpenFiles(-1)
+    - setMaxWriteBufferNumber(4)
+    - setMinWriteBufferNumberToMerge(3)
+    - setTargetFileSizeBase(256 MBytes)
+    - setWriteBufferSize(64 MBytes)
 
-    .. note::
-        Because Flink does not rely on RocksDB data on disk for recovery,
-        there is no need to sync data to stable storage.
+    The BLOOM_FILTER_BITS_PER_KEY and BLOOM_FILTER_BLOCK_BASED_MODE options are set via
+    `state.backend.rocksdb.bloom-filter.bits-per-key` and
+    `state.backend.rocksdb.bloom-filter.block-based-mode`, respectively.
+
 
     :data:`FLASH_SSD_OPTIMIZED`:
 
@@ -1025,14 +1024,9 @@ class PredefinedOptions(Enum):
 
     The following options are set:
 
-    - setIncreaseParallelism(4)
-    - setUseFsync(false)
-    - setDisableDataSync(true)
+    - setMaxBackgroundJobs(4)
     - setMaxOpenFiles(-1)
 
-    .. note::
-        Because Flink does not rely on RocksDB data on disk for recovery,
-        there is no need to sync data to stable storage.
     """
     DEFAULT = 0
     SPINNING_DISK_OPTIMIZED = 1

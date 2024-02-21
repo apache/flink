@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -30,6 +31,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nullable;
 
+import java.util.Collection;
 import java.util.concurrent.Executor;
 
 /** {@link DispatcherFactory} services container. */
@@ -52,6 +54,7 @@ public class PartialDispatcherServicesWithJobPersistenceComponents
             @Nullable String metricQueryServiceAddress,
             Executor ioExecutor,
             DispatcherOperationCaches operationCaches,
+            Collection<FailureEnricher> failureEnrichers,
             JobGraphWriter jobGraphWriter,
             JobResultStore jobResultStore) {
         super(
@@ -66,7 +69,8 @@ public class PartialDispatcherServicesWithJobPersistenceComponents
                 historyServerArchivist,
                 metricQueryServiceAddress,
                 ioExecutor,
-                operationCaches);
+                operationCaches,
+                failureEnrichers);
         this.jobGraphWriter = jobGraphWriter;
         this.jobResultStore = jobResultStore;
     }
@@ -96,6 +100,7 @@ public class PartialDispatcherServicesWithJobPersistenceComponents
                 partialDispatcherServices.getMetricQueryServiceAddress(),
                 partialDispatcherServices.getIoExecutor(),
                 partialDispatcherServices.getOperationCaches(),
+                partialDispatcherServices.getFailureEnrichers(),
                 jobGraphWriter,
                 jobResultStore);
     }

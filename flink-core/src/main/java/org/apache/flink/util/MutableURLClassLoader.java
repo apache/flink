@@ -39,4 +39,12 @@ public abstract class MutableURLClassLoader extends URLClassLoader {
     public void addURL(URL url) {
         super.addURL(url);
     }
+
+    /**
+     * Copy the classloader for each job and these jobs can add their jar files to the classloader
+     * independently.
+     *
+     * @return the copied classloader
+     */
+    public abstract MutableURLClassLoader copy();
 }

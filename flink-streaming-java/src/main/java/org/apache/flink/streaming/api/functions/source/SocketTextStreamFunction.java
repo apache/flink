@@ -42,7 +42,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>The function can be set to reconnect to the server socket in case that the stream is closed on
  * the server side.
+ *
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
+@Deprecated
 @PublicEvolving
 public class SocketTextStreamFunction implements SourceFunction<String> {
 

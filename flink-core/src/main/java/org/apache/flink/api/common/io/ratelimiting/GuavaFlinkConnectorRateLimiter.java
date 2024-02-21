@@ -20,7 +20,7 @@ package org.apache.flink.api.common.io.ratelimiting;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 
-import org.apache.flink.shaded.guava30.com.google.common.util.concurrent.RateLimiter;
+import org.apache.flink.shaded.guava31.com.google.common.util.concurrent.RateLimiter;
 
 /**
  * An implementation of {@link FlinkConnectorRateLimiter} that uses Guava's RateLimiter for rate
@@ -51,7 +51,8 @@ public class GuavaFlinkConnectorRateLimiter implements FlinkConnectorRateLimiter
     public void open(RuntimeContext runtimeContext) {
         this.runtimeContext = runtimeContext;
         localRateBytesPerSecond =
-                globalRateBytesPerSecond / runtimeContext.getNumberOfParallelSubtasks();
+                globalRateBytesPerSecond
+                        / runtimeContext.getTaskInfo().getNumberOfParallelSubtasks();
         this.rateLimiter = RateLimiter.create(localRateBytesPerSecond);
     }
 

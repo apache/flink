@@ -1,44 +1,44 @@
 flink-kubernetes
-Copyright 2014-2023 The Apache Software Foundation
+Copyright 2014-2024 The Apache Software Foundation
 
 This project includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.fasterxml.jackson.core:jackson-annotations:2.13.4
-- com.fasterxml.jackson.core:jackson-core:2.13.4
-- com.fasterxml.jackson.core:jackson-databind:2.13.4.2
-- com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.4
-- com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.13.4
+- com.fasterxml.jackson.core:jackson-annotations:2.15.3
+- com.fasterxml.jackson.core:jackson-core:2.15.3
+- com.fasterxml.jackson.core:jackson-databind:2.15.3
+- com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.15.3
+- com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.15.3
 - com.squareup.okhttp3:logging-interceptor:3.14.9
 - com.squareup.okhttp3:okhttp:3.14.9
 - com.squareup.okio:okio:1.17.2
-- io.fabric8:kubernetes-client:5.12.4
-- io.fabric8:kubernetes-model-admissionregistration:5.12.4
-- io.fabric8:kubernetes-model-apiextensions:5.12.4
-- io.fabric8:kubernetes-model-apps:5.12.4
-- io.fabric8:kubernetes-model-autoscaling:5.12.4
-- io.fabric8:kubernetes-model-batch:5.12.4
-- io.fabric8:kubernetes-model-certificates:5.12.4
-- io.fabric8:kubernetes-model-common:5.12.4
-- io.fabric8:kubernetes-model-coordination:5.12.4
-- io.fabric8:kubernetes-model-core:5.12.4
-- io.fabric8:kubernetes-model-discovery:5.12.4
-- io.fabric8:kubernetes-model-events:5.12.4
-- io.fabric8:kubernetes-model-extensions:5.12.4
-- io.fabric8:kubernetes-model-flowcontrol:5.12.4
-- io.fabric8:kubernetes-model-metrics:5.12.4
-- io.fabric8:kubernetes-model-networking:5.12.4
-- io.fabric8:kubernetes-model-node:5.12.4
-- io.fabric8:kubernetes-model-policy:5.12.4
-- io.fabric8:kubernetes-model-rbac:5.12.4
-- io.fabric8:kubernetes-model-scheduling:5.12.4
-- io.fabric8:kubernetes-model-storageclass:5.12.4
+- io.fabric8:kubernetes-client:6.9.2
+- io.fabric8:kubernetes-client-api:6.9.2
+- io.fabric8:kubernetes-httpclient-okhttp:6.9.2
+- io.fabric8:kubernetes-model-admissionregistration:6.9.2
+- io.fabric8:kubernetes-model-apiextensions:6.9.2
+- io.fabric8:kubernetes-model-apps:6.9.2
+- io.fabric8:kubernetes-model-autoscaling:6.9.2
+- io.fabric8:kubernetes-model-batch:6.9.2
+- io.fabric8:kubernetes-model-certificates:6.9.2
+- io.fabric8:kubernetes-model-common:6.9.2
+- io.fabric8:kubernetes-model-coordination:6.9.2
+- io.fabric8:kubernetes-model-core:6.9.2
+- io.fabric8:kubernetes-model-discovery:6.9.2
+- io.fabric8:kubernetes-model-events:6.9.2
+- io.fabric8:kubernetes-model-extensions:6.9.2
+- io.fabric8:kubernetes-model-flowcontrol:6.9.2
+- io.fabric8:kubernetes-model-gatewayapi:6.9.2
+- io.fabric8:kubernetes-model-metrics:6.9.2
+- io.fabric8:kubernetes-model-networking:6.9.2
+- io.fabric8:kubernetes-model-node:6.9.2
+- io.fabric8:kubernetes-model-policy:6.9.2
+- io.fabric8:kubernetes-model-rbac:6.9.2
+- io.fabric8:kubernetes-model-resource:6.9.2
+- io.fabric8:kubernetes-model-scheduling:6.9.2
+- io.fabric8:kubernetes-model-storageclass:6.9.2
 - io.fabric8:zjsonpatch:0.3.0
+- org.snakeyaml:snakeyaml-engine:2.6
 - org.yaml:snakeyaml:1.33
-
-This project bundles the following dependencies under the BSD License.
-See bundled license files for details.
-
-- dk.brics.automaton:automaton:1.11-8

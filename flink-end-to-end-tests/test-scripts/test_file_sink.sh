@@ -24,7 +24,12 @@ S3_PREFIX=temp/test_file_sink-$(uuidgen)
 OUTPUT_PATH="$TEST_DATA_DIR/$S3_PREFIX"
 S3_OUTPUT_PATH="s3://$IT_CASE_S3_BUCKET/$S3_PREFIX"
 source "$(dirname "$0")"/common.sh
-source "$(dirname "$0")"/common_s3.sh
+
+if [ "${OUT_TYPE}" == "s3" ]; then
+  source "$(dirname "$0")"/common_s3.sh
+else
+  echo "S3 environment is not loaded for non-s3 test runs (test run type: $OUT_TYPE)."
+fi
 
 # randomly set up openSSL with dynamically/statically linked libraries
 OPENSSL_LINKAGE=$(if (( RANDOM % 2 )) ; then echo "dynamic"; else echo "static"; fi)

@@ -19,10 +19,10 @@
 package org.apache.flink.streaming.api.functions.windowing;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
@@ -75,8 +75,8 @@ public class ReduceApplyProcessWindowFunction<K, W extends Window, T, R>
     }
 
     @Override
-    public void open(Configuration configuration) throws Exception {
-        FunctionUtils.openFunction(this.windowFunction, configuration);
+    public void open(OpenContext openContext) throws Exception {
+        FunctionUtils.openFunction(this.windowFunction, openContext);
         ctx = new InternalProcessApplyWindowContext<>(windowFunction);
     }
 

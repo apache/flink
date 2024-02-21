@@ -18,13 +18,17 @@
 package org.apache.flink.api.scala.migration
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils._
+import org.apache.flink.testutils.junit.FailsOnJava17
 
 import org.junit.{Assert, Test}
+import org.junit.experimental.categories.Category
 
 import scala.util.Try
 
+@Category(Array(classOf[FailsOnJava17]))
 class ScalaSerializersMigrationTest {
 
   /**
@@ -62,7 +66,7 @@ class ScalaSerializersMigrationTest {
     )
     Assert.assertEquals(
       classOf[ScalaCaseClassSerializer[CustomCaseClass]],
-      caseClassInfo.createSerializer(new ExecutionConfig).getClass
+      caseClassInfo.createSerializer(new SerializerConfigImpl).getClass
     )
 
     Assert.assertEquals(
@@ -75,7 +79,7 @@ class ScalaSerializersMigrationTest {
     )
     Assert.assertEquals(
       classOf[ScalaCaseClassSerializer[CustomCaseClass]],
-      caseClassWithNestingInfo.createSerializer(new ExecutionConfig).getClass
+      caseClassWithNestingInfo.createSerializer(new SerializerConfigImpl).getClass
     )
     assertPreviouslyGeneratedClassExists(
       "org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$9$$anon$10$$anon$2",
@@ -85,7 +89,7 @@ class ScalaSerializersMigrationTest {
       classOf[ScalaCaseClassSerializer[CustomCaseClass]],
       caseClassWithNestingInfo
         .getTypeAt("nested")
-        .createSerializer(new ExecutionConfig)
+        .createSerializer(new SerializerConfigImpl)
         .getClass
     )
 
@@ -100,7 +104,7 @@ class ScalaSerializersMigrationTest {
     Assert.assertEquals(
       classOf[TraversableSerializer[List[CustomCaseClass], CustomCaseClass]],
       traversableInfo
-        .createSerializer(new ExecutionConfig)
+        .createSerializer(new SerializerConfigImpl)
         .getClass
     )
     Assert.assertEquals(
@@ -114,7 +118,7 @@ class ScalaSerializersMigrationTest {
     Assert.assertEquals(
       classOf[ScalaCaseClassSerializer[CustomCaseClass]],
       traversableInfo.elementTypeInfo
-        .createSerializer(new ExecutionConfig)
+        .createSerializer(new SerializerConfigImpl)
         .getClass
     )
 
@@ -128,7 +132,7 @@ class ScalaSerializersMigrationTest {
     )
     Assert.assertEquals(
       classOf[ScalaCaseClassSerializer[CustomCaseClass]],
-      tryInfo.elemTypeInfo.createSerializer(new ExecutionConfig).getClass
+      tryInfo.elemTypeInfo.createSerializer(new SerializerConfigImpl).getClass
     )
 
     Assert.assertEquals(
@@ -141,7 +145,7 @@ class ScalaSerializersMigrationTest {
     )
     Assert.assertEquals(
       classOf[ScalaCaseClassSerializer[CustomCaseClass]],
-      optionInfo.getElemTypeInfo.createSerializer(new ExecutionConfig).getClass
+      optionInfo.getElemTypeInfo.createSerializer(new SerializerConfigImpl).getClass
     )
 
     Assert.assertEquals(
@@ -154,7 +158,7 @@ class ScalaSerializersMigrationTest {
     )
     Assert.assertEquals(
       classOf[ScalaCaseClassSerializer[CustomCaseClass]],
-      eitherInfo.leftTypeInfo.createSerializer(new ExecutionConfig).getClass
+      eitherInfo.leftTypeInfo.createSerializer(new SerializerConfigImpl).getClass
     )
   }
 

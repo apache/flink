@@ -33,19 +33,22 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
 /**
  * A sub-class of {@link SinkAbilitySpec} that can not only serialize/deserialize the row-level
- * update mode & columns to/from JSON, but also can update existing data for {@link
- * org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate}.
+ * update mode, columns & required physical column indices to/from JSON, but also can update
+ * existing data for {@link org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate}.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeName("RowLevelUpdate")
 public class RowLevelUpdateSpec implements SinkAbilitySpec {
     public static final String FIELD_NAME_UPDATED_COLUMNS = "updatedColumns";
     public static final String FIELD_NAME_ROW_LEVEL_UPDATE_MODE = "rowLevelUpdateMode";
+    public static final String FIELD_NAME_REQUIRED_PHYSICAL_COLUMN_INDICES =
+            "requiredPhysicalColumnIndices";
 
     @JsonProperty(FIELD_NAME_UPDATED_COLUMNS)
     @Nonnull
@@ -55,6 +58,10 @@ public class RowLevelUpdateSpec implements SinkAbilitySpec {
     @Nonnull
     private final SupportsRowLevelUpdate.RowLevelUpdateMode rowLevelUpdateMode;
 
+    @JsonProperty(FIELD_NAME_REQUIRED_PHYSICAL_COLUMN_INDICES)
+    @Nonnull
+    private final int[] requiredPhysicalColumnIndices;
+
     @JsonIgnore @Nullable private final RowLevelModificationScanContext scanContext;
 
     @JsonCreator
@@ -62,10 +69,13 @@ public class RowLevelUpdateSpec implements SinkAbilitySpec {
             @JsonProperty(FIELD_NAME_UPDATED_COLUMNS) @Nonnull List<Column> updatedColumns,
             @JsonProperty(FIELD_NAME_ROW_LEVEL_UPDATE_MODE) @Nonnull
                     SupportsRowLevelUpdate.RowLevelUpdateMode rowLevelUpdateMode,
-            @Nullable RowLevelModificationScanContext scanContext) {
+            @Nullable RowLevelModificationScanContext scanContext,
+            @JsonProperty(FIELD_NAME_REQUIRED_PHYSICAL_COLUMN_INDICES) @Nonnull
+                    int[] requiredPhysicalColumnIndices) {
         this.updatedColumns = updatedColumns;
         this.rowLevelUpdateMode = rowLevelUpdateMode;
         this.scanContext = scanContext;
+        this.requiredPhysicalColumnIndices = requiredPhysicalColumnIndices;
     }
 
     @Override
@@ -85,6 +95,10 @@ public class RowLevelUpdateSpec implements SinkAbilitySpec {
         return rowLevelUpdateMode;
     }
 
+    public int[] getRequiredPhysicalColumnIndices() {
+        return requiredPhysicalColumnIndices;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -96,11 +110,14 @@ public class RowLevelUpdateSpec implements SinkAbilitySpec {
         RowLevelUpdateSpec that = (RowLevelUpdateSpec) o;
         return Objects.equals(updatedColumns, that.updatedColumns)
                 && rowLevelUpdateMode == that.rowLevelUpdateMode
+                && Arrays.equals(requiredPhysicalColumnIndices, that.requiredPhysicalColumnIndices)
                 && Objects.equals(scanContext, that.scanContext);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(updatedColumns, rowLevelUpdateMode, scanContext);
+        int result = Objects.hash(updatedColumns, rowLevelUpdateMode, scanContext);
+        result = 31 * result + Arrays.hashCode(requiredPhysicalColumnIndices);
+        return result;
     }
 }

@@ -176,6 +176,8 @@ function run_group_2 {
 
     run_test "Flink CLI end-to-end test" "$END_TO_END_DIR/test-scripts/test_cli.sh"
 
+    run_test "Flink streaming examples end-to-end test" "$END_TO_END_DIR/test-scripts/test_streaming_examples.sh"
+
     run_test "Queryable state (rocksdb) end-to-end test" "$END_TO_END_DIR/test-scripts/test_queryable_state.sh rocksdb"
     run_test "Queryable state (rocksdb) with TM restart end-to-end test" "$END_TO_END_DIR/test-scripts/test_queryable_state_restart_tm.sh" "skip_check_exceptions"
 
@@ -185,6 +187,7 @@ function run_group_2 {
     run_test "Batch SQL end-to-end test using hybrid selective shuffle" "$END_TO_END_DIR/test-scripts/test_batch_sql.sh hybrid_selective"
     run_test "Streaming SQL end-to-end test using planner loader" "$END_TO_END_DIR/test-scripts/test_streaming_sql.sh" "skip_check_exceptions"
     run_test "Streaming SQL end-to-end test using planner with Scala version" "$END_TO_END_DIR/test-scripts/test_streaming_sql.sh scala-planner" "skip_check_exceptions"
+    run_test "Sql Jdbc Driver end-to-end test" "$END_TO_END_DIR/test-scripts/test_sql_jdbc_driver.sh" "skip_check_exceptions"
 
     if [[ ${PROFILE} != *"enable-adaptive-scheduler"* ]]; then # FLINK-21400
       run_test "Streaming File Sink end-to-end test" "$END_TO_END_DIR/test-scripts/test_file_sink.sh local StreamingFileSink" "skip_check_exceptions"
@@ -217,6 +220,8 @@ function run_group_2 {
     run_test "Dependency shading of table modules test" "$END_TO_END_DIR/test-scripts/test_table_shaded_dependencies.sh"
 
     run_test "Shaded Hadoop S3A with credentials provider end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh hadoop_with_provider"
+
+    run_test "Failure Enricher end-to-end test" "$END_TO_END_DIR/test-scripts/test_failure_enricher.sh" "skip_check_exceptions"
 
     if [[ `uname -i` != 'aarch64' ]]; then
         run_test "PyFlink end-to-end test" "$END_TO_END_DIR/test-scripts/test_pyflink.sh" "skip_check_exceptions"

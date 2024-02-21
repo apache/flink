@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-formats</artifactId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-protobuf</artifactId>
@@ -36,7 +36,7 @@ under the License.
 
 	<properties>
 		<!-- the same with flink-table/pom.xml -->
-		<janino.version>3.1.9</janino.version>
+		<janino.version>3.1.10</janino.version>
 	</properties>
 
 	<dependencies>
@@ -54,6 +54,16 @@ under the License.
 			<artifactId>flink-table-common</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
+		</dependency>
+
+		<!-- Filesystem connector is only present to ensure bulk files are not supported -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-files</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<optional>true</optional>
 		</dependency>
 
 		<dependency>

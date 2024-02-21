@@ -38,9 +38,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.types.ByteValue;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Assert;
-import org.junit.Test;
-import org.mockito.Mockito;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -48,9 +46,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
-public class HashTableTest {
+class HashTableTest {
 
     private final TypeSerializer<Tuple2<Long, byte[]>> buildSerializer;
     private final TypeSerializer<Long> probeSerializer;
@@ -60,7 +60,7 @@ public class HashTableTest {
 
     private final TypePairComparator<Long, Tuple2<Long, byte[]>> pairComparator;
 
-    public HashTableTest() {
+    HashTableTest() {
         TypeSerializer<?>[] fieldSerializers = {
             LongSerializer.INSTANCE, BytePrimitiveArraySerializer.INSTANCE
         };
@@ -113,7 +113,7 @@ public class HashTableTest {
      * missing and the computation deadlocked.
      */
     @Test
-    public void testBufferMissingForProbing() {
+    void testBufferMissingForProbing() {
         try (final IOManager ioMan = new IOManagerAsync()) {
             final int pageSize = 32 * 1024;
             final int numSegments = 34;
@@ -138,20 +138,19 @@ public class HashTableTest {
 
             table.open(new TupleBytesIterator(payload, numRecords), new LongIterator(10000));
 
-            try {
-                while (table.nextRecord()) {
-                    MutableObjectIterator<Tuple2<Long, byte[]>> matches =
-                            table.getBuildSideIterator();
-                    while (matches.next() != null) ;
-                }
-            } catch (RuntimeException e) {
-                if (!e.getMessage().contains("exceeded maximum number of recursions")) {
-                    e.printStackTrace();
-                    fail("Test failed with unexpected exception");
-                }
-            } finally {
-                table.close();
-            }
+            assertThatThrownBy(
+                            () -> {
+                                while (table.nextRecord()) {
+                                    MutableObjectIterator<Tuple2<Long, byte[]>> matches =
+                                            table.getBuildSideIterator();
+                                    while (matches.next() != null) ;
+                                }
+                            })
+                    .withFailMessage("Test failed with unexpected exception")
+                    .hasMessageContaining("exceeded maximum number of recursions")
+                    .isInstanceOf(RuntimeException.class);
+
+            table.close();
 
             checkNoTempFilesRemain(ioMan);
         } catch (Exception e) {
@@ -166,16 +165,15 @@ public class HashTableTest {
      * partition to spill.
      */
     @Test
-    public void testSpillingFreesOnlyOverflowSegments() {
+    void testSpillingFreesOnlyOverflowSegments() {
         final TypeSerializer<ByteValue> serializer = ByteValueSerializer.INSTANCE;
         final TypeComparator<ByteValue> buildComparator =
                 new ValueComparator<>(true, ByteValue.class);
         final TypeComparator<ByteValue> probeComparator =
                 new ValueComparator<>(true, ByteValue.class);
 
-        @SuppressWarnings("unchecked")
         final TypePairComparator<ByteValue, ByteValue> pairComparator =
-                Mockito.mock(TypePairComparator.class);
+                new GenericPairComparator<>(buildComparator, probeComparator);
 
         try (final IOManager ioMan = new IOManagerAsync()) {
             final int pageSize = 32 * 1024;
@@ -211,7 +209,7 @@ public class HashTableTest {
      * overflow segments in the partitions. This means that the records are large.
      */
     @Test
-    public void testSpillingWhenBuildingTableWithoutOverflow() throws Exception {
+    void testSpillingWhenBuildingTableWithoutOverflow() throws Exception {
         try (final IOManager ioMan = new IOManagerAsync()) {
             final TypeSerializer<byte[]> serializer = BytePrimitiveArraySerializer.INSTANCE;
             final TypeComparator<byte[]> buildComparator = new BytePrimitiveArrayComparator(true);
@@ -260,7 +258,7 @@ public class HashTableTest {
                 }
 
                 // check that we retrieve all our elements
-                Assert.assertEquals(numElements, counter);
+                assertThat(counter).isEqualTo(numElements);
             }
 
             table.close();

@@ -22,23 +22,19 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
-import org.apache.calcite.sql.SqlFunction;
-import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperatorBinding;
-import org.apache.calcite.sql.SqlTableFunction;
 import org.apache.calcite.sql.SqlUtil;
-import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlOperandMetadata;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
@@ -58,32 +54,17 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBe
  * Base class for a table-valued function that computes windows. Examples include {@code TUMBLE},
  * {@code HOP}, {@code CUMULATE} and {@code SESSION}.
  *
- * <p>Note: we copied the implementation from Calcite's {@link
- * org.apache.calcite.sql.SqlWindowTableFunction}, but support return additional {@code window_time}
- * time attribute column which should keep the same type with original time attribute.
+ * <p>Note: we extend Calcite's {@link org.apache.calcite.sql.SqlWindowTableFunction}, to support
+ * additional {@code window_time} time attribute column which should keep the same type with
+ * original time attribute.
  */
-public class SqlWindowTableFunction extends SqlFunction implements SqlTableFunction {
-
-    /** The data source which the table function computes with. */
-    protected static final String PARAM_DATA = "DATA";
-
-    /** The time attribute column. Also known as the event time. */
-    protected static final String PARAM_TIMECOL = "TIMECOL";
-
-    /** The window duration INTERVAL. */
-    protected static final String PARAM_SIZE = "SIZE";
-
-    /** The optional align offset for each window. */
-    protected static final String PARAM_OFFSET = "OFFSET";
-
-    /** The session key(s), only used for SESSION window. */
-    protected static final String PARAM_KEY = "KEY";
-
-    /** The slide interval, only used for HOP window. */
-    protected static final String PARAM_SLIDE = "SLIDE";
+public class SqlWindowTableFunction extends org.apache.calcite.sql.SqlWindowTableFunction {
 
     /** The slide interval, only used for HOP window. */
     protected static final String PARAM_STEP = "STEP";
+
+    /** The gap interval, only used for SESSION window. */
+    protected static final String GAP = "GAP";
 
     /**
      * Type-inference strategy whereby the row type of a table function call is a ROW, which is
@@ -102,13 +83,7 @@ public class SqlWindowTableFunction extends SqlFunction implements SqlTableFunct
 
     /** Creates a window table function with a given name. */
     public SqlWindowTableFunction(String name, SqlOperandMetadata operandMetadata) {
-        super(
-                name,
-                SqlKind.OTHER_FUNCTION,
-                ReturnTypes.CURSOR,
-                null,
-                operandMetadata,
-                SqlFunctionCategory.SYSTEM);
+        super(name, operandMetadata);
     }
 
     @Override

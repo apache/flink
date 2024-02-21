@@ -31,12 +31,13 @@ import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
+import org.apache.flink.runtime.executiongraph.failover.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
@@ -95,6 +96,9 @@ public interface ExecutionGraph extends AccessExecutionGraph {
     @Nullable
     CheckpointCoordinator getCheckpointCoordinator();
 
+    @Nullable
+    CheckpointStatsTracker getCheckpointStatsTracker();
+
     KvStateLocationRegistry getKvStateLocationRegistry();
 
     void setJsonPlan(String jsonPlan);
@@ -151,7 +155,9 @@ public interface ExecutionGraph extends AccessExecutionGraph {
 
     void setInternalTaskFailuresListener(InternalFailuresListener internalTaskFailuresListener);
 
-    void attachJobGraph(List<JobVertex> topologicallySorted) throws JobException;
+    void attachJobGraph(
+            List<JobVertex> topologicallySorted, JobManagerJobMetricGroup jobManagerJobMetricGroup)
+            throws JobException;
 
     void transitionToRunning();
 

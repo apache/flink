@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations;
 
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.table.api.DataTypes;
@@ -40,14 +41,17 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableChange;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.factories.TestManagedTableFactory;
+import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.SourceQueryOperation;
+import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
@@ -57,6 +61,7 @@ import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
+import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.expressions.utils.Func0$;
 import org.apache.flink.table.planner.expressions.utils.Func1$;
@@ -87,6 +92,8 @@ import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.planner.utils.OperationMatchers.entry;
 import static org.apache.flink.table.planner.utils.OperationMatchers.isCreateTableOperation;
 import static org.apache.flink.table.planner.utils.OperationMatchers.partitionedBy;
+import static org.apache.flink.table.planner.utils.OperationMatchers.withDistribution;
+import static org.apache.flink.table.planner.utils.OperationMatchers.withNoDistribution;
 import static org.apache.flink.table.planner.utils.OperationMatchers.withOptions;
 import static org.apache.flink.table.planner.utils.OperationMatchers.withSchema;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -163,11 +170,8 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
     @Test
     public void testAlterDatabase() throws Exception {
         catalogManager.registerCatalog("cat1", new GenericInMemoryCatalog("default", "default"));
-        catalogManager
-                .getCatalog("cat1")
-                .get()
-                .createDatabase(
-                        "db1", new CatalogDatabaseImpl(new HashMap<>(), "db1_comment"), true);
+        catalogManager.createDatabase(
+                "cat1", "db1", new CatalogDatabaseImpl(new HashMap<>(), "db1_comment"), true);
         final String sql = "alter database cat1.db1 set ('k1'='v1', 'K2'='V2')";
         Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(AlterDatabaseOperation.class);
@@ -508,6 +512,156 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                                 entry("connector.type", "kafka"),
                                                 entry("format.type", "json")),
                                         partitionedBy("a", "f0"))));
+    }
+
+    @Test
+    public void testMergingCreateTableLikeExcludingDistribution() {
+        Map<String, String> sourceProperties = new HashMap<>();
+        sourceProperties.put("format.type", "json");
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                        .columnByExpression("f2", "`f0` + 12345")
+                                        .watermark("f1", "`f1` - interval '1' second")
+                                        .build())
+                        .distribution(TableDistribution.ofHash(Collections.singletonList("f0"), 3))
+                        .partitionKeys(Arrays.asList("f0", "f1"))
+                        .options(sourceProperties)
+                        .build();
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
+
+        final String sql =
+                "create table derivedTable(\n"
+                        + "  a int,\n"
+                        + "  watermark for f1 as `f1` - interval '5' second\n"
+                        + ")\n"
+                        + "DISTRIBUTED BY (a, f0)\n"
+                        + "with (\n"
+                        + "  'connector.type' = 'kafka'"
+                        + ")\n"
+                        + "like sourceTable (\n"
+                        + "   EXCLUDING GENERATED\n"
+                        + "   EXCLUDING DISTRIBUTION\n"
+                        + "   EXCLUDING PARTITIONS\n"
+                        + "   OVERWRITING OPTIONS\n"
+                        + "   OVERWRITING WATERMARKS"
+                        + ")";
+        Operation operation = parseAndConvert(sql);
+
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withDistribution(
+                                                TableDistribution.ofUnknown(
+                                                        Arrays.asList("a", "f0"), null)),
+                                        withSchema(
+                                                Schema.newBuilder()
+                                                        .column("f0", DataTypes.INT().notNull())
+                                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                                        .column("a", DataTypes.INT())
+                                                        .watermark(
+                                                                "f1", "`f1` - INTERVAL '5' SECOND")
+                                                        .build()),
+                                        withOptions(
+                                                entry("connector.type", "kafka"),
+                                                entry("format.type", "json")))));
+    }
+
+    @Test
+    public void testCreateTableValidDistribution() {
+        final String sql =
+                "create table derivedTable(\n" + "  a int\n" + ")\n" + "DISTRIBUTED BY (a)";
+        Operation operation = parseAndConvert(sql);
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withDistribution(
+                                                TableDistribution.ofUnknown(
+                                                        Collections.singletonList("a"), null)))));
+    }
+
+    @Test
+    public void testCreateTableInvalidDistribution() {
+        final String sql =
+                "create table derivedTable(\n" + "  a int\n" + ")\n" + "DISTRIBUTED BY (f3)";
+
+        assertThatThrownBy(() -> parseAndConvert(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Invalid bucket key 'f3'. A bucket key for a distribution must reference a physical column in the schema. Available columns are: [a]");
+    }
+
+    @Test
+    public void testMergingCreateTableAsWitDistribution() {
+        Map<String, String> sourceProperties = new HashMap<>();
+        sourceProperties.put("format.type", "json");
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                        .columnByExpression("f2", "`f0` + 12345")
+                                        .watermark("f1", "`f1` - interval '1' second")
+                                        .build())
+                        .distribution(TableDistribution.ofHash(Collections.singletonList("f0"), 3))
+                        .partitionKeys(Arrays.asList("f0", "f1"))
+                        .options(sourceProperties)
+                        .build();
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
+
+        final String sql =
+                "create table derivedTable DISTRIBUTED BY (f0) AS SELECT * FROM sourceTable";
+        assertThatThrownBy(() -> parseAndConvert(sql))
+                .isInstanceOf(SqlValidateException.class)
+                .hasMessageContaining(
+                        "CREATE TABLE AS SELECT syntax does not support creating distributed tables yet.");
+    }
+
+    @Test
+    public void testMergingCreateTableAsWitEmptyDistribution() {
+        Map<String, String> sourceProperties = new HashMap<>();
+        sourceProperties.put("format.type", "json");
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                        .columnByExpression("f2", "`f0` + 12345")
+                                        .watermark("f1", "`f1` - interval '1' second")
+                                        .build())
+                        .distribution(TableDistribution.ofHash(Collections.singletonList("f0"), 3))
+                        .partitionKeys(Arrays.asList("f0", "f1"))
+                        .options(sourceProperties)
+                        .build();
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
+
+        final String sql = "create table derivedTable AS SELECT * FROM sourceTable";
+        Operation ctas = parseAndConvert(sql);
+        Operation operation = ((CreateTableASOperation) ctas).getCreateTableOperation();
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withNoDistribution(),
+                                        withSchema(
+                                                Schema.newBuilder()
+                                                        .column("f0", DataTypes.INT().notNull())
+                                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                                        .column("f2", DataTypes.INT().notNull())
+                                                        .build()))));
     }
 
     @Test
@@ -2165,6 +2319,116 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(operation).isInstanceOf(CreateViewOperation.class);
     }
 
+    @Test
+    public void testAlterTableAddPartitions() throws Exception {
+        prepareTable("tb1", false, true, true, 0);
+
+        // test add single partition
+        Operation operation = parse("alter table tb1 add partition (b = '1', c = '2')");
+        assertThat(operation).isInstanceOf(AddPartitionsOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo("ALTER TABLE cat1.db1.tb1 ADD PARTITION (b=1, c=2)");
+
+        // test add single partition with property
+        operation = parse("alter table tb1 add partition (b = '1', c = '2') with ('k' = 'v')");
+        assertThat(operation).isInstanceOf(AddPartitionsOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo("ALTER TABLE cat1.db1.tb1 ADD PARTITION (b=1, c=2) WITH (k: [v])");
+
+        // test add multiple partition simultaneously
+        operation =
+                parse(
+                        "alter table tb1 add if not exists partition (b = '1', c = '2') with ('k' = 'v') "
+                                + "partition (b = '2')");
+        assertThat(operation).isInstanceOf(AddPartitionsOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "ALTER TABLE cat1.db1.tb1 ADD IF NOT EXISTS PARTITION (b=1, c=2) WITH (k: [v]) PARTITION (b=2)");
+    }
+
+    @Test
+    public void testAlterTableDropPartitions() throws Exception {
+        prepareTable("tb1", false, true, true, 0);
+        // test drop single partition
+        Operation operation = parse("alter table tb1 drop partition (b = '1', c = '2')");
+        assertThat(operation).isInstanceOf(DropPartitionsOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo("ALTER TABLE cat1.db1.tb1 DROP PARTITION (b=1, c=2)");
+
+        // test drop multiple partition simultaneously
+        operation =
+                parse(
+                        "alter table tb1 drop if exists partition (b = '1', c = '2'), partition (b = '2')");
+        assertThat(operation).isInstanceOf(DropPartitionsOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "ALTER TABLE cat1.db1.tb1 DROP IF EXISTS PARTITION (b=1, c=2) PARTITION (b=2)");
+    }
+
+    @Test
+    public void testCreateViewWithDuplicateFieldName() {
+        Map<String, String> prop = new HashMap<>();
+        prop.put("connector", "values");
+        prop.put("bounded", "true");
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("id", DataTypes.BIGINT().notNull())
+                                .column("uid", DataTypes.BIGINT().notNull())
+                                .build(),
+                        null,
+                        Collections.emptyList(),
+                        prop);
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "id_table"), false);
+
+        Operation operation =
+                parse("CREATE VIEW id_view(a, b) AS SELECT id, uid AS id FROM id_table");
+        assertThat(operation).isInstanceOf(CreateViewOperation.class);
+
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "CREATE VIEW id_view(a, a) AS SELECT id, uid AS id FROM id_table"))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                SqlValidateException.class,
+                                "A column with the same name `a` has been defined at line 1, column 37."));
+
+        assertThatThrownBy(
+                        () -> parse("CREATE VIEW id_view AS\nSELECT id, uid AS id FROM id_table"))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                SqlValidateException.class,
+                                "A column with the same name `id` has been defined at line 2, column 8."));
+
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "CREATE VIEW union_view AS\n"
+                                                + "  SELECT id, uid AS id FROM id_table\n"
+                                                + "  UNION\n"
+                                                + "  SELECT uid, id AS uid FROM id_table"))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                SqlValidateException.class,
+                                "A column with the same name `id` has been defined at line 2, column 10."));
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "CREATE VIEW cte_view AS\n"
+                                                + "WITH id_num AS (\n"
+                                                + "  select id from id_table\n"
+                                                + ")\n"
+                                                + "SELECT id, uid as id\n"
+                                                + "FROM id_table\n"))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                SqlValidateException.class,
+                                "A column with the same name `id` has been defined at line 5, column 8."));
+    }
+
     // ~ Tool Methods ----------------------------------------------------------
 
     private static TestItem createTestItem(Object... args) {
@@ -2208,7 +2472,8 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         if (!catalogManager.getCatalog("cat1").isPresent()) {
             catalogManager.registerCatalog("cat1", catalog);
         }
-        catalog.createDatabase("db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
+        catalogManager.createDatabase(
+                "cat1", "db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
         Schema.Builder builder =
                 Schema.newBuilder()
                         .column("a", DataTypes.INT().notNull())

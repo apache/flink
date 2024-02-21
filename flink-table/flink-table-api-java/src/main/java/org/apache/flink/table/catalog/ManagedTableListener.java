@@ -37,7 +37,12 @@ import java.util.Map;
 
 import static org.apache.flink.table.factories.ManagedTableFactory.discoverManagedTableFactory;
 
-/** The listener for managed table operations. */
+/**
+ * The listener for managed table operations.
+ *
+ * @deprecated This interface will be removed soon. Please see FLIP-346 for more details.
+ */
+@Deprecated
 @Internal
 public class ManagedTableListener {
 

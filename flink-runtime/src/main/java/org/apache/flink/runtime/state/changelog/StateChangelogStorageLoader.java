@@ -37,7 +37,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.ServiceLoader;
 
-import static org.apache.flink.shaded.guava30.com.google.common.collect.Iterators.concat;
+import static org.apache.flink.shaded.guava31.com.google.common.collect.Iterators.concat;
 
 /** A thin wrapper around {@link PluginManager} to load {@link StateChangelogStorage}. */
 @Internal
@@ -94,9 +94,7 @@ public class StateChangelogStorageLoader {
             LocalRecoveryConfig localRecoveryConfig)
             throws IOException {
         final String identifier =
-                configuration
-                        .getString(StateChangelogOptions.STATE_CHANGE_LOG_STORAGE)
-                        .toLowerCase();
+                configuration.get(StateChangelogOptions.STATE_CHANGE_LOG_STORAGE).toLowerCase();
 
         StateChangelogStorageFactory factory = STATE_CHANGELOG_STORAGE_FACTORIES.get(identifier);
         if (factory == null) {

@@ -28,9 +28,11 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.watermark.InternalWatermark;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -38,6 +40,9 @@ import org.apache.flink.streaming.runtime.tasks.OutputWithChainingCheck;
 import org.apache.flink.streaming.runtime.tasks.WatermarkGaugeExposingOutput;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.OutputTag;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -49,6 +54,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class RecordWriterOutput<OUT>
         implements WatermarkGaugeExposingOutput<StreamRecord<OUT>>,
                 OutputWithChainingCheck<StreamRecord<OUT>> {
+    private static final Logger LOG = LoggerFactory.getLogger(RecordWriterOutput.class);
 
     private RecordWriter<SerializationDelegate<StreamElement>> recordWriter;
 
@@ -144,12 +150,25 @@ public class RecordWriterOutput<OUT>
         }
 
         watermarkGauge.setCurrentWatermark(mark.getTimestamp());
-        serializationDelegate.setInstance(mark);
 
-        try {
-            recordWriter.broadcastEmit(serializationDelegate);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e.getMessage(), e);
+        if (recordWriter.isSubpartitionDerivable()) {
+            serializationDelegate.setInstance(mark);
+
+            try {
+                recordWriter.broadcastEmit(serializationDelegate);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e.getMessage(), e);
+            }
+        } else {
+            for (int i = 0; i < recordWriter.getNumberOfSubpartitions(); i++) {
+                serializationDelegate.setInstance(new InternalWatermark(mark.getTimestamp(), i));
+
+                try {
+                    recordWriter.emit(serializationDelegate, i);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e.getMessage(), e);
+                }
+            }
         }
     }
 
@@ -182,9 +201,7 @@ public class RecordWriterOutput<OUT>
     }
 
     public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
-        if (isPriorityEvent
-                && event instanceof CheckpointBarrier
-                && !supportsUnalignedCheckpoints) {
+        if (event instanceof CheckpointBarrier && !supportsUnalignedCheckpoints) {
             final CheckpointBarrier barrier = (CheckpointBarrier) event;
             event = barrier.withOptions(barrier.getCheckpointOptions().withUnalignedUnsupported());
             isPriorityEvent = false;
@@ -212,5 +229,23 @@ public class RecordWriterOutput<OUT>
     @Override
     public Gauge<Long> getWatermarkGauge() {
         return watermarkGauge;
+    }
+
+    @Override
+    public void emitRecordAttributes(RecordAttributes recordAttributes) {
+        if (!recordWriter.isSubpartitionDerivable()) {
+            LOG.warn(
+                    recordAttributes
+                            + " will be ignored, because its correctness cannot not be "
+                            + "guaranteed when the subpartition information is not derivable.");
+            return;
+        }
+
+        try {
+            serializationDelegate.setInstance(recordAttributes);
+            recordWriter.broadcastEmit(serializationDelegate);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 }

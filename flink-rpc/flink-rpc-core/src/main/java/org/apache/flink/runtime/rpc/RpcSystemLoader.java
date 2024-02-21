@@ -21,5 +21,11 @@ import org.apache.flink.configuration.Configuration;
 
 /** A loader for an {@link RpcSystem}. */
 public interface RpcSystemLoader {
+    /**
+     * Returns the loading priority for this loader, for a deterministic loading order if multiple
+     * rpc system loaders are present on the classpath. {@code 0} designates the highest priority.
+     */
+    int getLoadPriority();
+
     RpcSystem loadRpcSystem(Configuration config);
 }

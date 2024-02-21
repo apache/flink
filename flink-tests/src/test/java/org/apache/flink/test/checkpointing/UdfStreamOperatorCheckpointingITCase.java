@@ -18,11 +18,11 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduceOperator;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.EvictingQueue;
+import org.apache.flink.shaded.guava31.com.google.common.collect.EvictingQueue;
 
 import org.junit.Assert;
 
@@ -175,11 +175,21 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             long failurePosMin =
-                    (long) (0.4 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
+                    (long)
+                            (0.4
+                                    * numElements
+                                    / getRuntimeContext()
+                                            .getTaskInfo()
+                                            .getNumberOfParallelSubtasks());
             long failurePosMax =
-                    (long) (0.7 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
+                    (long)
+                            (0.7
+                                    * numElements
+                                    / getRuntimeContext()
+                                            .getTaskInfo()
+                                            .getNumberOfParallelSubtasks());
 
             failurePos =
                     (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;

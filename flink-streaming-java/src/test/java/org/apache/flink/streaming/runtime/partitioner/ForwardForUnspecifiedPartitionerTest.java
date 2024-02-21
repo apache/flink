@@ -23,7 +23,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.graph.NonChainedOutput;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
@@ -87,7 +87,7 @@ class ForwardForUnspecifiedPartitionerTest {
         env.fromSequence(0, 99)
                 .slotSharingGroup("group1")
                 .name("source")
-                .addSink(new DiscardingSink<>())
+                .sinkTo(new DiscardingSink<>())
                 .slotSharingGroup("group2")
                 .name("sink");
 

@@ -52,5 +52,8 @@ and later use the DataStream API to build alerting based on the matched patterns
 * [SQL]({{< ref "docs/dev/table/sql/overview" >}}): SQL 支持的操作和语法。
 * [内置函数]({{< ref "docs/dev/table/functions/systemFunctions" >}}): Table API 和 SQL 中的内置函数。
 * [SQL Client]({{< ref "docs/dev/table/sqlClient" >}}): 不用编写代码就可以尝试 Flink SQL，可以直接提交 SQL 任务到集群上。
+* [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}): SQL 提交服务，支持多个客户端从远端并发提交 SQL 任务。
+* [OLAP Quickstart]({{< ref "docs/dev/table/olap_quickstart" >}}): Flink OLAP 服务搭建指南。
+* [SQL Jdbc Driver]({{< ref "docs/dev/table/jdbcDriver" >}}): 标准JDBC Driver，可以提交Flink SQL作业到Sql Gateway。
 
 {{< top >}}

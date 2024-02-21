@@ -12,7 +12,7 @@ select * from src x join src y on x.key = y.key where exists (select * from src 
 
 [+I[1, val1, 1, val1], +I[2, val2, 2, val2], +I[3, val3, 3, val3]]
 
-select * from (select x.key from src x);
+select * from (select x.key from src x) as t;
 
 [+I[1], +I[2], +I[3]]
 

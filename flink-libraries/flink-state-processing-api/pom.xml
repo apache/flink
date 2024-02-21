@@ -26,13 +26,22 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-libraries</artifactId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-state-processor-api</artifactId>
 	<name>Flink : Libraries : State processor API</name>
 
 	<packaging>jar</packaging>
+
+	<properties>
+		<surefire.module.config><!--
+			chill ArraysAsListSerializer
+			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
+			Kryo
+			-->--add-opens=java.base/java.lang=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
 
 	<dependencies>
 

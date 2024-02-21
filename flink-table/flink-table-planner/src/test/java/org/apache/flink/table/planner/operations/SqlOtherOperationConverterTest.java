@@ -18,11 +18,15 @@
 
 package org.apache.flink.table.planner.operations;
 
+import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowModulesOperation;
+import org.apache.flink.table.operations.ShowPartitionsOperation;
+import org.apache.flink.table.operations.ShowProceduresOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
@@ -58,7 +62,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversionTestBase {
 
     @Test
-    public void testUseCatalog() {
+    void testUseCatalog() {
         final String sql = "USE CATALOG cat1";
         Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(UseCatalogOperation.class);
@@ -67,7 +71,7 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testUseDatabase() {
+    void testUseDatabase() {
         final String sql1 = "USE db1";
         Operation operation1 = parse(sql1);
         assertThat(operation1).isInstanceOf(UseDatabaseOperation.class);
@@ -82,13 +86,13 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testUseDatabaseWithException() {
+    void testUseDatabaseWithException() {
         final String sql = "USE cat1.db1.tbl1";
         assertThatThrownBy(() -> parse(sql)).isInstanceOf(ValidationException.class);
     }
 
     @Test
-    public void testLoadModule() {
+    void testLoadModule() {
         final String sql = "LOAD MODULE dummy WITH ('k1' = 'v1', 'k2' = 'v2')";
         final String expectedModuleName = "dummy";
         final Map<String, String> expectedOptions = new HashMap<>();
@@ -104,7 +108,7 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testUnloadModule() {
+    void testUnloadModule() {
         final String sql = "UNLOAD MODULE dummy";
         final String expectedModuleName = "dummy";
 
@@ -117,7 +121,7 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testUseOneModule() {
+    void testUseOneModule() {
         final String sql = "USE MODULES dummy";
         final List<String> expectedModuleNames = Collections.singletonList("dummy");
 
@@ -131,7 +135,7 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testUseMultipleModules() {
+    void testUseMultipleModules() {
         final String sql = "USE MODULES x, y, z";
         final List<String> expectedModuleNames = Arrays.asList("x", "y", "z");
 
@@ -145,7 +149,7 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testShowModules() {
+    void testShowModules() {
         final String sql = "SHOW MODULES";
         Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(ShowModulesOperation.class);
@@ -156,7 +160,7 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testShowTables() {
+    void testShowTables() {
         final String sql = "SHOW TABLES from cat1.db1 not like 't%'";
         Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(ShowTablesOperation.class);
@@ -184,7 +188,7 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testShowFullModules() {
+    void testShowFullModules() {
         final String sql = "SHOW FULL MODULES";
         Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(ShowModulesOperation.class);
@@ -195,16 +199,98 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testShowFunctions() {
+    void testShowFunctions() {
         final String sql1 = "SHOW FUNCTIONS";
         assertShowFunctions(sql1, sql1, ShowFunctionsOperation.FunctionScope.ALL);
 
         final String sql2 = "SHOW USER FUNCTIONS";
         assertShowFunctions(sql2, sql2, ShowFunctionsOperation.FunctionScope.USER);
+
+        String sql = "show functions from cat1.db1 not like 'f%'";
+        assertShowFunctions(
+                sql,
+                "SHOW FUNCTIONS FROM cat1.db1 NOT LIKE 'f%'",
+                ShowFunctionsOperation.FunctionScope.ALL);
+
+        sql = "show user functions from cat1.db1 ilike 'f%'";
+        assertShowFunctions(
+                sql,
+                "SHOW USER FUNCTIONS FROM cat1.db1 ILIKE 'f%'",
+                ShowFunctionsOperation.FunctionScope.USER);
+
+        sql = "show functions in db1";
+        assertShowFunctions(
+                sql, "SHOW FUNCTIONS IN builtin.db1", ShowFunctionsOperation.FunctionScope.ALL);
+
+        // test fail case
+        assertThatThrownBy(() -> parse("show functions in cat.db.t"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Show functions from/in identifier [ cat.db.t ] format error, it should be [catalog_name.]database_name.");
     }
 
     @Test
-    public void testAddJar() {
+    void testShowDatabases() {
+        final String sql1 = "SHOW DATABASES";
+        assertShowDatabases(sql1, sql1);
+
+        String sql = "show databases from db1 not like 'f%'";
+        assertShowDatabases(sql, "SHOW DATABASES FROM/IN db1 NOT LIKE 'f%'");
+
+        sql = "show databases from db1 not ilike 'f%'";
+        assertShowDatabases(sql, "SHOW DATABASES FROM/IN db1 NOT ILIKE 'f%'");
+
+        sql = "show databases from db1 like 'f%'";
+        assertShowDatabases(sql, "SHOW DATABASES FROM/IN db1 LIKE 'f%'");
+
+        sql = "show databases from db1 ilike 'f%'";
+        assertShowDatabases(sql, "SHOW DATABASES FROM/IN db1 ILIKE 'f%'");
+
+        sql = "show databases in db1";
+        assertShowDatabases(sql, "SHOW DATABASES FROM/IN db1");
+
+        assertThatThrownBy(() -> parse("show databases in db.t"))
+                .isInstanceOf(SqlParserException.class)
+                .hasMessage(
+                        "SQL parse failed. Show databases from/in identifier [ db.t ] format error, catalog must be a single part identifier.");
+    }
+
+    @Test
+    void testShowProcedures() {
+        String sql = "SHOW procedures from cat1.db1 not like 't%'";
+        assertShowProcedures(sql, "SHOW PROCEDURES FROM cat1.db1 NOT LIKE t%");
+
+        sql = "SHOW procedures from cat1.db1 ilike 't%'";
+        assertShowProcedures(sql, "SHOW PROCEDURES FROM cat1.db1 ILIKE t%");
+
+        sql = "SHOW procedures in db1";
+        assertShowProcedures(sql, "SHOW PROCEDURES IN builtin.db1");
+
+        sql = "SHOW procedures";
+        assertShowProcedures(sql, "SHOW PROCEDURES");
+
+        // test fail case
+        assertThatThrownBy(() -> parse("SHOW procedures in cat.db.t"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Show procedures from/in identifier [ cat.db.t ] format error, it should be [catalog_name.]database_name.");
+    }
+
+    @Test
+    void testShowPartitions() {
+        Operation operation = parse("show partitions tbl");
+        assertThat(operation).isInstanceOf(ShowPartitionsOperation.class);
+        assertThat(operation.asSummaryString()).isEqualTo("SHOW PARTITIONS builtin.default.tbl");
+
+        operation = parse("show partitions tbl partition (dt='2020-04-30 01:02:03')");
+        assertThat(operation).isInstanceOf(ShowPartitionsOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "SHOW PARTITIONS builtin.default.tbl PARTITION (dt=2020-04-30 01:02:03)");
+    }
+
+    @Test
+    void testAddJar() {
         Arrays.asList(
                         "./test.\njar",
                         "file:///path/to/whatever",
@@ -223,7 +309,7 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testRemoveJar() {
+    void testRemoveJar() {
         Arrays.asList(
                         "./test.\njar",
                         "file:///path/to/whatever",
@@ -242,7 +328,7 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testShowJars() {
+    void testShowJars() {
         final String sql = "SHOW JARS";
         Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(ShowJarsOperation.class);
@@ -251,7 +337,7 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testSet() {
+    void testSet() {
         Operation operation1 = parse("SET");
         assertThat(operation1).isInstanceOf(SetOperation.class);
         SetOperation setOperation1 = (SetOperation) operation1;
@@ -266,7 +352,7 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testReset() {
+    void testReset() {
         Operation operation1 = parse("RESET");
         assertThat(operation1).isInstanceOf(ResetOperation.class);
         assertThat(((ResetOperation) operation1).getKey()).isNotPresent();
@@ -279,21 +365,21 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
 
     @ParameterizedTest
     @ValueSource(strings = {"SET", "SET;", "SET ;", "SET\t;", "SET\n;"})
-    public void testSetCommands(String command) {
+    void testSetCommands(String command) {
         ExtendedParser extendedParser = new ExtendedParser();
         assertThat(extendedParser.parse(command)).get().isInstanceOf(SetOperation.class);
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"HELP", "HELP;", "HELP ;", "HELP\t;", "HELP\n;"})
-    public void testHelpCommands(String command) {
+    void testHelpCommands(String command) {
         ExtendedParser extendedParser = new ExtendedParser();
         assertThat(extendedParser.parse(command)).get().isInstanceOf(HelpOperation.class);
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"CLEAR", "CLEAR;", "CLEAR ;", "CLEAR\t;", "CLEAR\n;"})
-    public void testClearCommands(String command) {
+    void testClearCommands(String command) {
         ExtendedParser extendedParser = new ExtendedParser();
         assertThat(extendedParser.parse(command)).get().isInstanceOf(ClearOperation.class);
     }
@@ -304,7 +390,7 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
                 "QUIT;", "QUIT;", "QUIT ;", "QUIT\t;", "QUIT\n;", "EXIT;", "EXIT ;", "EXIT\t;",
                 "EXIT\n;", "EXIT ; "
             })
-    public void testQuitCommands(String command) {
+    void testQuitCommands(String command) {
         ExtendedParser extendedParser = new ExtendedParser();
         assertThat(extendedParser.parse(command)).get().isInstanceOf(QuitOperation.class);
     }
@@ -320,5 +406,20 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
 
         assertThat(showFunctionsOperation.getFunctionScope()).isEqualTo(expectedScope);
         assertThat(showFunctionsOperation.asSummaryString()).isEqualTo(expectedSummary);
+    }
+
+    private void assertShowDatabases(String sql, String expectedSummary) {
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(ShowDatabasesOperation.class);
+        final ShowDatabasesOperation showDatabasesOperation = (ShowDatabasesOperation) operation;
+        assertThat(showDatabasesOperation.asSummaryString()).isEqualTo(expectedSummary);
+    }
+
+    private void assertShowProcedures(String sql, String expectedSummary) {
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(ShowProceduresOperation.class);
+
+        final ShowProceduresOperation showProceduresOperation = (ShowProceduresOperation) operation;
+        assertThat(showProceduresOperation.asSummaryString()).isEqualTo(expectedSummary);
     }
 }

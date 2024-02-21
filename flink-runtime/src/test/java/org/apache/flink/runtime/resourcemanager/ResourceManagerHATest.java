@@ -18,50 +18,46 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.runtime.leaderelection.LeaderInformation;
+import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** ResourceManager HA test, including grant leadership and revoke leadership. */
-public class ResourceManagerHATest extends TestLogger {
+class ResourceManagerHATest {
 
     @Test
-    public void testGrantAndRevokeLeadership() throws Exception {
-        final TestingLeaderElectionService leaderElectionService =
-                new TestingLeaderElectionService();
+    void testGrantAndRevokeLeadership() throws Exception {
+        final TestingLeaderElection leaderElection = new TestingLeaderElection();
 
         final TestingResourceManagerService resourceManagerService =
                 TestingResourceManagerService.newBuilder()
-                        .setRmLeaderElectionService(leaderElectionService)
+                        .setRmLeaderElection(leaderElection)
                         .build();
 
         try {
             resourceManagerService.start();
 
             final UUID leaderId = UUID.randomUUID();
-            resourceManagerService.isLeader(leaderId);
+            final LeaderInformation confirmedLeaderInformation =
+                    resourceManagerService.isLeader(leaderId).join();
 
             // after grant leadership, verify resource manager is started with the fencing token
-            assertEquals(
-                    leaderId,
-                    leaderElectionService.getConfirmationFuture().get().getLeaderSessionId());
-            assertTrue(resourceManagerService.getResourceManagerFencingToken().isPresent());
-            assertEquals(
-                    leaderId,
-                    resourceManagerService.getResourceManagerFencingToken().get().toUUID());
+            assertThat(confirmedLeaderInformation.getLeaderSessionID()).isEqualTo(leaderId);
+            assertThat(resourceManagerService.getResourceManagerFencingToken()).isPresent();
+            assertThat(resourceManagerService.getResourceManagerFencingToken().get().toUUID())
+                    .isEqualTo(leaderId);
 
             // then revoke leadership, verify resource manager is closed
             final Optional<CompletableFuture<Void>> rmTerminationFutureOpt =
                     resourceManagerService.getResourceManagerTerminationFuture();
-            assertTrue(rmTerminationFutureOpt.isPresent());
+            assertThat(rmTerminationFutureOpt).isPresent();
 
             resourceManagerService.notLeader();
             rmTerminationFutureOpt.get().get();

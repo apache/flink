@@ -29,7 +29,9 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.IterableUtils;
 
 import java.util.Arrays;
@@ -43,6 +45,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionVertex.NUM_BYTES_UNKNOWN;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** The slow task detector which detects slow tasks based on their execution time. */
@@ -57,6 +60,11 @@ public class ExecutionTimeBasedSlowTaskDetector implements SlowTaskDetector {
     private final double baselineMultiplier;
 
     private ScheduledFuture<?> scheduledDetectionFuture;
+
+    private FatalErrorHandler fatalErrorHandler =
+            throwable ->
+                    FatalExitExceptionHandler.INSTANCE.uncaughtException(
+                            Thread.currentThread(), throwable);
 
     public ExecutionTimeBasedSlowTaskDetector(Configuration configuration) {
         this.checkIntervalMillis =
@@ -78,7 +86,7 @@ public class ExecutionTimeBasedSlowTaskDetector implements SlowTaskDetector {
                 this.baselineLowerBoundMillis);
 
         this.baselineRatio =
-                configuration.getDouble(SlowTaskDetectorOptions.EXECUTION_TIME_BASELINE_RATIO);
+                configuration.get(SlowTaskDetectorOptions.EXECUTION_TIME_BASELINE_RATIO);
         checkArgument(
                 baselineRatio >= 0 && this.baselineRatio < 1,
                 "The configuration {} should be in [0, 1), but is {}.",
@@ -86,12 +94,19 @@ public class ExecutionTimeBasedSlowTaskDetector implements SlowTaskDetector {
                 this.baselineRatio);
 
         this.baselineMultiplier =
-                configuration.getDouble(SlowTaskDetectorOptions.EXECUTION_TIME_BASELINE_MULTIPLIER);
+                configuration.get(SlowTaskDetectorOptions.EXECUTION_TIME_BASELINE_MULTIPLIER);
         checkArgument(
                 baselineMultiplier > 0,
                 "The configuration {} should be positive, but is {}.",
                 SlowTaskDetectorOptions.EXECUTION_TIME_BASELINE_MULTIPLIER.key(),
                 this.baselineMultiplier);
+    }
+
+    @VisibleForTesting
+    ExecutionTimeBasedSlowTaskDetector(
+            Configuration configuration, FatalErrorHandler fatalErrorHandler) {
+        this(configuration);
+        this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
     }
 
     @Override
@@ -110,7 +125,11 @@ public class ExecutionTimeBasedSlowTaskDetector implements SlowTaskDetector {
         this.scheduledDetectionFuture =
                 mainThreadExecutor.schedule(
                         () -> {
-                            listener.notifySlowTasks(findSlowTasks(executionGraph));
+                            try {
+                                listener.notifySlowTasks(findSlowTasks(executionGraph));
+                            } catch (Throwable throwable) {
+                                fatalErrorHandler.onFatalError(throwable);
+                            }
                             scheduleTask(executionGraph, listener, mainThreadExecutor);
                         },
                         checkIntervalMillis,
@@ -214,7 +233,17 @@ public class ExecutionTimeBasedSlowTaskDetector implements SlowTaskDetector {
             ExecutionTimeWithInputBytes baseline,
             long currentTimeMillis) {
         return executions.stream()
-                .filter(e -> !e.getState().isTerminal() && e.getState() != ExecutionState.CANCELING)
+                .filter(
+                        // We will filter out tasks that are in the CREATED state, as we do not
+                        // allow speculative execution for them because they have not been
+                        // scheduled.
+                        // However, for tasks that are already in the SCHEDULED state, we allow
+                        // speculative execution to provide the capability of parallel execution
+                        // running.
+                        e ->
+                                !e.getState().isTerminal()
+                                        && e.getState() != ExecutionState.CANCELING
+                                        && e.getState() != ExecutionState.CREATED)
                 .filter(
                         e -> {
                             ExecutionTimeWithInputBytes timeWithBytes =
@@ -256,6 +285,11 @@ public class ExecutionTimeBasedSlowTaskDetector implements SlowTaskDetector {
         if (scheduledDetectionFuture != null) {
             scheduledDetectionFuture.cancel(false);
         }
+    }
+
+    @VisibleForTesting
+    ScheduledFuture<?> getScheduledDetectionFuture() {
+        return scheduledDetectionFuture;
     }
 
     /** This class defines the execution time and input bytes for an execution. */

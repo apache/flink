@@ -26,19 +26,20 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TimeUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonGetter;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
@@ -84,44 +85,55 @@ public class StateMetadata {
                 stateIndex,
                 TimeUtils.parseDuration(
                         Preconditions.checkNotNull(stateTtl, "state ttl should not be null")),
-                Preconditions.checkNotNull(stateName, "state name should not be null"));
+                stateName);
     }
 
-    public StateMetadata(int stateIndex, @Nonnull Duration stateTtl, @Nonnull String stateName) {
+    public StateMetadata(int stateIndex, Duration stateTtl, String stateName) {
         Preconditions.checkArgument(stateIndex >= 0, "state index should start from 0");
         this.stateIndex = stateIndex;
-        this.stateTtl = stateTtl;
-        this.stateName = stateName;
+        this.stateTtl = Preconditions.checkNotNull(stateTtl, "state ttl should not be null");
+        this.stateName = Preconditions.checkNotNull(stateName, "state name should not be null");
     }
 
     public int getStateIndex() {
         return stateIndex;
     }
 
-    public long getStateTtl() {
-        return stateTtl.toMillis();
-    }
-
-    public String getStateName() {
-        return stateName;
+    @JsonGetter(value = FIELD_NAME_STATE_TTL)
+    public String getStateTtl() {
+        return TimeUtils.formatWithHighestUnit(stateTtl);
     }
 
     public static List<StateMetadata> getOneInputOperatorDefaultMeta(
             ReadableConfig tableConfig, String stateName) {
+        return getOneInputOperatorDefaultMeta(null, tableConfig, stateName);
+    }
+
+    public static List<StateMetadata> getOneInputOperatorDefaultMeta(
+            @Nullable Long stateTtlFromHint, ReadableConfig tableConfig, String stateName) {
         return Collections.singletonList(
                 new StateMetadata(
                         0,
-                        tableConfig.get(ExecutionConfigOptions.IDLE_STATE_RETENTION),
+                        stateTtlFromHint == null
+                                ? tableConfig.get(ExecutionConfigOptions.IDLE_STATE_RETENTION)
+                                : Duration.ofMillis(stateTtlFromHint),
                         stateName));
     }
 
     public static List<StateMetadata> getMultiInputOperatorDefaultMeta(
-            ReadableConfig tableConfig, String... stateNameList) {
-        Duration stateRetentionTime = tableConfig.get(ExecutionConfigOptions.IDLE_STATE_RETENTION);
-        return IntStream.range(0, stateNameList.length)
-                .boxed()
-                .map(i -> new StateMetadata(i, stateRetentionTime, stateNameList[i]))
-                .collect(Collectors.toList());
+            Map<Integer, Long> stateTtlFromHint,
+            ReadableConfig tableConfig,
+            String... stateNameList) {
+        Duration ttlFromTableConf = tableConfig.get(ExecutionConfigOptions.IDLE_STATE_RETENTION);
+        List<StateMetadata> stateMetadataList = new ArrayList<>(stateNameList.length);
+        for (int i = 0; i < stateNameList.length; i++) {
+            Duration stateTtl =
+                    stateTtlFromHint.containsKey(i)
+                            ? Duration.ofMillis(stateTtlFromHint.get(i))
+                            : ttlFromTableConf;
+            stateMetadataList.add(new StateMetadata(i, stateTtl, stateNameList[i]));
+        }
+        return stateMetadataList;
     }
 
     public static long getStateTtlForOneInputOperator(
@@ -143,7 +155,7 @@ public class StateMetadata {
         validateStateMetadata(inputNumOfOperator, stateMetadataList);
         return stateMetadataList.stream()
                 .sorted(Comparator.comparing(StateMetadata::getStateIndex))
-                .map(StateMetadata::getStateTtl)
+                .map(metadata -> metadata.stateTtl.toMillis())
                 .collect(Collectors.toList());
     }
 

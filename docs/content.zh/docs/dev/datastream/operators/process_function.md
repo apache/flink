@@ -133,7 +133,7 @@ public class CountWithTimeoutFunction
     private ValueState<CountWithTimestamp> state;
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         state = getRuntimeContext().getState(new ValueStateDescriptor<>("myState", CountWithTimestamp.class));
     }
 

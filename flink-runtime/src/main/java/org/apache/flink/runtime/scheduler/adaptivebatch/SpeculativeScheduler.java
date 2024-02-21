@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
@@ -39,9 +40,9 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.SpeculativeExecutionVertex;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingResult;
-import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
+import org.apache.flink.runtime.executiongraph.failover.FailureHandlingResult;
+import org.apache.flink.runtime.executiongraph.failover.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -120,6 +121,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
             long initializationTimestamp,
             final ComponentMainThreadExecutor mainThreadExecutor,
             final JobStatusListener jobStatusListener,
+            final Collection<FailureEnricher> failureEnrichers,
             final ExecutionGraphFactory executionGraphFactory,
             final ShuffleMaster<?> shuffleMaster,
             final Time rpcTimeout,
@@ -150,6 +152,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
                 initializationTimestamp,
                 mainThreadExecutor,
                 jobStatusListener,
+                failureEnrichers,
                 executionGraphFactory,
                 shuffleMaster,
                 rpcTimeout,
@@ -159,7 +162,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
                 forwardGroupsByJobVertexId);
 
         this.maxConcurrentExecutions =
-                jobMasterConfiguration.getInteger(
+                jobMasterConfiguration.get(
                         BatchExecutionOptions.SPECULATIVE_MAX_CONCURRENT_EXECUTIONS);
 
         this.blockSlowNodeDuration =
@@ -285,7 +288,10 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
             archiveFromFailureHandlingResult(
                     createFailureHandlingResultSnapshot(failureHandlingResult));
         } else {
-            failJob(error, failureHandlingResult.getTimestamp());
+            failJob(
+                    error,
+                    failureHandlingResult.getTimestamp(),
+                    failureHandlingResult.getFailureLabels());
         }
     }
 

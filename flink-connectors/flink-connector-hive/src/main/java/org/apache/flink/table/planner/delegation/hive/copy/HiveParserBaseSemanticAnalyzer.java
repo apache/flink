@@ -42,6 +42,7 @@ import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.antlr.runtime.tree.Tree;
@@ -122,7 +123,6 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -1997,7 +1997,8 @@ public class HiveParserBaseSemanticAnalyzer {
         }
 
         List<String> parts = resolvedCatalogTable.getPartitionKeys();
-        Map<String, TypeInfo> partColsTypes = new HashMap<>(parts.size());
+        Map<String, TypeInfo> partColsTypes =
+                CollectionUtil.newHashMapWithExpectedSize(parts.size());
         for (String col : parts) {
             Optional<DataType> dataType =
                     resolvedCatalogTable
@@ -2155,7 +2156,8 @@ public class HiveParserBaseSemanticAnalyzer {
                 childIndex = 1;
                 HiveParserASTNode partspec = (HiveParserASTNode) ast.getChild(1);
                 // partSpec is a mapping from partition column name to its value.
-                Map<String, String> tmpPartSpec = new HashMap<>(partspec.getChildCount());
+                Map<String, String> tmpPartSpec =
+                        CollectionUtil.newHashMapWithExpectedSize(partspec.getChildCount());
                 for (int i = 0; i < partspec.getChildCount(); ++i) {
                     HiveParserASTNode partspecVal = (HiveParserASTNode) partspec.getChild(i);
                     String val = null;
@@ -2185,7 +2187,8 @@ public class HiveParserBaseSemanticAnalyzer {
                         cluster);
 
                 List<String> parts = ((CatalogTable) table).getPartitionKeys();
-                partSpec = new LinkedHashMap<>(partspec.getChildCount());
+                partSpec =
+                        CollectionUtil.newLinkedHashMapWithExpectedSize(partspec.getChildCount());
                 for (String part : parts) {
                     partSpec.put(part, tmpPartSpec.get(part));
                 }

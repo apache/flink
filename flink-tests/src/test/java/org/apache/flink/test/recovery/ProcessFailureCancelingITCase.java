@@ -23,14 +23,15 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
@@ -48,84 +49,87 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.security.token.NoOpDelegationTokenManager;
-import org.apache.flink.runtime.util.BlobServerResource;
+import org.apache.flink.runtime.util.BlobServerExtension;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.impl.VoidMetricQueryServiceRetriever;
-import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
+import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.test.recovery.utils.TaskExecutorProcessEntryPoint;
 import org.apache.flink.test.util.TestProcessBuilder;
 import org.apache.flink.test.util.TestProcessBuilder.TestProcess;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assume;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * This test makes sure that jobs are canceled properly in cases where the task manager went down
  * and did not respond to cancel messages.
  */
-@SuppressWarnings("serial")
-public class ProcessFailureCancelingITCase extends TestLogger {
+class ProcessFailureCancelingITCase {
 
     private static final String TASK_DEPLOYED_MARKER = "deployed";
     private static final Duration TIMEOUT = Duration.ofMinutes(2);
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    public static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
-    @Rule public final BlobServerResource blobServerResource = new BlobServerResource();
+    @RegisterExtension
+    public final EachCallbackWrapper<BlobServerExtension> blobServerExtensionWrapper =
+            new EachCallbackWrapper<>(new BlobServerExtension());
 
-    @Rule public final ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
+    @RegisterExtension
+    public final EachCallbackWrapper<ZooKeeperExtension> zooKeeperExtensionWrapper =
+            new EachCallbackWrapper<>(new ZooKeeperExtension());
 
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir public Path temporaryFolder;
 
     @Test
-    public void testCancelingOnProcessFailure() throws Throwable {
-        Assume.assumeTrue(
-                "---- Skipping Process Failure test : Could not find java executable ----",
-                getJavaCommandPath() != null);
+    void testCancelingOnProcessFailure() throws Throwable {
+        Assumptions.assumeTrue(
+                getJavaCommandPath() != null,
+                "---- Skipping Process Failure test : Could not find java executable ----");
 
         TestProcess taskManagerProcess = null;
         final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
 
         Configuration config = new Configuration();
-        config.setString(JobManagerOptions.ADDRESS, "localhost");
-        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(100));
-        config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-        config.setString(
-                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
-        config.setString(
+        config.set(JobManagerOptions.ADDRESS, "localhost");
+        config.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(100));
+        config.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
+        config.set(
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
+                zooKeeperExtensionWrapper.getCustomExtension().getConnectString());
+        config.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH,
-                temporaryFolder.newFolder().getAbsolutePath());
-        config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
+                TempDirUtils.newFolder(temporaryFolder).getAbsolutePath());
+        config.set(TaskManagerOptions.NUM_TASK_SLOTS, 2);
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("3200k"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("3200k"));
         config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
         config.set(TaskManagerOptions.CPU_CORES, 1.0);
-        config.setInteger(RestOptions.PORT, 0);
+        config.set(RestOptions.PORT, 0);
 
         final RpcService rpcService =
                 RpcSystem.load().remoteServiceBuilder(config, "localhost", "0").createAndStart();
         final int jobManagerPort = rpcService.getPort();
-        config.setInteger(JobManagerOptions.PORT, jobManagerPort);
+        config.set(JobManagerOptions.PORT, jobManagerPort);
 
         final DispatcherResourceManagerComponentFactory resourceManagerComponentFactory =
                 DefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(
@@ -151,12 +155,13 @@ public class ProcessFailureCancelingITCase extends TestLogger {
                             ioExecutor,
                             rpcService,
                             haServices,
-                            blobServerResource.getBlobServer(),
+                            blobServerExtensionWrapper.getCustomExtension().getBlobServer(),
                             new HeartbeatServicesImpl(100L, 10000L, 2),
                             new NoOpDelegationTokenManager(),
                             NoOpMetricRegistry.INSTANCE,
                             new MemoryExecutionGraphInfoStore(),
                             VoidMetricQueryServiceRetriever.INSTANCE,
+                            Collections.emptySet(),
                             fatalErrorHandler);
 
             TestProcessBuilder taskManagerProcessBuilder =
@@ -214,12 +219,13 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 
             programThread.join(TIMEOUT.toMillis());
 
-            assertFalse("The program did not cancel in time", programThread.isAlive());
+            assertThat(programThread.isAlive())
+                    .withFailMessage("The program did not cancel in time")
+                    .isFalse();
 
-            Throwable error = programException.get();
-            assertNotNull("The program did not fail properly", error);
-
-            assertTrue(error instanceof ProgramInvocationException);
+            assertThat(programException.get())
+                    .withFailMessage("The program did not fail properly")
+                    .isInstanceOf(ProgramInvocationException.class);
             // all seems well :-)
         } catch (Exception | Error e) {
             if (taskManagerProcess != null) {
@@ -232,15 +238,16 @@ public class ProcessFailureCancelingITCase extends TestLogger {
                 taskManagerProcess.destroy();
             }
             if (dispatcherResourceManagerComponent != null) {
-                dispatcherResourceManagerComponent.stopApplication(
-                        ApplicationStatus.SUCCEEDED, null);
+                dispatcherResourceManagerComponent
+                        .stopApplication(ApplicationStatus.SUCCEEDED, null)
+                        .get();
             }
 
             fatalErrorHandler.rethrowError();
 
             RpcUtils.terminateRpcService(rpcService);
 
-            haServices.closeAndCleanupAllData();
+            haServices.closeWithOptionalClean(true);
         }
     }
 

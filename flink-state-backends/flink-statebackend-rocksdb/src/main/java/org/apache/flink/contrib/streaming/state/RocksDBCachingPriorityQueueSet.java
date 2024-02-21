@@ -23,11 +23,12 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.InternalPriorityQueue;
+import org.apache.flink.runtime.state.heap.AbstractHeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import org.apache.flink.shaded.guava30.com.google.common.primitives.UnsignedBytes;
+import org.apache.flink.shaded.guava31.com.google.common.primitives.UnsignedBytes;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ReadOptions;
@@ -56,7 +57,7 @@ import static org.apache.flink.contrib.streaming.state.RocksDBCachingPriorityQue
  * @param <E> the type of the contained elements in the queue.
  */
 public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
-        implements InternalPriorityQueue<E>, HeapPriorityQueueElement {
+        extends AbstractHeapPriorityQueueElement implements InternalPriorityQueue<E> {
 
     /** Serialized empty value to insert into RocksDB. */
     private static final byte[] DUMMY_BYTES = new byte[] {};
@@ -102,9 +103,6 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
     /** This flag is true iff all elements in RocksDB are also contained in the cache. */
     private boolean allElementsInCache;
 
-    /** Index for management as a {@link HeapPriorityQueueElement}. */
-    private int internalIndex;
-
     RocksDBCachingPriorityQueueSet(
             @Nonnegative int keyGroupId,
             @Nonnegative int keyGroupPrefixBytes,
@@ -127,7 +125,6 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
         this.allElementsInCache = false;
         this.groupPrefixBytes = createKeyGroupBytes(keyGroupId, keyGroupPrefixBytes);
         this.seekHint = groupPrefixBytes;
-        this.internalIndex = HeapPriorityQueueElement.NOT_CONTAINED;
     }
 
     @Nullable
@@ -287,16 +284,6 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
             }
             return count;
         }
-    }
-
-    @Override
-    public int getInternalIndex() {
-        return internalIndex;
-    }
-
-    @Override
-    public void setInternalIndex(int newIndex) {
-        this.internalIndex = newIndex;
     }
 
     @Nonnull

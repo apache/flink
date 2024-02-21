@@ -21,8 +21,8 @@ package org.apache.flink.fs.gs.utils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fs.gs.TestUtils;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.MapDifference;
-import org.apache.flink.shaded.guava30.com.google.common.collect.Maps;
+import org.apache.flink.shaded.guava31.com.google.common.collect.MapDifference;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Maps;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;

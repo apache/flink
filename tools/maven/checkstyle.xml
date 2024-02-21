@@ -61,7 +61,7 @@ This file is based on the checkstyle file of Apache Beam.
 	-->
 
 	<module name="FileLength">
-		<property name="max" value="3000"/>
+		<property name="max" value="3100"/>
 	</module>
 
 	<!-- All Java AST specific tests live under TreeWalker module. -->
@@ -180,6 +180,11 @@ This file is based on the checkstyle file of Apache Beam.
 			<property name="severity" value="error"/>
 		</module>
 
+		<module name="IllegalImport">
+			<property name="illegalPkgs"
+					  value="org.mockito, org.powermock"/>
+			<message key="import.illegal" value="{0}; Mocking is discouraged. Please refer to the coding guidelines: https://flink.apache.org/how-to-contribute/code-style-and-quality-common/#avoid-mockito---use-reusable-test-implementations."/>
+		</module>
 		<module name="IllegalImport">
 			<property name="illegalPkgs"
 					  value="autovalue.shaded, avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged"/>

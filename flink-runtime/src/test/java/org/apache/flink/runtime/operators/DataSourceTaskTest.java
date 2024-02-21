@@ -28,10 +28,7 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -44,9 +41,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
-public class DataSourceTaskTest extends TaskTestBase {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+public class DataSourceTaskTest extends TaskTestBase {
 
     private static final int MEMORY_MANAGER_SIZE = 1024 * 1024;
 
@@ -55,12 +53,12 @@ public class DataSourceTaskTest extends TaskTestBase {
     private List<Record> outList;
 
     @Test
-    public void testDataSourceTask() throws IOException {
+    void testDataSourceTask() throws IOException {
         int keyCnt = 100;
         int valCnt = 20;
 
         this.outList = new ArrayList<Record>();
-        File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+        File tempTestFile = new File(tempFolder.toFile(), UUID.randomUUID().toString());
         InputFilePreparator.prepareInputFile(
                 new UniformRecordGenerator(keyCnt, valCnt, false), tempTestFile, true);
 
@@ -76,32 +74,33 @@ public class DataSourceTaskTest extends TaskTestBase {
             testTask.invoke();
         } catch (Exception e) {
             System.err.println(e);
-            Assert.fail("Invoke method caused exception.");
+            fail("Invoke method caused exception.");
         }
 
         try {
             Field formatField = DataSourceTask.class.getDeclaredField("format");
             formatField.setAccessible(true);
             MockInputFormat inputFormat = (MockInputFormat) formatField.get(testTask);
-            Assert.assertTrue(
-                    "Invalid status of the input format. Expected for opened: true, Actual: "
-                            + inputFormat.opened,
-                    inputFormat.opened);
-            Assert.assertTrue(
-                    "Invalid status of the input format. Expected for closed: true, Actual: "
-                            + inputFormat.closed,
-                    inputFormat.closed);
+            assertThat(inputFormat.opened)
+                    .withFailMessage(
+                            "Invalid status of the input format. Expected for opened: true, Actual: %b",
+                            inputFormat.opened)
+                    .isTrue();
+            assertThat(inputFormat.closed)
+                    .withFailMessage(
+                            "Invalid status of the input format. Expected for closed: true, Actual: %b",
+                            inputFormat.closed)
+                    .isTrue();
         } catch (Exception e) {
             System.err.println(e);
-            Assert.fail("Reflection error while trying to validate inputFormat status.");
+            fail("Reflection error while trying to validate inputFormat status.");
         }
 
-        Assert.assertTrue(
-                "Invalid output size. Expected: "
-                        + (keyCnt * valCnt)
-                        + " Actual: "
-                        + this.outList.size(),
-                this.outList.size() == keyCnt * valCnt);
+        assertThat(this.outList)
+                .withFailMessage(
+                        "Invalid output size. Expected: %d, Actual: %d",
+                        keyCnt * valCnt, outList.size())
+                .hasSize(keyCnt * valCnt);
 
         HashMap<Integer, HashSet<Integer>> keyValueCountMap = new HashMap<>(keyCnt);
 
@@ -116,32 +115,28 @@ public class DataSourceTaskTest extends TaskTestBase {
             keyValueCountMap.get(key).add(val);
         }
 
-        Assert.assertTrue(
-                "Invalid key count in out file. Expected: "
-                        + keyCnt
-                        + " Actual: "
-                        + keyValueCountMap.keySet().size(),
-                keyValueCountMap.keySet().size() == keyCnt);
+        assertThat(keyValueCountMap)
+                .withFailMessage(
+                        "Invalid key count in out file. Expected: %d, Actual: %d",
+                        keyCnt, keyValueCountMap.size())
+                .hasSize(keyCnt);
 
         for (Integer mapKey : keyValueCountMap.keySet()) {
-            Assert.assertTrue(
-                    "Invalid value count for key: "
-                            + mapKey
-                            + ". Expected: "
-                            + valCnt
-                            + " Actual: "
-                            + keyValueCountMap.get(mapKey).size(),
-                    keyValueCountMap.get(mapKey).size() == valCnt);
+            assertThat(keyValueCountMap.get(mapKey))
+                    .withFailMessage(
+                            "Invalid value count for key: %d. Expected: %d, Actual: %d",
+                            mapKey, valCnt, keyValueCountMap.get(mapKey).size())
+                    .hasSize(valCnt);
         }
     }
 
     @Test
-    public void testFailingDataSourceTask() throws IOException {
+    void testFailingDataSourceTask() throws IOException {
         int keyCnt = 20;
         int valCnt = 10;
 
         this.outList = new NirvanaOutputList();
-        File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+        File tempTestFile = new File(tempFolder.toFile(), UUID.randomUUID().toString());
         InputFilePreparator.prepareInputFile(
                 new UniformRecordGenerator(keyCnt, valCnt, false), tempTestFile, false);
 
@@ -160,20 +155,20 @@ public class DataSourceTaskTest extends TaskTestBase {
         } catch (Exception e) {
             stubFailed = true;
         }
-        Assert.assertTrue("Function exception was not forwarded.", stubFailed);
+        assertThat(stubFailed).withFailMessage("Function exception was not forwarded.").isTrue();
 
         // assert that temp file was created
-        Assert.assertTrue("Temp output file does not exist", tempTestFile.exists());
+        assertThat(tempTestFile).withFailMessage("Temp output file does not exist").exists();
     }
 
     @Test
-    public void testCancelDataSourceTask() throws IOException {
+    void testCancelDataSourceTask() throws IOException {
         int keyCnt = 20;
         int valCnt = 4;
 
         super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
         super.addOutput(new NirvanaOutputList());
-        File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+        File tempTestFile = new File(tempFolder.toFile(), UUID.randomUUID().toString());
         InputFilePreparator.prepareInputFile(
                 new UniformRecordGenerator(keyCnt, valCnt, false), tempTestFile, false);
 
@@ -190,7 +185,7 @@ public class DataSourceTaskTest extends TaskTestBase {
                             testTask.invoke();
                         } catch (Exception ie) {
                             ie.printStackTrace();
-                            Assert.fail("Task threw exception although it was properly canceled");
+                            fail("Task threw exception although it was properly canceled");
                         }
                     }
                 };
@@ -203,11 +198,11 @@ public class DataSourceTaskTest extends TaskTestBase {
             tct.join();
             taskRunner.join();
         } catch (InterruptedException ie) {
-            Assert.fail("Joining threads failed");
+            fail("Joining threads failed");
         }
 
         // assert that temp file was created
-        Assert.assertTrue("Temp output file does not exist", tempTestFile.exists());
+        assertThat(tempTestFile).withFailMessage("Temp output file does not exist").exists();
     }
 
     public static class InputFilePreparator {
@@ -265,19 +260,21 @@ public class DataSourceTaskTest extends TaskTestBase {
 
         public void openInputFormat() {
             // ensure this is called only once
-            Assert.assertFalse(
-                    "Invalid status of the input format. Expected for opened: false, Actual: "
-                            + opened,
-                    opened);
+            assertThat(opened)
+                    .withFailMessage(
+                            "Invalid status of the input format. Expected for opened: false, Actual: %b",
+                            opened)
+                    .isFalse();
             opened = true;
         }
 
         public void closeInputFormat() {
             // ensure this is called only once
-            Assert.assertFalse(
-                    "Invalid status of the input format. Expected for closed: false, Actual: "
-                            + closed,
-                    closed);
+            assertThat(closed)
+                    .withFailMessage(
+                            "Invalid status of the input format. Expected for closed: false, Actual: %b",
+                            closed)
+                    .isFalse();
             closed = true;
         }
     }

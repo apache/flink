@@ -29,6 +29,7 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorChannelStateExecutorFactoryManager;
+import org.apache.flink.runtime.state.TaskExecutorFileMergingManager;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.taskexecutor.slot.NoOpSlotAllocationSnapshotPersistenceService;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
+import org.apache.flink.runtime.util.NoOpGroupCache;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -58,6 +60,7 @@ public class TaskManagerServicesBuilder {
     private JobTable jobTable;
     private JobLeaderService jobLeaderService;
     private TaskExecutorLocalStateStoresManager taskStateManager;
+    private TaskExecutorFileMergingManager taskFileMergingManager;
     private TaskExecutorStateChangelogStoragesManager taskChangelogStoragesManager;
     private TaskExecutorChannelStateExecutorFactoryManager taskChannelStateExecutorFactoryManager;
     private TaskEventDispatcher taskEventDispatcher;
@@ -83,6 +86,7 @@ public class TaskManagerServicesBuilder {
                         unresolvedTaskManagerLocation,
                         RetryingRegistrationConfiguration.defaultConfiguration());
         taskStateManager = mock(TaskExecutorLocalStateStoresManager.class);
+        taskFileMergingManager = new TaskExecutorFileMergingManager();
         taskChangelogStoragesManager = mock(TaskExecutorStateChangelogStoragesManager.class);
         taskChannelStateExecutorFactoryManager =
                 new TaskExecutorChannelStateExecutorFactoryManager();
@@ -142,6 +146,12 @@ public class TaskManagerServicesBuilder {
         return this;
     }
 
+    public TaskManagerServicesBuilder setTaskFileMergingManager(
+            TaskExecutorFileMergingManager taskFileMergingManager) {
+        this.taskFileMergingManager = taskFileMergingManager;
+        return this;
+    }
+
     public TaskManagerServicesBuilder setTaskChangelogStoragesManager(
             TaskExecutorStateChangelogStoragesManager taskChangelogStoragesManager) {
         this.taskChangelogStoragesManager = taskChangelogStoragesManager;
@@ -183,12 +193,16 @@ public class TaskManagerServicesBuilder {
                 jobTable,
                 jobLeaderService,
                 taskStateManager,
+                taskFileMergingManager,
                 taskChangelogStoragesManager,
                 taskChannelStateExecutorFactoryManager,
                 taskEventDispatcher,
                 Executors.newSingleThreadScheduledExecutor(),
                 libraryCacheManager,
                 slotAllocationSnapshotPersistenceService,
-                sharedResources);
+                sharedResources,
+                new NoOpGroupCache<>(),
+                new NoOpGroupCache<>(),
+                new NoOpGroupCache<>());
     }
 }

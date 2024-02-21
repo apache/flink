@@ -18,18 +18,19 @@
 package org.apache.flink.table.planner.runtime.batch.table
 
 import org.apache.flink.api.scala._
+import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.JBigDecimal
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinITCaseHelper.disableOtherJoinOpForJoin
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.JoinType
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable}
-import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.test.util.TestBaseUtils
 
-import org.hamcrest.CoreMatchers.equalTo
-import org.junit._
-import org.junit.Assert.assertThat
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, Test}
+import org.junit.jupiter.api.extension.RegisterExtension
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -37,12 +38,12 @@ import scala.util.Random
 
 class SetOperatorsITCase extends BatchTestBase {
 
-  @Rule
-  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
   val expectedJoinType: JoinType = JoinType.SortMergeJoin
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     disableOtherJoinOpForJoin(tEnv, expectedJoinType)
@@ -68,8 +69,8 @@ class SetOperatorsITCase extends BatchTestBase {
     val unionTable = table1.unionAll(table2)
 
     val schema = unionTable.getResolvedSchema.getColumnDataTypes
-    assertThat(schema.get(0), equalTo(DataTypes.DECIMAL(13, 3).notNull()))
-    assertThat(schema.get(1), equalTo(DataTypes.VARCHAR(3).notNull()))
+    assertThat(schema.get(0)).isEqualTo(DataTypes.DECIMAL(13, 3).notNull())
+    assertThat(schema.get(1)).isEqualTo(DataTypes.VARCHAR(3).notNull())
 
     val results = executeQuery(unionTable)
     val expected = "12.000,\n" + "1234.123,ABC\n"

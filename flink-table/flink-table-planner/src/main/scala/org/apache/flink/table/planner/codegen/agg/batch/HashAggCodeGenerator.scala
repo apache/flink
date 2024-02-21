@@ -112,7 +112,8 @@ object HashAggCodeGenerator {
 
     val aggInfos = aggInfoList.aggInfos
     val functionIdentifiers = AggCodeGenHelper.getFunctionIdentifiers(aggInfos)
-    val aggBufferNames = AggCodeGenHelper.getAggBufferNames(auxGrouping, aggInfos)
+    val aggBufferPrefix = "hash"
+    val aggBufferNames = AggCodeGenHelper.getAggBufferNames(aggBufferPrefix, auxGrouping, aggInfos)
     val aggBufferTypes = AggCodeGenHelper.getAggBufferTypes(inputType, auxGrouping, aggInfos)
     val groupKeyRowType = RowTypeUtils.projectRowType(inputType, grouping)
     val aggBufferRowType = RowType.of(aggBufferTypes.flatten, aggBufferNames.flatten)
@@ -121,16 +122,16 @@ object HashAggCodeGenerator {
     val className = if (isFinal) "HashAggregateWithKeys" else "LocalHashAggregateWithKeys"
 
     // add logger
-    val logTerm = CodeGenUtils.newName("LOG")
+    val logTerm = CodeGenUtils.newName(ctx, "LOG")
     ctx.addReusableLogger(logTerm, className)
 
     // gen code to do group key projection from input
-    val currentKeyTerm = CodeGenUtils.newName("currentKey")
-    val currentKeyWriterTerm = CodeGenUtils.newName("currentKeyWriter")
+    val currentKeyTerm = CodeGenUtils.newName(ctx, "currentKey")
+    val currentKeyWriterTerm = CodeGenUtils.newName(ctx, "currentKeyWriter")
     // currentValueTerm and currentValueWriterTerm are used for value
     // projection while supportAdaptiveLocalHashAgg is true.
-    val currentValueTerm = CodeGenUtils.newName("currentValue")
-    val currentValueWriterTerm = CodeGenUtils.newName("currentValueWriter")
+    val currentValueTerm = CodeGenUtils.newName(ctx, "currentValue")
+    val currentValueWriterTerm = CodeGenUtils.newName(ctx, "currentValueWriter")
     val keyProjectionCode = ProjectionCodeGenerator
       .generateProjectionExpression(
         ctx,
@@ -142,25 +143,10 @@ object HashAggCodeGenerator {
         outRecordWriterTerm = currentKeyWriterTerm)
       .code
 
-    val valueProjectionCode =
-      if (!isFinal && supportAdaptiveLocalHashAgg) {
-        ProjectionCodeGenerator.genAdaptiveLocalHashAggValueProjectionCode(
-          ctx,
-          inputType,
-          classOf[BinaryRowData],
-          inputTerm = inputTerm,
-          aggInfos,
-          outRecordTerm = currentValueTerm,
-          outRecordWriterTerm = currentValueWriterTerm
-        )
-      } else {
-        ""
-      }
-
     // gen code to create groupKey, aggBuffer Type array
     // it will be used in BytesHashMap and BufferedKVExternalSorter if enable fallback
-    val groupKeyTypesTerm = CodeGenUtils.newName("groupKeyTypes")
-    val aggBufferTypesTerm = CodeGenUtils.newName("aggBufferTypes")
+    val groupKeyTypesTerm = CodeGenUtils.newName(ctx, "groupKeyTypes")
+    val aggBufferTypesTerm = CodeGenUtils.newName(ctx, "aggBufferTypes")
     HashAggCodeGenHelper.prepareHashAggKVTypes(
       ctx,
       groupKeyTypesTerm,
@@ -170,7 +156,7 @@ object HashAggCodeGenerator {
 
     val binaryRowTypeTerm = classOf[BinaryRowData].getName
     // gen code to aggregate and output using hash map
-    val aggregateMapTerm = CodeGenUtils.newName("aggregateMap")
+    val aggregateMapTerm = CodeGenUtils.newName(ctx, "aggregateMap")
     val lookupInfoTypeTerm = classOf[BytesMap.LookupInfo[_, _]].getCanonicalName
     val lookupInfo = ctx.addReusableLocalVariable(lookupInfoTypeTerm, "lookupInfo")
     HashAggCodeGenHelper.prepareHashAggMap(
@@ -179,7 +165,7 @@ object HashAggCodeGenerator {
       aggBufferTypesTerm,
       aggregateMapTerm)
 
-    val outputTerm = CodeGenUtils.newName("hashAggOutput")
+    val outputTerm = CodeGenUtils.newName(ctx, "hashAggOutput")
     val (reuseGroupKeyTerm, reuseAggBufferTerm) =
       HashAggCodeGenHelper.prepareTermForAggMapIteration(
         ctx,
@@ -215,7 +201,7 @@ object HashAggCodeGenerator {
       outputExpr)
 
     // gen code to deal with hash map oom, if enable fallback we will use sort agg strategy
-    val sorterTerm = CodeGenUtils.newName("sorter")
+    val sorterTerm = CodeGenUtils.newName(ctx, "sorter")
     val retryAppend = HashAggCodeGenHelper.genRetryAppendToMap(
       aggregateMapTerm,
       currentKeyTerm,
@@ -234,6 +220,7 @@ object HashAggCodeGenerator {
       aggregateMapTerm,
       (groupKeyTypesTerm, aggBufferTypesTerm),
       (groupKeyRowType, aggBufferRowType),
+      aggBufferPrefix,
       aggBufferNames,
       aggBufferTypes,
       outputTerm,
@@ -262,8 +249,24 @@ object HashAggCodeGenerator {
          |
        """.stripMargin
     }
-    val localAggSuppressedTerm = CodeGenUtils.newName("localAggSuppressed")
+    val localAggSuppressedTerm = CodeGenUtils.newName(ctx, "localAggSuppressed")
     ctx.addReusableMember(s"private transient boolean $localAggSuppressedTerm = false;")
+    val valueProjectionCode =
+      if (!isFinal && supportAdaptiveLocalHashAgg) {
+        ProjectionCodeGenerator.genAdaptiveLocalHashAggValueProjectionCode(
+          ctx,
+          inputType,
+          classOf[BinaryRowData],
+          inputTerm = inputTerm,
+          aggInfos,
+          auxGrouping,
+          outRecordTerm = currentValueTerm,
+          outRecordWriterTerm = currentValueWriterTerm
+        )
+      } else {
+        ""
+      }
+
     val (
       distinctCountIncCode,
       totalCountIncCode,
@@ -276,8 +279,8 @@ object HashAggCodeGenerator {
         ctx.tableConfig.get(TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_ENABLED) &&
         supportAdaptiveLocalHashAgg
       ) {
-        val adaptiveDistinctCountTerm = CodeGenUtils.newName("distinctCount")
-        val adaptiveTotalCountTerm = CodeGenUtils.newName("totalCount")
+        val adaptiveDistinctCountTerm = CodeGenUtils.newName(ctx, "distinctCount")
+        val adaptiveTotalCountTerm = CodeGenUtils.newName(ctx, "totalCount")
         ctx.addReusableMember(s"private transient long $adaptiveDistinctCountTerm = 0;")
         ctx.addReusableMember(s"private transient long $adaptiveTotalCountTerm = 0;")
 

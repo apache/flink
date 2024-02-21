@@ -63,10 +63,21 @@ public class StandaloneApplicationClusterConfigurationParserFactory
                     .desc("Job ID of the job to run.")
                     .build();
 
+    private static final Option JARS_OPTION =
+            Option.builder("jars")
+                    .longOpt("jars")
+                    .required(false)
+                    .hasArgs()
+                    .valueSeparator(',')
+                    .argName("jar file(s) for job")
+                    .desc("Jar file of the job to run.")
+                    .build();
+
     @Override
     public Options getOptions() {
         final Options options = new Options();
         options.addOption(CONFIG_DIR_OPTION);
+        options.addOption(JARS_OPTION);
         options.addOption(REST_PORT_OPTION);
         options.addOption(JOB_CLASS_NAME_OPTION);
         options.addOption(JOB_ID_OPTION);
@@ -90,6 +101,7 @@ public class StandaloneApplicationClusterConfigurationParserFactory
                 CliFrontendParser.createSavepointRestoreSettings(commandLine);
         final JobID jobId = getJobId(commandLine);
         final String jobClassName = commandLine.getOptionValue(JOB_CLASS_NAME_OPTION.getOpt());
+        final String[] jarFiles = commandLine.getOptionValues(JARS_OPTION.getOpt());
 
         return new StandaloneApplicationClusterConfiguration(
                 configDir,
@@ -99,7 +111,8 @@ public class StandaloneApplicationClusterConfigurationParserFactory
                 restPort,
                 savepointRestoreSettings,
                 jobId,
-                jobClassName);
+                jobClassName,
+                jarFiles);
     }
 
     private int getRestPort(CommandLine commandLine) throws FlinkParseException {

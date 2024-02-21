@@ -28,11 +28,9 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nonnull;
 
@@ -44,11 +42,10 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@ExtendWith(TestLoggerExtension.class)
-public class DeclarativeSlotPoolBridgePreferredAllocationsTest {
+class DeclarativeSlotPoolBridgePreferredAllocationsTest {
 
     @Test
-    public void testDeclarativeSlotPoolTakesPreferredAllocationsIntoAccount() throws Exception {
+    void testDeclarativeSlotPoolTakesPreferredAllocationsIntoAccount() throws Exception {
         final DeclarativeSlotPoolBridge declarativeSlotPoolBridge =
                 new DeclarativeSlotPoolBridge(
                         new JobID(),

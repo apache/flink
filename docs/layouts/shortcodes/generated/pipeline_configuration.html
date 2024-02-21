@@ -15,12 +15,6 @@
             <td>When auto-generated UIDs are disabled, users are forced to manually specify UIDs on DataStream applications.<br /><br />It is highly recommended that users specify UIDs before deploying to production since they are used to match state in savepoints to operators in a job. Because auto-generated ID's are likely to change when modifying a job, specifying custom IDs allow an application to evolve over time without discarding state.</td>
         </tr>
         <tr>
-            <td><h5>pipeline.auto-type-registration</h5></td>
-            <td style="word-wrap: break-word;">true</td>
-            <td>Boolean</td>
-            <td>Controls whether Flink is automatically registering all types in the user programs with Kryo.</td>
-        </tr>
-        <tr>
             <td><h5>pipeline.auto-watermark-interval</h5></td>
             <td style="word-wrap: break-word;">200 ms</td>
             <td>Duration</td>
@@ -43,12 +37,6 @@
             <td style="word-wrap: break-word;">RECURSIVE</td>
             <td><p>Enum</p></td>
             <td>Configures the mode in which the closure cleaner works.<br /><br />Possible values:<ul><li>"NONE": Disables the closure cleaner completely.</li><li>"TOP_LEVEL": Cleans only the top-level class without recursing into fields.</li><li>"RECURSIVE": Cleans all fields recursively.</li></ul></td>
-        </tr>
-        <tr>
-            <td><h5>pipeline.default-kryo-serializers</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>List&lt;String&gt;</td>
-            <td>Semicolon separated list of pairs of class names and Kryo serializers class names to be used as Kryo default serializers<br /><br />Example:<br /><code class="highlighter-rouge">class:org.example.ExampleClass,serializer:org.example.ExampleSerializer1; class:org.example.ExampleClass2,serializer:org.example.ExampleSerializer2</code></td>
         </tr>
         <tr>
             <td><h5>pipeline.force-avro</h5></td>
@@ -105,22 +93,22 @@
             <td>When enabled objects that Flink internally uses for deserialization and passing data to user-code functions will be reused. Keep in mind that this can lead to bugs when the user-code function of an operation is not aware of this behaviour.</td>
         </tr>
         <tr>
-            <td><h5>pipeline.operator-chaining</h5></td>
+            <td><h5>pipeline.operator-chaining.chain-operators-with-different-max-parallelism</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Operators with different max parallelism can be chained together. Default behavior may prevent rescaling when the AdaptiveScheduler is used.</td>
+        </tr>
+        <tr>
+            <td><h5>pipeline.operator-chaining.enabled</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
             <td>Operator chaining allows non-shuffle operations to be co-located in the same thread fully avoiding serialization and de-serialization.</td>
         </tr>
         <tr>
-            <td><h5>pipeline.registered-kryo-types</h5></td>
+            <td><h5>pipeline.serialization-config</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;String&gt;</td>
-            <td>Semicolon separated list of types to be registered with the serialization stack. If the type is eventually serialized as a POJO, then the type is registered with the POJO serializer. If the type ends up being serialized with Kryo, then it will be registered at Kryo to make sure that only tags are written.</td>
-        </tr>
-        <tr>
-            <td><h5>pipeline.registered-pojo-types</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>List&lt;String&gt;</td>
-            <td>Semicolon separated list of types to be registered with the serialization stack. If the type is eventually serialized as a POJO, then the type is registered with the POJO serializer. If the type ends up being serialized with Kryo, then it will be registered at Kryo to make sure that only tags are written.</td>
+            <td>List of pairs of class names and serializer configs to be used. There is a <code class="highlighter-rouge">type</code> field in the serializer config and each type has its own configuration. Note: only standard YAML config parser is supported, please use "config.yaml" as the config file. The fields involved are:<ul><li><code class="highlighter-rouge">type</code>: the serializer type which could be "pojo", "kryo" or "typeinfo". If the serializer type is "pojo" or "kryo" without field <code class="highlighter-rouge">kryo-type</code>, it means the data type will use POJO or Kryo serializer directly.</li><li><code class="highlighter-rouge">kryo-type</code>: the Kryo serializer type which could be "default" or "registered". The Kryo serializer will use the serializer for the data type  as default serializers when the kryo-type is "default", and register the data type and its serializer to Kryo serializer when the kryo-type is registered. When the field exists, there must be a field <code class="highlighter-rouge">class</code> to specify the serializer class name.</li><li><code class="highlighter-rouge">class</code>: the serializer class name for type "kryo" or "typeinfo". For "kryo", it should be a subclass of <code class="highlighter-rouge">com.esotericsoftware.kryo.Serializer</code>. For "typeinfo", it should be a subclass of <code class="highlighter-rouge">org.apache.flink.api.common.typeinfo.TypeInfoFactory</code>.</li></ul>Example:<br /><code class="highlighter-rouge">[org.example.ExampleClass1: {type: pojo}, org.example.ExampleClass2: {type: kryo}, org.example.ExampleClass3: {type: kryo, kryo-type: default, class: org.example.Class3KryoSerializer}, org.example.ExampleClass4: {type: kryo, kryo-type: registered, class: org.example.Class4KryoSerializer}, org.example.ExampleClass5: {type: typeinfo, class: org.example.Class5TypeInfoFactory}]</code></td>
         </tr>
         <tr>
             <td><h5>pipeline.vertex-description-mode</h5></td>
@@ -138,7 +126,7 @@
             <td><h5>pipeline.watermark-alignment.allow-unaligned-source-splits</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>If watermark alignment is used, sources with multiple splits will attempt to pause/resume split readers to avoid watermark drift of source splits. However, if split readers don't support pause/resume an UnsupportedOperationException will be thrown when there is an attempt to pause/resume. To allow use of split readers that don't support pause/resume and, hence, t allow unaligned splits while still using watermark alignment, set this parameter to true. The default value is false. Note: This parameter may be removed in future releases.</td>
+            <td>If watermark alignment is used, sources with multiple splits will attempt to pause/resume split readers to avoid watermark drift of source splits. However, if split readers don't support pause/resume, an UnsupportedOperationException will be thrown when there is an attempt to pause/resume. To allow use of split readers that don't support pause/resume and, hence, to allow unaligned splits while still using watermark alignment, set this parameter to true. The default value is false. Note: This parameter may be removed in future releases.</td>
         </tr>
     </tbody>
 </table>

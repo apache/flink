@@ -42,6 +42,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /** {@link SlotAllocator} implementation that supports slot sharing. */
@@ -72,37 +74,35 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     public ResourceCounter calculateRequiredSlots(
             Iterable<JobInformation.VertexInformation> vertices) {
         int numTotalRequiredSlots = 0;
-        for (Integer requiredSlots : getMaxParallelismForSlotSharingGroups(vertices).values()) {
-            numTotalRequiredSlots += requiredSlots;
+        for (SlotSharingGroupMetaInfo slotSharingGroupMetaInfo :
+                SlotSharingGroupMetaInfo.from(vertices).values()) {
+            numTotalRequiredSlots += slotSharingGroupMetaInfo.getMaxUpperBound();
         }
         return ResourceCounter.withResource(ResourceProfile.UNKNOWN, numTotalRequiredSlots);
-    }
-
-    private static Map<SlotSharingGroupId, Integer> getMaxParallelismForSlotSharingGroups(
-            Iterable<JobInformation.VertexInformation> vertices) {
-        final Map<SlotSharingGroupId, Integer> maxParallelismForSlotSharingGroups = new HashMap<>();
-        for (JobInformation.VertexInformation vertex : vertices) {
-            maxParallelismForSlotSharingGroups.compute(
-                    vertex.getSlotSharingGroup().getSlotSharingGroupId(),
-                    (slotSharingGroupId, currentMaxParallelism) ->
-                            currentMaxParallelism == null
-                                    ? vertex.getParallelism()
-                                    : Math.max(currentMaxParallelism, vertex.getParallelism()));
-        }
-        return maxParallelismForSlotSharingGroups;
     }
 
     @Override
     public Optional<VertexParallelism> determineParallelism(
             JobInformation jobInformation, Collection<? extends SlotInfo> freeSlots) {
 
-        // => less slots than slot-sharing groups
-        if (jobInformation.getSlotSharingGroups().size() > freeSlots.size()) {
+        final Map<SlotSharingGroupId, SlotSharingGroupMetaInfo> slotSharingGroupMetaInfo =
+                SlotSharingGroupMetaInfo.from(jobInformation.getVertices());
+
+        final int minimumRequiredSlots =
+                slotSharingGroupMetaInfo.values().stream()
+                        .map(SlotSharingGroupMetaInfo::getMaxLowerBound)
+                        .reduce(0, Integer::sum);
+
+        if (minimumRequiredSlots > freeSlots.size()) {
             return Optional.empty();
         }
 
         final Map<SlotSharingGroupId, Integer> slotSharingGroupParallelism =
-                determineSlotsPerSharingGroup(jobInformation, freeSlots.size());
+                determineSlotsPerSharingGroup(
+                        jobInformation,
+                        freeSlots.size(),
+                        minimumRequiredSlots,
+                        slotSharingGroupMetaInfo);
 
         final Map<JobVertexID, Integer> allVertexParallelism = new HashMap<>();
 
@@ -150,21 +150,43 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
      * distributed over the remaining groups.
      */
     private static Map<SlotSharingGroupId, Integer> determineSlotsPerSharingGroup(
-            JobInformation jobInformation, int freeSlots) {
+            JobInformation jobInformation,
+            int freeSlots,
+            int minRequiredSlots,
+            Map<SlotSharingGroupId, SlotSharingGroupMetaInfo> slotSharingGroupMetaInfo) {
+
         int numUnassignedSlots = freeSlots;
         int numUnassignedSlotSharingGroups = jobInformation.getSlotSharingGroups().size();
+        int numMinSlotsRequiredByRemainingGroups = minRequiredSlots;
 
         final Map<SlotSharingGroupId, Integer> slotSharingGroupParallelism = new HashMap<>();
 
-        for (Map.Entry<SlotSharingGroupId, Integer> slotSharingGroup :
-                sortSlotSharingGroupsByDesiredParallelism(jobInformation)) {
+        for (SlotSharingGroupId slotSharingGroup :
+                sortSlotSharingGroupsByHighestParallelismRange(slotSharingGroupMetaInfo)) {
+            final int minParallelism =
+                    slotSharingGroupMetaInfo.get(slotSharingGroup).getMaxLowerBound();
+
+            // if we reached this point we know we have more slots than we need to fulfill the
+            // minimum requirements for each slot sharing group.
+            // this means that a certain number of slots are already implicitly reserved (to fulfill
+            // the minimum requirement of other groups); so we only need to distribute the remaining
+            // "optional" slots while only accounting for the requirements beyond the minimum
+
+            // the number of slots this group can use beyond the minimum
+            final int maxOptionalSlots =
+                    slotSharingGroupMetaInfo.get(slotSharingGroup).getMaxUpperBound()
+                            - minParallelism;
+            // the number of slots that are not implicitly reserved for minimum requirements
+            final int freeOptionalSlots = numUnassignedSlots - numMinSlotsRequiredByRemainingGroups;
+            // the number of slots this group is allowed to use beyond the minimum requirements
+            final int optionalSlotShare = freeOptionalSlots / numUnassignedSlotSharingGroups;
+
             final int groupParallelism =
-                    Math.min(
-                            slotSharingGroup.getValue(),
-                            numUnassignedSlots / numUnassignedSlotSharingGroups);
+                    minParallelism + Math.min(maxOptionalSlots, optionalSlotShare);
 
-            slotSharingGroupParallelism.put(slotSharingGroup.getKey(), groupParallelism);
+            slotSharingGroupParallelism.put(slotSharingGroup, groupParallelism);
 
+            numMinSlotsRequiredByRemainingGroups -= minParallelism;
             numUnassignedSlots -= groupParallelism;
             numUnassignedSlotSharingGroups--;
         }
@@ -172,12 +194,14 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
         return slotSharingGroupParallelism;
     }
 
-    private static List<Map.Entry<SlotSharingGroupId, Integer>>
-            sortSlotSharingGroupsByDesiredParallelism(JobInformation jobInformation) {
+    private static List<SlotSharingGroupId> sortSlotSharingGroupsByHighestParallelismRange(
+            Map<SlotSharingGroupId, SlotSharingGroupMetaInfo> slotSharingGroupMetaInfo) {
 
-        return getMaxParallelismForSlotSharingGroups(jobInformation.getVertices()).entrySet()
-                .stream()
-                .sorted(Comparator.comparingInt(Map.Entry::getValue))
+        return slotSharingGroupMetaInfo.entrySet().stream()
+                .sorted(
+                        Comparator.comparingInt(
+                                entry -> entry.getValue().getMaxLowerUpperBoundRange()))
+                .map(Map.Entry::getKey)
                 .collect(Collectors.toList());
     }
 
@@ -272,6 +296,74 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
 
         public Collection<ExecutionVertexID> getContainedExecutionVertices() {
             return containedExecutionVertices;
+        }
+    }
+
+    private static class SlotSharingGroupMetaInfo {
+
+        private final int minLowerBound;
+        private final int maxLowerBound;
+        private final int maxUpperBound;
+
+        private SlotSharingGroupMetaInfo(int minLowerBound, int maxLowerBound, int maxUpperBound) {
+            this.minLowerBound = minLowerBound;
+            this.maxLowerBound = maxLowerBound;
+            this.maxUpperBound = maxUpperBound;
+        }
+
+        public int getMinLowerBound() {
+            return minLowerBound;
+        }
+
+        public int getMaxLowerBound() {
+            return maxLowerBound;
+        }
+
+        public int getMaxUpperBound() {
+            return maxUpperBound;
+        }
+
+        public int getMaxLowerUpperBoundRange() {
+            return maxUpperBound - maxLowerBound;
+        }
+
+        public static Map<SlotSharingGroupId, SlotSharingGroupMetaInfo> from(
+                Iterable<JobInformation.VertexInformation> vertices) {
+
+            return getPerSlotSharingGroups(
+                    vertices,
+                    vertexInformation ->
+                            new SlotSharingGroupMetaInfo(
+                                    vertexInformation.getMinParallelism(),
+                                    vertexInformation.getMinParallelism(),
+                                    vertexInformation.getParallelism()),
+                    (metaInfo1, metaInfo2) ->
+                            new SlotSharingGroupMetaInfo(
+                                    Math.min(
+                                            metaInfo1.getMinLowerBound(),
+                                            metaInfo2.getMinLowerBound()),
+                                    Math.max(
+                                            metaInfo1.getMaxLowerBound(),
+                                            metaInfo2.getMaxLowerBound()),
+                                    Math.max(
+                                            metaInfo1.getMaxUpperBound(),
+                                            metaInfo2.getMaxUpperBound())));
+        }
+
+        private static <T> Map<SlotSharingGroupId, T> getPerSlotSharingGroups(
+                Iterable<JobInformation.VertexInformation> vertices,
+                Function<JobInformation.VertexInformation, T> mapper,
+                BiFunction<T, T, T> reducer) {
+            final Map<SlotSharingGroupId, T> extractedPerSlotSharingGroups = new HashMap<>();
+            for (JobInformation.VertexInformation vertex : vertices) {
+                extractedPerSlotSharingGroups.compute(
+                        vertex.getSlotSharingGroup().getSlotSharingGroupId(),
+                        (slotSharingGroupId, currentData) ->
+                                currentData == null
+                                        ? mapper.apply(vertex)
+                                        : reducer.apply(currentData, mapper.apply(vertex)));
+            }
+            return extractedPerSlotSharingGroups;
         }
     }
 }

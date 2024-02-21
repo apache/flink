@@ -62,6 +62,11 @@ public class OperatorStreamStateHandle implements OperatorStateHandle {
     }
 
     @Override
+    public void collectSizeStats(StateObjectSizeStatsCollector collector) {
+        delegateStateHandle.collectSizeStats(collector);
+    }
+
+    @Override
     public FSDataInputStream openInputStream() throws IOException {
         return delegateStateHandle.openInputStream();
     }

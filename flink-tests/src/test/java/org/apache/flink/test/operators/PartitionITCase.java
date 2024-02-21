@@ -448,7 +448,7 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 
         @Override
         public Tuple2<Integer, Integer> map(Long value) throws Exception {
-            return new Tuple2<>(this.getRuntimeContext().getIndexOfThisSubtask(), 1);
+            return new Tuple2<>(this.getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(), 1);
         }
     }
 
@@ -718,7 +718,8 @@ public class PartitionITCase extends MultipleProgramsTestBase {
         }
     }
 
-    private static class ComparablePojo implements Comparable<ComparablePojo> {
+    /** A comparable POJO. */
+    public static class ComparablePojo implements Comparable<ComparablePojo> {
         private Long first;
         private Long second;
 
@@ -774,6 +775,9 @@ public class PartitionITCase extends MultipleProgramsTestBase {
         @Override
         public void mapPartition(Iterable<T> values, Collector<Tuple2<T, T>> out) throws Exception {
             Iterator<T> itr = values.iterator();
+            if (!itr.hasNext()) {
+                return;
+            }
             T min = itr.next();
             T max = min;
             T value;

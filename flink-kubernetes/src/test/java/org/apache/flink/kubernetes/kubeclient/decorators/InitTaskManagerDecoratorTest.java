@@ -285,8 +285,7 @@ class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
         assertThat(requirements)
                 .containsExactlyInAnyOrder(
                         new NodeSelectorRequirement(
-                                flinkConfig.getString(
-                                        KubernetesConfigOptions.KUBERNETES_NODE_NAME_LABEL),
+                                flinkConfig.get(KubernetesConfigOptions.KUBERNETES_NODE_NAME_LABEL),
                                 "NotIn",
                                 new ArrayList<>(BLOCKED_NODES)));
     }

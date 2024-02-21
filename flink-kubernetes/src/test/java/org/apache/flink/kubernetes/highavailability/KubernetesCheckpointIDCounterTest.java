@@ -22,10 +22,11 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
+import org.apache.flink.runtime.leaderelection.LeaderElectionEvent;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -159,7 +160,7 @@ class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilityTestBa
                                                     checkpointIDCounter
                                                             .shutdown(JobStatus.FINISHED)
                                                             .get())
-                                    .satisfies(anyCauseMatches(CompletionException.class));
+                                    .satisfies(anyCauseMatches(ExecutionException.class));
 
                             // fixing the internal issue should make the shutdown succeed again
                             KubernetesUtils.createConfigMapIfItDoesNotExist(
@@ -185,7 +186,8 @@ class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilityTestBa
 
                             // lost leadership
                             getLeaderCallback().notLeader();
-                            electionEventHandler.waitForRevokeLeader();
+
+                            electionEventHandler.await(LeaderElectionEvent.NotLeaderEvent.class);
                             getLeaderConfigMap()
                                     .getAnnotations()
                                     .remove(KubernetesLeaderElector.LEADER_ANNOTATION_KEY);
@@ -260,7 +262,8 @@ class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilityTestBa
 
                             // lost leadership
                             getLeaderCallback().notLeader();
-                            electionEventHandler.waitForRevokeLeader();
+                            electionEventHandler.await(LeaderElectionEvent.NotLeaderEvent.class);
+
                             getLeaderConfigMap()
                                     .getAnnotations()
                                     .remove(KubernetesLeaderElector.LEADER_ANNOTATION_KEY);

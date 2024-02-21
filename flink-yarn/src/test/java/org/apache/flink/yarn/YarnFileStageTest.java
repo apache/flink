@@ -20,7 +20,7 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.util.OperatingSystem;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;

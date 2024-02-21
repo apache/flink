@@ -29,7 +29,7 @@ import org.apache.flink.runtime.security.contexts.NoOpSecurityContextFactory;
 import org.apache.flink.runtime.security.contexts.TestSecurityContextFactory;
 import org.apache.flink.runtime.security.modules.TestSecurityModuleFactory;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.junit.AfterClass;
 import org.junit.Test;
@@ -223,7 +223,7 @@ public class SecurityUtilsTest {
         // ------- no whitespaces
 
         testFlinkConf = new Configuration();
-        testFlinkConf.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Foo bar,Client");
+        testFlinkConf.set(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Foo bar,Client");
         testSecurityConf =
                 new SecurityConfiguration(
                         testFlinkConf,
@@ -236,7 +236,7 @@ public class SecurityUtilsTest {
         // ------- with whitespaces surrounding comma
 
         testFlinkConf = new Configuration();
-        testFlinkConf.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Foo bar , Client");
+        testFlinkConf.set(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Foo bar , Client");
         testSecurityConf =
                 new SecurityConfiguration(
                         testFlinkConf,
@@ -249,7 +249,7 @@ public class SecurityUtilsTest {
         // ------- leading / trailing whitespaces at start and end of list
 
         testFlinkConf = new Configuration();
-        testFlinkConf.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, " Foo bar , Client ");
+        testFlinkConf.set(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, " Foo bar , Client ");
         testSecurityConf =
                 new SecurityConfiguration(
                         testFlinkConf,
@@ -262,7 +262,7 @@ public class SecurityUtilsTest {
         // ------- empty entries
 
         testFlinkConf = new Configuration();
-        testFlinkConf.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Foo bar,,Client");
+        testFlinkConf.set(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Foo bar,,Client");
         testSecurityConf =
                 new SecurityConfiguration(
                         testFlinkConf,
@@ -275,7 +275,7 @@ public class SecurityUtilsTest {
         // ------- empty trailing String entries with whitespaces
 
         testFlinkConf = new Configuration();
-        testFlinkConf.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Foo bar, ,, Client,");
+        testFlinkConf.set(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Foo bar, ,, Client,");
         testSecurityConf =
                 new SecurityConfiguration(
                         testFlinkConf,

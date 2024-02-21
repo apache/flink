@@ -115,7 +115,7 @@ public class KubernetesUtils {
     public static void checkAndUpdatePortConfigOption(
             Configuration flinkConfig, ConfigOption<String> port, int fallbackPort) {
         if (KubernetesUtils.parsePort(flinkConfig, port) == 0) {
-            flinkConfig.setString(port, String.valueOf(fallbackPort));
+            flinkConfig.set(port, String.valueOf(fallbackPort));
             LOG.info(
                     "Kubernetes deployment requires a fixed port. Configuration {} will be set to {}",
                     port.key(),
@@ -403,20 +403,9 @@ public class KubernetesUtils {
         return Arrays.asList("bash", "-c", command);
     }
 
-    public static List<File> checkJarFileForApplicationMode(Configuration configuration) {
+    public static List<URI> checkJarFileForApplicationMode(Configuration configuration) {
         return configuration.get(PipelineOptions.JARS).stream()
-                .map(
-                        FunctionUtils.uncheckedFunction(
-                                uri -> {
-                                    final URI jarURI = PackagedProgramUtils.resolveURI(uri);
-                                    if (jarURI.getScheme().equals("local") && jarURI.isAbsolute()) {
-                                        return new File(jarURI.getPath());
-                                    }
-                                    throw new IllegalArgumentException(
-                                            "Only \"local\" is supported as schema for application mode."
-                                                    + " This assumes that the jar is located in the image, not the Flink client."
-                                                    + " An example of such path is: local:///opt/flink/examples/streaming/WindowJoin.jar");
-                                }))
+                .map(FunctionUtils.uncheckedFunction(PackagedProgramUtils::resolveURI))
                 .collect(Collectors.toList());
     }
 
@@ -548,7 +537,7 @@ public class KubernetesUtils {
 
     /** Checks if hostNetwork is enabled. */
     public static boolean isHostNetwork(Configuration configuration) {
-        return configuration.getBoolean(KubernetesConfigOptions.KUBERNETES_HOSTNETWORK_ENABLED);
+        return configuration.get(KubernetesConfigOptions.KUBERNETES_HOSTNETWORK_ENABLED);
     }
 
     /**
@@ -594,12 +583,6 @@ public class KubernetesUtils {
                     String.format("Could not create the config map %s.", configMapName),
                     lastException);
         }
-    }
-
-    /** Cluster components. */
-    public enum ClusterComponent {
-        JOB_MANAGER,
-        TASK_MANAGER
     }
 
     public static String encodeLeaderInformation(LeaderInformation leaderInformation) {

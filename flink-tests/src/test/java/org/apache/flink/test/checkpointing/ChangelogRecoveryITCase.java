@@ -54,7 +54,8 @@ public class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
         SharedReference<AtomicBoolean> hasMaterialization =
                 sharedObjects.add(new AtomicBoolean(true));
         StreamExecutionEnvironment env =
-                getEnv(delegatedStateBackend, checkpointFolder, 1000, 1, -1, 0);
+                getEnv(delegatedStateBackend, checkpointFolder, 1000, 1, 10, 0);
+        env.getConfig().enablePeriodicMaterialize(false);
         waitAndAssert(
                 buildJobGraph(
                         env,
@@ -62,7 +63,7 @@ public class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
                             @Override
                             protected void beforeElement(SourceContext<Integer> ctx)
                                     throws Exception {
-                                if (getRuntimeContext().getAttemptNumber() == 0
+                                if (getRuntimeContext().getTaskInfo().getAttemptNumber() == 0
                                         && currentIndex == TOTAL_ELEMENTS / 2) {
                                     waitWhile(() -> completedCheckpointNum.get() <= 0);
                                     hasMaterialization
@@ -100,8 +101,8 @@ public class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
                             protected void beforeElement(SourceContext<Integer> ctx)
                                     throws Exception {
                                 Preconditions.checkState(
-                                        getRuntimeContext().getAttemptNumber() <= 2);
-                                if (getRuntimeContext().getAttemptNumber() == 0
+                                        getRuntimeContext().getTaskInfo().getAttemptNumber() <= 2);
+                                if (getRuntimeContext().getTaskInfo().getAttemptNumber() == 0
                                         && currentIndex == TOTAL_ELEMENTS / 4) {
                                     waitWhile(
                                             () -> {
@@ -126,7 +127,7 @@ public class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
                                             });
 
                                     throwArtificialFailure();
-                                } else if (getRuntimeContext().getAttemptNumber() == 1
+                                } else if (getRuntimeContext().getTaskInfo().getAttemptNumber() == 1
                                         && currentIndex == TOTAL_ELEMENTS / 2) {
                                     waitWhile(
                                             () -> {

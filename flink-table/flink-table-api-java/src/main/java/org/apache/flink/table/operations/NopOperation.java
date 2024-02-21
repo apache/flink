@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
+
 /** An {@link Operation} to represent that nothing needs to be done. */
+@Internal
 public class NopOperation implements Operation {
 
     @Override

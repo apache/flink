@@ -18,10 +18,11 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
@@ -707,7 +708,7 @@ public class OneInputStreamTaskTest extends TestLogger {
                 .chain(
                         new OperatorID(),
                         new TestBoundedOneInputStreamOperator("Operator1"),
-                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl()))
                 .finish();
 
         testHarness.invoke();
@@ -764,11 +765,11 @@ public class OneInputStreamTaskTest extends TestLogger {
                 .chain(
                         new OperatorID(),
                         new DuplicatingOperator(),
-                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl()))
                 .chain(
                         new OperatorID(),
                         new DuplicatingOperator(),
-                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl()))
                 .finish();
 
         final TaskMetricGroup taskMetricGroup =
@@ -842,7 +843,7 @@ public class OneInputStreamTaskTest extends TestLogger {
                 .chain(
                         chainedOperatorId,
                         chainedOperator,
-                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl()))
                 .finish();
 
         InterceptingOperatorMetricGroup headOperatorMetricGroup =
@@ -1014,7 +1015,7 @@ public class OneInputStreamTaskTest extends TestLogger {
                             new ArrayDeque<>(),
                             new StreamElementSerializer<>(
                                     BasicTypeInfo.INT_TYPE_INFO.createSerializer(
-                                            new ExecutionConfig())));
+                                            new SerializerConfigImpl())));
             partitionWriters[i].setup();
         }
 
@@ -1024,13 +1025,17 @@ public class OneInputStreamTaskTest extends TestLogger {
                         .addInput(BasicTypeInfo.INT_TYPE_INFO)
                         .addAdditionalOutput(partitionWriters)
                         .setupOperatorChain(new OperatorID(), new PassThroughOperator<>())
-                        .chain(BasicTypeInfo.INT_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        .chain(
+                                BasicTypeInfo.INT_TYPE_INFO.createSerializer(
+                                        new SerializerConfigImpl()))
                         .setOperatorFactory(SimpleOperatorFactory.of(new OddEvenOperator()))
                         .addNonChainedOutputsCount(
                                 new OutputTag<>("odd", BasicTypeInfo.INT_TYPE_INFO), 2)
                         .addNonChainedOutputsCount(1)
                         .build()
-                        .chain(BasicTypeInfo.INT_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        .chain(
+                                BasicTypeInfo.INT_TYPE_INFO.createSerializer(
+                                        new SerializerConfigImpl()))
                         .setOperatorFactory(SimpleOperatorFactory.of(new DuplicatingOperator()))
                         .addNonChainedOutputsCount(1)
                         .build()
@@ -1236,8 +1241,8 @@ public class OneInputStreamTaskTest extends TestLogger {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             if (closeCalled) {
                 Assert.fail("Close called before open.");
             }

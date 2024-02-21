@@ -63,6 +63,7 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
                         + pbMessageTypeStr
                         + ".newBuilder()");
         int index = 0;
+        PbCodegenAppender splitAppender = new PbCodegenAppender(indent);
         for (String fieldName : rowType.getFieldNames()) {
             Descriptors.FieldDescriptor elementFd = descriptor.findFieldByName(fieldName);
             LogicalType subType = rowType.getTypeAt(rowType.getFieldIndex(fieldName));
@@ -80,17 +81,18 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
 
             // Only set non-null element of flink row to proto object. The real value in proto
             // result depends on protobuf implementation.
-            appender.begin("if(!" + flinkRowDataVar + ".isNullAt(" + index + ")){");
-            appender.appendLine(elementPbTypeStr + " " + elementPbVar);
+            splitAppender.begin("if(!" + flinkRowDataVar + ".isNullAt(" + index + ")){");
+            splitAppender.appendLine(elementPbTypeStr + " " + elementPbVar);
             String flinkRowElementCode =
                     PbCodegenUtils.flinkContainerElementCode(flinkRowDataVar, index + "", subType);
             PbCodegenSerializer codegen =
                     PbCodegenSerializeFactory.getPbCodegenSer(elementFd, subType, formatContext);
             String code =
-                    codegen.codegen(elementPbVar, flinkRowElementCode, appender.currentIndent());
-            appender.appendSegment(code);
+                    codegen.codegen(
+                            elementPbVar, flinkRowElementCode, splitAppender.currentIndent());
+            splitAppender.appendSegment(code);
             if (subType.getTypeRoot() == LogicalTypeRoot.ARRAY) {
-                appender.appendLine(
+                splitAppender.appendLine(
                         messageBuilderVar
                                 + ".addAll"
                                 + strongCamelFieldName
@@ -98,7 +100,7 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
                                 + elementPbVar
                                 + ")");
             } else if (subType.getTypeRoot() == LogicalTypeRoot.MAP) {
-                appender.appendLine(
+                splitAppender.appendLine(
                         messageBuilderVar
                                 + ".putAll"
                                 + strongCamelFieldName
@@ -106,7 +108,7 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
                                 + elementPbVar
                                 + ")");
             } else {
-                appender.appendLine(
+                splitAppender.appendLine(
                         messageBuilderVar
                                 + ".set"
                                 + strongCamelFieldName
@@ -114,8 +116,21 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
                                 + elementPbVar
                                 + ")");
             }
-            appender.end("}");
+            splitAppender.end("}");
+            if (PbCodegenUtils.needToSplit(splitAppender.code().length())) {
+                String splitMethod =
+                        formatContext.splitSerializerRowTypeMethod(
+                                flinkRowDataVar,
+                                pbMessageTypeStr + ".Builder",
+                                messageBuilderVar,
+                                splitAppender.code());
+                appender.appendSegment(splitMethod);
+                splitAppender = new PbCodegenAppender();
+            }
             index += 1;
+        }
+        if (!splitAppender.code().isEmpty()) {
+            appender.appendSegment(splitAppender.code());
         }
         appender.appendLine(resultVar + " = " + messageBuilderVar + ".build()");
         return appender.code();

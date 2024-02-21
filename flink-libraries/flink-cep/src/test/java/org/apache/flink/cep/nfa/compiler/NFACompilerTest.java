@@ -33,7 +33,7 @@ import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
 
 import org.junit.Rule;
 import org.junit.Test;

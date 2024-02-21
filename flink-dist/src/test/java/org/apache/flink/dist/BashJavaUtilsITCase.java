@@ -18,16 +18,24 @@
 
 package org.apache.flink.dist;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.util.bash.BashJavaUtils;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
 
-import org.hamcrest.Matchers;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -35,10 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.hamcrest.collection.IsArrayWithSize.arrayWithSize;
-import static org.hamcrest.collection.IsIn.isIn;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for BashJavaUtils.
@@ -46,15 +51,17 @@ import static org.junit.Assert.assertThat;
  * <p>This test requires the distribution to be assembled and is hence marked as an IT case which
  * run after packaging.
  */
-public class BashJavaUtilsITCase extends JavaBashTestBase {
+class BashJavaUtilsITCase extends JavaBashTestBase {
 
     private static final String RUN_BASH_JAVA_UTILS_CMD_SCRIPT =
             "src/test/bin/runBashJavaUtilsCmd.sh";
     private static final String RUN_EXTRACT_LOGGING_OUTPUTS_SCRIPT =
             "src/test/bin/runExtractLoggingOutputs.sh";
 
+    @TempDir private Path tmpDir;
+
     @Test
-    public void testGetTmResourceParamsConfigs() throws Exception {
+    void testGetTmResourceParamsConfigs() throws Exception {
         int expectedResultLines = 2;
         String[] commands = {
             RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
@@ -63,13 +70,13 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
         };
         List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
-        assertThat(lines.size(), is(expectedResultLines));
+        assertThat(lines).hasSize(expectedResultLines);
         ConfigurationUtils.parseJvmArgString(lines.get(0));
         ConfigurationUtils.parseTmResourceDynamicConfigs(lines.get(1));
     }
 
     @Test
-    public void testGetTmResourceParamsConfigsWithDynamicProperties() throws Exception {
+    void testGetTmResourceParamsConfigsWithDynamicProperties() throws Exception {
         int expectedResultLines = 2;
         double cpuCores = 39.0;
         String[] commands = {
@@ -80,14 +87,15 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
         };
         List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
-        assertThat(lines.size(), is(expectedResultLines));
+        assertThat(lines).hasSize(expectedResultLines);
         Map<String, String> configs =
                 ConfigurationUtils.parseTmResourceDynamicConfigs(lines.get(1));
-        assertThat(Double.valueOf(configs.get(TaskManagerOptions.CPU_CORES.key())), is(cpuCores));
+        assertThat(Double.valueOf(configs.get(TaskManagerOptions.CPU_CORES.key())))
+                .isEqualTo(cpuCores);
     }
 
     @Test
-    public void testGetJmResourceParams() throws Exception {
+    void testGetJmResourceParams() throws Exception {
         int expectedResultLines = 2;
         String[] commands = {
             RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
@@ -96,7 +104,7 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
         };
         List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
-        assertThat(lines.size(), is(expectedResultLines));
+        assertThat(lines).hasSize(expectedResultLines);
 
         Map<String, String> jvmParams = ConfigurationUtils.parseJvmArgString(lines.get(0));
         Map<String, String> dynamicParams = parseAndAssertDynamicParameters(lines.get(1));
@@ -104,7 +112,7 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
     }
 
     @Test
-    public void testGetJmResourceParamsWithDynamicProperties() throws Exception {
+    void testGetJmResourceParamsWithDynamicProperties() throws Exception {
         int expectedResultLines = 2;
         long metaspace = 123456789L;
         String[] commands = {
@@ -115,12 +123,173 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
         };
         List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
-        assertThat(lines.size(), is(expectedResultLines));
+        assertThat(lines).hasSize(expectedResultLines);
 
         Map<String, String> jvmParams = ConfigurationUtils.parseJvmArgString(lines.get(0));
         Map<String, String> dynamicParams = parseAndAssertDynamicParameters(lines.get(1));
         assertJvmAndDynamicParametersMatch(jvmParams, dynamicParams);
-        assertThat(Long.valueOf(jvmParams.get("-XX:MaxMetaspaceSize=")), is(metaspace));
+        assertThat(Long.valueOf(jvmParams.get("-XX:MaxMetaspaceSize="))).isEqualTo(metaspace);
+    }
+
+    @Test
+    void testGetConfiguration() throws Exception {
+        int expectedResultLines = 26;
+        String[] commands = {
+            RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+            BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
+            String.valueOf(expectedResultLines)
+        };
+        List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+        assertThat(lines).hasSize(expectedResultLines);
+    }
+
+    @Test
+    void testMigrateLegacyConfigToStandardYaml() throws Exception {
+        int expectedResultLines = 31;
+        String[] commands = {
+            RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+            BashJavaUtils.Command.MIGRATE_LEGACY_FLINK_CONFIGURATION_TO_STANDARD_YAML.toString(),
+            String.valueOf(expectedResultLines)
+        };
+        List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+        assertThat(lines)
+                .containsExactlyInAnyOrder(
+                        "taskmanager:",
+                        "  memory:",
+                        "    process:",
+                        "      size: 1728m",
+                        "  bind-host: localhost",
+                        "  host: localhost",
+                        "  numberOfTaskSlots: '1'",
+                        "jobmanager:",
+                        "  execution:",
+                        "    failover-strategy: region",
+                        "  rpc:",
+                        "    address: localhost",
+                        "    port: '6123'",
+                        "  memory:",
+                        "    process:",
+                        "      size: 1600m",
+                        "  bind-host: localhost",
+                        "rest:",
+                        "  bind-address: localhost",
+                        "  address: localhost",
+                        "parallelism:",
+                        "  default: '1'",
+                        "env:",
+                        "  java:",
+                        "    opts:",
+                        "      all: --add-exports=java.base/sun.net.util=ALL-UNNAMED "
+                                + "--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED "
+                                + "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED "
+                                + "--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED "
+                                + "--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED "
+                                + "--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED "
+                                + "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED "
+                                + "--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.lang=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.net=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.io=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.nio=ALL-UNNAMED "
+                                + "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.text=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.time=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.util=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED "
+                                + "--add-opens=java.base/java.util.concurrent.locks=ALL-UNNAMED",
+                        "list: a;b;c",
+                        "map: a:b,c:d",
+                        "listMap: a:b,c:d;e:f",
+                        "escape:",
+                        "  key: '*'");
+    }
+
+    @Test
+    void testGetConfigurationRemoveKey() throws Exception {
+        int expectedResultLines = 24;
+        String[] commands = {
+            RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+            BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
+            String.valueOf(expectedResultLines),
+            "-rmKey",
+            "parallelism.default"
+        };
+        List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+        assertThat(lines).hasSize(expectedResultLines);
+        Configuration configuration = loadConfiguration(lines);
+        assertThat(configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM)).isEmpty();
+    }
+
+    @Test
+    void testGetConfigurationRemoveKeyValue() throws Exception {
+        int expectedResultLines = 24;
+        String[] commands = {
+            RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+            BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
+            String.valueOf(expectedResultLines),
+            "-rmKV",
+            "parallelism.default=1"
+        };
+        List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+        assertThat(lines).hasSize(expectedResultLines);
+        Configuration configuration = loadConfiguration(lines);
+        assertThat(configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM)).isEmpty();
+    }
+
+    @Test
+    void testGetConfigurationRemoveKeyValueNotMatchingValue() throws Exception {
+        int expectedResultLines = 26;
+        String[] commands = {
+            RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+            BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
+            String.valueOf(expectedResultLines),
+            "-rmKV",
+            "parallelism.default=2"
+        };
+        List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+        assertThat(lines).hasSize(expectedResultLines);
+        Configuration configuration = loadConfiguration(lines);
+        assertThat(configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM)).hasValue(1);
+    }
+
+    @Test
+    void testGetConfigurationReplaceKeyValue() throws Exception {
+        int expectedResultLines = 26;
+        String[] commands = {
+            RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+            BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
+            String.valueOf(expectedResultLines),
+            "-repKV",
+            "parallelism.default,1,2"
+        };
+        List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+        assertThat(lines).hasSize(expectedResultLines);
+        Configuration configuration = loadConfiguration(lines);
+        assertThat(configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM)).hasValue(2);
+    }
+
+    @Test
+    void testGetConfigurationReplaceKeyValueNotMatchingValue() throws Exception {
+        int expectedResultLines = 26;
+        String[] commands = {
+            RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+            BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
+            String.valueOf(expectedResultLines),
+            "-repKV",
+            "parallelism.default,2,3"
+        };
+        List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+        assertThat(lines).hasSize(expectedResultLines);
+        Configuration configuration = loadConfiguration(lines);
+        assertThat(configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM)).hasValue(1);
     }
 
     private static Map<String, String> parseAndAssertDynamicParameters(
@@ -135,15 +304,15 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
 
         Map<String, String> actualDynamicParameters = new HashMap<>();
         String[] dynamicParameterTokens = dynamicParametersStr.split(" ");
-        assertThat(dynamicParameterTokens.length % 2, Matchers.is(0));
+        assertThat(dynamicParameterTokens.length % 2).isZero();
         for (int i = 0; i < dynamicParameterTokens.length; ++i) {
             String parameterKeyValueStr = dynamicParameterTokens[i];
             if (i % 2 == 0) {
-                assertThat(parameterKeyValueStr, Matchers.is("-D"));
+                assertThat(parameterKeyValueStr).isEqualTo("-D");
             } else {
                 String[] parameterKeyValue = parameterKeyValueStr.split("=");
-                assertThat(parameterKeyValue, arrayWithSize(2));
-                assertThat(parameterKeyValue[0], isIn(expectedDynamicParameters));
+                assertThat(parameterKeyValue).hasSize(2);
+                assertThat(parameterKeyValue[0]).isIn(expectedDynamicParameters);
 
                 actualDynamicParameters.put(parameterKeyValue[0], parameterKeyValue[1]);
             }
@@ -154,19 +323,16 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
 
     private static void assertJvmAndDynamicParametersMatch(
             Map<String, String> jvmParams, Map<String, String> dynamicParams) {
-        assertThat(
-                jvmParams.get("-Xmx") + "b",
-                is(dynamicParams.get(JobManagerOptions.JVM_HEAP_MEMORY.key())));
-        assertThat(
-                jvmParams.get("-Xms") + "b",
-                is(dynamicParams.get(JobManagerOptions.JVM_HEAP_MEMORY.key())));
-        assertThat(
-                jvmParams.get("-XX:MaxMetaspaceSize=") + "b",
-                is(dynamicParams.get(JobManagerOptions.JVM_METASPACE.key())));
+        assertThat(jvmParams.get("-Xmx") + "b")
+                .isEqualTo(dynamicParams.get(JobManagerOptions.JVM_HEAP_MEMORY.key()));
+        assertThat(jvmParams.get("-Xms") + "b")
+                .isEqualTo(dynamicParams.get(JobManagerOptions.JVM_HEAP_MEMORY.key()));
+        assertThat(jvmParams.get("-XX:MaxMetaspaceSize=") + "b")
+                .isEqualTo(dynamicParams.get(JobManagerOptions.JVM_METASPACE.key()));
     }
 
     @Test
-    public void testExtractLoggingOutputs() throws Exception {
+    void testExtractLoggingOutputs() throws Exception {
         StringBuilder input = new StringBuilder();
         List<String> expectedOutput = new ArrayList<>();
 
@@ -184,6 +350,18 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
         List<String> actualOutput =
                 Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
-        assertThat(actualOutput, is(expectedOutput));
+        assertThat(actualOutput).isEqualTo(expectedOutput);
+    }
+
+    private Configuration loadConfiguration(List<String> lines) throws IOException {
+        File file =
+                TempDirUtils.newFile(
+                        tmpDir.toAbsolutePath(), GlobalConfiguration.FLINK_CONF_FILENAME);
+        try (final PrintWriter pw = new PrintWriter(file)) {
+            for (String line : lines) {
+                pw.println(line);
+            }
+        }
+        return GlobalConfiguration.loadConfiguration(tmpDir.toAbsolutePath().toString());
     }
 }

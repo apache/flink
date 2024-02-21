@@ -19,8 +19,11 @@
 package org.apache.flink.runtime.operators.util;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 
+import static org.apache.flink.core.memory.MemoryUtils.UNSAFE;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * BloomFilter is a probabilistic data structure for set membership check. BloomFilters are highly
@@ -43,15 +46,24 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 public class BloomFilter {
 
+    @SuppressWarnings("restriction")
+    private static final int BYTE_ARRAY_BASE_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
+
     protected BitSet bitSet;
-    protected int expectedEntries;
     protected int numHashFunctions;
 
     public BloomFilter(int expectedEntries, int byteSize) {
         checkArgument(expectedEntries > 0, "expectedEntries should be > 0");
-        this.expectedEntries = expectedEntries;
         this.numHashFunctions = optimalNumOfHashFunctions(expectedEntries, byteSize << 3);
         this.bitSet = new BitSet(byteSize);
+    }
+
+    /** A constructor to support rebuilding the BloomFilter from a serialized representation. */
+    private BloomFilter(BitSet bitSet, int numHashFunctions) {
+        checkNotNull(bitSet, "bitSet must be not null");
+        checkArgument(numHashFunctions > 0, "numHashFunctions should be > 0");
+        this.bitSet = bitSet;
+        this.numHashFunctions = numHashFunctions;
     }
 
     public void setBitsLocation(MemorySegment memorySegment, int offset) {
@@ -142,5 +154,67 @@ public class BloomFilter {
         output.append("\thash function number:").append(numHashFunctions).append("\n");
         output.append(bitSet);
         return output.toString();
+    }
+
+    /** Serializing to bytes, note that only heap memory is currently supported. */
+    public static byte[] toBytes(BloomFilter filter) {
+        byte[] data = filter.bitSet.toBytes();
+        int byteSize = data.length;
+        byte[] bytes = new byte[8 + byteSize];
+        UNSAFE.putInt(bytes, BYTE_ARRAY_BASE_OFFSET, filter.numHashFunctions);
+        UNSAFE.putInt(bytes, BYTE_ARRAY_BASE_OFFSET + 4, byteSize);
+        UNSAFE.copyMemory(
+                data, BYTE_ARRAY_BASE_OFFSET, bytes, BYTE_ARRAY_BASE_OFFSET + 8, byteSize);
+        return bytes;
+    }
+
+    /** Deserializing bytes array to BloomFilter. Currently, only heap memory is supported. */
+    public static BloomFilter fromBytes(byte[] bytes) {
+        int numHashFunctions = UNSAFE.getInt(bytes, BYTE_ARRAY_BASE_OFFSET);
+        int byteSize = UNSAFE.getInt(bytes, BYTE_ARRAY_BASE_OFFSET + 4);
+        byte[] data = new byte[byteSize];
+        UNSAFE.copyMemory(
+                bytes, BYTE_ARRAY_BASE_OFFSET + 8, data, BYTE_ARRAY_BASE_OFFSET, byteSize);
+
+        BitSet bitSet = new BitSet(byteSize);
+        bitSet.setMemorySegment(MemorySegmentFactory.wrap(data), 0);
+        return new BloomFilter(bitSet, numHashFunctions);
+    }
+
+    public static byte[] mergeSerializedBloomFilters(byte[] bf1Bytes, byte[] bf2Bytes) {
+        return mergeSerializedBloomFilters(
+                bf1Bytes, 0, bf1Bytes.length, bf2Bytes, 0, bf2Bytes.length);
+    }
+
+    /** Merge the bf2 bytes to bf1. After merge completes, the contents of bf1 will be changed. */
+    private static byte[] mergeSerializedBloomFilters(
+            byte[] bf1Bytes,
+            int bf1Start,
+            int bf1Length,
+            byte[] bf2Bytes,
+            int bf2Start,
+            int bf2Length) {
+        if (bf1Length != bf2Length) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "bf1Length %s does not match bf2Length %s when merging",
+                            bf1Length, bf2Length));
+        }
+
+        // Validation on hash functions
+        if (UNSAFE.getByte(bf1Bytes, BYTE_ARRAY_BASE_OFFSET + bf1Start)
+                != UNSAFE.getByte(bf2Bytes, BYTE_ARRAY_BASE_OFFSET + bf2Start)) {
+            throw new IllegalArgumentException(
+                    "bf1 numHashFunctions does not match bf2 when merging");
+        }
+
+        for (int idx = 8 + BYTE_ARRAY_BASE_OFFSET;
+                idx < bf1Length + BYTE_ARRAY_BASE_OFFSET;
+                idx += 1) {
+            byte l1 = UNSAFE.getByte(bf1Bytes, bf1Start + idx);
+            byte l2 = UNSAFE.getByte(bf2Bytes, bf2Start + idx);
+            UNSAFE.putByte(bf1Bytes, bf1Start + idx, (byte) (l1 | l2));
+        }
+        return bf1Bytes;
     }
 }

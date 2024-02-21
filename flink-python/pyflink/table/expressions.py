@@ -94,6 +94,8 @@ def col(name: str) -> Expression:
         >>> tab.select(col("key"), col("value"))
 
     :param name: the field name to refer to
+
+    .. seealso:: :func:`~pyflink.table.expressions.with_all_columns`
     """
     return _unary_op("col", name)
 
@@ -685,6 +687,22 @@ def coalesce(*args) -> Expression:
     gateway = get_gateway()
     args = to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])
     return _unary_op("coalesce", args)
+
+
+def with_all_columns() -> Expression:
+    """
+    Creates an expression that selects all columns. It can be used wherever an array of
+    expression is accepted such as function calls, projections, or groupings.
+
+    This expression is a synonym of col("*"). It is semantically equal to SELECT * in
+    SQL when used in a projection.
+
+    e.g. tab.select(with_all_columns())
+
+    .. seealso:: :func:`~pyflink.table.expressions.with_columns`
+                 :func:`~pyflink.table.expressions.without_columns`
+    """
+    return _leaf_op("withAllColumns")
 
 
 def with_columns(head, *tails) -> Expression:

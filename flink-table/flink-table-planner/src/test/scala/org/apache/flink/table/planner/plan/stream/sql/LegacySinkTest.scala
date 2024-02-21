@@ -23,7 +23,8 @@ import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Test
 
 class LegacySinkTest extends TableTestBase {
 
@@ -39,10 +40,10 @@ class LegacySinkTest extends TableTestBase {
     val table = util.tableEnv.sqlQuery("SELECT COUNT(*) AS cnt FROM MyTable GROUP BY a")
     val appendSink = util.createAppendTableSink(Array("a"), Array(LONG))
 
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("AppendStreamTableSink doesn't support consuming update " +
-      "changes which is produced by node GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])")
-    util.verifyRelPlanInsert(table, appendSink, "appendSink")
+    assertThatThrownBy(() => util.verifyRelPlanInsert(table, appendSink, "appendSink"))
+      .hasMessageContaining("AppendStreamTableSink doesn't support consuming update " +
+        "changes which is produced by node GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -65,11 +66,10 @@ class LegacySinkTest extends TableTestBase {
       .registerTableSinkInternal("retractSink2", retractSink2)
     stmtSet.addInsert("retractSink2", table2)
 
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "OverAggregate doesn't support consuming update changes " +
-        "which is produced by node GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])")
-    util.verifyRelPlan(stmtSet)
+    assertThatThrownBy(() => util.verifyRelPlan(stmtSet))
+      .hasMessageContaining("OverAggregate doesn't support consuming update changes " +
+        "which is produced by node Calc(select=[cnt]")
+      .isInstanceOf[TableException]
   }
 
   @Test

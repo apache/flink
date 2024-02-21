@@ -19,15 +19,18 @@
 package org.apache.flink.contrib.streaming.state.restore;
 
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricMonitor;
-import org.apache.flink.runtime.state.StateHandleID;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 
-import java.util.Map;
+import javax.annotation.Nullable;
+
+import java.util.Collection;
+import java.util.Optional;
 import java.util.SortedMap;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /** Entity holding result of RocksDB instance restore. */
 public class RocksDBRestoreResult {
@@ -38,7 +41,9 @@ public class RocksDBRestoreResult {
     // fields only for incremental restore
     private final long lastCompletedCheckpointId;
     private final UUID backendUID;
-    private final SortedMap<Long, Map<StateHandleID, StreamStateHandle>> restoredSstFiles;
+    private final SortedMap<Long, Collection<HandleAndLocalPath>> restoredSstFiles;
+
+    private final CompletableFuture<Void> asyncCompactAfterRestoreFuture;
 
     public RocksDBRestoreResult(
             RocksDB db,
@@ -46,13 +51,15 @@ public class RocksDBRestoreResult {
             RocksDBNativeMetricMonitor nativeMetricMonitor,
             long lastCompletedCheckpointId,
             UUID backendUID,
-            SortedMap<Long, Map<StateHandleID, StreamStateHandle>> restoredSstFiles) {
+            SortedMap<Long, Collection<HandleAndLocalPath>> restoredSstFiles,
+            @Nullable CompletableFuture<Void> asyncCompactAfterRestoreFuture) {
         this.db = db;
         this.defaultColumnFamilyHandle = defaultColumnFamilyHandle;
         this.nativeMetricMonitor = nativeMetricMonitor;
         this.lastCompletedCheckpointId = lastCompletedCheckpointId;
         this.backendUID = backendUID;
         this.restoredSstFiles = restoredSstFiles;
+        this.asyncCompactAfterRestoreFuture = asyncCompactAfterRestoreFuture;
     }
 
     public RocksDB getDb() {
@@ -67,7 +74,7 @@ public class RocksDBRestoreResult {
         return backendUID;
     }
 
-    public SortedMap<Long, Map<StateHandleID, StreamStateHandle>> getRestoredSstFiles() {
+    public SortedMap<Long, Collection<HandleAndLocalPath>> getRestoredSstFiles() {
         return restoredSstFiles;
     }
 
@@ -77,5 +84,9 @@ public class RocksDBRestoreResult {
 
     public RocksDBNativeMetricMonitor getNativeMetricMonitor() {
         return nativeMetricMonitor;
+    }
+
+    public Optional<CompletableFuture<Void>> getAsyncCompactAfterRestoreFuture() {
+        return Optional.ofNullable(asyncCompactAfterRestoreFuture);
     }
 }

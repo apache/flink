@@ -35,7 +35,12 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageIdMappingUtils;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyServiceImpl;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemoryManager;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemorySpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageProducerClient;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageProducerMetricUpdate;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -45,6 +50,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -62,6 +68,12 @@ public class TieredResultPartition extends ResultPartition {
 
     private final TieredStorageResourceRegistry tieredStorageResourceRegistry;
 
+    private final TieredStorageNettyServiceImpl nettyService;
+
+    private final List<TieredStorageMemorySpec> tieredStorageMemorySpecs;
+
+    private final TieredStorageMemoryManager storageMemoryManager;
+
     private boolean hasNotifiedEndOfUserRecords;
 
     public TieredResultPartition(
@@ -75,7 +87,10 @@ public class TieredResultPartition extends ResultPartition {
             @Nullable BufferCompressor bufferCompressor,
             SupplierWithException<BufferPool, IOException> bufferPoolFactory,
             TieredStorageProducerClient tieredStorageProducerClient,
-            TieredStorageResourceRegistry tieredStorageResourceRegistry) {
+            TieredStorageResourceRegistry tieredStorageResourceRegistry,
+            TieredStorageNettyServiceImpl nettyService,
+            List<TieredStorageMemorySpec> tieredStorageMemorySpecs,
+            TieredStorageMemoryManager storageMemoryManager) {
         super(
                 owningTaskName,
                 partitionIndex,
@@ -90,6 +105,9 @@ public class TieredResultPartition extends ResultPartition {
         this.partitionId = TieredStorageIdMappingUtils.convertId(partitionId);
         this.tieredStorageProducerClient = tieredStorageProducerClient;
         this.tieredStorageResourceRegistry = tieredStorageResourceRegistry;
+        this.nettyService = nettyService;
+        this.tieredStorageMemorySpecs = tieredStorageMemorySpecs;
+        this.storageMemoryManager = storageMemoryManager;
     }
 
     @Override
@@ -97,11 +115,16 @@ public class TieredResultPartition extends ResultPartition {
         if (isReleased()) {
             throw new IOException("Result partition has been released.");
         }
+        storageMemoryManager.setup(bufferPool, tieredStorageMemorySpecs);
+        tieredStorageResourceRegistry.registerResource(partitionId, storageMemoryManager::release);
     }
 
     @Override
     public void setMetricGroup(TaskIOMetricGroup metrics) {
         super.setMetricGroup(metrics);
+        storageMemoryManager.setMetricGroup(metrics);
+        tieredStorageProducerClient.setMetricStatisticsUpdater(
+                this::updateProducerMetricStatistics);
     }
 
     @Override
@@ -139,26 +162,33 @@ public class TieredResultPartition extends ResultPartition {
                 record, TieredStorageIdMappingUtils.convertId(consumerId), dataType, isBroadcast);
     }
 
+    private void updateProducerMetricStatistics(
+            TieredStorageProducerMetricUpdate metricStatistics) {
+        numBuffersOut.inc(metricStatistics.numWriteBuffersDelta());
+        numBytesOut.inc(metricStatistics.numWriteBytesDelta());
+    }
+
     @Override
-    public ResultSubpartitionView createSubpartitionView(
+    protected ResultSubpartitionView createSubpartitionView(
             int subpartitionId, BufferAvailabilityListener availabilityListener)
             throws IOException {
         checkState(!isReleased(), "ResultPartition already released.");
-        // TODO, create subpartition views
-        return null;
+        return nettyService.createResultSubpartitionView(
+                partitionId, new TieredStorageSubpartitionId(subpartitionId), availabilityListener);
     }
 
     @Override
     public void finish() throws IOException {
-        broadcastEvent(EndOfPartitionEvent.INSTANCE, false);
         checkState(!isReleased(), "Result partition is already released.");
+        broadcastEvent(EndOfPartitionEvent.INSTANCE, false);
+        tieredStorageProducerClient.close();
         super.finish();
     }
 
     @Override
     public void close() {
+        storageMemoryManager.release();
         super.close();
-        tieredStorageProducerClient.close();
     }
 
     @Override
@@ -172,6 +202,11 @@ public class TieredResultPartition extends ResultPartition {
             broadcastEvent(new EndOfData(mode), false);
             hasNotifiedEndOfUserRecords = true;
         }
+    }
+
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        return AVAILABLE;
     }
 
     @Override

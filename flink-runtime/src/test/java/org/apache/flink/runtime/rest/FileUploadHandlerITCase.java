@@ -18,14 +18,15 @@
 
 package org.apache.flink.runtime.rest;
 
-import org.apache.flink.runtime.io.network.netty.NettyLeakDetectionResource;
+import org.apache.flink.core.testutils.EachCallbackWrapper;
+import org.apache.flink.runtime.io.network.netty.NettyLeakDetectionExtension;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.BiConsumerWithException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,16 +37,18 @@ import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -56,26 +59,26 @@ import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 /**
  * Tests for the {@link FileUploadHandler}. Ensures that multipart http messages containing files
  * and/or json are properly handled.
  */
-public class FileUploadHandlerITCase extends TestLogger {
+class FileUploadHandlerITCase {
 
-    @Rule
-    public final MultipartUploadResource multipartUpdateResource = new MultipartUploadResource();
+    @TempDir public Path tempDir;
+
+    @RegisterExtension
+    public final EachCallbackWrapper<MultipartUploadExtension> multipartUpdateExtensionWrapper =
+            new EachCallbackWrapper<>(new MultipartUploadExtension(() -> tempDir));
 
     private static final ObjectMapper OBJECT_MAPPER = RestMapperUtils.getStrictObjectMapper();
 
-    @ClassRule
-    public static final NettyLeakDetectionResource LEAK_DETECTION =
-            new NettyLeakDetectionResource();
+    @RegisterExtension
+    public static final NettyLeakDetectionExtension LEAK_DETECTION =
+            new NettyLeakDetectionExtension();
 
     private Request buildMalformedRequest(String headerUrl) {
         MultipartBody.Builder builder = new MultipartBody.Builder();
@@ -89,7 +92,7 @@ public class FileUploadHandlerITCase extends TestLogger {
 
     private Request buildMixedRequestWithUnknownAttribute(String headerUrl) throws IOException {
         MultipartBody.Builder builder = new MultipartBody.Builder();
-        builder = addJsonPart(builder, new MultipartUploadResource.TestRequestBody(), "hello");
+        builder = addJsonPart(builder, new MultipartUploadExtension.TestRequestBody(), "hello");
         builder = addFilePart(builder);
         return finalizeRequest(builder, headerUrl);
     }
@@ -97,8 +100,16 @@ public class FileUploadHandlerITCase extends TestLogger {
     private Request buildRequestWithCustomFilenames(
             String headerUrl, String filename1, String filename2) {
         MultipartBody.Builder builder = new MultipartBody.Builder();
-        builder = addFilePart(builder, multipartUpdateResource.file1, filename1);
-        builder = addFilePart(builder, multipartUpdateResource.file2, filename2);
+        builder =
+                addFilePart(
+                        builder,
+                        multipartUpdateExtensionWrapper.getCustomExtension().file1,
+                        filename1);
+        builder =
+                addFilePart(
+                        builder,
+                        multipartUpdateExtensionWrapper.getCustomExtension().file2,
+                        filename2);
         return finalizeRequest(builder, headerUrl);
     }
 
@@ -108,15 +119,24 @@ public class FileUploadHandlerITCase extends TestLogger {
         return finalizeRequest(builder, headerUrl);
     }
 
-    private Request buildJsonRequest(String headerUrl, MultipartUploadResource.TestRequestBody json)
-            throws IOException {
+    private Request buildJsonRequest(
+            String headerUrl, MultipartUploadExtension.TestRequestBody json) throws IOException {
         MultipartBody.Builder builder = new MultipartBody.Builder();
         builder = addJsonPart(builder, json, FileUploadHandler.HTTP_ATTRIBUTE_REQUEST);
         return finalizeRequest(builder, headerUrl);
     }
 
     private Request buildMixedRequest(
-            String headerUrl, MultipartUploadResource.TestRequestBody json) throws IOException {
+            String headerUrl, MultipartUploadExtension.TestRequestBody json, File file)
+            throws IOException {
+        MultipartBody.Builder builder = new MultipartBody.Builder();
+        builder = addJsonPart(builder, json, FileUploadHandler.HTTP_ATTRIBUTE_REQUEST);
+        builder = addFilePart(builder, file, file.getName());
+        return finalizeRequest(builder, headerUrl);
+    }
+
+    private Request buildMixedRequest(
+            String headerUrl, MultipartUploadExtension.TestRequestBody json) throws IOException {
         MultipartBody.Builder builder = new MultipartBody.Builder();
         builder = addJsonPart(builder, json, FileUploadHandler.HTTP_ATTRIBUTE_REQUEST);
         builder = addFilePart(builder);
@@ -127,13 +147,14 @@ public class FileUploadHandlerITCase extends TestLogger {
         MultipartBody multipartBody = builder.setType(MultipartBody.FORM).build();
 
         return new Request.Builder()
-                .url(multipartUpdateResource.serverAddress + headerUrl)
+                .url(multipartUpdateExtensionWrapper.getCustomExtension().serverAddress + headerUrl)
                 .post(multipartBody)
                 .build();
     }
 
     private MultipartBody.Builder addFilePart(final MultipartBody.Builder builder) {
-        multipartUpdateResource
+        multipartUpdateExtensionWrapper
+                .getCustomExtension()
                 .getFilesToUpload()
                 .forEach(f -> addFilePart(builder, f, f.getName()));
         return builder;
@@ -150,7 +171,7 @@ public class FileUploadHandlerITCase extends TestLogger {
 
     private static MultipartBody.Builder addJsonPart(
             MultipartBody.Builder builder,
-            MultipartUploadResource.TestRequestBody jsonRequestBody,
+            MultipartUploadExtension.TestRequestBody jsonRequestBody,
             String attribute)
             throws IOException {
         StringWriter sw = new StringWriter();
@@ -162,150 +183,192 @@ public class FileUploadHandlerITCase extends TestLogger {
     }
 
     @Test
-    public void testUploadDirectoryRegeneration() throws Exception {
+    void testUploadDirectoryRegeneration() throws Exception {
         OkHttpClient client = createOkHttpClientWithNoTimeouts();
 
-        MultipartUploadResource.MultipartFileHandler fileHandler =
-                multipartUpdateResource.getFileHandler();
+        MultipartUploadExtension.MultipartFileHandler fileHandler =
+                multipartUpdateExtensionWrapper.getCustomExtension().getFileHandler();
 
-        FileUtils.deleteDirectory(multipartUpdateResource.getUploadDirectory().toFile());
+        FileUtils.deleteDirectory(
+                multipartUpdateExtensionWrapper.getCustomExtension().getUploadDirectory().toFile());
 
         Request fileRequest =
                 buildFileRequest(fileHandler.getMessageHeaders().getTargetRestEndpointURL());
         try (Response response = client.newCall(fileRequest).execute()) {
-            assertEquals(
-                    fileHandler.getMessageHeaders().getResponseStatusCode().code(),
-                    response.code());
+            assertThat(response.code())
+                    .isEqualTo(fileHandler.getMessageHeaders().getResponseStatusCode().code());
         }
 
         verifyNoFileIsRegisteredToDeleteOnExitHook();
     }
 
     @Test
-    public void testMixedMultipart() throws Exception {
+    void testMixedMultipart() throws Exception {
         OkHttpClient client = createOkHttpClientWithNoTimeouts();
 
-        MultipartUploadResource.MultipartMixedHandler mixedHandler =
-                multipartUpdateResource.getMixedHandler();
+        MultipartUploadExtension.MultipartMixedHandler mixedHandler =
+                multipartUpdateExtensionWrapper.getCustomExtension().getMixedHandler();
 
         Request jsonRequest =
                 buildJsonRequest(
                         mixedHandler.getMessageHeaders().getTargetRestEndpointURL(),
-                        new MultipartUploadResource.TestRequestBody());
+                        new MultipartUploadExtension.TestRequestBody());
         try (Response response = client.newCall(jsonRequest).execute()) {
             // explicitly rejected by the test handler implementation
-            assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR.code(), response.code());
+            assertThat(response.code()).isEqualTo(HttpResponseStatus.INTERNAL_SERVER_ERROR.code());
         }
 
         Request fileRequest =
                 buildFileRequest(mixedHandler.getMessageHeaders().getTargetRestEndpointURL());
         try (Response response = client.newCall(fileRequest).execute()) {
             // expected JSON payload is missing
-            assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
+            assertThat(response.code()).isEqualTo(HttpResponseStatus.BAD_REQUEST.code());
         }
 
-        MultipartUploadResource.TestRequestBody json =
-                new MultipartUploadResource.TestRequestBody();
+        MultipartUploadExtension.TestRequestBody json =
+                new MultipartUploadExtension.TestRequestBody();
         Request mixedRequest =
                 buildMixedRequest(
                         mixedHandler.getMessageHeaders().getTargetRestEndpointURL(), json);
         try (Response response = client.newCall(mixedRequest).execute()) {
-            assertEquals(
-                    mixedHandler.getMessageHeaders().getResponseStatusCode().code(),
-                    response.code());
-            assertEquals(json, mixedHandler.lastReceivedRequest);
+            assertThat(response.code())
+                    .isEqualTo(mixedHandler.getMessageHeaders().getResponseStatusCode().code());
+            assertThat(mixedHandler.lastReceivedRequest).isEqualTo(json);
+        }
+
+        verifyNoFileIsRegisteredToDeleteOnExitHook();
+    }
+
+    /**
+     * This test checks for a specific multipart request chunk layout using a magic number.
+     *
+     * <p>These things are very susceptible to interference from other requests or parts of the
+     * payload; for example if the JSON payload increases by a single byte it can already break the
+     * number. Do not reuse the client.
+     *
+     * <p>To find the magic number you can define a static counter, and loop the test in the IDE
+     * (without forking!) while incrementing the counter on each run.
+     */
+    @Test
+    void testMixedMultipartEndOfDataDecoderExceptionHandling(@TempDir Path tmp) throws Exception {
+        OkHttpClient client = createOkHttpClientWithNoTimeouts();
+
+        MultipartUploadExtension.MultipartMixedHandler mixedHandler =
+                multipartUpdateExtensionWrapper.getCustomExtension().getMixedHandler();
+
+        MultipartUploadExtension.TestRequestBody json =
+                new MultipartUploadExtension.TestRequestBody();
+
+        File file = TempDirUtils.newFile(tmp);
+        try (RandomAccessFile rw = new RandomAccessFile(file, "rw")) {
+            // magic value that reliably reproduced EndOfDataDecoderException in hasNext()
+            rw.setLength(1424);
+        }
+        multipartUpdateExtensionWrapper
+                .getCustomExtension()
+                .setFileUploadVerifier(
+                        (handlerRequest, restfulGateway) ->
+                                MultipartUploadExtension.assertUploadedFilesEqual(
+                                        handlerRequest, Collections.singleton(file)));
+
+        Request singleFileMixedRequest =
+                buildMixedRequest(
+                        mixedHandler.getMessageHeaders().getTargetRestEndpointURL(), json, file);
+        try (Response response = client.newCall(singleFileMixedRequest).execute()) {
+            assertThat(response.code())
+                    .isEqualTo(mixedHandler.getMessageHeaders().getResponseStatusCode().code());
+            assertThat(mixedHandler.lastReceivedRequest).isEqualTo(json);
         }
 
         verifyNoFileIsRegisteredToDeleteOnExitHook();
     }
 
     @Test
-    public void testJsonMultipart() throws Exception {
+    void testJsonMultipart() throws Exception {
         OkHttpClient client = createOkHttpClientWithNoTimeouts();
 
-        MultipartUploadResource.MultipartJsonHandler jsonHandler =
-                multipartUpdateResource.getJsonHandler();
+        MultipartUploadExtension.MultipartJsonHandler jsonHandler =
+                multipartUpdateExtensionWrapper.getCustomExtension().getJsonHandler();
 
-        MultipartUploadResource.TestRequestBody json =
-                new MultipartUploadResource.TestRequestBody();
+        MultipartUploadExtension.TestRequestBody json =
+                new MultipartUploadExtension.TestRequestBody();
         Request jsonRequest =
                 buildJsonRequest(jsonHandler.getMessageHeaders().getTargetRestEndpointURL(), json);
         try (Response response = client.newCall(jsonRequest).execute()) {
-            assertEquals(
-                    jsonHandler.getMessageHeaders().getResponseStatusCode().code(),
-                    response.code());
-            assertEquals(json, jsonHandler.lastReceivedRequest);
+            assertThat(response.code())
+                    .isEqualTo(jsonHandler.getMessageHeaders().getResponseStatusCode().code());
+            assertThat(jsonHandler.lastReceivedRequest).isEqualTo(json);
         }
 
         Request fileRequest =
                 buildFileRequest(jsonHandler.getMessageHeaders().getTargetRestEndpointURL());
         try (Response response = client.newCall(fileRequest).execute()) {
             // either because JSON payload is missing or FileUploads are outright forbidden
-            assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
+            assertThat(response.code()).isEqualTo(HttpResponseStatus.BAD_REQUEST.code());
         }
 
         Request mixedRequest =
                 buildMixedRequest(
                         jsonHandler.getMessageHeaders().getTargetRestEndpointURL(),
-                        new MultipartUploadResource.TestRequestBody());
+                        new MultipartUploadExtension.TestRequestBody());
         try (Response response = client.newCall(mixedRequest).execute()) {
             // FileUploads are outright forbidden
-            assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
+            assertThat(response.code()).isEqualTo(HttpResponseStatus.BAD_REQUEST.code());
         }
 
         verifyNoFileIsRegisteredToDeleteOnExitHook();
     }
 
     @Test
-    public void testFileMultipart() throws Exception {
+    void testFileMultipart() throws Exception {
         OkHttpClient client = createOkHttpClientWithNoTimeouts();
 
-        MultipartUploadResource.MultipartFileHandler fileHandler =
-                multipartUpdateResource.getFileHandler();
+        MultipartUploadExtension.MultipartFileHandler fileHandler =
+                multipartUpdateExtensionWrapper.getCustomExtension().getFileHandler();
 
         Request jsonRequest =
                 buildJsonRequest(
                         fileHandler.getMessageHeaders().getTargetRestEndpointURL(),
-                        new MultipartUploadResource.TestRequestBody());
+                        new MultipartUploadExtension.TestRequestBody());
         try (Response response = client.newCall(jsonRequest).execute()) {
             // JSON payload did not match expected format
-            assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
+            assertThat(response.code()).isEqualTo(HttpResponseStatus.BAD_REQUEST.code());
         }
 
         Request fileRequest =
                 buildFileRequest(fileHandler.getMessageHeaders().getTargetRestEndpointURL());
         try (Response response = client.newCall(fileRequest).execute()) {
-            assertEquals(
-                    fileHandler.getMessageHeaders().getResponseStatusCode().code(),
-                    response.code());
+            assertThat(response.code())
+                    .isEqualTo(fileHandler.getMessageHeaders().getResponseStatusCode().code());
         }
 
         Request mixedRequest =
                 buildMixedRequest(
                         fileHandler.getMessageHeaders().getTargetRestEndpointURL(),
-                        new MultipartUploadResource.TestRequestBody());
+                        new MultipartUploadExtension.TestRequestBody());
         try (Response response = client.newCall(mixedRequest).execute()) {
             // JSON payload did not match expected format
-            assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
+            assertThat(response.code()).isEqualTo(HttpResponseStatus.BAD_REQUEST.code());
         }
 
         verifyNoFileIsRegisteredToDeleteOnExitHook();
     }
 
     @Test
-    public void testUploadCleanupOnUnknownAttribute() throws IOException {
+    void testUploadCleanupOnUnknownAttribute() throws IOException {
         OkHttpClient client = createOkHttpClientWithNoTimeouts();
 
         Request request =
                 buildMixedRequestWithUnknownAttribute(
-                        multipartUpdateResource
+                        multipartUpdateExtensionWrapper
+                                .getCustomExtension()
                                 .getMixedHandler()
                                 .getMessageHeaders()
                                 .getTargetRestEndpointURL());
         try (Response response = client.newCall(request).execute()) {
-            assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
+            assertThat(response.code()).isEqualTo(HttpResponseStatus.BAD_REQUEST.code());
         }
-        multipartUpdateResource.assertUploadDirectoryIsEmpty();
+        multipartUpdateExtensionWrapper.getCustomExtension().assertUploadDirectoryIsEmpty();
 
         verifyNoFileIsRegisteredToDeleteOnExitHook();
     }
@@ -315,79 +378,97 @@ public class FileUploadHandlerITCase extends TestLogger {
      * directory is cleaned up.
      */
     @Test
-    public void testUploadCleanupOnFailure() throws IOException {
+    void testUploadCleanupOnFailure() throws IOException {
         OkHttpClient client = createOkHttpClientWithNoTimeouts();
 
         Request request =
                 buildMalformedRequest(
-                        multipartUpdateResource
+                        multipartUpdateExtensionWrapper
+                                .getCustomExtension()
                                 .getMixedHandler()
                                 .getMessageHeaders()
                                 .getTargetRestEndpointURL());
         try (Response response = client.newCall(request).execute()) {
             // decoding errors aren't handled separately by the FileUploadHandler
-            assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR.code(), response.code());
+            assertThat(response.code()).isEqualTo(HttpResponseStatus.INTERNAL_SERVER_ERROR.code());
         }
-        multipartUpdateResource.assertUploadDirectoryIsEmpty();
+        multipartUpdateExtensionWrapper.getCustomExtension().assertUploadDirectoryIsEmpty();
 
         verifyNoFileIsRegisteredToDeleteOnExitHook();
     }
 
     @Test
-    public void testFileUploadUsingCustomFilename() throws IOException {
+    void testFileUploadUsingCustomFilename() throws IOException {
         OkHttpClient client = createOkHttpClientWithNoTimeouts();
 
         String customFilename1 = "different-name-1.jar";
         String customFilename2 = "different-name-2.jar";
 
-        multipartUpdateResource.setFileUploadVerifier(
-                new CustomFilenameVerifier(
-                        customFilename1,
-                        multipartUpdateResource.file1.toPath(),
-                        customFilename2,
-                        multipartUpdateResource.file2.toPath()));
+        multipartUpdateExtensionWrapper
+                .getCustomExtension()
+                .setFileUploadVerifier(
+                        new CustomFilenameVerifier(
+                                customFilename1,
+                                multipartUpdateExtensionWrapper.getCustomExtension().file1.toPath(),
+                                customFilename2,
+                                multipartUpdateExtensionWrapper
+                                        .getCustomExtension()
+                                        .file2
+                                        .toPath()));
 
         MessageHeaders<?, ?, ?> messageHeaders =
-                multipartUpdateResource.getFileHandler().getMessageHeaders();
+                multipartUpdateExtensionWrapper
+                        .getCustomExtension()
+                        .getFileHandler()
+                        .getMessageHeaders();
         Request request =
                 buildRequestWithCustomFilenames(
                         messageHeaders.getTargetRestEndpointURL(),
                         customFilename1,
                         customFilename2);
         try (Response response = client.newCall(request).execute()) {
-            assertEquals(messageHeaders.getResponseStatusCode().code(), response.code());
+            assertThat(response.code()).isEqualTo(messageHeaders.getResponseStatusCode().code());
         }
 
         verifyNoFileIsRegisteredToDeleteOnExitHook();
     }
 
     @Test
-    public void testFileUploadUsingCustomFilenameWithParentFolderPath() throws IOException {
+    void testFileUploadUsingCustomFilenameWithParentFolderPath() throws IOException {
         OkHttpClient client = createOkHttpClientWithNoTimeouts();
 
         String customFilename1 = "different-name-1.jar";
         String customFilename2 = "different-name-2.jar";
 
-        multipartUpdateResource.setFileUploadVerifier(
-                new CustomFilenameVerifier(
-                        customFilename1,
-                        multipartUpdateResource.file1.toPath(),
-                        customFilename2,
-                        multipartUpdateResource.file2.toPath()));
+        multipartUpdateExtensionWrapper
+                .getCustomExtension()
+                .setFileUploadVerifier(
+                        new CustomFilenameVerifier(
+                                customFilename1,
+                                multipartUpdateExtensionWrapper.getCustomExtension().file1.toPath(),
+                                customFilename2,
+                                multipartUpdateExtensionWrapper
+                                        .getCustomExtension()
+                                        .file2
+                                        .toPath()));
 
         // referring to the parent folder within the filename should be ignored
         MessageHeaders<?, ?, ?> messageHeaders =
-                multipartUpdateResource.getFileHandler().getMessageHeaders();
+                multipartUpdateExtensionWrapper
+                        .getCustomExtension()
+                        .getFileHandler()
+                        .getMessageHeaders();
         Request request =
                 buildRequestWithCustomFilenames(
-                        multipartUpdateResource
+                        multipartUpdateExtensionWrapper
+                                .getCustomExtension()
                                 .getFileHandler()
                                 .getMessageHeaders()
                                 .getTargetRestEndpointURL(),
                         String.format("../%s", customFilename1),
                         String.format("../%s", customFilename2));
         try (Response response = client.newCall(request).execute()) {
-            assertEquals(messageHeaders.getResponseStatusCode().code(), response.code());
+            assertThat(response.code()).isEqualTo(messageHeaders.getResponseStatusCode().code());
         }
 
         verifyNoFileIsRegisteredToDeleteOnExitHook();
@@ -431,7 +512,7 @@ public class FileUploadHandlerITCase extends TestLogger {
             expectedFilenamesAndContent.put(customFilename1, fileContent1);
             expectedFilenamesAndContent.put(customFilename2, fileContent2);
 
-            assertEquals(expectedFilenamesAndContent.size(), uploadedFiles.size());
+            assertThat(expectedFilenamesAndContent).hasSameSizeAs(uploadedFiles);
 
             Iterator<Path> uploadedFileIterator = actualList.iterator();
             for (Map.Entry<String, Path> expectedFilenameAndContent :
@@ -439,14 +520,14 @@ public class FileUploadHandlerITCase extends TestLogger {
                 String expectedFilename = expectedFilenameAndContent.getKey();
                 Path expectedContent = expectedFilenameAndContent.getValue();
 
-                assertTrue(uploadedFileIterator.hasNext());
+                assertThat(uploadedFileIterator).hasNext();
                 Path actual = uploadedFileIterator.next();
 
-                assertEquals(expectedFilename, actual.getFileName().toString());
+                assertThat(actual.getFileName()).hasToString(expectedFilename);
 
                 byte[] originalContent = java.nio.file.Files.readAllBytes(expectedContent);
                 byte[] receivedContent = java.nio.file.Files.readAllBytes(actual);
-                assertArrayEquals(originalContent, receivedContent);
+                assertThat(receivedContent).isEqualTo(originalContent);
             }
         }
     }
@@ -468,23 +549,25 @@ public class FileUploadHandlerITCase extends TestLogger {
      * files is handed over to {@link org.apache.flink.runtime.entrypoint.ClusterEntrypoint}.
      */
     private void verifyNoFileIsRegisteredToDeleteOnExitHook() {
-        try {
-            Class<?> clazz = Class.forName("java.io.DeleteOnExitHook");
-            Field field = clazz.getDeclaredField("files");
-            field.setAccessible(true);
-            LinkedHashSet<String> files = (LinkedHashSet<String>) field.get(null);
-            boolean fileFound = false;
-            // Mockito automatically registers mockitoboot*.jar for on-exit removal. Verify that
-            // there are no other files registered.
-            for (String file : files) {
-                if (!file.contains("mockitoboot")) {
-                    fileFound = true;
-                    break;
-                }
-            }
-            assertFalse(fileFound);
-        } catch (ClassNotFoundException | IllegalAccessException | NoSuchFieldException e) {
-            fail("This should never happen.");
-        }
+        assertThatCode(
+                        () -> {
+                            Class<?> clazz = Class.forName("java.io.DeleteOnExitHook");
+                            Field field = clazz.getDeclaredField("files");
+                            field.setAccessible(true);
+                            LinkedHashSet<String> files = (LinkedHashSet<String>) field.get(null);
+                            boolean fileFound = false;
+                            // Mockito automatically registers mockitoboot*.jar for on-exit removal.
+                            // Verify that
+                            // there are no other files registered.
+                            for (String file : files) {
+                                if (!file.contains("mockitoboot")) {
+                                    fileFound = true;
+                                    break;
+                                }
+                            }
+                            assertThat(fileFound).isFalse();
+                        })
+                .withFailMessage("This should never happen.")
+                .doesNotThrowAnyException();
     }
 }

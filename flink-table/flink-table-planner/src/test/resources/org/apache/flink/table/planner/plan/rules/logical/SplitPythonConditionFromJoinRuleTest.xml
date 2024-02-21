@@ -54,11 +54,12 @@ SELECT a, d + 1 FROM(
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[+($1, 1)])
-+- LogicalFilter(condition=[=(pyFunc($0, $1), *($0, $1))])
-   +- LogicalProject(a=[$0], d=[$3])
-      +- LogicalJoin(condition=[AND(=($0, $3), =(pyFunc($0, $0), +($0, $3)))], joinType=[inner])
-         :- LogicalTableScan(table=[[default_catalog, default_database, leftTable, source: [TestTableSource(a, b, c)]]])
-         +- LogicalTableScan(table=[[default_catalog, default_database, rightTable, source: [TestTableSource(d, e, f)]]])
++- LogicalProject(a=[$0], d=[$1])
+   +- LogicalFilter(condition=[=(pyFunc($0, $1), *($0, $1))])
+      +- LogicalProject(a=[$0], d=[$3])
+         +- LogicalJoin(condition=[AND(=($0, $3), =(pyFunc($0, $0), +($0, $3)))], joinType=[inner])
+            :- LogicalTableScan(table=[[default_catalog, default_database, leftTable, source: [TestTableSource(a, b, c)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, rightTable, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">

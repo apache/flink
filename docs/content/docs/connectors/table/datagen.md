@@ -39,8 +39,15 @@ Usage
 -----
 
 By default, a DataGen table will create an unbounded number of rows with a random value for each column.
-For variable sized types, char/varchar/binary/varbinary/string/array/map/multiset, the length can be specified.
 Additionally, a total number of rows can be specified, resulting in a bounded table.
+
+The DataGen connector can generate data that conforms to its defined schema, It should be noted that it handles length-constrained fields as follows:
+
+* For fixed-length data types (char/binary), the field length can only be defined by the schema, 
+and does not support customization.
+* For variable-length data types (varchar/varbinary), the field length is initially defined by the schema, 
+and the customized length cannot be greater than the schema definition.
+* For super-long fields (string/bytes), the default length is 100, but can be set to a length less than 2^31.
 
 There also exists a sequence generator, where users specify a sequence of start and end values.
 If any column in a table is a sequence type, the table will be bounded and end with the first sequence completes.
@@ -75,6 +82,21 @@ WITH (
     'number-of-rows' = '10'
 )
 LIKE Orders (EXCLUDING ALL)
+```
+
+Furthermore, for variable sized types, varchar/string/varbinary/bytes, you can specify whether to enable variable-length data generation.
+
+```sql
+CREATE TABLE Orders (
+    order_number BIGINT,
+    price        DECIMAL(32,2),
+    buyer        ROW<first_name STRING, last_name STRING>,
+    order_time   TIMESTAMP(3),
+    seller       VARCHAR(150)
+) WITH (
+  'connector' = 'datagen',
+  'fields.seller.var-len' = 'true'
+)
 ```
 
 Types
@@ -241,13 +263,20 @@ Connector Options
       <td>Long</td>
       <td>Rows per second to control the emit rate.</td>
     </tr>
-        <tr>
-          <td><h5>number-of-rows</h5></td>
-          <td>optional</td>
-          <td style="word-wrap: break-word;">(none)</td>
-          <td>Long</td>
-          <td>The total number of rows to emit. By default, the table is unbounded.</td>
-        </tr>
+    <tr>
+      <td><h5>number-of-rows</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Long</td>
+      <td>The total number of rows to emit. By default, the table is unbounded.</td>
+    </tr>
+    <tr>
+      <td><h5>scan.parallelism</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Integer</td>
+      <td>Defines the parallelism of the source. If not set, the global default parallelism is used.</td>
+    </tr>
     <tr>
       <td><h5>fields.#.kind</h5></td>
       <td>optional</td>
@@ -281,7 +310,19 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">100</td>
       <td>Integer</td>
-      <td>Size or length of the collection for generating char/varchar/binary/varbinary/string/array/map/multiset types.</td>
+      <td>
+          Size or length of the collection for generating varchar/varbinary/string/bytes/array/map/multiset types. 
+          Please notice that for variable-length fields (varchar/varbinary), the default length is defined by the schema and cannot be set to a length greater than it.
+          for super-long fields (string/bytes), the default length is 100 and can be set to a length less than 2^31.
+          for constructed fields (array/map/multiset), the default number of elements is 3 and can be customized.
+      </td>
+    </tr>
+    <tr>
+      <td><h5>fields.#.var-len</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Whether to generate a variable-length data, please notice that it should only be used for variable-length types (varchar, string, varbinary, bytes).</td>
     </tr>
     <tr>
       <td><h5>fields.#.start</h5></td>
@@ -296,6 +337,13 @@ Connector Options
       <td style="word-wrap: break-word;">(none)</td>
       <td>(Type of field)</td>
       <td>End value of sequence generator.</td>
+    </tr>
+    <tr>
+      <td><h5>fields.#.null-rate</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>(Type of field)</td>
+      <td>The proportion of null values.</td>
     </tr>
     </tbody>
 </table>

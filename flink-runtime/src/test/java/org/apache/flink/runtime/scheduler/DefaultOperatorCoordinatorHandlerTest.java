@@ -28,7 +28,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.TestingOperatorCoordinator;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
@@ -74,7 +73,7 @@ public class DefaultOperatorCoordinatorHandlerTest {
         handler.registerAndStartNewCoordinators(
                 ejv2.getOperatorCoordinators(),
                 executionGraph.getJobMasterMainThreadExecutor(),
-                UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
+                ejv2.getParallelism());
 
         assertThat(
                 handler.getCoordinatorMap().keySet(), containsInAnyOrder(operatorId1, operatorId2));

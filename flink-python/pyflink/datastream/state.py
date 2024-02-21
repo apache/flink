@@ -193,7 +193,7 @@ class ListState(MergingState[T, Iterable[T]]):
     @abstractmethod
     def update(self, values: List[T]) -> None:
         """
-        Updating existing values to to the given list of values.
+        Updating existing values to the given list of values.
         """
         pass
 
@@ -808,7 +808,9 @@ class StateTtlConfig(object):
 
         def cleanup_in_rocksdb_compact_filter(
                 self,
-                query_time_after_num_entries) -> 'StateTtlConfig.Builder':
+                query_time_after_num_entries,
+                periodic_compaction_time=Time.days(30)) -> \
+                'StateTtlConfig.Builder':
             """
             Cleanup expired state while Rocksdb compaction is running.
 
@@ -817,14 +819,21 @@ class StateTtlConfig(object):
             entries. Updating the timestamp more often can improve cleanup speed but it decreases
             compaction performance because it uses JNI call from native code.
 
+            Periodic compaction could speed up expired state entries cleanup, especially for state
+            entries rarely accessed. Files older than this value will be picked up for compaction,
+            and re-written to the same level as they were before. It makes sure a file goes through
+            compaction filters periodically.
+
             :param query_time_after_num_entries:  number of state entries to process by compaction
                 filter before updating current timestamp
+            :param periodic_compaction_time:   periodic compaction which could
+                speed up expired state cleanup. 0 means turning off periodic compaction.
             :return:
             """
             self._strategies[
                 StateTtlConfig.CleanupStrategies.Strategies.ROCKSDB_COMPACTION_FILTER] = \
                 StateTtlConfig.CleanupStrategies.RocksdbCompactFilterCleanupStrategy(
-                    query_time_after_num_entries)
+                    query_time_after_num_entries, periodic_compaction_time)
             return self
 
         def disable_cleanup_in_background(self) -> 'StateTtlConfig.Builder':
@@ -914,11 +923,17 @@ class StateTtlConfig(object):
             Configuration of cleanup strategy using custom compaction filter in RocksDB.
             """
 
-            def __init__(self, query_time_after_num_entries: int):
+            def __init__(self,
+                         query_time_after_num_entries: int,
+                         periodic_compaction_time=Time.days(30)):
                 self._query_time_after_num_entries = query_time_after_num_entries
+                self._periodic_compaction_time = periodic_compaction_time
 
             def get_query_time_after_num_entries(self) -> int:
                 return self._query_time_after_num_entries
+
+            def get_periodic_compaction_time(self) -> Time:
+                return self._periodic_compaction_time
 
         EMPTY_STRATEGY = EmptyCleanupStrategy()
 

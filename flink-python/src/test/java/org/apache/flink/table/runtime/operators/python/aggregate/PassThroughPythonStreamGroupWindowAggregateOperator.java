@@ -49,7 +49,7 @@ import org.apache.flink.table.runtime.groupwindow.WindowEnd;
 import org.apache.flink.table.runtime.groupwindow.WindowProperty;
 import org.apache.flink.table.runtime.groupwindow.WindowStart;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
-import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
+import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.GroupWindowAssigner;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.runtime.utils.PassThroughStreamGroupWindowAggregatePythonFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
@@ -106,7 +106,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
             boolean generateUpdateBefore,
             boolean countStarInserted,
             int inputTimeFieldIndex,
-            WindowAssigner<TimeWindow> windowAssigner,
+            GroupWindowAssigner<TimeWindow> windowAssigner,
             FlinkFnApi.GroupWindow.WindowType windowType,
             boolean isRowTime,
             boolean isTimeWindow,
@@ -196,7 +196,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
     @Override
     public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
         return new PassThroughStreamGroupWindowAggregatePythonFunctionRunner(
-                getRuntimeContext().getTaskName(),
+                getRuntimeContext().getTaskInfo().getTaskName(),
                 PythonTestUtils.createTestProcessEnvironmentManager(),
                 userDefinedFunctionInputType,
                 userDefinedFunctionOutputType,

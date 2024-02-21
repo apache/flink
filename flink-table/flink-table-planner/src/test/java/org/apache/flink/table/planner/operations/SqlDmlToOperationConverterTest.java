@@ -34,6 +34,7 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
+import org.apache.flink.table.operations.TruncateTableOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.factories.TestUpdateDeleteTableFactory;
 import org.apache.flink.table.planner.parse.CalciteParser;
@@ -306,6 +307,18 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
                 parse(
                         "UPDATE test_update SET a = 1, c = '123' WHERE b = 2 and a = (select count(*) from test_update)");
         checkUpdateOperation(operation);
+    }
+
+    @Test
+    public void testTruncateTable() {
+        String sql = "TRUNCATE TABLE t1";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse(sql, planner, parser);
+        assertThat(operation).isInstanceOf(TruncateTableOperation.class);
+        TruncateTableOperation truncateTableOperation = (TruncateTableOperation) operation;
+        assertThat(truncateTableOperation.getTableIdentifier())
+                .isEqualTo(ObjectIdentifier.of("builtin", "default", "t1"));
     }
 
     private void checkExplainSql(String sql) {

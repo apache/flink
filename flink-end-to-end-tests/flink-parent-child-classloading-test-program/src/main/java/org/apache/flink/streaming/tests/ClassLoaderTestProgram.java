@@ -42,7 +42,7 @@ public class ClassLoaderTestProgram {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        env.fromElements("Hello")
+        env.fromData("Hello")
                 .map(
                         (MapFunction<String, String>)
                                 value -> {

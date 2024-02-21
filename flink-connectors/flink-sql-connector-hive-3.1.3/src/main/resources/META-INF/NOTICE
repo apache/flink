@@ -1,5 +1,5 @@
 flink-sql-connector-hive-3.1.3
-Copyright 2014-2023 The Apache Software Foundation
+Copyright 2014-2024 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -8,6 +8,7 @@ This project bundles the following dependencies under the Apache Software Licens
 
 - org.apache.avro:avro-mapred:hadoop2:1.8.2
 - org.apache.avro:avro:1.8.2
+- org.apache.calcite:calcite-core:1.16.0
 - org.apache.hive:hive-exec:3.1.3
 - org.apache.thrift:libfb303:0.9.3
 

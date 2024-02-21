@@ -20,8 +20,8 @@ package org.apache.flink.runtime.rest.handler.job.checkpoints;
 
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
 
-import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava31.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava31.com.google.common.cache.CacheBuilder;
 
 import javax.annotation.Nullable;
 

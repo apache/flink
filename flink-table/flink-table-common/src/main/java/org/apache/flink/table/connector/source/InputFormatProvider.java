@@ -20,18 +20,32 @@ package org.apache.flink.table.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.data.RowData;
+
+import javax.annotation.Nullable;
+
+import java.util.Optional;
 
 /**
  * Provider of an {@link InputFormat} instance as a runtime implementation for {@link
  * ScanTableSource}.
  */
 @PublicEvolving
-public interface InputFormatProvider extends ScanTableSource.ScanRuntimeProvider {
+public interface InputFormatProvider
+        extends ScanTableSource.ScanRuntimeProvider, ParallelismProvider {
 
     /** Helper method for creating a static provider. */
     static InputFormatProvider of(InputFormat<RowData, ?> inputFormat) {
+        return of(inputFormat, null);
+    }
+
+    /** Helper method for creating a static provider with a provided source parallelism. */
+    static InputFormatProvider of(
+            InputFormat<RowData, ?> inputFormat, @Nullable Integer sourceParallelism) {
+
         return new InputFormatProvider() {
+
             @Override
             public InputFormat<RowData, ?> createInputFormat() {
                 return inputFormat;
@@ -40,6 +54,11 @@ public interface InputFormatProvider extends ScanTableSource.ScanRuntimeProvider
             @Override
             public boolean isBounded() {
                 return true;
+            }
+
+            @Override
+            public Optional<Integer> getParallelism() {
+                return Optional.ofNullable(sourceParallelism);
             }
         };
     }

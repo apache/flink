@@ -26,7 +26,9 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -42,7 +44,6 @@ import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
@@ -93,9 +94,16 @@ public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
 
     ExecutionGraphInfo requestJob();
 
-    JobStatus requestJobStatus();
+    /**
+     * Returns the checkpoint statistics for a given job. Although the {@link
+     * CheckpointStatsSnapshot} is included in the {@link ExecutionGraphInfo}, this method is
+     * preferred to {@link SchedulerNG#requestJob()} because it is less expensive.
+     *
+     * @return checkpoint statistics snapshot for job graph
+     */
+    CheckpointStatsSnapshot requestCheckpointStats();
 
-    JobDetails requestJobDetails();
+    JobStatus requestJobStatus();
 
     // ------------------------------------------------------------------------------------
     // Methods below do not belong to Scheduler but are included due to historical reasons
@@ -146,6 +154,9 @@ public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
 
     void declineCheckpoint(DeclineCheckpoint decline);
 
+    void reportInitializationMetrics(
+            JobID jobId, SubTaskInitializationMetrics initializationMetrics);
+
     CompletableFuture<String> stopWithSavepoint(
             String targetDirectory, boolean terminate, SavepointFormatType formatType);
 
@@ -187,6 +198,13 @@ public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
      */
     CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
             OperatorID operator, CoordinationRequest request) throws FlinkException;
+
+    /**
+     * Notifies that the task has reached the end of data.
+     *
+     * @param executionAttemptID The execution attempt id.
+     */
+    void notifyEndOfData(ExecutionAttemptID executionAttemptID);
 
     /**
      * Read current {@link JobResourceRequirements job resource requirements}.

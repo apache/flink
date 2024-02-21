@@ -30,6 +30,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
@@ -85,6 +86,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -303,8 +305,7 @@ public class StreamingJobGraphGenerator {
                     "Could not serialize the ExecutionConfig."
                             + "This indicates that non-serializable types (like custom serializers) were registered");
         }
-
-        jobGraph.setChangelogStateBackendEnabled(streamGraph.isChangelogStateBackendEnabled());
+        jobGraph.setJobConfiguration(streamGraph.getJobConfiguration());
 
         addVertexIndexPrefixInVertexName();
 
@@ -896,12 +897,13 @@ public class StreamingJobGraphGenerator {
             Integer vertexID,
             List<StreamEdge> chainedOutputs,
             Optional<OperatorChainInfo> operatorChainInfo) {
+        List<ChainedSourceInfo> chainedSourceInfos =
+                operatorChainInfo
+                        .map(chainInfo -> getChainedSourcesByVertexId(vertexID, chainInfo))
+                        .orElse(Collections.emptyList());
         final String operatorName =
                 nameWithChainedSourcesInfo(
-                        streamGraph.getStreamNode(vertexID).getOperatorName(),
-                        operatorChainInfo
-                                .map(chain -> chain.getChainedSources().values())
-                                .orElse(Collections.emptyList()));
+                        streamGraph.getStreamNode(vertexID).getOperatorName(), chainedSourceInfos);
         if (chainedOutputs.size() > 1) {
             List<String> outputChainedNames = new ArrayList<>();
             for (StreamEdge chainable : chainedOutputs) {
@@ -913,6 +915,14 @@ public class StreamingJobGraphGenerator {
         } else {
             return operatorName;
         }
+    }
+
+    private List<ChainedSourceInfo> getChainedSourcesByVertexId(
+            Integer vertexId, OperatorChainInfo chainInfo) {
+        return streamGraph.getStreamNode(vertexId).getInEdges().stream()
+                .map(inEdge -> chainInfo.getChainedSources().get(inEdge.getSourceId()))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
     }
 
     private ResourceSpec createChainedMinResources(
@@ -1103,7 +1113,6 @@ public class StreamingJobGraphGenerator {
 
         config.setStateBackend(streamGraph.getStateBackend());
         config.setCheckpointStorage(streamGraph.getCheckpointStorage());
-        config.setSavepointDir(streamGraph.getSavepointDirectory());
         config.setGraphContainingLoops(streamGraph.isIterative());
         config.setTimerServiceProvider(streamGraph.getTimerServiceProvider());
         config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
@@ -1142,7 +1151,8 @@ public class StreamingJobGraphGenerator {
                         edge.getOutputTag(),
                         edge.getOutputTag()
                                 .getTypeInfo()
-                                .createSerializer(streamGraph.getExecutionConfig()));
+                                .createSerializer(
+                                        streamGraph.getExecutionConfig().getSerializerConfig()));
             }
         }
         config.setChainedOutputs(chainableOutputs);
@@ -1160,7 +1170,8 @@ public class StreamingJobGraphGenerator {
                         edge.getOutputTag(),
                         edge.getOutputTag()
                                 .getTypeInfo()
-                                .createSerializer(streamGraph.getExecutionConfig()));
+                                .createSerializer(
+                                        streamGraph.getExecutionConfig().getSerializerConfig()));
             }
         }
 
@@ -1512,12 +1523,11 @@ public class StreamingJobGraphGenerator {
         StreamNode upStreamVertex = streamGraph.getSourceVertex(edge);
         StreamNode downStreamVertex = streamGraph.getTargetVertex(edge);
 
-        if (!(upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
+        if (!(streamGraph.isChainingEnabled()
+                && upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
                 && areOperatorsChainable(upStreamVertex, downStreamVertex, streamGraph)
                 && arePartitionerAndExchangeModeChainable(
-                        edge.getPartitioner(), edge.getExchangeMode(), streamGraph.isDynamic())
-                && upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
-                && streamGraph.isChainingEnabled())) {
+                        edge.getPartitioner(), edge.getExchangeMode(), streamGraph.isDynamic()))) {
 
             return false;
         }
@@ -1599,6 +1609,14 @@ public class StreamingJobGraphGenerator {
             default:
                 throw new RuntimeException(
                         "Unknown chaining strategy: " + downStreamOperator.getChainingStrategy());
+        }
+
+        // Only vertices with the same parallelism can be chained.
+        isChainable &= upStreamVertex.getParallelism() == downStreamVertex.getParallelism();
+
+        if (!streamGraph.isChainingOfOperatorsWithDifferentMaxParallelismEnabled()) {
+            isChainable &=
+                    upStreamVertex.getMaxParallelism() == downStreamVertex.getMaxParallelism();
         }
 
         return isChainable;
@@ -1907,8 +1925,7 @@ public class StreamingJobGraphGenerator {
 
         long interval = cfg.getCheckpointInterval();
         if (interval < MINIMAL_CHECKPOINT_TIME) {
-            // interval of max value means disable periodic checkpoint
-            interval = Long.MAX_VALUE;
+            interval = CheckpointCoordinatorConfiguration.DISABLED_CHECKPOINT_INTERVAL;
         }
 
         //  --- configure options ---
@@ -1996,6 +2013,8 @@ public class StreamingJobGraphGenerator {
                 new JobCheckpointingSettings(
                         CheckpointCoordinatorConfiguration.builder()
                                 .setCheckpointInterval(interval)
+                                .setCheckpointIntervalDuringBacklog(
+                                        cfg.getCheckpointIntervalDuringBacklog())
                                 .setCheckpointTimeout(cfg.getCheckpointTimeout())
                                 .setMinPauseBetweenCheckpoints(cfg.getMinPauseBetweenCheckpoints())
                                 .setMaxConcurrentCheckpoints(cfg.getMaxConcurrentCheckpoints())
@@ -2013,7 +2032,11 @@ public class StreamingJobGraphGenerator {
                                         streamGraph.isEnableCheckpointsAfterTasksFinish())
                                 .build(),
                         serializedStateBackend,
-                        streamGraph.isChangelogStateBackendEnabled(),
+                        streamGraph
+                                .getJobConfiguration()
+                                .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
+                                .map(TernaryBoolean::fromBoolean)
+                                .orElse(TernaryBoolean.UNDEFINED),
                         serializedCheckpointStorage,
                         serializedHooks);
 

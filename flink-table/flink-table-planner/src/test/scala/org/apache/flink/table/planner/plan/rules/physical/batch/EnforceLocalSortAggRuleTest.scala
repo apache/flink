@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
-import org.apache.flink.api.scala._
 import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.functions.UserDefinedFunction
@@ -28,15 +27,15 @@ import org.apache.flink.table.planner.utils.TableConfigUtils
 
 import org.apache.calcite.rel.core.Aggregate
 import org.apache.calcite.tools.RuleSets
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Test for [[EnforceLocalSortAggRule]]. */
 class EnforceLocalSortAggRuleTest extends EnforceLocalAggRuleTestBase {
 
-  @Before
+  @BeforeEach
   override def setup(): Unit = {
     super.setup()
-    util.addFunction("weightedAvg", new WeightedAvg)
+    util.addTemporarySystemFunction("weightedAvg", new WeightedAvg)
 
     val program = FlinkBatchProgram.buildProgram(util.tableEnv.getConfig)
     // remove the original BatchExecSortAggRule and add BatchExecSortAggRuleForOnePhase

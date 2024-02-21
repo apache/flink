@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.execution.JobStatusHook;
 
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;

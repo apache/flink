@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes.kubeclient.parameters;
 
+import org.apache.flink.client.cli.ArtifactFetchOptions;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -122,12 +123,12 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
     }
 
     public double getJobManagerCPU() {
-        return flinkConfig.getDouble(KubernetesConfigOptions.JOB_MANAGER_CPU);
+        return flinkConfig.get(KubernetesConfigOptions.JOB_MANAGER_CPU);
     }
 
     public double getJobManagerCPULimitFactor() {
         final double limitFactor =
-                flinkConfig.getDouble(KubernetesConfigOptions.JOB_MANAGER_CPU_LIMIT_FACTOR);
+                flinkConfig.get(KubernetesConfigOptions.JOB_MANAGER_CPU_LIMIT_FACTOR);
         checkArgument(
                 limitFactor >= 1,
                 "%s should be greater or equal to 1.",
@@ -137,7 +138,7 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 
     public double getJobManagerMemoryLimitFactor() {
         final double limitFactor =
-                flinkConfig.getDouble(KubernetesConfigOptions.JOB_MANAGER_MEMORY_LIMIT_FACTOR);
+                flinkConfig.get(KubernetesConfigOptions.JOB_MANAGER_MEMORY_LIMIT_FACTOR);
         checkArgument(
                 limitFactor >= 1,
                 "%s should be greater or equal to 1.",
@@ -146,15 +147,15 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
     }
 
     public int getRestPort() {
-        return flinkConfig.getInteger(RestOptions.PORT);
+        return flinkConfig.get(RestOptions.PORT);
     }
 
     public int getRestBindPort() {
-        return Integer.valueOf(flinkConfig.getString(RestOptions.BIND_PORT));
+        return Integer.valueOf(flinkConfig.get(RestOptions.BIND_PORT));
     }
 
     public int getRPCPort() {
-        return flinkConfig.getInteger(JobManagerOptions.PORT);
+        return flinkConfig.get(JobManagerOptions.PORT);
     }
 
     public int getBlobServerPort() {
@@ -169,7 +170,7 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 
     public String getEntrypointClass() {
         final String entrypointClass =
-                flinkConfig.getString(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS);
+                flinkConfig.get(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS);
         checkNotNull(
                 entrypointClass,
                 KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS + " must be specified!");
@@ -202,6 +203,10 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
     }
 
     public String getEntrypointArgs() {
-        return flinkConfig.getString(KubernetesConfigOptions.KUBERNETES_JOBMANAGER_ENTRYPOINT_ARGS);
+        return flinkConfig.get(KubernetesConfigOptions.KUBERNETES_JOBMANAGER_ENTRYPOINT_ARGS);
+    }
+
+    public String getUserArtifactsBaseDir() {
+        return flinkConfig.getString(ArtifactFetchOptions.BASE_DIR);
     }
 }

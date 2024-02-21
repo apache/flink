@@ -19,25 +19,21 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
 
-import org.hamcrest.Matchers;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link ResourceCounter}. */
-public class ResourceCounterTest extends TestLogger {
+class ResourceCounterTest {
 
     private ResourceProfile resourceProfile1 =
             ResourceProfile.newBuilder().setManagedMemoryMB(42).build();
@@ -45,83 +41,82 @@ public class ResourceCounterTest extends TestLogger {
             ResourceProfile.newBuilder().setCpuCores(1.7).build();
 
     @Test
-    public void testIsEmpty() {
+    void testIsEmpty() {
         final ResourceCounter empty = ResourceCounter.empty();
 
-        assertTrue(empty.isEmpty());
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testWithResourceRejectsNegativeCount() {
-        ResourceCounter.withResource(ResourceProfile.UNKNOWN, -1);
+        assertThat(empty.isEmpty()).isTrue();
     }
 
     @Test
-    public void testWithResourceCreatesEmptyCounterIfCountIsZero() {
+    public void testWithResourceRejectsNegativeCount() {
+        assertThatThrownBy(() -> ResourceCounter.withResource(ResourceProfile.UNKNOWN, -1))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testWithResourceCreatesEmptyCounterIfCountIsZero() {
         final ResourceCounter empty = ResourceCounter.withResource(ResourceProfile.UNKNOWN, 0);
 
-        assertTrue(empty.isEmpty());
+        assertThat(empty.isEmpty()).isTrue();
     }
 
     @Test
-    public void testIsNonEmpty() {
+    void testIsNonEmpty() {
         final ResourceCounter resourceCounter =
                 ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1);
 
-        assertFalse(resourceCounter.isEmpty());
-        assertTrue(resourceCounter.containsResource(ResourceProfile.UNKNOWN));
+        assertThat(resourceCounter.isEmpty()).isFalse();
+        assertThat(resourceCounter.containsResource(ResourceProfile.UNKNOWN)).isTrue();
     }
 
     @Test
-    public void testGetResourceCount() {
+    void testGetResourceCount() {
         final Map<ResourceProfile, Integer> resources = createResources();
 
         final ResourceCounter resourceCounter = ResourceCounter.withResources(resources);
 
         for (Map.Entry<ResourceProfile, Integer> resource : resources.entrySet()) {
-            assertThat(
-                    resourceCounter.getResourceCount(resource.getKey()), is(resource.getValue()));
+            assertThat(resourceCounter.getResourceCount(resource.getKey()))
+                    .isEqualTo(resource.getValue());
         }
     }
 
     @Test
-    public void testGetResourceCountReturnsZeroForUnknownResourceProfile() {
+    void testGetResourceCountReturnsZeroForUnknownResourceProfile() {
         final ResourceCounter resourceCounter = ResourceCounter.withResources(createResources());
 
-        assertThat(resourceCounter.getResourceCount(ResourceProfile.newBuilder().build()), is(0));
+        assertThat(resourceCounter.getResourceCount(ResourceProfile.newBuilder().build())).isZero();
     }
 
     @Test
-    public void testGetTotalResourceCount() {
+    void testGetTotalResourceCount() {
         final Map<ResourceProfile, Integer> resources = createResources();
 
         final ResourceCounter resourceCounter = ResourceCounter.withResources(resources);
 
-        assertThat(resourceCounter.getTotalResourceCount(), is(5));
+        assertThat(resourceCounter.getTotalResourceCount()).isEqualTo(5);
     }
 
     @Test
-    public void testGetResources() {
+    void testGetResources() {
         final Map<ResourceProfile, Integer> resources = createResources();
         final ResourceCounter resourceCounter = ResourceCounter.withResources(resources);
 
-        assertThat(
-                resourceCounter.getResources(),
-                Matchers.containsInAnyOrder(resources.keySet().toArray()));
+        assertThat(resourceCounter.getResources())
+                .containsExactlyInAnyOrderElementsOf(resources.keySet());
     }
 
     @Test
-    public void testGetResourceWithCount() {
+    void testGetResourceWithCount() {
         final Map<ResourceProfile, Integer> resources = createResources();
         final ResourceCounter resourceCounter = ResourceCounter.withResources(resources);
 
-        assertThat(
-                resourceCounter.getResourcesWithCount(),
-                Matchers.containsInAnyOrder(resources.entrySet().toArray()));
+        assertThat(resourceCounter.getResourcesWithCount())
+                .containsExactlyInAnyOrderElementsOf(resources.entrySet());
     }
 
     @Test
-    public void testAddSameResourceProfile() {
+    void testAddSameResourceProfile() {
         final int value1 = 1;
         final int value2 = 42;
 
@@ -132,29 +127,21 @@ public class ResourceCounterTest extends TestLogger {
 
         final ResourceCounter result = resourceCounter1.add(resourceCounter2);
 
-        assertThat(
-                resourceCounter1.getResourcesWithCount(),
-                Matchers.containsInAnyOrder(
-                        Collections.singletonMap(ResourceProfile.UNKNOWN, value1)
-                                .entrySet()
-                                .toArray()));
-        assertThat(
-                resourceCounter2.getResourcesWithCount(),
-                Matchers.containsInAnyOrder(
-                        Collections.singletonMap(ResourceProfile.UNKNOWN, value2)
-                                .entrySet()
-                                .toArray()));
+        assertThat(resourceCounter1.getResourcesWithCount())
+                .containsExactlyInAnyOrderElementsOf(
+                        Collections.singletonMap(ResourceProfile.UNKNOWN, value1).entrySet());
+        assertThat(resourceCounter2.getResourcesWithCount())
+                .containsExactlyInAnyOrderElementsOf(
+                        Collections.singletonMap(ResourceProfile.UNKNOWN, value2).entrySet());
 
-        assertThat(
-                result.getResourcesWithCount(),
-                Matchers.containsInAnyOrder(
+        assertThat(result.getResourcesWithCount())
+                .containsExactlyInAnyOrderElementsOf(
                         Collections.singletonMap(ResourceProfile.UNKNOWN, value1 + value2)
-                                .entrySet()
-                                .toArray()));
+                                .entrySet());
     }
 
     @Test
-    public void testAddDifferentResourceProfile() {
+    void testAddDifferentResourceProfile() {
         final ResourceCounter resourceCounter1 = ResourceCounter.withResource(resourceProfile1, 1);
         final ResourceCounter resourceCounter2 = ResourceCounter.withResource(resourceProfile2, 1);
 
@@ -164,31 +151,30 @@ public class ResourceCounterTest extends TestLogger {
                 new ArrayList<>(resourceCounter1.getResourcesWithCount());
         expectedResult.addAll(resourceCounter2.getResourcesWithCount());
 
-        assertThat(
-                result.getResourcesWithCount(),
-                Matchers.containsInAnyOrder(expectedResult.toArray()));
+        assertThat(result.getResourcesWithCount())
+                .containsExactlyInAnyOrderElementsOf(expectedResult);
     }
 
     @Test
-    public void testCountEqualToZeroRemovesResource() {
+    void testCountEqualToZeroRemovesResource() {
         final ResourceCounter resourceCounter = ResourceCounter.withResource(resourceProfile1, 2);
 
         final ResourceCounter result = resourceCounter.subtract(resourceProfile1, 2);
 
-        assertTrue(result.isEmpty());
+        assertThat(result.isEmpty()).isTrue();
     }
 
     @Test
-    public void testCountBelowZeroRemovesResources() {
+    void testCountBelowZeroRemovesResources() {
         final ResourceCounter resourceCounter = ResourceCounter.withResource(resourceProfile1, 1);
 
         final ResourceCounter result = resourceCounter.subtract(resourceProfile1, 2);
 
-        assertTrue(result.isEmpty());
+        assertThat(result.isEmpty()).isTrue();
     }
 
     @Test
-    public void testSubtractSameResourceProfile() {
+    void testSubtractSameResourceProfile() {
         final int value1 = 5;
         final int value2 = 3;
 
@@ -199,37 +185,28 @@ public class ResourceCounterTest extends TestLogger {
 
         final ResourceCounter result = resourceCounter1.subtract(resourceCounter2);
 
-        assertThat(
-                resourceCounter1.getResourcesWithCount(),
-                Matchers.containsInAnyOrder(
-                        Collections.singletonMap(ResourceProfile.UNKNOWN, value1)
-                                .entrySet()
-                                .toArray()));
-        assertThat(
-                resourceCounter2.getResourcesWithCount(),
-                Matchers.containsInAnyOrder(
-                        Collections.singletonMap(ResourceProfile.UNKNOWN, value2)
-                                .entrySet()
-                                .toArray()));
+        assertThat(resourceCounter1.getResourcesWithCount())
+                .containsExactlyInAnyOrderElementsOf(
+                        Collections.singletonMap(ResourceProfile.UNKNOWN, value1).entrySet());
+        assertThat(resourceCounter2.getResourcesWithCount())
+                .containsExactlyInAnyOrderElementsOf(
+                        Collections.singletonMap(ResourceProfile.UNKNOWN, value2).entrySet());
 
-        assertThat(
-                result.getResourcesWithCount(),
-                Matchers.containsInAnyOrder(
+        assertThat(result.getResourcesWithCount())
+                .containsExactlyInAnyOrderElementsOf(
                         Collections.singletonMap(ResourceProfile.UNKNOWN, value1 - value2)
-                                .entrySet()
-                                .toArray()));
+                                .entrySet());
     }
 
     @Test
-    public void testSubtractDifferentResourceProfile() {
+    void testSubtractDifferentResourceProfile() {
         final ResourceCounter resourceCounter1 = ResourceCounter.withResource(resourceProfile1, 1);
         final ResourceCounter resourceCounter2 = ResourceCounter.withResource(resourceProfile2, 1);
 
         final ResourceCounter result = resourceCounter1.subtract(resourceCounter2);
 
-        assertThat(
-                result.getResourcesWithCount(),
-                Matchers.containsInAnyOrder(resourceCounter1.getResourcesWithCount().toArray()));
+        assertThat(result.getResourcesWithCount())
+                .containsExactlyInAnyOrderElementsOf(resourceCounter1.getResourcesWithCount());
     }
 
     private Map<ResourceProfile, Integer> createResources() {

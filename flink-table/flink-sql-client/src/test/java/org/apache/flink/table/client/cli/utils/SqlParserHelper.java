@@ -19,50 +19,30 @@
 package org.apache.flink.table.client.cli.utils;
 
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
-import org.apache.flink.table.catalog.hive.HiveCatalog;
-import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.delegation.Parser;
 
 /** A utility class that provides pre-prepared tables and sql parser. */
 public class SqlParserHelper {
     // return the sql parser instance hold by this table evn.
-    private TableEnvironment tableEnv;
-    private boolean useHiveCatalog;
+    private final TableEnvironment tableEnv;
 
     public SqlParserHelper() {
         tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
     }
 
-    public SqlParserHelper(SqlDialect sqlDialect) {
-        if (sqlDialect == null || SqlDialect.DEFAULT == sqlDialect) {
-            useHiveCatalog = false;
-            tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
-        } else if (SqlDialect.HIVE == sqlDialect) {
-            useHiveCatalog = true;
-            HiveCatalog hiveCatalog = HiveTestUtils.createHiveCatalog();
-            tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
-            tableEnv.getConfig().setSqlDialect(sqlDialect);
-            tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
-            tableEnv.useCatalog(hiveCatalog.getName());
-        }
-    }
-
     /** prepare some tables for testing. */
     public void registerTables() {
-        if (!useHiveCatalog) {
-            registerTable(
-                    "create table MyTable (a int, b bigint, c varchar(32)) "
-                            + "with ('connector' = 'filesystem', 'path' = '/non', 'format' = 'csv')");
-            registerTable(
-                    "create table MyOtherTable (a int, b bigint) "
-                            + "with ('connector' = 'filesystem', 'path' = '/non', 'format' = 'csv')");
-            registerTable(
-                    "create table MySink (a int, c varchar(32)) with ('connector' = 'COLLECTION' )");
-            registerTable("create view MyView as select * from MyTable");
-        }
+        registerTable(
+                "create table MyTable (a int, b bigint, c varchar(32)) "
+                        + "with ('connector' = 'filesystem', 'path' = '/non', 'format' = 'csv')");
+        registerTable(
+                "create table MyOtherTable (a int, b bigint) "
+                        + "with ('connector' = 'filesystem', 'path' = '/non', 'format' = 'csv')");
+        registerTable(
+                "create table MySink (a int, c varchar(32)) with ('connector' = 'COLLECTION' )");
+        registerTable("create view MyView as select * from MyTable");
     }
 
     public void registerTable(String createTableStmt) {
@@ -71,9 +51,5 @@ public class SqlParserHelper {
 
     public Parser getSqlParser() {
         return ((TableEnvironmentInternal) tableEnv).getParser();
-    }
-
-    public TableEnvironment getTableEnv() {
-        return tableEnv;
     }
 }

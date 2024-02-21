@@ -20,14 +20,14 @@ package org.apache.flink.table.planner.plan.batch.sql
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types, ValidationException}
-import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.utils._
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class LegacyTableSourceTest extends TableTestBase {
 
@@ -37,7 +37,7 @@ class LegacyTableSourceTest extends TableTestBase {
     .fields(Array("a", "b", "c"), Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()))
     .build()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.tableEnv
       .asInstanceOf[TableEnvironmentInternal]
@@ -69,9 +69,10 @@ class LegacyTableSourceTest extends TableTestBase {
   @Test
   def testUnboundedStreamTableSource(): Unit = {
     TestTableSource.createTemporaryTable(util.tableEnv, isBounded = false, tableSchema, "MyTable")
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage("Only bounded StreamTableSource can be used in batch mode.")
-    util.verifyExecPlan("SELECT * FROM MyTable")
+
+    assertThatThrownBy(() => util.verifyExecPlan("SELECT * FROM MyTable"))
+      .hasMessageContaining("Only bounded StreamTableSource can be used in batch mode.")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -170,7 +171,7 @@ class LegacyTableSourceTest extends TableTestBase {
 
   @Test
   def testFilterPushDownWithUdf(): Unit = {
-    util.addFunction("myUdf", Func1)
+    util.addTemporarySystemFunction("myUdf", Func1)
     util.verifyExecPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND myUdf(amount) < 32")
   }
 
@@ -182,7 +183,7 @@ class LegacyTableSourceTest extends TableTestBase {
 
   @Test
   def testPartitionTableSourceWithUdf(): Unit = {
-    util.addFunction("MyUdf", Func1)
+    util.addTemporarySystemFunction("MyUdf", Func1)
     util.verifyExecPlan("SELECT * FROM PartitionableTable WHERE id > 2 AND MyUdf(part2) < 3")
   }
 

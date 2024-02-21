@@ -21,7 +21,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 abstract class JoinTestBase extends TableTestBase {
 
@@ -29,9 +30,10 @@ abstract class JoinTestBase extends TableTestBase {
   util.addTableSource[(Int, Long, String)]("MyTable1", 'a, 'b, 'c)
   util.addTableSource[(Int, Long, Int, String, Long)]("MyTable2", 'd, 'e, 'f, 'g, 'h)
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testJoinNonExistingKey(): Unit = {
-    util.verifyExecPlan("SELECT c, g FROM MyTable1, MyTable2 WHERE foo = e")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan("SELECT c, g FROM MyTable1, MyTable2 WHERE foo = e"))
   }
 
   @Test
@@ -60,16 +62,18 @@ abstract class JoinTestBase extends TableTestBase {
     util.verifyExecPlan("SELECT d, e, f FROM MyTable1 LEFT JOIN MyTable2 ON a = d where d = null")
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testJoinNonMatchingKeyTypes(): Unit = {
     // INTEGER and VARCHAR(65536) does not have common type now
-    util.verifyExecPlan("SELECT c, g FROM MyTable1, MyTable2 WHERE a = g")
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyExecPlan("SELECT c, g FROM MyTable1, MyTable2 WHERE a = g"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testJoinWithAmbiguousFields(): Unit = {
     util.addTableSource[(Int, Long, String)]("MyTable0", 'a0, 'b0, 'c)
-    util.verifyExecPlan("SELECT a, c FROM MyTable1, MyTable0 WHERE a = a0")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan("SELECT c FROM MyTable1, MyTable0 WHERE a = a0"))
   }
 
   @Test
@@ -299,5 +303,36 @@ abstract class JoinTestBase extends TableTestBase {
                           |   (select d, count(e) as e from MyTable2 group by d)
                           |   on a = d and b = e and d = 2 and b = 1
                           |""".stripMargin)
+  }
+
+  @Test
+  def testJoinPartitionTableWithNonExistentPartition(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create table leftPartitionTable (
+                               | a1 varchar,
+                               | b1 int)
+                               | partitioned by (b1) 
+                               | with (
+                               | 'connector' = 'values',
+                               | 'bounded' = 'true',
+                               | 'partition-list' = 'b1:1'
+                               |)
+                               |""".stripMargin)
+    util.tableEnv.executeSql("""
+                               |create table rightPartitionTable (
+                               | a2 varchar,
+                               | b2 int)
+                               | partitioned by (b2) 
+                               | with (
+                               | 'connector' = 'values',
+                               | 'bounded' = 'true',
+                               | 'partition-list' = 'b2:2'
+                               |)
+                               |""".stripMargin)
+    // partition 'b2 = 3' not exists.
+    util.verifyExecPlan(
+      """
+        |SELECT * FROM leftPartitionTable, rightPartitionTable WHERE b1 = 1 AND b2 = 3 AND a1 = a2
+        |""".stripMargin)
   }
 }

@@ -23,12 +23,22 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 class TestVertexInformation implements JobInformation.VertexInformation {
 
     private final JobVertexID jobVertexId;
+    private final int minParallelism;
     private final int parallelism;
     private final SlotSharingGroup slotSharingGroup;
 
     TestVertexInformation(
             JobVertexID jobVertexId, int parallelism, SlotSharingGroup slotSharingGroup) {
+        this(jobVertexId, 1, parallelism, slotSharingGroup);
+    }
+
+    TestVertexInformation(
+            JobVertexID jobVertexId,
+            int minParallelism,
+            int parallelism,
+            SlotSharingGroup slotSharingGroup) {
         this.jobVertexId = jobVertexId;
+        this.minParallelism = minParallelism;
         this.parallelism = parallelism;
         this.slotSharingGroup = slotSharingGroup;
         slotSharingGroup.addVertexToGroup(jobVertexId);
@@ -37,6 +47,11 @@ class TestVertexInformation implements JobInformation.VertexInformation {
     @Override
     public JobVertexID getJobVertexID() {
         return jobVertexId;
+    }
+
+    @Override
+    public int getMinParallelism() {
+        return minParallelism;
     }
 
     @Override

@@ -22,20 +22,22 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.*;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.typeutils.runtime.Tuple0Serializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.types.Value;
+import org.apache.flink.util.CollectionUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -94,19 +96,26 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
     @SuppressWarnings("unchecked")
     @Override
     @PublicEvolving
-    public TupleSerializer<T> createSerializer(ExecutionConfig executionConfig) {
+    public TupleSerializer<T> createSerializer(SerializerConfig serializerConfig) {
         if (getTypeClass() == Tuple0.class) {
             return (TupleSerializer<T>) Tuple0Serializer.INSTANCE;
         }
 
         TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[getArity()];
         for (int i = 0; i < types.length; i++) {
-            fieldSerializers[i] = types[i].createSerializer(executionConfig);
+            fieldSerializers[i] = types[i].createSerializer(serializerConfig);
         }
 
         Class<T> tupleClass = getTypeClass();
 
         return new TupleSerializer<T>(tupleClass, fieldSerializers);
+    }
+
+    @Override
+    @Deprecated
+    @PublicEvolving
+    public TypeSerializer<T> createSerializer(ExecutionConfig config) {
+        return createSerializer(config.getSerializerConfig());
     }
 
     @Override
@@ -152,7 +161,7 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
             TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[maxKey + 1];
 
             for (int i = 0; i <= maxKey; i++) {
-                fieldSerializers[i] = types[i].createSerializer(config);
+                fieldSerializers[i] = types[i].createSerializer(config.getSerializerConfig());
             }
 
             return new TupleComparator<T>(
@@ -164,7 +173,7 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 
     @Override
     public Map<String, TypeInformation<?>> getGenericParameters() {
-        Map<String, TypeInformation<?>> m = new HashMap<>(types.length);
+        Map<String, TypeInformation<?>> m = CollectionUtil.newHashMapWithExpectedSize(types.length);
         for (int i = 0; i < types.length; i++) {
             m.put("T" + i, types[i]);
         }

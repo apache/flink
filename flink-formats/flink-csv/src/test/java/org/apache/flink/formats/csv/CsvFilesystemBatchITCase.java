@@ -19,25 +19,28 @@
 package org.apache.flink.formats.csv;
 
 import org.apache.flink.table.planner.runtime.batch.sql.BatchFileSystemITCaseBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
 
-import org.junit.Test;
-import org.junit.experimental.runners.Enclosed;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /** ITCase to test csv format for {@link CsvFileFormatFactory} in batch mode. */
-@RunWith(Enclosed.class)
-public class CsvFilesystemBatchITCase {
+@ExtendWith(NoOpTestExtension.class)
+class CsvFilesystemBatchITCase {
 
     /** General IT cases for CsvRowDataFilesystem in batch mode. */
-    public static class GeneralCsvFilesystemBatchITCase extends BatchFileSystemITCaseBase {
+    @Nested
+    class GeneralCsvFilesystemBatchITCase extends BatchFileSystemITCaseBase {
 
         @Override
         public boolean supportsReadingMetadata() {
@@ -58,7 +61,8 @@ public class CsvFilesystemBatchITCase {
      * Enriched IT cases that including testParseError and testEscapeChar for CsvRowDataFilesystem
      * in batch mode.
      */
-    public static class EnrichedCsvFilesystemBatchITCase extends BatchFileSystemITCaseBase {
+    @Nested
+    class EnrichedCsvFilesystemBatchITCase extends BatchFileSystemITCaseBase {
 
         @Override
         public boolean supportsReadingMetadata() {
@@ -75,7 +79,7 @@ public class CsvFilesystemBatchITCase {
         }
 
         @Test
-        public void testParseError() throws Exception {
+        void testParseError() throws Exception {
             String path = new URI(resultPath()).getPath();
             new File(path).mkdirs();
             File file = new File(path, "test_file");
@@ -89,7 +93,7 @@ public class CsvFilesystemBatchITCase {
         }
 
         @Test
-        public void testParseErrorLast() throws Exception {
+        void testParseErrorLast() throws Exception {
             String path = new URI(resultPath()).getPath();
             new File(path).mkdirs();
             File file = new File(path, "test_file");
@@ -103,7 +107,7 @@ public class CsvFilesystemBatchITCase {
         }
 
         @Test
-        public void testEscapeChar() throws Exception {
+        void testEscapeChar() throws Exception {
             String path = new URI(resultPath()).getPath();
             new File(path).mkdirs();
             File file = new File(path, "test_file");
@@ -113,6 +117,16 @@ public class CsvFilesystemBatchITCase {
             check(
                     "select * from nonPartitionedTable",
                     Arrays.asList(Row.of("x5", 5, 1, 1), Row.of("x5", 5, 2, 2)));
+        }
+
+        @Test
+        public void testEmpty() throws Exception {
+            String path = new URI(resultPath()).getPath();
+            new File(path).mkdirs();
+            File file = new File(path, "test_file");
+            file.createNewFile();
+
+            check("select * from nonPartitionedTable", Collections.emptyList());
         }
     }
 }

@@ -28,7 +28,7 @@ import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.JobInformation;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
 import java.util.Collection;
 
@@ -102,6 +102,11 @@ public class JobGraphJobInformation implements JobInformation {
         @Override
         public JobVertexID getJobVertexID() {
             return jobVertex.getID();
+        }
+
+        @Override
+        public int getMinParallelism() {
+            return parallelismInfo.getMinParallelism();
         }
 
         @Override

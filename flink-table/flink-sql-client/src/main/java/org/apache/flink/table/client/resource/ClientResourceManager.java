@@ -51,7 +51,7 @@ public class ClientResourceManager extends ResourceManager {
     public URL unregisterJarResource(String jarPath) {
         Path path = new Path(jarPath);
         try {
-            checkJarPath(path);
+            checkPath(path, ResourceType.JAR);
             return resourceInfos.remove(
                     new ResourceUri(ResourceType.JAR, getURLFromPath(path).getPath()));
         } catch (IOException e) {

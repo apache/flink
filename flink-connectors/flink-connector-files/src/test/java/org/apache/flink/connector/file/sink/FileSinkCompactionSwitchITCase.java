@@ -409,7 +409,10 @@ public class FileSinkCompactionSwitchITCase {
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
             nextValueState.update(Collections.singletonList(nextValue));
             sendCountMap.consumeSync(
-                    m -> m.put(getRuntimeContext().getIndexOfThisSubtask(), nextValue));
+                    m ->
+                            m.put(
+                                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                                    nextValue));
 
             if (isWaitingCheckpointComplete) {
                 snapshottedAfterAllRecordsOutput = true;

@@ -24,7 +24,7 @@ import java.util.function.Function;
 
 /**
  * {@link InputConsumableDecider} is responsible for determining whether the input of an
- * executionVertex is consumable.
+ * executionVertex or a consumed partition group is consumable.
  */
 public interface InputConsumableDecider {
     /**
@@ -40,6 +40,14 @@ public interface InputConsumableDecider {
             SchedulingExecutionVertex executionVertex,
             Set<ExecutionVertexID> verticesToSchedule,
             Map<ConsumedPartitionGroup, Boolean> consumableStatusCache);
+
+    /**
+     * Determining whether the consumed partition group is consumable based on finished producers.
+     *
+     * @param consumedPartitionGroup to be determined whether it is consumable.
+     */
+    boolean isConsumableBasedOnFinishedProducers(
+            final ConsumedPartitionGroup consumedPartitionGroup);
 
     /** Factory for {@link InputConsumableDecider}. */
     interface Factory {

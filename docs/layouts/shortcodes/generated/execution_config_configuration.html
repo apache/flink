@@ -27,6 +27,36 @@
             <td>The async timeout for the asynchronous operation to complete.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.async-scalar.buffer-capacity</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">10</td>
+            <td>Integer</td>
+            <td>The max number of async i/o operation that the async lookup join can trigger.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-scalar.max-attempts</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">3</td>
+            <td>Integer</td>
+            <td>The max number of async retry attempts to make before task execution is failed.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-scalar.retry-delay</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">100 ms</td>
+            <td>Duration</td>
+            <td>The delay to wait before trying again.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-scalar.retry-strategy</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">FIXED_DELAY</td>
+            <td><p>Enum</p></td>
+            <td>Restart strategy which will be used, FIXED_DELAY by default.<br /><br />Possible values:<ul><li>"NO_RETRY"</li><li>"FIXED_DELAY"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-scalar.timeout</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">3 min</td>
+            <td>Duration</td>
+            <td>The async timeout for the asynchronous operation to complete.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.deduplicate.insert-update-after-sensitive-enabled</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
@@ -77,6 +107,12 @@ By default no operator is disabled.</td>
             <td>The maximum number of input records can be buffered for MiniBatch. MiniBatch is an optimization to buffer input records to reduce state access. MiniBatch is triggered with the allowed latency interval and when the maximum number of buffered records reached. NOTE: MiniBatch only works for non-windowed aggregations currently. If table.exec.mini-batch.enabled is set true, its value must be positive.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.operator-fusion-codegen.enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If true, multiple physical operators will be compiled into a single operator by planner which can improve the performance.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.rank.topn-cache-size</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">10000</td>
             <td>Long</td>
@@ -105,6 +141,12 @@ By default no operator is disabled.</td>
             <td style="word-wrap: break-word;">ERROR</td>
             <td><p>Enum</p></td>
             <td>Determines how Flink enforces NOT NULL column constraints when inserting null values.<br /><br />Possible values:<ul><li>"ERROR": Throw a runtime exception when writing null values into NOT NULL column.</li><li>"DROP": Drop records silently if a null value would have to be inserted into a NOT NULL column.</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.sink.rowtime-inserter</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">ENABLED</td>
+            <td><p>Enum</p></td>
+            <td>Some sink implementations require a single rowtime attribute in the input that can be inserted into the underlying stream record. This option allows disabling the timestamp insertion and avoids errors around multiple time attributes being present in the query schema.<br /><br />Possible values:<ul><li>"ENABLED": Insert a rowtime attribute (if available) into the underlying stream record. This requires at most one time attribute in the input for the sink.</li><li>"DISABLED": Do not insert the rowtime attribute into the underlying stream record.</li></ul></td>
         </tr>
         <tr>
             <td><h5>table.exec.sink.type-length-enforcer</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>

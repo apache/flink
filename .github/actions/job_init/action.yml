@@ -1,0 +1,96 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: "Initializes the job"
+description: "Does all the necessary steps to set up the job"
+inputs:
+  jdk_version:
+    description: "The JDK version that's supposed to be used."
+    required: true
+  maven_repo_folder:
+    description: "The location of the local Maven repository (not setting this parameter will omit the caching of Maven artifacts)."
+    required: false
+    default: ""
+  source_directory:
+    description: "Specifies the directory from which the code should be moved from (needed for containerized runs; not setting this parameter will omit moving the checkout)."
+    required: false
+    default: ""
+  target_directory:
+    description: "Specifies the directory to which the code should be moved to (needed for containerized runs; not setting this parameter will omit moving the checkout)."
+    required: false
+    default: ""
+runs:
+  using: "composite"
+  steps:
+    - name: "Initializes GHA_PIPELINE_START_TIME with the job's start time"
+      shell: bash
+      run: |
+        job_start_time="$(date --rfc-3339=seconds)"
+        echo "GHA_PIPELINE_START_TIME=${job_start_time}" >> "${GITHUB_ENV}"
+        echo "The job's start time is set to ${job_start_time}."
+
+    - name: "Pre-cleanup Disk Info"
+      shell: bash
+      run: df -h
+
+    - name: "Delete unused binaries"
+      shell: bash
+      run: |
+        # inspired by https://github.com/easimon/maximize-build-space
+        for label_with_path in \
+              "Android SDK:/usr/local/lib/android" \
+              "CodeQL:/opt/hostedtoolcache/CodeQL" \
+              ".NET:/usr/share/dotnet"; do
+          dependency_name="$(echo "${label_with_path}" | cut -d: -f1)"
+          dependency_path="$(echo "${label_with_path}" | cut -d: -f2)"
+        
+          if [ -d "${dependency_path}" ]; then
+            echo "[INFO] Deleting binaries of ${dependency_name} in ${dependency_path}."
+            sudo rm -rf "${dependency_path}"
+            df -h
+          else
+            echo "[INFO] The directory '${dependency_path}' doesn't exist. ${dependency_name} won't be removed."
+          fi
+        done
+
+    - name: "Set JDK version to ${{ inputs.jdk_version }}"
+      shell: bash
+      run: |
+        echo "JAVA_HOME=$JAVA_HOME_${{ inputs.jdk_version }}_X64" >> "${GITHUB_ENV}"
+        echo "PATH=$JAVA_HOME_${{ inputs.jdk_version }}_X64/bin:$PATH" >> "${GITHUB_ENV}"
+
+    - name: "Setup Maven package cache"
+      if: ${{ inputs.maven_repo_folder != '' }}
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.maven_repo_folder }}
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-maven
+
+    - name: "Moves checkout content from ${{ inputs.source_directory }} to ${{ inputs.target_directory }}."
+      if: ${{ inputs.source_directory != '' && inputs.target_directory != '' }}
+      shell: bash
+      run: |
+        mkdir -p ${{ inputs.target_directory }}
+
+        # .scalafmt.conf is needed for Scala format checks
+        # .mvn is needed to make the Maven wrapper accessible in test runs
+        mv ${{ inputs.source_directory }}/* \
+          ${{ inputs.source_directory }}/.scalafmt.conf \
+          ${{ inputs.source_directory }}/.mvn \
+          ${{ inputs.target_directory }}

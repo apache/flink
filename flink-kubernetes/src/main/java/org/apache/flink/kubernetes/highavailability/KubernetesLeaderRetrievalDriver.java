@@ -98,9 +98,9 @@ public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
 
         @Override
         public void onAdded(List<KubernetesConfigMap> configMaps) {
-            // The ConfigMap is created by KubernetesLeaderElectionDriver with empty data. We don't
-            // really need to process anything unless the retriever was started after the leader
-            // election has already succeeded.
+            // The ConfigMap is created by KubernetesLeaderElectionDriver with
+            // empty data. We don't really need to process anything unless the retriever was started
+            // after the leader election has already succeeded.
             final KubernetesConfigMap configMap = getOnlyConfigMap(configMaps, configMapName);
             final LeaderInformation leaderInformation = leaderInformationExtractor.apply(configMap);
             if (!leaderInformation.isEmpty()) {

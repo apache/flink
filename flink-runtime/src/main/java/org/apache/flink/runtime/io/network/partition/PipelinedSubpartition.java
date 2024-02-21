@@ -26,13 +26,11 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumerWithPartialRecordLength;
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
-import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterators;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,8 +67,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * PipelinedSubpartitionView#notifyDataAvailable() notification} for any {@link BufferConsumer}
  * present in the queue.
  */
-public class PipelinedSubpartition extends ResultSubpartition
-        implements CheckpointedResultSubpartition, ChannelStateHolder {
+public class PipelinedSubpartition extends ResultSubpartition implements ChannelStateHolder {
 
     private static final Logger LOG = LoggerFactory.getLogger(PipelinedSubpartition.class);
 
@@ -158,29 +155,17 @@ public class PipelinedSubpartition extends ResultSubpartition
         return add(bufferConsumer, partialRecordLength, false);
     }
 
-    @Override
-    public void addRecovered(BufferConsumer bufferConsumer) throws IOException {
-        NetworkActionsLogger.traceRecover(
-                "PipelinedSubpartition#addRecovered",
-                bufferConsumer,
-                parent.getOwningTaskName(),
-                subpartitionInfo);
-        if (add(bufferConsumer, Integer.MIN_VALUE) == -1) {
-            throw new IOException("Buffer consumer couldn't be added to ResultSubpartition");
-        }
+    public boolean isSupportChannelStateRecover() {
+        return true;
     }
 
     @Override
-    public void finishReadRecoveredState(boolean notifyAndBlockOnCompletion) throws IOException {
-        if (notifyAndBlockOnCompletion) {
-            add(EventSerializer.toBufferConsumer(EndOfChannelStateEvent.INSTANCE, false), 0, false);
-        }
-    }
-
-    @Override
-    public void finish() throws IOException {
-        add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE, false), 0, true);
+    public int finish() throws IOException {
+        BufferConsumer eventBufferConsumer =
+                EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE, false);
+        add(eventBufferConsumer, 0, true);
         LOG.debug("{}: Finished {}.", parent.getOwningTaskName(), this);
+        return eventBufferConsumer.getWrittenBytes();
     }
 
     private int add(BufferConsumer bufferConsumer, int partialRecordLength, boolean finish) {
@@ -192,7 +177,7 @@ public class PipelinedSubpartition extends ResultSubpartition
         synchronized (buffers) {
             if (isFinished || isReleased) {
                 bufferConsumer.close();
-                return -1;
+                return ADD_BUFFER_ERROR_CODE;
             }
 
             // Add the bufferConsumer and update the stats
@@ -604,10 +589,10 @@ public class PipelinedSubpartition extends ResultSubpartition
     }
 
     public ResultSubpartitionView.AvailabilityWithBacklog getAvailabilityAndBacklog(
-            int numCreditsAvailable) {
+            boolean isCreditAvailable) {
         synchronized (buffers) {
             boolean isAvailable;
-            if (numCreditsAvailable > 0) {
+            if (isCreditAvailable) {
                 isAvailable = isDataAvailableUnsafe();
             } else {
                 isAvailable = getNextBufferTypeUnsafe().isEvent();
@@ -798,11 +783,6 @@ public class PipelinedSubpartition extends ResultSubpartition
 
         // We assume that only last buffer is not finished.
         return Math.max(0, numBuffers - 1);
-    }
-
-    @Override
-    public BufferBuilder requestBufferBuilderBlocking() throws InterruptedException {
-        return parent.getBufferPool().requestBufferBuilderBlocking();
     }
 
     Buffer buildSliceBuffer(BufferConsumerWithPartialRecordLength buffer) {

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FileRegionBuffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -240,6 +241,9 @@ public abstract class NettyMessage {
                     case NewBufferSize.ID:
                         decodedMsg = NewBufferSize.readFrom(msg);
                         break;
+                    case SegmentId.ID:
+                        decodedMsg = SegmentId.readFrom(msg);
+                        break;
                     default:
                         throw new ProtocolException(
                                 "Received unknown message from producer: " + msg);
@@ -268,6 +272,7 @@ public abstract class NettyMessage {
                 InputChannelID.getByteBufLength()
                         + Integer.BYTES
                         + Integer.BYTES
+                        + Integer.BYTES
                         + Byte.BYTES
                         + Byte.BYTES
                         + Integer.BYTES;
@@ -275,6 +280,8 @@ public abstract class NettyMessage {
         final Buffer buffer;
 
         final InputChannelID receiverId;
+
+        final int subpartitionId;
 
         final int sequenceNumber;
 
@@ -292,6 +299,7 @@ public abstract class NettyMessage {
                 boolean isCompressed,
                 int sequenceNumber,
                 InputChannelID receiverId,
+                int subpartitionId,
                 int backlog,
                 int bufferSize) {
             this.buffer = buffer;
@@ -299,11 +307,17 @@ public abstract class NettyMessage {
             this.isCompressed = isCompressed;
             this.sequenceNumber = sequenceNumber;
             this.receiverId = checkNotNull(receiverId);
+            this.subpartitionId = subpartitionId;
             this.backlog = backlog;
             this.bufferSize = bufferSize;
         }
 
-        BufferResponse(Buffer buffer, int sequenceNumber, InputChannelID receiverId, int backlog) {
+        BufferResponse(
+                Buffer buffer,
+                int sequenceNumber,
+                InputChannelID receiverId,
+                int subpartitionId,
+                int backlog) {
             this.buffer = checkNotNull(buffer);
             checkArgument(
                     buffer.getDataType().ordinal() <= Byte.MAX_VALUE,
@@ -313,6 +327,7 @@ public abstract class NettyMessage {
             this.isCompressed = buffer.isCompressed();
             this.sequenceNumber = sequenceNumber;
             this.receiverId = checkNotNull(receiverId);
+            this.subpartitionId = subpartitionId;
             this.backlog = backlog;
             this.bufferSize = buffer.getSize();
         }
@@ -384,6 +399,7 @@ public abstract class NettyMessage {
                     allocateBuffer(allocator, ID, MESSAGE_HEADER_LENGTH, bufferSize, false);
 
             receiverId.writeTo(headerBuf);
+            headerBuf.writeInt(subpartitionId);
             headerBuf.writeInt(sequenceNumber);
             headerBuf.writeInt(backlog);
             headerBuf.writeByte(dataType.ordinal());
@@ -405,6 +421,7 @@ public abstract class NettyMessage {
         static BufferResponse readFrom(
                 ByteBuf messageHeader, NetworkBufferAllocator bufferAllocator) {
             InputChannelID receiverId = InputChannelID.fromByteBuf(messageHeader);
+            int subpartitionId = messageHeader.readInt();
             int sequenceNumber = messageHeader.readInt();
             int backlog = messageHeader.readInt();
             Buffer.DataType dataType = Buffer.DataType.values()[messageHeader.readByte()];
@@ -414,6 +431,9 @@ public abstract class NettyMessage {
             Buffer dataBuffer;
             if (dataType.isBuffer()) {
                 dataBuffer = bufferAllocator.allocatePooledNetworkBuffer(receiverId);
+                if (dataBuffer != null) {
+                    dataBuffer.setDataType(dataType);
+                }
             } else {
                 dataBuffer = bufferAllocator.allocateUnPooledNetworkBuffer(size, dataType);
             }
@@ -430,7 +450,14 @@ public abstract class NettyMessage {
             }
 
             return new BufferResponse(
-                    dataBuffer, dataType, isCompressed, sequenceNumber, receiverId, backlog, size);
+                    dataBuffer,
+                    dataType,
+                    isCompressed,
+                    sequenceNumber,
+                    receiverId,
+                    subpartitionId,
+                    backlog,
+                    size);
         }
     }
 
@@ -511,7 +538,7 @@ public abstract class NettyMessage {
 
         final ResultPartitionID partitionId;
 
-        final int queueIndex;
+        final ResultSubpartitionIndexSet queueIndexSet;
 
         final InputChannelID receiverId;
 
@@ -519,11 +546,11 @@ public abstract class NettyMessage {
 
         PartitionRequest(
                 ResultPartitionID partitionId,
-                int queueIndex,
+                ResultSubpartitionIndexSet queueIndexSet,
                 InputChannelID receiverId,
                 int credit) {
             this.partitionId = checkNotNull(partitionId);
-            this.queueIndex = queueIndex;
+            this.queueIndexSet = queueIndexSet;
             this.receiverId = checkNotNull(receiverId);
             this.credit = credit;
         }
@@ -535,7 +562,7 @@ public abstract class NettyMessage {
                     (bb) -> {
                         partitionId.getPartitionId().writeTo(bb);
                         partitionId.getProducerId().writeTo(bb);
-                        bb.writeInt(queueIndex);
+                        queueIndexSet.writeTo(bb);
                         receiverId.writeTo(bb);
                         bb.writeInt(credit);
                     };
@@ -548,7 +575,7 @@ public abstract class NettyMessage {
                     ID,
                     IntermediateResultPartitionID.getByteBufLength()
                             + ExecutionAttemptID.getByteBufLength()
-                            + Integer.BYTES
+                            + ResultSubpartitionIndexSet.getByteBufLength(queueIndexSet)
                             + InputChannelID.getByteBufLength()
                             + Integer.BYTES);
         }
@@ -558,16 +585,17 @@ public abstract class NettyMessage {
                     new ResultPartitionID(
                             IntermediateResultPartitionID.fromByteBuf(buffer),
                             ExecutionAttemptID.fromByteBuf(buffer));
-            int queueIndex = buffer.readInt();
+            ResultSubpartitionIndexSet queueIndexSet =
+                    ResultSubpartitionIndexSet.fromByteBuf(buffer);
             InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
             int credit = buffer.readInt();
 
-            return new PartitionRequest(partitionId, queueIndex, receiverId, credit);
+            return new PartitionRequest(partitionId, queueIndexSet, receiverId, credit);
         }
 
         @Override
         public String toString() {
-            return String.format("PartitionRequest(%s:%d:%d)", partitionId, queueIndex, credit);
+            return String.format("PartitionRequest(%s:%s:%d)", partitionId, queueIndexSet, credit);
         }
     }
 
@@ -892,6 +920,59 @@ public abstract class NettyMessage {
         @Override
         public String toString() {
             return String.format("NewBufferSize(%s : %d)", receiverId, bufferSize);
+        }
+    }
+
+    /** Message to notify producer about the id of required segment. */
+    static class SegmentId extends NettyMessage {
+
+        private static final byte ID = 11;
+
+        final int subpartitionId;
+
+        final int segmentId;
+
+        final InputChannelID receiverId;
+
+        SegmentId(int subpartitionId, int segmentId, InputChannelID receiverId) {
+            this.subpartitionId = subpartitionId;
+            checkArgument(segmentId > 0L, "The segmentId should be greater than 0");
+            this.segmentId = segmentId;
+            this.receiverId = receiverId;
+        }
+
+        @Override
+        void write(ChannelOutboundInvoker out, ChannelPromise promise, ByteBufAllocator allocator)
+                throws IOException {
+            ByteBuf result = null;
+
+            try {
+                result =
+                        allocateBuffer(
+                                allocator,
+                                ID,
+                                Integer.BYTES + Integer.BYTES + InputChannelID.getByteBufLength());
+                result.writeInt(subpartitionId);
+                result.writeInt(segmentId);
+                receiverId.writeTo(result);
+
+                out.write(result, promise);
+            } catch (Throwable t) {
+                handleException(result, null, t);
+            }
+        }
+
+        static SegmentId readFrom(ByteBuf buffer) {
+            int subpartitionId = buffer.readInt();
+            int segmentId = buffer.readInt();
+            InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
+
+            return new SegmentId(subpartitionId, segmentId, receiverId);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("SegmentId(%s : %d)", receiverId, segmentId);
         }
     }
 

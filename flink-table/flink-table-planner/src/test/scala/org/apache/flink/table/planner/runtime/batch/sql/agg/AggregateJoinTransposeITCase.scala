@@ -32,13 +32,13 @@ import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.RuleSets
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import scala.collection.JavaConverters._
 
 class AggregateJoinTransposeITCase extends BatchTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     val programs = FlinkBatchProgram.buildProgram(tEnv.getConfig)

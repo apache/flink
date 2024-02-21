@@ -21,12 +21,11 @@ package org.apache.flink.runtime.io.network.api;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.util.event.EventListener;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.HashMultimap;
-import org.apache.flink.shaded.guava30.com.google.common.collect.Multimap;
+import org.apache.flink.shaded.guava31.com.google.common.collect.HashMultimap;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Multimap;
 
 /**
- * The event handler manages {@link EventListener} instances and allows to to publish events to
- * them.
+ * The event handler manages {@link EventListener} instances and allows to publish events to them.
  */
 public class TaskEventHandler {
 

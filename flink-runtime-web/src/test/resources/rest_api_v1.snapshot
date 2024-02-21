@@ -1937,6 +1937,9 @@
       "queryParameters" : [ {
         "key" : "maxExceptions",
         "mandatory" : false
+      }, {
+        "key" : "failureLabelFilter",
+        "mandatory" : false
       } ]
     },
     "request" : {
@@ -1966,6 +1969,9 @@
                 "type" : "string"
               },
               "location" : {
+                "type" : "string"
+              },
+              "endpoint" : {
                 "type" : "string"
               },
               "timestamp" : {
@@ -1999,10 +2005,19 @@
                   "timestamp" : {
                     "type" : "integer"
                   },
+                  "failureLabels" : {
+                    "type" : "object",
+                    "additionalProperties" : {
+                      "type" : "string"
+                    }
+                  },
                   "taskName" : {
                     "type" : "string"
                   },
                   "location" : {
+                    "type" : "string"
+                  },
+                  "endpoint" : {
                     "type" : "string"
                   },
                   "taskManagerId" : {
@@ -2023,10 +2038,19 @@
                         "timestamp" : {
                           "type" : "integer"
                         },
+                        "failureLabels" : {
+                          "type" : "object",
+                          "additionalProperties" : {
+                            "type" : "string"
+                          }
+                        },
                         "taskName" : {
                           "type" : "string"
                         },
                         "location" : {
+                          "type" : "string"
+                        },
+                        "endpoint" : {
                           "type" : "string"
                         },
                         "taskManagerId" : {
@@ -2583,6 +2607,9 @@
               "host" : {
                 "type" : "string"
               },
+              "endpoint" : {
+                "type" : "string"
+              },
               "start-time" : {
                 "type" : "integer"
               },
@@ -2926,6 +2953,9 @@
               "host" : {
                 "type" : "string"
               },
+              "endpoint" : {
+                "type" : "string"
+              },
               "user-accumulators" : {
                 "type" : "array",
                 "items" : {
@@ -3016,6 +3046,9 @@
           "type" : "integer"
         },
         "host" : {
+          "type" : "string"
+        },
+        "endpoint" : {
           "type" : "string"
         },
         "start-time" : {
@@ -3125,6 +3158,9 @@
           "type" : "integer"
         },
         "host" : {
+          "type" : "string"
+        },
+        "endpoint" : {
           "type" : "string"
         },
         "start-time" : {
@@ -3323,6 +3359,9 @@
               "host" : {
                 "type" : "string"
               },
+              "endpoint" : {
+                "type" : "string"
+              },
               "duration" : {
                 "type" : "integer"
               },
@@ -3376,6 +3415,9 @@
             "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexTaskManagersInfo:TaskManagersInfo",
             "properties" : {
               "host" : {
+                "type" : "string"
+              },
+              "endpoint" : {
                 "type" : "string"
               },
               "status" : {

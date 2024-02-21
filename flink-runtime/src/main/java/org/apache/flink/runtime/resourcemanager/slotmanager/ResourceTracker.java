@@ -31,7 +31,7 @@ public interface ResourceTracker {
     /**
      * Notifies the tracker about a new or updated {@link ResourceRequirements}.
      *
-     * @param jobId the job that that the resource requirements belongs to
+     * @param jobId the job that the resource requirements belongs to
      * @param resourceRequirements new resource requirements
      */
     void notifyResourceRequirements(

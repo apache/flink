@@ -17,10 +17,10 @@
 
 package org.apache.flink.test.checkpointing.utils;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import javax.annotation.Nullable;
 
 import static java.util.Collections.singletonList;
-import static org.apache.flink.shaded.guava30.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.flink.shaded.guava31.com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -96,8 +96,8 @@ public class CancellingIntegerSource extends RichSourceFunction<Integer>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
     }
 
     @Override

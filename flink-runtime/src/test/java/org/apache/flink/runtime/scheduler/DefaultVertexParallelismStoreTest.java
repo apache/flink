@@ -53,6 +53,11 @@ public class DefaultVertexParallelismStoreTest extends TestLogger {
 
     private static final class MockVertexParallelismInfo implements VertexParallelismInformation {
         @Override
+        public int getMinParallelism() {
+            return 0;
+        }
+
+        @Override
         public int getParallelism() {
             return 0;
         }

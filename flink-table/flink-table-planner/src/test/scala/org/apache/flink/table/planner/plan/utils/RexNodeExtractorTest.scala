@@ -33,15 +33,15 @@ import org.apache.flink.table.planner.utils.{DateTimeTestUtil, IntSumAggFunction
 import org.apache.flink.table.resource.ResourceManager
 import org.apache.flink.table.utils.CatalogManagerMocks
 
+import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.SqlPostfixOperator
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
 import org.apache.calcite.util.{DateString, TimestampString, TimeString}
-import org.hamcrest.CoreMatchers.is
-import org.junit.Assert.{assertArrayEquals, assertEquals, assertThat, assertTrue}
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
 import java.math.BigDecimal
 import java.net.URL
@@ -66,7 +66,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
   def testExtractRefInputFields(): Unit = {
     val (exprs, _) = buildExprs()
     val usedFields = RexNodeExtractor.extractRefInputFields(exprs)
-    assertArrayEquals(usedFields, Array(2, 3, 1))
+    assertThat(usedFields).isEqualTo(Array(2, 3, 1))
   }
 
   @Test
@@ -77,7 +77,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     val usedNestedFields = RexNodeExtractor.extractRefNestedInputFields(rexProgram, usedFields)
 
     val expected = Array(Array(Arrays.asList("amount")), Array(Arrays.asList("*")))
-    assertThat(usedNestedFields, is(expected))
+    assertThat(usedNestedFields).isEqualTo(expected)
   }
 
   @Test
@@ -89,7 +89,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
 
     val expected =
       Array(Array(Arrays.asList("*")), Array(Arrays.asList("*")), Array(Arrays.asList("*")))
-    assertThat(usedNestedFields, is(expected))
+    assertThat(usedNestedFields).isEqualTo(expected)
   }
 
   @Test
@@ -106,8 +106,8 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       Array(Arrays.asList("outer"), Arrays.asList("inner", "deep_array"))
     )
 
-    assertThat(usedFields, is(Array(1, 0, 2, 3)))
-    assertThat(usedNestedFields, is(expected))
+    assertThat(usedFields).isEqualTo(Array(1, 0, 2, 3))
+    assertThat(usedNestedFields).isEqualTo(expected)
   }
 
   @Test
@@ -123,7 +123,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       extractConjunctiveConditions(expr, -1, allFieldNames, builder, functionCatalog)
 
     assertExpressionArrayEquals(expected, convertedExpressions)
-    assertEquals(0, unconvertedRexNodes.length)
+    assertThat(unconvertedRexNodes).isEmpty()
   }
 
   @Test
@@ -142,7 +142,27 @@ class RexNodeExtractorTest extends RexNodeTestBase {
 
     val expected: Array[Expression] = Array($"amount" >= $"id")
     assertExpressionArrayEquals(expected, convertedExpressions)
-    assertEquals(0, unconvertedRexNodes.length)
+    assertThat(unconvertedRexNodes).isEmpty()
+  }
+
+  @Test
+  def testExtractConditionWithBinaryLiteral(): Unit = {
+    // blob
+    val t0 = rexBuilder.makeInputRef(allFieldTypes.get(5), 5)
+
+    // X'616263'
+    val t1 = rexBuilder.makeBinaryLiteral(ByteString.of("616263", 16))
+
+    // blob = X'616263'
+    val a = rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, t0, t1)
+
+    val relBuilder: RexBuilder = new FlinkRexBuilder(typeFactory)
+    val (convertedExpressions, unconvertedRexNodes) =
+      extractConjunctiveConditions(a, -1, allFieldNames, relBuilder, functionCatalog)
+
+    val expected: Array[Expression] = Array($"blob" === Array[Byte](97, 98, 99))
+    assertExpressionArrayEquals(expected, convertedExpressions)
+    assertThat(unconvertedRexNodes).isEmpty()
   }
 
   // ((a AND b) OR c) AND (NOT d) => (a OR c) AND (b OR c) AND (NOT d)
@@ -190,7 +210,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       !($"amount" <= $"id")
     )
     assertExpressionArrayEquals(expected, convertedExpressions)
-    assertEquals(0, unconvertedRexNodes.length)
+    assertThat(unconvertedRexNodes).isEmpty()
   }
 
   @Test
@@ -228,7 +248,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     )
 
     assertExpressionArrayEquals(expected, convertedExpressions)
-    assertEquals(0, unconvertedRexNodes.length)
+    assertThat(unconvertedRexNodes).isEmpty()
   }
 
   @Test
@@ -272,7 +292,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     )
 
     assertExpressionArrayEquals(expected, convertedExpressions)
-    assertEquals(0, unconvertedRexNodes.length)
+    assertThat(unconvertedRexNodes).isEmpty()
   }
 
   @Test
@@ -383,7 +403,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       $"amount" / $"id" === 100
     )
     assertExpressionArrayEquals(expected, convertedExpressions)
-    assertEquals(0, unconvertedRexNodes.length)
+    assertThat(unconvertedRexNodes).isEmpty()
   }
 
   @Test
@@ -435,7 +455,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
           valueLiteral(100))
       )
       assertExpressionArrayEquals(expected, convertedExpressions)
-      assertEquals(1, unconvertedRexNodes.length)
+      assertThat(unconvertedRexNodes).hasSize(1)
     }
   }
 
@@ -468,13 +488,12 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     val (convertedExpressions, unconvertedRexNodes) =
       extractConjunctiveConditions(conditionExpr, -1, allFieldNames, relBuilder, functionCatalog)
 
-    assertEquals(3, convertedExpressions.length)
-    assertEquals("greaterThan(cast(amount, BIGINT), 100)", convertedExpressions(0).toString)
-    assertEquals("lessThanOrEqual(amount, id)", convertedExpressions(1).toString)
-    assertEquals(
-      "or(greaterThan(cast(amount, BIGINT), 100), lessThanOrEqual(amount, id))",
-      convertedExpressions(2).toString)
-    assertEquals(0, unconvertedRexNodes.length)
+    assertThat(convertedExpressions).hasSize(3)
+    assertThat(convertedExpressions(0).toString).isEqualTo("greaterThan(cast(amount, BIGINT), 100)")
+    assertThat(convertedExpressions(1).toString).isEqualTo("lessThanOrEqual(amount, id)")
+    assertThat(convertedExpressions(2).toString)
+      .isEqualTo("or(greaterThan(cast(amount, BIGINT), 100), lessThanOrEqual(amount, id))")
+    assertThat(unconvertedRexNodes).isEmpty()
 
     assertExpressionArrayEquals(Array($"amount" <= $"id"), Array(convertedExpressions(1)))
   }
@@ -525,8 +544,8 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     val (convertedExpressions, unconvertedRexNodes) =
       extractConjunctiveConditions(and, -1, allFieldNames, relBuilder, functionCatalog)
 
-    assertEquals(0, convertedExpressions.length)
-    assertEquals(3, unconvertedRexNodes.length)
+    assertThat(convertedExpressions).isEmpty()
+    assertThat(unconvertedRexNodes).hasSize(3)
   }
 
   @Test
@@ -547,9 +566,9 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     val (convertedExpressions, unconvertedRexNodes) =
       extractConjunctiveConditions(condition, -1, allFieldNames, relBuilder, functionCatalog)
 
-    assertEquals(1, convertedExpressions.length)
-    assertEquals("greaterThan(MyUdf(amount), 100)", convertedExpressions(0).toString)
-    assertEquals(0, unconvertedRexNodes.length)
+    assertThat(convertedExpressions).hasSize(1)
+    assertThat(convertedExpressions(0).toString).isEqualTo("greaterThan(MyUdf(amount), 100)")
+    assertThat(unconvertedRexNodes).isEmpty()
   }
 
   @Test
@@ -575,8 +594,8 @@ class RexNodeExtractorTest extends RexNodeTestBase {
         rexBuilder,
         Array("amount", "name")
       )
-    assertEquals(c3, partitionPredicate1)
-    assertTrue(nonPartitionPredicate1.isAlwaysTrue)
+    assertThat(partitionPredicate1).isEqualTo(c3)
+    assertThat(nonPartitionPredicate1.isAlwaysTrue).isTrue
 
     val (partitionPredicate2, nonPartitionPredicate2) =
       RexNodeExtractor.extractPartitionPredicates(
@@ -586,8 +605,8 @@ class RexNodeExtractorTest extends RexNodeTestBase {
         rexBuilder,
         Array("amount")
       )
-    assertEquals(c1, partitionPredicate2)
-    assertEquals(c2, nonPartitionPredicate2)
+    assertThat(partitionPredicate2).isEqualTo(c1)
+    assertThat(nonPartitionPredicate2).isEqualTo(c2)
 
     val (partitionPredicate3, nonPartitionPredicate3) =
       RexNodeExtractor.extractPartitionPredicates(
@@ -597,8 +616,8 @@ class RexNodeExtractorTest extends RexNodeTestBase {
         rexBuilder,
         Array("id")
       )
-    assertTrue(partitionPredicate3.isAlwaysTrue)
-    assertEquals(c3, nonPartitionPredicate3)
+    assertThat(partitionPredicate3.isAlwaysTrue).isTrue
+    assertThat(nonPartitionPredicate3).isEqualTo(c3)
 
     // amount > 100 or name like 'test%'
     val c4 = rexBuilder.makeCall(SqlStdOperatorTable.OR, c1, c2)
@@ -610,8 +629,8 @@ class RexNodeExtractorTest extends RexNodeTestBase {
         rexBuilder,
         Array("amount", "name")
       )
-    assertEquals(c4, partitionPredicate4)
-    assertTrue(nonPartitionPredicate4.isAlwaysTrue)
+    assertThat(partitionPredicate4).isEqualTo(c4)
+    assertThat(nonPartitionPredicate4.isAlwaysTrue).isTrue
 
     val (partitionPredicate5, nonPartitionPredicate5) =
       RexNodeExtractor.extractPartitionPredicates(
@@ -621,8 +640,8 @@ class RexNodeExtractorTest extends RexNodeTestBase {
         rexBuilder,
         Array("amount")
       )
-    assertTrue(partitionPredicate5.isAlwaysTrue)
-    assertEquals(c4, nonPartitionPredicate5)
+    assertThat(partitionPredicate5.isAlwaysTrue).isTrue
+    assertThat(nonPartitionPredicate5).isEqualTo(c4)
   }
 
   @Test
@@ -649,8 +668,8 @@ class RexNodeExtractorTest extends RexNodeTestBase {
         rexBuilder,
         Array("date")
       )
-    assertEquals(c2, partitionPredicate1)
-    assertEquals(c1, nonPartitionPredicate1)
+    assertThat(partitionPredicate1).isEqualTo(c2)
+    assertThat(nonPartitionPredicate1).isEqualTo(c1)
 
     val (partitionPredicate2, nonPartitionPredicate2) =
       RexNodeExtractor.extractPartitionPredicates(
@@ -660,8 +679,8 @@ class RexNodeExtractorTest extends RexNodeTestBase {
         rexBuilder,
         Array("date", "amount")
       )
-    assertEquals(c3, partitionPredicate2)
-    assertTrue(nonPartitionPredicate2.isAlwaysTrue)
+    assertThat(partitionPredicate2).isEqualTo(c3)
+    assertThat(nonPartitionPredicate2.isAlwaysTrue).isTrue
 
     val (partitionPredicate3, nonPartitionPredicate3) =
       RexNodeExtractor.extractPartitionPredicates(
@@ -671,8 +690,8 @@ class RexNodeExtractorTest extends RexNodeTestBase {
         rexBuilder,
         Array("id", "amount")
       )
-    assertEquals(c1, partitionPredicate3)
-    assertEquals(c2, nonPartitionPredicate3)
+    assertThat(partitionPredicate3).isEqualTo(c1)
+    assertThat(nonPartitionPredicate3).isEqualTo(c2)
   }
 
   @Test
@@ -734,9 +753,9 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     val (convertedExpressions, unconvertedRexNodes) =
       extractConjunctiveConditions(conditionExpr, -1, allFieldNames, relBuilder, functionCatalog)
 
-    assertEquals(1, convertedExpressions.length)
-    assertEquals(expr, convertedExpressions.head.toString)
-    assertEquals(0, unconvertedRexNodes.length)
+    assertThat(convertedExpressions).hasSize(1)
+    assertThat(convertedExpressions.head.toString).isEqualTo(expr)
+    assertThat(unconvertedRexNodes).isEmpty()
   }
 
   private def assertExpressionArrayEquals(
@@ -745,8 +764,10 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     val sortedExpected = expected.sortBy(e => e.toString)
     val sortedActual = actual.sortBy(e => e.toString)
 
-    assertEquals(sortedExpected.length, sortedActual.length)
-    sortedExpected.zip(sortedActual).foreach { case (l, r) => assertEquals(l.toString, r.toString) }
+    assertThat(sortedExpected).hasSameSizeAs(sortedActual)
+    sortedExpected.zip(sortedActual).foreach {
+      case (l, r) => assertThat(l.toString).isEqualTo(r.toString)
+    }
   }
 
   private def extractConjunctiveConditions(

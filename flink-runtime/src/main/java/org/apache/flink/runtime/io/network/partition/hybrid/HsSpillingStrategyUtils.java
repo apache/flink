@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
-import org.apache.flink.shaded.guava30.com.google.common.collect.PeekingIterator;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava31.com.google.common.collect.PeekingIterator;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -73,7 +73,7 @@ public class HsSpillingStrategyUtils {
             BufferConsumptionPriorityIterator bufferConsumptionPriorityIterator = heap.poll();
             BufferIndexAndChannel bufferIndexAndChannel = bufferConsumptionPriorityIterator.next();
             subpartitionToHighPriorityBuffers
-                    .computeIfAbsent(bufferIndexAndChannel.getChannel(), ArrayList::new)
+                    .computeIfAbsent(bufferIndexAndChannel.getChannel(), k -> new ArrayList<>())
                     .add(bufferIndexAndChannel);
             // if this iterator has next, re-added it.
             if (bufferConsumptionPriorityIterator.hasNext()) {

@@ -142,6 +142,14 @@ $ bin/flink savepoint :jobId [:targetDirectory]
 $ bin/flink savepoint --type [native/canonical] :jobId [:targetDirectory]
 ```
 
+使用上述命令触发savepoint时，client需要等待savepoint制作完成，因此当任务的状态较大时，可能会导致client出现超时的情况。在这种情况下可以使用detach模式来触发savepoint。
+
+```shell
+$ bin/flink savepoint :jobId [:targetDirectory] -detached
+```
+
+使用该命令时，client拿到本次savepoint的trigger id后立即返回，可以通过[REST API]({{< ref "docs/ops/rest_api" >}}/#jobs-jobid-checkpoints-triggerid)来监控本次savepoint的制作情况。
+
 #### 使用 YARN 触发 Savepoint
 
 ```shell
@@ -159,6 +167,8 @@ $ bin/flink stop --type [native/canonical] --savepointPath [:targetDirectory] :j
 ```
 
 这将自动触发 ID 为 `:jobid` 的作业的 Savepoint，并停止该作业。此外，你可以指定一个目标文件系统目录来存储 Savepoint 。该目录需要能被 JobManager(s) 和 TaskManager(s) 访问。你也可以指定创建 Savepoint 的格式。如果没有指定，会采用标准格式创建 Savepoint。
+
+如果你想使用detach模式触发Savepoint，在命令行后添加选项`-detached`即可。
 
 ### 从 Savepoint 恢复
 
@@ -213,13 +223,17 @@ $ bin/flink run -s :savepointPath -restoreMode :mode -n [:runArgs]
 2. [Native](#savepoint-format) 格式支持增量的 RocksDB savepoints。对于这些 savepoints，Flink 将所有 SST 存储在 savepoints 目录中。这意味着这些 savepoints 是自包含和目录可移动的。然而，在 CLAIM 模式下恢复时，后续的 checkpoints 可能会复用一些 SST 文件，这反过来会阻止在 savepoints 被清理时删除 savepoints 目录。 Flink 之后运行期间可能会删除复用的SST 文件，但不会删除 savepoints 目录。因此，如果在 CLAIM 模式下恢复，Flink 可能会留下一个空的 savepoints 目录。
 {{< /hint >}}
 
-**LEGACY**
+**LEGACY (已废弃)**
 
 Legacy 模式是 Flink 在 1.15 之前的工作方式。该模式下 Flink 永远不会删除初始恢复的 checkpoint。同时，用户也不清楚是否可以删除它。导致该的问题原因是， Flink 会在用来恢复的 checkpoint 之上创建增量的 checkpoint，因此后续的 checkpoint 都有可能会依赖于用于恢复的那个 checkpoint。总而言之，恢复的 checkpoint 的所有权没有明确的界定。
 
 <div style="text-align: center">
   {{< img src="/fig/restore-mode-legacy.svg" alt="LEGACY restore mode" width="70%" >}}
 </div>
+
+{{< hint warning >}}
+**注意:** LEGACY 模式已经被废弃了，在 Flink 2.0 版本将会被移除。请使用 CLAIM 或 NO_CLAIM 模式。
+{{< /hint >}}
 
 ### 删除 Savepoint
 

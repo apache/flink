@@ -74,11 +74,11 @@ public class RetryingRegistrationConfiguration {
     public static RetryingRegistrationConfiguration fromConfiguration(
             final Configuration configuration) {
         long initialRegistrationTimeoutMillis =
-                configuration.getLong(ClusterOptions.INITIAL_REGISTRATION_TIMEOUT);
+                configuration.get(ClusterOptions.INITIAL_REGISTRATION_TIMEOUT);
         long maxRegistrationTimeoutMillis =
-                configuration.getLong(ClusterOptions.MAX_REGISTRATION_TIMEOUT);
-        long errorDelayMillis = configuration.getLong(ClusterOptions.ERROR_REGISTRATION_DELAY);
-        long refusedDelayMillis = configuration.getLong(ClusterOptions.REFUSED_REGISTRATION_DELAY);
+                configuration.get(ClusterOptions.MAX_REGISTRATION_TIMEOUT);
+        long errorDelayMillis = configuration.get(ClusterOptions.ERROR_REGISTRATION_DELAY);
+        long refusedDelayMillis = configuration.get(ClusterOptions.REFUSED_REGISTRATION_DELAY);
 
         return new RetryingRegistrationConfiguration(
                 initialRegistrationTimeoutMillis,

@@ -961,7 +961,11 @@ class KafkaSinkBuilder(object):
             'CachingTopicSelector'
         ) and (
             get_field_value(j_topic_selector, 'topicSelector').getClass().getCanonicalName()
-                .startswith('com.sun.proxy')
+            is not None and
+            (get_field_value(j_topic_selector, 'topicSelector').getClass().getCanonicalName()
+             .startswith('com.sun.proxy') or
+             get_field_value(j_topic_selector, 'topicSelector').getClass().getCanonicalName()
+             .startswith('jdk.proxy'))
         ):
             record_serializer._wrap_serialization_schema()
             self._preprocessing = record_serializer._build_preprocessing()

@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
@@ -58,8 +57,6 @@ public class GlobalWindowsTest extends TestLogger {
         assertFalse(assigner.isEventTime());
         assertEquals(
                 new GlobalWindow.Serializer(), assigner.getWindowSerializer(new ExecutionConfig()));
-        assertThat(
-                assigner.getDefaultTrigger(mock(StreamExecutionEnvironment.class)),
-                instanceOf(GlobalWindows.NeverTrigger.class));
+        assertThat(assigner.getDefaultTrigger(), instanceOf(GlobalWindows.NeverTrigger.class));
     }
 }

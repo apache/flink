@@ -23,7 +23,9 @@ import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nullable;
 
+import java.util.Comparator;
 import java.util.Iterator;
+import java.util.PriorityQueue;
 import java.util.ServiceLoader;
 
 /**
@@ -91,8 +93,11 @@ public interface RpcSystem extends RpcSystemUtils, AutoCloseable {
      * @return loaded RpcSystem
      */
     static RpcSystem load(Configuration config) {
-        final Iterator<RpcSystemLoader> iterator =
-                ServiceLoader.load(RpcSystemLoader.class).iterator();
+        final PriorityQueue<RpcSystemLoader> rpcSystemLoaders =
+                new PriorityQueue<>(Comparator.comparingInt(RpcSystemLoader::getLoadPriority));
+        ServiceLoader.load(RpcSystemLoader.class).forEach(rpcSystemLoaders::add);
+
+        final Iterator<RpcSystemLoader> iterator = rpcSystemLoaders.iterator();
 
         Exception loadError = null;
         while (iterator.hasNext()) {

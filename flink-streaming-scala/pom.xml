@@ -24,12 +24,19 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
 	<name>Flink : Streaming Scala</name>
 	<packaging>jar</packaging>
+
+	<properties>
+		<surefire.module.config><!--
+			chill ArraysAsListSerializer
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
 
 	<dependencies>
 
@@ -256,7 +263,7 @@ under the License.
 			</plugin>
 
 			<plugin>
-				<groupId>io.github.zentol.japicmp</groupId>
+				<groupId>com.github.siom79.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
 				<configuration>
 					<parameter>
@@ -288,5 +295,26 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<profile>
+			<id>java17</id>
+			<activation>
+				<jdk>[17,)</jdk>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>com.github.siom79.japicmp</groupId>
+						<artifactId>japicmp-maven-plugin</artifactId>
+						<configuration>
+							<!-- version bump broke the checks -->
+							<skip>true</skip>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 </project>

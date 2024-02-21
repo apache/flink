@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
@@ -36,6 +36,23 @@ under the License.
 	</description>
 
 	<packaging>jar</packaging>
+
+	<properties>
+		<surefire.module.config><!--
+			HashAggCodeGeneratorTest / AggTestBase
+			-->--add-opens=java.base/java.lang=ALL-UNNAMED <!--
+			chill ArraysAsListSerializer
+			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
+			kryo AtomicBoolean
+			-->--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED <!--
+			kryo LocalDate/ZoneOffset
+			-->--add-opens=java.base/java.time=ALL-UNNAMED <!--
+			kryo MathContext
+			-->--add-opens=java.base/java.math=ALL-UNNAMED <!--
+			kryo ByteBuffer
+			-->--add-opens=java.base/java.nio=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
 
 	<dependencies>
 		<!-- Mainly used for calcite-core, relocated in org.apache.flink.calcite.shaded by the shade plugin -->
@@ -101,16 +118,10 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<!-- Use newer version v1.1.2 as in Calcite because org.junit.jupiter:junit-jupiter contains it -->
-		<dependency>
-			<artifactId>apiguardian-api</artifactId>
-			<groupId>org.apiguardian</groupId>
-			<version>1.1.2</version>
-		</dependency>
 		<dependency>
 			<groupId>org.checkerframework</groupId>
 			<artifactId>checker-qual</artifactId>
-			<version>3.10.0</version>
+			<version>3.12.0</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
@@ -135,6 +146,14 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- ArchUnit test dependencies -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -289,7 +308,7 @@ under the License.
 							<include>org.apache.calcite.avatica:*</include>
 
 							<!-- Calcite's dependencies -->
-							<include>com.esri.geometry:esri-geometry-api</include>
+							<include>org.locationtech.jts:jts-core</include>
 							<include>com.google.guava:guava</include>
 							<include>com.google.guava:failureaccess</include>
 							<include>commons-codec:commons-codec</include>
@@ -309,6 +328,7 @@ under the License.
 						</relocation>-->
 
 						<!-- Calcite's dependencies -->
+						<!-- Keep it in sync with flink-sql-client -->
 						<relocation>
 							<pattern>com.google</pattern>
 							<shadedPattern>org.apache.flink.calcite.shaded.com.google</shadedPattern>
@@ -373,11 +393,8 @@ under the License.
 							<includes>
 								<include>**/*ITCase.*</include>
 							</includes>
-							<!-- Setting this property to false is aims to alleviate OOM error
-							mentioned in issue: https://issues.apache.org/jira/browse/FLINK-18356.
-							This property can be removed after the OOM error mentioned in the above
-							issue is solved. -->
-							<reuseForks>false</reuseForks>
+							<!-- override reuseForks to true to reduce testing time -->
+							<reuseForks>true</reuseForks>
 						</configuration>
 					</execution>
 				</executions>

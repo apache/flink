@@ -19,7 +19,6 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.ClientUtils;
@@ -40,8 +39,8 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ShutdownHookUtil;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.MapDifference;
-import org.apache.flink.shaded.guava30.com.google.common.collect.Maps;
+import org.apache.flink.shaded.guava31.com.google.common.collect.MapDifference;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Maps;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -139,12 +138,12 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
         checkNotNull(jobClient);
 
         JobExecutionResult jobExecutionResult;
-        if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
+        if (configuration.get(DeploymentOptions.ATTACHED)) {
             CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
                     jobClient.getJobExecutionResult();
 
             ScheduledExecutorService clientHeartbeatService = null;
-            if (configuration.getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
+            if (configuration.get(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
                 Thread shutdownHook =
                         ShutdownHookUtil.addShutdownHook(
                                 () -> {
@@ -164,8 +163,8 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
                 clientHeartbeatService =
                         ClientUtils.reportHeartbeatPeriodically(
                                 jobClient,
-                                configuration.getLong(ClientOptions.CLIENT_HEARTBEAT_INTERVAL),
-                                configuration.getLong(ClientOptions.CLIENT_HEARTBEAT_TIMEOUT));
+                                configuration.get(ClientOptions.CLIENT_HEARTBEAT_INTERVAL),
+                                configuration.get(ClientOptions.CLIENT_HEARTBEAT_TIMEOUT));
             }
 
             jobExecutionResult = jobExecutionResultFuture.get();
@@ -251,10 +250,8 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
     /**
      * Collects programmatic configuration changes.
      *
-     * <p>Configuration is spread across instances of {@link Configuration} and POJOs (e.g. {@link
-     * ExecutionConfig}), so we need to have logic for comparing both. For supporting wildcards, the
-     * first can be accomplished by simply removing keys, the latter by setting equal fields before
-     * comparison.
+     * <p>For supporting wildcards, the first can be accomplished by simply removing keys, the
+     * latter by setting equal fields before comparison.
      */
     private Collection<String> collectNotAllowedConfigurations() {
         if (programConfigEnabled) {
@@ -270,8 +267,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
         removeProgramConfigWildcards(clusterConfigMap);
 
         checkMainConfiguration(clusterConfigMap, errors);
-        checkCheckpointConfig(clusterConfigMap, errors);
-        checkExecutionConfig(clusterConfigMap, errors);
+        checkCheckpointStorage(clusterConfigMap, errors);
         return errors;
     }
 
@@ -300,14 +296,9 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
                                                 k, v)));
     }
 
-    private void checkCheckpointConfig(Configuration clusterConfigMap, List<String> errors) {
+    private void checkCheckpointStorage(Configuration clusterConfigMap, List<String> errors) {
         CheckpointConfig expectedCheckpointConfig = new CheckpointConfig();
         expectedCheckpointConfig.configure(clusterConfigMap);
-        checkConfigurationObject(
-                expectedCheckpointConfig.toConfiguration(),
-                checkpointCfg.toConfiguration(),
-                checkpointCfg.getClass().getSimpleName(),
-                errors);
 
         /**
          * Unfortunately, {@link CheckpointConfig#setCheckpointStorage} is not backed by a {@link
@@ -322,16 +313,6 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
                     ConfigurationNotAllowedMessage.ofConfigurationObjectSetterUsed(
                             checkpointCfg.getClass().getSimpleName(), "setCheckpointStorage"));
         }
-    }
-
-    private void checkExecutionConfig(Configuration clusterConfigMap, List<String> errors) {
-        ExecutionConfig expectedExecutionConfig = new ExecutionConfig();
-        expectedExecutionConfig.configure(clusterConfigMap, getUserClassloader());
-        checkConfigurationObject(
-                expectedExecutionConfig.toConfiguration(),
-                config.toConfiguration(),
-                config.getClass().getSimpleName(),
-                errors);
     }
 
     private void checkConfigurationObject(

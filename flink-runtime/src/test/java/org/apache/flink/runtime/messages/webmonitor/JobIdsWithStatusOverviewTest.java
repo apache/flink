@@ -21,11 +21,15 @@ package org.apache.flink.runtime.messages.webmonitor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 
 /** Marshalling test for the {@link JobIdsWithStatusOverview} message. */
-public class JobIdsWithStatusOverviewTest
+@ExtendWith(NoOpTestExtension.class)
+class JobIdsWithStatusOverviewTest
         extends RestResponseMarshallingTestBase<JobIdsWithStatusOverview> {
 
     @Override

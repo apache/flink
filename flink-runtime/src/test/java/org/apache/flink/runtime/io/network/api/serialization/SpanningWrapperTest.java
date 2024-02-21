@@ -19,30 +19,31 @@ package org.apache.flink.runtime.io.network.api.serialization;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.CloseableIterator;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
 import static org.apache.flink.core.memory.MemorySegmentFactory.wrap;
 import static org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer.LENGTH_BYTES;
-import static org.junit.Assert.assertArrayEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link SpanningWrapper} test. */
-public class SpanningWrapperTest {
+class SpanningWrapperTest {
 
     private static final Random random = new Random();
 
-    @Rule public TemporaryFolder folder = new TemporaryFolder();
+    @TempDir private Path folder;
 
     @Test
-    public void testLargeUnconsumedSegment() throws Exception {
+    void testLargeUnconsumedSegment() throws Exception {
         int recordLen = 100;
         int firstChunk = (int) (recordLen * .9);
         int spillingThreshold = (int) (firstChunk * .9);
@@ -50,14 +51,14 @@ public class SpanningWrapperTest {
         byte[] record1 = recordBytes(recordLen);
         byte[] record2 = recordBytes(recordLen * 2);
 
-        File canNotEecutableFile = folder.newFolder();
+        File canNotEecutableFile = TempDirUtils.newFolder(folder);
         canNotEecutableFile.setExecutable(false);
         // Always pick 'canNotEecutableFile' first as the Spilling Channel TmpDir. Thus trigger an
         // IOException.
         SpanningWrapper spanningWrapper =
                 new SpanningWrapper(
                         new String[] {
-                            folder.newFolder().getAbsolutePath(),
+                            TempDirUtils.newFolder(folder).getAbsolutePath(),
                             canNotEecutableFile.getAbsolutePath() + File.separator + "pathdonotexit"
                         },
                         spillingThreshold,
@@ -79,7 +80,7 @@ public class SpanningWrapperTest {
 
         canNotEecutableFile.setExecutable(true);
 
-        assertArrayEquals(concat(record1, record2), toByteArray(unconsumedSegment));
+        assertThat(concat(record1, record2)).isEqualTo(toByteArray(unconsumedSegment));
     }
 
     private byte[] recordBytes(int recordLen) {

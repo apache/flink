@@ -45,6 +45,7 @@ import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -105,7 +106,9 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
                         new MapSerializer<>(
                                 LongSerializer.INSTANCE,
                                 new ListSerializer<>(
-                                        new KryoSerializer<>(Path.class, getExecutionConfig()))));
+                                        new KryoSerializer<>(
+                                                Path.class,
+                                                getExecutionConfig().getSerializerConfig()))));
         this.expiredFilesState = context.getOperatorStateStore().getListState(metaDescriptor);
         this.expiredFiles = new TreeMap<>();
         this.currentExpiredFiles = new ArrayList<>();
@@ -121,8 +124,8 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
         if (value instanceof CompactionUnit) {
             CompactionUnit unit = (CompactionUnit) value;
             if (unit.isTaskMessage(
-                    getRuntimeContext().getNumberOfParallelSubtasks(),
-                    getRuntimeContext().getIndexOfThisSubtask())) {
+                    getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks(),
+                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask())) {
                 String partition = unit.getPartition();
                 List<Path> paths = unit.getPaths();
                 // create a target file to compact to
@@ -156,9 +159,9 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
                 new StreamRecord<>(
                         new PartitionCommitInfo(
                                 checkpoint,
-                                getRuntimeContext().getIndexOfThisSubtask(),
-                                getRuntimeContext().getNumberOfParallelSubtasks(),
-                                new ArrayList<>(this.partitions))));
+                                getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                                getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks(),
+                                this.partitions.toArray(new String[0]))));
         this.partitions.clear();
     }
 
@@ -168,9 +171,8 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
     }
 
     private void snapshotState(long checkpointId) throws Exception {
-        expiredFilesState.clear();
         expiredFiles.put(checkpointId, new ArrayList<>(currentExpiredFiles));
-        expiredFilesState.add(expiredFiles);
+        expiredFilesState.update(Collections.singletonList(expiredFiles));
         currentExpiredFiles.clear();
     }
 

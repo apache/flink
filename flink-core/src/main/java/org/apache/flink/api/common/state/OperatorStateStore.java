@@ -60,7 +60,7 @@ public interface OperatorStateStore {
      *
      * <p>Note the semantic differences between an operator list state and a keyed list state (see
      * {@link KeyedStateStore#getListState(ListStateDescriptor)}). Under the context of operator
-     * state, the list is a collection of state items that are independent from each other and
+     * state, the list is a collection of state items that are independent of each other and
      * eligible for redistribution across operator instances in case of changed operator
      * parallelism. In other words, these state items are the finest granularity at which non-keyed
      * state can be redistributed, and should not be correlated with each other.
@@ -83,7 +83,7 @@ public interface OperatorStateStore {
      *
      * <p>Note the semantic differences between an operator list state and a keyed list state (see
      * {@link KeyedStateStore#getListState(ListStateDescriptor)}). Under the context of operator
-     * state, the list is a collection of state items that are independent from each other and
+     * state, the list is a collection of state items that are independent of each other and
      * eligible for redistribution across operator instances in case of changed operator
      * parallelism. In other words, these state items are the finest granularity at which non-keyed
      * state can be redistributed, and should not be correlated with each other.

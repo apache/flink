@@ -567,46 +567,6 @@ connectedStreams.flat_map(MyCoFlatMapFunction())
 {{< /tab >}}
 {{< /tabs>}}
 
-### Iterate
-#### DataStream &rarr; IterativeStream &rarr; ConnectedStream
-
-通过将一个算子的输出重定向到某个之前的算子来在流中创建“反馈”循环。这对于定义持续更新模型的算法特别有用。下面的代码从一个流开始，并不断地应用迭代自身。大于 0 的元素被发送回反馈通道，其余元素被转发到下游。
-
-{{< tabs iterate >}}
-{{< tab "Java" >}}
-```java
-IterativeStream<Long> iteration = initialStream.iterate();
-DataStream<Long> iterationBody = iteration.map (/*do something*/);
-DataStream<Long> feedback = iterationBody.filter(new FilterFunction<Long>(){
-    @Override
-    public boolean filter(Long value) throws Exception {
-        return value > 0;
-    }
-});
-iteration.closeWith(feedback);
-DataStream<Long> output = iterationBody.filter(new FilterFunction<Long>(){
-    @Override
-    public boolean filter(Long value) throws Exception {
-        return value <= 0;
-    }
-});
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-initialStream.iterate {
-  iteration => {
-    val iterationBody = iteration.map {/*do something*/}
-    (iterationBody.filter(_ > 0), iterationBody.filter(_ <= 0))
-  }
-}
-```
-{{< /tab >}}
-{{< tab "Python" >}}
-Python 中尚不支持此特性。
-{{< /tab >}}
-{{< /tabs>}}
-
 ### Cache
 #### DataStream &rarr; CachedDataStream
 

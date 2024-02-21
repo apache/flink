@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.DynamicEventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
@@ -30,7 +29,7 @@ import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.junit.Test;
 import org.mockito.Matchers;
@@ -221,9 +220,7 @@ public class EventTimeSessionWindowsTest extends TestLogger {
         assertTrue(assigner.isEventTime());
         assertEquals(
                 new TimeWindow.Serializer(), assigner.getWindowSerializer(new ExecutionConfig()));
-        assertThat(
-                assigner.getDefaultTrigger(mock(StreamExecutionEnvironment.class)),
-                instanceOf(EventTimeTrigger.class));
+        assertThat(assigner.getDefaultTrigger(), instanceOf(EventTimeTrigger.class));
     }
 
     @Test

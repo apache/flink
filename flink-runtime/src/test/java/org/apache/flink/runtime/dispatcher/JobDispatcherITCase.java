@@ -127,6 +127,9 @@ public class JobDispatcherITCase {
             AtLeastOneCheckpointInvokable.atLeastOneCheckpointCompleted.await();
 
             final CompletableFuture<JobResult> firstJobResult = cluster.requestJobResult(jobID);
+            // make sure requestJobResult was processed by job master
+            cluster.getJobStatus(jobID).get();
+
             haServices.revokeDispatcherLeadership();
             // make sure the leadership is revoked to avoid race conditions
             Assertions.assertEquals(

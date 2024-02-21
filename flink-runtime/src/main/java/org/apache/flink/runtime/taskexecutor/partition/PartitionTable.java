@@ -18,13 +18,13 @@
 package org.apache.flink.runtime.taskexecutor.partition;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -54,7 +54,7 @@ public class PartitionTable<K> {
                 key,
                 (ignored, partitionIds) -> {
                     if (partitionIds == null) {
-                        partitionIds = new HashSet<>(8);
+                        partitionIds = CollectionUtil.newHashSetWithExpectedSize(8);
                     }
                     partitionIds.addAll(newPartitionIds);
                     return partitionIds;

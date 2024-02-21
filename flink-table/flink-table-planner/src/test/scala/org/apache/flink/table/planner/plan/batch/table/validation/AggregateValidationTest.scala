@@ -22,59 +22,66 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit._
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 class AggregateValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testNonWorkingAggregationDataTypes(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(String, Int)]("Table2")
 
     // Must fail. Field '_1 is not a numeric type.
-    t.select('_1.sum)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => t.select('_1.sum))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testNoNestedAggregations(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(String, Int)]("Table2")
 
     // Must fail. Sum aggregation can not be chained.
-    t.select('_2.sum.sum)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => t.select('_2.sum.sum))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupingOnNonExistentField(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     // must fail. '_foo not a valid field
-    t.groupBy('_foo).select('a.avg)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => t.groupBy('_foo).select('a.avg))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupingInvalidSelection(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
-    t.groupBy('a, 'b)
-      // must fail. 'c is not a grouping key or aggregation
-      .select('c)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          t.groupBy('a, 'b)
+            // must fail. 'c is not a grouping key or aggregation
+            .select('c))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testAggregationOnNonExistingField(): Unit = {
 
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     // Must fail. Field 'foo does not exist.
-    t.select('foo.avg)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => t.select('foo.avg))
   }
 
-  @Test(expected = classOf[ValidationException])
-  @throws[Exception]
+  @Test
   def testInvalidUdAggArgs() {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
@@ -82,138 +89,149 @@ class AggregateValidationTest extends TableTestBase {
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
 
     // must fail. UDAGG does not accept String type
-    t.select(myWeightedAvg('c, 'a))
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => t.select(myWeightedAvg('c, 'a)))
   }
 
-  @Test(expected = classOf[ValidationException])
-  @throws[Exception]
+  @Test
   def testGroupingInvalidUdAggArgs() {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
 
-    t.groupBy('b)
-      // must fail. UDAGG does not accept String type
-      .select(myWeightedAvg('c, 'a))
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          t.groupBy('b)
+            // must fail. UDAGG does not accept String type
+            .select(myWeightedAvg('c, 'a)))
   }
 
-  @Test(expected = classOf[ValidationException])
-  @throws[Exception]
+  @Test
   def testGroupingNestedUdAgg() {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
 
-    t.groupBy('c)
-      // must fail. UDAGG does not accept String type
-      .select(myWeightedAvg(myWeightedAvg('b, 'a), 'a))
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          t.groupBy('c)
+            // must fail. UDAGG does not accept String type
+            .select(myWeightedAvg(myWeightedAvg('b, 'a), 'a)))
   }
 
-  @Test(expected = classOf[ValidationException])
-  @throws[Exception]
+  @Test
   def testAggregationOnNonExistingFieldJava() {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
-    t.select($"foo".avg)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => t.select($"foo".avg))
   }
 
-  @Test(expected = classOf[ValidationException])
-  @throws[Exception]
+  @Test
   def testNonWorkingAggregationDataTypesJava() {
     val util = batchTestUtil()
     val t = util.addTableSource[(Long, String)]("Table2", 'b, 'c)
     // Must fail. Cannot compute SUM aggregate on String field.
-    t.select($"c".sum)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => t.select($"c".sum))
   }
 
-  @Test(expected = classOf[ValidationException])
-  @throws[Exception]
+  @Test
   def testNoNestedAggregationsJava() {
     val util = batchTestUtil()
     val t = util.addTableSource[(Long, String)]("Table2", 'b, 'c)
     // Must fail. Aggregation on aggregation not allowed.
-    t.select($"b".sum.sum)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => t.select($"b".sum.sum))
   }
 
-  @Test(expected = classOf[ValidationException])
-  @throws[Exception]
+  @Test
   def testNoDeeplyNestedAggregationsJava() {
     val util = batchTestUtil()
     val t = util.addTableSource[(Long, String)]("Table2", 'b, 'c)
     // Must fail. Aggregation on aggregation not allowed.
-    t.select(($"b".sum + 1).sum)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => t.select(($"b".sum + 1).sum))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   @throws[Exception]
   def testGroupingOnNonExistentFieldJava() {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     // must fail. Field foo is not in input
-    t.groupBy($"foo")
-      .select($"a".avg)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => t.groupBy($"foo").select($"a".avg))
   }
 
-  @Test(expected = classOf[ValidationException])
-  @throws[Exception]
+  @Test
   def testGroupingInvalidSelectionJava() {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
-    t.groupBy($"a", $"b")
-      // must fail. Field c is not a grouping key or aggregation
-      .select($"c")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          t.groupBy($"a", $"b")
+            // must fail. Field c is not a grouping key or aggregation
+            .select($"c"))
   }
 
-  @Test(expected = classOf[ValidationException])
-  @throws[Exception]
+  @Test
   def testUnknownUdAggJava() {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     // must fail. unknown is not known
-    t.select(call("unknown", $"c"))
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => t.select(call("unknown", $"c")))
   }
 
-  @Test(expected = classOf[ValidationException])
-  @throws[Exception]
+  @Test
   def testGroupingUnknownUdAggJava() {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
-    t.groupBy($"a", $"b")
-      // must fail. unknown is not known
-      .select(call("unknown", $"c"))
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          t.groupBy($"a", $"b")
+            // must fail. unknown is not known
+            .select(call("unknown", $"c")))
   }
 
-  @Test(expected = classOf[ValidationException])
-  @throws[Exception]
+  @Test
   def testInvalidUdAggArgsJava() {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
-    util.addFunction("myWeightedAvg", myWeightedAvg)
+    util.addTemporarySystemFunction("myWeightedAvg", myWeightedAvg)
 
     // must fail. UDAGG does not accept String type
-    t.select(call("myWeightedAvg", $"c", $"a"))
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => t.select(call("myWeightedAvg", $"c", $"a")))
   }
 
-  @Test(expected = classOf[ValidationException])
-  @throws[Exception]
+  @Test
   def testGroupingInvalidUdAggArgsJava() {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
-    util.addFunction("myWeightedAvg", myWeightedAvg)
+    util.addTemporarySystemFunction("myWeightedAvg", myWeightedAvg)
 
-    t.groupBy($"b")
-      // must fail. UDAGG does not accept String type
-      .select(call("myWeightedAvg", $"c", $"a"))
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          t.groupBy($"b")
+            // must fail. UDAGG does not accept String type
+            .select(call("myWeightedAvg", $"c", $"a")))
   }
 }

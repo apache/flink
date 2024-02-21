@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.metrics.groups.OperatorCoordinatorMetricGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -277,6 +278,10 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
          * concurrent running execution attempts.
          */
         boolean isConcurrentExecutionAttemptsSupported();
+
+        /** Gets the checkpoint coordinator of this job. Return null if checkpoint is disabled. */
+        @Nullable
+        CheckpointCoordinator getCheckpointCoordinator();
     }
 
     // ------------------------------------------------------------------------

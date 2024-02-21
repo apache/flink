@@ -19,6 +19,7 @@ package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.FlinkVersion
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeutils.{TypeSerializer, TypeSerializerMatchers, TypeSerializerSchemaCompatibility, TypeSerializerUpgradeTestBase}
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase.TestSpecification
 import org.apache.flink.api.scala.createTypeInformation
@@ -56,7 +57,7 @@ object ScalaCaseClassSerializerUpgradeTest {
   private val supplier =
     new util.function.Supplier[TypeSerializer[CustomCaseClass]] {
       override def get(): TypeSerializer[CustomCaseClass] =
-        typeInfo.createSerializer(new ExecutionConfig)
+        typeInfo.createSerializer(new SerializerConfigImpl)
     }
 
   /**

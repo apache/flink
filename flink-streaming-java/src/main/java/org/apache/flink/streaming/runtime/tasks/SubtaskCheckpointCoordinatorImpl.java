@@ -35,12 +35,14 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.filesystem.FsMergingCheckpointStorageLocation;
 import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.runtime.io.checkpointing.BarrierAlignmentUtil;
 import org.apache.flink.streaming.runtime.io.checkpointing.BarrierAlignmentUtil.Cancellable;
 import org.apache.flink.streaming.runtime.io.checkpointing.BarrierAlignmentUtil.DelayableTimer;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
@@ -345,7 +347,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
         // streaming topology
 
         Map<OperatorID, OperatorSnapshotFutures> snapshotFutures =
-                new HashMap<>(operatorChain.getNumberOfOperators());
+                CollectionUtil.newHashMapWithExpectedSize(operatorChain.getNumberOfOperators());
         try {
             if (takeSnapshotSync(
                     snapshotFutures, metadata, metrics, options, operatorChain, isRunning)) {
@@ -712,6 +714,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
         CheckpointStreamFactory storage =
                 checkpointStorage.resolveCheckpointStorageLocation(
                         checkpointId, checkpointOptions.getTargetLocation());
+        storage = applyFileMergingCheckpoint(storage, checkpointOptions);
 
         try {
             operatorChain.snapshotState(
@@ -736,6 +739,17 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
         checkpointMetrics.setSyncDurationMillis((System.nanoTime() - started) / 1_000_000);
         return true;
+    }
+
+    private CheckpointStreamFactory applyFileMergingCheckpoint(
+            CheckpointStreamFactory storage, CheckpointOptions checkpointOptions) {
+        if (storage instanceof FsMergingCheckpointStorageLocation
+                && checkpointOptions.getCheckpointType().isSavepoint()) {
+            // fall back to non-fileMerging if it is a savepoint
+            return ((FsMergingCheckpointStorageLocation) storage).toNonFileMerging();
+        } else {
+            return storage;
+        }
     }
 
     private Set<Long> createAbortedCheckpointSetWithLimitSize(int maxRecordAbortedCheckpoints) {

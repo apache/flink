@@ -140,10 +140,13 @@ public class CheckpointHandlers {
                 throws RestHandlerException {
             final AsynchronousJobOperationKey operationKey = createOperationKey(request);
 
-            return gateway.triggerCheckpoint(
-                            operationKey,
-                            request.getRequestBody().getCheckpointType(),
-                            RpcUtils.INF_TIMEOUT)
+            CheckpointType checkpointType = request.getRequestBody().getCheckpointType();
+            if (checkpointType == CheckpointType.INCREMENTAL) {
+                throw new IllegalStateException(
+                        "Flink does not support triggering incremental checkpoint explicitly."
+                                + " See FLINK-33723.");
+            }
+            return gateway.triggerCheckpoint(operationKey, checkpointType, RpcUtils.INF_TIMEOUT)
                     .handle(
                             (acknowledge, throwable) -> {
                                 if (throwable == null) {

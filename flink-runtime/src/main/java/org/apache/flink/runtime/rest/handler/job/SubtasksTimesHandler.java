@@ -37,11 +37,11 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.CollectionUtil;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -113,16 +113,18 @@ public class SubtasksTimesHandler
             long duration = start >= 0 ? end - start : -1L;
 
             TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
-            String locationString = location == null ? "(unassigned)" : location.getHostname();
+            String host = location == null ? "(unassigned)" : location.getHostname();
+            String endpoint = location == null ? "(unassigned)" : location.getEndpoint();
 
-            Map<ExecutionState, Long> timestampMap = new HashMap<>(ExecutionState.values().length);
+            Map<ExecutionState, Long> timestampMap =
+                    CollectionUtil.newHashMapWithExpectedSize(ExecutionState.values().length);
             for (ExecutionState state : ExecutionState.values()) {
                 timestampMap.put(state, timestamps[state.ordinal()]);
             }
 
             subtasks.add(
                     new SubtasksTimesInfo.SubtaskTimeInfo(
-                            num++, locationString, duration, timestampMap));
+                            num++, host, endpoint, duration, timestampMap));
         }
         return new SubtasksTimesInfo(id, name, now, subtasks);
     }

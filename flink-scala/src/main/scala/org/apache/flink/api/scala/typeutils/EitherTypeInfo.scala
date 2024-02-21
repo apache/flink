@@ -19,12 +19,23 @@ package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 
 import scala.collection.JavaConverters._
 
-/** TypeInformation [[Either]]. */
+/**
+ * TypeInformation [[Either]].
+ *
+ * @deprecated
+ *   All Flink Scala APIs are deprecated and will be removed in a future Flink major version. You
+ *   can still build your application in Scala, but you should move to the Java version of either
+ *   the DataStream and/or Table API.
+ * @see
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
+ */
+@deprecated(org.apache.flink.api.scala.FLIP_265_WARNING, since = "1.18.0")
 @Public
 class EitherTypeInfo[A, B, T <: Either[A, B]](
     val clazz: Class[T],
@@ -49,20 +60,25 @@ class EitherTypeInfo[A, B, T <: Either[A, B]](
     Map[String, TypeInformation[_]]("A" -> leftTypeInfo, "B" -> rightTypeInfo).asJava
 
   @PublicEvolving
-  def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
+  override def createSerializer(serializerConfig: SerializerConfig): TypeSerializer[T] = {
     val leftSerializer: TypeSerializer[A] = if (leftTypeInfo != null) {
-      leftTypeInfo.createSerializer(executionConfig)
+      leftTypeInfo.createSerializer(serializerConfig)
     } else {
       (new NothingSerializer).asInstanceOf[TypeSerializer[A]]
     }
 
     val rightSerializer: TypeSerializer[B] = if (rightTypeInfo != null) {
-      rightTypeInfo.createSerializer(executionConfig)
+      rightTypeInfo.createSerializer(serializerConfig)
     } else {
       (new NothingSerializer).asInstanceOf[TypeSerializer[B]]
     }
     new EitherSerializer[A, B](leftSerializer, rightSerializer).asInstanceOf[TypeSerializer[T]]
   }
+
+  @PublicEvolving
+  @Deprecated
+  def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = createSerializer(
+    executionConfig.getSerializerConfig)
 
   override def equals(obj: Any): Boolean = {
     obj match {

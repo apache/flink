@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.connector.testframe.environment.TestEnvironment;
 import org.apache.flink.connector.testframe.environment.TestEnvironmentSettings;
 import org.apache.flink.connector.testframe.external.ExternalSystemDataReader;
@@ -140,7 +141,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
                                 .build());
         execEnv.enableCheckpointing(50);
         DataStream<T> dataStream =
-                execEnv.fromCollection(testRecords)
+                execEnv.fromData(testRecords)
                         .name("sourceInSinkTest")
                         .setParallelism(1)
                         .returns(externalContext.getProducedType());
@@ -599,7 +600,8 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
 
     protected CollectResultIterator<T> addCollectSink(DataStream<T> stream) {
         TypeSerializer<T> serializer =
-                stream.getType().createSerializer(stream.getExecutionConfig());
+                stream.getType()
+                        .createSerializer(stream.getExecutionConfig().getSerializerConfig());
         String accumulatorName = "dataStreamCollect_" + UUID.randomUUID();
         CollectSinkOperatorFactory<T> factory =
                 new CollectSinkOperatorFactory<>(serializer, accumulatorName);
@@ -611,7 +613,8 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
                 operator.getOperatorIdFuture(),
                 serializer,
                 accumulatorName,
-                stream.getExecutionEnvironment().getCheckpointConfig());
+                stream.getExecutionEnvironment().getCheckpointConfig(),
+                RpcOptions.ASK_TIMEOUT_DURATION.defaultValue().toMillis());
     }
 
     private void waitExpectedSizeData(CollectResultIterator<T> iterator, int targetNum) {

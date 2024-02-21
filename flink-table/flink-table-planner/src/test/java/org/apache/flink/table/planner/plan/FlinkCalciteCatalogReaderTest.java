@@ -40,18 +40,18 @@ import org.apache.calcite.prepare.Prepare;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.Table;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.Mockito.when;
 
 /** Test for FlinkCalciteCatalogReader. */
-public class FlinkCalciteCatalogReaderTest {
+class FlinkCalciteCatalogReaderTest {
     private final FlinkTypeFactory typeFactory =
             new FlinkTypeFactory(
                     Thread.currentThread().getContextClassLoader(), FlinkTypeSystem.INSTANCE);
@@ -60,8 +60,8 @@ public class FlinkCalciteCatalogReaderTest {
     private SchemaPlus rootSchemaPlus;
     private FlinkCalciteCatalogReader catalogReader;
 
-    @Before
-    public void init() {
+    @BeforeEach
+    void init() {
         rootSchemaPlus = CalciteSchema.createRootSchema(true, false).plus();
         Properties prop = new Properties();
         prop.setProperty(CalciteConnectionProperty.CASE_SENSITIVE.camelName(), "false");
@@ -75,7 +75,7 @@ public class FlinkCalciteCatalogReaderTest {
     }
 
     @Test
-    public void testGetFlinkPreparingTableBase() {
+    void testGetFlinkPreparingTableBase() {
         // Mock CatalogSchemaTable.
         final ObjectIdentifier objectIdentifier = ObjectIdentifier.of("a", "b", "c");
         final ResolvedSchema schema =
@@ -101,7 +101,7 @@ public class FlinkCalciteCatalogReaderTest {
     }
 
     @Test
-    public void testGetNonFlinkPreparingTableBase() {
+    void testGetNonFlinkPreparingTableBase() {
         Table nonFlinkTableMock = mock(Table.class);
         when(nonFlinkTableMock.getRowType(typeFactory)).thenReturn(mock(RelDataType.class));
         rootSchemaPlus.add(tableMockName, nonFlinkTableMock);

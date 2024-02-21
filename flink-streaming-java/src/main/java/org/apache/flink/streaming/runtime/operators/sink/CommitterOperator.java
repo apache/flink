@@ -21,7 +21,10 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.api.connector.sink2.CommitterInitContext;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalSinkCommitterMetricGroup;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
@@ -31,6 +34,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CheckpointCommittableManager;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CommittableCollector;
@@ -39,6 +43,7 @@ import org.apache.flink.streaming.runtime.operators.sink.committables.Committabl
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.util.function.FunctionWithException;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -62,10 +67,13 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
 
     private static final long RETRY_DELAY = 1000;
     private final SimpleVersionedSerializer<CommT> committableSerializer;
-    private final Committer<CommT> committer;
+    private final FunctionWithException<CommitterInitContext, Committer<CommT>, IOException>
+            committerSupplier;
     private final boolean emitDownstream;
     private final boolean isBatchMode;
     private final boolean isCheckpointingEnabled;
+    private SinkCommitterMetricGroup metricGroup;
+    private Committer<CommT> committer;
     private CommittableCollector<CommT> committableCollector;
     private long lastCompletedCheckpointId = -1;
 
@@ -82,7 +90,8 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
     public CommitterOperator(
             ProcessingTimeService processingTimeService,
             SimpleVersionedSerializer<CommT> committableSerializer,
-            Committer<CommT> committer,
+            FunctionWithException<CommitterInitContext, Committer<CommT>, IOException>
+                    committerSupplier,
             boolean emitDownstream,
             boolean isBatchMode,
             boolean isCheckpointingEnabled) {
@@ -91,7 +100,7 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
         this.isCheckpointingEnabled = isCheckpointingEnabled;
         this.processingTimeService = checkNotNull(processingTimeService);
         this.committableSerializer = checkNotNull(committableSerializer);
-        this.committer = checkNotNull(committer);
+        this.committerSupplier = checkNotNull(committerSupplier);
     }
 
     @Override
@@ -100,23 +109,28 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
             StreamConfig config,
             Output<StreamRecord<CommittableMessage<CommT>>> output) {
         super.setup(containingTask, config, output);
-        committableCollector = CommittableCollector.of(getRuntimeContext());
+        metricGroup = InternalSinkCommitterMetricGroup.wrap(getMetricGroup());
+        committableCollector = CommittableCollector.of(getRuntimeContext(), metricGroup);
     }
 
     @Override
     public void initializeState(StateInitializationContext context) throws Exception {
         super.initializeState(context);
+        OptionalLong checkpointId = context.getRestoredCheckpointId();
+        CommitterInitContext initContext = createInitContext(checkpointId);
+        committer = committerSupplier.apply(initContext);
         committableCollectorState =
                 new SimpleVersionedListState<>(
                         context.getOperatorStateStore()
                                 .getListState(STREAMING_COMMITTER_RAW_STATES_DESC),
                         new CommittableCollectorSerializer<>(
                                 committableSerializer,
-                                getRuntimeContext().getIndexOfThisSubtask(),
-                                getRuntimeContext().getNumberOfParallelSubtasks()));
+                                getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                                getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks(),
+                                metricGroup));
         if (context.isRestored()) {
             committableCollectorState.get().forEach(cc -> committableCollector.merge(cc));
-            lastCompletedCheckpointId = context.getRestoredCheckpointId().getAsLong();
+            lastCompletedCheckpointId = checkpointId.getAsLong();
             // try to re-commit recovered transactions as quickly as possible
             commitAndEmitCheckpoints();
         }
@@ -203,5 +217,28 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
     @Override
     public void close() throws Exception {
         closeAll(committer, super::close);
+    }
+
+    private CommitterInitContext createInitContext(OptionalLong restoredCheckpointId) {
+        return new CommitterInitContextImp(getRuntimeContext(), metricGroup, restoredCheckpointId);
+    }
+
+    private static class CommitterInitContextImp extends InitContextBase
+            implements CommitterInitContext {
+
+        private final SinkCommitterMetricGroup metricGroup;
+
+        public CommitterInitContextImp(
+                StreamingRuntimeContext runtimeContext,
+                SinkCommitterMetricGroup metricGroup,
+                OptionalLong restoredCheckpointId) {
+            super(runtimeContext, restoredCheckpointId);
+            this.metricGroup = checkNotNull(metricGroup);
+        }
+
+        @Override
+        public SinkCommitterMetricGroup metricGroup() {
+            return metricGroup;
+        }
     }
 }

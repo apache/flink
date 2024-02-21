@@ -34,11 +34,11 @@ public class TieredStorageIdMappingUtils {
     }
 
     public static TieredStoragePartitionId convertId(ResultPartitionID resultPartitionId) {
-        return new TieredStoragePartitionId(resultPartitionId.getBytes());
+        return new TieredStoragePartitionId(resultPartitionId);
     }
 
     public static ResultPartitionID convertId(TieredStoragePartitionId partitionId) {
-        return new ResultPartitionID(partitionId.getBytes());
+        return partitionId.getPartitionID();
     }
 
     public static TieredStorageSubpartitionId convertId(int subpartitionId) {

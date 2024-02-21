@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.runtime.batch.sql.agg
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_DATE_TIME
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -29,13 +28,14 @@ import org.apache.flink.table.planner.utils.{CountAggFunction, IntAvgAggFunction
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.time.LocalDateTime
 
 class GroupWindowITCase extends BatchTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     // common case
@@ -46,9 +46,9 @@ class GroupWindowITCase extends BatchTestBase {
       "a, b, c, ts",
       nullablesOfData3WithTimestamp)
     // for udagg
-    registerFunction("countFun", new CountAggFunction())
-    registerFunction("sumFun", new IntSumAggFunction())
-    registerFunction("avgFun", new IntAvgAggFunction())
+    tEnv.createTemporarySystemFunction("countFun", new CountAggFunction())
+    tEnv.createTemporarySystemFunction("sumFun", new IntSumAggFunction())
+    tEnv.createTemporarySystemFunction("avgFun", new IntAvgAggFunction())
     // time unit
     registerCollection("Table6", data6, type6, "a, b, c, d, e, f", nullablesOfData6)
   }
@@ -743,7 +743,7 @@ class GroupWindowITCase extends BatchTestBase {
     )
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testSessionWindowWithProperties(): Unit = {
     registerCollection(
       "T",
@@ -758,8 +758,10 @@ class GroupWindowITCase extends BatchTestBase {
         "SESSION_ROWTIME(ts, INTERVAL '4' SECOND) " +
         "FROM T " +
         "GROUP BY SESSION(ts, INTERVAL '4' SECOND)"
-
-    checkResult(sqlQuery, Seq())
+    assertThatThrownBy(
+      () => {
+        checkResult(sqlQuery, Seq())
+      }).hasCauseInstanceOf(classOf[RuntimeException])
   }
 
   @Test

@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobmaster.MiniDispatcherRestEndpoint;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
@@ -45,7 +45,7 @@ public enum JobRestEndpointFactory implements RestEndpointFactory<RestfulGateway
             TransientBlobService transientBlobService,
             ScheduledExecutorService executor,
             MetricFetcher metricFetcher,
-            LeaderElectionService leaderElectionService,
+            LeaderElection leaderElection,
             FatalErrorHandler fatalErrorHandler)
             throws Exception {
         final RestHandlerConfiguration restHandlerConfiguration =
@@ -59,7 +59,7 @@ public enum JobRestEndpointFactory implements RestEndpointFactory<RestfulGateway
                 transientBlobService,
                 executor,
                 metricFetcher,
-                leaderElectionService,
+                leaderElection,
                 RestEndpointFactory.createExecutionGraphCache(restHandlerConfiguration),
                 fatalErrorHandler);
     }

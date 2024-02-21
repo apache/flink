@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
@@ -37,6 +36,7 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -96,6 +96,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
             @Nullable KeyedStateStore keyedStateStore,
             ExternalResourceInfoProvider externalResourceInfoProvider) {
         super(
+                checkNotNull(env).getJobInfo(),
                 checkNotNull(env).getTaskInfo(),
                 env.getUserCodeClassLoader(),
                 env.getExecutionConfig(),
@@ -159,9 +160,8 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
         return taskEnvironment.getTaskManagerInfo();
     }
 
-    @Override
-    public JobID getJobId() {
-        return taskEnvironment.getJobID();
+    public Configuration getJobConfiguration() {
+        return taskEnvironment.getJobConfiguration();
     }
 
     @Override
@@ -199,21 +199,21 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
     @Override
     public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
         KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-        stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
+        stateProperties.initializeSerializerUnlessSet(this::createSerializer);
         return keyedStateStore.getState(stateProperties);
     }
 
     @Override
     public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
         KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-        stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
+        stateProperties.initializeSerializerUnlessSet(this::createSerializer);
         return keyedStateStore.getListState(stateProperties);
     }
 
     @Override
     public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
         KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-        stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
+        stateProperties.initializeSerializerUnlessSet(this::createSerializer);
         return keyedStateStore.getReducingState(stateProperties);
     }
 
@@ -221,14 +221,14 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
     public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(
             AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
         KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-        stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
+        stateProperties.initializeSerializerUnlessSet(this::createSerializer);
         return keyedStateStore.getAggregatingState(stateProperties);
     }
 
     @Override
     public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
         KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-        stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
+        stateProperties.initializeSerializerUnlessSet(this::createSerializer);
         return keyedStateStore.getMapState(stateProperties);
     }
 
@@ -237,7 +237,9 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
         checkNotNull(stateDescriptor, "The state properties must not be null");
         checkNotNull(
                 keyedStateStore,
-                "Keyed state can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.");
+                String.format(
+                        "Keyed state '%s' with type %s can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.",
+                        stateDescriptor.getName(), stateDescriptor.getType()));
         return keyedStateStore;
     }
 

@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.operators.drivers;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -34,17 +34,19 @@ import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+
 @SuppressWarnings("serial")
-public class AllGroupReduceDriverTest {
+class AllGroupReduceDriverTest {
 
     @Test
-    public void testAllReduceDriverImmutableEmpty() {
+    void testAllReduceDriverImmutableEmpty() {
         try {
             TestTaskContext<
                             GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>,
@@ -61,7 +63,7 @@ public class AllGroupReduceDriverTest {
             MutableObjectIterator<Tuple2<String, Integer>> input = EmptyMutableObjectIterator.get();
             context.setDriverStrategy(DriverStrategy.ALL_GROUP_REDUCE);
 
-            context.setInput1(input, typeInfo.createSerializer(new ExecutionConfig()));
+            context.setInput1(input, typeInfo.createSerializer(new SerializerConfigImpl()));
             context.setCollector(new DiscardingOutputCollector<Tuple2<String, Integer>>());
 
             AllGroupReduceDriver<Tuple2<String, Integer>, Tuple2<String, Integer>> driver =
@@ -72,12 +74,12 @@ public class AllGroupReduceDriverTest {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testAllReduceDriverImmutable() {
+    void testAllReduceDriverImmutable() {
         try {
             TestTaskContext<
                             GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>,
@@ -93,14 +95,14 @@ public class AllGroupReduceDriverTest {
                     TypeExtractor.getForObject(data.get(0));
             MutableObjectIterator<Tuple2<String, Integer>> input =
                     new RegularToMutableObjectIterator<Tuple2<String, Integer>>(
-                            data.iterator(), typeInfo.createSerializer(new ExecutionConfig()));
+                            data.iterator(), typeInfo.createSerializer(new SerializerConfigImpl()));
 
             GatheringCollector<Tuple2<String, Integer>> result =
                     new GatheringCollector<Tuple2<String, Integer>>(
-                            typeInfo.createSerializer(new ExecutionConfig()));
+                            typeInfo.createSerializer(new SerializerConfigImpl()));
 
             context.setDriverStrategy(DriverStrategy.ALL_GROUP_REDUCE);
-            context.setInput1(input, typeInfo.createSerializer(new ExecutionConfig()));
+            context.setInput1(input, typeInfo.createSerializer(new SerializerConfigImpl()));
             context.setCollector(result);
             context.setUdf(new ConcatSumReducer());
 
@@ -118,17 +120,17 @@ public class AllGroupReduceDriverTest {
             char[] expectedString = "abcddeeeffff".toCharArray();
             Arrays.sort(expectedString);
 
-            Assert.assertArrayEquals(expectedString, foundString);
-            Assert.assertEquals(78, res.f1.intValue());
+            assertThat(foundString).isEqualTo(expectedString);
+            assertThat(res.f1).isEqualTo(78);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testAllReduceDriverMutable() {
+    void testAllReduceDriverMutable() {
         try {
             TestTaskContext<
                             GroupReduceFunction<
@@ -146,14 +148,14 @@ public class AllGroupReduceDriverTest {
                     TypeExtractor.getForObject(data.get(0));
             MutableObjectIterator<Tuple2<StringValue, IntValue>> input =
                     new RegularToMutableObjectIterator<Tuple2<StringValue, IntValue>>(
-                            data.iterator(), typeInfo.createSerializer(new ExecutionConfig()));
+                            data.iterator(), typeInfo.createSerializer(new SerializerConfigImpl()));
 
             GatheringCollector<Tuple2<StringValue, IntValue>> result =
                     new GatheringCollector<Tuple2<StringValue, IntValue>>(
-                            typeInfo.createSerializer(new ExecutionConfig()));
+                            typeInfo.createSerializer(new SerializerConfigImpl()));
 
             context.setDriverStrategy(DriverStrategy.ALL_GROUP_REDUCE);
-            context.setInput1(input, typeInfo.createSerializer(new ExecutionConfig()));
+            context.setInput1(input, typeInfo.createSerializer(new SerializerConfigImpl()));
             context.setCollector(result);
             context.setUdf(new ConcatSumMutableReducer());
 
@@ -173,19 +175,19 @@ public class AllGroupReduceDriverTest {
             char[] expectedString = "abcddeeeffff".toCharArray();
             Arrays.sort(expectedString);
 
-            Assert.assertArrayEquals(expectedString, foundString);
-            Assert.assertEquals(78, res.f1.getValue());
+            assertThat(foundString).isEqualTo(expectedString);
+            assertThat(res.f1.getValue()).isEqualTo(78);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
     // --------------------------------------------------------------------------------------------
     //  Test UDFs
     // --------------------------------------------------------------------------------------------
 
-    public static final class ConcatSumReducer
+    private static final class ConcatSumReducer
             extends RichGroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>> {
 
         @Override
@@ -203,7 +205,7 @@ public class AllGroupReduceDriverTest {
         }
     }
 
-    public static final class ConcatSumMutableReducer
+    private static final class ConcatSumMutableReducer
             extends RichGroupReduceFunction<
                     Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>> {
 

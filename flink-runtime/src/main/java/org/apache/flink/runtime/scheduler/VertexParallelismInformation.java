@@ -23,6 +23,14 @@ package org.apache.flink.runtime.scheduler;
  * change during runtime.
  */
 public interface VertexParallelismInformation {
+
+    /**
+     * Returns a vertex's min parallelism.
+     *
+     * @return the min parallelism for the vertex
+     */
+    int getMinParallelism();
+
     /**
      * Returns a vertex's parallelism.
      *

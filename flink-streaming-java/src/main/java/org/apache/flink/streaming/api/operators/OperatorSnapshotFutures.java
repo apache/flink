@@ -28,7 +28,7 @@ import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateObject;
 
-import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava31.com.google.common.io.Closer;
 
 import javax.annotation.Nonnull;
 

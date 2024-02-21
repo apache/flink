@@ -36,8 +36,8 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.hiveAggDecimalPlus;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
+import static org.apache.flink.table.planner.delegation.hive.expressions.ExpressionBuilder.hiveAggDecimalPlus;
+import static org.apache.flink.table.planner.delegation.hive.expressions.ExpressionBuilder.plus;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.DECIMAL;
 
 /**

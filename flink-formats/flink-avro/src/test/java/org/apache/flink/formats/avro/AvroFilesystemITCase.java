@@ -19,9 +19,11 @@
 package org.apache.flink.formats.avro;
 
 import org.apache.flink.table.planner.runtime.batch.sql.BatchFileSystemITCaseBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,18 +33,14 @@ import java.util.List;
 import static org.apache.avro.file.DataFileConstants.NULL_CODEC;
 
 /** ITCase to test avro format for {@link AvroFileFormatFactory} in batch mode. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class AvroFilesystemITCase extends BatchFileSystemITCaseBase {
 
-    private final boolean configure;
+    @Parameter public boolean configure;
 
-    @Parameterized.Parameters(name = "{0}")
+    @Parameters(name = "configure={0}")
     public static Collection<Boolean> parameters() {
         return Arrays.asList(false, true);
-    }
-
-    public AvroFilesystemITCase(boolean configure) {
-        this.configure = configure;
     }
 
     @Override

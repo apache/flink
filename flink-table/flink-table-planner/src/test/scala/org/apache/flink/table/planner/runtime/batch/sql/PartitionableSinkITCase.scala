@@ -17,11 +17,13 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql
 
+import org.apache.flink.api.common.functions.OpenContext
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.configuration.{BatchExecutionOptions, Configuration}
+import org.apache.flink.configuration.BatchExecutionOptions
 import org.apache.flink.connector.file.table.FileSystemConnectorOptions
+import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.table.api.{Schema, TableEnvironment, TableException, TableSchema, ValidationException}
@@ -31,39 +33,33 @@ import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
 import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.descriptors.Schema.SCHEMA
 import org.apache.flink.table.factories.TableSinkFactory
-import org.apache.flink.table.planner.runtime.batch.sql.PartitionableSinkITCase.{type4, type_int_string, _}
+import org.apache.flink.table.planner.runtime.batch.sql.PartitionableSinkITCase.{type4, _}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.sinks.{PartitionableTableSink, StreamTableSink, TableSink}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.table.types.utils.TypeConversions
-import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Rule, Test}
-import org.junit.Assert._
-import org.junit.rules.ExpectedException
+import org.assertj.core.api.Assertions.{assertThat, assertThatIterable, assertThatThrownBy}
+import org.junit.jupiter.api.{BeforeEach, Test}
+import org.junit.jupiter.api.extension.RegisterExtension
 
 import java.util
 import java.util.{function, ArrayList => JArrayList, LinkedList => JLinkedList, List => JList, Map => JMap}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
-import scala.collection.Seq
 
 /** Test cases for [[org.apache.flink.table.sinks.PartitionableTableSink]]. */
 class PartitionableSinkITCase extends BatchTestBase {
 
-  private val _expectedException = ExpectedException.none
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
-  @Rule
-  def expectedEx: ExpectedException = _expectedException
-
-  @Rule
-  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
-
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     env.setParallelism(3)
@@ -83,9 +79,10 @@ class PartitionableSinkITCase extends BatchTestBase {
         "insert into sinkTable select a, max(b), c"
           + " from nonSortTable group by a, c")
       .await()
-    assertEquals(List("1,5,Hi", "1,5,Hi01", "1,5,Hi02"), RESULT1.sorted)
-    assert(RESULT2.isEmpty)
-    assertEquals(
+    assertThatIterable(RESULT1).containsExactlyInAnyOrderElementsOf(
+      List("1,5,Hi", "1,5,Hi01", "1,5,Hi02"))
+    assertThat(RESULT2.isEmpty()).isTrue
+    assertThatIterable(RESULT3).containsExactlyInAnyOrderElementsOf(
       List(
         "2,1,Hello world01",
         "2,1,Hello world02",
@@ -98,34 +95,33 @@ class PartitionableSinkITCase extends BatchTestBase {
         "3,2,Hello02",
         "3,2,Hello03",
         "3,2,Hello04"
-      ),
-      RESULT3.sorted
-    )
+      ))
   }
 
   @Test
   def testInsertWithPartitionGrouping(): Unit = {
     registerTableSink()
     tEnv.executeSql("insert into sinkTable select a, b, c from sortTable").await()
-    assertEquals(List("1,1,Hello world", "1,1,Hello world, how are you?"), RESULT1.toList)
-    assertEquals(
-      List("4,4,你好，陌生人", "4,4,你好，陌生人，我是", "4,4,你好，陌生人，我是中国人", "4,4,你好，陌生人，我是中国人，你来自哪里？"),
-      RESULT2.toList)
-    assertEquals(
+    assertThatIterable(RESULT1).containsExactlyElementsOf(
+      List("1,1,Hello world", "1,1,Hello world, how are you?"))
+    assertThatIterable(RESULT2).containsExactlyElementsOf(
+      List("4,4,你好，陌生人", "4,4,你好，陌生人，我是", "4,4,你好，陌生人，我是中国人", "4,4,你好，陌生人，我是中国人，你来自哪里？"))
+    assertThatIterable(RESULT3).containsExactlyElementsOf(
       List(
         "2,2,Hi",
         "2,2,Hello",
         "3,3,I'm fine, thank",
         "3,3,I'm fine, thank you",
-        "3,3,I'm fine, thank you, and you?"),
-      RESULT3.toList)
+        "3,3,I'm fine, thank you, and you?"))
   }
 
   @Test
   def testInsertWithStaticPartitions(): Unit = {
     registerTableSink()
     tEnv.executeSql("insert into sinkTable partition(a=1) select b, c from sortTable").await()
-    assertEquals(
+    assertThatIterable(
+      RESULT1
+    ).containsExactlyElementsOf(
       List(
         "1,2,Hi",
         "1,1,Hello world",
@@ -138,51 +134,47 @@ class PartitionableSinkITCase extends BatchTestBase {
         "1,4,你好，陌生人，我是",
         "1,4,你好，陌生人，我是中国人",
         "1,4,你好，陌生人，我是中国人，你来自哪里？"
-      ),
-      RESULT1.toList
-    )
-    assert(RESULT2.isEmpty)
-    assert(RESULT3.isEmpty)
+      ))
+    assertThat(RESULT2.isEmpty).isTrue
+    assertThat(RESULT3.isEmpty).isTrue
   }
 
   @Test
   def testInsertWithStaticAndDynamicPartitions(): Unit = {
     registerTableSink(partitionColumns = Array("a", "b"))
     tEnv.executeSql("insert into sinkTable partition(a=1) select b, c from sortTable").await()
-    assertEquals(List("1,1,Hello world", "1,1,Hello world, how are you?"), RESULT1.toList)
-    assertEquals(
-      List("1,4,你好，陌生人", "1,4,你好，陌生人，我是", "1,4,你好，陌生人，我是中国人", "1,4,你好，陌生人，我是中国人，你来自哪里？"),
-      RESULT2.toList)
-    assertEquals(
+    assertThatIterable(RESULT1).containsExactlyElementsOf(
+      List("1,1,Hello world", "1,1,Hello world, how are you?"))
+    assertThatIterable(RESULT2).containsExactlyElementsOf(
+      List("1,4,你好，陌生人", "1,4,你好，陌生人，我是", "1,4,你好，陌生人，我是中国人", "1,4,你好，陌生人，我是中国人，你来自哪里？"))
+    assertThatIterable(RESULT3).containsExactlyElementsOf(
       List(
         "1,2,Hi",
         "1,2,Hello",
         "1,3,I'm fine, thank",
         "1,3,I'm fine, thank you",
-        "1,3,I'm fine, thank you, and you?"),
-      RESULT3.toList)
+        "1,3,I'm fine, thank you, and you?"))
   }
 
   @Test
   def testInsertWithStaticPartitionAndStarSource(): Unit = {
     registerTableSink(partitionColumns = Array("b", "c"))
     tEnv.executeSql("insert into sinkTable partition(b=1) select * from starTable").await()
-    assertEquals(
+    assertThatIterable(RESULT1).containsExactlyElementsOf(
       List(
         "1,1,Hello world, how are you?",
         "3,1,I'm fine, thank you",
         "4,1,你好，陌生人",
-        "4,1,你好，陌生人，我是中国人"),
-      RESULT1.toList)
-    assertEquals(List("4,1,你好，陌生人，我是", "4,1,你好，陌生人，我是中国人，你来自哪里？"), RESULT2.toList)
-    assertEquals(
+        "4,1,你好，陌生人，我是中国人"))
+    assertThatIterable(RESULT2).containsExactlyElementsOf(
+      List("4,1,你好，陌生人，我是", "4,1,你好，陌生人，我是中国人，你来自哪里？"))
+    assertThatIterable(RESULT3).containsExactlyElementsOf(
       List(
         "2,1,Hello",
         "1,1,Hello world",
         "2,1,Hi",
         "3,1,I'm fine, thank",
-        "3,1,I'm fine, thank you, and you?"),
-      RESULT3.toList)
+        "3,1,I'm fine, thank you, and you?"))
   }
 
   @Test
@@ -193,23 +185,27 @@ class PartitionableSinkITCase extends BatchTestBase {
         "insert into sinkTable partition(b=1)\n"
           + "(values (1, 'Hello world, how are you?'), (4, '你好，陌生人，我是'), (2, 'Hello'))")
       .await()
-    assertEquals(List("1,1,Hello world, how are you?"), RESULT1.toList)
-    assertEquals(List("4,1,你好，陌生人，我是"), RESULT2.toList)
-    assertEquals(List("2,1,Hello"), RESULT3.toList)
+    assertThatIterable(RESULT1).containsExactlyElementsOf(List("1,1,Hello world, how are you?"))
+    assertThatIterable(RESULT2).containsExactlyElementsOf(List("4,1,你好，陌生人，我是"))
+    assertThatIterable(RESULT3).containsExactlyElementsOf(List("2,1,Hello"))
   }
 
   @Test
   def testStaticPartitionNotInPartitionFields(): Unit = {
-    expectedEx.expect(classOf[ValidationException])
     registerTableSink(tableName = "sinkTable2", rowType = type4, partitionColumns = Array("a", "b"))
-    tEnv.executeSql("insert into sinkTable2 partition(c=1) select a, b from sortTable").await()
+    assertThatThrownBy(
+      () =>
+        tEnv.executeSql("insert into sinkTable2 partition(c=1) select a, b from sortTable").await())
+      .isInstanceOf(classOf[ValidationException])
   }
 
   @Test
   def testInsertStaticPartitionOnNonPartitionedSink(): Unit = {
-    expectedEx.expect(classOf[TableException])
     registerTableSink(tableName = "sinkTable2", rowType = type4, partitionColumns = Array())
-    tEnv.executeSql("insert into sinkTable2 partition(c=1) select a, b from sortTable").await()
+    assertThatThrownBy(
+      () =>
+        tEnv.executeSql("insert into sinkTable2 partition(c=1) select a, b from sortTable").await())
+      .isInstanceOf(classOf[TableException])
   }
 
   private def registerTableSink(
@@ -244,8 +240,8 @@ object PartitionableSinkITCase {
   class UnsafeMemorySinkFunction(outputType: TypeInformation[Row]) extends RichSinkFunction[Row] {
     private var resultSet: JLinkedList[String] = _
 
-    override def open(param: Configuration): Unit = {
-      val taskId = getRuntimeContext.getIndexOfThisSubtask
+    override def open(openContext: OpenContext): Unit = {
+      val taskId = getRuntimeContext.getTaskInfo.getIndexOfThisSubtask
       resultSet = RESULT_QUEUE.get(taskId)
     }
 

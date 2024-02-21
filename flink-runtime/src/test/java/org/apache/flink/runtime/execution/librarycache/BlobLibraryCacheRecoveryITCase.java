@@ -35,6 +35,8 @@ import org.hamcrest.collection.IsEmptyCollection;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -42,6 +44,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -51,9 +54,17 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 /** Integration test for {@link BlobLibraryCacheManager}. */
+@RunWith(Parameterized.class)
 public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+    @Parameterized.Parameters(name = "Use system class loader: {0}")
+    public static List<Boolean> useSystemClassLoader() {
+        return Arrays.asList(true, false);
+    }
+
+    @Parameterized.Parameter public boolean wrapsSystemClassLoader;
     /**
      * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from
      * any participating BlobLibraryCacheManager.
@@ -69,11 +80,11 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
         BlobStoreService blobStoreService = null;
 
         Configuration config = new Configuration();
-        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-        config.setString(
+        config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH,
                 temporaryFolder.newFolder().getAbsolutePath());
-        config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 3_600L);
+        config.set(BlobServerOptions.CLEANUP_INTERVAL, 3_600L);
 
         final ExecutorService executorService = Executors.newSingleThreadExecutor();
         try {
@@ -90,7 +101,9 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
                 server[i] = new BlobServer(config, temporaryFolder.newFolder(), blobStoreService);
                 server[i].start();
                 serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
-                libServer[i] = new BlobLibraryCacheManager(server[i], classLoaderFactory);
+                libServer[i] =
+                        new BlobLibraryCacheManager(
+                                server[i], classLoaderFactory, wrapsSystemClassLoader);
             }
 
             // Random data
@@ -169,8 +182,8 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
             server[1].globalCleanupAsync(jobId, executorService).join();
 
             // Verify everything is clean below recoveryDir/<cluster_id>
-            final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
-            String haBlobStorePath = config.getString(HighAvailabilityOptions.HA_STORAGE_PATH);
+            final String clusterId = config.get(HighAvailabilityOptions.HA_CLUSTER_ID);
+            String haBlobStorePath = config.get(HighAvailabilityOptions.HA_STORAGE_PATH);
             File haBlobStoreDir = new File(haBlobStorePath, clusterId);
             File[] recoveryFiles = haBlobStoreDir.listFiles();
             assertNotNull("HA storage directory does not exist", recoveryFiles);
@@ -197,7 +210,8 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
             }
 
             if (blobStoreService != null) {
-                blobStoreService.closeAndCleanupAllData();
+                blobStoreService.cleanupAllData();
+                blobStoreService.close();
             }
         }
     }

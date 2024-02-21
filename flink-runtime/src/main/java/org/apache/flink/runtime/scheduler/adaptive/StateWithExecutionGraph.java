@@ -23,10 +23,12 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
+import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
@@ -39,6 +41,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
@@ -51,6 +54,7 @@ import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.KvStateHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.VertexEndOfDataListener;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
@@ -65,6 +69,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -92,6 +97,8 @@ abstract class StateWithExecutionGraph implements State {
 
     private final List<ExceptionHistoryEntry> failureCollection;
 
+    private final VertexEndOfDataListener vertexEndOfDataListener;
+
     StateWithExecutionGraph(
             Context context,
             ExecutionGraph executionGraph,
@@ -108,6 +115,7 @@ abstract class StateWithExecutionGraph implements State {
         this.logger = logger;
         this.userCodeClassLoader = userClassCodeLoader;
         this.failureCollection = new ArrayList<>(failureCollection);
+        this.vertexEndOfDataListener = new VertexEndOfDataListener(executionGraph);
 
         FutureUtils.assertNoException(
                 executionGraph
@@ -194,12 +202,44 @@ abstract class StateWithExecutionGraph implements State {
         executionGraphHandler.declineCheckpoint(decline);
     }
 
+    void notifyEndOfData(ExecutionAttemptID executionAttemptID) {
+        CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
+                executionGraph.getCheckpointCoordinatorConfiguration();
+        if (checkpointCoordinatorConfiguration != null
+                && checkpointCoordinatorConfiguration.isCheckpointingEnabled()
+                && checkpointCoordinatorConfiguration.isEnableCheckpointsAfterTasksFinish()) {
+            vertexEndOfDataListener.recordTaskEndOfData(executionAttemptID);
+            if (vertexEndOfDataListener.areAllTasksOfJobVertexEndOfData(
+                    executionAttemptID.getJobVertexId())) {
+                List<OperatorIDPair> operatorIDPairs =
+                        executionGraph
+                                .getJobVertex(executionAttemptID.getJobVertexId())
+                                .getOperatorIDs();
+                CheckpointCoordinator checkpointCoordinator =
+                        executionGraph.getCheckpointCoordinator();
+                if (checkpointCoordinator != null) {
+                    for (OperatorIDPair operatorIDPair : operatorIDPairs) {
+                        checkpointCoordinator.setIsProcessingBacklog(
+                                operatorIDPair.getGeneratedOperatorID(), false);
+                    }
+                }
+            }
+            if (vertexEndOfDataListener.areAllTasksEndOfData()) {
+                triggerCheckpoint(CheckpointType.CONFIGURED);
+            }
+        }
+    }
+
     void reportCheckpointMetrics(
             ExecutionAttemptID executionAttemptID,
             long checkpointId,
             CheckpointMetrics checkpointMetrics) {
         executionGraphHandler.reportCheckpointMetrics(
                 executionAttemptID, checkpointId, checkpointMetrics);
+    }
+
+    void reportInitializationMetrics(SubTaskInitializationMetrics initializationMetrics) {
+        executionGraphHandler.reportInitializationMetrics(initializationMetrics);
     }
 
     void updateAccumulators(AccumulatorSnapshot accumulatorSnapshot) {
@@ -332,8 +372,9 @@ abstract class StateWithExecutionGraph implements State {
     abstract void onGloballyTerminalState(JobStatus globallyTerminalState);
 
     @Override
-    public void handleGlobalFailure(Throwable cause) {
-        failureCollection.add(ExceptionHistoryEntry.createGlobal(cause));
+    public void handleGlobalFailure(
+            Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {
+        failureCollection.add(ExceptionHistoryEntry.createGlobal(cause, failureLabels));
         onFailure(cause);
     }
 
@@ -342,9 +383,12 @@ abstract class StateWithExecutionGraph implements State {
      *
      * @param taskExecutionStateTransition taskExecutionStateTransition to update the ExecutionGraph
      *     with
+     * @param failureLabels the failure labels to attach to the task failure cause
      * @return {@code true} if the update was successful; otherwise {@code false}
      */
-    boolean updateTaskExecutionState(TaskExecutionStateTransition taskExecutionStateTransition) {
+    boolean updateTaskExecutionState(
+            TaskExecutionStateTransition taskExecutionStateTransition,
+            CompletableFuture<Map<String, String>> failureLabels) {
         // collect before updateState, as updateState may deregister the execution
         final Optional<AccessExecution> maybeExecution =
                 executionGraph.findExecution(taskExecutionStateTransition.getID());
@@ -359,7 +403,8 @@ abstract class StateWithExecutionGraph implements State {
             final String taskName = maybeTaskName.orElseThrow(NoSuchElementException::new);
             final ExecutionState currentState = execution.getState();
             if (currentState == desiredState) {
-                failureCollection.add(ExceptionHistoryEntry.create(execution, taskName));
+                failureCollection.add(
+                        ExceptionHistoryEntry.create(execution, taskName, failureLabels));
                 onFailure(
                         ErrorInfo.handleMissingThrowable(
                                 taskExecutionStateTransition.getError(userCodeClassLoader)));

@@ -25,9 +25,9 @@ import org.apache.flink.table.runtime.operators.aggregate.window.buffers.Records
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.rank.window.combines.TopNRecordsCombiner;
 import org.apache.flink.table.runtime.operators.rank.window.processors.WindowRankProcessor;
-import org.apache.flink.table.runtime.operators.window.combines.RecordsCombiner;
-import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowOperator;
-import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.combines.RecordsCombiner;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 
@@ -37,7 +37,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The {@link WindowRankOperatorBuilder} is used to build a {@link SlicingWindowOperator} for window
+ * The {@link WindowRankOperatorBuilder} is used to build a {@link WindowAggOperator} for window
  * rank.
  *
  * <pre>
@@ -116,7 +116,7 @@ public class WindowRankOperatorBuilder {
         return this;
     }
 
-    public SlicingWindowOperator<RowData, ?> build() {
+    public WindowAggOperator<RowData, ?> build() {
         checkNotNull(inputSerializer);
         checkNotNull(keySerializer);
         checkNotNull(sortKeySelector);
@@ -152,6 +152,6 @@ public class WindowRankOperatorBuilder {
                         outputRankNumber,
                         windowEndIndex,
                         shiftTimeZone);
-        return new SlicingWindowOperator<>(windowProcessor);
+        return new WindowAggOperator<>(windowProcessor);
     }
 }

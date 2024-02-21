@@ -19,6 +19,7 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
@@ -38,6 +39,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
@@ -119,7 +121,7 @@ public class NFA<T> {
     }
 
     private Map<String, State<T>> loadStates(final Collection<State<T>> validStates) {
-        Map<String, State<T>> tmp = new HashMap<>(4);
+        Map<String, State<T>> tmp = CollectionUtil.newHashMapWithExpectedSize(4);
         for (State<T> state : validStates) {
             tmp.put(state.getName(), state);
         }
@@ -200,7 +202,7 @@ public class NFA<T> {
             for (StateTransition<T> transition : state.getStateTransitions()) {
                 IterativeCondition condition = transition.getCondition();
                 FunctionUtils.setFunctionRuntimeContext(condition, cepRuntimeContext);
-                FunctionUtils.openFunction(condition, conf);
+                FunctionUtils.openFunction(condition, DefaultOpenContext.INSTANCE);
             }
         }
     }
@@ -982,9 +984,7 @@ public class NFA<T> {
 
         private static final int VERSION = 2;
 
-        public MigratedNFASerializerSnapshot() {
-            super(NFASerializer.class);
-        }
+        public MigratedNFASerializerSnapshot() {}
 
         MigratedNFASerializerSnapshot(NFASerializer<T> legacyNfaSerializer) {
             super(legacyNfaSerializer);

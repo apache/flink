@@ -35,10 +35,10 @@ import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
-import org.apache.flink.shaded.guava30.com.google.common.base.Splitter;
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMultimap;
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
-import org.apache.flink.shaded.guava30.com.google.common.collect.Multimap;
+import org.apache.flink.shaded.guava31.com.google.common.base.Splitter;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMultimap;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Multimap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -353,8 +353,7 @@ public abstract class FileSystem {
             FALLBACK_FACTORY.configure(config);
 
             // also read the default file system scheme
-            final String stringifiedUri =
-                    config.getString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, null);
+            final String stringifiedUri = config.get(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, null);
             if (stringifiedUri == null) {
                 defaultScheme = null;
             } else {
@@ -375,7 +374,7 @@ public abstract class FileSystem {
                     Splitter.on(';')
                             .omitEmptyStrings()
                             .trimResults()
-                            .split(config.getString(CoreOptions.ALLOWED_FALLBACK_FILESYSTEMS));
+                            .split(config.get(CoreOptions.ALLOWED_FALLBACK_FILESYSTEMS));
             allowedFallbackFilesystems.forEach(ALLOWED_FALLBACK_FILESYSTEMS::add);
         } finally {
             LOCK.unlock();

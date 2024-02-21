@@ -35,8 +35,7 @@ import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.testutils.serialization.types.ShortType;
 
-import org.junit.experimental.runners.Enclosed;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Nested;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -46,8 +45,7 @@ import java.util.List;
  * Test case for built-in FirstValue with retract aggregate function. This class tests `accumulate`
  * method without order argument.
  */
-@RunWith(Enclosed.class)
-public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
+final class FirstValueWithRetractAggFunctionWithoutOrderTest {
 
     // --------------------------------------------------------------------------------------------
     // Test sets for a particular type being aggregated
@@ -57,7 +55,8 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
     // --------------------------------------------------------------------------------------------
 
     /** Test for {@link TinyIntType}. */
-    public static final class ByteFirstValueWithRetractAggFunctionWithoutOrderTest
+    @Nested
+    final class ByteFirstValueWithRetractAggFunctionWithoutOrderTest
             extends NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<Byte> {
 
         @Override
@@ -72,7 +71,8 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
     }
 
     /** Test for {@link ShortType}. */
-    public static final class ShortFirstValueWithRetractAggFunctionWithoutOrderTest
+    @Nested
+    final class ShortFirstValueWithRetractAggFunctionWithoutOrderTest
             extends NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<Short> {
 
         @Override
@@ -88,7 +88,8 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
     }
 
     /** Test for {@link IntType}. */
-    public static final class IntFirstValueWithRetractAggFunctionWithoutOrderTest
+    @Nested
+    final class IntFirstValueWithRetractAggFunctionWithoutOrderTest
             extends NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<Integer> {
 
         @Override
@@ -104,7 +105,8 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
     }
 
     /** Test for {@link BigIntType}. */
-    public static final class LongFirstValueWithRetractAggFunctionWithoutOrderTest
+    @Nested
+    final class LongFirstValueWithRetractAggFunctionWithoutOrderTest
             extends NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<Long> {
 
         @Override
@@ -119,7 +121,8 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
     }
 
     /** Test for {@link FloatType}. */
-    public static final class FloatFirstValueWithRetractAggFunctionWithoutOrderTest
+    @Nested
+    final class FloatFirstValueWithRetractAggFunctionWithoutOrderTest
             extends NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<Float> {
 
         @Override
@@ -135,7 +138,8 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
     }
 
     /** Test for {@link DoubleType}. */
-    public static final class DoubleFirstValueWithRetractAggFunctionWithoutOrderTest
+    @Nested
+    final class DoubleFirstValueWithRetractAggFunctionWithoutOrderTest
             extends NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<Double> {
 
         @Override
@@ -151,7 +155,8 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
     }
 
     /** Test for {@link BooleanType}. */
-    public static final class BooleanFirstValueWithRetractAggFunctionWithoutOrderTest
+    @Nested
+    final class BooleanFirstValueWithRetractAggFunctionWithoutOrderTest
             extends FirstValueWithRetractAggFunctionWithoutOrderTestBase<Boolean> {
 
         @Override
@@ -177,7 +182,8 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
     }
 
     /** Test for {@link DecimalType}. */
-    public static final class DecimalFirstValueWithRetractAggFunctionWithoutOrderTest
+    @Nested
+    final class DecimalFirstValueWithRetractAggFunctionWithoutOrderTest
             extends FirstValueWithRetractAggFunctionWithoutOrderTestBase<DecimalData> {
 
         private int precision = 20;
@@ -217,7 +223,8 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
     }
 
     /** Test for {@link VarCharType}. */
-    public static final class StringFirstValueWithRetractAggFunctionWithoutOrderTest
+    @Nested
+    final class StringFirstValueWithRetractAggFunctionWithoutOrderTest
             extends FirstValueWithRetractAggFunctionWithoutOrderTestBase<StringData> {
 
         @Override
@@ -261,7 +268,7 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
     // --------------------------------------------------------------------------------------------
 
     /** Test base for {@link FirstValueWithRetractAggFunction} without order. */
-    public abstract static class FirstValueWithRetractAggFunctionWithoutOrderTestBase<T>
+    abstract static class FirstValueWithRetractAggFunctionWithoutOrderTestBase<T>
             extends AggFunctionTestBase<T, T, FirstValueWithRetractAccumulator<T>> {
 
         @Override
@@ -276,7 +283,7 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
     }
 
     /** Test base for {@link FirstValueWithRetractAggFunction} with number types. */
-    public abstract static class NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<T>
+    abstract static class NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<T>
             extends FirstValueWithRetractAggFunctionWithoutOrderTestBase<T> {
 
         protected abstract T getValue(String v);

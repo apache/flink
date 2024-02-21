@@ -53,12 +53,20 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ABS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ACOS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_AGG;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_APPEND;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_CONCAT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_CONTAINS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_DISTINCT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_ELEMENT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_MAX;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_MIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_POSITION;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_PREPEND;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_REMOVE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_REVERSE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_SLICE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_UNION;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASCII;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AT;
@@ -121,6 +129,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOG2;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOWER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LPAD;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LTRIM;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_ENTRIES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_KEYS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_VALUES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAX;
@@ -519,6 +528,11 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Returns multiset aggregate of a given expression. */
     public OutType collect() {
         return toApiSpecificExpression(unresolvedCall(COLLECT, toExpr()));
+    }
+
+    /** Returns array aggregate of a given expression. */
+    public OutType arrayAgg() {
+        return toApiSpecificExpression(unresolvedCall(ARRAY_AGG, toExpr()));
     }
 
     /**
@@ -1344,6 +1358,18 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
+     * Appends an element to the end of the array and returns the result.
+     *
+     * <p>If the array itself is null, the function will return null. If an element to add is null,
+     * the null element will be added to the end of the array. The given element is cast implicitly
+     * to the array's element type if necessary.
+     */
+    public OutType arrayAppend(InType element) {
+        return toApiSpecificExpression(
+                unresolvedCall(ARRAY_APPEND, toExpr(), objectToExpression(element)));
+    }
+
+    /**
      * Returns whether the given element exists in an array.
      *
      * <p>Checking for null elements in the array is supported. If the array itself is null, the
@@ -1378,6 +1404,18 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
+     * Appends an element to the beginning of the array and returns the result.
+     *
+     * <p>If the array itself is null, the function will return null. If an element to add is null,
+     * the null element will be added to the beginning of the array. The given element is cast
+     * implicitly to the array's element type if necessary.
+     */
+    public OutType arrayPrepend(InType element) {
+        return toApiSpecificExpression(
+                unresolvedCall(ARRAY_PREPEND, toExpr(), objectToExpression(element)));
+    }
+
+    /**
      * Removes all elements that equal to element from array.
      *
      * <p>If the array itself is null, the function will return null. Keeps ordering of elements.
@@ -1396,6 +1434,91 @@ public abstract class BaseExpressions<InType, OutType> {
         return toApiSpecificExpression(unresolvedCall(ARRAY_REVERSE, toExpr()));
     }
 
+    /**
+     * Returns a subarray of the input array between 'start_offset' and 'end_offset' inclusive. The
+     * offsets are 1-based however 0 is also treated as the beginning of the array. Positive values
+     * are counted from the beginning of the array while negative from the end. If 'end_offset' is
+     * omitted then this offset is treated as the length of the array. If 'start_offset' is after
+     * 'end_offset' or both are out of array bounds an empty array will be returned.
+     *
+     * <p>Returns null if any input is null.
+     */
+    public OutType arraySlice(InType startOffset, InType endOffset) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        ARRAY_SLICE,
+                        toExpr(),
+                        objectToExpression(startOffset),
+                        objectToExpression(endOffset)));
+    }
+
+    public OutType arraySlice(InType startOffset) {
+        return toApiSpecificExpression(
+                unresolvedCall(ARRAY_SLICE, toExpr(), objectToExpression(startOffset)));
+    }
+
+    /**
+     * Returns an array of the elements in the union of array1 and array2, without duplicates.
+     *
+     * <p>If any of the array is null, the function will return null.
+     */
+    public OutType arrayUnion(InType array) {
+        return toApiSpecificExpression(
+                unresolvedCall(ARRAY_UNION, toExpr(), objectToExpression(array)));
+    }
+
+    /**
+     * Returns an array that is the result of concatenating at least one array. This array contains
+     * all the elements in the first array, followed by all the elements in the second array, and so
+     * forth, up to the Nth array.
+     *
+     * <p>If any input array is NULL, the function returns NULL.
+     */
+    public OutType arrayConcat(InType... arrays) {
+        arrays = convertToArrays(arrays);
+        Expression[] args =
+                Stream.concat(
+                                Stream.of(toExpr()),
+                                Arrays.stream(arrays).map(ApiExpressionUtils::objectToExpression))
+                        .toArray(Expression[]::new);
+        return toApiSpecificExpression(unresolvedCall(ARRAY_CONCAT, args));
+    }
+
+    private InType[] convertToArrays(InType[] arrays) {
+        if (arrays == null || arrays.length == 0) {
+            return arrays;
+        }
+        InType notNullArray = null;
+        for (int i = 0; i < arrays.length; ++i) {
+            if (arrays[i] != null) {
+                notNullArray = arrays[i];
+            }
+        }
+        if (!(notNullArray instanceof Object[])) {
+            return (InType[]) new Object[] {arrays};
+        } else {
+            return arrays;
+        }
+    }
+
+    /**
+     * Returns the maximum value from the array.
+     *
+     * <p>if array itself is null, the function returns null.
+     */
+    public OutType arrayMax() {
+        return toApiSpecificExpression(unresolvedCall(ARRAY_MAX, toExpr()));
+    }
+
+    /**
+     * Returns the minimum value from the array.
+     *
+     * <p>if array itself is null, the function returns null.
+     */
+    public OutType arrayMin() {
+        return toApiSpecificExpression(unresolvedCall(ARRAY_MIN, toExpr()));
+    }
+
     /** Returns the keys of the map as an array. */
     public OutType mapKeys() {
         return toApiSpecificExpression(unresolvedCall(MAP_KEYS, toExpr()));
@@ -1404,6 +1527,11 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Returns the values of the map as an array. */
     public OutType mapValues() {
         return toApiSpecificExpression(unresolvedCall(MAP_VALUES, toExpr()));
+    }
+
+    /** Returns an array of all entries in the given map. */
+    public OutType mapEntries() {
+        return toApiSpecificExpression(unresolvedCall(MAP_ENTRIES, toExpr()));
     }
 
     // Time definition

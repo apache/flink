@@ -23,16 +23,14 @@ import org.apache.flink.annotation.PublicEvolving;
 
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.junit.ArchTag;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.thirdparty.com.google.common.base.Joiner;
 
-import static com.tngtech.archunit.base.DescribedPredicate.not;
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAnyPackage;
-import static com.tngtech.archunit.core.domain.JavaModifier.PUBLIC;
-import static com.tngtech.archunit.core.domain.properties.HasModifiers.Predicates.modifier;
 import static com.tngtech.archunit.library.freeze.FreezingArchRule.freeze;
-import static org.apache.flink.architecture.common.GivenJavaClasses.noJavaClassesThat;
+import static org.apache.flink.architecture.common.GivenJavaClasses.javaClassesThat;
 import static org.apache.flink.architecture.common.Predicates.areDirectlyAnnotatedWithAtLeastOneOf;
 
 /** Rules for Flink connectors. */
@@ -41,27 +39,41 @@ public class ConnectorRules {
         "org.apache.flink.connector..", "org.apache.flink.streaming.connectors.."
     };
 
-    private static DescribedPredicate<JavaClass> areNotPublicAndResideOutsideOfPackages(
-            String... packageIdentifiers) {
-        return JavaClass.Predicates.resideOutsideOfPackages(packageIdentifiers)
+    private static DescribedPredicate<JavaClass>
+            areFlinkClassesThatResideOutsideOfConnectorPackagesAndArePublic() {
+        return JavaClass.Predicates.resideInAPackage("org.apache.flink..")
+                .and(JavaClass.Predicates.resideOutsideOfPackages(CONNECTOR_PACKAGES))
                 .and(
-                        not(areDirectlyAnnotatedWithAtLeastOneOf(
-                                        Public.class, PublicEvolving.class))
-                                .and(not(modifier(PUBLIC))))
+                        areDirectlyAnnotatedWithAtLeastOneOf(Public.class, PublicEvolving.class)
+                                .or(areEnclosedInPublicClasses()))
                 .as(
-                        "are not public and reside outside of packages ['%s']",
-                        Joiner.on("', '").join(packageIdentifiers));
+                        "are flink classes that reside outside of connector packages and that are public",
+                        Joiner.on("', '").join(CONNECTOR_PACKAGES));
+    }
+
+    private static DescribedPredicate<JavaClass> areEnclosedInPublicClasses() {
+        return JavaClass.Predicates.belongTo(
+                        areDirectlyAnnotatedWithAtLeastOneOf(Public.class, PublicEvolving.class))
+                .as("are enclosed in public classes");
     }
 
     @ArchTest
+    @ArchTag(value = "org.apache.flink.testutils.junit.FailsOnJava11")
+    @ArchTag(value = "org.apache.flink.testutils.junit.FailsOnJava17")
     public static final ArchRule CONNECTOR_CLASSES_ONLY_DEPEND_ON_PUBLIC_API =
             freeze(
-                    noJavaClassesThat(resideInAnyPackage(CONNECTOR_PACKAGES))
+                    javaClassesThat(resideInAnyPackage(CONNECTOR_PACKAGES))
                             .and()
                             .areNotAnnotatedWith(Deprecated.class)
                             .should()
-                            .dependOnClassesThat(
-                                    areNotPublicAndResideOutsideOfPackages(CONNECTOR_PACKAGES))
+                            .onlyDependOnClassesThat(
+                                    areFlinkClassesThatResideOutsideOfConnectorPackagesAndArePublic()
+                                            .or(
+                                                    JavaClass.Predicates.resideOutsideOfPackages(
+                                                            "org.apache.flink.."))
+                                            .or(
+                                                    JavaClass.Predicates.resideInAnyPackage(
+                                                            CONNECTOR_PACKAGES)))
                             .as(
-                                    "Connector production code must not depend on non-public API outside of connector packages"));
+                                    "Connector production code must depend only on public API when outside of connector packages"));
 }

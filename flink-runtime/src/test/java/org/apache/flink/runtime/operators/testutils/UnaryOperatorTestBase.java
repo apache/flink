@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -41,14 +42,13 @@ import org.apache.flink.runtime.operators.sort.Sorter;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -56,8 +56,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-@RunWith(Parameterized.class)
-public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT> extends TestLogger
+import static org.assertj.core.api.Assertions.assertThat;
+
+@ExtendWith(ParameterizedTestExtension.class)
+public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT>
         implements TaskContext<S, OUT> {
 
     protected static final long DEFAULT_PER_SORT_MEM = 16 * 1024 * 1024;
@@ -129,8 +131,8 @@ public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT> extends
         this.taskManageInfo = new TestingTaskManagerRuntimeInfo();
     }
 
-    @Parameterized.Parameters
-    public static Collection<Object[]> getConfigurations() {
+    @Parameters
+    private static Collection<Object[]> getConfigurations() {
         ExecutionConfig withReuse = new ExecutionConfig();
         withReuse.enableObjectReuse();
 
@@ -142,13 +144,13 @@ public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT> extends
         return Arrays.asList(a, b);
     }
 
-    public void setInput(MutableObjectIterator<IN> input, TypeSerializer<IN> serializer) {
+    protected void setInput(MutableObjectIterator<IN> input, TypeSerializer<IN> serializer) {
         this.input = input;
         this.inputSerializer = serializer;
         this.sorter = null;
     }
 
-    public void addInputSorted(
+    protected void addInputSorted(
             MutableObjectIterator<IN> input, TypeSerializer<IN> serializer, TypeComparator<IN> comp)
             throws Exception {
         this.input = null;
@@ -168,33 +170,33 @@ public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT> extends
                         .build(input);
     }
 
-    public void addDriverComparator(TypeComparator<IN> comparator) {
+    protected void addDriverComparator(TypeComparator<IN> comparator) {
         this.comparators.add(comparator);
     }
 
-    public void setOutput(Collector<OUT> output) {
+    protected void setOutput(Collector<OUT> output) {
         this.output = output;
     }
 
-    public void setOutput(List<OUT> output, TypeSerializer<OUT> outSerializer) {
+    protected void setOutput(List<OUT> output, TypeSerializer<OUT> outSerializer) {
         this.output = new ListOutputCollector<OUT>(output, outSerializer);
     }
 
-    public int getNumFileHandlesForSort() {
+    protected int getNumFileHandlesForSort() {
         return numFileHandles;
     }
 
-    public void setNumFileHandlesForSort(int numFileHandles) {
+    protected void setNumFileHandlesForSort(int numFileHandles) {
         this.numFileHandles = numFileHandles;
     }
 
     @SuppressWarnings("rawtypes")
-    public void testDriver(Driver driver, Class stubClass) throws Exception {
+    protected void testDriver(Driver driver, Class stubClass) throws Exception {
         testDriverInternal(driver, stubClass);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public void testDriverInternal(Driver driver, Class stubClass) throws Exception {
+    protected void testDriverInternal(Driver driver, Class stubClass) throws Exception {
 
         this.driver = driver;
         driver.setup(this);
@@ -215,7 +217,7 @@ public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT> extends
 
             // open stub implementation
             try {
-                FunctionUtils.openFunction(this.stub, getTaskConfig().getStubParameters());
+                FunctionUtils.openFunction(this.stub, DefaultOpenContext.INSTANCE);
                 stubOpen = true;
             } catch (Throwable t) {
                 throw new Exception(
@@ -268,7 +270,7 @@ public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT> extends
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public void testResettableDriver(ResettableDriver driver, Class stubClass, int iterations)
+    protected void testResettableDriver(ResettableDriver driver, Class stubClass, int iterations)
             throws Exception {
         driver.setup(this);
 
@@ -284,7 +286,7 @@ public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT> extends
         driver.teardown();
     }
 
-    public void cancel() throws Exception {
+    protected void cancel() throws Exception {
         this.running = false;
         this.driver.cancel();
     }
@@ -386,8 +388,8 @@ public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT> extends
 
     // --------------------------------------------------------------------------------------------
 
-    @After
-    public void shutdownAll() throws Exception {
+    @AfterEach
+    void shutdownAll() throws Exception {
         // 1st, shutdown sorters
         if (this.sorter != null) {
             sorter.close();
@@ -399,9 +401,9 @@ public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT> extends
         // last, verify all memory is returned and shutdown mem manager
         MemoryManager memMan = getMemoryManager();
         if (memMan != null) {
-            Assert.assertTrue(
-                    "Memory Manager managed memory was not completely freed.",
-                    memMan.verifyEmpty());
+            assertThat(memMan.verifyEmpty())
+                    .withFailMessage("Memory Manager managed memory was not completely freed.")
+                    .isTrue();
             memMan.shutdown();
         }
     }
@@ -425,22 +427,5 @@ public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT> extends
 
         @Override
         public void close() {}
-    }
-
-    public static final class CountingOutputCollector<OUT> implements Collector<OUT> {
-
-        private int num;
-
-        @Override
-        public void collect(OUT record) {
-            this.num++;
-        }
-
-        @Override
-        public void close() {}
-
-        public int getNumberOfRecords() {
-            return this.num;
-        }
     }
 }

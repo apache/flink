@@ -291,6 +291,7 @@
       "timeAttributeIndex" : 4,
       "isRowtime" : true
     },
+    "needRetraction" : false,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -478,6 +479,7 @@
         }
       }
     } ],
+    "needRetraction" : false,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -603,6 +605,7 @@
       "windowEnd" : 2,
       "isRowtime" : true
     },
+    "needRetraction" : false,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -703,6 +706,7 @@
         }
       }
     } ],
+    "needRetraction" : false,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -787,6 +791,7 @@
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
       "table.exec.sink.type-length-enforcer" : "IGNORE",
       "table.exec.sink.upsert-materialize" : "AUTO"
     },
@@ -818,9 +823,9 @@
           },
           "partitionKeys" : [ ],
           "options" : {
+            "connector" : "values",
             "sink-insert-only" : "false",
-            "table-sink-class" : "DEFAULT",
-            "connector" : "values"
+            "table-sink-class" : "DEFAULT"
           }
         }
       }

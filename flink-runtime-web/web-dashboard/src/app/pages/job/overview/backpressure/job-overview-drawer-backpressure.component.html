@@ -50,15 +50,20 @@
             ></flink-dynamic-host>
           </span>
         </span>
-        <span *ngIf="selectedVertex?.detail?.status !== 'RUNNING'">
-          Operator is not running. Cannot sample back pressure.
+        <span
+          *ngIf="
+            selectedVertex?.detail?.status !== 'RUNNING' &&
+            selectedVertex?.detail?.status !== 'INITIALIZING'
+          "
+        >
+          Operator is not running or initializing. Cannot sample back pressure.
         </span>
       </th>
     </tr>
     <tr>
       <th>SubTask</th>
-      <th [nzSortFn]="sortByBackpressureRatio" [nzSortOrder]="'descend'">Backpressure</th>
-      <th [nzSortFn]="sortByIdleRatio" [nzSortOrder]="'descend'">Idle</th>
+      <th [nzSortFn]="sortByBackpressureRatio">Backpressure</th>
+      <th [nzSortFn]="sortByIdleRatio">Idle</th>
       <th [nzSortFn]="sortByBusyRatio" [nzSortOrder]="'descend'">Busy</th>
       <th>Backpressure Status</th>
       <th>Thread Dump</th>
@@ -95,6 +100,10 @@
                 mapOfSubtask.get(subtask['subtask'])['taskmanager-id'],
                 'thread-dump'
               ]"
+              [queryParams]="{
+                vertexName: selectedVertex.detail.name + ' (' + (subtask['subtask'] + 1) + '/'
+              }"
+              target="_blank"
             >
               Dump
             </a>

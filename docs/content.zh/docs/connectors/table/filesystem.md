@@ -47,6 +47,8 @@ CREATE TABLE MyUserTable (
   'format' = '...',                     -- 必选：文件系统连接器指定 format
                                         -- 有关更多详情，请参考 Table Formats
   'partition.default-name' = '...',     -- 可选：默认的分区名，动态分区模式下分区字段值是 null 或空字符串
+  'source.path.regex-pattern' = '...',  -- 可选: 指定用于匹配需要读取文件的绝对路径的正则表达式，配置后连接器
+                                        -- 会遍历 path 配置项的目录下的全部文件进行匹配
 
   -- 可选：该属性开启了在 sink 阶段通过动态分区字段来 shuffle 数据，该功能可以大大减少文件系统 sink 的文件数，但是可能会导致数据倾斜，默认值是 false
   'sink.shuffle-by-partition.enable' = '...',
@@ -239,8 +241,8 @@ CREATE TABLE MyUserTableWithFilepath (
 
 **注意：** 对于 bulk formats 数据 (parquet、orc、avro)，滚动策略与 checkpoint 间隔（pending 状态的文件会在下个 checkpoint 完成）控制了 part 文件的大小和个数。
 
-**注意：** 对于 row formats 数据 (csv、json)，如果想使得分区文件更快在文件系统中可见，可以设置  `sink.rolling-policy.file-size` 或 `sink.rolling-policy.rollover-interval` 属性以及在 flink-conf.yaml 中的 `execution.checkpointing.interval` 属性。
-对于其他 formats (avro、orc)，可以只设置 flink-conf.yaml 中的 `execution.checkpointing.interval` 属性。
+**注意：** 对于 row formats 数据 (csv、json)，如果想使得分区文件更快在文件系统中可见，可以设置  `sink.rolling-policy.file-size` 或 `sink.rolling-policy.rollover-interval` 属性以及在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中的 `execution.checkpointing.interval` 属性。
+对于其他 formats (avro、orc)，可以只设置 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中的 `execution.checkpointing.interval` 属性。
 
 <a name="file-compaction"></a>
 
@@ -450,6 +452,13 @@ public class HourPartTimeExtractor implements PartitionTimeExtractor {
         <td style="word-wrap: break-word;">(无)</td>
         <td>String</td>
         <td> 实现 PartitionCommitPolicy 接口的分区提交策略类。只有在 custom 提交策略下才使用该类。</td>
+    </tr>
+    <tr>
+        <td><h5>sink.partition-commit.policy.class.parameters</h5></td>
+        <td style="word-wrap: break-word;">(无)</td>
+        <td>String</td>
+        <td> 传入 custom 提交策略类的字符串参数, 多个参数之间用分号分隔, 比如 'param1;param2',
+        该字符串将被切分为列表(['param1','param2'])并传给 custom 提交策略类的构造器。该项为可选项，不配置的话将使用类的默认构造方法。</td>
     </tr>
     <tr>
         <td><h5>sink.partition-commit.success-file.name</h5></td>

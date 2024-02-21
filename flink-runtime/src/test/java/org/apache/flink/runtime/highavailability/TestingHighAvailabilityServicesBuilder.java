@@ -24,11 +24,12 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.jobmanager.StandaloneJobGraphStore;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
-import org.apache.flink.runtime.leaderelection.StandaloneLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
+import org.apache.flink.runtime.leaderelection.StandaloneLeaderElection;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
@@ -52,17 +53,17 @@ public class TestingHighAvailabilityServicesBuilder {
                     new StandaloneLeaderRetrievalService(
                             "localhost", HighAvailabilityServices.DEFAULT_LEADER_ID);
 
-    private Function<JobID, LeaderElectionService> jobMasterLeaderElectionServiceFunction =
-            jobId -> new StandaloneLeaderElectionService();
+    private Function<JobID, LeaderElection> jobMasterLeaderElectionFunction =
+            jobId -> new StandaloneLeaderElection(UUID.randomUUID());
 
-    private LeaderElectionService resourceManagerLeaderElectionService =
-            new StandaloneLeaderElectionService();
+    private LeaderElection resourceManagerLeaderElection =
+            new StandaloneLeaderElection(UUID.randomUUID());
 
-    private LeaderElectionService dispatcherLeaderElectionService =
-            new StandaloneLeaderElectionService();
+    private LeaderElection dispatcherLeaderElection =
+            new StandaloneLeaderElection(UUID.randomUUID());
 
-    private LeaderElectionService webMonitorEndpointLeaderElectionService =
-            new StandaloneLeaderElectionService();
+    private LeaderElection webMonitorEndpointLeaderElection =
+            new StandaloneLeaderElection(UUID.randomUUID());
 
     private CheckpointRecoveryFactory checkpointRecoveryFactory =
             new StandaloneCheckpointRecoveryFactory();
@@ -73,7 +74,7 @@ public class TestingHighAvailabilityServicesBuilder {
 
     private CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
-    private CompletableFuture<Void> closeAndCleanupAllDataFuture = new CompletableFuture<>();
+    private CompletableFuture<Void> cleanupAllDataFuture = new CompletableFuture<>();
 
     public TestingHighAvailabilityServices build() {
         final TestingHighAvailabilityServices testingHighAvailabilityServices =
@@ -87,23 +88,21 @@ public class TestingHighAvailabilityServicesBuilder {
 
         testingHighAvailabilityServices.setJobMasterLeaderRetrieverFunction(
                 jobMasterLeaderRetrieverFunction);
-        testingHighAvailabilityServices.setJobMasterLeaderElectionServiceFunction(
-                jobMasterLeaderElectionServiceFunction);
+        testingHighAvailabilityServices.setJobMasterLeaderElectionFunction(
+                jobMasterLeaderElectionFunction);
 
-        testingHighAvailabilityServices.setResourceManagerLeaderElectionService(
-                resourceManagerLeaderElectionService);
-        testingHighAvailabilityServices.setDispatcherLeaderElectionService(
-                dispatcherLeaderElectionService);
-        testingHighAvailabilityServices.setClusterRestEndpointLeaderElectionService(
-                webMonitorEndpointLeaderElectionService);
+        testingHighAvailabilityServices.setResourceManagerLeaderElection(
+                resourceManagerLeaderElection);
+        testingHighAvailabilityServices.setDispatcherLeaderElection(dispatcherLeaderElection);
+        testingHighAvailabilityServices.setClusterRestEndpointLeaderElection(
+                webMonitorEndpointLeaderElection);
 
         testingHighAvailabilityServices.setCheckpointRecoveryFactory(checkpointRecoveryFactory);
         testingHighAvailabilityServices.setJobGraphStore(jobGraphStore);
         testingHighAvailabilityServices.setJobResultStore(jobResultStore);
 
         testingHighAvailabilityServices.setCloseFuture(closeFuture);
-        testingHighAvailabilityServices.setCloseAndCleanupAllDataFuture(
-                closeAndCleanupAllDataFuture);
+        testingHighAvailabilityServices.setCleanupAllDataFuture(cleanupAllDataFuture);
 
         return testingHighAvailabilityServices;
     }
@@ -132,27 +131,27 @@ public class TestingHighAvailabilityServicesBuilder {
         return this;
     }
 
-    public TestingHighAvailabilityServicesBuilder setJobMasterLeaderElectionServiceFunction(
-            Function<JobID, LeaderElectionService> jobMasterLeaderElectionServiceFunction) {
-        this.jobMasterLeaderElectionServiceFunction = jobMasterLeaderElectionServiceFunction;
+    public TestingHighAvailabilityServicesBuilder setJobMasterLeaderElectionFunction(
+            Function<JobID, LeaderElection> jobMasterLeaderElectionFunction) {
+        this.jobMasterLeaderElectionFunction = jobMasterLeaderElectionFunction;
         return this;
     }
 
-    public TestingHighAvailabilityServicesBuilder setResourceManagerLeaderElectionService(
-            LeaderElectionService resourceManagerLeaderElectionService) {
-        this.resourceManagerLeaderElectionService = resourceManagerLeaderElectionService;
+    public TestingHighAvailabilityServicesBuilder setResourceManagerLeaderElection(
+            LeaderElection resourceManagerLeaderElection) {
+        this.resourceManagerLeaderElection = resourceManagerLeaderElection;
         return this;
     }
 
-    public TestingHighAvailabilityServicesBuilder setDispatcherLeaderElectionService(
-            LeaderElectionService dispatcherLeaderElectionService) {
-        this.dispatcherLeaderElectionService = dispatcherLeaderElectionService;
+    public TestingHighAvailabilityServicesBuilder setDispatcherLeaderElection(
+            LeaderElection dispatcherLeaderElection) {
+        this.dispatcherLeaderElection = dispatcherLeaderElection;
         return this;
     }
 
-    public TestingHighAvailabilityServicesBuilder setWebMonitorEndpointLeaderElectionService(
-            LeaderElectionService webMonitorEndpointLeaderElectionService) {
-        this.webMonitorEndpointLeaderElectionService = webMonitorEndpointLeaderElectionService;
+    public TestingHighAvailabilityServicesBuilder setWebMonitorEndpointLeaderElection(
+            LeaderElection webMonitorEndpointLeaderElection) {
+        this.webMonitorEndpointLeaderElection = webMonitorEndpointLeaderElection;
         return this;
     }
 
@@ -178,9 +177,9 @@ public class TestingHighAvailabilityServicesBuilder {
         return this;
     }
 
-    public TestingHighAvailabilityServicesBuilder setCloseAndCleanupAllDataFuture(
-            CompletableFuture<Void> closeAndCleanupAllDataFuture) {
-        this.closeAndCleanupAllDataFuture = closeAndCleanupAllDataFuture;
+    public TestingHighAvailabilityServicesBuilder setCleanupAllDataFuture(
+            CompletableFuture<Void> cleanupAllDataFuture) {
+        this.cleanupAllDataFuture = cleanupAllDataFuture;
         return this;
     }
 }

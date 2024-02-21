@@ -139,18 +139,21 @@ GlobalGroupAggregate(groupBy=[a], select=[a, SUM(sum$0) AS EXPR$1, COUNT(distinc
     </Resource>
   </TestCase>
   <TestCase name="testAggWithMiniBatch">
-    <Resource name="sql">
-      <![CDATA[SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c)  FROM MyTable GROUP BY b]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[MAX($0)], EXPR$3=[SUM($2)])
 +- LogicalProject(b=[$1], a=[$0], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime, rowtime)]]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+
+== Optimized Physical Plan ==
+GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1, MAX(max$1) AS EXPR$2, SUM(sum$2) AS EXPR$3])
++- Exchange(distribution=[hash[b]])
+   +- LocalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 a) AS count$0, MAX(b) AS max$1, SUM(c) AS sum$2, DISTINCT(a) AS distinct$0])
+      +- Calc(select=[b, a, c])
+         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime, rowtime)]]], fields=[a, b, c, proctime, rowtime])
+
+== Optimized Execution Plan ==
 GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1, MAX(max$1) AS EXPR$2, SUM(sum$2) AS EXPR$3])
 +- Exchange(distribution=[hash[b]])
    +- LocalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 a) AS count$0, MAX(b) AS max$1, SUM(c) AS sum$2, DISTINCT(a) AS distinct$0])
@@ -264,7 +267,8 @@ GroupAggregate(select=[COUNT(*) AS EXPR$0])
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
 +- LogicalProject($f0=[0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+   +- LogicalProject(sys_col=[$2], id=[$0], cnt=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src, metadata=[sys_col]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -284,7 +288,8 @@ GroupAggregate(select=[COUNT(*) AS EXPR$0])
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
 +- LogicalProject($f0=[0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+   +- LogicalProject(sys_col=[$2], id=[$1], cnt=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src, metadata=[cnt, id, sys_col]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -304,7 +309,8 @@ GroupAggregate(select=[COUNT(*) AS EXPR$0])
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
 +- LogicalProject($f0=[0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+   +- LogicalProject(nested=[$0], sys_col=[$3], id=[$1], cnt=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src, metadata=[sys_col]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

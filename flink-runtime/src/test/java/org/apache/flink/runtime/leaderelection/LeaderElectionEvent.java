@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import java.util.Collection;
+import java.util.UUID;
 
 /** Leader election event. */
 public abstract class LeaderElectionEvent {
@@ -38,6 +38,10 @@ public abstract class LeaderElectionEvent {
         return false;
     }
 
+    public boolean isErrorEvent() {
+        return false;
+    }
+
     public IsLeaderEvent asIsLeaderEvent() {
         return as(IsLeaderEvent.class);
     }
@@ -51,6 +55,17 @@ public abstract class LeaderElectionEvent {
     }
 
     public static class IsLeaderEvent extends LeaderElectionEvent {
+
+        private final UUID leaderSessionID;
+
+        public IsLeaderEvent(UUID leaderSessionID) {
+            this.leaderSessionID = leaderSessionID;
+        }
+
+        public UUID getLeaderSessionID() {
+            return leaderSessionID;
+        }
+
         @Override
         public boolean isIsLeaderEvent() {
             return true;
@@ -87,13 +102,11 @@ public abstract class LeaderElectionEvent {
         }
     }
 
-    public static class AllKnownLeaderInformationEvent extends LeaderElectionEvent {
-        private final Collection<LeaderInformationWithComponentId>
-                leaderInformationWithComponentIds;
+    public static class AllLeaderInformationChangeEvent extends LeaderElectionEvent {
+        private final LeaderInformationRegister leaderInformationRegister;
 
-        AllKnownLeaderInformationEvent(
-                Collection<LeaderInformationWithComponentId> leaderInformationWithComponentIds) {
-            this.leaderInformationWithComponentIds = leaderInformationWithComponentIds;
+        AllLeaderInformationChangeEvent(LeaderInformationRegister leaderInformationRegister) {
+            this.leaderInformationRegister = leaderInformationRegister;
         }
 
         @Override
@@ -101,8 +114,30 @@ public abstract class LeaderElectionEvent {
             return true;
         }
 
-        public Collection<LeaderInformationWithComponentId> getLeaderInformationWithComponentIds() {
-            return leaderInformationWithComponentIds;
+        public LeaderInformationRegister getLeaderInformationRegister() {
+            return leaderInformationRegister;
+        }
+    }
+
+    /**
+     * A {@code LeaderElectionEvent} that's triggered by {@link
+     * LeaderElectionDriver.Listener#onError(Throwable)}.
+     */
+    public static class ErrorEvent extends LeaderElectionEvent {
+
+        private final Throwable error;
+
+        ErrorEvent(Throwable error) {
+            this.error = error;
+        }
+
+        public Throwable getError() {
+            return error;
+        }
+
+        @Override
+        public boolean isErrorEvent() {
+            return true;
         }
     }
 }

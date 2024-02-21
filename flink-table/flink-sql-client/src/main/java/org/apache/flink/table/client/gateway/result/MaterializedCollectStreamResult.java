@@ -22,8 +22,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.CollectionUtil;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /** Collects results and returns them as table snapshots. */
@@ -43,7 +43,7 @@ public class MaterializedCollectStreamResult extends MaterializedCollectResultBa
 
         final int initialCapacity =
                 computeMaterializedTableCapacity(maxRowCount); // avoid frequent resizing
-        rowPositionCache = new HashMap<>(initialCapacity);
+        rowPositionCache = CollectionUtil.newHashMapWithExpectedSize(initialCapacity);
         // start listener thread
         retrievalThread.start();
     }

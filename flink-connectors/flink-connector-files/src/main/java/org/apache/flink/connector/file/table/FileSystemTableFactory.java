@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.factories.BulkReaderFormatFactory;
 import org.apache.flink.connector.file.table.factories.BulkWriterFormatFactory;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -38,6 +39,7 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.factories.TableFactory;
 
+import java.time.ZoneId;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -45,8 +47,6 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static java.time.ZoneId.SHORT_IDS;
 
 /**
  * File system {@link TableFactory}.
@@ -107,6 +107,7 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
         options.add(FileSystemConnectorOptions.PARTITION_DEFAULT_NAME);
         options.add(FileSystemConnectorOptions.SOURCE_MONITOR_INTERVAL);
         options.add(FileSystemConnectorOptions.SOURCE_REPORT_STATISTICS);
+        options.add(FileSystemConnectorOptions.SOURCE_PATH_REGEX_PATTERN);
         options.add(FileSystemConnectorOptions.SINK_ROLLING_POLICY_FILE_SIZE);
         options.add(FileSystemConnectorOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL);
         options.add(FileSystemConnectorOptions.SINK_ROLLING_POLICY_INACTIVITY_INTERVAL);
@@ -121,6 +122,7 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
         options.add(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE);
         options.add(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND);
         options.add(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS);
+        options.add(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS_PARAMETERS);
         options.add(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME);
         options.add(FileSystemConnectorOptions.AUTO_COMPACTION);
         options.add(FileSystemConnectorOptions.COMPACTION_FILE_SIZE);
@@ -141,6 +143,7 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
                         FileSystemConnectorOptions.SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE,
                         FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND,
                         FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS,
+                        FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS_PARAMETERS,
                         FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME,
                         FileSystemConnectorOptions.COMPACTION_FILE_SIZE)
                 .collect(Collectors.toSet());
@@ -152,18 +155,9 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
         helper.validateExcept(helper.getOptions().get(FactoryUtil.FORMAT) + ".");
 
         // validate time zone of watermark
-        String watermarkTimeZone =
+        validateTimeZone(
                 helper.getOptions()
-                        .get(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE);
-        if (watermarkTimeZone.startsWith("UTC+")
-                || watermarkTimeZone.startsWith("UTC-")
-                || SHORT_IDS.containsKey(watermarkTimeZone)) {
-            throw new ValidationException(
-                    String.format(
-                            "The supported watermark time zone is either a full name such as 'America/Los_Angeles',"
-                                    + " or a custom time zone id such as 'GMT-08:00', but configured time zone is '%s'.",
-                            watermarkTimeZone));
-        }
+                        .get(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE));
     }
 
     private <I, F extends DecodingFormatFactory<I>> DecodingFormat<I> discoverDecodingFormat(
@@ -216,5 +210,29 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
                         .collect(Collectors.toList());
 
         return !matchingFactories.isEmpty();
+    }
+
+    /** Similar logic as for {@link TableConfig}. */
+    private void validateTimeZone(String zone) {
+        boolean isValid;
+        try {
+            // We enforce a zone string that is compatible with both java.util.TimeZone and
+            // java.time.ZoneId to avoid bugs.
+            // In general, advertising either TZDB ID, GMT+xx:xx, or UTC is the best we can do.
+            isValid = java.util.TimeZone.getTimeZone(zone).toZoneId().equals(ZoneId.of(zone));
+        } catch (Exception e) {
+            isValid = false;
+        }
+
+        if (!isValid) {
+            throw new ValidationException(
+                    String.format(
+                            "Invalid time zone for '%s'. The value should be a Time Zone Database (TZDB) ID "
+                                    + "such as 'America/Los_Angeles' to include daylight saving time. Fixed "
+                                    + "offsets are supported using 'GMT-03:00' or 'GMT+03:00'. Or use 'UTC' "
+                                    + "without time zone and daylight saving time.",
+                            FileSystemConnectorOptions.SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE
+                                    .key()));
+        }
     }
 }

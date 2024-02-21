@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-examples</artifactId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-examples-streaming</artifactId>
@@ -63,7 +63,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-kafka</artifactId>
-			<version>${project.version}</version>
+			<version>3.0.0-1.17</version>
 		</dependency>
 
 		<dependency>
@@ -137,6 +137,12 @@ under the License.
 						<configuration>
 							<compilerArgument>-Xlint:deprecation</compilerArgument>
 							<failOnWarning>true</failOnWarning>
+							<!-- This example is temporarily preserved only for testing purpose. -->
+							<excludes>
+								<exclude>
+									org/apache/flink/streaming/examples/iteration/IterateExample.java
+								</exclude>
+							</excludes>
 						</configuration>
 					</execution>
 				</executions>
@@ -155,30 +161,6 @@ under the License.
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
-					</execution>
-					
-					<!-- Iteration -->
-					<execution>
-						<id>Iteration</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>Iteration</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.iteration.IterateExample</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/streaming/examples/iteration/*.class</include>
-								<include>META-INF/LICENSE</include>
-								<include>META-INF/NOTICE</include>
-							</includes>
-						</configuration>
 					</execution>
 
 					<!-- WindowJoin -->
@@ -200,30 +182,6 @@ under the License.
 							<includes>
 								<include>org/apache/flink/streaming/examples/join/*.class</include>
 								<include>org/apache/flink/streaming/examples/utils/ThrottledIterator.class</include>
-								<include>META-INF/LICENSE</include>
-								<include>META-INF/NOTICE</include>
-							</includes>
-						</configuration>
-					</execution>
-
-					<!-- Async I/O -->
-					<execution>
-						<id>AsyncIO</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>AsyncIO</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.async.AsyncIOExample</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/streaming/examples/async/*.class</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>
@@ -282,65 +240,55 @@ under the License.
 						</configuration>
 					</execution>
 
-					<!-- TopSpeedWindowing -->
-					<execution>
-						<id>TopSpeedWindowing</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>TopSpeedWindowing</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.windowing.TopSpeedWindowing</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/streaming/examples/windowing/TopSpeedWindowing.class</include>
-								<include>org/apache/flink/streaming/examples/windowing/TopSpeedWindowing$*.class</include>
-								<include>org/apache/flink/streaming/examples/windowing/util/CarSource.class</include>
-								<include>org/apache/flink/streaming/examples/wordcount/util/CLI.class</include>
-								<include>META-INF/LICENSE</include>
-								<include>META-INF/NOTICE</include>
-							</includes>
-						</configuration>
-					</execution>
-
-					<!-- SessionWindowing -->
-					<execution>
-						<id>SessionWindowing</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>SessionWindowing</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.windowing.SessionWindowing</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/streaming/examples/windowing/SessionWindowing.class</include>
-								<include>org/apache/flink/streaming/examples/windowing/SessionWindowing$*.class</include>
-								<include>META-INF/LICENSE</include>
-								<include>META-INF/NOTICE</include>
-							</includes>
-						</configuration>
-					</execution>
-
 				</executions>
 			</plugin>
 
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
+				<configuration>
+					<createDependencyReducedPom>false</createDependencyReducedPom>
+				</configuration>
 				<executions>
+					<!-- Async I/O -->
+					<execution>
+						<id>AsyncIO</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<finalName>AsyncIO</finalName>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>AsyncIO</shadedClassifierName>
+							<artifactSet>
+								<includes>
+									<include>org.apache.flink:flink-connector-datagen</include>
+								</includes>
+							</artifactSet>
+							<filters>
+								<filter>
+									<artifact>org.apache.flink:*</artifact>
+									<includes>
+										<include>org/apache/flink/connector/datagen/**</include>
+										<include>org/apache/flink/streaming/examples/async/*.class</include>
+										<include>META-INF/LICENSE</include>
+										<include>META-INF/NOTICE</include>
+									</includes>
+								</filter>
+							</filters>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.examples.async.AsyncIOExample</mainClass>
+								</transformer>
+							</transformers>
+						</configuration>
+					</execution>
+
+					<!-- MatrixVectorMul. It is not bundled with Flink dist, nor deployed in Maven repo,
+					as it is platform-dependent. Users are expected to compile and run it with custom
+					jcuda version specified by themselves with the "jcuda.version" property.-->
 					<execution>
 						<id>MatrixVectorMul</id>
 						<phase>package</phase>
@@ -352,6 +300,7 @@ under the License.
 							<finalName>MatrixVectorMul</finalName>
 							<artifactSet>
 								<includes>
+									<include>org.apache.flink:flink-connector-datagen</include>
 									<include>org.jcuda:*</include>
 								</includes>
 							</artifactSet>
@@ -359,6 +308,7 @@ under the License.
 								<filter>
 									<artifact>org.apache.flink:*</artifact>
 									<includes>
+										<include>org/apache/flink/connector/datagen/**</include>
 										<include>org/apache/flink/streaming/examples/gpu/MatrixVectorMul.class</include>
 										<include>org/apache/flink/streaming/examples/gpu/MatrixVectorMul$*.class</include>
 									</includes>
@@ -371,6 +321,119 @@ under the License.
 							</transformers>
 						</configuration>
 					</execution>
+
+					<!-- Iteration -->
+					<execution>
+						<id>Iteration</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<finalName>Iteration</finalName>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>Iteration</shadedClassifierName>
+							<artifactSet>
+								<includes>
+									<include>org.apache.flink:flink-connector-datagen</include>
+								</includes>
+							</artifactSet>
+							<filters>
+								<filter>
+									<artifact>org.apache.flink:*</artifact>
+									<includes>
+										<include>org/apache/flink/connector/datagen/**</include>
+										<include>org/apache/flink/streaming/examples/iteration/*.class</include>
+										<include>META-INF/LICENSE</include>
+										<include>META-INF/NOTICE</include>
+									</includes>
+								</filter>
+							</filters>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.examples.iteration.IterateExample</mainClass>
+								</transformer>
+							</transformers>
+						</configuration>
+					</execution>
+
+					<!-- TopSpeedWindowing -->
+					<execution>
+						<id>TopSpeedWindowing</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<finalName>TopSpeedWindowing</finalName>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>TopSpeedWindowing</shadedClassifierName>
+							<artifactSet>
+								<includes>
+									<include>org.apache.flink:flink-connector-datagen</include>
+								</includes>
+							</artifactSet>
+							<filters>
+								<filter>
+									<artifact>org.apache.flink:*</artifact>
+									<includes>
+										<include>org/apache/flink/connector/datagen/**</include>
+										<include>org/apache/flink/streaming/examples/windowing/TopSpeedWindowing.class</include>
+										<include>org/apache/flink/streaming/examples/windowing/TopSpeedWindowing$*.class</include>
+										<include>org/apache/flink/streaming/examples/windowing/util/CarGeneratorFunction.class</include>
+										<include>org/apache/flink/streaming/examples/wordcount/util/CLI.class</include>
+										<include>META-INF/LICENSE</include>
+										<include>META-INF/NOTICE</include>
+									</includes>
+								</filter>
+							</filters>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.examples.windowing.TopSpeedWindowing</mainClass>
+								</transformer>
+							</transformers>
+						</configuration>
+					</execution>
+
+					<!-- SessionWindowing -->
+					<execution>
+						<id>SessionWindowing</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<finalName>SessionWindowing</finalName>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>SessionWindowing</shadedClassifierName>
+							<artifactSet>
+								<includes>
+									<include>org.apache.flink:flink-connector-datagen</include>
+								</includes>
+							</artifactSet>
+							<filters>
+								<filter>
+									<artifact>org.apache.flink:*</artifact>
+									<includes>
+										<include>org/apache/flink/connector/datagen/**</include>
+										<include>org/apache/flink/streaming/examples/windowing/SessionWindowing.class</include>
+										<include>org/apache/flink/streaming/examples/windowing/SessionWindowing$*.class</include>
+										<include>META-INF/LICENSE</include>
+										<include>META-INF/NOTICE</include>
+									</includes>
+								</filter>
+							</filters>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.examples.windowing.SessionWindowing</mainClass>
+								</transformer>
+							</transformers>
+						</configuration>
+					</execution>
+
 				</executions>
 			</plugin>
 
@@ -383,9 +446,6 @@ under the License.
 						<id>rename</id>
 						<configuration>
 							<target>
-								<copy file="${project.basedir}/target/flink-examples-streaming-${project.version}-Iteration.jar" tofile="${project.basedir}/target/Iteration.jar" />
-								<copy file="${project.basedir}/target/flink-examples-streaming-${project.version}-SessionWindowing.jar" tofile="${project.basedir}/target/SessionWindowing.jar" />
-								<copy file="${project.basedir}/target/flink-examples-streaming-${project.version}-TopSpeedWindowing.jar" tofile="${project.basedir}/target/TopSpeedWindowing.jar" />
 								<copy file="${project.basedir}/target/flink-examples-streaming-${project.version}-WindowJoin.jar" tofile="${project.basedir}/target/WindowJoin.jar" />
 								<copy file="${project.basedir}/target/flink-examples-streaming-${project.version}-WordCount.jar" tofile="${project.basedir}/target/WordCount.jar" />
 								<copy file="${project.basedir}/target/flink-examples-streaming-${project.version}-SocketWindowWordCount.jar" tofile="${project.basedir}/target/SocketWindowWordCount.jar" />

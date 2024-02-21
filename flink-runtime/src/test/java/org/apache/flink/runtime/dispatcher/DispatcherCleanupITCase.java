@@ -42,7 +42,8 @@ import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderInformation;
+import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcUtils;
@@ -156,10 +157,9 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         jobGraphStore.start(NoOpJobGraphListener.INSTANCE);
         haServices.setJobGraphStore(jobGraphStore);
 
-        // Construct leader election service.
-        final TestingLeaderElectionService leaderElectionService =
-                new TestingLeaderElectionService();
-        haServices.setJobMasterLeaderElectionService(jobId, leaderElectionService);
+        // Construct leader election.
+        final TestingLeaderElection leaderElection = new TestingLeaderElection();
+        haServices.setJobMasterLeaderElection(jobId, leaderElection);
 
         // start the dispatcher with enough retries on cleanup
         final JobManagerRunnerRegistry jobManagerRunnerRegistry =
@@ -181,12 +181,13 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         dispatcher.start();
 
         toTerminate.add(dispatcher);
-        leaderElectionService.isLeader(UUID.randomUUID());
+        final CompletableFuture<LeaderInformation> confirmedLeaderInformation =
+                leaderElection.isLeader(UUID.randomUUID());
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
-        waitForJobToFinish(leaderElectionService, dispatcherGateway, jobId);
+        waitForJobToFinish(confirmedLeaderInformation, dispatcherGateway, jobId);
 
         successfulCleanupLatch.await();
 
@@ -198,7 +199,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                 IsEmptyCollection.empty());
 
         CommonTestUtils.waitUntilCondition(
-                () -> haServices.getJobResultStore().hasJobResultEntry(jobId));
+                () -> haServices.getJobResultStore().hasJobResultEntryAsync(jobId).get());
     }
 
     @Test
@@ -207,8 +208,10 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         final JobID jobId = jobGraph.getJobID();
 
         final JobResultStore jobResultStore = new EmbeddedJobResultStore();
-        jobResultStore.createDirtyResult(
-                new JobResultEntry(TestingJobResultStore.createSuccessfulJobResult(jobId)));
+        jobResultStore
+                .createDirtyResultAsync(
+                        new JobResultEntry(TestingJobResultStore.createSuccessfulJobResult(jobId)))
+                .get();
         haServices.setJobResultStore(jobResultStore);
 
         // Instantiates JobManagerRunner
@@ -232,7 +235,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
 
         assertThat(
                 "The JobResultStore should have this job still marked as dirty.",
-                haServices.getJobResultStore().hasDirtyJobResultEntry(jobId),
+                haServices.getJobResultStore().hasDirtyJobResultEntryAsync(jobId).get(),
                 CoreMatchers.is(true));
 
         final DispatcherGateway dispatcherGateway =
@@ -247,7 +250,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         jobManagerRunnerCleanupFuture.complete(null);
 
         CommonTestUtils.waitUntilCondition(
-                () -> haServices.getJobResultStore().hasCleanJobResultEntry(jobId));
+                () -> haServices.getJobResultStore().hasCleanJobResultEntryAsync(jobId).get());
     }
 
     @Test
@@ -281,10 +284,9 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         jobGraphStore.start(NoOpJobGraphListener.INSTANCE);
         haServices.setJobGraphStore(jobGraphStore);
 
-        // Construct leader election service.
-        final TestingLeaderElectionService leaderElectionService =
-                new TestingLeaderElectionService();
-        haServices.setJobMasterLeaderElectionService(jobId, leaderElectionService);
+        // Construct leader election.
+        final TestingLeaderElection leaderElection = new TestingLeaderElection();
+        haServices.setJobMasterLeaderElection(jobId, leaderElection);
 
         // start the dispatcher with no retries on cleanup
         configuration.set(
@@ -294,19 +296,14 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         dispatcher.start();
 
         toTerminate.add(dispatcher);
-        leaderElectionService.isLeader(UUID.randomUUID());
+        final CompletableFuture<LeaderInformation> confirmedLeaderInformation =
+                leaderElection.isLeader(UUID.randomUUID());
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
-        waitForJobToFinish(leaderElectionService, dispatcherGateway, jobId);
+        waitForJobToFinish(confirmedLeaderInformation, dispatcherGateway, jobId);
         firstCleanupTriggered.await();
-
-        // Remove job master leadership.
-        leaderElectionService.notLeader();
-
-        // This will clear internal state of election service, so a new contender can register.
-        leaderElectionService.stop();
 
         assertThat(
                 "The cleanup should have been triggered only once.",
@@ -336,7 +333,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         secondDispatcher.start();
 
         toTerminate.add(secondDispatcher);
-        leaderElectionService.isLeader(UUID.randomUUID());
+        leaderElection.isLeader(UUID.randomUUID());
 
         CommonTestUtils.waitUntilCondition(
                 () -> haServices.getJobResultStore().getDirtyResults().isEmpty());
@@ -347,7 +344,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                 IsEmptyCollection.empty());
         assertTrue(
                 "The JobResultStore has the job listed as clean.",
-                haServices.getJobResultStore().hasJobResultEntry(jobId));
+                haServices.getJobResultStore().hasJobResultEntryAsync(jobId).get());
 
         assertThat(successfulJobGraphCleanup.get(), equalTo(jobId));
 
@@ -355,12 +352,12 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
     }
 
     private void waitForJobToFinish(
-            TestingLeaderElectionService leaderElectionService,
+            CompletableFuture<LeaderInformation> confirmedLeaderInformation,
             DispatcherGateway dispatcherGateway,
             JobID jobId)
             throws Exception {
         final JobMasterGateway jobMasterGateway =
-                connectToLeadingJobMaster(leaderElectionService).get();
+                connectToLeadingJobMaster(confirmedLeaderInformation).get();
         try (final JobMasterTester tester =
                 new JobMasterTester(rpcService, jobId, jobMasterGateway)) {
             final CompletableFuture<List<TaskDeploymentDescriptor>> descriptorsFuture =
@@ -399,15 +396,12 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
     }
 
     private static CompletableFuture<JobMasterGateway> connectToLeadingJobMaster(
-            TestingLeaderElectionService leaderElectionService) {
-        return leaderElectionService
-                .getConfirmationFuture()
-                .thenCompose(
-                        leaderConnectionInfo ->
-                                rpcService.connect(
-                                        leaderConnectionInfo.getAddress(),
-                                        JobMasterId.fromUuidOrNull(
-                                                leaderConnectionInfo.getLeaderSessionId()),
-                                        JobMasterGateway.class));
+            CompletableFuture<LeaderInformation> confirmedLeaderInformation) {
+        return confirmedLeaderInformation.thenCompose(
+                leaderInformation ->
+                        rpcService.connect(
+                                leaderInformation.getLeaderAddress(),
+                                JobMasterId.fromUuidOrNull(leaderInformation.getLeaderSessionID()),
+                                JobMasterGateway.class));
     }
 }

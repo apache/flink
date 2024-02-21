@@ -25,13 +25,20 @@
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-connector-base</artifactId>
 	<name>Flink : Connectors : Base</name>
 
 	<packaging>jar</packaging>
+
+	<properties>
+		<surefire.module.config><!--
+			chill ArraysAsListSerializer
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
 
 	<!-- Allow users to pass custom connector versions -->
 	<dependencies>
@@ -87,7 +94,7 @@
 			<type>test-jar</type>
 		</dependency>
 
-		<!-- ArchUit test dependencies -->
+		<!-- ArchUnit test dependencies -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>

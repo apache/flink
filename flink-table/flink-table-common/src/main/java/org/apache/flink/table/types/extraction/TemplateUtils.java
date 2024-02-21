@@ -20,8 +20,10 @@ package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.annotation.ProcedureHint;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.procedures.Procedure;
 
 import javax.annotation.Nullable;
 
@@ -47,11 +49,25 @@ final class TemplateUtils {
                 typeFactory, collectAnnotationsOfClass(FunctionHint.class, function));
     }
 
+    /** Retrieve global templates from procedure class. */
+    static Set<FunctionTemplate> extractProcedureGlobalFunctionTemplates(
+            DataTypeFactory typeFactory, Class<? extends Procedure> procedure) {
+        return asFunctionTemplatesForProcedure(
+                typeFactory, collectAnnotationsOfClass(ProcedureHint.class, procedure));
+    }
+
     /** Retrieve local templates from function method. */
     static Set<FunctionTemplate> extractLocalFunctionTemplates(
             DataTypeFactory typeFactory, Method method) {
         return asFunctionTemplates(
                 typeFactory, collectAnnotationsOfMethod(FunctionHint.class, method));
+    }
+
+    /** Retrieve local templates from procedure method. */
+    static Set<FunctionTemplate> extractProcedureLocalFunctionTemplates(
+            DataTypeFactory typeFactory, Method method) {
+        return asFunctionTemplatesForProcedure(
+                typeFactory, collectAnnotationsOfMethod(ProcedureHint.class, method));
     }
 
     /** Converts {@link FunctionHint}s to {@link FunctionTemplate}. */
@@ -64,6 +80,21 @@ final class TemplateUtils {
                                 return FunctionTemplate.fromAnnotation(typeFactory, hint);
                             } catch (Throwable t) {
                                 throw extractionError(t, "Error in function hint annotation.");
+                            }
+                        })
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    /** Converts {@link ProcedureHint}s to {@link FunctionTemplate}. */
+    static Set<FunctionTemplate> asFunctionTemplatesForProcedure(
+            DataTypeFactory typeFactory, Set<ProcedureHint> hints) {
+        return hints.stream()
+                .map(
+                        hint -> {
+                            try {
+                                return FunctionTemplate.fromAnnotation(typeFactory, hint);
+                            } catch (Throwable t) {
+                                throw extractionError(t, "Error in procedure hint annotation.");
                             }
                         })
                 .collect(Collectors.toCollection(LinkedHashSet::new));
@@ -84,7 +115,8 @@ final class TemplateUtils {
             Set<FunctionResultTemplate> globalResultOnly,
             Set<FunctionResultTemplate> localResultOnly,
             Set<FunctionTemplate> explicitMappings,
-            Function<FunctionTemplate, FunctionResultTemplate> accessor) {
+            Function<FunctionTemplate, FunctionResultTemplate> accessor,
+            String hintType) {
         final Set<FunctionResultTemplate> resultOnly =
                 Stream.concat(globalResultOnly.stream(), localResultOnly.stream())
                         .collect(Collectors.toCollection(LinkedHashSet::new));
@@ -96,7 +128,9 @@ final class TemplateUtils {
         }
         // different results is only fine as long as those come from a mapping
         if (resultOnly.size() > 1 || (!resultOnly.isEmpty() && !explicitMappings.isEmpty())) {
-            throw extractionError("Function hints that lead to ambiguous results are not allowed.");
+            throw extractionError(
+                    String.format(
+                            "%s hints that lead to ambiguous results are not allowed.", hintType));
         }
         return null;
     }

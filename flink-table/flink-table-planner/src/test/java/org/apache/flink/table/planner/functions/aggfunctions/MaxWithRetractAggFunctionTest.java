@@ -41,16 +41,14 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.experimental.runners.Enclosed;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Nested;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 
 /** Test case for built-in Max with retraction aggregate function. */
-@RunWith(Enclosed.class)
-public final class MaxWithRetractAggFunctionTest {
+final class MaxWithRetractAggFunctionTest {
 
     // --------------------------------------------------------------------------------------------
     // Test sets for a particular type being aggregated
@@ -60,7 +58,8 @@ public final class MaxWithRetractAggFunctionTest {
     // --------------------------------------------------------------------------------------------
 
     /** Test for {@link TinyIntType}. */
-    public static final class ByteMaxWithRetractAggFunctionTest
+    @Nested
+    final class ByteMaxWithRetractAggFunctionTest
             extends NumberMaxWithRetractAggFunctionTest<Byte> {
 
         @Override
@@ -85,7 +84,8 @@ public final class MaxWithRetractAggFunctionTest {
     }
 
     /** Test for {@link SmallIntType}. */
-    public static final class ShortMaxWithRetractAggFunctionTest
+    @Nested
+    final class ShortMaxWithRetractAggFunctionTest
             extends NumberMaxWithRetractAggFunctionTest<Short> {
 
         @Override
@@ -110,7 +110,8 @@ public final class MaxWithRetractAggFunctionTest {
     }
 
     /** Test for {@link IntType}. */
-    public static final class IntMaxWithRetractAggFunctionTest
+    @Nested
+    final class IntMaxWithRetractAggFunctionTest
             extends NumberMaxWithRetractAggFunctionTest<Integer> {
 
         @Override
@@ -135,7 +136,8 @@ public final class MaxWithRetractAggFunctionTest {
     }
 
     /** Test for {@link BigIntType}. */
-    public static final class LongMaxWithRetractAggFunctionTest
+    @Nested
+    final class LongMaxWithRetractAggFunctionTest
             extends NumberMaxWithRetractAggFunctionTest<Long> {
 
         @Override
@@ -160,7 +162,8 @@ public final class MaxWithRetractAggFunctionTest {
     }
 
     /** Test for {@link FloatType}. */
-    public static final class FloatMaxWithRetractAggFunctionTest
+    @Nested
+    final class FloatMaxWithRetractAggFunctionTest
             extends NumberMaxWithRetractAggFunctionTest<Float> {
 
         @Override
@@ -185,7 +188,8 @@ public final class MaxWithRetractAggFunctionTest {
     }
 
     /** Test for {@link DoubleType}. */
-    public static final class DoubleMaxWithRetractAggFunctionTest
+    @Nested
+    final class DoubleMaxWithRetractAggFunctionTest
             extends NumberMaxWithRetractAggFunctionTest<Double> {
 
         @Override
@@ -210,7 +214,8 @@ public final class MaxWithRetractAggFunctionTest {
     }
 
     /** Test for {@link BooleanType}. */
-    public static final class BooleanMaxWithRetractAggFunctionTest
+    @Nested
+    final class BooleanMaxWithRetractAggFunctionTest
             extends MaxWithRetractAggFunctionTestBase<Boolean> {
 
         @Override
@@ -235,7 +240,8 @@ public final class MaxWithRetractAggFunctionTest {
     }
 
     /** Test for {@link DecimalType}. */
-    public static final class DecimalMaxWithRetractAggFunctionTest
+    @Nested
+    final class DecimalMaxWithRetractAggFunctionTest
             extends MaxWithRetractAggFunctionTestBase<DecimalData> {
 
         private int precision = 20;
@@ -275,7 +281,8 @@ public final class MaxWithRetractAggFunctionTest {
     }
 
     /** Test for {@link VarCharType}. */
-    public static final class StringMaxWithRetractAggFunctionTest
+    @Nested
+    final class StringMaxWithRetractAggFunctionTest
             extends MaxWithRetractAggFunctionTestBase<StringData> {
 
         @Override
@@ -311,7 +318,8 @@ public final class MaxWithRetractAggFunctionTest {
     }
 
     /** Test for {@link TimestampType}. */
-    public static final class TimestampMaxWithRetractAggFunctionTest
+    @Nested
+    final class TimestampMaxWithRetractAggFunctionTest
             extends MaxWithRetractAggFunctionTestBase<TimestampData> {
 
         @Override
@@ -341,7 +349,8 @@ public final class MaxWithRetractAggFunctionTest {
     }
 
     /** Test for {@link TimestampType} with precision 9. */
-    public static final class Timestamp9MaxWithRetractAggFunctionTest
+    @Nested
+    final class Timestamp9MaxWithRetractAggFunctionTest
             extends MaxWithRetractAggFunctionTestBase<TimestampData> {
 
         @Override
@@ -377,7 +386,8 @@ public final class MaxWithRetractAggFunctionTest {
     }
 
     /** Test for {@link LocalZonedTimestampType}. */
-    public static final class LocalTimestampMaxWithRetractAggFunctionTest
+    @Nested
+    final class LocalTimestampMaxWithRetractAggFunctionTest
             extends MaxWithRetractAggFunctionTestBase<TimestampData> {
 
         @Override
@@ -407,7 +417,8 @@ public final class MaxWithRetractAggFunctionTest {
     }
 
     /** Test for {@link LocalZonedTimestampType} with precision 9. */
-    public static final class LocalTimestamp9MaxWithRetractAggFunctionTest
+    @Nested
+    final class LocalTimestamp9MaxWithRetractAggFunctionTest
             extends MaxWithRetractAggFunctionTestBase<TimestampData> {
 
         @Override
@@ -443,7 +454,8 @@ public final class MaxWithRetractAggFunctionTest {
     }
 
     /** Test for {@link DateType}. */
-    public static final class DateMaxWithRetractAggFunctionTest
+    @Nested
+    final class DateMaxWithRetractAggFunctionTest
             extends MaxWithRetractAggFunctionTestBase<Integer> {
 
         @Override
@@ -466,7 +478,8 @@ public final class MaxWithRetractAggFunctionTest {
     }
 
     /** Test for {@link TimeType}. */
-    public static final class TimeMaxWithRetractAggFunctionTest
+    @Nested
+    final class TimeMaxWithRetractAggFunctionTest
             extends MaxWithRetractAggFunctionTestBase<Integer> {
 
         @Override
@@ -497,7 +510,7 @@ public final class MaxWithRetractAggFunctionTest {
     // --------------------------------------------------------------------------------------------
 
     /** Test base for {@link MaxWithRetractAggFunction}. */
-    public abstract static class MaxWithRetractAggFunctionTestBase<T>
+    abstract static class MaxWithRetractAggFunctionTestBase<T>
             extends AggFunctionTestBase<T, T, MaxWithRetractAccumulator<T>> {
 
         @Override
@@ -527,7 +540,7 @@ public final class MaxWithRetractAggFunctionTest {
     }
 
     /** Test base for {@link MaxWithRetractAggFunction} and numeric types. */
-    public abstract static class NumberMaxWithRetractAggFunctionTest<T>
+    abstract static class NumberMaxWithRetractAggFunctionTest<T>
             extends MaxWithRetractAggFunctionTestBase<T> {
         protected abstract T getMinValue();
 

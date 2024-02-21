@@ -35,7 +35,7 @@ import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataTy
 
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.tools.RelBuilder
-import org.powermock.api.mockito.PowerMockito.{mock, when}
+import org.mockito.Mockito.{mock, when}
 
 /** Agg test base to mock agg information and etc. */
 abstract class AggTestBase(isBatchMode: Boolean) {
@@ -67,28 +67,30 @@ abstract class AggTestBase(isBatchMode: Boolean) {
   val aggInfo1: AggregateInfo = {
     val aggInfo = mock(classOf[AggregateInfo])
     val call = mock(classOf[AggregateCall])
-    when(aggInfo, "agg").thenReturn(call)
-    when(call, "getName").thenReturn("avg1")
-    when(aggInfo, "function").thenReturn(new LongAvgAggFunction)
-    when(aggInfo, "externalArgTypes").thenReturn(Array(DataTypes.BIGINT))
-    when(aggInfo, "externalAccTypes").thenReturn(Array(DataTypes.BIGINT, DataTypes.BIGINT))
-    when(aggInfo, "argIndexes").thenReturn(Array(1))
-    when(aggInfo, "aggIndex").thenReturn(0)
-    when(aggInfo, "externalResultType").thenReturn(DataTypes.BIGINT)
+    when(aggInfo.agg).thenReturn(call)
+    when(call.getName).thenReturn("avg1")
+    when(call.hasFilter).thenReturn(false)
+    when(aggInfo.function).thenReturn(new LongAvgAggFunction)
+    when(aggInfo.externalArgTypes).thenReturn(Array(DataTypes.BIGINT))
+    when(aggInfo.externalAccTypes).thenReturn(Array(DataTypes.BIGINT, DataTypes.BIGINT))
+    when(aggInfo.argIndexes).thenReturn(Array(1))
+    when(aggInfo.aggIndex).thenReturn(0)
+    when(aggInfo.externalResultType).thenReturn(DataTypes.BIGINT)
     aggInfo
   }
 
   val aggInfo2: AggregateInfo = {
     val aggInfo = mock(classOf[AggregateInfo])
     val call = mock(classOf[AggregateCall])
-    when(aggInfo, "agg").thenReturn(call)
-    when(call, "getName").thenReturn("avg2")
-    when(aggInfo, "function").thenReturn(new DoubleAvgAggFunction)
-    when(aggInfo, "externalArgTypes").thenReturn(Array(DataTypes.DOUBLE()))
-    when(aggInfo, "externalAccTypes").thenReturn(Array(DataTypes.DOUBLE, DataTypes.BIGINT))
-    when(aggInfo, "argIndexes").thenReturn(Array(2))
-    when(aggInfo, "aggIndex").thenReturn(1)
-    when(aggInfo, "externalResultType").thenReturn(DataTypes.DOUBLE)
+    when(aggInfo.agg).thenReturn(call)
+    when(call.getName).thenReturn("avg2")
+    when(call.hasFilter).thenReturn(false)
+    when(aggInfo.function).thenReturn(new DoubleAvgAggFunction)
+    when(aggInfo.externalArgTypes).thenReturn(Array(DataTypes.DOUBLE()))
+    when(aggInfo.externalAccTypes).thenReturn(Array(DataTypes.DOUBLE, DataTypes.BIGINT))
+    when(aggInfo.argIndexes).thenReturn(Array(2))
+    when(aggInfo.aggIndex).thenReturn(1)
+    when(aggInfo.externalResultType).thenReturn(DataTypes.DOUBLE)
     aggInfo
   }
 
@@ -96,16 +98,17 @@ abstract class AggTestBase(isBatchMode: Boolean) {
   val aggInfo3: AggregateInfo = {
     val aggInfo = mock(classOf[AggregateInfo])
     val call = mock(classOf[AggregateCall])
-    when(aggInfo, "agg").thenReturn(call)
-    when(call, "getName").thenReturn("avg3")
-    when(aggInfo, "function").thenReturn(imperativeAggFunc)
-    when(aggInfo, "externalArgTypes").thenReturn(Array(DataTypes.BIGINT()))
-    when(aggInfo, "externalAccTypes").thenReturn(
+    when(aggInfo.agg).thenReturn(call)
+    when(call.getName).thenReturn("avg3")
+    when(call.hasFilter).thenReturn(false)
+    when(aggInfo.function).thenReturn(imperativeAggFunc)
+    when(aggInfo.externalArgTypes).thenReturn(Array(DataTypes.BIGINT()))
+    when(aggInfo.externalAccTypes).thenReturn(
       Array(fromLegacyInfoToDataType(imperativeAggFunc.getAccumulatorType)))
-    when(aggInfo, "externalResultType").thenReturn(DataTypes.BIGINT)
-    when(aggInfo, "viewSpecs").thenReturn(Array[DataViewSpec]())
-    when(aggInfo, "argIndexes").thenReturn(Array(3))
-    when(aggInfo, "aggIndex").thenReturn(2)
+    when(aggInfo.externalResultType).thenReturn(DataTypes.BIGINT)
+    when(aggInfo.viewSpecs).thenReturn(Array[DataViewSpec]())
+    when(aggInfo.argIndexes).thenReturn(Array(3))
+    when(aggInfo.aggIndex).thenReturn(2)
     aggInfo
   }
 
@@ -114,5 +117,5 @@ abstract class AggTestBase(isBatchMode: Boolean) {
   val ctx = new CodeGeneratorContext(tEnv.getConfig, Thread.currentThread().getContextClassLoader)
   val classLoader: ClassLoader = Thread.currentThread().getContextClassLoader
   val context: ExecutionContext = mock(classOf[ExecutionContext])
-  when(context, "getRuntimeContext").thenReturn(mock(classOf[RuntimeContext]))
+  when(context.getRuntimeContext).thenReturn(mock(classOf[RuntimeContext]))
 }

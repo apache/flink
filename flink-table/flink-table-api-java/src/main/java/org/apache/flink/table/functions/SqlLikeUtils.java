@@ -17,6 +17,9 @@
 
 package org.apache.flink.table.functions;
 
+import org.apache.flink.annotation.Internal;
+
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -24,8 +27,9 @@ import java.util.regex.Pattern;
  *
  * <p>Note: THIS IS COPIED FROM CALCITE to EXPOSE SOME PRIVATE METHOD
  */
+@Internal
 public class SqlLikeUtils {
-    private static final String JAVA_REGEX_SPECIALS = "[]()|^-+*?{}$\\";
+    private static final String JAVA_REGEX_SPECIALS = "[]()|^-+*?{}$\\.";
     private static final String SQL_SIMILAR_SPECIALS = "[]()|^-+*_%?{}";
     private static final String[] REG_CHAR_CLASSES = {
         "[:ALPHA:]", "\\p{Alpha}",
@@ -56,6 +60,19 @@ public class SqlLikeUtils {
     public static boolean like(String s, String pattern, String escape) {
         final String regex = sqlToRegexLike(pattern, escape);
         return Pattern.matches(regex, s);
+    }
+
+    /** SQL {@code ILIKE} function. */
+    public static boolean ilike(String s, String patternStr) {
+        return ilike(s, patternStr, null);
+    }
+
+    /** SQL {@code ILIKE} function with escape. */
+    public static boolean ilike(String s, String patternStr, String escape) {
+        final String regex = sqlToRegexLike(patternStr, escape);
+        Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
+        Matcher matcher = pattern.matcher(s);
+        return matcher.matches();
     }
 
     /** SQL {@code SIMILAR} function. */

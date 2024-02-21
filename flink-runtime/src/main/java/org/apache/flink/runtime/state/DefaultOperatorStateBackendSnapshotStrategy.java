@@ -22,13 +22,13 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
+import org.apache.flink.util.CollectionUtil;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -67,9 +67,9 @@ class DefaultOperatorStateBackendSnapshotStrategy
         }
 
         final Map<String, PartitionableListState<?>> registeredOperatorStatesDeepCopies =
-                new HashMap<>(registeredOperatorStates.size());
+                CollectionUtil.newHashMapWithExpectedSize(registeredOperatorStates.size());
         final Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStatesDeepCopies =
-                new HashMap<>(registeredBroadcastStates.size());
+                CollectionUtil.newHashMapWithExpectedSize(registeredBroadcastStates.size());
 
         ClassLoader snapshotClassLoader = Thread.currentThread().getContextClassLoader();
         Thread.currentThread().setContextClassLoader(userClassLoader);
@@ -168,37 +168,28 @@ class DefaultOperatorStateBackendSnapshotStrategy
                     registeredOperatorStatesDeepCopies.size()
                             + registeredBroadcastStatesDeepCopies.size();
             final Map<String, OperatorStateHandle.StateMetaInfo> writtenStatesMetaData =
-                    new HashMap<>(initialMapCapacity);
+                    CollectionUtil.newHashMapWithExpectedSize(initialMapCapacity);
 
-            for (Map.Entry<String, PartitionableListState<?>> entry :
-                    registeredOperatorStatesDeepCopies.entrySet()) {
+            try (final CompressibleFSDataOutputStream compressedLocalOut =
+                    new CompressibleFSDataOutputStream(
+                            localOut,
+                            compressionDecorator)) { // closes only the outer compression stream
+                for (Map.Entry<String, PartitionableListState<?>> entry :
+                        registeredOperatorStatesDeepCopies.entrySet()) {
 
-                PartitionableListState<?> value = entry.getValue();
-                // create the compressed stream for each state to have the compression header for
-                // each
-                try (final CompressibleFSDataOutputStream compressedLocalOut =
-                        new CompressibleFSDataOutputStream(
-                                localOut,
-                                compressionDecorator)) { // closes only the outer compression stream
+                    PartitionableListState<?> value = entry.getValue();
                     long[] partitionOffsets = value.write(compressedLocalOut);
                     OperatorStateHandle.Mode mode = value.getStateMetaInfo().getAssignmentMode();
                     writtenStatesMetaData.put(
                             entry.getKey(),
                             new OperatorStateHandle.StateMetaInfo(partitionOffsets, mode));
                 }
-            }
 
-            // ... and the broadcast states themselves ...
-            for (Map.Entry<String, BackendWritableBroadcastState<?, ?>> entry :
-                    registeredBroadcastStatesDeepCopies.entrySet()) {
+                // ... and the broadcast states themselves ...
+                for (Map.Entry<String, BackendWritableBroadcastState<?, ?>> entry :
+                        registeredBroadcastStatesDeepCopies.entrySet()) {
 
-                BackendWritableBroadcastState<?, ?> value = entry.getValue();
-                // create the compressed stream for each state to have the compression header for
-                // each
-                try (final CompressibleFSDataOutputStream compressedLocalOut =
-                        new CompressibleFSDataOutputStream(
-                                localOut,
-                                compressionDecorator)) { // closes only the outer compression stream
+                    BackendWritableBroadcastState<?, ?> value = entry.getValue();
                     long[] partitionOffsets = {value.write(compressedLocalOut)};
                     OperatorStateHandle.Mode mode = value.getStateMetaInfo().getAssignmentMode();
                     writtenStatesMetaData.put(

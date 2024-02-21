@@ -27,6 +27,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -67,7 +68,7 @@ import org.apache.flink.state.changelog.restore.ChangelogRestoreTarget;
 import org.apache.flink.state.changelog.restore.FunctionDelegationHelper;
 import org.apache.flink.state.common.PeriodicMaterializationManager.MaterializationTarget;
 
-import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava31.com.google.common.io.Closer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -190,6 +191,9 @@ public class ChangelogKeyedStateBackend<K>
 
     private long lastConfirmedMaterializationId = -1L;
 
+    /** last failed or cancelled materialization. */
+    private long lastFailedMaterializationId = -1L;
+
     private final ChangelogTruncateHelper changelogTruncateHelper;
 
     public ChangelogKeyedStateBackend(
@@ -197,7 +201,7 @@ public class ChangelogKeyedStateBackend<K>
             String subtaskName,
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
-            ChangelogStateBackendMetricGroup metricGroup,
+            MetricGroup metricGroup,
             StateChangelogWriter<? extends ChangelogStateHandle> stateChangelogWriter,
             Collection<ChangelogStateBackendHandle> initialState,
             CheckpointStorageWorkerView checkpointStorageWorkerView) {
@@ -206,7 +210,7 @@ public class ChangelogKeyedStateBackend<K>
                 subtaskName,
                 executionConfig,
                 ttlTimeProvider,
-                metricGroup,
+                new ChangelogStateBackendMetricGroup(metricGroup),
                 stateChangelogWriter,
                 initialState,
                 checkpointStorageWorkerView,
@@ -399,7 +403,7 @@ public class ChangelogKeyedStateBackend<K>
 
         return toRunnableFuture(
                 stateChangelogWriter
-                        .persist(lastUploadedFrom)
+                        .persist(lastUploadedFrom, checkpointId)
                         .thenApply(
                                 delta ->
                                         buildSnapshotResult(
@@ -728,6 +732,7 @@ public class ChangelogKeyedStateBackend<K>
                 materializationId = Math.max(materializationId, h.getMaterializationID());
             }
         }
+        this.lastConfirmedMaterializationId = materializationId;
         this.materializedId = materializationId + 1;
 
         if (!localMaterialized.isEmpty() || !localRestoredNonMaterialized.isEmpty()) {
@@ -758,6 +763,18 @@ public class ChangelogKeyedStateBackend<K>
      */
     @Override
     public Optional<MaterializationRunnable> initMaterialization() throws Exception {
+        if (lastConfirmedMaterializationId < materializedId - 1
+                && lastFailedMaterializationId < materializedId - 1) {
+            // SharedStateRegistry potentially requires that the checkpoint's dependency on the
+            // shared file be continuous, it will be broken if we trigger a new materialization
+            // before the previous one has either confirmed or failed. See discussion in
+            // https://github.com/apache/flink/pull/22669#issuecomment-1593370772 .
+            LOG.info(
+                    "materialization:{} not confirmed or failed or cancelled, skip trigger new one.",
+                    materializedId - 1);
+            return Optional.empty();
+        }
+
         SequenceNumber upTo = stateChangelogWriter.nextSequenceNumber();
         SequenceNumber lastMaterializedTo = changelogSnapshotState.lastMaterializedTo();
 
@@ -830,6 +847,18 @@ public class ChangelogKeyedStateBackend<K>
                                 materializationID);
 
         changelogTruncateHelper.materialized(upTo);
+    }
+
+    @Override
+    public void handleMaterializationFailureOrCancellation(
+            long materializationID, SequenceNumber upTo, Throwable cause) {
+
+        LOG.info(
+                "Task {} failed or cancelled materialization:{} which is upTo:{}",
+                subtaskName,
+                materializationID,
+                upTo);
+        lastFailedMaterializationId = Math.max(lastFailedMaterializationId, materializationID);
     }
 
     // TODO: this method may change after the ownership PR
@@ -964,7 +993,7 @@ public class ChangelogKeyedStateBackend<K>
     }
 
     /**
-     * Snapshot State for ChangelogKeyedStatebackend, a wrapper over {@link SnapshotResult}.
+     * Snapshot State for ChangelogKeyedStateBackend, a wrapper over {@link SnapshotResult}.
      *
      * <p>It includes three parts: - materialized snapshot from the underlying delegated state
      * backend - non-materialized part in the current changelog - non-materialized changelog, from

@@ -41,9 +41,10 @@ import java.util.stream.Collectors;
 public class RpcUtils {
 
     /**
-     * <b>HACK:</b> Set to 21474835 seconds, Akka's maximum delay (Akka 2.4.20). The value cannot be
-     * higher or an {@link IllegalArgumentException} will be thrown during an RPC. Check the private
-     * method {@code checkMaxDelay()} in {@link akka.actor.LightArrayRevolverScheduler}.
+     * <b>HACK:</b> Set to 21474835 seconds, Pekko's maximum delay (Akka 2.4.20). The value cannot
+     * be higher or an {@link IllegalArgumentException} will be thrown during an RPC. Check the
+     * private method {@code checkMaxDelay()} in {@link
+     * org.apache.pekko.actor.LightArrayRevolverScheduler}.
      */
     public static final Time INF_TIMEOUT = Time.seconds(21474835);
 

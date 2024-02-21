@@ -19,10 +19,8 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.NestedSerializersSnapshotDelegate;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -104,19 +102,8 @@ public final class EitherSerializerSnapshot<L, R> implements TypeSerializerSnaps
                 nestedSnapshot.getRestoredNestedSerializer(1));
     }
 
-    @Override
-    public TypeSerializerSchemaCompatibility<Either<L, R>> resolveSchemaCompatibility(
-            TypeSerializer<Either<L, R>> newSerializer) {
-        checkState(nestedSnapshot != null);
-
-        if (newSerializer instanceof EitherSerializer) {
-            // delegate compatibility check to the new snapshot class
-            return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-                    newSerializer,
-                    new JavaEitherSerializerSnapshot<>(),
-                    nestedSnapshot.getNestedSerializerSnapshots());
-        } else {
-            return TypeSerializerSchemaCompatibility.incompatible();
-        }
+    @Nullable
+    public TypeSerializerSnapshot<?>[] getNestedSerializerSnapshots() {
+        return nestedSnapshot == null ? null : nestedSnapshot.getNestedSerializerSnapshots();
     }
 }

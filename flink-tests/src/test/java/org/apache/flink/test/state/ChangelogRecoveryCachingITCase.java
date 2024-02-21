@@ -35,7 +35,7 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
 
@@ -67,7 +67,7 @@ import static org.apache.flink.configuration.CoreOptions.DEFAULT_PARALLELISM;
 import static org.apache.flink.configuration.RestartStrategyOptions.RESTART_STRATEGY;
 import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
 import static org.apache.flink.configuration.StateChangelogOptions.ENABLE_STATE_CHANGE_LOG;
-import static org.apache.flink.configuration.StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL;
+import static org.apache.flink.configuration.StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED;
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_ENABLED;
 import static org.apache.flink.runtime.jobgraph.SavepointRestoreSettings.forPath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
@@ -159,7 +159,7 @@ public class ChangelogRecoveryCachingITCase extends TestLogger {
                                 return value;
                             }
                         })
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         return env.getStreamGraph().getJobGraph();
     }
@@ -178,7 +178,7 @@ public class ChangelogRecoveryCachingITCase extends TestLogger {
         conf.set(LOCAL_RECOVERY, false); // force download
         // tune changelog
         conf.set(PREEMPTIVE_PERSIST_THRESHOLD, MemorySize.ofMebiBytes(10));
-        conf.set(PERIODIC_MATERIALIZATION_INTERVAL, Duration.ofDays(-1));
+        conf.set(PERIODIC_MATERIALIZATION_ENABLED, false);
 
         conf.set(ENABLE_UNALIGNED, true); // speedup
         conf.set(ALIGNED_CHECKPOINT_TIMEOUT, Duration.ZERO); // prevent randomization

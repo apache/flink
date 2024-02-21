@@ -38,16 +38,21 @@ import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend;
 import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend.MockSnapshotSupplier;
 import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackendBuilder;
 import org.apache.flink.state.changelog.ChangelogStateBackendTestUtils.DummyCheckpointingStorageAccess;
+import org.apache.flink.state.common.PeriodicMaterializationManager.MaterializationRunnable;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 
+import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.RunnableFuture;
 
 import static java.util.Collections.emptyList;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /** {@link ChangelogKeyedStateBackend} test. */
 @RunWith(Parameterized.class)
@@ -85,6 +90,57 @@ public class ChangelogKeyedStateBackendTest {
         }
     }
 
+    @Test
+    public void testInitMaterialization() throws Exception {
+        MockKeyedStateBackend<Integer> delegatedBackend = createMock();
+        ChangelogKeyedStateBackend<Integer> backend = createChangelog(delegatedBackend);
+
+        try {
+            Optional<MaterializationRunnable> runnable;
+
+            appendMockStateChange(backend); // ensure there is non-materialized changelog
+
+            runnable = backend.initMaterialization();
+            // 1. should trigger first materialization
+            assertTrue("first materialization should be trigger.", runnable.isPresent());
+
+            appendMockStateChange(backend); // ensure there is non-materialized changelog
+
+            // 2. should not trigger new one until the previous one has been confirmed or failed
+            assertFalse(backend.initMaterialization().isPresent());
+
+            backend.handleMaterializationFailureOrCancellation(
+                    runnable.get().getMaterializationID(),
+                    runnable.get().getMaterializedTo(),
+                    null);
+            runnable = backend.initMaterialization();
+            // 3. should trigger new one after previous one failed
+            assertTrue(runnable.isPresent());
+
+            appendMockStateChange(backend); // ensure there is non-materialized changelog
+
+            // 4. should not trigger new one until the previous one has been confirmed or failed
+            assertFalse(backend.initMaterialization().isPresent());
+
+            backend.handleMaterializationResult(
+                    SnapshotResult.empty(),
+                    runnable.get().getMaterializationID(),
+                    runnable.get().getMaterializedTo());
+            checkpoint(backend, checkpointId).get().discardState();
+            backend.notifyCheckpointComplete(checkpointId);
+            // 5. should trigger new one after previous one has been confirmed
+            assertTrue(backend.initMaterialization().isPresent());
+        } finally {
+            backend.close();
+            backend.dispose();
+        }
+    }
+
+    private void appendMockStateChange(ChangelogKeyedStateBackend changelogKeyedBackend)
+            throws IOException {
+        changelogKeyedBackend.getChangelogWriter().append(0, new byte[] {'s'});
+    }
+
     private MockKeyedStateBackend<Integer> createMock() {
         return new MockKeyedStateBackendBuilder<>(
                         new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
@@ -109,8 +165,7 @@ public class ChangelogKeyedStateBackendTest {
                 "test",
                 new ExecutionConfig(),
                 TtlTimeProvider.DEFAULT,
-                new ChangelogStateBackendMetricGroup(
-                        UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup()),
+                UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup(),
                 new InMemoryStateChangelogStorage()
                         .createWriter("test", KeyGroupRange.EMPTY_KEY_GROUP_RANGE, null),
                 emptyList(),

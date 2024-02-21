@@ -159,7 +159,7 @@ public class PythonOptions {
                     .defaultValue("python")
                     .withDescription(
                             "Specify the path of the python interpreter used to execute the python "
-                                    + "UDF worker. The python UDF worker depends on Python 3.7+, Apache Beam "
+                                    + "UDF worker. The python UDF worker depends on Python 3.8+, Apache Beam "
                                     + "(version == 2.43.0), Pip (version >= 20.3) and SetupTools (version >= 37.0.0). "
                                     + "Please ensure that the specified environment meets the above requirements. The "
                                     + "option is equivalent to the command line option \"-pyexec\".");
@@ -182,7 +182,7 @@ public class PythonOptions {
                                     .text("2. the command line option \"-pyclientexec\";")
                                     .linebreak()
                                     .text(
-                                            "3. the configuration 'python.client.executable' defined in flink-conf.yaml")
+                                            "3. the configuration 'python.client.executable' defined in config.yaml")
                                     .linebreak()
                                     .text("4. the environment variable PYFLINK_CLIENT_EXECUTABLE;")
                                     .build());

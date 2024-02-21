@@ -282,29 +282,22 @@ Supported Environments:
 Supported Environments:
 {{< label AWS >}}
 
-#### Amazon Kinesis Data Analytics for Apache Flink
+#### Amazon Managed Service for Apache Flink
 
-[Website](https://docs.aws.amazon.com/kinesisanalytics/latest/java/what-is.html)
+[Website](https://docs.aws.amazon.com/managed-flink/latest/java/what-is.html)
 
 Supported Environments:
 {{< label AWS >}}
 
-#### Cloudera DataFlow
+#### Cloudera Stream Processing
 
-[Website](https://www.cloudera.com/products/cdf.html)
+[Website](https://www.cloudera.com/products/stream-processing.html)
 
 Supported Environment:
 {{< label AWS >}}
 {{< label Azure >}}
 {{< label Google Cloud >}}
 {{< label On-Premise >}}
-
-#### Eventador
-
-[Website](https://eventador.io)
-
-Supported Environment:
-{{< label AWS >}}
 
 #### Huawei Cloud Stream Service
 

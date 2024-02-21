@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.runtime.operators.join.lookup;
 
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
@@ -26,6 +28,7 @@ import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
+import org.apache.flink.table.runtime.generated.FilterCondition;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
@@ -46,6 +49,7 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
             DataStructureConverter<RowData, Object> fetcherConverter,
             GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedCalc,
             GeneratedResultFuture<TableFunctionResultFuture<RowData>> generatedResultFuture,
+            GeneratedFunction<FilterCondition> generatedPreFilterCondition,
             RowDataSerializer rightRowSerializer,
             boolean isLeftOuterJoin,
             int asyncBufferCapacity) {
@@ -53,6 +57,7 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
                 generatedFetcher,
                 fetcherConverter,
                 generatedResultFuture,
+                generatedPreFilterCondition,
                 rightRowSerializer,
                 isLeftOuterJoin,
                 asyncBufferCapacity);
@@ -60,8 +65,8 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         // try to compile the generated ResultFuture, fail fast if the code is corrupt.
         generatedCalc.compile(getRuntimeContext().getUserCodeClassLoader());
     }
@@ -74,7 +79,7 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
         FlatMapFunction<RowData, RowData> calc =
                 generatedCalc.newInstance(getRuntimeContext().getUserCodeClassLoader());
         FunctionUtils.setFunctionRuntimeContext(calc, getRuntimeContext());
-        FunctionUtils.openFunction(calc, parameters);
+        FunctionUtils.openFunction(calc, DefaultOpenContext.INSTANCE);
         return new TemporalTableCalcResultFuture(calc, joinConditionCollector);
     }
 

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotSerializationUtil;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.CollectionUtil;
 
 import javax.annotation.Nonnull;
 
@@ -143,7 +144,8 @@ public class StateMetaInfoSnapshotReadersWriters {
             final StateMetaInfoSnapshot.BackendStateType stateType =
                     StateMetaInfoSnapshot.BackendStateType.values()[inputView.readInt()];
             final int numOptions = inputView.readInt();
-            HashMap<String, String> optionsMap = new HashMap<>(numOptions);
+            HashMap<String, String> optionsMap =
+                    CollectionUtil.newHashMapWithExpectedSize(numOptions);
             for (int i = 0; i < numOptions; ++i) {
                 String key = inputView.readUTF();
                 String value = inputView.readUTF();
@@ -152,7 +154,7 @@ public class StateMetaInfoSnapshotReadersWriters {
 
             final int numSerializerConfigSnapshots = inputView.readInt();
             final HashMap<String, TypeSerializerSnapshot<?>> serializerConfigsMap =
-                    new HashMap<>(numSerializerConfigSnapshots);
+                    CollectionUtil.newHashMapWithExpectedSize(numSerializerConfigSnapshots);
 
             for (int i = 0; i < numSerializerConfigSnapshots; ++i) {
                 serializerConfigsMap.put(

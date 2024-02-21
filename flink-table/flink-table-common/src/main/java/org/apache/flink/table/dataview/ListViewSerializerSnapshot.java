@@ -39,9 +39,7 @@ public final class ListViewSerializerSnapshot<T>
     private static final int CURRENT_VERSION = 1;
 
     /** Constructor for read instantiation. */
-    public ListViewSerializerSnapshot() {
-        super(ListViewSerializer.class);
-    }
+    public ListViewSerializerSnapshot() {}
 
     /** Constructor to create the snapshot for writing. */
     public ListViewSerializerSnapshot(ListViewSerializer<T> listViewSerializer) {

@@ -148,11 +148,14 @@ WHERE rank_num <= 10
 LogicalProject(a=[$0], b=[$1], count_c=[$2], rank_num=[$3])
 +- LogicalFilter(condition=[<=($3, 10)])
    +- LogicalProject(a=[$0], b=[$1], count_c=[$2], rank_num=[ROW_NUMBER() OVER (ORDER BY $2 DESC NULLS LAST)])
-      +- LogicalFilter(condition=[<=($3, 10)])
-         +- LogicalProject(a=[$0], b=[$1], count_c=[$3], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
-            +- LogicalAggregate(group=[{0, 1, 2}], count_c=[COUNT()])
-               +- LogicalProject(a=[$0], b=[$1], cn=[_UTF-16LE'cn'])
-                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[$3])
+         +- LogicalFilter(condition=[<=($3, 10)])
+            +- LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+               +- LogicalProject(a=[$0], b=[$1], count_c=[$3])
+                  +- LogicalAggregate(group=[{0, 1, 2}], count_c=[COUNT()])
+                     +- LogicalProject(a=[$0], b=[$1], cn=[$5])
+                        +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], cn=[_UTF-16LE'cn'])
+                           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -443,12 +446,13 @@ FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(url=[CONCAT(_UTF-16LE'http://txmov2.a.yximgs.com', $0)], download_count=[$1], timestamp=[$2])
-+- LogicalFilter(condition=[<=($3, 100000)])
-   +- LogicalProject(uri=[$0], reqcount=[$1], start_time=[$2], rownum_2=[ROW_NUMBER() OVER (PARTITION BY $2 ORDER BY $1 DESC NULLS LAST)])
-      +- LogicalFilter(condition=[<=($3, 100000)])
-         +- LogicalProject(uri=[$0], reqcount=[$1], start_time=[$2], rownum_1=[ROW_NUMBER() OVER (PARTITION BY $2, $3 ORDER BY $1 DESC NULLS LAST)])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+LogicalProject(url=[CONCAT(_UTF-16LE'http://txmov2.a.yximgs.com', $0)], download_count=[$1], timestamp=[$3])
++- LogicalProject(uri=[$0], reqcount=[$1], rownum_2=[$3], start_time=[$2])
+   +- LogicalFilter(condition=[<=($3, 100000)])
+      +- LogicalProject(uri=[$0], reqcount=[$1], start_time=[$2], rownum_2=[ROW_NUMBER() OVER (PARTITION BY $2 ORDER BY $1 DESC NULLS LAST)])
+         +- LogicalFilter(condition=[<=($3, 100000)])
+            +- LogicalProject(uri=[$0], reqcount=[$1], start_time=[$2], rownum_1=[ROW_NUMBER() OVER (PARTITION BY $2, $3 ORDER BY $1 DESC NULLS LAST)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -729,11 +733,12 @@ LogicalProject(name=[$0], ids=[$1], rank_num=[$2])
    +- LogicalProject(name=[$0], ids=[$1], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalAggregate(group=[{0}], ids=[SUM($1) FILTER $2])
          +- LogicalProject(name=[$6], id=[$5], $f2=[IS TRUE(>($5, 0))])
-            +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0, 3}])
-               :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-               +- LogicalFilter(condition=[=($cor1.a, $0)])
-                  +- LogicalSnapshot(period=[$cor1.proctime])
-                     +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+               +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0, 3}])
+                  :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+                  +- LogicalFilter(condition=[=($cor1.a, $0)])
+                     +- LogicalSnapshot(period=[$cor1.proctime])
+                        +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -770,11 +775,12 @@ WHERE row_num <= 10
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
 +- LogicalProject(a=[$0])
-   +- LogicalFilter(condition=[<=($3, 10)])
-      +- LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
-         +- LogicalAggregate(group=[{0, 1}], count_c=[COUNT()])
-            +- LogicalProject(a=[$0], b=[$1])
-               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[$3])
+      +- LogicalFilter(condition=[<=($3, 10)])
+         +- LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
+            +- LogicalAggregate(group=[{0, 1}], count_c=[COUNT()])
+               +- LogicalProject(a=[$0], b=[$1])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1024,10 +1030,12 @@ WHERE row_num <= 10
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[$3])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], count_c=[$3], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
-      +- LogicalAggregate(group=[{0, 1, 2}], count_c=[COUNT()])
-         +- LogicalProject(a=[$0], b=[$1], cn=[_UTF-16LE'cn'])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+      +- LogicalProject(a=[$0], b=[$1], count_c=[$3])
+         +- LogicalAggregate(group=[{0, 1, 2}], count_c=[COUNT()])
+            +- LogicalProject(a=[$0], b=[$1], cn=[$5])
+               +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], cn=[_UTF-16LE'cn'])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1160,9 +1168,10 @@ LogicalProject(c=[$0], b=[$1], d=[$2])
    +- LogicalProject(c=[$0], b=[$1], d=[$2], rn=[ROW_NUMBER() OVER (PARTITION BY $0, $1 ORDER BY $2 DESC NULLS LAST)])
       +- LogicalAggregate(group=[{0, 1}], d=[SUM($2) FILTER $3])
          +- LogicalProject(c=[$2], b=[$1], a=[$0], $f3=[IS TRUE(>($0, 0))])
-            +- LogicalFilter(condition=[=($5, 1)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rowNum=[ROW_NUMBER() OVER (PARTITION BY $2 ORDER BY PROCTIME() NULLS FIRST)])
-                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rowNum=[$5])
+               +- LogicalFilter(condition=[=($5, 1)])
+                  +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rowNum=[ROW_NUMBER() OVER (PARTITION BY $2 ORDER BY PROCTIME() NULLS FIRST)])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">

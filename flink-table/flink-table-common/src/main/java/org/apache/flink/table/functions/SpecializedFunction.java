@@ -75,6 +75,7 @@ public interface SpecializedFunction extends FunctionDefinition {
     }
 
     /** Helper interface for creating {@link ExpressionEvaluator}s. */
+    @PublicEvolving
     interface ExpressionEvaluatorFactory {
 
         /**
@@ -121,6 +122,7 @@ public interface SpecializedFunction extends FunctionDefinition {
      * @see SpecializedContext#createEvaluator(Expression, DataType, DataTypes.Field...)
      * @see SpecializedContext#createEvaluator(BuiltInFunctionDefinition, DataType, DataType...)
      */
+    @PublicEvolving
     interface ExpressionEvaluator extends Serializable {
 
         /**

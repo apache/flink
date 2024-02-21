@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.expressions.utils
 
-import org.apache.flink.api.common.TaskInfo
+import org.apache.flink.api.common.{TaskInfo, TaskInfoImpl}
 import org.apache.flink.api.common.functions.{MapFunction, RichFunction, RichMapFunction}
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -25,7 +25,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.testutils.FlinkAssertions
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api
-import org.apache.flink.table.api.{EnvironmentSettings, TableException, ValidationException}
+import org.apache.flink.table.api.{EnvironmentSettings, TableConfig, TableException, ValidationException}
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
@@ -35,11 +35,13 @@ import org.apache.flink.table.data.util.DataFormatConverters
 import org.apache.flink.table.data.util.DataFormatConverters.DataFormatConverter
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.planner.calcite.{FlinkPlannerImpl, FlinkRelBuilder}
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.planner.delegation.PlannerBase
+import org.apache.flink.table.planner.parse.CalciteParser
 import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
-import org.apache.flink.table.types.AbstractDataType
+import org.apache.flink.table.types.{AbstractDataType, DataType}
 import org.apache.flink.table.types.logical.{RowType, VarCharType}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
@@ -50,17 +52,19 @@ import org.apache.calcite.rel.logical.LogicalCalc
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName.VARCHAR
-import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.{After, Before, Rule}
-import org.junit.Assert.{assertEquals, assertTrue, fail}
-import org.junit.rules.ExpectedException
+import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThrownBy}
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable
+import org.junit.jupiter.api.{AfterEach, BeforeEach}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
+
+import javax.annotation.Nullable
 
 import java.util.Collections
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-abstract class ExpressionTestBase {
+abstract class ExpressionTestBase(isStreaming: Boolean = true) {
 
   // (originalExpr, optimizedExpr, expectedResult)
   private val validExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
@@ -71,45 +75,51 @@ abstract class ExpressionTestBase {
     .ArrayBuffer[(Expression, String, Class[_ <: Throwable])]()
 
   private val env = StreamExecutionEnvironment.createLocalEnvironment(4)
-  private val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+  private var settings: EnvironmentSettings = _
   // use impl class instead of interface class to avoid
   // "Static methods in interface require -target:jvm-1.8"
-  private val tEnv = StreamTableEnvironmentImpl
-    .create(env, settings)
-    .asInstanceOf[StreamTableEnvironmentImpl]
+  private var tEnv: StreamTableEnvironmentImpl = _
 
-  val tableConfig = tEnv.getConfig
+  var tableConfig: TableConfig = _
 
-  private val resolvedDataType = if (containsLegacyTypes) {
-    TypeConversions.fromLegacyInfoToDataType(typeInfo)
-  } else {
-    tEnv.getCatalogManager.getDataTypeFactory.createDataType(testDataType)
-  }
-  private val planner = tEnv.getPlanner.asInstanceOf[PlannerBase]
-  private val relBuilder = planner.createRelBuilder
-  private val calcitePlanner = planner.createFlinkPlanner
-  private val parser = planner.plannerContext.createCalciteParser()
+  private var resolvedDataType: DataType = _
+  private var planner: PlannerBase = _
+  private var relBuilder: FlinkRelBuilder = _
+  private var calcitePlanner: FlinkPlannerImpl = _
+  private var parser: CalciteParser = _
 
   // setup test utils
   private val tableName = "testTable"
   protected val nullable = "NULL"
 
-  // used for accurate exception information checking.
-  val expectedException: ExpectedException = ExpectedException.none()
-
-  @Rule
-  def thrown: ExpectedException = expectedException
-
-  @Before
+  @BeforeEach
   def prepare(): Unit = {
+    settings = if (isStreaming) {
+      EnvironmentSettings.newInstance().inStreamingMode().build()
+    } else {
+      EnvironmentSettings.newInstance().inBatchMode().build()
+    }
+    tEnv = StreamTableEnvironmentImpl
+      .create(env, settings)
+      .asInstanceOf[StreamTableEnvironmentImpl]
+    planner = tEnv.getPlanner.asInstanceOf[PlannerBase]
+    relBuilder = planner.createRelBuilder
+    calcitePlanner = planner.createFlinkPlanner
+    parser = planner.plannerContext.createCalciteParser()
+    tableConfig = tEnv.getConfig
     tableConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
       ExecutionConfigOptions.LegacyCastBehaviour.DISABLED
     )
+    resolvedDataType = if (containsLegacyTypes) {
+      TypeConversions.fromLegacyInfoToDataType(typeInfo)
+    } else {
+      tEnv.getCatalogManager.getDataTypeFactory.createDataType(testDataType)
+    }
     if (containsLegacyTypes) {
-      val ds = env.fromCollection(Collections.emptyList[Row](), typeInfo)
+      val ds = env.fromData(Collections.emptyList[Row](), typeInfo)
       tEnv.createTemporaryView(tableName, ds, typeInfo.getFieldNames.map(api.$): _*)
-      functions.foreach(f => tEnv.registerFunction(f._1, f._2))
+      functions.foreach(f => tEnv.createTemporarySystemFunction(f._1, f._2))
     } else {
       tEnv.createTemporaryView(tableName, tEnv.fromValues(resolvedDataType))
       testSystemFunctions.asScala.foreach(e => tEnv.createTemporarySystemFunction(e._1, e._2))
@@ -124,7 +134,7 @@ abstract class ExpressionTestBase {
     invalidTableApiExprs.clear()
   }
 
-  @After
+  @AfterEach
   def evaluateExprs(): Unit = {
 
     // evaluate valid expressions
@@ -132,25 +142,20 @@ abstract class ExpressionTestBase {
 
     // evaluate invalid expressions
     invalidSqlExprs.foreach {
-      case (sqlExpr, keywords, clazz) => {
-        try {
+      case (sqlExpr, keywords, clazz) =>
+        val callable: ThrowingCallable = () => {
           val invalidExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
           addSqlTestExpr(sqlExpr, keywords, invalidExprs, clazz)
           evaluateGivenExprs(invalidExprs)
-          fail(s"Expected a $clazz, but no exception is thrown.")
-        } catch {
-          case e if e.getClass == clazz =>
-            if (keywords != null) {
-              assertTrue(
-                s"The actual exception message \n${e.getMessage}\n" +
-                  s"doesn't contain expected keyword \n$keywords\n",
-                e.getMessage.contains(keywords))
-            }
-          case e: Throwable =>
-            e.printStackTrace()
-            fail(s"Expected throw ${clazz.getSimpleName}, but is $e.")
         }
-      }
+        if (keywords != null) {
+          assertThatExceptionOfType(clazz)
+            .isThrownBy(callable)
+            .withMessageContaining(keywords)
+        } else {
+          assertThatExceptionOfType(clazz)
+            .isThrownBy(callable)
+        }
     }
 
     invalidTableApiExprs.foreach {
@@ -182,6 +187,10 @@ abstract class ExpressionTestBase {
 
   def testSqlApi(sqlExpr: String, expected: String): Unit = {
     addSqlTestExpr(sqlExpr, expected, validExprs)
+  }
+
+  def testSqlApi(sqlExpr: String): Unit = {
+    addSqlTestExpr(sqlExpr, null, validExprs)
   }
 
   def testExpectedAllApisException(
@@ -225,7 +234,7 @@ abstract class ExpressionTestBase {
     if (isRichFunction) {
       val richMapper = mapper.asInstanceOf[RichMapFunction[_, _]]
       val t = new RuntimeUDFContext(
-        new TaskInfo("ExpressionTest", 1, 0, 1, 1),
+        new TaskInfoImpl("ExpressionTest", 1, 0, 1, 1),
         classOf[ExpressionTestBase].getClassLoader,
         env.getConfig,
         Collections.emptyMap(),
@@ -244,6 +253,7 @@ abstract class ExpressionTestBase {
       val converter = DataStructureConverters
         .getConverter(resolvedDataType)
         .asInstanceOf[DataStructureConverter[RowData, Row]]
+      converter.open(getClass.getClassLoader)
       converter.toInternalOrNull(testData)
     }
     try {
@@ -278,7 +288,7 @@ abstract class ExpressionTestBase {
 
   private def addSqlTestExpr(
       sqlExpr: String,
-      expected: String,
+      @Nullable expected: String,
       exprsContainer: mutable.ArrayBuffer[_],
       exceptionClass: Class[_ <: Throwable] = null): Unit = {
     // create RelNode from SQL expression
@@ -303,7 +313,7 @@ abstract class ExpressionTestBase {
 
   private def addTestExpr(
       relNode: RelNode,
-      expected: String,
+      @Nullable expected: String,
       summaryString: String,
       exceptionClass: Class[_ <: Throwable],
       exprs: mutable.ArrayBuffer[_]): Unit = {
@@ -315,9 +325,9 @@ abstract class ExpressionTestBase {
     val optimized = hep.findBestExp()
 
     // throw exception if plan contains more than a calc
-    if (!optimized.getInput(0).getInputs.isEmpty) {
-      fail("Expression is converted into more than a Calc operation. Use a different test method.")
-    }
+    assertTrue(
+      optimized.getInput(0).getInputs.isEmpty,
+      "Expression is converted into more than a Calc operation. Use a different test method.")
 
     exprs.asInstanceOf[mutable.ArrayBuffer[(String, RexNode, String)]] +=
       ((summaryString, extractRexNode(optimized), expected))
@@ -340,11 +350,15 @@ abstract class ExpressionTestBase {
       .zip(result)
       .foreach {
         case ((originalExpr, optimizedExpr, expected), actual) =>
+          if (expected == null) {
+            // no need to check the result
+            return
+          }
           val original = if (originalExpr == null) "" else s"for: [$originalExpr]"
           assertEquals(
-            s"Wrong result $original optimized to: [$optimizedExpr]",
             expected,
-            if (actual == null) "NULL" else actual)
+            if (actual == null) "NULL" else actual,
+            s"Wrong result $original optimized to: [$optimizedExpr]")
       }
   }
 
@@ -387,7 +401,7 @@ abstract class ExpressionTestBase {
   def testDataType: AbstractDataType[_] =
     throw new IllegalArgumentException("Implement this if no legacy types are expected.")
 
-  def testSystemFunctions: java.util.Map[String, ScalarFunction] = Collections.emptyMap();
+  def testSystemFunctions: java.util.Map[String, ScalarFunction] = Collections.emptyMap()
 
   // ----------------------------------------------------------------------------------------------
   // Legacy type system

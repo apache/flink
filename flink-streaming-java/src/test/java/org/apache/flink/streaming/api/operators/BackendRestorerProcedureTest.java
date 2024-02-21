@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingFSDataInputStream;
 import org.apache.flink.util.FlinkException;
@@ -47,11 +48,11 @@ import java.util.List;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.powermock.api.mockito.PowerMockito.mock;
-import static org.powermock.api.mockito.PowerMockito.spy;
-import static org.powermock.api.mockito.PowerMockito.verifyZeroInteractions;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.Mockito.when;
 
 /** Tests for {@link BackendRestorerProcedure}. */
 public class BackendRestorerProcedureTest extends TestLogger {
@@ -121,13 +122,14 @@ public class BackendRestorerProcedureTest extends TestLogger {
                         backendSupplier, closeableRegistry, "test op state backend");
 
         OperatorStateBackend restoredBackend =
-                restorerProcedure.createAndRestore(sortedRestoreOptions);
+                restorerProcedure.createAndRestore(
+                        sortedRestoreOptions, StateObject.StateObjectSizeStatsCollector.create());
         Assert.assertNotNull(restoredBackend);
 
         try {
             verify(firstFailHandle).openInputStream();
             verify(secondSuccessHandle).openInputStream();
-            verifyZeroInteractions(thirdNotUsedHandle);
+            verify(thirdNotUsedHandle, times(0)).openInputStream();
 
             ListState<Integer> listState = restoredBackend.getListState(stateDescriptor);
 
@@ -165,7 +167,8 @@ public class BackendRestorerProcedureTest extends TestLogger {
                         backendSupplier, closeableRegistry, "test op state backend");
 
         try {
-            restorerProcedure.createAndRestore(sortedRestoreOptions);
+            restorerProcedure.createAndRestore(
+                    sortedRestoreOptions, StateObject.StateObjectSizeStatsCollector.create());
             Assert.fail();
         } catch (Exception ignore) {
         }
@@ -199,7 +202,9 @@ public class BackendRestorerProcedureTest extends TestLogger {
                 new Thread(
                         () -> {
                             try {
-                                restorerProcedure.createAndRestore(sortedRestoreOptions);
+                                restorerProcedure.createAndRestore(
+                                        sortedRestoreOptions,
+                                        StateObject.StateObjectSizeStatsCollector.create());
                             } catch (Exception e) {
                                 exceptionReference.set(e);
                             }

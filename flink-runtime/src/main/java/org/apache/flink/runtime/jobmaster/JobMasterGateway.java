@@ -26,6 +26,7 @@ import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.blocklist.BlocklistListener;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -38,7 +39,6 @@ import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -183,14 +183,6 @@ public interface JobMasterGateway
     CompletableFuture<Void> heartbeatFromResourceManager(final ResourceID resourceID);
 
     /**
-     * Request the details of the executed job.
-     *
-     * @param timeout for the rpc call
-     * @return Future details of the executed job
-     */
-    CompletableFuture<JobDetails> requestJobDetails(@RpcTimeout Time timeout);
-
-    /**
      * Requests the current job status.
      *
      * @param timeout for the rpc call
@@ -205,6 +197,14 @@ public interface JobMasterGateway
      * @return Future which is completed with the {@link ExecutionGraphInfo} of the executed job
      */
     CompletableFuture<ExecutionGraphInfo> requestJob(@RpcTimeout Time timeout);
+
+    /**
+     * Requests the {@link CheckpointStatsSnapshot} of the job.
+     *
+     * @param timeout for the rpc call
+     * @return Future which is completed with the {@link CheckpointStatsSnapshot} of the job
+     */
+    CompletableFuture<CheckpointStatsSnapshot> requestCheckpointStats(@RpcTimeout Time timeout);
 
     /**
      * Triggers taking a savepoint of the executed job.
@@ -316,4 +316,11 @@ public interface JobMasterGateway
      */
     CompletableFuture<Acknowledge> updateJobResourceRequirements(
             JobResourceRequirements jobResourceRequirements);
+
+    /**
+     * Notifies that the task has reached the end of data.
+     *
+     * @param executionAttempt The execution attempt id.
+     */
+    void notifyEndOfData(final ExecutionAttemptID executionAttempt);
 }

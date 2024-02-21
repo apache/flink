@@ -20,6 +20,8 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
@@ -52,15 +54,14 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
 
     private final ClassLoader classLoader;
 
-    private final Supplier<ExecutionConfig> executionConfig;
+    private final Supplier<SerializerConfig> serializerConfig;
 
     DataTypeFactoryImpl(
             ClassLoader classLoader,
             ReadableConfig config,
-            @Nullable ExecutionConfig executionConfig) {
+            @Nullable SerializerConfig serializerConfig) {
         this.classLoader = classLoader;
-        this.executionConfig =
-                createSerializerExecutionConfig(classLoader, config, executionConfig);
+        this.serializerConfig = createSerializerConfig(classLoader, config, serializerConfig);
     }
 
     @Override
@@ -96,14 +97,14 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
     @Override
     public <T> DataType createRawDataType(Class<T> clazz) {
         // we assume that a RAW type is nullable by default
-        return DataTypes.RAW(clazz, new KryoSerializer<>(clazz, executionConfig.get()));
+        return DataTypes.RAW(clazz, new KryoSerializer<>(clazz, serializerConfig.get()));
     }
 
     @Override
     public <T> DataType createRawDataType(TypeInformation<T> typeInfo) {
         // we assume that a RAW type is nullable by default
         return DataTypes.RAW(
-                typeInfo.getTypeClass(), typeInfo.createSerializer(executionConfig.get()));
+                typeInfo.getTypeClass(), typeInfo.createSerializer(serializerConfig.get()));
     }
 
     @Override
@@ -127,50 +128,50 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
      * information from existing {@link ExecutionConfig} (if available) enriched with table {@link
      * ReadableConfig}.
      */
-    private static Supplier<ExecutionConfig> createSerializerExecutionConfig(
-            ClassLoader classLoader, ReadableConfig config, ExecutionConfig executionConfig) {
+    private static Supplier<SerializerConfig> createSerializerConfig(
+            ClassLoader classLoader, ReadableConfig config, SerializerConfig serializerConfig) {
         return () -> {
-            final ExecutionConfig newExecutionConfig = new ExecutionConfig();
+            final SerializerConfig newSerializerConfig = new SerializerConfigImpl();
 
-            if (executionConfig != null) {
-                if (executionConfig.isForceKryoEnabled()) {
-                    newExecutionConfig.enableForceKryo();
+            if (serializerConfig != null) {
+                if (serializerConfig.isForceKryoEnabled()) {
+                    newSerializerConfig.setForceKryo(true);
                 }
 
-                if (executionConfig.isForceAvroEnabled()) {
-                    newExecutionConfig.enableForceAvro();
+                if (serializerConfig.isForceAvroEnabled()) {
+                    newSerializerConfig.setForceAvro(true);
                 }
 
-                executionConfig
+                serializerConfig
                         .getDefaultKryoSerializers()
                         .forEach(
                                 (c, s) ->
-                                        newExecutionConfig.addDefaultKryoSerializer(
+                                        newSerializerConfig.addDefaultKryoSerializer(
                                                 c, s.getSerializer()));
 
-                executionConfig
+                serializerConfig
                         .getDefaultKryoSerializerClasses()
-                        .forEach(newExecutionConfig::addDefaultKryoSerializer);
+                        .forEach(newSerializerConfig::addDefaultKryoSerializer);
 
-                executionConfig
+                serializerConfig
                         .getRegisteredKryoTypes()
-                        .forEach(newExecutionConfig::registerKryoType);
+                        .forEach(newSerializerConfig::registerKryoType);
 
-                executionConfig
+                serializerConfig
                         .getRegisteredTypesWithKryoSerializerClasses()
-                        .forEach(newExecutionConfig::registerTypeWithKryoSerializer);
+                        .forEach(newSerializerConfig::registerTypeWithKryoSerializer);
 
-                executionConfig
+                serializerConfig
                         .getRegisteredTypesWithKryoSerializers()
                         .forEach(
                                 (c, s) ->
-                                        newExecutionConfig.registerTypeWithKryoSerializer(
+                                        newSerializerConfig.registerTypeWithKryoSerializer(
                                                 c, s.getSerializer()));
             }
 
-            newExecutionConfig.configure(config, classLoader);
+            newSerializerConfig.configure(config, classLoader);
 
-            return newExecutionConfig;
+            return newSerializerConfig;
         };
     }
 

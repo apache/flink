@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.jobmanager;
 
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
@@ -68,7 +68,7 @@ public class SlotCountExceedingParallelismTest extends TestLogger {
 
     private static Configuration getFlinkConfiguration() {
         final Configuration config = new Configuration();
-        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT);
+        config.set(RpcOptions.ASK_TIMEOUT_DURATION, TestingUtils.DEFAULT_ASK_TIMEOUT);
 
         return config;
     }

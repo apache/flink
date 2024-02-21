@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.RuntimeContext
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.core.memory.MemorySegment
 import org.apache.flink.table.data._
 import org.apache.flink.table.data.binary._
@@ -38,7 +39,7 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getPrecision, getScale}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getPrecision, getScale, isCompositeType}
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass
 import org.apache.flink.table.types.utils.DataTypeUtils.isInternal
 import org.apache.flink.table.utils.EncodingUtils
@@ -57,6 +58,8 @@ object CodeGenUtils {
   val DEFAULT_LEGACY_CAST_BEHAVIOUR = "legacyCastBehaviour"
 
   val DEFAULT_TIMEZONE_TERM = "timeZone"
+
+  val DEFAULT_INPUT_TERM = "in"
 
   val DEFAULT_INPUT1_TERM = "in1"
 
@@ -122,14 +125,27 @@ object CodeGenUtils {
 
   private val nameCounter = new AtomicLong
 
-  def newName(name: String): String = {
-    s"$name$$${nameCounter.getAndIncrement}"
+  def newName(context: CodeGeneratorContext, name: String): String = {
+    if (context == null || context.getNameCounter == null) {
+      // Add an 'i' in the middle to distinguish from nameCounter in CodeGeneratorContext
+      // and avoid naming conflicts.
+      s"$name$$i${nameCounter.getAndIncrement}"
+    } else {
+      s"$name$$${context.getNameCounter.getAndIncrement}"
+    }
   }
 
-  def newNames(names: String*): Seq[String] = {
+  def newNames(context: CodeGeneratorContext, names: String*): Seq[String] = {
     require(names.toSet.size == names.length, "Duplicated names")
-    val newId = nameCounter.getAndIncrement
-    names.map(name => s"$name$$$newId")
+    if (context == null || context.getNameCounter == null) {
+      val newId = nameCounter.getAndIncrement
+      // Add an 'i' in the middle to distinguish from nameCounter in CodeGeneratorContext
+      // and avoid naming conflicts.
+      names.map(name => s"$name$$i$newId")
+    } else {
+      val newId = context.getNameCounter.getAndIncrement
+      names.map(name => s"$name$$$newId")
+    }
   }
 
   /** Retrieve the canonical name of a class type. */
@@ -316,7 +332,7 @@ object CodeGenUtils {
           s"Unsupported type($t) to generate hash code," +
             s" the type($t) is not supported as a GROUP_BY/PARTITION_BY/JOIN_EQUAL/UNION field.")
       case ARRAY =>
-        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
+        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader, ctx)
         val genHash =
           HashCodeGenerator.generateArrayHash(
             subCtx,
@@ -324,7 +340,7 @@ object CodeGenUtils {
             "SubHashArray")
         genHashFunction(ctx, subCtx, genHash, term)
       case MULTISET | MAP =>
-        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
+        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader, ctx)
         val (keyType, valueType) = t match {
           case multiset: MultisetType =>
             (multiset.getElementType, new IntType())
@@ -337,7 +353,7 @@ object CodeGenUtils {
       case INTERVAL_DAY_TIME => s"${className[JLong]}.hashCode($term)"
       case ROW | STRUCTURED_TYPE =>
         val fieldCount = getFieldCount(t)
-        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
+        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader, ctx)
         val genHash =
           HashCodeGenerator.generateRowHash(subCtx, t, "SubHashRow", (0 until fieldCount).toArray)
         genHashFunction(ctx, subCtx, genHash, term)
@@ -348,7 +364,7 @@ object CodeGenUtils {
           case rt: RawType[_] =>
             rt.getTypeSerializer
           case tirt: TypeInformationRawType[_] =>
-            tirt.getTypeInformation.createSerializer(new ExecutionConfig)
+            tirt.getTypeInformation.createSerializer(new SerializerConfigImpl)
         }
         val serTerm = ctx.addReusableObject(serializer, "serializer")
         s"$BINARY_RAW_VALUE.getJavaObjectFromRawValueData($term, $serTerm).hashCode()"
@@ -365,7 +381,7 @@ object CodeGenUtils {
       term: String): String = {
     ctx.addReusableInnerClass(genHash.getClassName, genHash.getCode)
     val refs = ctx.addReusableObject(subCtx.references.toArray, "subRefs")
-    val hashFunc = newName("hashFunc")
+    val hashFunc = newName(ctx, "hashFunc")
     ctx.addReusableMember(s"${classOf[HashFunction].getCanonicalName} $hashFunc;")
     ctx.addReusableInitStatement(s"$hashFunc = new ${genHash.getClassName}($refs);")
     s"$hashFunc.hashCode($term)"
@@ -934,9 +950,7 @@ object CodeGenUtils {
     if (targetDataType.getConversionClass.isPrimitive) {
       externalResultTerm
     } else {
-      // Cast of null is required because of janino issue https://github.com/janino-compiler/janino/issues/188
-      val externalResultTypeTerm = typeTerm(targetDataType.getConversionClass)
-      s"${internalExpr.nullTerm} ? ($externalResultTypeTerm) null : ($externalResultTerm)"
+      s"${internalExpr.nullTerm} ? null : ($externalResultTerm)"
     }
   }
 
@@ -1034,19 +1048,52 @@ object CodeGenUtils {
     }
 
     // convert internal format to target type
-    val (externalResultTerm, externalResultTypeTerm) = if (isInternalClass(targetDataType)) {
-      (s"($targetTypeTerm) ${internalExpr.resultTerm}", s"($targetTypeTerm)")
+    val externalResultTerm = if (isInternalClass(targetDataType)) {
+      s"($targetTypeTerm) ${internalExpr.resultTerm}"
     } else {
-      (
-        genToExternalConverterWithLegacy(ctx, targetDataType, internalExpr.resultTerm),
-        typeTerm(targetDataType.getConversionClass))
+      genToExternalConverterWithLegacy(ctx, targetDataType, internalExpr.resultTerm)
     }
     // merge null term into the result term
     if (targetDataType.getConversionClass.isPrimitive) {
       externalResultTerm
     } else {
-      // Cast of null is required because of janino issue https://github.com/janino-compiler/janino/issues/188
-      s"${internalExpr.nullTerm} ? ($externalResultTypeTerm) null : ($externalResultTerm)"
+      s"${internalExpr.nullTerm} ? null : ($externalResultTerm)"
+    }
+  }
+
+  def fieldIndices(t: LogicalType): Array[Int] = {
+    if (isCompositeType(t)) {
+      (0 until getFieldCount(t)).toArray
+    } else {
+      Array(0)
+    }
+  }
+
+  def getReuseRowFieldExprs(
+      ctx: CodeGeneratorContext,
+      inputType: RowType,
+      inputRowTerm: String): Seq[GeneratedExpression] = {
+    fieldIndices(inputType)
+      .map(
+        index => {
+          val expr = GenerateUtils.generateFieldAccess(ctx, inputType, inputRowTerm, index)
+          ctx.addReusableInputUnboxingExprs(inputRowTerm, index, expr)
+          expr
+        })
+      .toSeq
+  }
+
+  def getFieldExpr(
+      ctx: CodeGeneratorContext,
+      inputTerm: String,
+      inputType: RowType,
+      index: Int): GeneratedExpression = {
+    ctx.getReusableInputUnboxingExprs(inputTerm, index) match {
+      // For operator fusion codegen case, the input field expr have been prepared before do this logic.
+      case Some(expr) => expr
+      // For single operator codegen case, this is needed.
+      case None =>
+        GenerateUtils.generateFieldAccess(ctx, inputType, inputTerm, index)
     }
   }
 }

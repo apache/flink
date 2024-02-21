@@ -386,47 +386,6 @@ Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testBushyJoinCondition1[isBushyJoinReorder=false]">
-    <Resource name="sql">
-      <![CDATA[
-SELECT * FROM T1, T2, T3, T4, T5
-WHERE a1 = a2 AND a2 = a3 AND a1 = a4 AND a3 = a5
-         ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
-+- LogicalFilter(condition=[AND(=($0, $3), =($3, $6), =($0, $9), =($6, $12))])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalJoin(condition=[true], joinType=[inner])
-      :  :- LogicalJoin(condition=[true], joinType=[inner])
-      :  :  :- LogicalJoin(condition=[true], joinType=[inner])
-      :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
-      :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
-      :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
-      :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
-+- HashJoin(joinType=[InnerJoin], where=[=(a2, a3)], select=[a2, b2, c2, a1, b1, c1, a5, b5, c5, a4, b4, c4, a3, b3, c3], isBroadcast=[true], build=[right])
-   :- HashJoin(joinType=[InnerJoin], where=[=(a2, a4)], select=[a2, b2, c2, a1, b1, c1, a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
-   :  :- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
-   :  +- Exchange(distribution=[broadcast])
-   :     +- HashJoin(joinType=[InnerJoin], where=[=(a1, a4)], select=[a1, b1, c1, a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
-   :        :- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-   :        +- Exchange(distribution=[broadcast])
-   :           +- HashJoin(joinType=[InnerJoin], where=[=(a5, a4)], select=[a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
-   :              :- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
-   :              +- Exchange(distribution=[broadcast])
-   :                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
-   +- Exchange(distribution=[broadcast])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testBushyJoinCondition1[isBushyJoinReorder=true]">
     <Resource name="sql">
       <![CDATA[
@@ -468,17 +427,17 @@ Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testBushyJoinCondition2[isBushyJoinReorder=false]">
+  <TestCase name="testBushyJoinCondition1[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM T1, T2, T3, T4, T5
-WHERE b1 = b2 AND b2 = b3 AND b1 = b4 AND b3 = b5
+WHERE a1 = a2 AND a2 = a3 AND a1 = a4 AND a3 = a5
          ]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
-+- LogicalFilter(condition=[AND(=($1, $4), =($4, $7), =($1, $10), =($7, $13))])
++- LogicalFilter(condition=[AND(=($0, $3), =($3, $6), =($0, $9), =($6, $12))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalJoin(condition=[true], joinType=[inner])
       :  :- LogicalJoin(condition=[true], joinType=[inner])
@@ -493,18 +452,17 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
-+- HashJoin(joinType=[InnerJoin], where=[=(b1, b3)], select=[a1, b1, c1, a5, b5, c5, a2, b2, c2, a4, b4, c4, a3, b3, c3], isBroadcast=[true], build=[right])
-   :- HashJoin(joinType=[InnerJoin], where=[=(b1, b4)], select=[a1, b1, c1, a5, b5, c5, a2, b2, c2, a4, b4, c4], build=[left])
-   :  :- Exchange(distribution=[hash[b1]])
-   :  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-   :  +- Exchange(distribution=[hash[b4]])
-   :     +- HashJoin(joinType=[InnerJoin], where=[=(b5, b4)], select=[a5, b5, c5, a2, b2, c2, a4, b4, c4], isBroadcast=[true], build=[right])
-   :        :- HashJoin(joinType=[InnerJoin], where=[=(b5, b2)], select=[a5, b5, c5, a2, b2, c2], isBroadcast=[true], build=[right])
-   :        :  :- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
-   :        :  +- Exchange(distribution=[broadcast])
-   :        :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
++- HashJoin(joinType=[InnerJoin], where=[=(a2, a3)], select=[a2, b2, c2, a1, b1, c1, a5, b5, c5, a4, b4, c4, a3, b3, c3], isBroadcast=[true], build=[right])
+   :- HashJoin(joinType=[InnerJoin], where=[=(a2, a4)], select=[a2, b2, c2, a1, b1, c1, a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
+   :  :- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   :  +- Exchange(distribution=[broadcast])
+   :     +- HashJoin(joinType=[InnerJoin], where=[=(a1, a4)], select=[a1, b1, c1, a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
+   :        :- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
    :        +- Exchange(distribution=[broadcast])
-   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :           +- HashJoin(joinType=[InnerJoin], where=[=(a5, a4)], select=[a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
+   :              :- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   :              +- Exchange(distribution=[broadcast])
+   :                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
    +- Exchange(distribution=[broadcast])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
 ]]>
@@ -549,6 +507,48 @@ Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
       :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
       +- Exchange(distribution=[hash[b5]])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testBushyJoinCondition2[isBushyJoinReorder=false]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1, T2, T3, T4, T5
+WHERE b1 = b2 AND b2 = b3 AND b1 = b4 AND b3 = b5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalFilter(condition=[AND(=($1, $4), =($4, $7), =($1, $10), =($7, $13))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+      :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+      :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- HashJoin(joinType=[InnerJoin], where=[=(b1, b3)], select=[a1, b1, c1, a5, b5, c5, a2, b2, c2, a4, b4, c4, a3, b3, c3], isBroadcast=[true], build=[right])
+   :- HashJoin(joinType=[InnerJoin], where=[=(b1, b4)], select=[a1, b1, c1, a5, b5, c5, a2, b2, c2, a4, b4, c4], build=[left])
+   :  :- Exchange(distribution=[hash[b1]])
+   :  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :  +- Exchange(distribution=[hash[b4]])
+   :     +- HashJoin(joinType=[InnerJoin], where=[=(b5, b4)], select=[a5, b5, c5, a2, b2, c2, a4, b4, c4], isBroadcast=[true], build=[right])
+   :        :- HashJoin(joinType=[InnerJoin], where=[=(b5, b2)], select=[a5, b5, c5, a2, b2, c2], isBroadcast=[true], build=[right])
+   :        :  :- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   :        :  +- Exchange(distribution=[broadcast])
+   :        :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   :        +- Exchange(distribution=[broadcast])
+   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   +- Exchange(distribution=[broadcast])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
 ]]>
     </Resource>
   </TestCase>
@@ -649,7 +649,7 @@ LogicalProject(a6=[$0], b6=[$1], a7=[$2], b7=[$3], a8=[$4], b8=[$5])
 Calc(select=[a6, b6, a7, b7, a8, b8])
 +- HashJoin(joinType=[InnerJoin], where=[=(b6, b7)], select=[a6, b6, a8, b8, a7, b7], build=[right])
    :- Exchange(distribution=[hash[b6]])
-   :  +- HashJoin(joinType=[InnerJoin], where=[=(a6, a8)], select=[a6, b6, a8, b8], build=[right])
+   :  +- HashJoin(joinType=[InnerJoin], where=[=(a6, a8)], select=[a6, b6, a8, b8], build=[left])
    :     :- Exchange(distribution=[hash[a6]])
    :     :  +- Calc(select=[a6, b6], where=[IS NOT NULL(a6)])
    :     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T6, source: [TestTableSource(a6, b6)]]], fields=[a6, b6])
@@ -684,7 +684,7 @@ LogicalProject(a6=[$0], b6=[$1], a7=[$2], b7=[$3], a8=[$4], b8=[$5])
 Calc(select=[a6, b6, a7, b7, a8, b8])
 +- HashJoin(joinType=[InnerJoin], where=[=(b6, b7)], select=[a6, b6, a8, b8, a7, b7], build=[right])
    :- Exchange(distribution=[hash[b6]])
-   :  +- HashJoin(joinType=[InnerJoin], where=[=(a6, a8)], select=[a6, b6, a8, b8], build=[right])
+   :  +- HashJoin(joinType=[InnerJoin], where=[=(a6, a8)], select=[a6, b6, a8, b8], build=[left])
    :     :- Exchange(distribution=[hash[a6]])
    :     :  +- Calc(select=[a6, b6], where=[IS NOT NULL(a6)])
    :     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T6, source: [TestTableSource(a6, b6)]]], fields=[a6, b6])
@@ -873,50 +873,6 @@ Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testInnerAndRightOuterJoin[isBushyJoinReorder=false]">
-    <Resource name="sql">
-      <![CDATA[
-SELECT * FROM T1
-   RIGHT OUTER JOIN T2 ON a1 = a2
-   JOIN T3 ON a2 = a3
-   JOIN T4 ON a2 = a4
-   JOIN T5 ON a4 = a5
-         ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
-+- LogicalJoin(condition=[=($9, $12)], joinType=[inner])
-   :- LogicalJoin(condition=[=($3, $9)], joinType=[inner])
-   :  :- LogicalJoin(condition=[=($3, $6)], joinType=[inner])
-   :  :  :- LogicalJoin(condition=[=($0, $3)], joinType=[right])
-   :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
-   :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
-   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
-+- HashJoin(joinType=[InnerJoin], where=[=(a2, a3)], select=[a1, b1, c1, a2, b2, c2, a5, b5, c5, a4, b4, c4, a3, b3, c3], isBroadcast=[true], build=[right])
-   :- HashJoin(joinType=[InnerJoin], where=[=(a2, a4)], select=[a1, b1, c1, a2, b2, c2, a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
-   :  :- HashJoin(joinType=[RightOuterJoin], where=[=(a1, a2)], select=[a1, b1, c1, a2, b2, c2], build=[right])
-   :  :  :- Exchange(distribution=[hash[a1]])
-   :  :  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-   :  :  +- Exchange(distribution=[hash[a2]])
-   :  :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
-   :  +- Exchange(distribution=[broadcast])
-   :     +- HashJoin(joinType=[InnerJoin], where=[=(a4, a5)], select=[a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
-   :        :- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
-   :        +- Exchange(distribution=[broadcast])
-   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
-   +- Exchange(distribution=[broadcast])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testInnerAndRightOuterJoin[isBushyJoinReorder=true]">
     <Resource name="sql">
       <![CDATA[
@@ -958,6 +914,50 @@ Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
    +- Exchange(distribution=[hash[a1]])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerAndRightOuterJoin[isBushyJoinReorder=false]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1
+   RIGHT OUTER JOIN T2 ON a1 = a2
+   JOIN T3 ON a2 = a3
+   JOIN T4 ON a2 = a4
+   JOIN T5 ON a4 = a5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalJoin(condition=[=($9, $12)], joinType=[inner])
+   :- LogicalJoin(condition=[=($3, $9)], joinType=[inner])
+   :  :- LogicalJoin(condition=[=($3, $6)], joinType=[inner])
+   :  :  :- LogicalJoin(condition=[=($0, $3)], joinType=[right])
+   :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- HashJoin(joinType=[InnerJoin], where=[=(a2, a3)], select=[a1, b1, c1, a2, b2, c2, a5, b5, c5, a4, b4, c4, a3, b3, c3], isBroadcast=[true], build=[right])
+   :- HashJoin(joinType=[InnerJoin], where=[=(a2, a4)], select=[a1, b1, c1, a2, b2, c2, a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
+   :  :- HashJoin(joinType=[RightOuterJoin], where=[=(a1, a2)], select=[a1, b1, c1, a2, b2, c2], build=[right])
+   :  :  :- Exchange(distribution=[hash[a1]])
+   :  :  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :  :  +- Exchange(distribution=[hash[a2]])
+   :  :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   :  +- Exchange(distribution=[broadcast])
+   :     +- HashJoin(joinType=[InnerJoin], where=[=(a4, a5)], select=[a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
+   :        :- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   :        +- Exchange(distribution=[broadcast])
+   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   +- Exchange(distribution=[broadcast])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
 ]]>
     </Resource>
   </TestCase>
@@ -1559,57 +1559,6 @@ HashJoin(joinType=[InnerJoin], where=[=(b2, b4)], select=[a1, b1, c1, a2, b2, c2
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithFilter[isBushyJoinReorder=false]">
-    <Resource name="sql">
-      <![CDATA[
-WITH V1 AS (SELECT * FROM T1 JOIN T2 ON a1 = a2 WHERE b1 * b2 > 10),
-     V2 AS (SELECT * FROM V1 JOIN T3 ON a2 = a3 WHERE b1 * b3 < 2000),
-     V3 AS (SELECT * FROM T4 JOIN V2 ON a3 = a4 WHERE b2 + b4 > 100)
-
-SELECT * FROM V3, T5 WHERE a4 = a5 AND b5 < 15
-         ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a4=[$0], b4=[$1], c4=[$2], a1=[$3], b1=[$4], c1=[$5], a2=[$6], b2=[$7], c2=[$8], a3=[$9], b3=[$10], c3=[$11], a5=[$12], b5=[$13], c5=[$14])
-+- LogicalFilter(condition=[AND(=($0, $12), <($13, 15))])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a4=[$0], b4=[$1], c4=[$2], a1=[$3], b1=[$4], c1=[$5], a2=[$6], b2=[$7], c2=[$8], a3=[$9], b3=[$10], c3=[$11])
-      :  +- LogicalFilter(condition=[>(+($7, $1), 100)])
-      :     +- LogicalJoin(condition=[=($9, $0)], joinType=[inner])
-      :        :- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
-      :        +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8])
-      :           +- LogicalFilter(condition=[<(*($1, $7), 2000)])
-      :              +- LogicalJoin(condition=[=($3, $6)], joinType=[inner])
-      :                 :- LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5])
-      :                 :  +- LogicalFilter(condition=[>(*($1, $4), 10)])
-      :                 :     +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
-      :                 :        :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
-      :                 :        +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
-      :                 +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[a4, b4, c4, a1, b1, c1, a2, b2, c2, a3, b3, c3, a5, b5, c5])
-+- HashJoin(joinType=[InnerJoin], where=[AND(<(*(b1, b3), 2000), =(a2, a3))], select=[a2, b2, c2, a1, b1, c1, a5, b5, c5, a4, b4, c4, a3, b3, c3], isBroadcast=[true], build=[right])
-   :- HashJoin(joinType=[InnerJoin], where=[AND(>(+(b2, b4), 100), >(*(b1, b2), 10), =(a2, a4))], select=[a2, b2, c2, a1, b1, c1, a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
-   :  :- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
-   :  +- Exchange(distribution=[broadcast])
-   :     +- HashJoin(joinType=[InnerJoin], where=[=(a1, a4)], select=[a1, b1, c1, a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
-   :        :- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-   :        +- Exchange(distribution=[broadcast])
-   :           +- HashJoin(joinType=[InnerJoin], where=[=(a4, a5)], select=[a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
-   :              :- Calc(select=[a5, b5, c5], where=[<(b5, 15)])
-   :              :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
-   :              +- Exchange(distribution=[broadcast])
-   :                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
-   +- Exchange(distribution=[broadcast])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testJoinWithFilter[isBushyJoinReorder=true]">
     <Resource name="sql">
       <![CDATA[
@@ -1661,7 +1610,58 @@ Calc(select=[a4, b4, c4, a1, b1, c1, a2, b2, c2, a3, b3, c3, a5, b5, c5])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithProject[isBushyJoinReorder=false]">
+  <TestCase name="testJoinWithFilter[isBushyJoinReorder=false]">
+    <Resource name="sql">
+      <![CDATA[
+WITH V1 AS (SELECT * FROM T1 JOIN T2 ON a1 = a2 WHERE b1 * b2 > 10),
+     V2 AS (SELECT * FROM V1 JOIN T3 ON a2 = a3 WHERE b1 * b3 < 2000),
+     V3 AS (SELECT * FROM T4 JOIN V2 ON a3 = a4 WHERE b2 + b4 > 100)
+
+SELECT * FROM V3, T5 WHERE a4 = a5 AND b5 < 15
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a4=[$0], b4=[$1], c4=[$2], a1=[$3], b1=[$4], c1=[$5], a2=[$6], b2=[$7], c2=[$8], a3=[$9], b3=[$10], c3=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalFilter(condition=[AND(=($0, $12), <($13, 15))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a4=[$0], b4=[$1], c4=[$2], a1=[$3], b1=[$4], c1=[$5], a2=[$6], b2=[$7], c2=[$8], a3=[$9], b3=[$10], c3=[$11])
+      :  +- LogicalFilter(condition=[>(+($7, $1), 100)])
+      :     +- LogicalJoin(condition=[=($9, $0)], joinType=[inner])
+      :        :- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+      :        +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8])
+      :           +- LogicalFilter(condition=[<(*($1, $7), 2000)])
+      :              +- LogicalJoin(condition=[=($3, $6)], joinType=[inner])
+      :                 :- LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5])
+      :                 :  +- LogicalFilter(condition=[>(*($1, $4), 10)])
+      :                 :     +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+      :                 :        :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+      :                 :        +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+      :                 +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a4, b4, c4, a1, b1, c1, a2, b2, c2, a3, b3, c3, a5, b5, c5])
++- HashJoin(joinType=[InnerJoin], where=[AND(<(*(b1, b3), 2000), =(a2, a3))], select=[a2, b2, c2, a1, b1, c1, a5, b5, c5, a4, b4, c4, a3, b3, c3], isBroadcast=[true], build=[right])
+   :- HashJoin(joinType=[InnerJoin], where=[AND(>(+(b2, b4), 100), >(*(b1, b2), 10), =(a2, a4))], select=[a2, b2, c2, a1, b1, c1, a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
+   :  :- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   :  +- Exchange(distribution=[broadcast])
+   :     +- HashJoin(joinType=[InnerJoin], where=[=(a1, a4)], select=[a1, b1, c1, a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
+   :        :- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :        +- Exchange(distribution=[broadcast])
+   :           +- HashJoin(joinType=[InnerJoin], where=[=(a4, a5)], select=[a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
+   :              :- Calc(select=[a5, b5, c5], where=[<(b5, 15)])
+   :              :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   :              +- Exchange(distribution=[broadcast])
+   :                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   +- Exchange(distribution=[broadcast])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinWithProject[isBushyJoinReorder=true]">
     <Resource name="sql">
       <![CDATA[
 WITH V1 AS (SELECT b1, a1, a2, c2 FROM T1 JOIN T2 ON a1 = a2),
@@ -1714,7 +1714,7 @@ HashJoin(joinType=[InnerJoin], where=[=(a4, a5)], select=[a3, b1, a1, c2, c3, a4
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithProject[isBushyJoinReorder=true]">
+  <TestCase name="testJoinWithProject[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
 WITH V1 AS (SELECT b1, a1, a2, c2 FROM T1 JOIN T2 ON a1 = a2),
@@ -1944,47 +1944,6 @@ Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testStarJoinCondition1[isBushyJoinReorder=false]">
-    <Resource name="sql">
-      <![CDATA[
-SELECT * FROM T1, T2, T3, T4, T5
-WHERE a1 = a2 AND a1 = a3 AND a1 = a4 AND a1 = a5
-         ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
-+- LogicalFilter(condition=[AND(=($0, $3), =($0, $6), =($0, $9), =($0, $12))])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalJoin(condition=[true], joinType=[inner])
-      :  :- LogicalJoin(condition=[true], joinType=[inner])
-      :  :  :- LogicalJoin(condition=[true], joinType=[inner])
-      :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
-      :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
-      :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
-      :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
-+- HashJoin(joinType=[InnerJoin], where=[=(a2, a3)], select=[a2, b2, c2, a1, b1, c1, a5, b5, c5, a4, b4, c4, a3, b3, c3], isBroadcast=[true], build=[right])
-   :- HashJoin(joinType=[InnerJoin], where=[=(a2, a4)], select=[a2, b2, c2, a1, b1, c1, a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
-   :  :- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
-   :  +- Exchange(distribution=[broadcast])
-   :     +- HashJoin(joinType=[InnerJoin], where=[=(a1, a4)], select=[a1, b1, c1, a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
-   :        :- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-   :        +- Exchange(distribution=[broadcast])
-   :           +- HashJoin(joinType=[InnerJoin], where=[=(a5, a4)], select=[a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
-   :              :- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
-   :              +- Exchange(distribution=[broadcast])
-   :                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
-   +- Exchange(distribution=[broadcast])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testStarJoinCondition1[isBushyJoinReorder=true]">
     <Resource name="sql">
       <![CDATA[
@@ -2026,17 +1985,17 @@ Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testStarJoinCondition2[isBushyJoinReorder=false]">
+  <TestCase name="testStarJoinCondition1[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM T1, T2, T3, T4, T5
-WHERE b1 = b2 AND b1 = b3 AND b1 = b4 AND b1 = b5
+WHERE a1 = a2 AND a1 = a3 AND a1 = a4 AND a1 = a5
          ]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
-+- LogicalFilter(condition=[AND(=($1, $4), =($1, $7), =($1, $10), =($1, $13))])
++- LogicalFilter(condition=[AND(=($0, $3), =($0, $6), =($0, $9), =($0, $12))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalJoin(condition=[true], joinType=[inner])
       :  :- LogicalJoin(condition=[true], joinType=[inner])
@@ -2051,18 +2010,17 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
-+- HashJoin(joinType=[InnerJoin], where=[=(b1, b3)], select=[a1, b1, c1, a5, b5, c5, a2, b2, c2, a4, b4, c4, a3, b3, c3], isBroadcast=[true], build=[right])
-   :- HashJoin(joinType=[InnerJoin], where=[=(b1, b4)], select=[a1, b1, c1, a5, b5, c5, a2, b2, c2, a4, b4, c4], build=[left])
-   :  :- Exchange(distribution=[hash[b1]])
-   :  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-   :  +- Exchange(distribution=[hash[b4]])
-   :     +- HashJoin(joinType=[InnerJoin], where=[=(b5, b4)], select=[a5, b5, c5, a2, b2, c2, a4, b4, c4], isBroadcast=[true], build=[right])
-   :        :- HashJoin(joinType=[InnerJoin], where=[=(b5, b2)], select=[a5, b5, c5, a2, b2, c2], isBroadcast=[true], build=[right])
-   :        :  :- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
-   :        :  +- Exchange(distribution=[broadcast])
-   :        :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
++- HashJoin(joinType=[InnerJoin], where=[=(a2, a3)], select=[a2, b2, c2, a1, b1, c1, a5, b5, c5, a4, b4, c4, a3, b3, c3], isBroadcast=[true], build=[right])
+   :- HashJoin(joinType=[InnerJoin], where=[=(a2, a4)], select=[a2, b2, c2, a1, b1, c1, a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
+   :  :- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   :  +- Exchange(distribution=[broadcast])
+   :     +- HashJoin(joinType=[InnerJoin], where=[=(a1, a4)], select=[a1, b1, c1, a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
+   :        :- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
    :        +- Exchange(distribution=[broadcast])
-   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :           +- HashJoin(joinType=[InnerJoin], where=[=(a5, a4)], select=[a5, b5, c5, a4, b4, c4], isBroadcast=[true], build=[right])
+   :              :- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   :              +- Exchange(distribution=[broadcast])
+   :                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
    +- Exchange(distribution=[broadcast])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
 ]]>
@@ -2107,6 +2065,48 @@ Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
    +- Exchange(distribution=[hash[b5]])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStarJoinCondition2[isBushyJoinReorder=false]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1, T2, T3, T4, T5
+WHERE b1 = b2 AND b1 = b3 AND b1 = b4 AND b1 = b5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalFilter(condition=[AND(=($1, $4), =($1, $7), =($1, $10), =($1, $13))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+      :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+      :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- HashJoin(joinType=[InnerJoin], where=[=(b1, b3)], select=[a1, b1, c1, a5, b5, c5, a2, b2, c2, a4, b4, c4, a3, b3, c3], isBroadcast=[true], build=[right])
+   :- HashJoin(joinType=[InnerJoin], where=[=(b1, b4)], select=[a1, b1, c1, a5, b5, c5, a2, b2, c2, a4, b4, c4], build=[left])
+   :  :- Exchange(distribution=[hash[b1]])
+   :  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :  +- Exchange(distribution=[hash[b4]])
+   :     +- HashJoin(joinType=[InnerJoin], where=[=(b5, b4)], select=[a5, b5, c5, a2, b2, c2, a4, b4, c4], isBroadcast=[true], build=[right])
+   :        :- HashJoin(joinType=[InnerJoin], where=[=(b5, b2)], select=[a5, b5, c5, a2, b2, c2], isBroadcast=[true], build=[right])
+   :        :  :- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   :        :  +- Exchange(distribution=[broadcast])
+   :        :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   :        +- Exchange(distribution=[broadcast])
+   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   +- Exchange(distribution=[broadcast])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
 ]]>
     </Resource>
   </TestCase>

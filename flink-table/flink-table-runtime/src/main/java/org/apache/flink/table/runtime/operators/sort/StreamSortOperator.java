@@ -123,14 +123,12 @@ public class StreamSortOperator extends TableStreamOperator<RowData>
     @Override
     public void snapshotState(StateSnapshotContext context) throws Exception {
         super.snapshotState(context);
-        // clear state first
-        bufferState.clear();
 
         List<Tuple2<RowData, Long>> dataToFlush = new ArrayList<>(inputBuffer.size());
         inputBuffer.forEach((key, value) -> dataToFlush.add(Tuple2.of(key, value)));
 
-        // batch put
-        bufferState.addAll(dataToFlush);
+        // batch update
+        bufferState.update(dataToFlush);
     }
 
     @Override

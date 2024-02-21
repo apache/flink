@@ -16,7 +16,7 @@ Please refer to [README](../README.md).
 
 Please refer to the [ArchUnit user guide](https://www.archunit.org/) for general documentation. For
 quick start, you could find an example
-at [flink-architecture-tests-production/ArchitectureTest](./flink-architecture-tests-production/src/test/java/org/apache/flink/architecture/ArchitectureTest.java):
+at [flink-architecture-tests-production/ArchitectureTest](./src/test/java/org/apache/flink/architecture/ArchitectureTest.java):
 
 ```java
 @ArchTest

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.analyze;
 
 import org.apache.flink.annotation.Internal;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
 
 import java.util.List;
 

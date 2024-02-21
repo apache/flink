@@ -25,6 +25,7 @@ import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
+import org.apache.flink.runtime.source.event.IsProcessingBacklogEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 
 import org.junit.jupiter.api.Test;
@@ -96,7 +97,7 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
         // Assign splits to the readers.
         SplitsAssignment<MockSourceSplit> splitsAssignment = getSplitsAssignment(2, 0);
         if (fromCoordinatorExecutor) {
-            coordinatorExecutor.submit(() -> context.assignSplits(splitsAssignment)).get();
+            context.submitTask(() -> context.assignSplits(splitsAssignment)).get();
         } else {
             context.assignSplits(splitsAssignment);
         }
@@ -141,9 +142,7 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
         verifyException(
                 () -> {
                     if (fromCoordinatorExecutor) {
-                        coordinatorExecutor
-                                .submit(() -> context.assignSplits(splitsAssignment))
-                                .get();
+                        context.submitTask(() -> context.assignSplits(splitsAssignment)).get();
                     } else {
                         context.assignSplits(splitsAssignment);
                     }
@@ -163,7 +162,8 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
                 new SourceCoordinatorContext<>(
                         coordinatorExecutorWithExceptionHandler,
                         manualWorkerExecutor,
-                        coordinatorThreadFactory,
+                        new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
+                                coordinatorThreadName, operatorCoordinatorContext),
                         operatorCoordinatorContext,
                         new MockSourceSplitSerializer(),
                         splitSplitAssignmentTracker,
@@ -261,5 +261,27 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
         waitForCoordinatorToProcessActions();
 
         return infos;
+    }
+
+    @Test
+    void testSetIsProcessingBacklog() throws Exception {
+        sourceReady();
+        registerReader(0, 0);
+        context.setIsProcessingBacklog(true);
+
+        for (int i = 0; i < context.currentParallelism(); ++i) {
+            final List<OperatorEvent> events = receivingTasks.getSentEventsForSubtask(i);
+            assertThat(events.get(events.size() - 1)).isEqualTo(new IsProcessingBacklogEvent(true));
+        }
+
+        registerReader(1, 0);
+        context.setIsProcessingBacklog(false);
+        registerReader(2, 0);
+
+        for (int i = 0; i < context.currentParallelism(); ++i) {
+            final List<OperatorEvent> events = receivingTasks.getSentEventsForSubtask(i);
+            assertThat(events.get(events.size() - 1))
+                    .isEqualTo(new IsProcessingBacklogEvent(false));
+        }
     }
 }

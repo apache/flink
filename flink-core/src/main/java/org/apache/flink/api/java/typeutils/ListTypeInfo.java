@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
@@ -95,9 +96,14 @@ public final class ListTypeInfo<T> extends TypeInformation<List<T>> {
     }
 
     @Override
-    public TypeSerializer<List<T>> createSerializer(ExecutionConfig config) {
+    public TypeSerializer<List<T>> createSerializer(SerializerConfig config) {
         TypeSerializer<T> elementTypeSerializer = elementTypeInfo.createSerializer(config);
         return new ListSerializer<>(elementTypeSerializer);
+    }
+
+    @Override
+    public TypeSerializer<List<T>> createSerializer(ExecutionConfig config) {
+        return createSerializer(config.getSerializerConfig());
     }
 
     // ------------------------------------------------------------------------

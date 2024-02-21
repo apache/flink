@@ -108,6 +108,8 @@ class LeaderChangeClusterComponentsTest {
         submissionFuture.get();
 
         CompletableFuture<JobResult> jobResultFuture = miniCluster.requestJobResult(jobId);
+        // make sure requestJobResult was already processed by job master
+        miniCluster.getJobStatus(jobId).get();
 
         highAvailabilityServices.revokeDispatcherLeadership().get();
 
@@ -163,11 +165,11 @@ class LeaderChangeClusterComponentsTest {
 
         // wait for the ResourceManager to confirm the leadership
         assertThat(
-                        LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
+                        LeaderRetrievalUtils.retrieveLeaderInformation(
                                         highAvailabilityServices
                                                 .getResourceManagerLeaderRetriever(),
                                         TESTING_TIMEOUT)
-                                .getLeaderSessionId())
+                                .getLeaderSessionID())
                 .isNotNull();
 
         waitUntilTaskExecutorsHaveConnected(NUM_TMS);

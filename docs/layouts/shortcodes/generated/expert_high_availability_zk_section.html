@@ -21,6 +21,12 @@
             <td>Defines the connection timeout for ZooKeeper in ms.</td>
         </tr>
         <tr>
+            <td><h5>high-availability.zookeeper.client.ensemble-tracker</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Defines whether Curator should enable ensemble tracker. This can be useful in certain scenarios in which CuratorFramework is accessing to ZK clusters via load balancer or Virtual IPs. Default Curator EnsembleTracking logic watches CuratorEventType.GET_CONFIG events and changes ZooKeeper connection string. It is not desired behaviour when ZooKeeper is running under the Virtual IPs. Under certain configurations EnsembleTracking can lead to setting of ZooKeeper connection string with unresolvable hostnames.</td>
+        </tr>
+        <tr>
             <td><h5>high-availability.zookeeper.client.max-retry-attempts</h5></td>
             <td style="word-wrap: break-word;">3</td>
             <td>Integer</td>
@@ -49,12 +55,6 @@
             <td style="word-wrap: break-word;">"/jobgraphs"</td>
             <td>String</td>
             <td>ZooKeeper root path (ZNode) for job graphs</td>
-        </tr>
-        <tr>
-            <td><h5>high-availability.zookeeper.path.running-registry</h5></td>
-            <td style="word-wrap: break-word;">"/running_job_registry/"</td>
-            <td>String</td>
-            <td></td>
         </tr>
     </tbody>
 </table>

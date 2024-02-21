@@ -20,7 +20,10 @@ package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
@@ -51,7 +54,9 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
+import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
+import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
@@ -71,10 +76,12 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.cr
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /** IMPORTANT! Remember to close environment after usage! */
 public class MockEnvironment implements Environment, AutoCloseable {
+
+    private final JobInfo jobInfo;
 
     private final TaskInfo taskInfo;
 
@@ -99,8 +106,6 @@ public class MockEnvironment implements Environment, AutoCloseable {
     private final List<IndexedInputGate> inputs;
 
     private final List<ResultPartitionWriter> outputs;
-
-    private final JobID jobID;
 
     private final JobVertexID jobVertexID;
 
@@ -163,10 +168,10 @@ public class MockEnvironment implements Environment, AutoCloseable {
             ExternalResourceInfoProvider externalResourceInfoProvider,
             ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory) {
 
-        this.jobID = jobID;
+        this.jobInfo = new JobInfoImpl(jobID, "MockJob");
         this.jobVertexID = jobVertexID;
 
-        this.taskInfo = new TaskInfo(taskName, maxParallelism, subtaskIndex, parallelism, 0);
+        this.taskInfo = new TaskInfoImpl(taskName, maxParallelism, subtaskIndex, parallelism, 0);
         this.jobConfiguration = new Configuration();
         this.taskConfiguration = taskConfiguration;
         this.inputs = new LinkedList<>();
@@ -261,7 +266,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
     @Override
     public JobID getJobID() {
-        return this.jobID;
+        return this.jobInfo.getJobId();
     }
 
     @Override
@@ -326,6 +331,11 @@ public class MockEnvironment implements Environment, AutoCloseable {
     @Override
     public TaskEventDispatcher getTaskEventDispatcher() {
         return taskEventDispatcher;
+    }
+
+    @Override
+    public TaskManagerActions getTaskManagerActions() {
+        return new NoOpTaskManagerActions();
     }
 
     @Override
@@ -449,6 +459,11 @@ public class MockEnvironment implements Environment, AutoCloseable {
     @Override
     public ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory() {
         return channelStateExecutorFactory;
+    }
+
+    @Override
+    public JobInfo getJobInfo() {
+        return jobInfo;
     }
 
     public void setExpectedExternalFailureCause(Class<? extends Throwable> expectedThrowableClass) {

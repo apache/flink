@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.utils.RankProcessStrategy;
@@ -37,6 +38,8 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
@@ -71,6 +74,7 @@ public class StreamExecSortLimit extends StreamExecRank {
                 new ConstantRankRange(limitStart + 1, limitEnd),
                 rankStrategy,
                 generateUpdateBefore,
+                StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -85,6 +89,7 @@ public class StreamExecSortLimit extends StreamExecRank {
             @JsonProperty(FIELD_NAME_RANK_RANG) ConstantRankRange rankRange,
             @JsonProperty(FIELD_NAME_RANK_STRATEGY) RankProcessStrategy rankStrategy,
             @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
+            @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
@@ -100,6 +105,7 @@ public class StreamExecSortLimit extends StreamExecRank {
                 rankStrategy,
                 false, // outputRankNumber
                 generateUpdateBefore,
+                stateMetadataList,
                 inputProperties,
                 outputType,
                 description);

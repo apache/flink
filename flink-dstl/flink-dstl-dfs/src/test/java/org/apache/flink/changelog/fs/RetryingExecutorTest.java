@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 
 import static java.util.Collections.singletonList;
@@ -74,6 +75,7 @@ class RetryingExecutorTest {
         List<Integer> completed = new CopyOnWriteArrayList<>();
         List<Integer> discarded = new CopyOnWriteArrayList<>();
         AtomicBoolean executionBlocked = new AtomicBoolean(true);
+        AtomicReference<Throwable> unexpectedException = new AtomicReference<>();
         Deadline deadline = Deadline.fromNow(Duration.ofMinutes(5));
         ChangelogStorageMetricGroup metrics = createUnregisteredChangelogStorageMetricGroup();
         try (RetryingExecutor executor =
@@ -108,7 +110,10 @@ class RetryingExecutorTest {
                         }
 
                         @Override
-                        public void handleFailure(Throwable throwable) {}
+                        public void handleFailure(Throwable throwable) {
+                            executionBlocked.set(false);
+                            unexpectedException.set(throwable);
+                        }
                     });
             while (completed.isEmpty() && deadline.hasTimeLeft()) {
                 Thread.sleep(10);
@@ -118,6 +123,7 @@ class RetryingExecutorTest {
                 Thread.sleep(10);
             }
         }
+        assertThat(unexpectedException).hasValue(null);
         assertThat(singletonList(successfulAttempt)).isEqualTo(completed);
         assertThat(IntStream.range(0, successfulAttempt).boxed().collect(toList()))
                 .isEqualTo(discarded.stream().sorted().collect(toList()));

@@ -17,13 +17,12 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -35,13 +34,12 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -50,47 +48,43 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the partition-lifecycle logic in the {@link ResourceManager}. */
-public class ResourceManagerPartitionLifecycleTest extends TestLogger {
-
-    private static final Time TIMEOUT = Time.minutes(2L);
+class ResourceManagerPartitionLifecycleTest {
 
     private static TestingRpcService rpcService;
 
     private TestingResourceManagerService resourceManagerService;
 
-    @BeforeClass
-    public static void setupClass() {
+    @BeforeAll
+    static void setupClass() {
         rpcService = new TestingRpcService();
     }
 
-    @Before
-    public void setup() throws Exception {}
+    @BeforeEach
+    void setup() {}
 
-    @After
-    public void after() throws Exception {
+    @AfterEach
+    void after() throws Exception {
         if (resourceManagerService != null) {
             resourceManagerService.rethrowFatalErrorIfAny();
             resourceManagerService.cleanUp();
         }
     }
 
-    @AfterClass
-    public static void tearDownClass() throws Exception {
+    @AfterAll
+    static void tearDownClass() throws Exception {
         if (rpcService != null) {
             RpcUtils.terminateRpcService(rpcService);
         }
     }
 
     @Test
-    public void testClusterPartitionReportHandling() throws Exception {
+    void testClusterPartitionReportHandling() throws Exception {
         final CompletableFuture<Collection<IntermediateDataSetID>> clusterPartitionReleaseFuture =
                 new CompletableFuture<>();
         runTest(
@@ -113,14 +107,13 @@ public class ResourceManagerPartitionLifecycleTest extends TestLogger {
                             createTaskExecutorHeartbeatPayload(dataSetID, 2, resultPartitionID));
 
                     Collection<IntermediateDataSetID> intermediateDataSetIDS =
-                            clusterPartitionReleaseFuture.get(
-                                    TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
-                    assertThat(intermediateDataSetIDS, contains(dataSetID));
+                            clusterPartitionReleaseFuture.get();
+                    assertThat(intermediateDataSetIDS).contains(dataSetID);
                 });
     }
 
     @Test
-    public void testTaskExecutorShutdownHandling() throws Exception {
+    void testTaskExecutorShutdownHandling() throws Exception {
         final CompletableFuture<Collection<IntermediateDataSetID>> clusterPartitionReleaseFuture =
                 new CompletableFuture<>();
         runTest(
@@ -145,9 +138,8 @@ public class ResourceManagerPartitionLifecycleTest extends TestLogger {
                     resourceManagerGateway.disconnectTaskManager(
                             taskManagerId2, new RuntimeException("test exception"));
                     Collection<IntermediateDataSetID> intermediateDataSetIDS =
-                            clusterPartitionReleaseFuture.get(
-                                    TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
-                    assertThat(intermediateDataSetIDS, contains(dataSetID));
+                            clusterPartitionReleaseFuture.get();
+                    assertThat(intermediateDataSetIDS).contains(dataSetID);
                 });
     }
 
@@ -180,11 +172,10 @@ public class ResourceManagerPartitionLifecycleTest extends TestLogger {
         testAction.accept(resourceManagerGateway, taskManagerId1, taskManagerId2);
     }
 
-    public static void registerTaskExecutor(
+    static void registerTaskExecutor(
             ResourceManagerGateway resourceManagerGateway,
             ResourceID taskExecutorId,
-            String taskExecutorAddress)
-            throws Exception {
+            String taskExecutorAddress) {
         final TaskExecutorRegistration taskExecutorRegistration =
                 new TaskExecutorRegistration(
                         taskExecutorAddress,
@@ -201,24 +192,23 @@ public class ResourceManagerPartitionLifecycleTest extends TestLogger {
                 resourceManagerGateway.registerTaskExecutor(
                         taskExecutorRegistration, TestingUtils.TIMEOUT);
 
-        assertThat(registrationFuture.get(), instanceOf(RegistrationResponse.Success.class));
+        assertThatFuture(registrationFuture)
+                .eventuallySucceeds()
+                .isInstanceOf(RegistrationResponse.Success.class);
     }
 
     private ResourceManagerGateway createAndStartResourceManager() throws Exception {
-        final TestingLeaderElectionService leaderElectionService =
-                new TestingLeaderElectionService();
+        final TestingLeaderElection leaderElection = new TestingLeaderElection();
 
         resourceManagerService =
                 TestingResourceManagerService.newBuilder()
                         .setRpcService(rpcService)
-                        .setRmLeaderElectionService(leaderElectionService)
+                        .setRmLeaderElection(leaderElection)
                         .build();
         resourceManagerService.start();
 
         // first make the ResourceManager the leader
-        resourceManagerService.isLeader(UUID.randomUUID());
-
-        leaderElectionService.getConfirmationFuture().get(TIMEOUT.getSize(), TIMEOUT.getUnit());
+        resourceManagerService.isLeader(UUID.randomUUID()).join();
 
         return resourceManagerService
                 .getResourceManagerGateway()

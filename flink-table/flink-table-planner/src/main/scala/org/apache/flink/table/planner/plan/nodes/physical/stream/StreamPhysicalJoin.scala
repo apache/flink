@@ -17,17 +17,20 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.table.planner.JList
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.hint.StateTtlHint
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecJoin
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
-import org.apache.flink.table.planner.plan.utils.JoinUtil
+import org.apache.flink.table.planner.plan.utils.{JoinUtil, MinibatchUtil}
 import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapClassLoader, unwrapTableConfig}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core.{Join, JoinRelType}
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
 
@@ -45,8 +48,9 @@ class StreamPhysicalJoin(
     leftRel: RelNode,
     rightRel: RelNode,
     condition: RexNode,
-    joinType: JoinRelType)
-  extends CommonPhysicalJoin(cluster, traitSet, leftRel, rightRel, condition, joinType)
+    joinType: JoinRelType,
+    hints: JList[RelHint])
+  extends CommonPhysicalJoin(cluster, traitSet, leftRel, rightRel, condition, joinType, hints)
   with StreamPhysicalRel {
 
   /**
@@ -84,7 +88,7 @@ class StreamPhysicalJoin(
       right: RelNode,
       joinType: JoinRelType,
       semiJoinDone: Boolean): Join = {
-    new StreamPhysicalJoin(cluster, traitSet, left, right, conditionExpr, joinType)
+    new StreamPhysicalJoin(cluster, traitSet, left, right, conditionExpr, joinType, getHints)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -108,6 +112,7 @@ class StreamPhysicalJoin(
           getUpsertKeys(right, joinSpec.getRightKeys)
         )
       )
+      .itemIf("miniBatch", "true", MinibatchUtil.isMiniBatchEnabled(unwrapTableConfig(this)))
   }
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
@@ -123,6 +128,7 @@ class StreamPhysicalJoin(
       getUpsertKeys(right, joinSpec.getRightKeys),
       InputProperty.DEFAULT,
       InputProperty.DEFAULT,
+      StateTtlHint.getStateTtlFromHintOnBiRel(getHints),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

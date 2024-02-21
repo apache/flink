@@ -74,9 +74,9 @@ import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtil
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.powermock.api.mockito.PowerMockito.spy;
 
 /** Various tests for the {@link NettyShuffleEnvironment} class. */
 class NettyShuffleEnvironmentTest {

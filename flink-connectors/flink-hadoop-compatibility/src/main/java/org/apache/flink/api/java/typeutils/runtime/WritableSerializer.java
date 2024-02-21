@@ -163,6 +163,7 @@ public final class WritableSerializer<T extends Writable> extends TypeSerializer
     }
 
     /** {@link WritableSerializer} snapshot class. */
+    @Internal
     public static final class WritableSerializerSnapshot<T extends Writable>
             extends GenericTypeSerializerSnapshot<T, WritableSerializer> {
 

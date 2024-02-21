@@ -18,7 +18,7 @@
 
 package org.apache.flink.formats.json;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.connector.testutils.formats.DummyInitializationContext;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.formats.common.TimestampFormat;
@@ -30,6 +30,9 @@ import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
@@ -38,6 +41,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Arra
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -47,6 +52,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -80,13 +86,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Tests for {@link JsonRowDataDeserializationSchema} and {@link JsonRowDataSerializationSchema}.
+ * Tests for {@link JsonRowDataDeserializationSchema}, {@link
+ * JsonParserRowDataDeserializationSchema} and {@link JsonRowDataSerializationSchema}.
  */
-class JsonRowDataSerDeSchemaTest {
+@ExtendWith(ParameterizedTestExtension.class)
+public class JsonRowDataSerDeSchemaTest {
 
     private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
 
-    @Test
+    @Parameter public boolean isJsonParser;
+
+    @Parameters(name = "isJsonParser={0}")
+    public static Collection<Boolean> parameters() throws Exception {
+        return Arrays.asList(true, false);
+    }
+
+    @TestTemplate
     void testSerDe() throws Exception {
         byte tinyint = 'c';
         short smallint = 128;
@@ -164,11 +179,10 @@ class JsonRowDataSerDeSchemaTest {
                         FIELD("multiSet", MULTISET(STRING())),
                         FIELD("map2map", MAP(STRING(), MAP(STRING(), INT()))));
         RowType schema = (RowType) dataType.getLogicalType();
-        TypeInformation<RowData> resultTypeInfo = InternalTypeInfo.of(schema);
 
-        JsonRowDataDeserializationSchema deserializationSchema =
-                new JsonRowDataDeserializationSchema(
-                        schema, resultTypeInfo, false, false, TimestampFormat.ISO_8601);
+        DeserializationSchema<RowData> deserializationSchema =
+                createDeserializationSchema(
+                        isJsonParser, schema, false, false, TimestampFormat.ISO_8601);
         open(deserializationSchema);
 
         Row expected = new Row(18);
@@ -213,7 +227,7 @@ class JsonRowDataSerDeSchemaTest {
      * Tests the deserialization slow path, e.g. convert into string and use {@link
      * Double#parseDouble(String)}.
      */
-    @Test
+    @TestTemplate
     void testSlowDeserialization() throws Exception {
         Random random = new Random();
         boolean bool = random.nextBoolean();
@@ -244,13 +258,9 @@ class JsonRowDataSerDeSchemaTest {
                         FIELD("float2", FLOAT()));
         RowType rowType = (RowType) dataType.getLogicalType();
 
-        JsonRowDataDeserializationSchema deserializationSchema =
-                new JsonRowDataDeserializationSchema(
-                        rowType,
-                        InternalTypeInfo.of(rowType),
-                        false,
-                        false,
-                        TimestampFormat.ISO_8601);
+        DeserializationSchema<RowData> deserializationSchema =
+                createDeserializationSchema(
+                        isJsonParser, rowType, false, false, TimestampFormat.ISO_8601);
         open(deserializationSchema);
 
         Row expected = new Row(7);
@@ -267,7 +277,7 @@ class JsonRowDataSerDeSchemaTest {
         assertThat(actual).isEqualTo(expected);
     }
 
-    @Test
+    @TestTemplate
     void testSerDeMultiRows() throws Exception {
         RowType rowType =
                 (RowType)
@@ -280,13 +290,9 @@ class JsonRowDataSerDeSchemaTest {
                                         FIELD("f6", ROW(FIELD("f1", STRING()), FIELD("f2", INT()))))
                                 .getLogicalType();
 
-        JsonRowDataDeserializationSchema deserializationSchema =
-                new JsonRowDataDeserializationSchema(
-                        rowType,
-                        InternalTypeInfo.of(rowType),
-                        false,
-                        false,
-                        TimestampFormat.ISO_8601);
+        DeserializationSchema<RowData> deserializationSchema =
+                createDeserializationSchema(
+                        isJsonParser, rowType, false, false, TimestampFormat.ISO_8601);
         open(deserializationSchema);
         JsonRowDataSerializationSchema serializationSchema =
                 new JsonRowDataSerializationSchema(
@@ -338,7 +344,7 @@ class JsonRowDataSerDeSchemaTest {
         }
     }
 
-    @Test
+    @TestTemplate
     void testSerDeMultiRowsWithNullValues() throws Exception {
         String[] jsons =
                 new String[] {
@@ -365,13 +371,9 @@ class JsonRowDataSerDeSchemaTest {
                                         FIELD("metrics", MAP(STRING(), DOUBLE())))
                                 .getLogicalType();
 
-        JsonRowDataDeserializationSchema deserializationSchema =
-                new JsonRowDataDeserializationSchema(
-                        rowType,
-                        InternalTypeInfo.of(rowType),
-                        false,
-                        true,
-                        TimestampFormat.ISO_8601);
+        DeserializationSchema<RowData> deserializationSchema =
+                createDeserializationSchema(
+                        isJsonParser, rowType, false, true, TimestampFormat.ISO_8601);
         open(deserializationSchema);
         JsonRowDataSerializationSchema serializationSchema =
                 new JsonRowDataSerializationSchema(
@@ -390,33 +392,33 @@ class JsonRowDataSerDeSchemaTest {
         }
     }
 
-    @Test
+    @TestTemplate
     void testDeserializationNullRow() throws Exception {
         DataType dataType = ROW(FIELD("name", STRING()));
         RowType schema = (RowType) dataType.getLogicalType();
 
-        JsonRowDataDeserializationSchema deserializationSchema =
-                new JsonRowDataDeserializationSchema(
-                        schema, InternalTypeInfo.of(schema), true, false, TimestampFormat.ISO_8601);
+        DeserializationSchema<RowData> deserializationSchema =
+                createDeserializationSchema(
+                        isJsonParser, schema, true, false, TimestampFormat.ISO_8601);
         open(deserializationSchema);
 
         assertThat(deserializationSchema.deserialize(null)).isNull();
     }
 
-    @Test
+    @TestTemplate
     void testDeserializationMissingNode() throws Exception {
         DataType dataType = ROW(FIELD("name", STRING()));
         RowType schema = (RowType) dataType.getLogicalType();
 
-        JsonRowDataDeserializationSchema deserializationSchema =
-                new JsonRowDataDeserializationSchema(
-                        schema, InternalTypeInfo.of(schema), true, false, TimestampFormat.ISO_8601);
+        DeserializationSchema<RowData> deserializationSchema =
+                createDeserializationSchema(
+                        isJsonParser, schema, true, false, TimestampFormat.ISO_8601);
         open(deserializationSchema);
         RowData rowData = deserializationSchema.deserialize("".getBytes());
         assertThat(rowData).isNull();
     }
 
-    @Test
+    @TestTemplate
     void testDeserializationMissingField() throws Exception {
         // Root
         ObjectNode root = OBJECT_MAPPER.createObjectNode();
@@ -427,13 +429,9 @@ class JsonRowDataSerDeSchemaTest {
         RowType schema = (RowType) dataType.getLogicalType();
 
         // pass on missing field
-        JsonRowDataDeserializationSchema deserializationSchema =
-                new JsonRowDataDeserializationSchema(
-                        schema,
-                        InternalTypeInfo.of(schema),
-                        false,
-                        false,
-                        TimestampFormat.ISO_8601);
+        DeserializationSchema<RowData> deserializationSchema =
+                createDeserializationSchema(
+                        isJsonParser, schema, false, false, TimestampFormat.ISO_8601);
         open(deserializationSchema);
 
         Row expected = new Row(1);
@@ -442,20 +440,20 @@ class JsonRowDataSerDeSchemaTest {
 
         // fail on missing field
         deserializationSchema =
-                new JsonRowDataDeserializationSchema(
-                        schema, InternalTypeInfo.of(schema), true, false, TimestampFormat.ISO_8601);
+                createDeserializationSchema(
+                        isJsonParser, schema, true, false, TimestampFormat.ISO_8601);
         open(deserializationSchema);
 
         String errorMessage = "Failed to deserialize JSON '{\"id\":123123123}'.";
 
-        JsonRowDataDeserializationSchema finalDeserializationSchema = deserializationSchema;
+        DeserializationSchema<RowData> finalDeserializationSchema = deserializationSchema;
         assertThatThrownBy(() -> finalDeserializationSchema.deserialize(serializedJson))
                 .hasMessage(errorMessage);
 
         // ignore on parse error
         deserializationSchema =
-                new JsonRowDataDeserializationSchema(
-                        schema, InternalTypeInfo.of(schema), false, true, TimestampFormat.ISO_8601);
+                createDeserializationSchema(
+                        isJsonParser, schema, false, true, TimestampFormat.ISO_8601);
         open(deserializationSchema);
         actual = convertToExternal(deserializationSchema.deserialize(serializedJson), dataType);
         assertThat(actual).isEqualTo(expected);
@@ -473,7 +471,7 @@ class JsonRowDataSerDeSchemaTest {
                 .hasMessage(errorMessage);
     }
 
-    @Test
+    @TestTemplate
     void testSerDeSQLTimestampFormat() throws Exception {
         RowType rowType =
                 (RowType)
@@ -488,9 +486,9 @@ class JsonRowDataSerDeSchemaTest {
                                                 TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)))
                                 .getLogicalType();
 
-        JsonRowDataDeserializationSchema deserializationSchema =
-                new JsonRowDataDeserializationSchema(
-                        rowType, InternalTypeInfo.of(rowType), false, false, TimestampFormat.SQL);
+        DeserializationSchema<RowData> deserializationSchema =
+                createDeserializationSchema(
+                        isJsonParser, rowType, false, false, TimestampFormat.SQL);
         open(deserializationSchema);
         JsonRowDataSerializationSchema serializationSchema =
                 new JsonRowDataSerializationSchema(
@@ -582,7 +580,7 @@ class JsonRowDataSerDeSchemaTest {
         assertThat(new String(actual3)).isEqualTo(expectResult3);
     }
 
-    @Test
+    @TestTemplate
     void testSerializationDecimalEncode() throws Exception {
         RowType schema =
                 (RowType)
@@ -592,11 +590,9 @@ class JsonRowDataSerDeSchemaTest {
                                         FIELD("decimal3", DECIMAL(11, 9)))
                                 .getLogicalType();
 
-        TypeInformation<RowData> resultTypeInfo = InternalTypeInfo.of(schema);
-
-        JsonRowDataDeserializationSchema deserializer =
-                new JsonRowDataDeserializationSchema(
-                        schema, resultTypeInfo, false, false, TimestampFormat.ISO_8601);
+        DeserializationSchema<RowData> deserializer =
+                createDeserializationSchema(
+                        isJsonParser, schema, false, false, TimestampFormat.ISO_8601);
         deserializer.open(new DummyInitializationContext());
 
         JsonRowDataSerializationSchema plainDecimalSerializer =
@@ -630,7 +626,7 @@ class JsonRowDataSerDeSchemaTest {
         assertThat(scientificDecimalResult).isEqualTo(scientificDecimalJson);
     }
 
-    @Test
+    @TestTemplate
     void testJsonParse() throws Exception {
         for (TestSpec spec : testData) {
             testIgnoreParseErrors(spec);
@@ -660,13 +656,13 @@ class JsonRowDataSerDeSchemaTest {
                 .satisfies(anyCauseMatches(RuntimeException.class, errorMessage));
     }
 
-    @Test
+    @TestTemplate
     void testDeserializationWithTypesMismatch() {
         RowType rowType = (RowType) ROW(FIELD("f0", STRING()), FIELD("f1", INT())).getLogicalType();
         String json = "{\"f0\":\"abc\", \"f1\": \"abc\"}";
-        JsonRowDataDeserializationSchema deserializationSchema =
-                new JsonRowDataDeserializationSchema(
-                        rowType, InternalTypeInfo.of(rowType), false, false, TimestampFormat.SQL);
+        DeserializationSchema<RowData> deserializationSchema =
+                createDeserializationSchema(
+                        isJsonParser, rowType, false, false, TimestampFormat.SQL);
         open(deserializationSchema);
         String errorMessage = "Fail to deserialize at field: f1.";
 
@@ -676,13 +672,9 @@ class JsonRowDataSerDeSchemaTest {
 
     private void testIgnoreParseErrors(TestSpec spec) throws Exception {
         // the parsing field should be null and no exception is thrown
-        JsonRowDataDeserializationSchema ignoreErrorsSchema =
-                new JsonRowDataDeserializationSchema(
-                        spec.rowType,
-                        InternalTypeInfo.of(spec.rowType),
-                        false,
-                        true,
-                        spec.timestampFormat);
+        DeserializationSchema<RowData> ignoreErrorsSchema =
+                createDeserializationSchema(
+                        isJsonParser, spec.rowType, false, true, spec.timestampFormat);
         ignoreErrorsSchema.open(new DummyInitializationContext());
 
         Row expected;
@@ -700,13 +692,9 @@ class JsonRowDataSerDeSchemaTest {
 
     private void testParseErrors(TestSpec spec) {
         // expect exception if parse error is not ignored
-        JsonRowDataDeserializationSchema failingSchema =
-                new JsonRowDataDeserializationSchema(
-                        spec.rowType,
-                        InternalTypeInfo.of(spec.rowType),
-                        false,
-                        false,
-                        spec.timestampFormat);
+        DeserializationSchema<RowData> failingSchema =
+                createDeserializationSchema(
+                        isJsonParser, spec.rowType, false, false, spec.timestampFormat);
         open(failingSchema);
 
         assertThatThrownBy(() -> failingSchema.deserialize(spec.json.getBytes()))
@@ -724,6 +712,12 @@ class JsonRowDataSerDeSchemaTest {
                     TestSpec.json("{\"id\":\"abc\"}")
                             .rowType(ROW(FIELD("id", INT())))
                             .expectErrorMessage("Failed to deserialize JSON '{\"id\":\"abc\"}'."),
+                    TestSpec.json("{\"id\":11211111111.013}")
+                            .rowType(ROW(FIELD("id", INT())))
+                            .expect(null),
+                    TestSpec.json("{\"id\":112.013}")
+                            .rowType(ROW(FIELD("id", INT())))
+                            .expect(Row.of(112)),
                     TestSpec.json("{\"id\":112.013}")
                             .rowType(ROW(FIELD("id", BIGINT())))
                             .expect(Row.of(112L)),
@@ -830,8 +824,31 @@ class JsonRowDataSerDeSchemaTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static Row convertToExternal(RowData rowData, DataType dataType) {
+    static Row convertToExternal(RowData rowData, DataType dataType) {
         return (Row) DataFormatConverters.getConverterForDataType(dataType).toExternal(rowData);
+    }
+
+    private DeserializationSchema<RowData> createDeserializationSchema(
+            boolean isJsonParser,
+            RowType rowType,
+            boolean failOnMissingField,
+            boolean ignoreParseErrors,
+            TimestampFormat timestampFormat) {
+        if (isJsonParser) {
+            return new JsonParserRowDataDeserializationSchema(
+                    rowType,
+                    InternalTypeInfo.of(rowType),
+                    failOnMissingField,
+                    ignoreParseErrors,
+                    timestampFormat);
+        } else {
+            return new JsonRowDataDeserializationSchema(
+                    rowType,
+                    InternalTypeInfo.of(rowType),
+                    failOnMissingField,
+                    ignoreParseErrors,
+                    timestampFormat);
+        }
     }
 
     private static class TestSpec {

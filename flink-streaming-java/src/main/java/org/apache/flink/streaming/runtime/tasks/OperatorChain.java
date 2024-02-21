@@ -66,11 +66,12 @@ import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorFactory;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.SerializedValue;
 
-import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava31.com.google.common.io.Closer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -176,7 +177,7 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         List<NonChainedOutput> outputsInOrder =
                 configuration.getVertexNonChainedOutputs(userCodeClassloader);
         Map<IntermediateDataSetID, RecordWriterOutput<?>> recordWriterOutputs =
-                new HashMap<>(outputsInOrder.size());
+                CollectionUtil.newHashMapWithExpectedSize(outputsInOrder.size());
         this.streamOutputs = new RecordWriterOutput<?>[outputsInOrder.size()];
         this.finishedOnRestoreInput =
                 this.isTaskDeployedAsFinished()
@@ -641,8 +642,9 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
     private Counter getOperatorRecordsOutCounter(
             StreamTask<?, ?> containingTask, StreamConfig operatorConfig) {
         ClassLoader userCodeClassloader = containingTask.getUserCodeClassLoader();
-        StreamOperatorFactory<?> operatorFactory =
-                operatorConfig.getStreamOperatorFactory(userCodeClassloader);
+        Class<StreamOperatorFactory<?>> streamOperatorFactoryClass =
+                operatorConfig.getStreamOperatorFactoryClass(userCodeClassloader);
+
         // Do not use the numRecordsOut counter on output if this operator is SinkWriterOperator.
         //
         // Metric "numRecordsOut" is defined as the total number of records written to the
@@ -650,8 +652,15 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         // number of records sent to downstream operators, which is number of Committable batches
         // sent to SinkCommitter. So we skip registering this metric on output and leave this metric
         // to sink writer implementations to report.
-        if (operatorFactory instanceof SinkWriterOperatorFactory) {
-            return null;
+        try {
+            Class<?> sinkWriterFactoryClass =
+                    userCodeClassloader.loadClass(SinkWriterOperatorFactory.class.getName());
+            if (sinkWriterFactoryClass.isAssignableFrom(streamOperatorFactoryClass)) {
+                return null;
+            }
+        } catch (ClassNotFoundException e) {
+            throw new StreamTaskException(
+                    "Could not load SinkWriterOperatorFactory class from userCodeClassloader.", e);
         }
 
         InternalOperatorMetricGroup operatorMetricGroup =

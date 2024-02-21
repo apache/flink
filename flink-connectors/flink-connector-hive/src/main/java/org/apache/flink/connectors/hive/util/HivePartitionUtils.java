@@ -33,6 +33,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.util.CollectionUtil;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -226,7 +227,7 @@ public class HivePartitionUtils {
     public static CatalogPartitionSpec createPartitionSpec(
             String hivePartitionName, String defaultPartitionName) {
         String[] partKeyVals = hivePartitionName.split("/");
-        Map<String, String> spec = new HashMap<>(partKeyVals.length);
+        Map<String, String> spec = CollectionUtil.newHashMapWithExpectedSize(partKeyVals.length);
         for (String keyVal : partKeyVals) {
             String[] kv = keyVal.split("=");
             String partitionValue = unescapePathName(kv[1]);

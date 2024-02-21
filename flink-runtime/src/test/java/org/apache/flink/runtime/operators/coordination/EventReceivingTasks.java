@@ -96,10 +96,13 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
     }
 
     public List<OperatorEvent> getSentEventsForSubtask(int subtaskIndex) {
-        return events.stream()
-                .filter((evt) -> evt.subtask == subtaskIndex)
-                .map((evt) -> evt.event)
-                .collect(Collectors.toList());
+
+        // Create a new array list to avoid concurrent modification during processing the events
+        return new ArrayList<>(events)
+                .stream()
+                        .filter((evt) -> evt.subtask == subtaskIndex)
+                        .map((evt) -> evt.event)
+                        .collect(Collectors.toList());
     }
 
     // ------------------------------------------------------------------------
@@ -135,7 +138,7 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
     // ------------------------------------------------------------------------
 
     /** A combination of an {@link OperatorEvent} and the target subtask it is sent to. */
-    public static final class EventWithSubtask {
+    static final class EventWithSubtask {
 
         public final OperatorEvent event;
         public final int subtask;

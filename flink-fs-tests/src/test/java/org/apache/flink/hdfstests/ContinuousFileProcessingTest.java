@@ -19,7 +19,7 @@
 package org.apache.flink.hdfstests;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -27,7 +27,6 @@ import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -46,6 +45,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.SteppingMailboxProcessor;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
@@ -61,7 +61,6 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -348,7 +347,7 @@ public class ContinuousFileProcessingTest {
                 new ContinuousFileReaderOperatorFactory(
                         format, TypeExtractor.getInputFormatTypes(format), config),
                 TypeExtractor.getForClass(TimestampedFileInputSplit.class)
-                        .createSerializer(config));
+                        .createSerializer(config.getSerializerConfig()));
     }
 
     private SteppingMailboxProcessor createLocalMailbox(
@@ -637,7 +636,7 @@ public class ContinuousFileProcessingTest {
         final FileVerifyingSourceContext context =
                 new FileVerifyingSourceContext(new OneShotLatch(), monitoringFunction);
 
-        monitoringFunction.open(new Configuration());
+        monitoringFunction.open(DefaultOpenContext.INSTANCE);
         monitoringFunction.run(context);
 
         Assert.assertArrayEquals(filesKept.toArray(), context.getSeenFiles().toArray());
@@ -698,7 +697,7 @@ public class ContinuousFileProcessingTest {
         final FileVerifyingSourceContext context =
                 new FileVerifyingSourceContext(new OneShotLatch(), monitoringFunction);
 
-        monitoringFunction.open(new Configuration());
+        monitoringFunction.open(DefaultOpenContext.INSTANCE);
         monitoringFunction.run(context);
 
         Assert.assertArrayEquals(filesToBeRead.toArray(), context.getSeenFiles().toArray());
@@ -738,7 +737,7 @@ public class ContinuousFileProcessingTest {
 
         ModTimeVerifyingSourceContext context = new ModTimeVerifyingSourceContext(modTimes);
 
-        monitoringFunction.open(new Configuration());
+        monitoringFunction.open(DefaultOpenContext.INSTANCE);
         monitoringFunction.run(context);
         Assert.assertEquals(splits.length, context.getCounter());
 
@@ -778,7 +777,7 @@ public class ContinuousFileProcessingTest {
                     @Override
                     public void run() {
                         try {
-                            monitoringFunction.open(new Configuration());
+                            monitoringFunction.open(DefaultOpenContext.INSTANCE);
                             monitoringFunction.run(context);
 
                             // we would never arrive here if we were in
@@ -938,7 +937,7 @@ public class ContinuousFileProcessingTest {
                     @Override
                     public void run() {
                         try {
-                            monitoringFunction.open(new Configuration());
+                            monitoringFunction.open(DefaultOpenContext.INSTANCE);
                             monitoringFunction.run(context);
                         } catch (Exception e) {
                             Assert.fail(e.getMessage());
@@ -1135,7 +1134,7 @@ public class ContinuousFileProcessingTest {
             FileInputFormat<OUT> format, FileProcessingMode fileProcessingMode) {
         ContinuousFileMonitoringFunction<OUT> monitoringFunction =
                 new ContinuousFileMonitoringFunction<>(format, fileProcessingMode, 1, INTERVAL);
-        monitoringFunction.setRuntimeContext(Mockito.mock(RuntimeContext.class));
+        monitoringFunction.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
         return monitoringFunction;
     }
 }

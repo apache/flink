@@ -28,6 +28,7 @@ import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
+import org.apache.flink.table.catalog.exceptions.ProcedureNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
@@ -39,6 +40,9 @@ import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.procedures.Procedure;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -118,9 +122,13 @@ public interface Catalog {
      * value probably comes from configuration, will not change for the life time of the catalog
      * instance.
      *
+     * <p>If the default database is null, users will need to set a current database themselves or
+     * qualify identifiers at least with the database name when using the catalog.
+     *
      * @return the name of the current database
      * @throws CatalogException in case of any runtime exception
      */
+    @Nullable
     String getDefaultDatabase() throws CatalogException;
 
     /**
@@ -243,6 +251,24 @@ public interface Catalog {
     CatalogBaseTable getTable(ObjectPath tablePath) throws TableNotExistException, CatalogException;
 
     /**
+     * Returns a {@link CatalogTable} or {@link CatalogView} at a specific time identified by the
+     * given {@link ObjectPath}. The framework will resolve the metadata objects when necessary.
+     *
+     * @param tablePath Path of the table or view
+     * @param timestamp Timestamp of the table snapshot, which is milliseconds since 1970-01-01
+     *     00:00:00 UTC
+     * @return The requested table or view
+     * @throws TableNotExistException if the target does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default CatalogBaseTable getTable(ObjectPath tablePath, long timestamp)
+            throws TableNotExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "getTable(ObjectPath, long) is not implemented for %s.", this.getClass()));
+    }
+
+    /**
      * Check if a table or view exists in this catalog.
      *
      * @param tablePath Path of the table or view
@@ -341,7 +367,12 @@ public interface Catalog {
         alterTable(tablePath, newTable, ignoreIfNotExists);
     }
 
-    /** If true, tables which do not specify a connector will be translated to managed tables. */
+    /**
+     * If true, tables which do not specify a connector will be translated to managed tables.
+     *
+     * @deprecated This method will be removed soon. Please see FLIP-346 for more details.
+     */
+    @Deprecated
     default boolean supportsManagedTable() {
         return false;
     }
@@ -495,6 +526,21 @@ public interface Catalog {
     List<String> listFunctions(String dbName) throws DatabaseNotExistException, CatalogException;
 
     /**
+     * List the names of all procedures in the given database. An empty list is returned if no
+     * procedure.
+     *
+     * @param dbName name of the database.
+     * @return a list of the names of the procedures in this database
+     * @throws DatabaseNotExistException if the database does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default List<String> listProcedures(String dbName)
+            throws DatabaseNotExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format("listProcedures is not implemented for %s.", this.getClass()));
+    }
+
+    /**
      * Get the function. Function name should be handled in a case insensitive way.
      *
      * @param functionPath path of the function
@@ -504,6 +550,20 @@ public interface Catalog {
      */
     CatalogFunction getFunction(ObjectPath functionPath)
             throws FunctionNotExistException, CatalogException;
+
+    /**
+     * Get the procedure. The procedure name should be handled in a case-insensitive way.
+     *
+     * @param procedurePath path of the procedure
+     * @return the requested procedure
+     * @throws ProcedureNotExistException if the procedure does not exist in the catalog
+     * @throws CatalogException in case of any runtime exception
+     */
+    default Procedure getProcedure(ObjectPath procedurePath)
+            throws ProcedureNotExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format("getProcedure is not implemented for %s.", this.getClass()));
+    }
 
     /**
      * Check whether a function exists or not. Function name should be handled in a case insensitive

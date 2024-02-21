@@ -68,6 +68,21 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
                                     + " time and LocalDateTime. Hive 0.x/1.x/2.x use local timezone. But Hive 3.x"
                                     + " use UTC timezone");
 
+    public static final ConfigOption<String> TIMESTAMP_TIME_UNIT =
+            key("timestamp.time.unit")
+                    .stringType()
+                    .defaultValue("micros")
+                    .withDescription(
+                            "Store parquet int64/LogicalTypes timestamps in this time unit, value is nanos/micros/millis");
+
+    public static final ConfigOption<Boolean> WRITE_INT64_TIMESTAMP =
+            key("write.int64.timestamp")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Write parquet timestamp as int64/LogicalTypes instead of int96/OriginalTypes. "
+                                    + "Note: Timestamp will be time zone agnostic (NEVER converted to a different time zone).");
+
     @Override
     public BulkDecodingFormat<RowData> createDecodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {

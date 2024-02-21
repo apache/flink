@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.logical.{TimeAttributeWindowingStrategy, WindowAttachedWindowingStrategy, WindowingStrategy}
+import org.apache.flink.table.planner.plan.logical.{SessionWindowSpec, TimeAttributeWindowingStrategy, WindowAttachedWindowingStrategy, WindowingStrategy}
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalWindowAggregate
 import org.apache.flink.table.planner.plan.rules.physical.stream.TwoStageOptimizedWindowAggregateRule
@@ -62,8 +62,10 @@ class StreamPhysicalLocalWindowAggregate(
     unwrapTypeFactory(inputRel),
     FlinkTypeFactory.toLogicalRowType(inputRel.getRowType),
     aggCalls,
+    AggregateUtil.needRetraction(this),
     windowing.getWindow,
-    isStateBackendDataViews = false)
+    isStateBackendDataViews = false
+  )
 
   private lazy val endPropertyName = windowing match {
     case _: WindowAttachedWindowingStrategy => "window_end"
@@ -72,8 +74,18 @@ class StreamPhysicalLocalWindowAggregate(
 
   override def isValid(litmus: Litmus, context: RelNode.Context): Boolean = {
     windowing match {
-      case _: WindowAttachedWindowingStrategy | _: TimeAttributeWindowingStrategy =>
+      case _: WindowAttachedWindowingStrategy =>
       // pass
+      case tws: TimeAttributeWindowingStrategy =>
+        tws.getWindow match {
+          case _: SessionWindowSpec =>
+            return litmus.fail(
+              "StreamPhysicalLocalWindowAggregate should not accept " +
+                "TimeAttributeWindowingStrategy with Session window. " +
+                "This should never happen, please open an issue.")
+          case _ =>
+          // pass
+        }
       case _ =>
         return litmus.fail(
           "StreamPhysicalLocalWindowAggregate should only accepts " +
@@ -133,6 +145,7 @@ class StreamPhysicalLocalWindowAggregate(
       grouping,
       aggCalls.toArray,
       windowing,
+      AggregateUtil.needRetraction(this),
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)

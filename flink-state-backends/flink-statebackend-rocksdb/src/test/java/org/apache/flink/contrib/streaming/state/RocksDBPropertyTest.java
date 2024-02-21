@@ -18,21 +18,21 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 
 /** Validate RocksDB properties. */
-public class RocksDBPropertyTest {
+class RocksDBPropertyTest {
 
-    @Rule public RocksDBResource rocksDBResource = new RocksDBResource();
+    @RegisterExtension public RocksDBExtension rocksDBExtension = new RocksDBExtension();
 
     @Test
-    public void testRocksDBPropertiesValid() throws RocksDBException {
-        RocksDB db = rocksDBResource.getRocksDB();
-        ColumnFamilyHandle handle = rocksDBResource.getDefaultColumnFamily();
+    void testRocksDBPropertiesValid() {
+        RocksDB db = rocksDBExtension.getRocksDB();
+        ColumnFamilyHandle handle = rocksDBExtension.getDefaultColumnFamily();
 
         for (RocksDBProperty property : RocksDBProperty.values()) {
             try {

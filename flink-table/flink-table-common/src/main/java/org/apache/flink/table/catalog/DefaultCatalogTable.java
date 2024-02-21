@@ -37,18 +37,32 @@ public class DefaultCatalogTable implements CatalogTable {
 
     private final Schema schema;
     private final @Nullable String comment;
+    private final @Nullable TableDistribution distribution;
     private final List<String> partitionKeys;
     private final Map<String, String> options;
+    private final @Nullable Long snapshot;
 
     protected DefaultCatalogTable(
             Schema schema,
             @Nullable String comment,
             List<String> partitionKeys,
             Map<String, String> options) {
+        this(schema, comment, partitionKeys, options, null, null);
+    }
+
+    protected DefaultCatalogTable(
+            Schema schema,
+            @Nullable String comment,
+            List<String> partitionKeys,
+            Map<String, String> options,
+            @Nullable Long snapshot,
+            @Nullable TableDistribution distribution) {
         this.schema = checkNotNull(schema, "Schema must not be null.");
         this.comment = comment;
         this.partitionKeys = checkNotNull(partitionKeys, "Partition keys must not be null.");
         this.options = checkNotNull(options, "Options must not be null.");
+        this.snapshot = snapshot;
+        this.distribution = distribution;
 
         checkArgument(
                 options.entrySet().stream()
@@ -77,18 +91,30 @@ public class DefaultCatalogTable implements CatalogTable {
     }
 
     @Override
+    public Optional<TableDistribution> getDistribution() {
+        return Optional.ofNullable(distribution);
+    }
+
+    @Override
     public Map<String, String> getOptions() {
         return options;
     }
 
     @Override
+    public Optional<Long> getSnapshot() {
+        return Optional.ofNullable(snapshot);
+    }
+
+    @Override
     public CatalogBaseTable copy() {
-        return new DefaultCatalogTable(schema, comment, partitionKeys, options);
+        return new DefaultCatalogTable(
+                schema, comment, partitionKeys, options, snapshot, distribution);
     }
 
     @Override
     public CatalogTable copy(Map<String, String> options) {
-        return new DefaultCatalogTable(schema, comment, partitionKeys, options);
+        return new DefaultCatalogTable(
+                schema, comment, partitionKeys, options, snapshot, distribution);
     }
 
     @Override
@@ -118,13 +144,15 @@ public class DefaultCatalogTable implements CatalogTable {
         DefaultCatalogTable that = (DefaultCatalogTable) o;
         return schema.equals(that.schema)
                 && Objects.equals(comment, that.comment)
+                && Objects.equals(distribution, that.distribution)
                 && partitionKeys.equals(that.partitionKeys)
-                && options.equals(that.options);
+                && options.equals(that.options)
+                && Objects.equals(snapshot, that.snapshot);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(schema, comment, partitionKeys, options);
+        return Objects.hash(schema, comment, distribution, partitionKeys, options, snapshot);
     }
 
     @Override
@@ -134,11 +162,15 @@ public class DefaultCatalogTable implements CatalogTable {
                 + schema
                 + ", comment='"
                 + comment
-                + '\''
+                + "'"
+                + ", distribution="
+                + distribution
                 + ", partitionKeys="
                 + partitionKeys
                 + ", options="
                 + options
+                + ", snapshot="
+                + snapshot
                 + '}';
     }
 }

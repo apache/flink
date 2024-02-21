@@ -107,6 +107,10 @@ public final class ShortcutUtils {
         return unwrapContext(relOptRuleCall.getPlanner()).getTableConfig();
     }
 
+    public static TableConfig unwrapTableConfig(RelOptCluster relOptCluster) {
+        return unwrapContext(relOptCluster.getPlanner()).getTableConfig();
+    }
+
     public static ClassLoader unwrapClassLoader(RelNode relNode) {
         return unwrapContext(relNode).getClassLoader();
     }

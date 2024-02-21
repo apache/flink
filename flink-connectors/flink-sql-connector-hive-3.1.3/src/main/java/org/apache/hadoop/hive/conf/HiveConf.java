@@ -2937,7 +2937,7 @@ public class HiveConf extends Configuration {
     HIVE_METRICS_HADOOP2_COMPONENT_NAME("hive.service.metrics.hadoop2.component",
         "hive",
         "Component name to provide to Hadoop2 Metrics system. Ideally 'hivemetastore' for the MetaStore " +
-        " and and 'hiveserver2' for HiveServer2."
+        " and 'hiveserver2' for HiveServer2."
         ),
     HIVE_PERF_LOGGER("hive.exec.perf.logger", "org.apache.hadoop.hive.ql.log.PerfLogger",
         "The class responsible for logging client side performance metrics. \n" +

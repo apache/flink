@@ -40,8 +40,8 @@ import java.util.concurrent.RunnableFuture;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
-import static org.powermock.api.mockito.PowerMockito.spy;
 
 /** Tests for {@link OperatorSnapshotFutures}. */
 public class OperatorSnapshotFuturesTest extends TestLogger {

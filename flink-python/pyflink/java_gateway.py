@@ -27,6 +27,8 @@ from threading import RLock
 
 from py4j.java_gateway import (java_import, logger, JavaGateway, GatewayParameters,
                                CallbackServerParameters)
+
+from pyflink.find_flink_home import _find_flink_home
 from pyflink.pyflink_gateway_server import launch_gateway_server_process
 from pyflink.util.exceptions import install_exception_handler, install_py4j_hooks
 
@@ -99,6 +101,8 @@ def launch_gateway():
         fd, conn_info_file = tempfile.mkstemp(dir=conn_info_dir)
         os.close(fd)
         os.unlink(conn_info_file)
+
+        _find_flink_home()
 
         env = dict(os.environ)
         env["_PYFLINK_CONN_INFO_PATH"] = conn_info_file

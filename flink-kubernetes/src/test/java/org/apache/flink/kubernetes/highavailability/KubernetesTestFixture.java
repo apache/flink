@@ -26,7 +26,6 @@ import org.apache.flink.kubernetes.kubeclient.TestingFlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.util.ArrayList;
@@ -35,11 +34,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector.LEADER_ANNOTATION_KEY;
-import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test fixture for Kubernetes tests that sets up a mock {@link FlinkKubeClient}. */
@@ -59,8 +56,6 @@ class KubernetesTestFixture {
     private final List<TestingFlinkKubeClient.MockKubernetesWatch> configMapWatches =
             new ArrayList<>();
 
-    private final CompletableFuture<Map<String, String>> deleteConfigMapByLabelsFuture =
-            new CompletableFuture<>();
     private final CompletableFuture<Void> closeKubeClientFuture = new CompletableFuture<>();
 
     private final CompletableFuture<KubernetesLeaderElector.LeaderCallbackHandler>
@@ -74,13 +69,10 @@ class KubernetesTestFixture {
         this.leaderConfigmapName = leaderConfigmapName;
         this.lockIdentity = lockIdentity;
         configuration = new Configuration();
-        configuration.setString(KubernetesConfigOptions.CLUSTER_ID, clusterId);
+        configuration.set(KubernetesConfigOptions.CLUSTER_ID, clusterId);
 
         flinkKubeClient = createFlinkKubeClient();
-        configMapSharedWatcher =
-                flinkKubeClient.createConfigMapSharedWatcher(
-                        KubernetesUtils.getConfigMapLabels(
-                                clusterId, LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY));
+        configMapSharedWatcher = flinkKubeClient.createConfigMapSharedWatcher(leaderConfigmapName);
     }
 
     void close() {
@@ -93,10 +85,6 @@ class KubernetesTestFixture {
 
     CompletableFuture<Void> getCloseKubeClientFuture() {
         return closeKubeClientFuture;
-    }
-
-    CompletableFuture<Map<String, String>> getDeleteConfigMapByLabelsFuture() {
-        return deleteConfigMapByLabelsFuture;
     }
 
     KubernetesConfigMapSharedWatcher getConfigMapSharedWatcher() {
@@ -167,10 +155,10 @@ class KubernetesTestFixture {
                                                     .orElse(false);
                                     return CompletableFuture.completedFuture(updated);
                                 } catch (Throwable throwable) {
-                                    throw new CompletionException(throwable);
+                                    return FutureUtils.completedExceptionally(throwable);
                                 }
                             }
-                            throw new CompletionException(
+                            return FutureUtils.completedExceptionally(
                                     new KubernetesException(
                                             "ConfigMap " + configMapName + " does not exist."));
                         })
@@ -178,19 +166,6 @@ class KubernetesTestFixture {
                         name -> {
                             configMapStore.remove(name);
                             return FutureUtils.completedVoidFuture();
-                        })
-                .setDeleteConfigMapByLabelFunction(
-                        labels -> {
-                            if (deleteConfigMapByLabelsFuture.isDone()) {
-                                return FutureUtils.completedExceptionally(
-                                        new KubernetesException(
-                                                "ConfigMap with labels "
-                                                        + labels
-                                                        + " has already be deleted."));
-                            } else {
-                                deleteConfigMapByLabelsFuture.complete(labels);
-                                return FutureUtils.completedVoidFuture();
-                            }
                         })
                 .setCloseConsumer(closeKubeClientFuture::complete)
                 .setCreateLeaderElectorFunction(
@@ -200,12 +175,11 @@ class KubernetesTestFixture {
                                     leaderConfig, callbackHandler);
                         })
                 .setCreateConfigMapSharedWatcherFunction(
-                        (labels) -> {
+                        name -> {
                             final TestingFlinkKubeClient.TestingKubernetesConfigMapSharedWatcher
                                     watcher =
                                             new TestingFlinkKubeClient
-                                                    .TestingKubernetesConfigMapSharedWatcher(
-                                                    labels);
+                                                    .TestingKubernetesConfigMapSharedWatcher(name);
                             watcher.setWatchFunction(
                                     (ignore, handler) -> {
                                         final CompletableFuture<

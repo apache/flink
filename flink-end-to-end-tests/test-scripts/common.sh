@@ -50,6 +50,17 @@ TEST_INFRA_DIR=`pwd -P`
 cd $TEST_ROOT
 
 source "${TEST_INFRA_DIR}/common_utils.sh"
+source "${FLINK_DIR}/bin/bash-java-utils.sh"
+
+if [[ -z "${FLINK_CONF_DIR:-}" ]]; then
+    FLINK_CONF_DIR="$FLINK_DIR/conf"
+fi
+setJavaRun "$FLINK_CONF_DIR"
+FLINK_CONF=${FLINK_CONF_DIR}/config.yaml
+# Flatten the configuration file config.yaml to enable end-to-end test cases which will modify 
+# it directly through shell scripts.
+output=$(updateAndGetFlinkConfiguration "${FLINK_CONF_DIR}" "${FLINK_DIR}/bin" "${FLINK_DIR}/lib" -flatten)
+echo "$output" > $FLINK_CONF
 
 NODENAME=${NODENAME:-"localhost"}
 
@@ -143,14 +154,14 @@ function swap_planner_scala_with_planner_loader() {
 
 function delete_config_key() {
     local config_key=$1
-    sed -i -e "/^${config_key}: /d" ${FLINK_DIR}/conf/flink-conf.yaml
+    sed -i -e "/^${config_key}: /d" $FLINK_CONF
 }
 
 function set_config_key() {
     local config_key=$1
     local value=$2
     delete_config_key ${config_key}
-    echo "$config_key: $value" >> $FLINK_DIR/conf/flink-conf.yaml
+    echo "$config_key: $value" >> $FLINK_CONF
 }
 
 function create_ha_config() {
@@ -166,37 +177,35 @@ function create_ha_config() {
     # This must have all the masters to be used in HA.
     echo "localhost:8081" > ${FLINK_DIR}/conf/masters
 
-    # then move on to create the flink-conf.yaml
-    sed 's/^    //g' > ${FLINK_DIR}/conf/flink-conf.yaml << EOL
+    # then move on to create the config.yaml
     #==============================================================================
     # Common
     #==============================================================================
 
-    jobmanager.rpc.address: localhost
-    jobmanager.rpc.port: 6123
-    jobmanager.memory.process.size: 1024m
-    taskmanager.memory.process.size: 1024m
-    taskmanager.numberOfTaskSlots: ${TASK_SLOTS_PER_TM_HA}
+    set_config_key "jobmanager.rpc.address" "localhost"
+    set_config_key "jobmanager.rpc.port" "6123"
+    set_config_key "jobmanager.memory.process.size" "1024m"
+    set_config_key "taskmanager.memory.process.size" "1024m"
+    set_config_key "taskmanager.numberOfTaskSlots" "${TASK_SLOTS_PER_TM_HA}"
 
     #==============================================================================
     # High Availability
     #==============================================================================
 
-    high-availability.type: zookeeper
-    high-availability.zookeeper.storageDir: file://${TEST_DATA_DIR}/recovery/
-    high-availability.zookeeper.quorum: localhost:2181
-    high-availability.zookeeper.path.root: /flink
-    high-availability.cluster-id: /test_cluster_one
+    set_config_key "high-availability.type" "zookeeper"
+    set_config_key "high-availability.zookeeper.storageDir" "file://${TEST_DATA_DIR}/recovery/"
+    set_config_key "high-availability.zookeeper.quorum" "localhost:2181"
+    set_config_key "high-availability.zookeeper.path.root" "/flink"
+    set_config_key "high-availability.cluster-id" "/test_cluster_one"
 
     #==============================================================================
     # Web Frontend
     #==============================================================================
 
-    rest.port: 8081
+    set_config_key "rest.port" "8081"
 
-    queryable-state.server.ports: 9000-9009
-    queryable-state.proxy.ports: 9010-9019
-EOL
+    set_config_key "queryable-state.server.ports" "9000-9009"
+    set_config_key "queryable-state.proxy.ports" "9010-9019"
 }
 
 function get_node_ip {
@@ -301,6 +310,20 @@ function start_cluster {
   wait_dispatcher_running
 }
 
+function wait_sql_gateway_running {
+  local query_url="${REST_PROTOCOL}://${NODENAME}:8083/info"
+  wait_rest_endpoint_up "${query_url}" "SqlGateway" "Apache Flink"
+}
+
+function start_sql_gateway() {
+  "$FLINK_DIR"/bin/sql-gateway.sh start
+  wait_sql_gateway_running
+}
+
+function stop_sql_gateway() {
+  "$FLINK_DIR"/bin/sql-gateway.sh stop
+}
+
 function start_taskmanagers {
     local tmnum=$1
     local c
@@ -377,7 +400,7 @@ function internal_check_logs_for_errors {
   "Cannot connect to ResourceManager right now" \
   "AskTimeoutException" \
   "Error while loading kafka-version.properties" \
-  "WARN  akka.remote.transport.netty.NettyTransport" \
+  "WARN  org.apache.pekko.remote.transport.netty.NettyTransport" \
   "WARN  org.jboss.netty.channel.DefaultChannelPipeline" \
   "jvm-exit-on-fatal-error" \
   'INFO.*AWSErrorCode' \
@@ -391,7 +414,7 @@ function internal_check_logs_for_errors {
   "HeapDumpOnOutOfMemoryError" \
   "error_prone_annotations" \
   "Error sending fetch request" \
-  "WARN  akka.remote.ReliableDeliverySupervisor" \
+  "WARN  org.apache.pekko.remote.ReliableDeliverySupervisor" \
   "Options.*error_*" \
   "not packaged with this application")
 
@@ -437,7 +460,7 @@ function internal_check_logs_for_exceptions {
   "DisconnectException" \
   "Cannot connect to ResourceManager right now" \
   "AskTimeoutException" \
-  "WARN  akka.remote.transport.netty.NettyTransport" \
+  "WARN  org.apache.pekko.remote.transport.netty.NettyTransport" \
   "WARN  org.jboss.netty.channel.DefaultChannelPipeline" \
   'INFO.*AWSErrorCode' \
   "RejectedExecutionException" \
@@ -453,7 +476,7 @@ function internal_check_logs_for_exceptions {
   "java.lang.Exception: Artificial failure" \
   "org.apache.flink.runtime.checkpoint.CheckpointException" \
   "org.apache.flink.runtime.JobException: Recovery is suppressed" \
-  "WARN  akka.remote.ReliableDeliverySupervisor" \
+  "WARN  org.apache.pekko.remote.ReliableDeliverySupervisor" \
   "RecipientUnreachableException" \
   "completeExceptionally" \
   "SerializedCheckpointException.unwrap")
@@ -676,7 +699,14 @@ function setup_flink_slf4j_metric_reporter() {
   METRIC_NAME_PATTERN="${1:-"*"}"
   set_config_key "metrics.reporter.slf4j.factory.class" "org.apache.flink.metrics.slf4j.Slf4jReporterFactory"
   set_config_key "metrics.reporter.slf4j.interval" "1 SECONDS"
-  set_config_key "metrics.reporter.slf4j.filter.includes" "*:${METRIC_NAME_PATTERN}"
+  set_config_key "metrics.reporter.slf4j.filter.includes" "'*:${METRIC_NAME_PATTERN}'"
+}
+
+function get_job_exceptions {
+  local job_id=$1
+  local json=$(curl ${CURL_SSL_ARGS} -s ${REST_PROTOCOL}://${NODENAME}:8081/jobs/${job_id}/exceptions)
+
+  echo ${json}
 }
 
 function get_job_metric {
@@ -923,8 +953,12 @@ function extract_job_id_from_job_submission_return() {
 
 kill_test_watchdog() {
     local watchdog_pid=$(cat $TEST_DATA_DIR/job_watchdog.pid)
-    echo "Stopping job timeout watchdog (with pid=$watchdog_pid)"
-    kill $watchdog_pid
+    if kill -0 $watchdog_pid > /dev/null 2>&1; then
+        echo "Stopping job timeout watchdog (with pid=$watchdog_pid)"
+        kill $watchdog_pid
+    else
+        echo "No watchdog process with pid=$watchdog_pid present, anymore. No action required to clean the watchdog process up."
+    fi
 }
 
 #

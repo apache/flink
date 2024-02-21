@@ -178,10 +178,10 @@ tables = table_env.list_tables()
 {{< tab "SQL CLI" >}}
 ```sql
 Flink SQL> CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> ALTER TABLE Orders ADD `order` INT COMMENT 'order identifier' FIRST;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> DESCRIBE Orders;
 +---------+--------+------+-----+--------+-----------+------------------+
@@ -195,7 +195,7 @@ Flink SQL> DESCRIBE Orders;
 4 rows in set
 
 Flink SQL> ALTER TABLE Orders ADD (ts TIMESTAMP(3), category STRING AFTER product, PRIMARY KEY(`order`) NOT ENFORCED, WATERMARK FOR ts AS ts - INTERVAL '1' HOUR);
-[INFO] Execute statement succeed. 
+[INFO] Execute statement succeeded. 
 
 Flink SQL> DESCRIBE Orders;
 +----------+------------------------+-------+------------+--------+--------------------------+------------------+
@@ -211,7 +211,7 @@ Flink SQL> DESCRIBE Orders;
 6 rows in set
 
 Flink SQL> ALTER TABLE Orders MODIFY (amount DOUBLE NOT NULL, category STRING COMMENT 'category identifier' AFTER `order`, WATERMARK FOR ts AS ts);
-[INFO] Execute statement succeed. 
+[INFO] Execute statement succeeded. 
 
 Flink SQL> DESCRIBE Orders;
 +----------+------------------------+-------+------------+--------+-----------+---------------------+
@@ -227,7 +227,7 @@ Flink SQL> DESCRIBE Orders;
 6 rows in set
 
 Flink SQL> ALTER TABLE Orders DROP WATERMARK;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> DESCRIBE Orders;
 +----------+--------------+-------+------------+--------+-----------+---------------------+
@@ -243,7 +243,7 @@ Flink SQL> DESCRIBE Orders;
 6 rows in set
 
 Flink SQL> ALTER TABLE Orders DROP (amount, ts, category);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> DESCRIBE Orders;
 +---------+--------+-------+------------+--------+-----------+------------------+
@@ -256,7 +256,7 @@ Flink SQL> DESCRIBE Orders;
 3 rows in set
 
 Flink SQL> ALTER TABLE Orders RENAME `order` to `order_id`;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> DESCRIBE Orders;
 +----------+--------+-------+---------------+--------+-----------+------------------+
@@ -277,7 +277,7 @@ Flink SQL> SHOW TABLES;
 1 row in set
 
 Flink SQL> ALTER TABLE Orders RENAME TO NewOrders;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> SHOW TABLES;
 +------------+
@@ -297,9 +297,9 @@ Flink SQL> SHOW TABLES;
 当前支持的 ALTER TABLE 语法如下
 ```text
 ALTER TABLE [IF EXISTS] table_name {
-    ADD { <schema_component> | (<schema_component> [, ...]) }
+    ADD { <schema_component> | (<schema_component> [, ...]) | [IF NOT EXISTS] <partition_component> [<partition_component> ...]}
   | MODIFY { <schema_component> | (<schema_component> [, ...]) }
-  | DROP {column_name | (column_name, column_name, ....) | PRIMARY KEY | CONSTRAINT constraint_name | WATERMARK}
+  | DROP {column_name | (column_name, column_name, ....) | PRIMARY KEY | CONSTRAINT constraint_name | WATERMARK | [IF EXISTS] <partition_component> [, ...]}
   | RENAME old_column_name TO new_column_name
   | RENAME TO new_table_name
   | SET (key1=val1, ...)
@@ -329,6 +329,9 @@ ALTER TABLE [IF EXISTS] table_name {
 
 <computed_column_definition>:
   AS computed_column_expression
+  
+<partition_component>:
+  PARTITION (key1=val1, key2=val2, ...) [WITH (key1=val1, key2=val2, ...)]
 ```
 
 **IF EXISTS**
@@ -336,23 +339,29 @@ ALTER TABLE [IF EXISTS] table_name {
 若表不存在，则不进行任何操作。
 
 ### ADD
-使用 `ADD` 语句向已有表中增加 [columns]({{< ref "docs/dev/table/sql/create" >}}#columns)， [constraints]({{< ref "docs/dev/table/sql/create" >}}#primary-key)，[watermark]({{< ref "docs/dev/table/sql/create" >}}#watermark)。
+使用 `ADD` 语句向已有表中增加 [columns]({{< ref "docs/dev/table/sql/create" >}}#columns)， [constraints]({{< ref "docs/dev/table/sql/create" >}}#primary-key)，[watermark]({{< ref "docs/dev/table/sql/create" >}}#watermark), [partitions]({{< ref "docs/dev/table/sql/create" >}}#partitioned-by)。
 
 向表新增列时可通过 `FIRST` or `AFTER col_name` 指定位置，不指定位置时默认追加在最后。
 
 `ADD` 语句示例如下。
 
 ```sql
--- add a new column 
+-- 新增一列
 ALTER TABLE MyTable ADD category_id STRING COMMENT 'identifier of the category';
 
--- add columns, constraint, and watermark
+-- 新增列，主键和 watermark
 ALTER TABLE MyTable ADD (
     log_ts STRING COMMENT 'log timestamp string' FIRST,
     ts AS TO_TIMESTAMP(log_ts) AFTER log_ts,
     PRIMARY KEY (id) NOT ENFORCED,
     WATERMARK FOR ts AS ts - INTERVAL '3' SECOND
 );
+
+-- 新增一个分区 
+ALTER TABLE MyTable ADD PARTITION (p1=1,p2='a') with ('k1'='v1');
+
+-- 新增两个分区
+ALTER TABLE MyTable ADD PARTITION (p1=1,p2='a') with ('k1'='v1') PARTITION (p1=1,p2='b') with ('k2'='v2');
 ```
 <span class="label label-danger">注意</span> 指定列为主键列时会隐式修改该列的 nullability 为 false。
 
@@ -378,21 +387,27 @@ ALTER TABLE MyTable MODIFY (
 <span class="label label-danger">注意</span> 指定列为主键列时会隐式修改该列的 nullability 为 false。
 
 ### DROP
-使用 `DROP` 语句删除列 、主键或 watermark。
+使用 `DROP` 语句删除列 、主键 、 分区或 watermark。
 
 `DROP` 语句示例如下。
 
 ```sql
--- drop a column
+-- 删除一个列
 ALTER TABLE MyTable DROP measurement;
 
--- drop columns
+-- 删除多个列
 ALTER TABLE MyTable DROP (col1, col2, col3);
 
--- drop primary key
+-- 删除主键
 ALTER TABLE MyTable DROP PRIMARY KEY;
 
--- drop a watermark
+-- 删除一个分区
+ALTER TABLE MyTable DROP PARTITION (`id` = 1);
+
+-- 删除两个分区
+ALTER TABLE MyTable DROP PARTITION (`id` = 1), PARTITION (`id` = 2);
+
+-- 删除 watermark
 ALTER TABLE MyTable DROP WATERMARK;
 ```
 

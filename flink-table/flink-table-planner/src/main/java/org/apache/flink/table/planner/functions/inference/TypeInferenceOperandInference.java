@@ -68,7 +68,12 @@ public final class TypeInferenceOperandInference implements SqlOperandTypeInfere
         final CallContext callContext =
                 new CallBindingCallContext(dataTypeFactory, definition, callBinding, returnType);
         try {
-            inferOperandTypesOrError(unwrapTypeFactory(callBinding), callContext, operandTypes);
+            if (TypeInferenceUtil.validateArgumentCount(
+                    typeInference.getInputTypeStrategy().getArgumentCount(),
+                    callContext.getArgumentDataTypes().size(),
+                    false)) {
+                inferOperandTypesOrError(unwrapTypeFactory(callBinding), callContext, operandTypes);
+            }
         } catch (ValidationException | CalciteContextException e) {
             // let operand checker fail
         } catch (Throwable t) {

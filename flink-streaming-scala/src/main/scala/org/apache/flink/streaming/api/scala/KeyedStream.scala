@@ -34,6 +34,15 @@ import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, TimeWindow, Window}
 import org.apache.flink.util.Collector
 
+/**
+ * @deprecated
+ *   All Flink Scala APIs are deprecated and will be removed in a future Flink major version. You
+ *   can still build your application in Scala, but you should move to the Java version of either
+ *   the DataStream and/or Table API.
+ * @see
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
+ */
+@deprecated(org.apache.flink.api.scala.FLIP_265_WARNING, since = "1.18.0")
 @Public
 class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T](javaStream) {
 
@@ -340,8 +349,8 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   }
 
   /**
-   * Applies an aggregation that that gives the current maximum of the data stream at the given
-   * position by the given key. An independent aggregate is kept per key.
+   * Applies an aggregation that gives the current maximum of the data stream at the given position
+   * by the given key. An independent aggregate is kept per key.
    *
    * @param position
    *   The field position in the data points to minimize. This is applicable to Tuple types, Scala
@@ -350,8 +359,8 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   def max(position: Int): DataStream[T] = aggregate(AggregationType.MAX, position)
 
   /**
-   * Applies an aggregation that that gives the current maximum of the data stream at the given
-   * field by the given key. An independent aggregate is kept per key.
+   * Applies an aggregation that gives the current maximum of the data stream at the given field by
+   * the given key. An independent aggregate is kept per key.
    *
    * @param field
    *   In case of a POJO, Scala case class, or Tuple type, the name of the (public) field on which
@@ -362,8 +371,8 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   def max(field: String): DataStream[T] = aggregate(AggregationType.MAX, field)
 
   /**
-   * Applies an aggregation that that gives the current minimum of the data stream at the given
-   * position by the given key. An independent aggregate is kept per key.
+   * Applies an aggregation that gives the current minimum of the data stream at the given position
+   * by the given key. An independent aggregate is kept per key.
    *
    * @param position
    *   The field position in the data points to minimize. This is applicable to Tuple types, Scala
@@ -372,8 +381,8 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   def min(position: Int): DataStream[T] = aggregate(AggregationType.MIN, position)
 
   /**
-   * Applies an aggregation that that gives the current minimum of the data stream at the given
-   * field by the given key. An independent aggregate is kept per key.
+   * Applies an aggregation that gives the current minimum of the data stream at the given field by
+   * the given key. An independent aggregate is kept per key.
    *
    * @param field
    *   In case of a POJO, Scala case class, or Tuple type, the name of the (public) field on which
@@ -406,9 +415,9 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   def sum(field: String): DataStream[T] = aggregate(AggregationType.SUM, field)
 
   /**
-   * Applies an aggregation that that gives the current minimum element of the data stream by the
-   * given position by the given key. An independent aggregate is kept per key. When equality, the
-   * first element is returned with the minimal value.
+   * Applies an aggregation that gives the current minimum element of the data stream by the given
+   * position by the given key. An independent aggregate is kept per key. When equality, the first
+   * element is returned with the minimal value.
    *
    * @param position
    *   The field position in the data points to minimize. This is applicable to Tuple types, Scala
@@ -417,9 +426,9 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   def minBy(position: Int): DataStream[T] = aggregate(AggregationType.MINBY, position)
 
   /**
-   * Applies an aggregation that that gives the current minimum element of the data stream by the
-   * given field by the given key. An independent aggregate is kept per key. When equality, the
-   * first element is returned with the minimal value.
+   * Applies an aggregation that gives the current minimum element of the data stream by the given
+   * field by the given key. An independent aggregate is kept per key. When equality, the first
+   * element is returned with the minimal value.
    *
    * @param field
    *   In case of a POJO, Scala case class, or Tuple type, the name of the (public) field on which
@@ -430,9 +439,9 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   def minBy(field: String): DataStream[T] = aggregate(AggregationType.MINBY, field)
 
   /**
-   * Applies an aggregation that that gives the current maximum element of the data stream by the
-   * given position by the given key. An independent aggregate is kept per key. When equality, the
-   * first element is returned with the maximal value.
+   * Applies an aggregation that gives the current maximum element of the data stream by the given
+   * position by the given key. An independent aggregate is kept per key. When equality, the first
+   * element is returned with the maximal value.
    *
    * @param position
    *   The field position in the data points to minimize. This is applicable to Tuple types, Scala
@@ -442,9 +451,9 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     aggregate(AggregationType.MAXBY, position)
 
   /**
-   * Applies an aggregation that that gives the current maximum element of the data stream by the
-   * given field by the given key. An independent aggregate is kept per key. When equality, the
-   * first element is returned with the maximal value.
+   * Applies an aggregation that gives the current maximum element of the data stream by the given
+   * field by the given key. An independent aggregate is kept per key. When equality, the first
+   * element is returned with the maximal value.
    *
    * @param field
    *   In case of a POJO, Scala case class, or Tuple type, the name of the (public) field on which
@@ -510,7 +519,8 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     val cleanFun = clean(fun)
     val stateTypeInfo: TypeInformation[S] = implicitly[TypeInformation[S]]
-    val serializer: TypeSerializer[S] = stateTypeInfo.createSerializer(getExecutionConfig)
+    val serializer: TypeSerializer[S] =
+      stateTypeInfo.createSerializer(getExecutionConfig.getSerializerConfig)
 
     val filterFun = new RichFilterFunction[T] with StatefulFunction[T, Boolean, S] {
 
@@ -539,7 +549,8 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     val cleanFun = clean(fun)
     val stateTypeInfo: TypeInformation[S] = implicitly[TypeInformation[S]]
-    val serializer: TypeSerializer[S] = stateTypeInfo.createSerializer(getExecutionConfig)
+    val serializer: TypeSerializer[S] =
+      stateTypeInfo.createSerializer(getExecutionConfig.getSerializerConfig)
 
     val mapper = new RichMapFunction[T, R] with StatefulFunction[T, R, S] {
 
@@ -568,7 +579,8 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     val cleanFun = clean(fun)
     val stateTypeInfo: TypeInformation[S] = implicitly[TypeInformation[S]]
-    val serializer: TypeSerializer[S] = stateTypeInfo.createSerializer(getExecutionConfig)
+    val serializer: TypeSerializer[S] =
+      stateTypeInfo.createSerializer(getExecutionConfig.getSerializerConfig)
 
     val flatMapper = new RichFlatMapFunction[T, R] with StatefulFunction[T, TraversableOnce[R], S] {
 
@@ -593,7 +605,9 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   @PublicEvolving
   def asQueryableState(queryableStateName: String): QueryableStateStream[K, T] = {
     val stateDescriptor =
-      new ValueStateDescriptor(queryableStateName, dataType.createSerializer(executionConfig))
+      new ValueStateDescriptor(
+        queryableStateName,
+        dataType.createSerializer(executionConfig.getSerializerConfig))
 
     asQueryableState(queryableStateName, stateDescriptor)
   }
@@ -622,7 +636,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     new QueryableStateStream(
       queryableStateName,
       stateDescriptor,
-      getKeyType.createSerializer(executionConfig))
+      getKeyType.createSerializer(executionConfig.getSerializerConfig))
   }
 
   /**
@@ -649,7 +663,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     new QueryableStateStream(
       queryableStateName,
       stateDescriptor,
-      getKeyType.createSerializer(executionConfig))
+      getKeyType.createSerializer(executionConfig.getSerializerConfig))
   }
 
 }

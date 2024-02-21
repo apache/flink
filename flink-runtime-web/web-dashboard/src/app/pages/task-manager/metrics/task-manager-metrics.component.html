@@ -164,7 +164,7 @@
     </tbody>
   </nz-table>
 </nz-card>
-<nz-card nzTitle="Advanced" nzSize="small">
+<nz-card nzTitle="Advanced" nzSize="small" class="flink-memory-model">
   <div nz-row [nzGutter]="16">
     <div nz-col [nzSpan]="12">
       <nz-table
@@ -293,4 +293,128 @@
       </nz-table>
     </div>
   </div>
+</nz-card>
+
+<ng-template #tmResourceRow let-detail="detail" let-name="name" let-property="prop" let-unit="unit">
+  <tr>
+    <td>
+      <strong>{{ name }}</strong>
+    </td>
+    <td>
+      <nz-progress
+        nzSize="small"
+        nzStrokeLinecap="square"
+        [nzPercent]="
+          +(
+            (detail?.freeResource[property] / detail?.totalResource[property]) * 100
+            | number: '1.0-2'
+          )
+        "
+        nzStatus="normal"
+      ></nz-progress>
+      {{ detail?.freeResource[property] | number }} /
+      {{ detail?.totalResource[property] | number }} {{ unit }}
+    </td>
+  </tr>
+</ng-template>
+
+<nz-card nzTitle="Resources" nzSize="small" class="flink-memory-model">
+  <nz-table
+    nzBordered
+    nzTitle="Unassigned resources"
+    [nzTemplateMode]="true"
+    [nzFrontPagination]="false"
+    [nzShowPagination]="false"
+    [nzSize]="'small'"
+    class="no-border"
+    [nzWidthConfig]="['200px', null]"
+  >
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Count</th>
+      </tr>
+    </thead>
+    <tbody>
+      <ng-container
+        [ngTemplateOutlet]="tmResourceRow"
+        [ngTemplateOutletContext]="{
+          name: 'CPU',
+          detail: taskManagerDetail,
+          prop: 'cpuCores',
+          unit: 'cores'
+        }"
+      ></ng-container>
+      <ng-container
+        [ngTemplateOutlet]="tmResourceRow"
+        [ngTemplateOutletContext]="{
+          name: 'Task Heap memory',
+          detail: taskManagerDetail,
+          prop: 'taskHeapMemory',
+          unit: 'MB'
+        }"
+      ></ng-container>
+      <ng-container
+        [ngTemplateOutlet]="tmResourceRow"
+        [ngTemplateOutletContext]="{
+          name: 'Task Off-Heap memory',
+          detail: taskManagerDetail,
+          prop: 'taskOffHeapMemory',
+          unit: 'MB'
+        }"
+      ></ng-container>
+      <ng-container
+        [ngTemplateOutlet]="tmResourceRow"
+        [ngTemplateOutletContext]="{
+          name: 'Managed memory',
+          detail: taskManagerDetail,
+          prop: 'managedMemory',
+          unit: 'MB'
+        }"
+      ></ng-container>
+      <ng-container
+        [ngTemplateOutlet]="tmResourceRow"
+        [ngTemplateOutletContext]="{
+          name: 'Network memory',
+          detail: taskManagerDetail,
+          prop: 'networkMemory',
+          unit: 'MB'
+        }"
+      ></ng-container>
+    </tbody>
+  </nz-table>
+  <nz-table
+    nzBordered
+    nzTitle="Allocated slots"
+    [nzTemplateMode]="true"
+    [nzFrontPagination]="false"
+    [nzShowPagination]="false"
+    [nzSize]="'small'"
+    class="no-border top-margin"
+  >
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Job ID</th>
+        <th>CPU (cores)</th>
+        <th>Task Heap memory (MB)</th>
+        <th>Task Off-Heap memory (MB)</th>
+        <th>Managed memory (MB)</th>
+        <th>Network memory (MB)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let slot of taskManagerDetail?.allocatedSlots; let i = index">
+        <td>
+          <strong>{{ i | number }}</strong>
+        </td>
+        <td>{{ slot.jobId }}</td>
+        <td>{{ slot.resource.cpuCores | number }}</td>
+        <td>{{ slot.resource.taskHeapMemory | number }}</td>
+        <td>{{ slot.resource.taskOffHeapMemory | number }}</td>
+        <td>{{ slot.resource.managedMemory | number }}</td>
+        <td>{{ slot.resource.networkMemory | number }}</td>
+      </tr>
+    </tbody>
+  </nz-table>
 </nz-card>

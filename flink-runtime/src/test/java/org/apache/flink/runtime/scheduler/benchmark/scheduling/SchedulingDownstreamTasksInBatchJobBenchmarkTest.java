@@ -19,22 +19,31 @@
 package org.apache.flink.runtime.scheduler.benchmark.scheduling;
 
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
-import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.runtime.scheduler.strategy.VertexwiseSchedulingStrategy;
 
-import org.junit.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 /**
  * The benchmark of scheduling downstream task in a BATCH job. The related method is {@link
- * PipelinedRegionSchedulingStrategy#onExecutionStateChange}.
+ * VertexwiseSchedulingStrategy#onExecutionStateChange}.
  */
-public class SchedulingDownstreamTasksInBatchJobBenchmarkTest extends TestLogger {
+class SchedulingDownstreamTasksInBatchJobBenchmarkTest {
 
-    @Test
-    public void schedulingDownstreamTasksInBatchJobBenchmark() throws Exception {
+    @ParameterizedTest
+    @EnumSource(
+            value = JobConfiguration.class,
+            names = {
+                "BATCH_TEST",
+                "BATCH_HYBRID_DEFAULT_TEST",
+                "BATCH_HYBRID_PARTIAL_FINISHED_TEST",
+                "BATCH_HYBRID_ALL_FINISHED_TEST"
+            })
+    void schedulingDownstreamTasksInBatchJobBenchmark(JobConfiguration jobConfiguration)
+            throws Exception {
         SchedulingDownstreamTasksInBatchJobBenchmark benchmark =
                 new SchedulingDownstreamTasksInBatchJobBenchmark();
-        benchmark.setup(JobConfiguration.BATCH_TEST);
+        benchmark.setup(jobConfiguration);
         benchmark.schedulingDownstreamTasks();
         benchmark.teardown();
     }

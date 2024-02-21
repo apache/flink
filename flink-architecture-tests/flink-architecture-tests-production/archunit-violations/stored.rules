@@ -1,9 +1,9 @@
 #
-#Mon Apr 11 12:30:28 CEST 2022
-Options\ for\ connectors\ and\ formats\ should\ reside\ in\ a\ consistent\ package\ and\ be\ public\ API.=e577412e-8d38-496c-a680-b842112e4b94
+#Fri Jun 09 10:03:37 CEST 2023
+Return\ and\ argument\ types\ of\ methods\ annotated\ with\ @Public\ must\ be\ annotated\ with\ @Public.=18509c9e-3250-4c52-91b9-11ccefc85db1
 Production\ code\ must\ not\ call\ methods\ annotated\ with\ @VisibleForTesting=e5126cae-f3fe-48aa-b6fb-60ae6cc3fcd5
+Options\ for\ connectors\ and\ formats\ should\ reside\ in\ a\ consistent\ package\ and\ be\ public\ API.=e577412e-8d38-496c-a680-b842112e4b94
+Return\ and\ argument\ types\ of\ methods\ annotated\ with\ @PublicEvolving\ must\ be\ annotated\ with\ @Public(Evolving).=5b9eed8a-5fb6-4373-98ac-3be2a71941b8
 fields\ that\ are\ public,\ static,\ and\ of\ type\ ConfigOption\ and\ are\ declared\ in\ classes\ that\ are\ Java\ classes\ and\ reside\ in\ a\ package\ 'org.apache.flink.table..'\ should\ be\ declared\ in\ classes\ that\ have\ simple\ name\ ending\ with\ 'Options'\ or\ should\ be\ declared\ in\ org.apache.flink.table.factories.FactoryUtil=52c5c6a1-204f-462d-9efa-4ffcb100fb4d
 Classes\ in\ API\ packages\ should\ have\ at\ least\ one\ API\ visibility\ annotation.=7602816f-5c01-4b7a-9e3e-235dfedec245
-Return\ and\ argument\ types\ of\ methods\ annotated\ with\ @PublicEvolving\ must\ be\ annotated\ with\ @Public(Evolving).=5b9eed8a-5fb6-4373-98ac-3be2a71941b8
-Return\ and\ argument\ types\ of\ methods\ annotated\ with\ @Public\ must\ be\ annotated\ with\ @Public.=18509c9e-3250-4c52-91b9-11ccefc85db1
-Connector\ production\ code\ must\ not\ depend\ on\ non-public\ API\ outside\ of\ connector\ packages=b8900323-6aab-4e7e-9b17-f53b3c3dca46
+Connector\ production\ code\ must\ depend\ only\ on\ public\ API\ when\ outside\ of\ connector\ packages=f7a4e6fa-e7de-48c9-a61e-c13e83f0c72e

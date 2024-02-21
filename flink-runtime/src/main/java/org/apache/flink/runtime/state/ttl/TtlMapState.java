@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state.ttl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.runtime.state.internal.InternalMapState;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nonnull;
@@ -76,7 +77,7 @@ class TtlMapState<K, N, UK, UV>
         if (map == null) {
             return;
         }
-        Map<UK, TtlValue<UV>> ttlMap = new HashMap<>(map.size());
+        Map<UK, TtlValue<UV>> ttlMap = CollectionUtil.newHashMapWithExpectedSize(map.size());
         long currentTimestamp = timeProvider.currentTimestamp();
         for (Map.Entry<UK, UV> entry : map.entrySet()) {
             UK key = entry.getKey();

@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.internal.InternalValueState;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
@@ -77,7 +76,7 @@ class RocksDBValueState<K, N, V> extends AbstractRocksDBState<K, N, V>
     }
 
     @Override
-    public V value() {
+    public V value() throws IOException {
         try {
             byte[] valueBytes =
                     backend.db.get(columnFamily, serializeCurrentKeyWithGroupAndNamespace());
@@ -87,13 +86,13 @@ class RocksDBValueState<K, N, V> extends AbstractRocksDBState<K, N, V>
             }
             dataInputView.setBuffer(valueBytes);
             return valueSerializer.deserialize(dataInputView);
-        } catch (IOException | RocksDBException e) {
-            throw new FlinkRuntimeException("Error while retrieving data from RocksDB.", e);
+        } catch (RocksDBException e) {
+            throw new IOException("Error while retrieving data from RocksDB.", e);
         }
     }
 
     @Override
-    public void update(V value) {
+    public void update(V value) throws IOException {
         if (value == null) {
             clear();
             return;
@@ -105,8 +104,8 @@ class RocksDBValueState<K, N, V> extends AbstractRocksDBState<K, N, V>
                     writeOptions,
                     serializeCurrentKeyWithGroupAndNamespace(),
                     serializeValue(value));
-        } catch (Exception e) {
-            throw new FlinkRuntimeException("Error while adding data to RocksDB", e);
+        } catch (RocksDBException e) {
+            throw new IOException("Error while adding data to RocksDB", e);
         }
     }
 

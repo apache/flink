@@ -60,7 +60,7 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
   public selectedVertex: NodesItemCorrect | null;
   public flameGraph = {} as JobFlameGraph;
   public allSubtasks = 'all';
-  public listOfRunningSubtasks: string[] = [this.allSubtasks];
+  public listOfSampleableSubtasks: string[] = [this.allSubtasks];
 
   public graphType = FlameGraphType.ON_CPU;
   public subtaskIndex = this.allSubtasks;
@@ -131,17 +131,17 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
       )
       .subscribe(
         data => {
-          const runningSubtasks = data?.subtasks
-            .filter(subtaskInfo => subtaskInfo.status === 'RUNNING')
+          const sampleableSubtasks = data?.subtasks
+            .filter(subtaskInfo => subtaskInfo.status === 'RUNNING' || subtaskInfo.status === 'INITIALIZING')
             .map(subtaskInfo => subtaskInfo.subtask.toString());
-          if (isNil(runningSubtasks)) {
+          if (isNil(sampleableSubtasks)) {
             return;
           }
-          this.listOfRunningSubtasks = [this.allSubtasks, ...runningSubtasks];
+          this.listOfSampleableSubtasks = [this.allSubtasks, ...sampleableSubtasks];
           this.cdr.markForCheck();
         },
         () => {
-          this.listOfRunningSubtasks = [this.allSubtasks];
+          this.listOfSampleableSubtasks = [this.allSubtasks];
           this.cdr.markForCheck();
         }
       );

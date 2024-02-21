@@ -25,13 +25,22 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-java</artifactId>
 	<name>Flink : Java</name>
 
 	<packaging>jar</packaging>
+
+	<properties>
+		<surefire.module.config> <!--
+			JoinOperatorTest / chill ArraysAsListSerializer
+			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
+			CollectionInputFormatTest
+			-->--add-opens=java.base/java.lang=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
 
 	<dependencies>
 		<dependency>

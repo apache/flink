@@ -20,6 +20,7 @@ package org.apache.flink.cep.nfa.sharedbuffer;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.DeweyNumber;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import org.apache.commons.lang3.StringUtils;
@@ -204,7 +205,8 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
      * @return the event associated with the eventId.
      */
     public Map<String, List<V>> materializeMatch(Map<String, List<EventId>> match) {
-        Map<String, List<V>> materializedMatch = new LinkedHashMap<>(match.size());
+        Map<String, List<V>> materializedMatch =
+                CollectionUtil.newLinkedHashMapWithExpectedSize(match.size());
 
         for (Map.Entry<String, List<EventId>> pattern : match.entrySet()) {
             List<V> events = new ArrayList<>(pattern.getValue().size());

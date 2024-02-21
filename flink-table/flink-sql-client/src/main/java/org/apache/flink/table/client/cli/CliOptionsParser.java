@@ -29,11 +29,14 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
@@ -48,6 +51,8 @@ import static org.apache.flink.client.cli.CliFrontendParser.PYTHON_PATH;
 
 /** Parser for command line options. */
 public class CliOptionsParser {
+
+    private static final Logger LOG = LoggerFactory.getLogger(CliOptionsParser.class);
 
     public static final Option OPTION_HELP =
             Option.builder("h")
@@ -288,7 +293,7 @@ public class CliOptionsParser {
                     line.getOptionValue(CliOptionsParser.OPTION_UPDATE.getOpt()),
                     line.getOptionValue(CliOptionsParser.OPTION_HISTORY.getOpt()),
                     line.hasOption(CliOptionsParser.OPTION_ENDPOINT_ADDRESS.getOpt())
-                            ? NetUtils.parseHostPortAddress(
+                            ? parseGatewayAddress(
                                     line.getOptionValue(
                                             CliOptionsParser.OPTION_ENDPOINT_ADDRESS.getOpt()))
                             : null,
@@ -296,6 +301,30 @@ public class CliOptionsParser {
         } catch (ParseException e) {
             throw new SqlClientException(e.getMessage());
         }
+    }
+
+    private static URL parseGatewayAddress(String cliOptionAddress) {
+        URL url;
+        try {
+            url = new URL(cliOptionAddress);
+            if (!NetUtils.isValidHostPort(url.getPort())) {
+                url =
+                        new URL(
+                                url.getProtocol(),
+                                url.getHost(),
+                                url.getDefaultPort(),
+                                url.getPath());
+            }
+
+        } catch (MalformedURLException e) {
+            // Required for backwards compatibility
+            LOG.warn(
+                    "The gateway address should be specified as a URL, i.e. https://hostname:port/optional_path.");
+            LOG.warn(
+                    "Trying to fallback to hostname:port (will use non-encrypted, http connection).");
+            url = NetUtils.getCorrectHostnamePort(cliOptionAddress);
+        }
+        return url;
     }
 
     // --------------------------------------------------------------------------------------------

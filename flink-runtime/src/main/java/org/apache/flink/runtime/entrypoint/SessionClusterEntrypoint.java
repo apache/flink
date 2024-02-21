@@ -27,7 +27,7 @@ import org.apache.flink.runtime.dispatcher.FileExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-import org.apache.flink.shaded.guava30.com.google.common.base.Ticker;
+import org.apache.flink.shaded.guava31.com.google.common.base.Ticker;
 
 import java.io.File;
 import java.io.IOException;
@@ -45,9 +45,8 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
         final JobManagerOptions.JobStoreType jobStoreType =
                 configuration.get(JobManagerOptions.JOB_STORE_TYPE);
         final Time expirationTime =
-                Time.seconds(configuration.getLong(JobManagerOptions.JOB_STORE_EXPIRATION_TIME));
-        final int maximumCapacity =
-                configuration.getInteger(JobManagerOptions.JOB_STORE_MAX_CAPACITY);
+                Time.seconds(configuration.get(JobManagerOptions.JOB_STORE_EXPIRATION_TIME));
+        final int maximumCapacity = configuration.get(JobManagerOptions.JOB_STORE_MAX_CAPACITY);
 
         switch (jobStoreType) {
             case File:
@@ -55,7 +54,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
                     final File tmpDir =
                             new File(ConfigurationUtils.parseTempDirectories(configuration)[0]);
                     final long maximumCacheSizeBytes =
-                            configuration.getLong(JobManagerOptions.JOB_STORE_CACHE_SIZE);
+                            configuration.get(JobManagerOptions.JOB_STORE_CACHE_SIZE);
 
                     return new FileExecutionGraphInfoStore(
                             tmpDir,

@@ -31,6 +31,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 
 /**
@@ -79,8 +80,8 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
             }
         } else {
             // the first time the job is executed
-            final int stepSize = runtimeContext.getNumberOfParallelSubtasks();
-            final int taskIdx = runtimeContext.getIndexOfThisSubtask();
+            final int stepSize = runtimeContext.getTaskInfo().getNumberOfParallelSubtasks();
+            final int taskIdx = runtimeContext.getTaskInfo().getIndexOfThisSubtask();
             final long congruence = start + taskIdx;
 
             long totalNoOfElements = Math.abs(end - start + 1);
@@ -100,10 +101,7 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
                 this.checkpointedState != null,
                 "The " + getClass().getSimpleName() + " state has not been properly initialized.");
 
-        this.checkpointedState.clear();
-        for (Long v : this.valuesToEmit) {
-            this.checkpointedState.add(v);
-        }
+        this.checkpointedState.update(new ArrayList<>(this.valuesToEmit));
     }
 
     @Override

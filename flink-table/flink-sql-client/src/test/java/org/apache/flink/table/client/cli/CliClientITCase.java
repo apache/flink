@@ -21,8 +21,11 @@ package org.apache.flink.table.client.cli;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.client.cli.parser.SqlCommandParserImpl;
+import org.apache.flink.table.client.cli.parser.SqlMultiLineParser;
 import org.apache.flink.table.client.cli.utils.SqlScriptReader;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
+import org.apache.flink.table.client.config.SqlClientOptions;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SingleSessionManager;
 import org.apache.flink.table.data.GenericRowData;
@@ -37,11 +40,13 @@ import org.apache.flink.test.junit5.InjectClusterClientConfiguration;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
-import org.apache.flink.shaded.guava30.com.google.common.io.PatternFilenameFilter;
+import org.apache.flink.shaded.guava31.com.google.common.io.PatternFilenameFilter;
 
 import org.apache.calcite.util.Util;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.jline.reader.LineReader;
+import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.MaskingCallback;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.impl.DumbTerminal;
@@ -51,6 +56,7 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.BufferedReader;
@@ -88,16 +94,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test that runs every {@code xx.q} file in "resources/sql/" path as a test. */
 class CliClientITCase {
-
-    private static final String HIVE_ADD_ONE_UDF_CLASS = "HiveAddOneFunc";
-    private static final String HIVE_ADD_ONE_UDF_CODE =
-            "public class "
-                    + HIVE_ADD_ONE_UDF_CLASS
-                    + " extends org.apache.hadoop.hive.ql.exec.UDF {\n"
-                    + " public int evaluate(int content) {\n"
-                    + "    return content + 1;\n"
-                    + " }"
-                    + "}\n";
 
     private static Path historyPath;
     private static Map<String, String> replaceVars;
@@ -148,7 +144,6 @@ class CliClientITCase {
         classNameCodes.put(
                 GENERATED_UPPER_UDF_CLASS,
                 String.format(GENERATED_UPPER_UDF_CODE, GENERATED_UPPER_UDF_CLASS));
-        classNameCodes.put(HIVE_ADD_ONE_UDF_CLASS, HIVE_ADD_ONE_UDF_CODE);
 
         File udfJar =
                 UserClassLoaderJarTestUtils.createJarFile(
@@ -169,7 +164,8 @@ class CliClientITCase {
         replaceVars.put("$VAR_PIPELINE_JARS_URL", udfDependency.toString());
         replaceVars.put("$VAR_REST_PORT", configuration.get(PORT).toString());
         replaceVars.put("$VAR_JOBMANAGER_RPC_ADDRESS", configuration.get(ADDRESS));
-        replaceVars.put("$VAR_DELETE_TABLE_DATA_ID", prepareDataForDeleteStatement());
+        replaceVars.put("$VAR_DELETE_TABLE_DATA_ID", prepareData());
+        replaceVars.put("$VAR_TRUNCATE_TABLE_DATA_ID", prepareData());
     }
 
     @BeforeEach
@@ -203,6 +199,64 @@ class CliClientITCase {
         assertThat(out).isEqualTo(in);
     }
 
+    @ParameterizedTest
+    @MethodSource("tableOptionToJlineVarProvider")
+    void testPropagationOfTableOptionToVars(
+            String setTableOptionCommand,
+            String jlineVarName,
+            String expectedValue,
+            @InjectClusterClientConfiguration Configuration configuration)
+            throws IOException {
+
+        DefaultContext defaultContext =
+                new DefaultContext(
+                        new Configuration(configuration)
+                                // Make sure we use the new cast behaviour
+                                .set(
+                                        ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
+                                        ExecutionConfigOptions.LegacyCastBehaviour.DISABLED),
+                        Collections.emptyList());
+
+        // Since DumbTerminal exits automatically with the last line need to add \n to have command
+        // processed before the exit
+        InputStream inputStream =
+                new ByteArrayInputStream((setTableOptionCommand + "\n").getBytes());
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
+
+        try (final Executor executor =
+                        Executor.create(
+                                defaultContext,
+                                InetSocketAddress.createUnresolved(
+                                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
+                                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()),
+                                "test-session");
+                Terminal terminal = new DumbTerminal(inputStream, outputStream);
+                CliClient client =
+                        new CliClient(
+                                () -> terminal, executor, historyPath, HideSqlStatement.INSTANCE)) {
+
+            LineReader dummyLineReader =
+                    LineReaderBuilder.builder()
+                            .terminal(terminal)
+                            .parser(
+                                    new SqlMultiLineParser(
+                                            new SqlCommandParserImpl(),
+                                            executor,
+                                            CliClient.ExecutionMode.INTERACTIVE_EXECUTION))
+                            .build();
+            client.executeInInteractiveMode(dummyLineReader);
+            assertThat(dummyLineReader.getVariable(jlineVarName)).isEqualTo(expectedValue);
+        }
+    }
+
+    static Stream<Arguments> tableOptionToJlineVarProvider() {
+        return Stream.of(
+                Arguments.of(
+                        "SET 'sql-client.display.show-line-numbers' = 'true';",
+                        LineReader.SECONDARY_PROMPT_PATTERN,
+                        "%N%M> "));
+    }
+
     /**
      * Returns printed results for each ran SQL statements.
      *
@@ -218,7 +272,8 @@ class CliClientITCase {
                                 // Make sure we use the new cast behaviour
                                 .set(
                                         ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
-                                        ExecutionConfigOptions.LegacyCastBehaviour.DISABLED),
+                                        ExecutionConfigOptions.LegacyCastBehaviour.DISABLED)
+                                .set(SqlClientOptions.DISPLAY_QUERY_TIME_COST, false),
                         Collections.emptyList());
 
         InputStream inputStream = new ByteArrayInputStream(sqlContent.getBytes());
@@ -295,7 +350,7 @@ class CliClientITCase {
         }
     }
 
-    private static String prepareDataForDeleteStatement() {
+    private static String prepareData() {
         List<RowData> values = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
             values.add(GenericRowData.of(i, StringData.fromString("b_" + i), i * 2.0));

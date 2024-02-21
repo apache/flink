@@ -17,12 +17,12 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql
 
-import org.apache.flink.api.common.typeinfo.{LocalTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO
-import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, RowTypeInfo, TypeExtractor}
-import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.typeutils.Types
+import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo
+import org.apache.flink.api.java.typeutils.{RowTypeInfo, TypeExtractor}
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.data.StringData
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.planner.expressions.utils.{Func1, Func18, RichFunc2}
@@ -31,18 +31,17 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc0
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{MyPojo, MyPojoFunc}
-import org.apache.flink.table.planner.utils.{HierarchyTableFunction, PojoTableFunc, RichTableFunc1, RichTableFuncWithFinish, TableFunc0, TableFunc1, TableFunc2, TableFunc3, VarArgsFunc0}
+import org.apache.flink.table.planner.utils._
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
-import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.inference.{InputTypeStrategies, TypeInference, TypeStrategies}
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
-
-import scala.collection.JavaConversions._
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class CorrelateITCase extends BatchTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     registerCollection("inputT", TableFunctionITCase.testData, type3, "a, b, c")
@@ -52,7 +51,7 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testTableFunction(): Unit = {
-    registerFunction("func", new TableFunc1)
+    tEnv.createTemporarySystemFunction("func", new TableFunc1)
     checkResult(
       "select c, s from inputT, LATERAL TABLE(func(c)) as T(s)",
       Seq(
@@ -68,7 +67,7 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testLeftOuterJoin(): Unit = {
-    registerFunction("func", new TableFunc2)
+    tEnv.createTemporarySystemFunction("func", new TableFunc2)
     checkResult(
       "select c, s, l from inputT LEFT JOIN LATERAL TABLE(func(c)) as T(s, l) ON TRUE",
       Seq(
@@ -85,7 +84,7 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testWithFilter(): Unit = {
-    registerFunction("func", new TableFunc0)
+    tEnv.createTemporarySystemFunction("func", new TableFunc0)
     checkResult(
       "select c, name, age from inputT, LATERAL TABLE(func(c)) as T(name, age) WHERE T.age > 20",
       Seq(row("Jack#22", "Jack", 22), row("Anna#44", "Anna", 44)))
@@ -93,7 +92,7 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testHierarchyType(): Unit = {
-    registerFunction("func", new HierarchyTableFunction)
+    tEnv.createTemporarySystemFunction("func", new HierarchyTableFunction)
     checkResult(
       "select c, name, adult, len from inputT, LATERAL TABLE(func(c)) as T(name, adult, len)",
       Seq(
@@ -103,18 +102,18 @@ class CorrelateITCase extends BatchTestBase {
     )
   }
 
-  /** T(age, name) must have the right order with TypeInfo of PojoUser. */
+  /** T(name, age) must have the right order with TypeInfo of PojoUser. */
   @Test
   def testPojoType(): Unit = {
-    registerFunction("func", new PojoTableFunc)
+    tEnv.createTemporarySystemFunction("func", new PojoTableFunc)
     checkResult(
-      "select c, name, age from inputT, LATERAL TABLE(func(c)) as T(age, name) WHERE T.age > 20",
+      "select c, name, age from inputT, LATERAL TABLE(func(c)) as T(name, age) WHERE T.age > 20",
       Seq(row("Jack#22", "Jack", 22), row("Anna#44", "Anna", 44)))
   }
 
   @Test
   def testUserDefinedTableFunctionWithScalarFunction(): Unit = {
-    registerFunction("func", new TableFunc1)
+    tEnv.createTemporarySystemFunction("func", new TableFunc1)
     checkResult(
       "select c, s from inputT, LATERAL TABLE(func(SUBSTRING(c, 2))) as T(s)",
       Seq(
@@ -130,9 +129,9 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testUserDefinedTableFunctionWithScalarFunctionInCondition(): Unit = {
-    registerFunction("func", new TableFunc0)
-    registerFunction("func18", Func18)
-    registerFunction("func1", Func1)
+    tEnv.createTemporarySystemFunction("func", new TableFunc0)
+    tEnv.createTemporarySystemFunction("func18", Func18)
+    tEnv.createTemporarySystemFunction("func1", Func1)
     checkResult(
       "select c, name, age from inputT, LATERAL TABLE(func(c)) as T(name, age) " +
         "where func18(name, 'J') and func1(a) < 3 and func1(age) > 20",
@@ -153,7 +152,7 @@ class CorrelateITCase extends BatchTestBase {
         LocalTimeTypeInfo.LOCAL_DATE_TIME),
       "x, y, z"
     )
-    registerFunction("func", new JavaTableFunc0)
+    tEnv.createTemporarySystemFunction("func", new JavaTableFunc0)
     checkResult(
       "select s from myT, LATERAL TABLE(func(x, y, z)) as T(s)",
       Seq(
@@ -165,7 +164,7 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testUserDefinedTableFunctionWithParameter(): Unit = {
-    registerFunction("func", new RichTableFunc1)
+    tEnv.createTemporarySystemFunction("func", new RichTableFunc1)
     val conf = new Configuration()
     conf.setString("word_separator", "#")
     env.getConfig.setGlobalJobParameters(conf)
@@ -176,8 +175,8 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testUserDefinedTableFunctionWithScalarFunctionWithParameters(): Unit = {
-    registerFunction("func", new RichTableFunc1)
-    registerFunction("func2", new RichFunc2)
+    tEnv.createTemporarySystemFunction("func", new RichTableFunc1)
+    tEnv.createTemporarySystemFunction("func2", new RichFunc2)
     val conf = new Configuration()
     conf.setString("word_separator", "#")
     conf.setString("string.value", "test")
@@ -196,9 +195,9 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testTableFunctionConstructorWithParams(): Unit = {
-    registerFunction("func30", new TableFunc3(null))
-    registerFunction("func31", new TableFunc3("OneConf_"))
-    registerFunction("func32", new TableFunc3("TwoConf_"))
+    tEnv.createTemporarySystemFunction("func30", new TableFunc3(null))
+    tEnv.createTemporarySystemFunction("func31", new TableFunc3("OneConf_"))
+    tEnv.createTemporarySystemFunction("func32", new TableFunc3("TwoConf_"))
     checkResult(
       "select c, d, f, h, e, g, i from inputT, " +
         "LATERAL TABLE(func30(c)) as T0(d, e), " +
@@ -214,7 +213,7 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testTableFunctionWithVariableArguments(): Unit = {
-    registerFunction("func", new VarArgsFunc0)
+    tEnv.createTemporarySystemFunction("func", new VarArgsFunc0)
     checkResult(
       "select c, d from inputT, LATERAL TABLE(func('1', '2', c)) as T0(d) where c = 'Jack#22'",
       Seq(
@@ -235,14 +234,14 @@ class CorrelateITCase extends BatchTestBase {
       "a")
 
     // 1. external type for udtf parameter
-    registerFunction("pojoTFunc", new MyPojoTableFunc)
+    tEnv.createTemporarySystemFunction("pojoTFunc", new MyPojoTableFunc)
     checkResult(
       "select s from MyTable, LATERAL TABLE(pojoTFunc(a)) as T(s)",
       Seq(row(105), row(11), row(12)))
 
     // 2. external type return in udtf
-    registerFunction("pojoFunc", MyPojoFunc)
-    registerFunction("toPojoTFunc", new MyToPojoTableFunc)
+    tEnv.createTemporarySystemFunction("pojoFunc", MyPojoFunc)
+    tEnv.createTemporarySystemFunction("toPojoTFunc", new MyToPojoTableFunc)
     checkResult(
       "select b from MyTable, LATERAL TABLE(toPojoTFunc(pojoFunc(a))) as T(b, c)",
       Seq(row(105), row(11), row(12)))
@@ -333,14 +332,17 @@ object TableFunctionITCase {
 class MyPojoTableFunc extends TableFunction[Int] {
   def eval(s: MyPojo): Unit = collect(s.f2)
 
-  override def getParameterTypes(signature: Array[Class[_]]) = {
-    val cls = classOf[MyPojo]
-    Array[TypeInformation[_]](
-      new PojoTypeInfo[MyPojo](
-        classOf[MyPojo],
-        Seq(
-          new PojoField(cls.getDeclaredField("f1"), Types.INT),
-          new PojoField(cls.getDeclaredField("f2"), Types.INT))))
+  override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+    TypeInference.newBuilder
+      .inputTypeStrategy(
+        InputTypeStrategies.sequence(
+          InputTypeStrategies.explicit(
+            DataTypes.STRUCTURED(
+              classOf[MyPojo],
+              DataTypes.FIELD("f1", DataTypes.INT()),
+              DataTypes.FIELD("f2", DataTypes.INT())))))
+      .outputTypeStrategy(TypeStrategies.explicit(DataTypes.INT()))
+      .build
   }
 }
 
@@ -348,35 +350,53 @@ class MyPojoTableFunc extends TableFunction[Int] {
 class MyToPojoTableFunc extends TableFunction[MyPojo] {
   def eval(s: Int): Unit = collect(new MyPojo(s, s))
 
-  override def getResultType: TypeInformation[MyPojo] = {
-    val cls = classOf[MyPojo]
-    new PojoTypeInfo[MyPojo](
-      classOf[MyPojo],
-      Seq(
-        new PojoField(cls.getDeclaredField("f1"), Types.INT),
-        new PojoField(cls.getDeclaredField("f2"), Types.INT)))
+  override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+    TypeInference.newBuilder
+      .typedArguments(DataTypes.INT())
+      .outputTypeStrategy(
+        TypeStrategies.explicit(
+          DataTypes.STRUCTURED(
+            classOf[MyPojo],
+            DataTypes.FIELD("f1", DataTypes.INT()),
+            DataTypes.FIELD("f2", DataTypes.INT()))))
+      .build
   }
 }
 
 @SerialVersionUID(1L)
-class GenericTableFunc[T](t: TypeInformation[T]) extends TableFunction[T] {
+class GenericTableFunc[T](t: DataType) extends TableFunction[T] {
   def eval(s: Int): Unit = {
-    if (t == Types.STRING) {
+    if (t == DataTypes.STRING) {
       collect(s.toString.asInstanceOf[T])
-    } else if (t == Types.INT) {
+    } else if (t == DataTypes.INT) {
       collect(s.asInstanceOf[T])
     } else {
       throw new RuntimeException
     }
   }
 
-  override def getResultType: TypeInformation[T] = t
+  override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+    TypeInference.newBuilder
+      .typedArguments(DataTypes.INT())
+      .outputTypeStrategy(TypeStrategies.explicit(t))
+      .build
+  }
 }
 
 @SerialVersionUID(1L)
 class BinaryStringTableFunc extends TableFunction[Row] {
   def eval(s: StringData, cons: StringData): Unit = collect(Row.of(s, cons))
-  override def getResultType: TypeInformation[Row] = {
-    new RowTypeInfo(StringDataTypeInfo.INSTANCE, StringDataTypeInfo.INSTANCE)
+
+  override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+    TypeInference.newBuilder
+      .typedArguments(
+        DataTypes.STRING().bridgedTo(classOf[StringData]),
+        DataTypes.STRING().bridgedTo(classOf[StringData]))
+      .outputTypeStrategy(
+        TypeStrategies.explicit(
+          DataTypes.ROW(
+            DataTypes.STRING().bridgedTo(classOf[StringData]),
+            DataTypes.STRING().bridgedTo(classOf[StringData]))))
+      .build
   }
 }

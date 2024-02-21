@@ -31,18 +31,21 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
+import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.util.NlsString;
+import org.apache.calcite.sql.SqlNumericLiteral;
 
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -104,17 +107,22 @@ class SqlCreateTableConverter {
                                                                         .getClass()
                                                                         .getSimpleName()));
         CatalogTable catalogTable = createCatalogTable(sqlCreateTableAs);
+        CatalogTable tableWithResolvedSchema =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .fromResolvedSchema(query.getResolvedSchema())
+                                        .build())
+                        .comment(catalogTable.getComment())
+                        .distribution(catalogTable.getDistribution().orElse(null))
+                        .options(catalogTable.getOptions())
+                        .partitionKeys(catalogTable.getPartitionKeys())
+                        .build();
 
         CreateTableOperation createTableOperation =
                 new CreateTableOperation(
                         identifier,
-                        CatalogTable.of(
-                                Schema.newBuilder()
-                                        .fromResolvedSchema(query.getResolvedSchema())
-                                        .build(),
-                                catalogTable.getComment(),
-                                catalogTable.getPartitionKeys(),
-                                catalogTable.getOptions()),
+                        tableWithResolvedSchema,
                         sqlCreateTableAs.isIfNotExists(),
                         sqlCreateTableAs.isTemporary());
 
@@ -125,6 +133,7 @@ class SqlCreateTableConverter {
     private CatalogTable createCatalogTable(SqlCreateTable sqlCreateTable) {
 
         final Schema sourceTableSchema;
+        final Optional<TableDistribution> sourceTableDistribution;
         final List<String> sourcePartitionKeys;
         final List<SqlTableLike.SqlTableLikeOption> likeOptions;
         final Map<String, String> sourceProperties;
@@ -132,11 +141,13 @@ class SqlCreateTableConverter {
             SqlTableLike sqlTableLike = ((SqlCreateTableLike) sqlCreateTable).getTableLike();
             CatalogTable table = lookupLikeSourceTable(sqlTableLike);
             sourceTableSchema = table.getUnresolvedSchema();
+            sourceTableDistribution = table.getDistribution();
             sourcePartitionKeys = table.getPartitionKeys();
             likeOptions = sqlTableLike.getOptions();
             sourceProperties = table.getOptions();
         } else {
             sourceTableSchema = Schema.newBuilder().build();
+            sourceTableDistribution = Optional.empty();
             sourcePartitionKeys = Collections.emptyList();
             likeOptions = Collections.emptyList();
             sourceProperties = Collections.emptyMap();
@@ -164,6 +175,9 @@ class SqlCreateTableConverter {
                                 .orElseGet(Collections::emptyList),
                         primaryKey.orElse(null));
 
+        Optional<TableDistribution> mergedTableDistribution =
+                mergeDistribution(sourceTableDistribution, sqlCreateTable, mergingStrategies);
+
         List<String> partitionKeys =
                 mergePartitions(
                         sourcePartitionKeys,
@@ -171,15 +185,18 @@ class SqlCreateTableConverter {
                         mergingStrategies);
         verifyPartitioningColumnsExist(mergedSchema, partitionKeys);
 
-        String tableComment =
-                sqlCreateTable
-                        .getComment()
-                        .map(comment -> comment.getValueAs(NlsString.class).getValue())
-                        .orElse(null);
+        String tableComment = OperationConverterUtils.getTableComment(sqlCreateTable.getComment());
 
-        return catalogManager.resolveCatalogTable(
-                CatalogTable.of(
-                        mergedSchema, tableComment, partitionKeys, new HashMap<>(mergedOptions)));
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(mergedSchema)
+                        .comment(tableComment)
+                        .distribution(mergedTableDistribution.orElse(null))
+                        .options(new HashMap<>(mergedOptions))
+                        .partitionKeys(partitionKeys)
+                        .build();
+
+        return catalogManager.resolveCatalogTable(catalogTable);
     }
 
     private CatalogTable lookupLikeSourceTable(SqlTableLike sqlTableLike) {
@@ -222,6 +239,44 @@ class SqlCreateTableConverter {
                                         .collect(Collectors.joining("', '", "'", "'"))));
             }
         }
+    }
+
+    private Optional<TableDistribution> mergeDistribution(
+            Optional<TableDistribution> sourceTableDistribution,
+            SqlCreateTable sqlCreateTable,
+            Map<SqlTableLike.FeatureOption, SqlTableLike.MergingStrategy> mergingStrategies) {
+
+        Optional<TableDistribution> derivedTabledDistribution = Optional.empty();
+        if (sqlCreateTable.getDistribution() != null) {
+            TableDistribution.Kind kind =
+                    TableDistribution.Kind.valueOf(
+                            sqlCreateTable
+                                    .getDistribution()
+                                    .getDistributionKind()
+                                    .orElse(TableDistribution.Kind.UNKNOWN.toString()));
+            Integer bucketCount = null;
+            SqlNumericLiteral count = sqlCreateTable.getDistribution().getBucketCount();
+            if (count != null && count.isInteger()) {
+                bucketCount = ((BigDecimal) (count).getValue()).intValue();
+            }
+
+            List<String> bucketColumns = Collections.emptyList();
+
+            SqlNodeList columns = sqlCreateTable.getDistribution().getBucketColumns();
+            if (columns != null) {
+                bucketColumns =
+                        columns.getList().stream()
+                                .map(p -> ((SqlIdentifier) p).getSimple())
+                                .collect(Collectors.toList());
+            }
+            derivedTabledDistribution =
+                    Optional.of(TableDistribution.of(kind, bucketCount, bucketColumns));
+        }
+
+        return mergeTableLikeUtil.mergeDistribution(
+                mergingStrategies.get(SqlTableLike.FeatureOption.DISTRIBUTION),
+                sourceTableDistribution,
+                derivedTabledDistribution);
     }
 
     private List<String> mergePartitions(

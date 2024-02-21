@@ -141,8 +141,8 @@ public class CliFrontendParser {
                             + "[claim - claim ownership of the savepoint and delete once it is"
                             + " subsumed, no_claim (default) - do not claim ownership, the first"
                             + " checkpoint will not reuse any files from the restored one, legacy "
-                            + "- the old behaviour, do not assume ownership of the savepoint files,"
-                            + " but can reuse some shared files.");
+                            + "(deprecated) - the old behaviour, do not assume ownership of the "
+                            + "savepoint files, but can reuse some shared files.");
 
     static final Option SAVEPOINT_DISPOSE_OPTION =
             new Option("d", "dispose", true, "Path of savepoint to dispose.");
@@ -156,6 +156,21 @@ public class CliFrontendParser {
                             + " options: [canonical - a common format for all state backends, allow"
                             + " for changing state backends, native = a specific format for the"
                             + " chosen state backend, might be faster to take and restore from.");
+
+    static final Option CHECKPOINT_FULL_OPTION =
+            new Option(
+                    "full",
+                    "full",
+                    false,
+                    "Defines whether to trigger this checkpoint as a full one.");
+
+    static final Option SAVEPOINT_DETACHED_OPTION =
+            new Option(
+                    "detached",
+                    false,
+                    "Triggering savepoint in detached mode, client and JM are decoupled,"
+                            + " return the savepoint trigger id as the unique identification of"
+                            + " the detached savepoint.");
 
     // list specific options
     static final Option RUNNING_OPTION =
@@ -201,7 +216,7 @@ public class CliFrontendParser {
                     "d",
                     "drain",
                     false,
-                    "Send MAX_WATERMARK before taking the savepoint and stopping the pipelne.");
+                    "Send MAX_WATERMARK before taking the savepoint and stopping the pipeline.");
 
     public static final Option PY_OPTION =
             new Option(
@@ -265,7 +280,7 @@ public class CliFrontendParser {
                     true,
                     "Specify the path of the python interpreter used to execute the python UDF worker "
                             + "(e.g.: --pyExecutable /usr/local/bin/python3). "
-                            + "The python UDF worker depends on Python 3.7+, Apache Beam (version == 2.43.0), "
+                            + "The python UDF worker depends on Python 3.8+, Apache Beam (version == 2.43.0), "
                             + "Pip (version >= 20.3) and SetupTools (version >= 37.0.0). "
                             + "Please ensure that the specified environment meets the above requirements.");
 
@@ -432,14 +447,20 @@ public class CliFrontendParser {
         return buildGeneralOptions(new Options())
                 .addOption(STOP_WITH_SAVEPOINT_PATH)
                 .addOption(STOP_AND_DRAIN)
-                .addOption(SAVEPOINT_FORMAT_OPTION);
+                .addOption(SAVEPOINT_FORMAT_OPTION)
+                .addOption(SAVEPOINT_DETACHED_OPTION);
     }
 
     static Options getSavepointCommandOptions() {
         return buildGeneralOptions(new Options())
                 .addOption(SAVEPOINT_DISPOSE_OPTION)
                 .addOption(JAR_OPTION)
-                .addOption(SAVEPOINT_FORMAT_OPTION);
+                .addOption(SAVEPOINT_FORMAT_OPTION)
+                .addOption(SAVEPOINT_DETACHED_OPTION);
+    }
+
+    static Options getCheckpointCommandOptions() {
+        return buildGeneralOptions(new Options()).addOption(CHECKPOINT_FULL_OPTION);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -473,13 +494,19 @@ public class CliFrontendParser {
     private static Options getStopOptionsWithoutDeprecatedOptions(Options options) {
         return options.addOption(STOP_WITH_SAVEPOINT_PATH)
                 .addOption(STOP_AND_DRAIN)
-                .addOption(SAVEPOINT_FORMAT_OPTION);
+                .addOption(SAVEPOINT_FORMAT_OPTION)
+                .addOption(SAVEPOINT_DETACHED_OPTION);
     }
 
     private static Options getSavepointOptionsWithoutDeprecatedOptions(Options options) {
         return options.addOption(SAVEPOINT_DISPOSE_OPTION)
                 .addOption(SAVEPOINT_FORMAT_OPTION)
-                .addOption(JAR_OPTION);
+                .addOption(JAR_OPTION)
+                .addOption(SAVEPOINT_DETACHED_OPTION);
+    }
+
+    private static Options getCheckpointOptionsWithoutDeprecatedOptions(Options options) {
+        return options.addOption(CHECKPOINT_FULL_OPTION);
     }
 
     /** Prints the help for the client. */
@@ -495,6 +522,7 @@ public class CliFrontendParser {
         printHelpForStop(customCommandLines);
         printHelpForCancel(customCommandLines);
         printHelpForSavepoint(customCommandLines);
+        printHelpForCheckpoint(customCommandLines);
 
         System.out.println();
     }
@@ -605,6 +633,21 @@ public class CliFrontendParser {
         System.out.println("\n  Syntax: savepoint [OPTIONS] <Job ID> [<target directory>]");
         formatter.setSyntaxPrefix("  \"savepoint\" action options:");
         formatter.printHelp(" ", getSavepointOptionsWithoutDeprecatedOptions(new Options()));
+
+        printCustomCliOptions(customCommandLines, formatter, false);
+
+        System.out.println();
+    }
+
+    public static void printHelpForCheckpoint(Collection<CustomCommandLine> customCommandLines) {
+        HelpFormatter formatter = new HelpFormatter();
+        formatter.setLeftPadding(5);
+        formatter.setWidth(80);
+
+        System.out.println("\nAction \"checkpoint\" triggers checkpoints for a running job.");
+        System.out.println("\n  Syntax: checkpoint [OPTIONS] <Job ID>");
+        formatter.setSyntaxPrefix("  \"checkpoint\" action options:");
+        formatter.printHelp(" ", getCheckpointOptionsWithoutDeprecatedOptions(new Options()));
 
         printCustomCliOptions(customCommandLines, formatter, false);
 

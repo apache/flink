@@ -21,12 +21,14 @@ package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blocklist.BlocklistOperations;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -35,9 +37,9 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.SpeculativeExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategyFactoryLoader;
-import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
-import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategyFactoryLoader;
+import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyFactoryLoader;
+import org.apache.flink.runtime.executiongraph.failover.RestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.failover.RestartBackoffTimeStrategyFactoryLoader;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -77,6 +79,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -113,6 +116,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
             ComponentMainThreadExecutor mainThreadExecutor,
             FatalErrorHandler fatalErrorHandler,
             JobStatusListener jobStatusListener,
+            Collection<FailureEnricher> failureEnrichers,
             BlocklistOperations blocklistOperations)
             throws Exception {
 
@@ -129,7 +133,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                                                 "The AdaptiveBatchScheduler requires a SlotPool."));
 
         final boolean enableSpeculativeExecution =
-                jobMasterConfiguration.getBoolean(BatchExecutionOptions.SPECULATIVE_ENABLED);
+                jobMasterConfiguration.get(BatchExecutionOptions.SPECULATIVE_ENABLED);
 
         final HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint =
                 getOrDecideHybridPartitionDataConsumeConstraint(
@@ -148,6 +152,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
         final RestartBackoffTimeStrategy restartBackoffTimeStrategy =
                 RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
                                 executionConfig.getRestartStrategy(),
+                                jobGraph.getJobConfiguration(),
                                 jobMasterConfiguration,
                                 jobGraph.isCheckpointingEnabled())
                         .create();
@@ -206,6 +211,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     initializationTimestamp,
                     mainThreadExecutor,
                     jobStatusListener,
+                    failureEnrichers,
                     executionGraphFactory,
                     shuffleMaster,
                     rpcTimeout,
@@ -237,6 +243,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     initializationTimestamp,
                     mainThreadExecutor,
                     jobStatusListener,
+                    failureEnrichers,
                     executionGraphFactory,
                     shuffleMaster,
                     rpcTimeout,
@@ -320,11 +327,14 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                         String.format(
                                 "At the moment, adaptive batch scheduler requires batch workloads "
                                         + "to be executed with types of all edges being BLOCKING or HYBRID_FULL/HYBRID_SELECTIVE. "
-                                        + "To do that, you need to configure '%s' to '%s' or '%s/%s'.",
+                                        + "To do that, you need to configure '%s' to '%s' or '%s/%s'. "
+                                        + "Note that for DataSet jobs which do not recognize the aforementioned shuffle mode, "
+                                        + "the ExecutionMode needs to be %s to force BLOCKING shuffle",
                                 ExecutionOptions.BATCH_SHUFFLE_MODE.key(),
                                 BatchShuffleMode.ALL_EXCHANGES_BLOCKING,
                                 BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL,
-                                BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE));
+                                BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE,
+                                ExecutionMode.BATCH_FORCED));
             }
         }
     }

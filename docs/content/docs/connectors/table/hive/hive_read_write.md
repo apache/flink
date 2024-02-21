@@ -206,6 +206,11 @@ Users can do some performance tuning by tuning the split's size with the follow 
 - Currently, these configurations for tuning split size only works for the Hive table stored as ORC format.
 {{< /hint >}}
 
+### Read Table Statistics
+
+When the table statistic is not available from the Hive metastore, Flink will try to scan the table to get the statistic to generate a better execution plan. It may cost some time to get the statistic. To get it faster, you can use `table.exec.hive.read-statistics.thread-num` to configure how many threads to use to scan the table.
+The default value is the number of available processors in the current system and the configured value should be bigger than 0.
+
 ### Load Partition Splits
 
 Multi-thread is used to split hive's partitions. You can use `table.exec.hive.load-partition-splits.thread-num` to configure the thread number. The default value is 3 and the configured value should be bigger than 0.

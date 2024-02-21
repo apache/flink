@@ -37,6 +37,7 @@ import org.apache.flink.util.InstantiationUtil
 
 import java.time.ZoneId
 import java.util.TimeZone
+import java.util.concurrent.atomic.AtomicLong
 import java.util.function.{Supplier => JSupplier}
 
 import scala.collection.mutable
@@ -44,8 +45,20 @@ import scala.collection.mutable
 /**
  * The context for code generator, maintaining various reusable statements that could be insert into
  * different code sections in the final generated class.
+ *
+ * Caution: As we use nameCounter in each CodeGeneratorContext, we must ensure that a unique
+ * CodeGeneratorContext(or contexts share the same ancestors) is used throughout the entire class to
+ * avoid naming conflicts. So when we create a context for a class, we can set parentCtx to null.
+ * However, when we create a context for a code block, we must ensure that all contexts for code
+ * blocks in a class share a common ancestor by setting parentCtx.
  */
-class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: ClassLoader) {
+class CodeGeneratorContext(
+    val tableConfig: ReadableConfig,
+    val classLoader: ClassLoader,
+    val parentCtx: CodeGeneratorContext) {
+
+  def this(tableConfig: ReadableConfig, classLoader: ClassLoader) =
+    this(tableConfig, classLoader, null)
 
   // holding a list of objects that could be used passed into generated class
   val references: mutable.ArrayBuffer[AnyRef] = new mutable.ArrayBuffer[AnyRef]()
@@ -89,6 +102,14 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
   // we use a LinkedHashSet to keep the insertion order
   private val reusablePerRecordStatements: mutable.LinkedHashSet[String] =
     mutable.LinkedHashSet[String]()
+
+  // set of statements that will be added only for operator fusion codegen process method
+  private val reusableFusionCodegenProcessStatements: mutable.TreeMap[Int, String] =
+    mutable.TreeMap[Int, String]()
+
+  // set of statements that will be added only for operator fusion codegen endInput method
+  private val reusableFusionCodegenEndInputStatements: mutable.TreeMap[Int, String] =
+    mutable.TreeMap[Int, String]()
 
   // map of initial input unboxing expressions that will be added only once
   // (inputTerm, index) -> expr
@@ -140,12 +161,17 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
   /** the class is used as the  generated operator code's base class. */
   private var operatorBaseClass: Class[_] = classOf[TableStreamOperator[_]]
 
+  private val nameCounter = new AtomicLong
+
   // ---------------------------------------------------------------------------------
   // Getter
   // ---------------------------------------------------------------------------------
 
   def getReusableInputUnboxingExprs(inputTerm: String, index: Int): Option[GeneratedExpression] =
     reusableInputUnboxingExprs.get((inputTerm, index))
+
+  /** Prioritize using the nameCounter of the ancestor. */
+  def getNameCounter: AtomicLong = if (parentCtx == null) nameCounter else parentCtx.getNameCounter
 
   /**
    * Add a line comment to [[reusableHeaderComments]] list which will be concatenated into a single
@@ -186,7 +212,7 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
    *   a new generated unique field name
    */
   def addReusableLocalVariable(fieldTypeTerm: String, fieldName: String): String = {
-    val fieldTerm = newName(fieldName)
+    val fieldTerm = newName(this, fieldName)
     reusableLocalVariableStatements
       .getOrElse(currentMethodNameForLocalVariables, mutable.LinkedHashSet[String]())
       .add(s"$fieldTypeTerm $fieldTerm;")
@@ -203,7 +229,7 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
    *   the new generated unique field names for each variable pairs
    */
   def addReusableLocalVariables(fieldTypeAndNames: (String, String)*): Seq[String] = {
-    val fieldTerms = newNames(fieldTypeAndNames.map(_._2): _*)
+    val fieldTerms = newNames(this, fieldTypeAndNames.map(_._2): _*)
     fieldTypeAndNames.map(_._1).zip(fieldTerms).foreach {
       case (fieldTypeTerm, fieldTerm) =>
         reusableLocalVariableStatements
@@ -307,6 +333,38 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
 
   /**
    * @return
+   *   code block of statements that need to be placed in the getInputs() method of
+   *   [FusionStreamOperator]
+   */
+  def reuseFusionProcessCode(): String = {
+    reusableFusionCodegenProcessStatements.values.mkString(",\n")
+  }
+
+  /**
+   * @return
+   *   code block of statements that need to be placed in the endInput() method of
+   *   [BoundedMultiInput]
+   */
+  def reuseFusionEndInputCode(inputId: String): String = {
+    val endInputCode = reusableFusionCodegenEndInputStatements
+      .map {
+        case (id, code) => s"""
+                              |case $id:
+                              |  $code
+                              |  break;
+                              |""".stripMargin
+      }
+      .mkString("\n")
+
+    s"""
+       |switch($inputId) {
+       |  $endInputCode
+       |}
+       |""".stripMargin
+  }
+
+  /**
+   * @return
    *   code block of statements that unbox input variables to a primitive variable and a
    *   corresponding null flag variable
    */
@@ -383,6 +441,14 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
   /** Adds a reusable cleanup statement */
   def addReusableCleanupStatement(s: String): Unit = reusableCleanupStatements.add(s)
 
+  /** Adds a reusable fusion codegen process statement */
+  def addReusableFusionCodegenProcessStatement(inputId: Int, s: String): Unit =
+    reusableFusionCodegenProcessStatements.put(inputId, s)
+
+  /** Adds a reusable fusion codegen endInput statement */
+  def addReusableFusionCodegenEndInputStatement(inputId: Int, s: String): Unit =
+    reusableFusionCodegenEndInputStatements.put(inputId, s)
+
   /** Adds a reusable input unboxing expression */
   def addReusableInputUnboxingExprs(
       inputTerm: String,
@@ -408,7 +474,7 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
 
   /** Adds a reusable internal hash set to the member area of the generated class. */
   def addReusableHashSet(elements: Seq[GeneratedExpression], elementType: LogicalType): String = {
-    val fieldTerm = newName("set")
+    val fieldTerm = newName(this, "set")
 
     val setTypeTerm = elementType.getTypeRoot match {
       case TINYINT => className[ByteHashSet]
@@ -445,7 +511,7 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
           }
       }
       .mkString("\n")
-    val setBuildingFunctionName = newName("buildSet")
+    val setBuildingFunctionName = newName(this, "buildSet")
     val setBuildingFunctionCode =
       s"""
          |private void $setBuildingFunctionName() {
@@ -682,7 +748,7 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
    *   member variable term
    */
   def addReusableRandom(seedExpr: Option[GeneratedExpression]): String = {
-    val fieldTerm = newName("random")
+    val fieldTerm = newName(this, "random")
 
     val field =
       s"""
@@ -726,7 +792,7 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
       obj: AnyRef,
       fieldNamePrefix: String,
       fieldTypeTerm: String = null): String = {
-    addReusableObjectWithName(obj, newName(fieldNamePrefix), fieldTypeTerm)
+    addReusableObjectWithName(obj, newName(this, fieldNamePrefix), fieldTypeTerm)
   }
 
   def addReusableObjectWithName(
@@ -842,7 +908,7 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
       case Some(term) => term
 
       case None =>
-        val term = newName("typeSerializer")
+        val term = newName(this, "typeSerializer")
         val ser = InternalSerializers.create(t)
         addReusableObjectInternal(ser, term, ser.getClass.getCanonicalName)
         reusableTypeSerializers(t) = term
@@ -892,7 +958,7 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
   def addReusableConstant(constant: GeneratedExpression): GeneratedExpression = {
     require(constant.literal, "Literal expected")
 
-    val fieldTerm = newName("constant")
+    val fieldTerm = newName(this, "constant")
     val nullTerm = fieldTerm + "isNull"
 
     val fieldType = primitiveTypeTermForType(constant.resultType)
@@ -925,7 +991,7 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
     reusableStringConstants.get(value) match {
       case Some(field) => field
       case None =>
-        val field = newName("str")
+        val field = newName(this, "str")
         val stmt =
           s"""
              |private final $BINARY_STRING $field = $BINARY_STRING.fromString("$value");
@@ -943,7 +1009,7 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
    *   member variable term
    */
   def addReusableMessageDigest(algorithm: String): String = {
-    val fieldTerm = newName("messageDigest")
+    val fieldTerm = newName(this, "messageDigest")
 
     val field = s"final java.security.MessageDigest $fieldTerm;"
     reusableMemberStatements.add(field)
@@ -969,7 +1035,7 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
    */
   def addReusableSha2MessageDigest(constant: GeneratedExpression): String = {
     require(constant.literal, "Literal expected")
-    val fieldTerm = newName("messageDigest")
+    val fieldTerm = newName(this, "messageDigest")
 
     val field =
       s"final java.security.MessageDigest $fieldTerm;"

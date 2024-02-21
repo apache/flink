@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.Collection;
 import java.util.concurrent.Executor;
 
 /**
@@ -61,6 +63,8 @@ public class PartialDispatcherServices {
 
     @Nonnull private final Executor ioExecutor;
 
+    @Nonnull private final Collection<FailureEnricher> failureEnrichers;
+
     public PartialDispatcherServices(
             @Nonnull Configuration configuration,
             @Nonnull HighAvailabilityServices highAvailabilityServices,
@@ -73,7 +77,8 @@ public class PartialDispatcherServices {
             @Nonnull HistoryServerArchivist historyServerArchivist,
             @Nullable String metricQueryServiceAddress,
             @Nonnull Executor ioExecutor,
-            @Nonnull DispatcherOperationCaches operationCaches) {
+            @Nonnull DispatcherOperationCaches operationCaches,
+            @Nonnull Collection<FailureEnricher> failureEnrichers) {
         this.configuration = configuration;
         this.highAvailabilityServices = highAvailabilityServices;
         this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
@@ -86,6 +91,7 @@ public class PartialDispatcherServices {
         this.metricQueryServiceAddress = metricQueryServiceAddress;
         this.ioExecutor = ioExecutor;
         this.operationCaches = operationCaches;
+        this.failureEnrichers = failureEnrichers;
     }
 
     @Nonnull
@@ -146,5 +152,9 @@ public class PartialDispatcherServices {
     @Nonnull
     public Executor getIoExecutor() {
         return ioExecutor;
+    }
+
+    public Collection<FailureEnricher> getFailureEnrichers() {
+        return failureEnrichers;
     }
 }

@@ -21,7 +21,14 @@ import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.Iterator;
 
-/** A {@link SourceFunction} that reads elements from an {@link Iterator} and emits them. */
+/**
+ * A {@link SourceFunction} that reads elements from an {@link Iterator} and emits them.
+ *
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+ */
+@Deprecated
 @PublicEvolving
 public class FromIteratorFunction<T> implements SourceFunction<T> {
 

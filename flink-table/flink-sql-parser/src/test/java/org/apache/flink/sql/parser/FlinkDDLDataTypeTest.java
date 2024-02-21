@@ -594,8 +594,8 @@ class FlinkDDLDataTypeTest {
         }
 
         private static SqlOperatorTable createOperatorTable(SqlOperatorTable opTab0) {
-            MockSqlOperatorTable opTab = new MockSqlOperatorTable(opTab0);
-            MockSqlOperatorTable.addRamp(opTab);
+            MockSqlOperatorTable opTab = MockSqlOperatorTable.of(opTab0);
+            opTab.extend();
             return opTab;
         }
 

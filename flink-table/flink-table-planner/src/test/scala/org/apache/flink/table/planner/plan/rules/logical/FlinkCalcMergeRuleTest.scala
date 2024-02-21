@@ -29,13 +29,13 @@ import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.RuleSets
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Test for [[FlinkCalcMergeRule]]. */
 class FlinkCalcMergeRuleTest extends TableTestBase {
   private val util = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     val programs = new FlinkChainedProgram[BatchOptimizeContext]()
     programs.addLast(
@@ -63,7 +63,7 @@ class FlinkCalcMergeRuleTest extends TableTestBase {
     util.replaceBatchProgram(programs)
 
     util.addTableSource[(Int, Int, String)]("MyTable", 'a, 'b, 'c)
-    util.addFunction("random_udf", new NonDeterministicUdf)
+    util.addTemporarySystemFunction("random_udf", new NonDeterministicUdf)
   }
 
   @Test

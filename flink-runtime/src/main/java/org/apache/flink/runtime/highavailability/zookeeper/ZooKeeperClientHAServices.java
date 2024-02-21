@@ -44,7 +44,7 @@ public class ZooKeeperClientHAServices implements ClientHighAvailabilityServices
     public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
         return ZooKeeperUtils.createLeaderRetrievalService(
                 curatorFrameworkWrapper.asCuratorFramework(),
-                ZooKeeperUtils.getLeaderPathForRestServer(),
+                ZooKeeperUtils.getLeaderPath(ZooKeeperUtils.getRestServerNode()),
                 configuration);
     }
 

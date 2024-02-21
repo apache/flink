@@ -54,6 +54,8 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       "org.apache.flink.streaming.api.datastream.KeyedStream.getKeySelector",
       "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.isChainingEnabled",
       "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment." +
+        "isChainingOfOperatorsWithDifferentMaxParallelismEnabled",
+      "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment." +
         "getStateHandleProvider",
       "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.getCheckpointInterval",
       "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.addOperator",
@@ -103,13 +105,6 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
   @Test
   override def testCompleteness(): Unit = {
     checkMethods("DataStream", "DataStream", classOf[JavaStream[_]], classOf[DataStream[_]])
-
-    checkMethods(
-      "StreamExecutionEnvironment",
-      "StreamExecutionEnvironment",
-      classOf[org.apache.flink.streaming.api.environment.StreamExecutionEnvironment],
-      classOf[StreamExecutionEnvironment]
-    )
 
     checkMethods(
       "SingleOutputStreamOperator",

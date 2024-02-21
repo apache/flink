@@ -41,4 +41,6 @@ public class DockerImageVersions {
     public static final String ZOOKEEPER = "zookeeper:3.4.14";
 
     public static final String HIVE2 = "prestodb/hdp2.6-hive:10";
+
+    public static final String HIVE3 = "prestodb/hive3.1-hive:10";
 }

@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.operators.co;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -139,8 +139,8 @@ public class CoStreamFlatMapTest implements Serializable {
         public static boolean closeCalled = false;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             if (closeCalled) {
                 Assert.fail("Close called before open.");
             }

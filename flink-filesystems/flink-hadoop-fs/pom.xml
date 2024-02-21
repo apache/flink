@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-hadoop-fs</artifactId>
@@ -31,11 +31,30 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<properties>
+		<surefire.module.config><!--
+			HadoopConfigLoadingTest
+			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
+			HadoopUtilsTest
+			-->--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED <!--
+			HadoopDataInputStreamTest
+			-->--add-opens=java.base/java.io=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
+		</dependency>
+
+		<!-- ArchUnit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<scope>test</scope>
 		</dependency>
 
 		<!-- Hadoop as an optional dependency, so we can hard depend on this without -->

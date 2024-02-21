@@ -18,13 +18,25 @@
 
 package org.apache.flink.formats.csv;
 
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.planner.runtime.stream.sql.StreamFileSystemITCaseBase;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /** ITCase to test csv format for {@link CsvFileFormatFactory} in stream mode. */
-public class CsvFilesystemStreamITCase extends StreamFileSystemITCaseBase {
+class CsvFilesystemStreamITCase extends StreamFileSystemITCaseBase {
+
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(4)
+                            .build());
 
     @Override
     public boolean supportsReadingMetadata() {

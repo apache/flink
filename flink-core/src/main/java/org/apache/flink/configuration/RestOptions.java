@@ -25,6 +25,7 @@ import org.apache.flink.configuration.description.Description;
 import java.time.Duration;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
 
 /** Configuration parameters for REST communication. */
@@ -58,6 +59,17 @@ public class RestOptions {
                                     + " (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid"
                                     + " collisions when multiple Rest servers are running on the same machine.");
 
+    /** The url prefix that should be used by clients to construct the full target url. */
+    public static final ConfigOption<String> URL_PREFIX =
+            key("rest.url-prefix")
+                    .stringType()
+                    .defaultValue("/")
+                    .withDescription(
+                            "The url prefix that should be used by clients to construct the full target url, must start and end with '/'."
+                                    + " This will be added between the address and version prefix. For example, if the option is set to '/foo/',"
+                                    + " the overview query URL will be transformed to 'localhost:8081/foo/v1/overview'."
+                                    + " Attention: This option is respected only if the high-availability configuration is NONE.");
+
     /** The address that should be used by clients to connect to the server. */
     @Documentation.Section(Documentation.Sections.COMMON_HOST_PORT)
     public static final ConfigOption<String> ADDRESS =
@@ -67,6 +79,15 @@ public class RestOptions {
                     .withFallbackKeys(JobManagerOptions.ADDRESS.key())
                     .withDescription(
                             "The address that should be used by clients to connect to the server. Attention: This option is respected only if the high-availability configuration is NONE.");
+
+    /** The path that should be used by clients to interact with the server. */
+    @Documentation.Section(Documentation.Sections.COMMON_HOST_PORT)
+    public static final ConfigOption<String> PATH =
+            key("rest.path")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            "The path that should be used by clients to interact to the server which is accessible via URL.");
 
     /**
      * The port that the REST client connects to and the REST server binds to if {@link #BIND_PORT}
@@ -182,6 +203,29 @@ public class RestOptions {
                                     + "Lowering the thread priority will give Flink's main components more CPU time whereas "
                                     + "increasing will allocate more time for the REST server's processing.");
 
+    /** Duration from write, after which cached checkpoints statistics are cleaned up. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Duration> CACHE_CHECKPOINT_STATISTICS_TIMEOUT =
+            key("rest.cache.checkpoint-statistics.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(WebOptions.REFRESH_INTERVAL.defaultValue()))
+                    .withFallbackKeys(WebOptions.REFRESH_INTERVAL.key())
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Duration from write after which cached checkpoints statistics are cleaned up. For backwards compatibility, if no value is configured, %s will be used instead.",
+                                            code(WebOptions.REFRESH_INTERVAL.key()))
+                                    .build());
+
+    /** Maximum number of entries in the checkpoint statistics cache. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Integer> CACHE_CHECKPOINT_STATISTICS_SIZE =
+            key("rest.cache.checkpoint-statistics.size")
+                    .intType()
+                    .defaultValue(1000)
+                    .withDescription(
+                            "Maximum number of entries in the checkpoint statistics cache.");
+
     /** Enables the experimental flame graph feature. */
     @Documentation.Section(Documentation.Sections.EXPERT_REST)
     public static final ConfigOption<Boolean> ENABLE_FLAMEGRAPH =
@@ -251,4 +295,41 @@ public class RestOptions {
                     .defaultValue(Duration.ofMinutes(5))
                     .withDescription(
                             "Maximum duration that the result of an async operation is stored. Once elapsed the result of the operation can no longer be retrieved.");
+
+    /** Enables the experimental profiler feature. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Boolean> ENABLE_PROFILER =
+            key("rest.profiling.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Enables the experimental profiler feature.");
+
+    /** Maximum history size of profiling list. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Integer> MAX_PROFILING_HISTORY_SIZE =
+            key("rest.profiling.history-size")
+                    .intType()
+                    .defaultValue(10)
+                    .withDescription(
+                            "Maximum profiling history instance to be maintained for JobManager or each TaskManager. "
+                                    + "The oldest instance will be removed on a rolling basis when the history size exceeds this value.");
+
+    /** Maximum profiling duration for profiling function. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Duration> MAX_PROFILING_DURATION =
+            key("rest.profiling.duration-max")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(300))
+                    .withDescription(
+                            "Maximum profiling duration for each profiling request. "
+                                    + "Any profiling request's duration exceeding this value will not be accepted.");
+
+    /** Directory for storing the profiling results. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    @Documentation.OverrideDefault("System.getProperty(\"java.io.tmpdir\")")
+    public static final ConfigOption<String> PROFILING_RESULT_DIR =
+            key("rest.profiling.dir")
+                    .stringType()
+                    .defaultValue(System.getProperty("java.io.tmpdir"))
+                    .withDescription("Profiling result storing directory.");
 }

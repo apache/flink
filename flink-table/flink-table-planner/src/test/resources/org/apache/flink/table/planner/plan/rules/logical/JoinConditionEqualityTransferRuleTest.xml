@@ -85,20 +85,22 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$4], e=[$5], f=[$6])
-+- LogicalJoin(condition=[AND(=($0, $4), =($0, $5), =($3, $4))], joinType=[inner])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[+($1, 1)])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$4], e=[$5], f=[$6])
+   +- LogicalJoin(condition=[AND(=($0, $4), =($0, $5), =($3, $4))], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[+($1, 1)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$4], e=[$5], f=[$6])
-+- LogicalJoin(condition=[AND(=($0, $3), =($5, $4), =($0, $5))], joinType=[inner])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[+($1, 1)])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$4], e=[$5], f=[$6])
+   +- LogicalJoin(condition=[AND(=($0, $3), =($5, $4), =($0, $5))], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[+($1, 1)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
   </TestCase>

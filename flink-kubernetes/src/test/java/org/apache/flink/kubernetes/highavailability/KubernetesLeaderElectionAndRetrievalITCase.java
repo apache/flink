@@ -25,10 +25,11 @@ import org.apache.flink.kubernetes.configuration.KubernetesHighAvailabilityOptio
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
+import org.apache.flink.runtime.leaderelection.LeaderElectionEvent;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionEventHandler;
+import org.apache.flink.runtime.leaderelection.TestingLeaderElectionListener;
 import org.apache.flink.runtime.leaderretrieval.TestingLeaderRetrievalEventHandler;
+import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 
 import org.junit.jupiter.api.Test;
@@ -40,9 +41,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.Function;
 
-import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -55,22 +54,24 @@ class KubernetesLeaderElectionAndRetrievalITCase {
 
     private static final String LEADER_CONFIGMAP_NAME = "leader-test-cluster";
     private static final String LEADER_ADDRESS =
-            "akka.tcp://flink@172.20.1.21:6123/user/rpc/dispatcher";
+            "pekko.tcp://flink@172.20.1.21:6123/user/rpc/dispatcher";
 
     @RegisterExtension
-    private static final KubernetesExtension KUBERNETES_EXTENSION = new KubernetesExtension();
+    static final KubernetesExtension KUBERNETES_EXTENSION = new KubernetesExtension();
 
     @RegisterExtension
-    private static final TestExecutorExtension<ExecutorService> EXECUTOR_EXTENSION =
+    static final TestExecutorExtension<ExecutorService> EXECUTOR_EXTENSION =
             new TestExecutorExtension<>(Executors::newCachedThreadPool);
 
     @Test
     void testLeaderElectionAndRetrieval() throws Exception {
+        final String componentId = "component-id";
+        final String leaderAddress = "random-address";
         final String configMapName = LEADER_CONFIGMAP_NAME + UUID.randomUUID();
         final FlinkKubeClient flinkKubeClient = KUBERNETES_EXTENSION.getFlinkKubeClient();
         final Configuration configuration = KUBERNETES_EXTENSION.getConfiguration();
 
-        final String clusterId = configuration.getString(KubernetesConfigOptions.CLUSTER_ID);
+        final String clusterId = configuration.get(KubernetesConfigOptions.CLUSTER_ID);
 
         // This will make the leader election retrieval time out if we won't process already
         // existing leader information when starting it up.
@@ -84,64 +85,61 @@ class KubernetesLeaderElectionAndRetrievalITCase {
         final List<AutoCloseable> closeables = new ArrayList<>();
 
         final KubernetesConfigMapSharedWatcher configMapSharedWatcher =
-                flinkKubeClient.createConfigMapSharedWatcher(
-                        KubernetesUtils.getConfigMapLabels(
-                                clusterId, LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY));
+                flinkKubeClient.createConfigMapSharedWatcher(configMapName);
         closeables.add(configMapSharedWatcher);
 
-        final TestingLeaderElectionEventHandler electionEventHandler =
-                new TestingLeaderElectionEventHandler(LEADER_ADDRESS);
-        closeables.add(electionEventHandler);
-
+        final TestingLeaderElectionListener electionEventHandler =
+                new TestingLeaderElectionListener();
         try {
             final KubernetesLeaderElectionDriver leaderElectionDriver =
                     new KubernetesLeaderElectionDriver(
-                            flinkKubeClient,
-                            configMapSharedWatcher,
-                            EXECUTOR_EXTENSION.getExecutor(),
                             new KubernetesLeaderElectionConfiguration(
                                     configMapName, UUID.randomUUID().toString(), configuration),
+                            flinkKubeClient,
                             electionEventHandler,
-                            electionEventHandler::handleError);
+                            configMapSharedWatcher,
+                            EXECUTOR_EXTENSION.getExecutor());
             closeables.add(leaderElectionDriver);
 
-            electionEventHandler.init(leaderElectionDriver);
+            final KubernetesLeaderRetrievalDriverFactory driverFactory =
+                    new KubernetesLeaderRetrievalDriverFactory(
+                            configMapSharedWatcher,
+                            EXECUTOR_EXTENSION.getExecutor(),
+                            configMapName,
+                            componentId);
 
-            final Function<TestingLeaderRetrievalEventHandler, AutoCloseable>
-                    leaderRetrievalDriverFactory =
-                            leaderRetrievalEventHandler ->
-                                    new KubernetesLeaderRetrievalDriver(
-                                            configMapSharedWatcher,
-                                            EXECUTOR_EXTENSION.getExecutor(),
-                                            configMapName,
-                                            leaderRetrievalEventHandler,
-                                            KubernetesUtils::getLeaderInformationFromConfigMap,
-                                            leaderRetrievalEventHandler::handleError);
-
+            final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
             final TestingLeaderRetrievalEventHandler firstLeaderRetrievalEventHandler =
                     new TestingLeaderRetrievalEventHandler();
-            closeables.add(leaderRetrievalDriverFactory.apply(firstLeaderRetrievalEventHandler));
+            closeables.add(
+                    driverFactory.createLeaderRetrievalDriver(
+                            firstLeaderRetrievalEventHandler, fatalErrorHandler));
 
             // Wait for the driver to obtain leadership.
-            electionEventHandler.waitForLeader();
-            final LeaderInformation confirmedLeaderInformation =
-                    electionEventHandler.getConfirmedLeaderInformation();
-            assertThat(confirmedLeaderInformation.getLeaderAddress()).isEqualTo(LEADER_ADDRESS);
+            electionEventHandler.await(LeaderElectionEvent.IsLeaderEvent.class);
+            final LeaderInformation leaderInformation =
+                    LeaderInformation.known(UUID.randomUUID(), leaderAddress);
+            leaderElectionDriver.publishLeaderInformation(componentId, leaderInformation);
 
             // Check if the leader retrieval driver is notified about the leader address
-            awaitLeadership(firstLeaderRetrievalEventHandler, confirmedLeaderInformation);
+            awaitLeadership(firstLeaderRetrievalEventHandler, leaderInformation);
 
             // Start a second leader retrieval that should be notified immediately because we
             // already know who the leader is.
             final TestingLeaderRetrievalEventHandler secondRetrievalEventHandler =
                     new TestingLeaderRetrievalEventHandler();
-            closeables.add(leaderRetrievalDriverFactory.apply(secondRetrievalEventHandler));
-            awaitLeadership(secondRetrievalEventHandler, confirmedLeaderInformation);
+            closeables.add(
+                    driverFactory.createLeaderRetrievalDriver(
+                            secondRetrievalEventHandler, fatalErrorHandler));
+            awaitLeadership(secondRetrievalEventHandler, leaderInformation);
         } finally {
             for (AutoCloseable closeable : closeables) {
                 closeable.close();
             }
+
             flinkKubeClient.deleteConfigMap(configMapName).get();
+
+            electionEventHandler.failIfErrorEventHappened();
         }
     }
 
@@ -149,8 +147,7 @@ class KubernetesLeaderElectionAndRetrievalITCase {
             TestingLeaderRetrievalEventHandler handler, LeaderInformation leaderInformation)
             throws Exception {
         handler.waitForNewLeader();
-        assertThat(handler.getLeaderSessionID())
-                .isEqualByComparingTo(leaderInformation.getLeaderSessionID());
+        assertThat(handler.getLeaderSessionID()).isEqualTo(leaderInformation.getLeaderSessionID());
         assertThat(handler.getAddress()).isEqualTo(leaderInformation.getLeaderAddress());
     }
 }

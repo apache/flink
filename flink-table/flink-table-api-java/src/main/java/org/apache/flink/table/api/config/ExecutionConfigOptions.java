@@ -170,6 +170,17 @@ public class ExecutionConfigOptions {
                                                     + "You can set to no shuffle(NONE) or force shuffle(FORCE).")
                                     .build());
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<RowtimeInserter> TABLE_EXEC_SINK_ROWTIME_INSERTER =
+            key("table.exec.sink.rowtime-inserter")
+                    .enumType(RowtimeInserter.class)
+                    .defaultValue(RowtimeInserter.ENABLED)
+                    .withDescription(
+                            "Some sink implementations require a single rowtime attribute in the input "
+                                    + "that can be inserted into the underlying stream record. This option "
+                                    + "allows disabling the timestamp insertion and avoids errors around "
+                                    + "multiple time attributes being present in the query schema.");
+
     // ------------------------------------------------------------------------
     //  Sort Options
     // ------------------------------------------------------------------------
@@ -334,6 +345,49 @@ public class ExecutionConfigOptions {
                                     + "affect the correctness of the result, otherwise ORDERED will be still used.");
 
     // ------------------------------------------------------------------------
+    //  Async Scalar Function
+    // ------------------------------------------------------------------------
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_SCALAR_BUFFER_CAPACITY =
+            key("table.exec.async-scalar.buffer-capacity")
+                    .intType()
+                    .defaultValue(10)
+                    .withDescription(
+                            "The max number of async i/o operation that the async lookup join can trigger.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_SCALAR_TIMEOUT =
+            key("table.exec.async-scalar.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(3))
+                    .withDescription(
+                            "The async timeout for the asynchronous operation to complete.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<RetryStrategy> TABLE_EXEC_ASYNC_SCALAR_RETRY_STRATEGY =
+            key("table.exec.async-scalar.retry-strategy")
+                    .enumType(RetryStrategy.class)
+                    .defaultValue(RetryStrategy.FIXED_DELAY)
+                    .withDescription(
+                            "Restart strategy which will be used, FIXED_DELAY by default.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_SCALAR_RETRY_DELAY =
+            key("table.exec.async-scalar.retry-delay")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(100))
+                    .withDescription("The delay to wait before trying again.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_SCALAR_MAX_ATTEMPTS =
+            key("table.exec.async-scalar.max-attempts")
+                    .intType()
+                    .defaultValue(3)
+                    .withDescription(
+                            "The max number of async retry attempts to make before task "
+                                    + "execution is failed.");
+
+    // ------------------------------------------------------------------------
     //  MiniBatch Options
     // ------------------------------------------------------------------------
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
@@ -388,6 +442,14 @@ public class ExecutionConfigOptions {
                                     + "Operators that can be disabled include \"NestedLoopJoin\", \"ShuffleHashJoin\", \"BroadcastHashJoin\", "
                                     + "\"SortMergeJoin\", \"HashAgg\", \"SortAgg\".\n"
                                     + "By default no operator is disabled.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_OPERATOR_FUSION_CODEGEN_ENABLED =
+            key("table.exec.operator-fusion-codegen.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "If true, multiple physical operators will be compiled into a single operator by planner which can improve the performance.");
 
     /** @deprecated Use {@link ExecutionOptions#BATCH_SHUFFLE_MODE} instead. */
     @Deprecated
@@ -636,6 +698,28 @@ public class ExecutionConfigOptions {
         FORCE
     }
 
+    /** Rowtime attribute insertion strategy for the sink. */
+    @PublicEvolving
+    public enum RowtimeInserter implements DescribedEnum {
+        ENABLED(
+                text(
+                        "Insert a rowtime attribute (if available) into the underlying stream record. "
+                                + "This requires at most one time attribute in the input for the sink.")),
+        DISABLED(text("Do not insert the rowtime attribute into the underlying stream record."));
+
+        private final InlineElement description;
+
+        RowtimeInserter(InlineElement description) {
+            this.description = description;
+        }
+
+        @Internal
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
     /** Output mode for asynchronous operations, equivalent to {@see AsyncDataStream.OutputMode}. */
     @PublicEvolving
     public enum AsyncOutputMode {
@@ -649,6 +733,16 @@ public class ExecutionConfigOptions {
          * result, otherwise ORDERED will be still used.
          */
         ALLOW_UNORDERED
+    }
+
+    /** Retry strategy in the case of failure. */
+    @PublicEvolving
+    public enum RetryStrategy {
+        /** When a failure occurs, don't retry. */
+        NO_RETRY,
+
+        /** A fixed delay before retrying again. */
+        FIXED_DELAY
     }
 
     /** Determine if CAST operates using the legacy behaviour or the new one. */

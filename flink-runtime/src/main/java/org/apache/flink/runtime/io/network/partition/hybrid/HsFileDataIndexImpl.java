@@ -18,12 +18,18 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid;
 
+import org.apache.flink.runtime.io.network.partition.hybrid.index.FileDataIndexCache;
+import org.apache.flink.runtime.io.network.partition.hybrid.index.FileDataIndexRegionHelper;
+import org.apache.flink.runtime.io.network.partition.hybrid.index.FileDataIndexSpilledRegionManagerImpl;
+import org.apache.flink.runtime.io.network.partition.hybrid.index.FileRegionWriteReadUtils;
 import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.runtime.io.network.partition.hybrid.index.FileRegionWriteReadUtils.allocateAndConfigureBuffer;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Default implementation of {@link HsFileDataIndex}. */
@@ -41,25 +48,26 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class HsFileDataIndexImpl implements HsFileDataIndex {
 
     @GuardedBy("lock")
-    private final HsFileDataIndexCache indexCache;
+    private final FileDataIndexCache<InternalRegion> indexCache;
 
-    /**
-     * {@link HsFileDataIndexCache} is not thread-safe, any access to it needs to hold this lock.
-     */
+    /** {@link FileDataIndexCache} is not thread-safe, any access to it needs to hold this lock. */
     private final Object lock = new Object();
 
     public HsFileDataIndexImpl(
             int numSubpartitions,
             Path indexFilePath,
-            int spilledIndexSegmentSize,
+            int regionGroupSizeInBytes,
             long numRetainedInMemoryRegionsMax) {
         this.indexCache =
-                new HsFileDataIndexCache(
+                new FileDataIndexCache<>(
                         numSubpartitions,
                         indexFilePath,
                         numRetainedInMemoryRegionsMax,
-                        new HsFileDataIndexSpilledRegionManagerImpl.Factory(
-                                spilledIndexSegmentSize, numRetainedInMemoryRegionsMax));
+                        new FileDataIndexSpilledRegionManagerImpl.Factory<>(
+                                regionGroupSizeInBytes,
+                                numRetainedInMemoryRegionsMax,
+                                InternalRegion.HEADER_SIZE,
+                                HsFileDataIndexRegionHelper.INSTANCE));
     }
 
     @Override
@@ -152,7 +160,7 @@ public class HsFileDataIndexImpl implements HsFileDataIndex {
         checkArgument(firstBufferInRegion.subpartitionId == lastBufferInRegion.subpartitionId);
         checkArgument(firstBufferInRegion.bufferIndex <= lastBufferInRegion.bufferIndex);
         internalRegionsBySubpartition
-                .computeIfAbsent(firstBufferInRegion.subpartitionId, ArrayList::new)
+                .computeIfAbsent(firstBufferInRegion.subpartitionId, k -> new ArrayList<>())
                 .add(
                         new InternalRegion(
                                 firstBufferInRegion.bufferIndex,
@@ -163,24 +171,11 @@ public class HsFileDataIndexImpl implements HsFileDataIndex {
     }
 
     /**
-     * A {@link InternalRegion} represents a series of physically continuous buffers in the file,
-     * which are from the same subpartition, and has sequential buffer index.
-     *
-     * <p>The following example illustrates some physically continuous buffers in a file and regions
-     * upon them, where `x-y` denotes buffer from subpartition x with buffer index y, and `()`
-     * denotes a region.
-     *
-     * <p>(1-1, 1-2), (2-1), (2-2, 2-3), (1-5, 1-6), (1-4)
-     *
-     * <p>Note: The file may not contain all the buffers. E.g., 1-3 is missing in the above example.
-     *
-     * <p>Note: Buffers in file may have different orders than their buffer index. E.g., 1-4 comes
-     * after 1-6 in the above example.
-     *
-     * <p>Note: This index may not always maintain the longest possible regions. E.g., 2-1, 2-2, 2-3
-     * are in two separate regions.
+     * A {@link InternalRegion} is an implementation of {@link FileDataIndexRegionHelper.Region}.
+     * Note that this class introduced a new field to indicate whether each buffer in the region is
+     * released.
      */
-    static class InternalRegion {
+    public static class InternalRegion implements FileDataIndexRegionHelper.Region {
         /**
          * {@link InternalRegion} is consists of header and payload. (firstBufferIndex,
          * firstBufferOffset, numBuffer) are immutable header part that have fixed size. The array
@@ -189,28 +184,54 @@ public class HsFileDataIndexImpl implements HsFileDataIndex {
         public static final int HEADER_SIZE = Integer.BYTES + Long.BYTES + Integer.BYTES;
 
         private final int firstBufferIndex;
-        private final long firstBufferOffset;
+        private final long regionFileOffset;
         private final int numBuffers;
         private final boolean[] released;
 
-        private InternalRegion(int firstBufferIndex, long firstBufferOffset, int numBuffers) {
+        private InternalRegion(int firstBufferIndex, long regionFileOffset, int numBuffers) {
             this.firstBufferIndex = firstBufferIndex;
-            this.firstBufferOffset = firstBufferOffset;
+            this.regionFileOffset = regionFileOffset;
             this.numBuffers = numBuffers;
             this.released = new boolean[numBuffers];
             Arrays.fill(released, false);
         }
 
-        InternalRegion(
-                int firstBufferIndex, long firstBufferOffset, int numBuffers, boolean[] released) {
+        public InternalRegion(
+                int firstBufferIndex, long regionFileOffset, int numBuffers, boolean[] released) {
             this.firstBufferIndex = firstBufferIndex;
-            this.firstBufferOffset = firstBufferOffset;
+            this.regionFileOffset = regionFileOffset;
             this.numBuffers = numBuffers;
             this.released = released;
         }
 
-        boolean containBuffer(int bufferIndex) {
+        @Override
+        public boolean containBuffer(int bufferIndex) {
             return bufferIndex >= firstBufferIndex && bufferIndex < firstBufferIndex + numBuffers;
+        }
+
+        @Override
+        public int getSize() {
+            return HEADER_SIZE + numBuffers;
+        }
+
+        @Override
+        public int getFirstBufferIndex() {
+            return firstBufferIndex;
+        }
+
+        @Override
+        public long getRegionStartOffset() {
+            return regionFileOffset;
+        }
+
+        @Override
+        public long getRegionEndOffset() {
+            throw new UnsupportedOperationException("This method is not supported.");
+        }
+
+        @Override
+        public int getNumBuffers() {
+            return numBuffers;
         }
 
         private HsFileDataIndex.ReadableRegion toReadableRegion(
@@ -223,32 +244,49 @@ public class HsFileDataIndexImpl implements HsFileDataIndex {
                 }
                 ++nReadable;
             }
-            return new ReadableRegion(nSkip, nReadable, firstBufferOffset);
+            return new ReadableRegion(nSkip, nReadable, regionFileOffset);
         }
 
         private void markBufferReleased(int bufferIndex) {
             released[bufferIndex - firstBufferIndex] = true;
         }
 
-        /** Get the total size in bytes of this region, including header and payload. */
-        int getSize() {
-            return HEADER_SIZE + numBuffers;
-        }
-
-        int getFirstBufferIndex() {
-            return firstBufferIndex;
-        }
-
-        long getFirstBufferOffset() {
-            return firstBufferOffset;
-        }
-
-        int getNumBuffers() {
-            return numBuffers;
-        }
-
-        boolean[] getReleased() {
+        public boolean[] getReleased() {
             return released;
+        }
+    }
+
+    /**
+     * The implementation of {@link FileDataIndexRegionHelper} to writing a region to the file or
+     * reading a region from the file.
+     *
+     * <p>Note that this type of region's length may be variable because it contains an array to
+     * indicate each buffer's release state.
+     */
+    public static class HsFileDataIndexRegionHelper
+            implements FileDataIndexRegionHelper<InternalRegion> {
+
+        /** Reusable buffer used to read and write the immutable part of region. */
+        private final ByteBuffer regionHeaderBuffer =
+                allocateAndConfigureBuffer(HsFileDataIndexImpl.InternalRegion.HEADER_SIZE);
+
+        public static final HsFileDataIndexRegionHelper INSTANCE =
+                new HsFileDataIndexRegionHelper();
+
+        private HsFileDataIndexRegionHelper() {}
+
+        @Override
+        public void writeRegionToFile(FileChannel channel, InternalRegion region)
+                throws IOException {
+            FileRegionWriteReadUtils.writeHsInternalRegionToFile(
+                    channel, regionHeaderBuffer, region);
+        }
+
+        @Override
+        public InternalRegion readRegionFromFile(FileChannel channel, long fileOffset)
+                throws IOException {
+            return FileRegionWriteReadUtils.readHsInternalRegionFromFile(
+                    channel, regionHeaderBuffer, fileOffset);
         }
     }
 }

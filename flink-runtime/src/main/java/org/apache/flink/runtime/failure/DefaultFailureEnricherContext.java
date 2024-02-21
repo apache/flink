@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.failure;
 
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.failure.FailureEnricher.Context;
 import org.apache.flink.metrics.MetricGroup;
@@ -29,36 +29,23 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The default implementation of {@link Context} class. */
 public class DefaultFailureEnricherContext implements FailureEnricher.Context {
-    private final JobID jobID;
-    private final String jobName;
+    private final JobInfo jobInfo;
     private final MetricGroup metricGroup;
     private final Executor ioExecutor;
     private final ClassLoader userClassLoader;
     private final FailureType failureType;
 
     private DefaultFailureEnricherContext(
-            JobID jobID,
-            String jobName,
+            JobInfo jobInfo,
             MetricGroup metricGroup,
             FailureType failureType,
             Executor ioExecutor,
             ClassLoader classLoader) {
-        this.jobID = jobID;
-        this.jobName = jobName;
+        this.jobInfo = jobInfo;
         this.metricGroup = metricGroup;
         this.failureType = failureType;
         this.ioExecutor = checkNotNull(ioExecutor);
         this.userClassLoader = classLoader;
-    }
-
-    @Override
-    public JobID getJobId() {
-        return this.jobID;
-    }
-
-    @Override
-    public String getJobName() {
-        return this.jobName;
     }
 
     @Override
@@ -81,36 +68,38 @@ public class DefaultFailureEnricherContext implements FailureEnricher.Context {
         return ioExecutor;
     }
 
+    @Override
+    public JobInfo getJobInfo() {
+        return jobInfo;
+    }
+
     /** Factory method returning a Task failure Context for the given params. */
     public static Context forTaskFailure(
-            JobID jobID,
-            String jobName,
+            JobInfo jobInfo,
             MetricGroup metricGroup,
             Executor ioExecutor,
             ClassLoader classLoader) {
         return new DefaultFailureEnricherContext(
-                jobID, jobName, metricGroup, FailureType.TASK, ioExecutor, classLoader);
+                jobInfo, metricGroup, FailureType.TASK, ioExecutor, classLoader);
     }
 
     /** Factory method returning a Global failure Context for the given params. */
     public static Context forGlobalFailure(
-            JobID jobID,
-            String jobName,
+            JobInfo jobInfo,
             MetricGroup metricGroup,
             Executor ioExecutor,
             ClassLoader classLoader) {
         return new DefaultFailureEnricherContext(
-                jobID, jobName, metricGroup, FailureType.GLOBAL, ioExecutor, classLoader);
+                jobInfo, metricGroup, FailureType.GLOBAL, ioExecutor, classLoader);
     }
 
     /** Factory method returning a TaskManager failure Context for the given params. */
     public static Context forTaskManagerFailure(
-            JobID jobID,
-            String jobName,
+            JobInfo jobInfo,
             MetricGroup metricGroup,
             Executor ioExecutor,
             ClassLoader classLoader) {
         return new DefaultFailureEnricherContext(
-                jobID, jobName, metricGroup, FailureType.TASK_MANAGER, ioExecutor, classLoader);
+                jobInfo, metricGroup, FailureType.TASK_MANAGER, ioExecutor, classLoader);
     }
 }

@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.connectors.hive.TableEnvExecutorUtil;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
@@ -46,7 +47,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -513,50 +514,51 @@ public class HiveCatalogITCase {
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
 
-        tableEnv.executeSql("create database db1");
-        try {
-            tableEnv.useDatabase("db1");
-            tableEnv.executeSql(
-                    "create table src(x int,ts timestamp(3)) with ('connector'='datagen','number-of-rows'='10')");
-            tableEnv.executeSql("create view v1 as select x,ts from src order by x limit 3");
+        TableEnvExecutorUtil.executeInSeparateDatabase(
+                tableEnv,
+                true,
+                () -> {
+                    tableEnv.executeSql(
+                            "create table src(x int,ts timestamp(3)) with ('connector'='datagen','number-of-rows'='10')");
+                    tableEnv.executeSql(
+                            "create view v1 as select x,ts from src order by x limit 3");
 
-            CatalogView catalogView =
-                    (CatalogView) hiveCatalog.getTable(new ObjectPath("db1", "v1"));
-            ResolvedSchema viewSchema =
-                    catalogView.getUnresolvedSchema().resolve(new TestSchemaResolver());
-            assertThat(viewSchema)
-                    .isEqualTo(
-                            new ResolvedSchema(
-                                    Lists.newArrayList(
-                                            Column.physical("x", DataTypes.INT()),
-                                            Column.physical("ts", DataTypes.TIMESTAMP(3))),
-                                    new ArrayList<>(),
-                                    null));
+                    CatalogView catalogView =
+                            (CatalogView) hiveCatalog.getTable(new ObjectPath("db1", "v1"));
+                    ResolvedSchema viewSchema =
+                            catalogView.getUnresolvedSchema().resolve(new TestSchemaResolver());
+                    assertThat(viewSchema)
+                            .isEqualTo(
+                                    new ResolvedSchema(
+                                            Lists.newArrayList(
+                                                    Column.physical("x", DataTypes.INT()),
+                                                    Column.physical("ts", DataTypes.TIMESTAMP(3))),
+                                            new ArrayList<>(),
+                                            null));
 
-            List<Row> results =
-                    CollectionUtil.iteratorToList(
-                            tableEnv.executeSql("select x from v1").collect());
-            assertThat(results).hasSize(3);
+                    List<Row> results =
+                            CollectionUtil.iteratorToList(
+                                    tableEnv.executeSql("select x from v1").collect());
+                    assertThat(results).hasSize(3);
 
-            tableEnv.executeSql(
-                    "create view v2 (v2_x,v2_ts) comment 'v2 comment' as select x,cast(ts as timestamp_ltz(3)) from v1");
-            catalogView = (CatalogView) hiveCatalog.getTable(new ObjectPath("db1", "v2"));
-            assertThat(catalogView.getUnresolvedSchema().resolve(new TestSchemaResolver()))
-                    .isEqualTo(
-                            new ResolvedSchema(
-                                    Lists.newArrayList(
-                                            Column.physical("v2_x", DataTypes.INT()),
-                                            Column.physical("v2_ts", DataTypes.TIMESTAMP_LTZ(3))),
-                                    new ArrayList<>(),
-                                    null));
-            assertThat(catalogView.getComment()).isEqualTo("v2 comment");
-            results =
-                    CollectionUtil.iteratorToList(
-                            tableEnv.executeSql("select * from v2").collect());
-            assertThat(results).hasSize(3);
-        } finally {
-            tableEnv.executeSql("drop database db1 cascade");
-        }
+                    tableEnv.executeSql(
+                            "create view v2 (v2_x,v2_ts) comment 'v2 comment' as select x,cast(ts as timestamp_ltz(3)) from v1");
+                    catalogView = (CatalogView) hiveCatalog.getTable(new ObjectPath("db1", "v2"));
+                    assertThat(catalogView.getUnresolvedSchema().resolve(new TestSchemaResolver()))
+                            .isEqualTo(
+                                    new ResolvedSchema(
+                                            Lists.newArrayList(
+                                                    Column.physical("v2_x", DataTypes.INT()),
+                                                    Column.physical(
+                                                            "v2_ts", DataTypes.TIMESTAMP_LTZ(3))),
+                                            new ArrayList<>(),
+                                            null));
+                    assertThat(catalogView.getComment()).isEqualTo("v2 comment");
+                    results =
+                            CollectionUtil.iteratorToList(
+                                    tableEnv.executeSql("select * from v2").collect());
+                    assertThat(results).hasSize(3);
+                });
     }
 
     @Test

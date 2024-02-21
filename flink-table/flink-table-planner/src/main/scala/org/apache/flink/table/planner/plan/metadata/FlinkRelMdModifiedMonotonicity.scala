@@ -39,6 +39,7 @@ import org.apache.calcite.rel.metadata._
 import org.apache.calcite.rex.{RexCall, RexCallBinding, RexInputRef, RexNode}
 import org.apache.calcite.sql.{SqlKind, SqlOperatorBinding}
 import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlMinMaxAggFunction, SqlSumAggFunction, SqlSumEmptyIsZeroAggFunction}
+import org.apache.calcite.sql.fun.SqlStdOperatorTable.{AND, EQUALS, GREATER_THAN, GREATER_THAN_OR_EQUAL, IN, IS_NOT_NULL, IS_NOT_TRUE, IS_NULL, IS_TRUE, LESS_THAN, LESS_THAN_OR_EQUAL, NOT, NOT_EQUALS, NOT_IN, OR, SEARCH}
 import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.sql.validate.SqlMonotonicity._
 import org.apache.calcite.util.Util
@@ -47,6 +48,7 @@ import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
 import java.util.Collections
 
+import scala.annotation.tailrec
 import scala.collection.JavaConversions._
 
 /**
@@ -88,8 +90,32 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   }
 
   def getRelModifiedMonotonicity(rel: Calc, mq: RelMetadataQuery): RelModifiedMonotonicity = {
-    val projects = rel.getProgram.getProjectList.map(rel.getProgram.expandLocalRef)
-    getProjectMonotonicity(projects, rel.getInput, mq)
+    val program = rel.getProgram
+    val projects = program.getProjectList.map(rel.getProgram.expandLocalRef)
+    val result = getProjectMonotonicity(projects, rel.getInput, mq)
+
+    // check that `where` section exist
+    if (program.getCondition != null && result != null) {
+      val inputMonotonicity = FlinkRelMetadataQuery
+        .reuseOrCreate(mq)
+        .getRelModifiedMonotonicity(rel.getInput)
+      val inputProjects = program.getExprList.filter(expr => expr.isInstanceOf[RexInputRef])
+      assert(inputMonotonicity.fieldMonotonicities.length == inputProjects.size)
+      val notConstantProjects = inputProjects.indices
+        .map(
+          index =>
+            (
+              inputProjects(index).asInstanceOf[RexInputRef],
+              inputMonotonicity.fieldMonotonicities(index)))
+        .filter { case (_, monotonicity) => monotonicity != CONSTANT }
+        .toArray
+      val condition = program.expandLocalRef(program.getCondition)
+      if (isNeedRetract(condition, notConstantProjects)) {
+        program.getProjectList.indices
+          .foreach(index => result.fieldMonotonicities(index) = NOT_MONOTONIC)
+      }
+    }
+    result
   }
 
   private def getProjectMonotonicity(
@@ -636,6 +662,52 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   def getUdfMonotonicity(udf: ScalarSqlFunction, binding: SqlOperatorBinding): SqlMonotonicity = {
     // get monotonicity info from ScalarSqlFunction directly.
     udf.getMonotonicity(binding)
+  }
+
+  private def isNeedRetract(
+      rexNode: RexNode,
+      projects: Array[(RexInputRef, SqlMonotonicity)]): Boolean = {
+    rexNode match {
+      case inputRef: RexInputRef =>
+        projects.exists { case (projectInput, _) => projectInput == inputRef }
+
+      case rexCall: RexCall =>
+        val operands = rexCall.getOperands.map(operand => removeAsAndCast(operand))
+        rexCall.getOperator match {
+          case AND | OR =>
+            val left = isNeedRetract(operands(0), projects)
+            val right = isNeedRetract(operands(1), projects)
+            left || right
+
+          case GREATER_THAN | GREATER_THAN_OR_EQUAL =>
+            projects
+              .find { case (inputRef, _) => operands.contains(inputRef) }
+              .exists { case (_, monotonicity) => monotonicity.unstrict() != INCREASING }
+
+          case LESS_THAN | LESS_THAN_OR_EQUAL =>
+            projects
+              .find { case (inputRef, _) => operands.contains(inputRef) }
+              .exists { case (_, monotonicity) => monotonicity.unstrict() != DECREASING }
+
+          case SEARCH | IN | EQUALS | NOT_EQUALS | NOT_IN
+              if projects.exists(x => operands.contains(x._1)) =>
+            true
+
+          case NOT | IS_NOT_TRUE | IS_TRUE | IS_NOT_NULL | IS_NULL if operands.size() == 1 =>
+            isNeedRetract(operands.head, projects)
+
+          case _ => false
+        }
+
+      case _ => false
+    }
+  }
+
+  @tailrec
+  private def removeAsAndCast(rexNode: RexNode): RexNode = rexNode match {
+    case r: RexCall if r.getKind == SqlKind.AS || r.getKind == SqlKind.CAST =>
+      removeAsAndCast(r.getOperands.get(0))
+    case _ => rexNode
   }
 
   private def isValueGreaterThanZero[T](value: Comparable[T]): Int = {

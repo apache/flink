@@ -46,10 +46,10 @@ export class HumanizeDurationPipe implements PipeTransform {
             if (seconds === 0) {
               return `${ms}ms`;
             } else {
-              return `${seconds}s`;
+              return `${seconds}s ${ms}ms`;
             }
           } else {
-            return `${minutes}m ${seconds}s`;
+            return `${minutes}m ${seconds}s ${ms}ms`;
           }
         } else {
           if (short) {

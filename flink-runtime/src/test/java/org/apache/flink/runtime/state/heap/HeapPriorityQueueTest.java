@@ -19,32 +19,33 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.runtime.state.InternalPriorityQueueTestBase;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Test for {@link HeapPriorityQueue}. */
-public class HeapPriorityQueueTest extends InternalPriorityQueueTestBase {
+class HeapPriorityQueueTest extends InternalPriorityQueueTestBase {
 
     @Test
-    public void testClear() {
+    void testClear() {
         HeapPriorityQueue<TestElement> priorityQueueSet = newPriorityQueue(1);
 
         int count = 10;
         HashSet<TestElement> checkSet = new HashSet<>(count);
         insertRandomElements(priorityQueueSet, checkSet, count);
-        Assert.assertEquals(count, priorityQueueSet.size());
+        assertThat(priorityQueueSet.size()).isEqualTo(count);
         priorityQueueSet.clear();
-        Assert.assertEquals(0, priorityQueueSet.size());
+        assertThat(priorityQueueSet.size()).isZero();
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testToArray() {
+    void testToArray() {
 
         final int testSize = 10;
 
@@ -61,25 +62,25 @@ public class HeapPriorityQueueTest extends InternalPriorityQueueTestBase {
 
             HeapPriorityQueue<TestElement> timerPriorityQueue = newPriorityQueue(1);
 
-            Assert.assertEquals(testArray.length, timerPriorityQueue.toArray(testArray).length);
+            assertThat(testArray).hasSameSizeAs(timerPriorityQueue.toArray(testArray));
 
             insertRandomElements(timerPriorityQueue, checkSet, testSize);
 
             TestElement[] toArray = timerPriorityQueue.toArray(testArray);
 
-            Assert.assertEquals((testArray.length >= testSize), (testArray == toArray));
+            assertThat((testArray.length >= testSize)).isEqualTo((testArray == toArray));
 
             int count = 0;
             for (TestElement o : toArray) {
                 if (o == null) {
                     break;
                 }
-                Assert.assertTrue(checkSet.remove(o));
+                assertThat(checkSet.remove(o)).isTrue();
                 ++count;
             }
 
-            Assert.assertEquals(timerPriorityQueue.size(), count);
-            Assert.assertTrue(checkSet.isEmpty());
+            assertThat(timerPriorityQueue.size()).isEqualTo(count);
+            assertThat(checkSet).isEmpty();
         }
     }
 

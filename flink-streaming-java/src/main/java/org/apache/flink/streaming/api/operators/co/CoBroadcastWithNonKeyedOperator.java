@@ -32,10 +32,10 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -83,7 +83,8 @@ public class CoBroadcastWithNonKeyedOperator<IN1, IN2, OUT>
 
         collector = new TimestampedCollector<>(output);
 
-        this.broadcastStates = new HashMap<>(broadcastStateDescriptors.size());
+        this.broadcastStates =
+                CollectionUtil.newHashMapWithExpectedSize(broadcastStateDescriptors.size());
         for (MapStateDescriptor<?, ?> descriptor : broadcastStateDescriptors) {
             broadcastStates.put(
                     descriptor, getOperatorStateBackend().getBroadcastState(descriptor));

@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -46,72 +47,99 @@ public interface JobResultStoreContractTest {
     @Test
     default void testStoreJobResultsWithDuplicateIDsThrowsException() throws IOException {
         JobResultStore jobResultStore = createJobResultStore();
-        jobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
+        jobResultStore.createDirtyResultAsync(DUMMY_JOB_RESULT_ENTRY).join();
         final JobResultEntry otherEntryWithDuplicateId =
                 new JobResultEntry(
                         TestingJobResultStore.createSuccessfulJobResult(
                                 DUMMY_JOB_RESULT_ENTRY.getJobId()));
-        assertThatThrownBy(() -> jobResultStore.createDirtyResult(otherEntryWithDuplicateId))
-                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(
+                        () ->
+                                jobResultStore
+                                        .createDirtyResultAsync(otherEntryWithDuplicateId)
+                                        .join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(IllegalStateException.class);
     }
 
     @Test
     default void testStoreDirtyEntryForAlreadyCleanedJobResultThrowsException() throws IOException {
         JobResultStore jobResultStore = createJobResultStore();
-        jobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
-        jobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
-        assertThatThrownBy(() -> jobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY))
-                .isInstanceOf(IllegalStateException.class);
+        jobResultStore.createDirtyResultAsync(DUMMY_JOB_RESULT_ENTRY).join();
+        jobResultStore.markResultAsCleanAsync(DUMMY_JOB_RESULT_ENTRY.getJobId()).join();
+        assertThatThrownBy(
+                        () -> jobResultStore.createDirtyResultAsync(DUMMY_JOB_RESULT_ENTRY).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(IllegalStateException.class);
     }
 
     @Test
     default void testCleaningDuplicateEntryThrowsNoException() throws IOException {
         JobResultStore jobResultStore = createJobResultStore();
-        jobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
-        jobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
+        jobResultStore.createDirtyResultAsync(DUMMY_JOB_RESULT_ENTRY).join();
+        jobResultStore.markResultAsCleanAsync(DUMMY_JOB_RESULT_ENTRY.getJobId()).join();
         assertThatNoException()
                 .isThrownBy(
-                        () -> jobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId()));
+                        () ->
+                                jobResultStore
+                                        .markResultAsCleanAsync(DUMMY_JOB_RESULT_ENTRY.getJobId())
+                                        .join());
     }
 
     @Test
     default void testCleaningNonExistentEntryThrowsException() throws IOException {
         JobResultStore jobResultStore = createJobResultStore();
         assertThatThrownBy(
-                        () -> jobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId()))
-                .isInstanceOf(NoSuchElementException.class);
+                        () ->
+                                jobResultStore
+                                        .markResultAsCleanAsync(DUMMY_JOB_RESULT_ENTRY.getJobId())
+                                        .join())
+                .hasCauseInstanceOf(NoSuchElementException.class);
     }
 
     @Test
     default void testHasJobResultEntryWithDirtyEntry() throws IOException {
         JobResultStore jobResultStore = createJobResultStore();
-        jobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
-        assertThat(jobResultStore.hasDirtyJobResultEntry(DUMMY_JOB_RESULT_ENTRY.getJobId()))
+        jobResultStore.createDirtyResultAsync(DUMMY_JOB_RESULT_ENTRY).join();
+        assertThat(
+                        jobResultStore
+                                .hasDirtyJobResultEntryAsync(DUMMY_JOB_RESULT_ENTRY.getJobId())
+                                .join())
                 .isTrue();
-        assertThat(jobResultStore.hasCleanJobResultEntry(DUMMY_JOB_RESULT_ENTRY.getJobId()))
+        assertThat(
+                        jobResultStore
+                                .hasCleanJobResultEntryAsync(DUMMY_JOB_RESULT_ENTRY.getJobId())
+                                .join())
                 .isFalse();
-        assertThat(jobResultStore.hasJobResultEntry(DUMMY_JOB_RESULT_ENTRY.getJobId())).isTrue();
+        assertThat(jobResultStore.hasJobResultEntryAsync(DUMMY_JOB_RESULT_ENTRY.getJobId()).join())
+                .isTrue();
     }
 
     @Test
     default void testHasJobResultEntryWithCleanEntry() throws IOException {
         JobResultStore jobResultStore = createJobResultStore();
-        jobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
-        jobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
-        assertThat(jobResultStore.hasDirtyJobResultEntry(DUMMY_JOB_RESULT_ENTRY.getJobId()))
+        jobResultStore.createDirtyResultAsync(DUMMY_JOB_RESULT_ENTRY).join();
+        jobResultStore.markResultAsCleanAsync(DUMMY_JOB_RESULT_ENTRY.getJobId()).join();
+        assertThat(
+                        jobResultStore
+                                .hasDirtyJobResultEntryAsync(DUMMY_JOB_RESULT_ENTRY.getJobId())
+                                .join())
                 .isFalse();
-        assertThat(jobResultStore.hasCleanJobResultEntry(DUMMY_JOB_RESULT_ENTRY.getJobId()))
+        assertThat(
+                        jobResultStore
+                                .hasCleanJobResultEntryAsync(DUMMY_JOB_RESULT_ENTRY.getJobId())
+                                .join())
                 .isTrue();
-        assertThat(jobResultStore.hasJobResultEntry(DUMMY_JOB_RESULT_ENTRY.getJobId())).isTrue();
+        assertThat(jobResultStore.hasJobResultEntryAsync(DUMMY_JOB_RESULT_ENTRY.getJobId()).join())
+                .isTrue();
     }
 
     @Test
     default void testHasJobResultEntryWithEmptyStore() throws IOException {
         JobResultStore jobResultStore = createJobResultStore();
         JobID jobId = new JobID();
-        assertThat(jobResultStore.hasDirtyJobResultEntry(jobId)).isFalse();
-        assertThat(jobResultStore.hasCleanJobResultEntry(jobId)).isFalse();
-        assertThat(jobResultStore.hasJobResultEntry(jobId)).isFalse();
+        assertThat(jobResultStore.hasDirtyJobResultEntryAsync(jobId).join()).isFalse();
+        assertThat(jobResultStore.hasCleanJobResultEntryAsync(jobId).join()).isFalse();
+        assertThat(jobResultStore.hasJobResultEntryAsync(jobId).join()).isFalse();
     }
 
     @Test
@@ -123,7 +151,7 @@ public interface JobResultStoreContractTest {
     @Test
     default void testGetDirtyResultsWithDirtyEntry() throws IOException {
         JobResultStore jobResultStore = createJobResultStore();
-        jobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
+        jobResultStore.createDirtyResultAsync(DUMMY_JOB_RESULT_ENTRY).join();
         assertThat(
                         jobResultStore.getDirtyResults().stream()
                                 .map(JobResult::getJobId)
@@ -135,12 +163,12 @@ public interface JobResultStoreContractTest {
     @Test
     default void testGetDirtyResultsWithDirtyAndCleanEntry() throws IOException {
         JobResultStore jobResultStore = createJobResultStore();
-        jobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
-        jobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
+        jobResultStore.createDirtyResultAsync(DUMMY_JOB_RESULT_ENTRY).join();
+        jobResultStore.markResultAsCleanAsync(DUMMY_JOB_RESULT_ENTRY.getJobId()).join();
 
         final JobResultEntry otherDirtyJobResultEntry =
                 new JobResultEntry(TestingJobResultStore.createSuccessfulJobResult(new JobID()));
-        jobResultStore.createDirtyResult(otherDirtyJobResultEntry);
+        jobResultStore.createDirtyResultAsync(otherDirtyJobResultEntry).join();
 
         assertThat(
                         jobResultStore.getDirtyResults().stream()

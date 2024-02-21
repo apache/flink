@@ -21,7 +21,7 @@ package org.apache.flink.runtime.highavailability.nonha.standalone;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.TestLogger;
@@ -54,7 +54,7 @@ public class StandaloneHaServicesTest extends TestLogger {
     @After
     public void teardownTest() throws Exception {
         if (standaloneHaServices != null) {
-            standaloneHaServices.closeAndCleanupAllData();
+            standaloneHaServices.closeWithOptionalClean(true);
             standaloneHaServices = null;
         }
     }
@@ -69,13 +69,13 @@ public class StandaloneHaServicesTest extends TestLogger {
         LeaderContender jmLeaderContender = mock(LeaderContender.class);
         LeaderContender rmLeaderContender = mock(LeaderContender.class);
 
-        LeaderElectionService jmLeaderElectionService =
-                standaloneHaServices.getJobManagerLeaderElectionService(jobId);
-        LeaderElectionService rmLeaderElectionService =
-                standaloneHaServices.getResourceManagerLeaderElectionService();
+        final LeaderElection jmLeaderElection =
+                standaloneHaServices.getJobManagerLeaderElection(jobId);
+        jmLeaderElection.startLeaderElection(jmLeaderContender);
 
-        jmLeaderElectionService.start(jmLeaderContender);
-        rmLeaderElectionService.start(rmLeaderContender);
+        final LeaderElection rmLeaderElection =
+                standaloneHaServices.getResourceManagerLeaderElection();
+        rmLeaderElection.startLeaderElection(rmLeaderContender);
 
         verify(jmLeaderContender).grantLeadership(eq(HighAvailabilityServices.DEFAULT_LEADER_ID));
         verify(rmLeaderContender).grantLeadership(eq(HighAvailabilityServices.DEFAULT_LEADER_ID));

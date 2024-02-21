@@ -170,10 +170,11 @@ SELECT TUMBLE_END(newrowtime, INTERVAL '30' SECOND), long, sum(`int`) FROM (
       <![CDATA[
 LogicalProject(EXPR$0=[TUMBLE_END($0)], long=[$1], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)])
-   +- LogicalProject($f0=[$TUMBLE(TUMBLE_ROWTIME($0), 30000:INTERVAL SECOND)], long=[$1], int=[$2])
-      +- LogicalAggregate(group=[{0, 1}], int=[SUM($2)])
-         +- LogicalProject($f0=[$TUMBLE($0, 10000:INTERVAL SECOND)], long=[$1], int=[$2])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+   +- LogicalProject($f0=[$TUMBLE($0, 30000:INTERVAL SECOND)], long=[$1], int=[$2])
+      +- LogicalProject(newrowtime=[TUMBLE_ROWTIME($0)], long=[$1], int=[$2])
+         +- LogicalAggregate(group=[{0, 1}], int=[SUM($2)])
+            +- LogicalProject($f0=[$TUMBLE($0, 10000:INTERVAL SECOND)], long=[$1], int=[$2])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -214,9 +215,10 @@ SELECT rowtime FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(rowtime=[FLOOR($0, FLAG(DAY))])
-+- LogicalFilter(condition=[>($1, 0)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+LogicalProject(rowtime=[$0])
++- LogicalProject(rowtime=[FLOOR($0, FLAG(DAY))], long=[$1])
+   +- LogicalFilter(condition=[>($1, 0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -238,13 +240,13 @@ FROM MyTable, LATERAL TABLE(tableFunc(rowtime, proctime, '')) AS T(s)
 LogicalProject(rowtime=[$0], proctime=[$3], s=[$4])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalTableFunctionScan(invocation=[tableFunc($cor0.rowtime, $cor0.proctime, _UTF-16LE'')], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+   +- LogicalTableFunctionScan(invocation=[tableFunc($cor0.rowtime, $cor0.proctime, _UTF-16LE'')], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, f0 AS s])
-+- Correlate(invocation=[tableFunc(CAST($cor0.rowtime):TIMESTAMP(3), PROCTIME_MATERIALIZE($cor0.proctime), _UTF-16LE'')], correlate=[table(tableFunc(CAST($cor0.rowtime AS TIMESTAMP(3)),PROCTIME_MATERIALIZE($cor0.proctime),''))], select=[rowtime,long,int,proctime,f0], rowType=[RecordType(TIMESTAMP(3) *ROWTIME* rowtime, BIGINT long, INTEGER int, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) f0)], joinType=[INNER])
+Calc(select=[rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, EXPR$0 AS s])
++- Correlate(invocation=[tableFunc(CAST($cor0.rowtime):TIMESTAMP(3), PROCTIME_MATERIALIZE($cor0.proctime), _UTF-16LE'')], correlate=[table(tableFunc(CAST($cor0.rowtime AS TIMESTAMP(3)),PROCTIME_MATERIALIZE($cor0.proctime),''))], select=[rowtime,long,int,proctime,EXPR$0], rowType=[RecordType(TIMESTAMP(3) *ROWTIME* rowtime, BIGINT long, INTEGER int, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[rowtime, long, int, proctime])
 ]]>
     </Resource>

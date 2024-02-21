@@ -23,7 +23,7 @@
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
@@ -107,6 +107,9 @@
 							<transformers>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
 									<mainClass>org.apache.flink.streaming.tests.queryablestate.QsStateClient</mainClass>
+									<manifestEntries>
+										<Add-Opens>java.base/java.util</Add-Opens>
+									</manifestEntries>
 								</transformer>
 							</transformers>
 						</configuration>

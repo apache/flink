@@ -36,6 +36,8 @@ This page lists all the supported statements supported in Flink SQL for now:
 - [ALTER TABLE, DATABASE, FUNCTION]({{< ref "docs/dev/table/sql/alter" >}})
 - [ANALYZE TABLE]({{< ref "docs/dev/table/sql/analyze" >}})
 - [INSERT]({{< ref "docs/dev/table/sql/insert" >}})
+- [UPDATE]({{< ref "docs/dev/table/sql/update" >}})
+- [DELETE]({{< ref "docs/dev/table/sql/delete" >}})
 - [DESCRIBE]({{< ref "docs/dev/table/sql/describe" >}})
 - [EXPLAIN]({{< ref "docs/dev/table/sql/explain" >}})
 - [USE]({{< ref "docs/dev/table/sql/use" >}})

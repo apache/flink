@@ -24,6 +24,8 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobStatusHook;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -43,9 +45,12 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogStore;
+import org.apache.flink.table.catalog.CatalogStoreHolder;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
@@ -56,16 +61,23 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.StagedTable;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.SinkStagingContext;
+import org.apache.flink.table.connector.sink.abilities.SupportsStaging;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.InternalPlan;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.execution.StagingSinkJobStatusHook;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.factories.CatalogStoreFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
+import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
@@ -82,6 +94,7 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.ReplaceTableAsOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
@@ -89,8 +102,11 @@ import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.command.ExecutePlanOperation;
 import org.apache.flink.table.operations.ddl.AnalyzeTableOperation;
 import org.apache.flink.table.operations.ddl.CompilePlanOperation;
+import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.operations.utils.ExecutableOperationUtils;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.resource.ResourceManager;
+import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
@@ -104,14 +120,13 @@ import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.Preconditions;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -128,6 +143,7 @@ import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYN
  */
 @Internal
 public class TableEnvironmentImpl implements TableEnvironmentInternal {
+
     // Flag that tells if the TableSource/TableSink used in this environment is stream table
     // source/sink,
     // and this should always be true. This avoids too many hard code.
@@ -208,7 +224,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         functionCatalog,
                         moduleManager,
                         resourceManager,
-                        tableConfig);
+                        tableConfig,
+                        isStreamingMode);
     }
 
     public static TableEnvironmentImpl create(Configuration configuration) {
@@ -224,6 +241,18 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 FactoryUtil.discoverFactory(
                         userClassLoader, ExecutorFactory.class, ExecutorFactory.DEFAULT_IDENTIFIER);
         final Executor executor = executorFactory.create(settings.getConfiguration());
+
+        final CatalogStoreFactory catalogStoreFactory =
+                TableFactoryUtil.findAndCreateCatalogStoreFactory(
+                        settings.getConfiguration(), userClassLoader);
+        final CatalogStoreFactory.Context context =
+                TableFactoryUtil.buildCatalogStoreFactoryContext(
+                        settings.getConfiguration(), userClassLoader);
+        catalogStoreFactory.open(context);
+        final CatalogStore catalogStore =
+                settings.getCatalogStore() != null
+                        ? settings.getCatalogStore()
+                        : catalogStoreFactory.createCatalogStore();
 
         // use configuration to init table config
         final TableConfig tableConfig = TableConfig.getDefault();
@@ -242,6 +271,16 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                 new GenericInMemoryCatalog(
                                         settings.getBuiltInCatalogName(),
                                         settings.getBuiltInDatabaseName()))
+                        .catalogModificationListeners(
+                                TableFactoryUtil.findCatalogModificationListenerList(
+                                        settings.getConfiguration(), userClassLoader))
+                        .catalogStoreHolder(
+                                CatalogStoreHolder.newBuilder()
+                                        .catalogStore(catalogStore)
+                                        .factory(catalogStoreFactory)
+                                        .config(tableConfig)
+                                        .classloader(userClassLoader)
+                                        .build())
                         .build();
 
         final FunctionCatalog functionCatalog =
@@ -323,6 +362,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @Override
     public void registerCatalog(String catalogName, Catalog catalog) {
         catalogManager.registerCatalog(catalogName, catalog);
+    }
+
+    @Override
+    public void createCatalog(String catalogName, CatalogDescriptor catalogDescriptor) {
+        catalogManager.createCatalog(catalogName, catalogDescriptor);
     }
 
     @Override
@@ -691,6 +735,18 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return executeInternal(operation);
     }
 
+    public TableResultInternal executeCachedPlanInternal(CachedPlan cachedPlan) {
+        if (cachedPlan instanceof DQLCachedPlan) {
+            DQLCachedPlan dqlCachedPlan = (DQLCachedPlan) cachedPlan;
+            return executeQueryOperation(
+                    dqlCachedPlan.getOperation(),
+                    dqlCachedPlan.getSinkOperation(),
+                    dqlCachedPlan.getTransformations());
+        }
+        throw new TableException(
+                String.format("Unsupported CachedPlan type: %s.", cachedPlan.getClass()));
+    }
+
     @Override
     public StatementSet createStatementSet() {
         return new StatementSetImpl(this);
@@ -731,38 +787,47 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     private CompiledPlan compilePlanAndWrite(
-            String filePath, boolean ifNotExists, Operation operation) {
-        File file = Paths.get(filePath).toFile();
-        if (file.exists()) {
-            if (ifNotExists) {
-                return loadPlan(PlanReference.fromFile(filePath));
+            String pathString, boolean ignoreIfExists, Operation operation) {
+        try {
+            ResourceUri planResource = new ResourceUri(ResourceType.FILE, pathString);
+            Path planPath = new Path(pathString);
+            if (resourceManager.exists(planPath)) {
+                if (ignoreIfExists) {
+                    return loadPlan(
+                            PlanReference.fromFile(
+                                    resourceManager.registerFileResource(planResource)));
+                }
+
+                if (!tableConfig.get(TableConfigOptions.PLAN_FORCE_RECOMPILE)) {
+                    throw new TableException(
+                            String.format(
+                                    "Cannot overwrite the plan file '%s'. "
+                                            + "Either manually remove the file or, "
+                                            + "if you're debugging your job, "
+                                            + "set the option '%s' to true.",
+                                    pathString, TableConfigOptions.PLAN_FORCE_RECOMPILE.key()));
+                }
             }
 
-            if (!tableConfig.get(TableConfigOptions.PLAN_FORCE_RECOMPILE)) {
+            CompiledPlan compiledPlan;
+            if (operation instanceof StatementSetOperation) {
+                compiledPlan = compilePlan(((StatementSetOperation) operation).getOperations());
+            } else if (operation instanceof ModifyOperation) {
+                compiledPlan = compilePlan(Collections.singletonList((ModifyOperation) operation));
+            } else {
                 throw new TableException(
-                        String.format(
-                                "Cannot overwrite the plan file '%s'. "
-                                        + "Either manually remove the file or, "
-                                        + "if you're debugging your job, "
-                                        + "set the option '%s' to true.",
-                                filePath, TableConfigOptions.PLAN_FORCE_RECOMPILE.key()));
+                        "Unsupported operation to compile: "
+                                + operation.getClass()
+                                + ". This is a bug, please file an issue.");
             }
-        }
-
-        CompiledPlan compiledPlan;
-        if (operation instanceof StatementSetOperation) {
-            compiledPlan = compilePlan(((StatementSetOperation) operation).getOperations());
-        } else if (operation instanceof ModifyOperation) {
-            compiledPlan = compilePlan(Collections.singletonList((ModifyOperation) operation));
-        } else {
+            resourceManager.syncFileResource(
+                    planResource, path -> compiledPlan.writeToFile(path, false));
+            return compiledPlan;
+        } catch (IOException e) {
             throw new TableException(
-                    "Unsupported operation to compile: "
-                            + operation.getClass()
-                            + ". This is a bug, please file an issue.");
+                    String.format("Failed to execute %s statement.", operation.asSummaryString()),
+                    e);
         }
-
-        compiledPlan.writeToFile(file, false);
-        return compiledPlan;
     }
 
     @Override
@@ -773,12 +838,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @Override
     public TableResultInternal executeInternal(List<ModifyOperation> operations) {
         List<ModifyOperation> mapOperations = new ArrayList<>();
+        List<JobStatusHook> jobStatusHookList = new LinkedList<>();
         for (ModifyOperation modify : operations) {
-            // execute CREATE TABLE first for CTAS statements
             if (modify instanceof CreateTableASOperation) {
                 CreateTableASOperation ctasOperation = (CreateTableASOperation) modify;
-                executeInternal(ctasOperation.getCreateTableOperation());
-                mapOperations.add(ctasOperation.toSinkModifyOperation(catalogManager));
+                mapOperations.add(getModifyOperation(ctasOperation, jobStatusHookList));
+            } else if (modify instanceof ReplaceTableAsOperation) {
+                ReplaceTableAsOperation rtasOperation = (ReplaceTableAsOperation) modify;
+                mapOperations.add(getModifyOperation(rtasOperation, jobStatusHookList));
             } else {
                 boolean isRowLevelModification = isRowLevelModification(modify);
                 if (isRowLevelModification) {
@@ -806,16 +873,124 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
         List<Transformation<?>> transformations = translate(mapOperations);
         List<String> sinkIdentifierNames = extractSinkIdentifierNames(mapOperations);
-        TableResultInternal result = executeInternal(transformations, sinkIdentifierNames);
-        if (tableConfig.get(TABLE_DML_SYNC)) {
-            try {
-                result.await();
-            } catch (InterruptedException | ExecutionException e) {
-                result.getJobClient().ifPresent(JobClient::cancel);
-                throw new TableException("Fail to wait execution finish.", e);
+        return executeInternal(transformations, sinkIdentifierNames, jobStatusHookList);
+    }
+
+    private ModifyOperation getModifyOperation(
+            ReplaceTableAsOperation rtasOperation, List<JobStatusHook> jobStatusHookList) {
+        CreateTableOperation createTableOperation = rtasOperation.getCreateTableOperation();
+        ObjectIdentifier tableIdentifier = createTableOperation.getTableIdentifier();
+        // First check if the replacedTable exists
+        Optional<ContextResolvedTable> replacedTable = catalogManager.getTable(tableIdentifier);
+        if (!rtasOperation.isCreateOrReplace() && !replacedTable.isPresent()) {
+            throw new TableException(
+                    String.format(
+                            "The table %s to be replaced doesn't exist. "
+                                    + "You can try to use CREATE TABLE AS statement or "
+                                    + "CREATE OR REPLACE TABLE AS statement.",
+                            tableIdentifier));
+        }
+        Catalog catalog =
+                catalogManager.getCatalogOrThrowException(tableIdentifier.getCatalogName());
+        ResolvedCatalogTable catalogTable =
+                catalogManager.resolveCatalogTable(createTableOperation.getCatalogTable());
+        Optional<DynamicTableSink> stagingDynamicTableSink =
+                getSupportsStagingDynamicTableSink(createTableOperation, catalog, catalogTable);
+        if (stagingDynamicTableSink.isPresent()) {
+            // use atomic rtas
+            DynamicTableSink dynamicTableSink = stagingDynamicTableSink.get();
+            SupportsStaging.StagingPurpose stagingPurpose =
+                    rtasOperation.isCreateOrReplace()
+                            ? SupportsStaging.StagingPurpose.CREATE_OR_REPLACE_TABLE_AS
+                            : SupportsStaging.StagingPurpose.REPLACE_TABLE_AS;
+
+            StagedTable stagedTable =
+                    ((SupportsStaging) dynamicTableSink)
+                            .applyStaging(new SinkStagingContext(stagingPurpose));
+            StagingSinkJobStatusHook stagingSinkJobStatusHook =
+                    new StagingSinkJobStatusHook(stagedTable);
+            jobStatusHookList.add(stagingSinkJobStatusHook);
+            return rtasOperation.toStagedSinkModifyOperation(
+                    tableIdentifier, catalogTable, catalog, dynamicTableSink);
+        }
+        // non-atomic rtas drop table first if exists, then create
+        if (replacedTable.isPresent()) {
+            catalogManager.dropTable(tableIdentifier, false);
+        }
+        executeInternal(createTableOperation);
+        return rtasOperation.toSinkModifyOperation(catalogManager);
+    }
+
+    private ModifyOperation getModifyOperation(
+            CreateTableASOperation ctasOperation, List<JobStatusHook> jobStatusHookList) {
+        CreateTableOperation createTableOperation = ctasOperation.getCreateTableOperation();
+        ObjectIdentifier tableIdentifier = createTableOperation.getTableIdentifier();
+        Catalog catalog =
+                catalogManager.getCatalogOrThrowException(tableIdentifier.getCatalogName());
+        ResolvedCatalogTable catalogTable =
+                catalogManager.resolveCatalogTable(createTableOperation.getCatalogTable());
+        Optional<DynamicTableSink> stagingDynamicTableSink =
+                getSupportsStagingDynamicTableSink(createTableOperation, catalog, catalogTable);
+        if (stagingDynamicTableSink.isPresent()) {
+            // use atomic ctas
+            DynamicTableSink dynamicTableSink = stagingDynamicTableSink.get();
+            SupportsStaging.StagingPurpose stagingPurpose =
+                    createTableOperation.isIgnoreIfExists()
+                            ? SupportsStaging.StagingPurpose.CREATE_TABLE_AS_IF_NOT_EXISTS
+                            : SupportsStaging.StagingPurpose.CREATE_TABLE_AS;
+            StagedTable stagedTable =
+                    ((SupportsStaging) dynamicTableSink)
+                            .applyStaging(new SinkStagingContext(stagingPurpose));
+            StagingSinkJobStatusHook stagingSinkJobStatusHook =
+                    new StagingSinkJobStatusHook(stagedTable);
+            jobStatusHookList.add(stagingSinkJobStatusHook);
+            return ctasOperation.toStagedSinkModifyOperation(
+                    tableIdentifier, catalogTable, catalog, dynamicTableSink);
+        }
+        // use non-atomic ctas, create table first
+        executeInternal(createTableOperation);
+        return ctasOperation.toSinkModifyOperation(catalogManager);
+    }
+
+    private Optional<DynamicTableSink> getSupportsStagingDynamicTableSink(
+            CreateTableOperation createTableOperation,
+            Catalog catalog,
+            ResolvedCatalogTable catalogTable) {
+        if (tableConfig.get(TableConfigOptions.TABLE_RTAS_CTAS_ATOMICITY_ENABLED)) {
+            if (!TableFactoryUtil.isLegacyConnectorOptions(
+                    catalog,
+                    tableConfig,
+                    isStreamingMode,
+                    createTableOperation.getTableIdentifier(),
+                    catalogTable,
+                    createTableOperation.isTemporary())) {
+                try {
+                    DynamicTableSink dynamicTableSink =
+                            ExecutableOperationUtils.createDynamicTableSink(
+                                    catalog,
+                                    () -> moduleManager.getFactory((Module::getTableSinkFactory)),
+                                    createTableOperation.getTableIdentifier(),
+                                    catalogTable,
+                                    Collections.emptyMap(),
+                                    tableConfig,
+                                    resourceManager.getUserClassLoader(),
+                                    createTableOperation.isTemporary());
+                    if (dynamicTableSink instanceof SupportsStaging) {
+                        return Optional.of(dynamicTableSink);
+                    }
+                } catch (Exception e) {
+                    throw new TableException(
+                            String.format(
+                                    "Fail to create DynamicTableSink for the table %s, "
+                                            + "maybe the table does not support atomicity of CTAS/RTAS, "
+                                            + "please set %s to false and try again.",
+                                    createTableOperation.getTableIdentifier(),
+                                    TableConfigOptions.TABLE_RTAS_CTAS_ATOMICITY_ENABLED.key()),
+                            e);
+                }
             }
         }
-        return result;
+        return Optional.empty();
     }
 
     private TableResultInternal executeInternal(
@@ -835,6 +1010,13 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     private TableResultInternal executeInternal(
             List<Transformation<?>> transformations, List<String> sinkIdentifierNames) {
+        return executeInternal(transformations, sinkIdentifierNames, Collections.emptyList());
+    }
+
+    private TableResultInternal executeInternal(
+            List<Transformation<?>> transformations,
+            List<String> sinkIdentifierNames,
+            List<JobStatusHook> jobStatusHookList) {
         final String defaultJobName = "insert-into_" + String.join(",", sinkIdentifierNames);
 
         resourceManager.addJarConfiguration(tableConfig);
@@ -842,7 +1024,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         Pipeline pipeline =
                 execEnv.createPipeline(
-                        transformations, tableConfig.getConfiguration(), defaultJobName);
+                        transformations,
+                        tableConfig.getConfiguration(),
+                        defaultJobName,
+                        jobStatusHookList);
         try {
             JobClient jobClient = execEnv.executeAsync(pipeline);
             final List<Column> columns = new ArrayList<>();
@@ -853,33 +1038,41 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 affectedRowCounts[i] = -1L;
             }
 
-            return TableResultImpl.builder()
-                    .jobClient(jobClient)
-                    .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-                    .schema(ResolvedSchema.of(columns))
-                    .resultProvider(
-                            new InsertResultProvider(affectedRowCounts).setJobClient(jobClient))
-                    .build();
+            TableResultInternal result =
+                    TableResultImpl.builder()
+                            .jobClient(jobClient)
+                            .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+                            .schema(ResolvedSchema.of(columns))
+                            .resultProvider(
+                                    new InsertResultProvider(affectedRowCounts)
+                                            .setJobClient(jobClient))
+                            .build();
+            if (tableConfig.get(TABLE_DML_SYNC)) {
+                try {
+                    result.await();
+                } catch (InterruptedException | ExecutionException e) {
+                    result.getJobClient().ifPresent(JobClient::cancel);
+                    throw new TableException("Fail to wait execution finish.", e);
+                }
+            }
+            return result;
         } catch (Exception e) {
             throw new TableException("Failed to execute sql", e);
         }
     }
 
-    private TableResultInternal executeQueryOperation(QueryOperation operation) {
-        CollectModifyOperation sinkOperation = new CollectModifyOperation(operation);
-        List<Transformation<?>> transformations =
-                translate(Collections.singletonList(sinkOperation));
-        final String defaultJobName = "collect";
-
+    private TableResultInternal executeQueryOperation(
+            QueryOperation operation,
+            CollectModifyOperation sinkOperation,
+            List<Transformation<?>> transformations) {
         resourceManager.addJarConfiguration(tableConfig);
 
-        // We pass only the configuration to avoid reconfiguration with the rootConfiguration
-        Pipeline pipeline =
-                execEnv.createPipeline(
-                        transformations, tableConfig.getConfiguration(), defaultJobName);
+        Pipeline pipeline = generatePipelineFromQueryOperation(operation, transformations);
         try {
             JobClient jobClient = execEnv.executeAsync(pipeline);
             ResultProvider resultProvider = sinkOperation.getSelectResultProvider();
+            // We must reset resultProvider as we might to reuse it between different jobs.
+            resultProvider.reset();
             resultProvider.setJobClient(jobClient);
             return TableResultImpl.builder()
                     .jobClient(jobClient)
@@ -895,6 +1088,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                     getConfig().get(TableConfigOptions.DISPLAY_MAX_COLUMN_WIDTH),
                                     false,
                                     isStreamingMode))
+                    .setCachedPlan(new DQLCachedPlan(operation, sinkOperation, transformations))
                     .build();
         } catch (Exception e) {
             throw new TableException("Failed to execute sql", e);
@@ -933,11 +1127,27 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     .data(Collections.singletonList(Row.of(explanation)))
                     .build();
         } else if (operation instanceof QueryOperation) {
-            return executeQueryOperation((QueryOperation) operation);
+            QueryOperation queryOperation = (QueryOperation) operation;
+            CollectModifyOperation sinkOperation = new CollectModifyOperation(queryOperation);
+            List<Transformation<?>> transformations =
+                    translate(Collections.singletonList(sinkOperation));
+            return executeQueryOperation(queryOperation, sinkOperation, transformations);
         } else if (operation instanceof ExecutePlanOperation) {
             ExecutePlanOperation executePlanOperation = (ExecutePlanOperation) operation;
-            return (TableResultInternal)
-                    executePlan(PlanReference.fromFile(executePlanOperation.getFilePath()));
+            try {
+                return (TableResultInternal)
+                        executePlan(
+                                PlanReference.fromFile(
+                                        resourceManager.registerFileResource(
+                                                new ResourceUri(
+                                                        ResourceType.FILE,
+                                                        executePlanOperation.getFilePath()))));
+            } catch (IOException e) {
+                throw new TableException(
+                        String.format(
+                                "Failed to execute %s statement.", operation.asSummaryString()),
+                        e);
+            }
         } else if (operation instanceof CompilePlanOperation) {
             CompilePlanOperation compilePlanOperation = (CompilePlanOperation) operation;
             compilePlanAndWrite(
@@ -968,6 +1178,23 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         } else {
             throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
         }
+    }
+
+    /** generate execution {@link Pipeline} from {@link QueryOperation}. */
+    @VisibleForTesting
+    public Pipeline generatePipelineFromQueryOperation(
+            QueryOperation operation, List<Transformation<?>> transformations) {
+        String defaultJobName = "collect";
+
+        try {
+            defaultJobName = operation.asSerializableString();
+        } catch (Throwable e) {
+            // ignore error for unsupported operations and use 'collect' as default job name
+        }
+
+        // We pass only the configuration to avoid reconfiguration with the rootConfiguration
+        return execEnv.createPipeline(
+                transformations, tableConfig.getConfiguration(), defaultJobName);
     }
 
     /**

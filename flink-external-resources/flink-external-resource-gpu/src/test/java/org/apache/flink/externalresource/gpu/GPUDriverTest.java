@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Set;
 import java.util.UUID;
 
@@ -39,13 +40,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class GPUDriverTest {
 
     private static final String TESTING_DISCOVERY_SCRIPT_PATH =
-            "src/test/resources/testing-gpu-discovery.sh";
+            Paths.get("src/test/resources/testing-gpu-discovery.sh").toAbsolutePath().toString();
 
     @Test
     void testGPUDriverWithTestScript() throws Exception {
         final int gpuAmount = 2;
         final Configuration config = new Configuration();
-        config.setString(GPUDriver.DISCOVERY_SCRIPT_PATH, TESTING_DISCOVERY_SCRIPT_PATH);
+        config.set(GPUDriver.DISCOVERY_SCRIPT_PATH, TESTING_DISCOVERY_SCRIPT_PATH);
 
         final GPUDriver gpuDriver = new GPUDriver(config);
         final Set<GPUInfo> gpuResource = gpuDriver.retrieveResourceInfo(gpuAmount);
@@ -57,7 +58,7 @@ class GPUDriverTest {
     void testGPUDriverWithInvalidAmount() throws Exception {
         final int gpuAmount = -1;
         final Configuration config = new Configuration();
-        config.setString(GPUDriver.DISCOVERY_SCRIPT_PATH, TESTING_DISCOVERY_SCRIPT_PATH);
+        config.set(GPUDriver.DISCOVERY_SCRIPT_PATH, TESTING_DISCOVERY_SCRIPT_PATH);
 
         final GPUDriver gpuDriver = new GPUDriver(config);
         assertThatThrownBy(() -> gpuDriver.retrieveResourceInfo(gpuAmount))
@@ -67,7 +68,7 @@ class GPUDriverTest {
     @Test
     void testGPUDriverWithIllegalConfigTestScript() {
         final Configuration config = new Configuration();
-        config.setString(GPUDriver.DISCOVERY_SCRIPT_PATH, " ");
+        config.set(GPUDriver.DISCOVERY_SCRIPT_PATH, " ");
 
         assertThatThrownBy(() -> new GPUDriver(config))
                 .isInstanceOf(IllegalConfigurationException.class);
@@ -76,7 +77,7 @@ class GPUDriverTest {
     @Test
     void testGPUDriverWithTestScriptDoNotExist() throws Exception {
         final Configuration config = new Configuration();
-        config.setString(GPUDriver.DISCOVERY_SCRIPT_PATH, "invalid/path");
+        config.set(GPUDriver.DISCOVERY_SCRIPT_PATH, "invalid/path");
         assertThatThrownBy(() -> new GPUDriver(config)).isInstanceOf(FileNotFoundException.class);
     }
 
@@ -88,7 +89,7 @@ class GPUDriverTest {
         final File inExecutableFile = tempFile.toFile();
         assertThat(inExecutableFile.setExecutable(false)).isTrue();
 
-        config.setString(GPUDriver.DISCOVERY_SCRIPT_PATH, inExecutableFile.getAbsolutePath());
+        config.set(GPUDriver.DISCOVERY_SCRIPT_PATH, inExecutableFile.getAbsolutePath());
 
         assertThatThrownBy(() -> new GPUDriver(config)).isInstanceOf(FlinkException.class);
     }
@@ -96,8 +97,8 @@ class GPUDriverTest {
     @Test
     void testGPUDriverWithTestScriptExitWithNonZero() throws Exception {
         final Configuration config = new Configuration();
-        config.setString(GPUDriver.DISCOVERY_SCRIPT_PATH, TESTING_DISCOVERY_SCRIPT_PATH);
-        config.setString(GPUDriver.DISCOVERY_SCRIPT_ARG, "--exit-non-zero");
+        config.set(GPUDriver.DISCOVERY_SCRIPT_PATH, TESTING_DISCOVERY_SCRIPT_PATH);
+        config.set(GPUDriver.DISCOVERY_SCRIPT_ARG, "--exit-non-zero");
 
         final GPUDriver gpuDriver = new GPUDriver(config);
         assertThatThrownBy(() -> gpuDriver.retrieveResourceInfo(1))

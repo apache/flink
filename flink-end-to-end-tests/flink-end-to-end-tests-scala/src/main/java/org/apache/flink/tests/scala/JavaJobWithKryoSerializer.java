@@ -29,7 +29,7 @@ public class JavaJobWithKryoSerializer {
 
         env.addDefaultKryoSerializer(NonPojo.class, NonPojoSerializer.class);
 
-        env.fromElements(new NonPojo()).map(x -> x);
+        env.fromData(new NonPojo()).map(x -> x);
 
         env.execute();
     }

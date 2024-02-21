@@ -60,6 +60,7 @@ import org.junit.rules.TemporaryFolder;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
@@ -358,7 +359,8 @@ public class MiniDispatcherTest extends TestLogger {
                         highAvailabilityServices.getJobResultStore(),
                         testingJobManagerRunnerFactory,
                         testingCleanupRunnerFactory,
-                        ForkJoinPool.commonPool()),
+                        ForkJoinPool.commonPool(),
+                        Collections.emptySet()),
                 recoveredJobGraph,
                 recoveredDirtyJob,
                 (dispatcher, scheduledExecutor, errorHandler) -> new NoOpDispatcherBootstrap(),

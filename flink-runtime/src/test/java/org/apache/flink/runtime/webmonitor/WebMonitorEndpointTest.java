@@ -23,28 +23,28 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.NoOpTransientBlobService;
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.StandaloneLeaderElection;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /** Tests for the {@link WebMonitorEndpoint}. */
-public class WebMonitorEndpointTest extends TestLogger {
+class WebMonitorEndpointTest {
 
     @Test
-    public void cleansUpExpiredExecutionGraphs() throws Exception {
+    void cleansUpExpiredExecutionGraphs() throws Exception {
         final Configuration configuration = new Configuration();
-        configuration.setString(RestOptions.ADDRESS, "localhost");
-        configuration.setLong(WebOptions.REFRESH_INTERVAL, 5L);
+        configuration.set(RestOptions.ADDRESS, "localhost");
+        configuration.set(WebOptions.REFRESH_INTERVAL, 5L);
         final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
         final long timeout = 10000L;
 
@@ -62,7 +62,7 @@ public class WebMonitorEndpointTest extends TestLogger {
                         NoOpTransientBlobService.INSTANCE,
                         executor,
                         VoidMetricFetcher.INSTANCE,
-                        new TestingLeaderElectionService(),
+                        new StandaloneLeaderElection(UUID.randomUUID()),
                         executionGraphCache,
                         new TestingFatalErrorHandler())) {
 

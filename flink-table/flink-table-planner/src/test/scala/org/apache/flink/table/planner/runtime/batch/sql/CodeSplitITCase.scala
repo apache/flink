@@ -24,13 +24,13 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData.{nullablesOfData3, smallData3, type3}
 import org.apache.flink.types.Row
 
-import org.junit.{Assert, Before, Test}
-
-import scala.collection.Seq
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.IterableAssert.assertThatIterable
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class CodeSplitITCase extends BatchTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     registerCollection("SmallTable3", smallData3, type3, "a, b, c", nullablesOfData3)
@@ -117,7 +117,8 @@ class CodeSplitITCase extends BatchTestBase {
     for (i <- 0 until 100) {
       expected.add(s"+I[${Range(0, 100).map(_ => s"$i").mkString(", ")}]")
     }
-    Assert.assertEquals(expected, TestValuesTableFactory.getResults("test_many_values"))
+    assertThatIterable(TestValuesTableFactory.getResultsAsStrings("test_many_values"))
+      .containsExactlyElementsOf(expected)
   }
 
   /**
@@ -164,17 +165,17 @@ class CodeSplitITCase extends BatchTestBase {
     val result = executeQuery(table)
 
     // The result table should contain 250 columns from a_1 to a_250 and 10 rows with values from 1 to 10.
-    Assert.assertEquals(10, result.size)
+    assertThat(result.size).isEqualTo(10)
     for (rowNumber <- result.indices) {
       val row = result(rowNumber)
-      Assert.assertEquals(250, row.getArity)
+      assertThat(row.getArity).isEqualTo(250)
       for (j <- 1 to 250) {
         // column value starts from 1 and ends at 10.
         val expectedRowValue = rowNumber + 1
-        Assert.assertEquals(
-          "Invalid value for row %d and column a_%d.".format(rowNumber, j),
-          expectedRowValue,
-          row.getField("a_" + j))
+        assertThat(row.getField("a_" + j))
+          .withFailMessage("Invalid value for row %d and column a_%d.".format(rowNumber, j))
+          .isEqualTo(expectedRowValue)
+
       }
     }
   }

@@ -40,14 +40,29 @@ class StreamPhysicalTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     hints: util.List[RelHint],
-    tableSourceTable: TableSourceTable)
+    tableSourceTable: TableSourceTable,
+    val eventTimeSnapshotRequired: Boolean = false)
   extends CommonPhysicalTableSourceScan(cluster, traitSet, hints, tableSourceTable)
   with StreamPhysicalRel {
 
   override def requireWatermark: Boolean = false
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new StreamPhysicalTableSourceScan(cluster, traitSet, getHints, tableSourceTable)
+    new StreamPhysicalTableSourceScan(
+      cluster,
+      traitSet,
+      getHints,
+      tableSourceTable,
+      eventTimeSnapshotRequired)
+  }
+
+  override def copy(relOptTable: TableSourceTable): RelNode = {
+    new StreamPhysicalTableSourceScan(
+      cluster,
+      traitSet,
+      getHints,
+      relOptTable,
+      eventTimeSnapshotRequired)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {

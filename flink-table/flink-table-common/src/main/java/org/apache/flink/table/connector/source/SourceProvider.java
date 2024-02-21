@@ -21,7 +21,12 @@ package org.apache.flink.table.connector.source;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.data.RowData;
+
+import javax.annotation.Nullable;
+
+import java.util.Optional;
 
 /**
  * Provider of a {@link Source} instance as a runtime implementation for {@link ScanTableSource}.
@@ -30,11 +35,17 @@ import org.apache.flink.table.data.RowData;
  * advanced connector developers.
  */
 @PublicEvolving
-public interface SourceProvider extends ScanTableSource.ScanRuntimeProvider {
+public interface SourceProvider extends ScanTableSource.ScanRuntimeProvider, ParallelismProvider {
 
     /** Helper method for creating a static provider. */
     static SourceProvider of(Source<RowData, ?, ?> source) {
+        return of(source, null);
+    }
+
+    /** Helper method for creating a Source provider with a provided source parallelism. */
+    static SourceProvider of(Source<RowData, ?, ?> source, @Nullable Integer sourceParallelism) {
         return new SourceProvider() {
+
             @Override
             public Source<RowData, ?, ?> createSource() {
                 return source;
@@ -43,6 +54,11 @@ public interface SourceProvider extends ScanTableSource.ScanRuntimeProvider {
             @Override
             public boolean isBounded() {
                 return Boundedness.BOUNDED.equals(source.getBoundedness());
+            }
+
+            @Override
+            public Optional<Integer> getParallelism() {
+                return Optional.ofNullable(sourceParallelism);
             }
         };
     }

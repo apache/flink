@@ -32,7 +32,7 @@ import warnings
 
 import pkg_resources
 
-GRPC_TOOLS = 'grpcio-tools>=1.29.0,<=1.46.3'
+GRPC_TOOLS = 'grpcio-tools>=1.29.0,<=1.50.0'
 PROTO_PATHS = ['proto']
 PYFLINK_ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_PYTHON_OUTPUT_PATH = os.path.join(PYFLINK_ROOT_PATH, 'fn_execution')
@@ -48,7 +48,7 @@ def generate_proto_files(force=True, output_dir=DEFAULT_PYTHON_OUTPUT_PATH):
     proto_files = sum(
         [glob.glob(os.path.join(d, '*.proto')) for d in proto_dirs], [])
     out_dir = os.path.join(PYFLINK_ROOT_PATH, output_dir)
-    out_files = [path for path in glob.glob(os.path.join(out_dir, '*_pb2.py'))]
+    out_files = [path for path in glob.glob(os.path.join(out_dir, '*_pb2.py*'))]
 
     if out_files and not proto_files and not force:
         # We have out_files but no protos; assume they're up to date.
@@ -73,7 +73,7 @@ def generate_proto_files(force=True, output_dir=DEFAULT_PYTHON_OUTPUT_PATH):
                 raise RuntimeError(
                     'Cannot generate protos for Windows since grpcio-tools package is '
                     'not installed. Please install this package manually '
-                    'using \'pip install "grpcio-tools>=1.29.0,<=1.46.3"\'.')
+                    'using \'pip install "grpcio-tools>=1.29.0,<=1.50.0"\'.')
 
             # Use a subprocess to avoid messing with this process' path and imports.
             # Note that this requires a separate module from setup.py for Windows:
@@ -93,6 +93,7 @@ def generate_proto_files(force=True, output_dir=DEFAULT_PYTHON_OUTPUT_PATH):
                 ['--proto_path=%s' % builtin_protos] +
                 ['--proto_path=%s' % d for d in proto_dirs] +
                 ['--python_out=%s' % out_dir] +
+                ['--pyi_out=%s' % out_dir] +
                 proto_files)
             ret_code = protoc.main(args)
             if ret_code:
@@ -101,7 +102,7 @@ def generate_proto_files(force=True, output_dir=DEFAULT_PYTHON_OUTPUT_PATH):
                     '%s' % ret_code)
 
             for output_file in os.listdir(output_dir):
-                if output_file.endswith('_pb2.py'):
+                if output_file.endswith('_pb2.py') or output_file.endswith('_pb2.pyi'):
                     _add_license_header(output_dir, output_file)
 
 
@@ -186,9 +187,9 @@ def _add_license_header(dir, file_name):
 def _check_grpcio_tools_version():
     version = pkg_resources.get_distribution("grpcio-tools").parsed_version
     from pkg_resources import parse_version
-    if version < parse_version('1.29.0') or version > parse_version('1.46.3'):
+    if version < parse_version('1.29.0') or version > parse_version('1.50.0'):
         raise RuntimeError(
-            "Version of grpcio-tools must be between 1.29.0 and 1.46.3, got %s" % version)
+            "Version of grpcio-tools must be between 1.29.0 and 1.50.0, got %s" % version)
 
 
 if __name__ == '__main__':

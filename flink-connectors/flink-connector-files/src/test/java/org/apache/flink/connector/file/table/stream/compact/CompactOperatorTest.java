@@ -76,7 +76,7 @@ class CompactOperatorTest extends AbstractCompactTestBase {
                     List<PartitionCommitInfo> outputs = harness.extractOutputValues();
                     assertThat(outputs).hasSize(1);
                     assertThat(outputs.get(0).getCheckpointId()).isEqualTo(1);
-                    assertThat(outputs.get(0).getPartitions()).isEqualTo(Arrays.asList("p0", "p1"));
+                    assertThat(outputs.get(0).getPartitions()).isEqualTo(new String[] {"p0", "p1"});
 
                     // check all compacted file generated
                     assertThat(fs.exists(new Path(folder, "compacted-f0"))).isTrue();

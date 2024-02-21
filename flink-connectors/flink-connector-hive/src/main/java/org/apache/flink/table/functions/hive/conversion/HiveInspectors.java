@@ -33,6 +33,7 @@ import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 
 import org.apache.hadoop.hive.common.type.HiveChar;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
@@ -110,7 +111,6 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Period;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -296,7 +296,7 @@ public class HiveInspectors {
                     return null;
                 }
                 Map<Object, Object> map = (Map) o;
-                Map<Object, Object> result = new HashMap<>(map.size());
+                Map<Object, Object> result = CollectionUtil.newHashMapWithExpectedSize(map.size());
 
                 for (Map.Entry<Object, Object> entry : map.entrySet()) {
                     result.put(
@@ -418,7 +418,7 @@ public class HiveInspectors {
                 return null;
             }
 
-            Map<Object, Object> result = new HashMap<>(map.size());
+            Map<Object, Object> result = CollectionUtil.newHashMapWithExpectedSize(map.size());
             for (Map.Entry<?, ?> entry : map.entrySet()) {
                 result.put(
                         toFlinkObject(

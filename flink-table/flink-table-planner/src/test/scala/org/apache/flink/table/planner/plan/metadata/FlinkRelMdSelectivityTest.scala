@@ -34,8 +34,8 @@ import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util.ImmutableBitSet
-import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
 
 import java.util
 import java.util.Collections
@@ -670,4 +670,23 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
     assertEquals(0.5, mq.getSelectivity(testRel, pred))
   }
 
+  @Test
+  def testGetSelectivityOnWindowTableFunction(): Unit = {
+    // id in (1,3,5,7)
+    val predicate =
+      relBuilder
+        .push(windowTableFunctionScan)
+        .in(
+          relBuilder.field(0),
+          relBuilder.literal(1),
+          relBuilder.literal(3),
+          relBuilder.literal(5),
+          relBuilder.literal(7))
+    // unknown node, selectivity = 0.25 (unknown call type)
+    assertEquals(0.25, mq.getSelectivity(windowTableFunctionScan, predicate))
+    // known node, selectivity = 0.15 x 4 (4 literals)
+    Array(streamTumbleWindowTVFRel, batchTumbleWindowTVFRel).foreach {
+      tvf => assertEquals(0.6, mq.getSelectivity(tvf, predicate))
+    }
+  }
 }

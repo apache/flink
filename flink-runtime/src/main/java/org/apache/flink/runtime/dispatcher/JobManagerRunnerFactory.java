@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -27,6 +28,8 @@ import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+
+import java.util.Collection;
 
 /** Factory for a {@link JobManagerRunner}. */
 @FunctionalInterface
@@ -41,6 +44,7 @@ public interface JobManagerRunnerFactory {
             JobManagerSharedServices jobManagerServices,
             JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
             FatalErrorHandler fatalErrorHandler,
+            Collection<FailureEnricher> failureEnrichers,
             long initializationTimestamp)
             throws Exception;
 }

@@ -17,10 +17,10 @@
 ################################################################################
 import warnings
 from enum import Enum
-from typing import Dict, Union, List
+from typing import Dict, Union, List, Optional
 
-from pyflink.common import DeserializationSchema, TypeInformation, ExecutionConfig, \
-    ConfigOptions, Duration, SerializationSchema, ConfigOption
+from pyflink.common import DeserializationSchema, ConfigOptions, Duration, SerializationSchema, \
+    ConfigOption
 from pyflink.datastream.connectors import Source, Sink, DeliveryGuarantee
 from pyflink.java_gateway import get_gateway
 from pyflink.util.java_utils import load_java_class
@@ -29,99 +29,17 @@ from pyflink.util.java_utils import load_java_class
 __all__ = [
     'PulsarSource',
     'PulsarSourceBuilder',
-    'PulsarDeserializationSchema',
-    'SubscriptionType',
     'StartCursor',
     'StopCursor',
+    'RangeGenerator',
     'PulsarSink',
     'PulsarSinkBuilder',
-    'PulsarSerializationSchema',
     'MessageDelayer',
     'TopicRoutingMode'
 ]
 
 
 # ---- PulsarSource ----
-
-
-class PulsarDeserializationSchema(object):
-    """
-    A schema bridge for deserializing the pulsar's Message into a flink managed instance. We
-    support both the pulsar's self managed schema and flink managed schema.
-    """
-
-    def __init__(self, _j_pulsar_deserialization_schema):
-        self._j_pulsar_deserialization_schema = _j_pulsar_deserialization_schema
-
-    @staticmethod
-    def flink_schema(deserialization_schema: DeserializationSchema) \
-            -> 'PulsarDeserializationSchema':
-        """
-        Create a PulsarDeserializationSchema by using the flink's DeserializationSchema. It would
-        consume the pulsar message as byte array and decode the message by using flink's logic.
-        """
-        JPulsarDeserializationSchema = get_gateway().jvm.org.apache.flink \
-            .connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema
-        _j_pulsar_deserialization_schema = JPulsarDeserializationSchema.flinkSchema(
-            deserialization_schema._j_deserialization_schema)
-        return PulsarDeserializationSchema(_j_pulsar_deserialization_schema)
-
-    @staticmethod
-    def flink_type_info(type_information: TypeInformation,
-                        execution_config: ExecutionConfig = None) -> 'PulsarDeserializationSchema':
-        """
-        Create a PulsarDeserializationSchema by using the given TypeInformation. This method is
-        only used for treating message that was written into pulsar by TypeInformation.
-        """
-        JPulsarDeserializationSchema = get_gateway().jvm.org.apache.flink \
-            .connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema
-        JExecutionConfig = get_gateway().jvm.org.apache.flink.api.common.ExecutionConfig
-        _j_execution_config = execution_config._j_execution_config \
-            if execution_config is not None else JExecutionConfig()
-        _j_pulsar_deserialization_schema = JPulsarDeserializationSchema.flinkTypeInfo(
-            type_information.get_java_type_info(), _j_execution_config)
-        return PulsarDeserializationSchema(_j_pulsar_deserialization_schema)
-
-
-class SubscriptionType(Enum):
-    """
-    Types of subscription supported by Pulsar.
-
-    :data: `Exclusive`:
-
-    There can be only 1 consumer on the same topic with the same subscription name.
-
-    :data: `Shared`:
-
-    Multiple consumer will be able to use the same subscription name and the messages will be
-    dispatched according to a round-robin rotation between the connected consumers. In this mode,
-    the consumption order is not guaranteed.
-
-    :data: `Failover`:
-
-    Multiple consumer will be able to use the same subscription name but only 1 consumer will
-    receive the messages. If that consumer disconnects, one of the other connected consumers will
-    start receiving messages. In failover mode, the consumption ordering is guaranteed. In case of
-    partitioned topics, the ordering is guaranteed on a per-partition basis. The partitions
-    assignments will be split across the available consumers. On each partition, at most one
-    consumer will be active at a given point in time.
-
-    :data: `Key_Shared`:
-
-    Multiple consumer will be able to use the same subscription and all messages with the same key
-    will be dispatched to only one consumer. Use ordering_key to overwrite the message key for
-    message ordering.
-    """
-
-    Exclusive = 0,
-    Shared = 1,
-    Failover = 2,
-    Key_Shared = 3
-
-    def _to_j_subscription_type(self):
-        JSubscriptionType = get_gateway().jvm.org.apache.pulsar.client.api.SubscriptionType
-        return getattr(JSubscriptionType, self.name)
-
 
 class StartCursor(object):
     """
@@ -151,18 +69,6 @@ class StartCursor(object):
         JStartCursor = get_gateway().jvm \
             .org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor
         return StartCursor(JStartCursor.latest())
-
-    @staticmethod
-    def from_message_time(timestamp: int) -> 'StartCursor':
-        """
-        This method is designed for seeking message from event time. But Pulsar didn't support
-        seeking from message time, instead, it would seek the position from publish time. We only
-        keep this method for backward compatible.
-        """
-        warnings.warn("Deprecated in 1.16, use from_publish_time() instead.", DeprecationWarning)
-        JStartCursor = get_gateway().jvm \
-            .org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor
-        return StartCursor(JStartCursor.fromMessageTime(timestamp))
 
     @staticmethod
     def from_message_id(message_id: bytes, inclusive: bool = True) -> 'StartCursor':
@@ -296,6 +202,76 @@ class StopCursor(object):
         return StopCursor(JStopCursor.afterMessageId(j_message_id))
 
 
+class RangeGenerator(object):
+    """
+    A generator for generating the TopicRange for given topic. It was used for pulsar's
+    SubscriptionType#Key_Shared mode. TopicRange would be used in KeySharedPolicy for different
+    pulsar source readers.
+
+    If you implement this interface, make sure that each TopicRange would be assigned to a
+    specified source reader. Since flink parallelism is provided, make sure the pulsar message key's
+    hashcode is evenly distributed among these topic ranges.
+    """
+
+    def __init__(self, j_range_generator):
+        self._j_range_generator = j_range_generator
+
+    @staticmethod
+    def full() -> 'RangeGenerator':
+        """
+        Default implementation for SubscriptionType#Shared, SubscriptionType#Failover and
+        SubscriptionType#Exclusive subscription.
+        """
+        JFullRangeGenerator = get_gateway().jvm \
+            .org.apache.flink.connector.pulsar.source.enumerator.topic.range.FullRangeGenerator
+        return RangeGenerator(JFullRangeGenerator())
+
+    @staticmethod
+    def fixed_key(support_null_key: bool = False,
+                  keys: Optional[Union[str, List[str]]] = None,
+                  key_bytes: Optional[bytes] = None,
+                  ordering_key_bytes: Optional[bytes] = None) -> 'RangeGenerator':
+        """
+        Pulsar didn't expose the key hash range method. We have to provide an implementation for
+        end-user. You can add the keys you want to consume, no need to provide any hash ranges.
+
+        Since the key's hash isn't specified to only one key. The consuming results may contain the
+        messages with different keys comparing the keys you have defined in this range generator.
+        Remember to use flink's DataStream.filter() method.
+
+        :param support_null_key: Some Message in Pulsar may not have Message#getOrderingKey() or
+                                 Message#getKey(), use this method for supporting consuming such
+                                 messages.
+        :param keys: If you set the message key by using PulsarMessageBuilder#key(String) or
+                     TypedMessageBuilder#key(String), use this method for supporting consuming such
+                     messages.
+        :param key_bytes: If you set the message key by using TypedMessageBuilder#keyBytes(byte[]),
+                          use this method for supporting consuming such messages.
+        :param ordering_key_bytes: Pulsar's ordering key is prior to the message key. If you set
+                                   the ordering key by using
+                                   PulsarMessageBuilder#orderingKey(byte[]) or
+                                   TypedMessageBuilder#orderingKey(byte[]), use this method for
+                                   supporting consuming such messages.
+         * messages.
+        """
+        JFixedKeysRangeGenerator = get_gateway().jvm \
+            .org.apache.flink.connector.pulsar.source.enumerator.topic.range.FixedKeysRangeGenerator
+        j_range_generator_builder = JFixedKeysRangeGenerator.builder()
+        if support_null_key:
+            j_range_generator_builder.supportNullKey()
+        if keys is not None:
+            if isinstance(keys, str):
+                j_range_generator_builder.key(keys)
+            else:
+                for key in keys:
+                    j_range_generator_builder.key(key)
+        if key_bytes is not None:
+            j_range_generator_builder.keyBytes(key_bytes)
+        if ordering_key_bytes is not None:
+            j_range_generator_builder.orderingKey(ordering_key_bytes)
+        return RangeGenerator(j_range_generator_builder.build())
+
+
 class PulsarSource(Source):
     """
     The Source implementation of Pulsar. Please use a PulsarSourceBuilder to construct a
@@ -311,8 +287,7 @@ class PulsarSource(Source):
         ...     .set_service_url(get_service_url()) \\
         ...     .set_admin_url(get_admin_url()) \\
         ...     .set_subscription_name("test") \\
-        ...     .set_deserialization_schema(
-        ...         PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \\
+        ...     .set_deserialization_schema(SimpleStringSchema()) \\
         ...     .set_bounded_stop_cursor(StopCursor.default_stop_cursor()) \\
         ...     .build()
 
@@ -346,8 +321,7 @@ class PulsarSourceBuilder(object):
         ...     .set_admin_url(PULSAR_BROKER_HTTP_URL) \\
         ...     .set_subscription_name("flink-source-1") \\
         ...     .set_topics([TOPIC1, TOPIC2]) \\
-        ...     .set_deserialization_schema(
-        ...         PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \\
+        ...     .set_deserialization_schema(SimpleStringSchema()) \\
         ...     .build()
 
     The service url, admin url, subscription name, topics to consume, and the record deserializer
@@ -372,8 +346,7 @@ class PulsarSourceBuilder(object):
         ...     .set_admin_url(PULSAR_BROKER_HTTP_URL) \\
         ...     .set_subscription_name("flink-source-1") \\
         ...     .set_topics([TOPIC1, TOPIC2]) \\
-        ...     .set_deserialization_schema(
-        ...         PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \\
+        ...     .set_deserialization_schema(SimpleStringSchema()) \\
         ...     .set_bounded_stop_cursor(StopCursor.at_publish_time(int(time.time() * 1000)))
         ...     .build()
     """
@@ -404,16 +377,6 @@ class PulsarSourceBuilder(object):
         self._j_pulsar_source_builder.setSubscriptionName(subscription_name)
         return self
 
-    def set_subscription_type(self, subscription_type: SubscriptionType) -> 'PulsarSourceBuilder':
-        """
-        SubscriptionType is the consuming behavior for pulsar, we would generator different split
-        by the given subscription type. Please take some time to consider which subscription type
-        matches your application best. Default is SubscriptionType.Shared.
-        """
-        self._j_pulsar_source_builder.setSubscriptionType(
-            subscription_type._to_j_subscription_type())
-        return self
-
     def set_topics(self, topics: Union[str, List[str]]) -> 'PulsarSourceBuilder':
         """
         Set a pulsar topic list for flink source. Some topic may not exist currently, consuming this
@@ -426,22 +389,34 @@ class PulsarSourceBuilder(object):
         self._j_pulsar_source_builder.setTopics(topics)
         return self
 
-    def set_topics_pattern(self, topics_pattern: str) -> 'PulsarSourceBuilder':
-        """
-        Set a topic pattern to consume from the java regex str. You can set topics once either with
-        set_topics or set_topic_pattern in this builder.
-        """
-        warnings.warn("set_topics_pattern is deprecated. Use set_topic_pattern instead.",
-                      DeprecationWarning, stacklevel=2)
-        self._j_pulsar_source_builder.setTopicPattern(topics_pattern)
-        return self
-
     def set_topic_pattern(self, topic_pattern: str) -> 'PulsarSourceBuilder':
         """
         Set a topic pattern to consume from the java regex str. You can set topics once either with
         set_topics or set_topic_pattern in this builder.
         """
         self._j_pulsar_source_builder.setTopicPattern(topic_pattern)
+        return self
+
+    def set_consumer_name(self, consumer_name: str) -> 'PulsarSourceBuilder':
+        """
+        The consumer name is informative, and it can be used to identify a particular consumer
+        instance from the topic stats.
+
+        .. versionadded:: 1.17.2
+        """
+        self._j_pulsar_source_builder.setConsumerName(consumer_name)
+        return self
+
+    def set_range_generator(self, range_generator: RangeGenerator) -> 'PulsarSourceBuilder':
+        """
+        Set a topic range generator for consuming a sub set of keys.
+
+        :param range_generator: A generator which would generate a set of TopicRange for given
+                                topic.
+
+        .. versionadded:: 1.17.2
+        """
+        self._j_pulsar_source_builder.setRangeGenerator(range_generator._j_range_generator)
         return self
 
     def set_start_cursor(self, start_cursor: StartCursor) -> 'PulsarSourceBuilder':
@@ -483,18 +458,42 @@ class PulsarSourceBuilder(object):
         self._j_pulsar_source_builder.setBoundedStopCursor(stop_cursor._j_stop_cursor)
         return self
 
-    def set_deserialization_schema(self,
-                                   pulsar_deserialization_schema: PulsarDeserializationSchema) \
+    def set_deserialization_schema(self, deserialization_schema: DeserializationSchema) \
             -> 'PulsarSourceBuilder':
         """
-        DeserializationSchema is required for getting the Schema for deserialize message from
-        pulsar and getting the TypeInformation for message serialization in flink.
+        Sets the :class:`~pyflink.common.serialization.DeserializationSchema` for deserializing the
+        value of Pulsars message.
 
-        We have defined a set of implementations, using PulsarDeserializationSchema#flink_type_info
-        or PulsarDeserializationSchema#flink_schema for creating the desired schema.
+        :param deserialization_schema: the :class:`DeserializationSchema` to use for
+            deserialization.
+        :return: this PulsarSourceBuilder.
         """
         self._j_pulsar_source_builder.setDeserializationSchema(
-            pulsar_deserialization_schema._j_pulsar_deserialization_schema)
+            deserialization_schema._j_deserialization_schema)
+        return self
+
+    def set_authentication(self,
+                           auth_plugin_class_name: str,
+                           auth_params_string: Union[str, Dict[str, str]]) \
+            -> 'PulsarSourceBuilder':
+        """
+        Configure the authentication provider to use in the Pulsar client instance.
+
+        :param auth_plugin_class_name: Name of the Authentication-Plugin you want to use.
+        :param auth_params_string: String which represents parameters for the Authentication-Plugin,
+                                   e.g., "key1:val1,key2:val2".
+
+        .. versionadded:: 1.17.2
+        """
+        if isinstance(auth_params_string, str):
+            self._j_pulsar_source_builder.setAuthentication(
+                auth_plugin_class_name, auth_params_string)
+        else:
+            j_auth_params_map = get_gateway().jvm.java.util.HashMap()
+            for k, v in auth_params_string.items():
+                j_auth_params_map.put(k, v)
+            self._j_pulsar_source_builder.setAuthentication(
+                auth_plugin_class_name, j_auth_params_map)
         return self
 
     def set_config(self, key: Union[str, ConfigOption], value) -> 'PulsarSourceBuilder':
@@ -542,29 +541,6 @@ class PulsarSourceBuilder(object):
 
 
 # ---- PulsarSink ----
-
-
-class PulsarSerializationSchema(object):
-    """
-    The serialization schema for how to serialize records into Pulsar.
-    """
-
-    def __init__(self, _j_pulsar_serialization_schema):
-        self._j_pulsar_serialization_schema = _j_pulsar_serialization_schema
-
-    @staticmethod
-    def flink_schema(serialization_schema: SerializationSchema) \
-            -> 'PulsarSerializationSchema':
-        """
-        Create a PulsarSerializationSchema by using the flink's SerializationSchema. It would
-        serialize the message into byte array and send it to Pulsar with Schema#BYTES.
-        """
-        JPulsarSerializationSchema = get_gateway().jvm.org.apache.flink \
-            .connector.pulsar.sink.writer.serializer.PulsarSerializationSchema
-        _j_pulsar_serialization_schema = JPulsarSerializationSchema.flinkSchema(
-            serialization_schema._j_serialization_schema)
-        return PulsarSerializationSchema(_j_pulsar_serialization_schema)
-
 
 class TopicRoutingMode(Enum):
     """
@@ -642,8 +618,7 @@ class PulsarSink(Sink):
         ...     .set_service_url(PULSAR_BROKER_URL) \\
         ...     .set_admin_url(PULSAR_BROKER_HTTP_URL) \\
         ...     .set_topics(topic) \\
-        ...     .set_serialization_schema(
-        ...         PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \\
+        ...     .set_serialization_schema(SimpleStringSchema()) \\
         ...     .build()
 
     The sink supports all delivery guarantees described by DeliveryGuarantee.
@@ -693,8 +668,7 @@ class PulsarSinkBuilder(object):
         ...     .set_service_url(PULSAR_BROKER_URL) \\
         ...     .set_admin_url(PULSAR_BROKER_HTTP_URL) \\
         ...     .set_topics([TOPIC1, TOPIC2]) \\
-        ...     .set_serialization_schema(
-        ...         PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \\
+        ...     .set_serialization_schema(SimpleStringSchema()) \\
         ...     .build()
 
     The service url, admin url, and the record serializer are required fields that must be set. If
@@ -713,8 +687,7 @@ class PulsarSinkBuilder(object):
         ...     .set_service_url(PULSAR_BROKER_URL) \\
         ...     .set_admin_url(PULSAR_BROKER_HTTP_URL) \\
         ...     .set_topics([TOPIC1, TOPIC2]) \\
-        ...     .set_serialization_schema(
-        ...         PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \\
+        ...     .set_serialization_schema(SimpleStringSchema()) \\
         ...     .set_delivery_guarantee(DeliveryGuarantee.EXACTLY_ONCE)
         ...     .build()
     """
@@ -780,13 +753,37 @@ class PulsarSinkBuilder(object):
         self._j_pulsar_sink_builder.setTopicRouter(j_topic_router)
         return self
 
-    def set_serialization_schema(self, pulsar_serialization_schema: PulsarSerializationSchema) \
+    def set_serialization_schema(self, serialization_schema: SerializationSchema) \
             -> 'PulsarSinkBuilder':
         """
-        Sets the PulsarSerializationSchema that transforms incoming records to bytes.
+        Sets the SerializationSchema of the PulsarSinkBuilder.
         """
         self._j_pulsar_sink_builder.setSerializationSchema(
-            pulsar_serialization_schema._j_pulsar_serialization_schema)
+            serialization_schema._j_serialization_schema)
+        return self
+
+    def set_authentication(self,
+                           auth_plugin_class_name: str,
+                           auth_params_string: Union[str, Dict[str, str]]) \
+            -> 'PulsarSinkBuilder':
+        """
+        Configure the authentication provider to use in the Pulsar client instance.
+
+        :param auth_plugin_class_name: Name of the Authentication-Plugin you want to use.
+        :param auth_params_string: String which represents parameters for the Authentication-Plugin,
+                                   e.g., "key1:val1,key2:val2".
+
+        .. versionadded:: 1.17.2
+        """
+        if isinstance(auth_params_string, str):
+            self._j_pulsar_sink_builder.setAuthentication(
+                auth_plugin_class_name, auth_params_string)
+        else:
+            j_auth_params_map = get_gateway().jvm.java.util.HashMap()
+            for k, v in auth_params_string.items():
+                j_auth_params_map.put(k, v)
+            self._j_pulsar_sink_builder.setAuthentication(
+                auth_plugin_class_name, j_auth_params_map)
         return self
 
     def delay_sending_message(self, message_delayer: MessageDelayer) -> 'PulsarSinkBuilder':

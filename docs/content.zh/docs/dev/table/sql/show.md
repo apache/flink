@@ -39,12 +39,15 @@ SHOW CREATE 语句用于打印给定对象的创建 DDL 语句。当前的 SHOW 
 - SHOW TABLES
 - SHOW CREATE TABLE
 - SHOW COLUMNS
+- SHOW PARTITIONS
+- SHOW PROCEDURES
 - SHOW VIEWS
 - SHOW CREATE VIEW
 - SHOW FUNCTIONS
 - SHOW MODULES
 - SHOW FULL MODULES
 - SHOW JARS
+- SHOW JOBS
 
 
 ## 执行 SHOW 语句
@@ -504,7 +507,7 @@ SHOW CURRENT CATALOG
 ## SHOW DATABASES
 
 ```sql
-SHOW DATABASES
+SHOW DATABASES [ ( FROM | IN ) catalog_name] [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]
 ```
 
 展示当前 catalog 中所有的 database。
@@ -605,7 +608,7 @@ show tables;
 ## SHOW CREATE TABLE
 
 ```sql
-SHOW CREATE TABLE [catalog_name.][db_name.]table_name
+SHOW CREATE TABLE [[catalog_name.]db_name.]table_name
 ```
 
 展示创建指定表的 create 语句。
@@ -623,7 +626,7 @@ CREATE TABLE orders (
   ts TIMESTAMP(3) comment 'notice: watermark, named ''ts''.',
   ptime AS PROCTIME() comment 'notice: computed column, named ''ptime''.',
   WATERMARK FOR ts AS ts - INTERVAL '1' SECOND,
-  CONSTRAINT `PK_3599338` PRIMARY KEY (order_id) NOT ENFORCED
+  CONSTRAINT `PK_order_id` PRIMARY KEY (order_id) NOT ENFORCED
 ) WITH (
   'connector' = 'datagen'
 );
@@ -641,7 +644,7 @@ show create table orders;
   `ts` TIMESTAMP(3) COMMENT 'notice: watermark, named ''ts''.',
   `ptime` AS PROCTIME() COMMENT 'notice: computed column, named ''ptime''.',
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
-  CONSTRAINT `PK_3599338` PRIMARY KEY (`order_id`) NOT ENFORCED
+  CONSTRAINT `PK_order_id` PRIMARY KEY (`order_id`) NOT ENFORCED
 ) WITH (
   'connector' = 'datagen'
 )
@@ -740,6 +743,84 @@ show columns from orders not like '%_r';
 4 rows in set
 ```
 
+## SHOW PARTITIONS
+
+```sql
+SHOW PARTITIONS [[catalog_name.]database.]<table_name> [ PARTITION <partition_spec>]
+
+<partition_spec>:
+  (key1=val1, key2=val2, ...)
+```
+
+展示给定分区表的所有分区。
+
+**PARTITION**
+根据可选的 `PARTITION` 语句展示给定分区表中在指定的 `<partition_spec>` 分区下的所有分区。
+
+### SHOW PARTITIONS 示例
+
+假定在 `catalog1` catalog 中的 `database1` 数据库中有名为 `table1` 的分区表，其包含的所有分区如下所示：
+
+```sql
++---------+-----------------------------+
+|      id |                        date |
++---------+-----------------------------+
+|    1001 |                  2020-01-01 |
+|    1002 |                  2020-01-01 |
+|    1002 |                  2020-01-02 |
++---------+-----------------------------+
+```
+
+- 显示指定分区表中的所有分区。
+
+```sql
+show partitions table1;
+-- show partitions database1.table1;
+-- show partitions catalog1.database1.table1;
++---------+-----------------------------+
+|      id |                        date |
++---------+-----------------------------+
+|    1001 |                  2020-01-01 |
+|    1002 |                  2020-01-01 |
+|    1002 |                  2020-01-02 |
++---------+-----------------------------+
+3 rows in set
+```
+
+- 显示指定分区表在指定分区下的所有分区。
+
+```sql
+show partitions table1 partition (id=1002);
+-- show partitions database1.table1 partition (id=1002);
+-- show partitions catalog1.database1.table1 partition (id=1002);
++---------+-----------------------------+
+|      id |                        date |
++---------+-----------------------------+
+|    1002 |                  2020-01-01 |
+|    1002 |                  2020-01-02 |
++---------+-----------------------------+
+2 rows in set
+```
+
+## SHOW PROCEDURES
+
+```sql
+SHOW PROCEDURES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]	
+```
+
+展示指定 catalog 和 database 下的所有 procedure。
+如果没有指定 catalog 和 database，则将使用当前 catalog 和 当前 database。另外可以用 `<sql_like_pattern>` 来过滤要返回的 procedure。
+
+**LIKE**
+根据可选的 `LIKE` 语句与 `<sql_like_pattern>` 是否模糊匹配的所有 procedure。
+
+`LIKE` 子句中 SQL 正则式的语法与 `MySQL` 方言中的语法相同。
+* `%` 匹配任意数量的字符, 也包括0数量字符, `\%` 匹配一个 `%` 字符.
+* `_` 只匹配一个字符, `\_` 匹配一个 `_` 字符.
+
+**ILIKE**
+它的行为和 LIKE 相同，只是对于大小写是不敏感的。
+
 ## SHOW VIEWS
 
 ```sql
@@ -759,13 +840,24 @@ SHOW CREATE VIEW [catalog_name.][db_name.]view_name
 ## SHOW FUNCTIONS
 
 ```sql
-SHOW [USER] FUNCTIONS
+SHOW [USER] FUNCTIONS [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]
 ```
 
-展示当前 catalog 和当前 database 中所有的 function，包括：系统 function 和用户定义的 function。
+展示指定 catalog 和 database 下的所有 function，包括：系统 function 和用户定义的 function。
+如果没有指定 catalog 和 database，则将使用当前 catalog 和 当前 database。另外可以用 `<sql_like_pattern>` 来过滤要返回的 function。
 
 **USER**
-仅仅展示当前 catalog 和当前 database 中用户定义的 function。
+仅展示用户定义的 function, 另外可以用 `<sql_like_pattern>` 来过滤要返回的 function。
+
+**LIKE**
+根据可选的 `LIKE` 语句与 `<sql_like_pattern>` 是否模糊匹配的所有 function。
+
+`LIKE` 子句中 SQL 正则式的语法与 `MySQL` 方言中的语法相同。
+* `%` 匹配任意数量的字符, 也包括0数量字符, `\%` 匹配一个 `%` 字符.
+* `_` 只匹配一个字符, `\_` 匹配一个 `_` 字符.
+
+**ILIKE**
+它的行为和 LIKE 相同，只是对于大小写是不敏感的。
 
 ## SHOW MODULES
 

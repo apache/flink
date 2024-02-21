@@ -27,12 +27,12 @@ import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -97,8 +97,10 @@ final class HeapSnapshotResources<K> implements FullSnapshotResources<K> {
                         + " states are supported");
 
         final List<StateMetaInfoSnapshot> metaInfoSnapshots = new ArrayList<>(numStates);
-        final Map<StateUID, Integer> stateNamesToId = new HashMap<>(numStates);
-        final Map<StateUID, StateSnapshot> cowStateStableSnapshots = new HashMap<>(numStates);
+        final Map<StateUID, Integer> stateNamesToId =
+                CollectionUtil.newHashMapWithExpectedSize(numStates);
+        final Map<StateUID, StateSnapshot> cowStateStableSnapshots =
+                CollectionUtil.newHashMapWithExpectedSize(numStates);
 
         processSnapshotMetaInfoForAllStates(
                 metaInfoSnapshots,

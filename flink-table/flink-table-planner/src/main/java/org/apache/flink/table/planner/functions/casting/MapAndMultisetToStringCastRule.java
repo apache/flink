@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
@@ -147,15 +148,15 @@ class MapAndMultisetToStringCastRule
                 inputLogicalType.is(LogicalTypeRoot.MULTISET)
                         ? new IntType(false)
                         : ((MapType) inputLogicalType).getValueType();
-
-        final String builderTerm = newName("builder");
+        CodeGeneratorContext codeGeneratorContext = context.getCodeGeneratorContext();
+        final String builderTerm = newName(codeGeneratorContext, "builder");
         context.declareClassField(
                 className(StringBuilder.class), builderTerm, constructorCall(StringBuilder.class));
 
-        final String keyArrayTerm = newName("keys");
-        final String valueArrayTerm = newName("values");
+        final String keyArrayTerm = newName(codeGeneratorContext, "keys");
+        final String valueArrayTerm = newName(codeGeneratorContext, "values");
 
-        final String resultStringTerm = newName("resultString");
+        final String resultStringTerm = newName(codeGeneratorContext, "resultString");
         final int length = LogicalTypeChecks.getLength(targetLogicalType);
 
         CastRuleUtils.CodeWriter writer =
@@ -170,10 +171,12 @@ class MapAndMultisetToStringCastRule
                         .forStmt(
                                 methodCall(inputTerm, "size"),
                                 (indexTerm, loopBodyWriter) -> {
-                                    String keyTerm = newName("key");
-                                    String keyIsNullTerm = newName("keyIsNull");
-                                    String valueTerm = newName("value");
-                                    String valueIsNullTerm = newName("valueIsNull");
+                                    String keyTerm = newName(codeGeneratorContext, "key");
+                                    String keyIsNullTerm =
+                                            newName(codeGeneratorContext, "keyIsNull");
+                                    String valueTerm = newName(codeGeneratorContext, "value");
+                                    String valueIsNullTerm =
+                                            newName(codeGeneratorContext, "valueIsNull");
 
                                     CastCodeBlock keyCast =
                                             // Null check is done at the key array access level
@@ -282,7 +285,8 @@ class MapAndMultisetToStringCastRule
                                                                                 context
                                                                                         .legacyBehaviour()))));
                                     }
-                                })
+                                },
+                                codeGeneratorContext)
                         .stmt(methodCall(builderTerm, "append", strLiteral("}")));
 
         return CharVarCharTrimPadCastRule.padAndTrimStringIfNeeded(
@@ -291,7 +295,8 @@ class MapAndMultisetToStringCastRule
                         context.legacyBehaviour(),
                         length,
                         resultStringTerm,
-                        builderTerm)
+                        builderTerm,
+                        codeGeneratorContext)
                 // Assign the result value
                 .assignStmt(
                         returnVariable,

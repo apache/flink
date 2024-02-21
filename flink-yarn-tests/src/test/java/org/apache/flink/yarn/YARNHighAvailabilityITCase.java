@@ -46,7 +46,7 @@ import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 import org.apache.flink.yarn.testjob.YarnTestJob;
 import org.apache.flink.yarn.util.TestUtils;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -68,7 +68,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,6 +91,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.FIXED_DELAY;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -151,7 +151,6 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
      * Tests that Yarn will restart a killed {@link YarnSessionClusterEntrypoint} which will then
      * resume a persisted {@link JobGraph}.
      */
-    @Timeout(value = 30, unit = TimeUnit.MINUTES)
     @Test
     void testKillYarnSessionClusterEntrypoint() throws Exception {
         runTest(
@@ -189,7 +188,6 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
                 });
     }
 
-    @Timeout(value = 30, unit = TimeUnit.MINUTES)
     @Test
     void testJobRecoversAfterKillingTaskManager() throws Exception {
         runTest(
@@ -215,7 +213,6 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
      * Tests that we can retrieve an HA enabled cluster by only specifying the application id if no
      * other high-availability.cluster-id has been configured. See FLINK-20866.
      */
-    @Timeout(value = 30, unit = TimeUnit.MINUTES)
     @Test
     void testClusterClientRetrieval() throws Exception {
         runTest(
@@ -331,15 +328,15 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
         final Configuration flinkConfiguration = new Configuration();
         flinkConfiguration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(768));
         flinkConfiguration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
-        flinkConfiguration.setString(YarnConfigOptions.APPLICATION_ATTEMPTS, "10");
-        flinkConfiguration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-        flinkConfiguration.setString(HighAvailabilityOptions.HA_STORAGE_PATH, storageDir);
-        flinkConfiguration.setString(
+        flinkConfiguration.set(YarnConfigOptions.APPLICATION_ATTEMPTS, "10");
+        flinkConfiguration.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
+        flinkConfiguration.set(HighAvailabilityOptions.HA_STORAGE_PATH, storageDir);
+        flinkConfiguration.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
-        flinkConfiguration.setInteger(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, 20000);
+        flinkConfiguration.set(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, 20000);
 
-        flinkConfiguration.setString(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
-        flinkConfiguration.setInteger(
+        flinkConfiguration.set(RestartStrategyOptions.RESTART_STRATEGY, FIXED_DELAY.getMainValue());
+        flinkConfiguration.set(
                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
 
         return createYarnClusterDescriptor(flinkConfiguration);

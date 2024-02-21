@@ -23,6 +23,11 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static org.apache.flink.examples.java.util.DataSetDeprecationInfo.DATASET_DEPRECATION_INFO;
+
 /**
  * Estimates the value of Pi using the Monte Carlo method. The area of a circle is Pi * R^2, R being
  * the radius of the circle The area of a square is 4 * R^2, where the length of the square's edge
@@ -40,11 +45,19 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  *
  * x * x + y * y < 1
  * }</pre>
+ *
+ * <p>Note: All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future
+ * Flink major version. You can still build your application in DataSet, but you should move to
+ * either the DataStream and/or Table API. This class is retained for testing purposes.
  */
 @SuppressWarnings("serial")
 public class PiEstimation implements java.io.Serializable {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(PiEstimation.class);
+
     public static void main(String[] args) throws Exception {
+
+        LOGGER.warn(DATASET_DEPRECATION_INFO);
 
         final long numSamples = args.length > 0 ? Long.parseLong(args[0]) : 1000000;
 

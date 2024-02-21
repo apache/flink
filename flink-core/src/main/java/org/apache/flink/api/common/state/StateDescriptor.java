@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.SerializerFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -227,7 +228,10 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
      *
      * @param queryableStateName State name for queries (unique name per job)
      * @throws IllegalStateException If queryable state name already set
+     * @deprecated The Queryable State feature is deprecated since Flink 1.18, and will be removed
+     *     in a future Flink major version.
      */
+    @Deprecated
     public void setQueryable(String queryableStateName) {
         Preconditions.checkArgument(
                 ttlConfig.getUpdateType() == StateTtlConfig.UpdateType.Disabled,
@@ -244,8 +248,11 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
      * Returns the queryable state name.
      *
      * @return Queryable state name or <code>null</code> if not set.
+     * @deprecated The Queryable State feature is deprecated since Flink 1.18, and will be removed
+     *     in a future Flink major version.
      */
     @Nullable
+    @Deprecated
     public String getQueryableStateName() {
         return queryableStateName;
     }
@@ -254,7 +261,10 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
      * Returns whether the state created from this descriptor is queryable.
      *
      * @return <code>true</code> if state is queryable, <code>false</code> otherwise.
+     * @deprecated The Queryable State feature is deprecated since Flink 1.18, and will be removed
+     *     in a future Flink major version.
      */
+    @Deprecated
     public boolean isQueryable() {
         return queryableStateName != null;
     }
@@ -305,10 +315,25 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
      * @param executionConfig The execution config to use when creating the serializer.
      */
     public void initializeSerializerUnlessSet(ExecutionConfig executionConfig) {
+        initializeSerializerUnlessSet(
+                new SerializerFactory() {
+                    @Override
+                    public <T> TypeSerializer<T> createSerializer(
+                            TypeInformation<T> typeInformation) {
+                        return typeInformation.createSerializer(
+                                executionConfig == null
+                                        ? null
+                                        : executionConfig.getSerializerConfig());
+                    }
+                });
+    }
+
+    @Internal
+    public void initializeSerializerUnlessSet(SerializerFactory serializerFactory) {
         if (serializerAtomicReference.get() == null) {
             checkState(typeInfo != null, "no serializer and no type info");
             // try to instantiate and set the serializer
-            TypeSerializer<T> serializer = typeInfo.createSerializer(executionConfig);
+            TypeSerializer<T> serializer = serializerFactory.createSerializer(typeInfo);
             // use cas to assure the singleton
             if (!serializerAtomicReference.compareAndSet(null, serializer)) {
                 LOG.debug("Someone else beat us at initializing the serializer.");

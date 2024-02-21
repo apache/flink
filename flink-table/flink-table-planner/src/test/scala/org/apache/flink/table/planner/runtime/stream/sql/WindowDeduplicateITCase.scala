@@ -25,17 +25,17 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.ConcatDistinctAggFunction
 import org.apache.flink.table.planner.runtime.utils.{FailingCollectionSource, StreamingWithStateTestBase, TestData, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
-import org.junit.Assert.assertEquals
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class WindowDeduplicateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     // enable checkpoint, we are using failing source to force have a complete checkpoint
@@ -65,7 +65,7 @@ class WindowDeduplicateITCase(mode: StateBackendMode) extends StreamingWithState
     tEnv.createFunction("concat_distinct_agg", classOf[ConcatDistinctAggFunction])
   }
 
-  @Test
+  @TestTemplate
   def testTumbleWindowKeepLastRow(): Unit = {
     val sql =
       s"""
@@ -92,7 +92,7 @@ class WindowDeduplicateITCase(mode: StateBackendMode) extends StreamingWithState
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected =
@@ -110,10 +110,11 @@ class WindowDeduplicateITCase(mode: StateBackendMode) extends StreamingWithState
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
           "2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999"
       )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testTumbleWindowKeepFirstRow(): Unit = {
     val sql =
       s"""
@@ -140,7 +141,7 @@ class WindowDeduplicateITCase(mode: StateBackendMode) extends StreamingWithState
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected =
@@ -158,10 +159,11 @@ class WindowDeduplicateITCase(mode: StateBackendMode) extends StreamingWithState
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
           "2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999"
       )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testTumbleWindowKeepLastRowWithCalc(): Unit = {
     val sql =
       """
@@ -183,7 +185,7 @@ class WindowDeduplicateITCase(mode: StateBackendMode) extends StreamingWithState
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected =
@@ -195,10 +197,11 @@ class WindowDeduplicateITCase(mode: StateBackendMode) extends StreamingWithState
         "7,null,null,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999",
         "1,Comment#3,b,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999"
       )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testCumulateWindowKeepLastRow(): Unit = {
     val sql =
       s"""
@@ -229,7 +232,7 @@ class WindowDeduplicateITCase(mode: StateBackendMode) extends StreamingWithState
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected =
@@ -263,6 +266,7 @@ class WindowDeduplicateITCase(mode: StateBackendMode) extends StreamingWithState
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
           "2020-10-10T00:00:30,2020-10-10T00:00:45,2020-10-10T00:00:44.999"
       )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 }

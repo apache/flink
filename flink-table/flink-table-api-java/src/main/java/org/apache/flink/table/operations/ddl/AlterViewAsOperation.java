@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
 /** Operation to describe an ALTER VIEW ... AS ... statement. */
+@Internal
 public class AlterViewAsOperation extends AlterViewOperation {
 
     private final CatalogView newView;

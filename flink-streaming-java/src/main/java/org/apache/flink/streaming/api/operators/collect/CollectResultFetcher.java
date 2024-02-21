@@ -48,8 +48,6 @@ import java.util.concurrent.TimeoutException;
 public class CollectResultFetcher<T> {
 
     private static final int DEFAULT_RETRY_MILLIS = 100;
-    private static final long DEFAULT_ACCUMULATOR_GET_MILLIS = 10000;
-
     private static final Logger LOG = LoggerFactory.getLogger(CollectResultFetcher.class);
 
     private final AbstractCollectResultBuffer<T> buffer;
@@ -57,6 +55,7 @@ public class CollectResultFetcher<T> {
     private final CompletableFuture<OperatorID> operatorIdFuture;
     private final String accumulatorName;
     private final int retryMillis;
+    private final long resultFetchTimeout;
 
     @Nullable private JobClient jobClient;
     @Nullable private CoordinationRequestGateway gateway;
@@ -67,20 +66,23 @@ public class CollectResultFetcher<T> {
     public CollectResultFetcher(
             AbstractCollectResultBuffer<T> buffer,
             CompletableFuture<OperatorID> operatorIdFuture,
-            String accumulatorName) {
-        this(buffer, operatorIdFuture, accumulatorName, DEFAULT_RETRY_MILLIS);
+            String accumulatorName,
+            long resultFetchTimeout) {
+        this(buffer, operatorIdFuture, accumulatorName, DEFAULT_RETRY_MILLIS, resultFetchTimeout);
     }
 
     CollectResultFetcher(
             AbstractCollectResultBuffer<T> buffer,
             CompletableFuture<OperatorID> operatorIdFuture,
             String accumulatorName,
-            int retryMillis) {
+            int retryMillis,
+            long resultFetchTimeout) {
         this.buffer = buffer;
 
         this.operatorIdFuture = operatorIdFuture;
         this.accumulatorName = accumulatorName;
         this.retryMillis = retryMillis;
+        this.resultFetchTimeout = resultFetchTimeout;
 
         this.jobTerminated = false;
         this.closed = false;
@@ -128,12 +130,13 @@ public class CollectResultFetcher<T> {
                 try {
                     response = sendRequest(buffer.getVersion(), requestOffset);
                 } catch (Exception e) {
-                    if (ExceptionUtils.findThrowable(
-                                    e, UnavailableDispatcherOperationException.class)
+                    if (ExceptionUtils.findThrowableWithMessage(
+                                    e, UnavailableDispatcherOperationException.class.getName())
                             .isPresent()) {
                         LOG.debug(
                                 "The job execution has not started yet; cannot fetch results.", e);
-                    } else if (ExceptionUtils.findThrowable(e, FlinkJobNotFoundException.class)
+                    } else if (ExceptionUtils.findThrowableWithMessage(
+                                    e, FlinkJobNotFoundException.class.getName())
                             .isPresent()) {
                         LOG.debug(
                                 "The job cannot be found. It is very likely that the job is not in a RUNNING state.",
@@ -179,7 +182,7 @@ public class CollectResultFetcher<T> {
             executionResult =
                     jobClient
                             .getJobExecutionResult()
-                            .get(DEFAULT_ACCUMULATOR_GET_MILLIS, TimeUnit.MILLISECONDS);
+                            .get(resultFetchTimeout, TimeUnit.MILLISECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new IOException("Failed to fetch job execution result", e);
         }

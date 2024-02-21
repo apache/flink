@@ -21,23 +21,51 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 
-import java.io.IOException;
-
-/** The producer-side agent of a Tier. */
-public interface TierProducerAgent {
+/**
+ * The producer-side agent of a Tier.
+ *
+ * <p>Note that when writing a buffer to a tier, the {@link TierProducerAgent} should first call
+ * {@code tryStartNewSegment} to start a new segment. The agent can then continue writing the buffer
+ * to the tier as long as the return value of {@code write} is true. If the return value of {@code
+ * write} is false, it indicates that the current segment can no longer store the buffer, and the
+ * agent should try to start a new segment before writing the buffer.
+ */
+public interface TierProducerAgent extends AutoCloseable {
 
     /**
      * Try to start a new segment in the Tier.
      *
      * @param subpartitionId subpartition id that the new segment belongs to
      * @param segmentId id of the new segment
+     * @param minNumBuffers the minimum number of buffers that are expected to be written to the
+     *     newly created segment.
      * @return true if the segment can be started, false otherwise.
      */
-    boolean tryStartNewSegment(TieredStorageSubpartitionId subpartitionId, int segmentId);
+    boolean tryStartNewSegment(
+            TieredStorageSubpartitionId subpartitionId, int segmentId, int minNumBuffers);
 
-    /** Writes the finished {@link Buffer} to the consumer. */
-    boolean write(TieredStorageSubpartitionId subpartitionId, Buffer finishedBuffer)
-            throws IOException;
+    /**
+     * Writes the finished {@link Buffer} to the consumer.
+     *
+     * <p>Note that the method is successfully executed (without throwing any exception), the buffer
+     * should be released by the caller, otherwise the tier should be responsible to recycle the
+     * buffer.
+     *
+     * @param subpartitionId the subpartition id that the buffer is writing to
+     * @param finishedBuffer the writing buffer
+     * @param bufferOwner the current owner of this writing buffer
+     * @param numRemainingConsecutiveBuffers number of buffers that would be passed in the following
+     *     invocations and should be written to the same segment as this one
+     * @return return true if the buffer is written successfully, return false if the current
+     *     segment can not store this buffer(and the following consecutive ones) and the current
+     *     segment is finished. When returning false, the agent should try start a new segment
+     *     before writing the buffer.
+     */
+    boolean tryWrite(
+            TieredStorageSubpartitionId subpartitionId,
+            Buffer finishedBuffer,
+            Object bufferOwner,
+            int numRemainingConsecutiveBuffers);
 
     /**
      * Close the agent.

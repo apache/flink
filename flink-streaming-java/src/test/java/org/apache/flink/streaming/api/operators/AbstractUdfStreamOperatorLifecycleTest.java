@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
@@ -111,7 +112,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 
     private static final String ALL_METHODS_RICH_FUNCTION =
             "[close[], getIterationRuntimeContext[], getRuntimeContext[]"
-                    + ", open[class org.apache.flink.configuration.Configuration], setRuntimeContext[interface "
+                    + ", open[class org.apache.flink.configuration.Configuration], open[interface org.apache.flink.api.common.functions.OpenContext], setRuntimeContext[interface "
                     + "org.apache.flink.api.common.functions.RuntimeContext]]";
 
     private static final List<String> ACTUAL_ORDER_TRACKING =
@@ -234,9 +235,9 @@ public class AbstractUdfStreamOperatorLifecycleTest {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             ACTUAL_ORDER_TRACKING.add("UDF::open");
-            super.open(parameters);
+            super.open(openContext);
         }
 
         @Override

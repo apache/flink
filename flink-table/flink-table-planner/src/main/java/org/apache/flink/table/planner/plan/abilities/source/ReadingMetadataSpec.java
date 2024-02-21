@@ -77,6 +77,11 @@ public final class ReadingMetadataSpec extends SourceAbilitySpecBase {
     }
 
     @Override
+    public boolean needAdjustFieldReferenceAfterProjection() {
+        return false;
+    }
+
+    @Override
     public String getDigests(SourceAbilityContext context) {
         return String.format("metadata=[%s]", String.join(", ", this.metadataKeys));
     }

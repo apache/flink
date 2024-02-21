@@ -110,13 +110,12 @@ public class CoordinatedSourceRescaleITCase extends TestLogger {
     private StreamExecutionEnvironment createEnv(
             File checkpointDir, @Nullable File restoreCheckpoint, int p) {
         Configuration conf = new Configuration();
-        conf.setString(
-                CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
+        conf.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
         conf.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4kb"));
         if (restoreCheckpoint != null) {
             conf.set(SavepointConfigOptions.SAVEPOINT_PATH, restoreCheckpoint.toURI().toString());
         }
-        conf.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, p);
+        conf.set(TaskManagerOptions.NUM_TASK_SLOTS, p);
 
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(conf);

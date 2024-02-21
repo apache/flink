@@ -63,7 +63,6 @@ import org.apache.calcite.sql.`type`.{SqlTypeName, SqlTypeUtil}
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.validate.SqlMonotonicity
-import org.apache.calcite.tools.RelBuilder
 
 import java.time.Duration
 import java.util
@@ -280,19 +279,19 @@ object AggregateUtil extends Enumeration {
       typeFactory: FlinkTypeFactory,
       inputRowType: RowType,
       aggCalls: Seq[AggregateCall],
+      needRetraction: Boolean,
       windowSpec: WindowSpec,
       isStateBackendDataViews: Boolean): AggregateInfoList = {
-    // Hopping window requires additional COUNT(*) to determine  whether to register next timer
-    // through whether the current fired window is empty, see SliceSharedWindowAggProcessor.
-    val needInputCount = windowSpec.isInstanceOf[HoppingWindowSpec]
+    // Hopping window always requires additional COUNT(*) to determine whether to register next
+    // timer through whether the current fired window is empty, see SliceSharedWindowAggProcessor.
+    val needInputCount = windowSpec.isInstanceOf[HoppingWindowSpec] || needRetraction
     val aggSize = if (needInputCount) {
       // we may insert a count(*) when need input count
       aggCalls.length + 1
     } else {
       aggCalls.length
     }
-    // TODO: derive retraction flags from ChangelogMode trait when we support retraction for window
-    val aggCallNeedRetractions = new Array[Boolean](aggSize)
+    val aggCallNeedRetractions = Array.fill(aggSize)(needRetraction)
     transformToAggregateInfoList(
       typeFactory,
       inputRowType,
@@ -850,7 +849,7 @@ object AggregateUtil extends Enumeration {
             call.getAggregation,
             false,
             false,
-            false,
+            call.ignoreNulls,
             call.getArgList,
             -1, // remove filterArg
             null,
@@ -953,9 +952,10 @@ object AggregateUtil extends Enumeration {
         aggCall.getAggregation match {
           case _: SqlCountAggFunction | _: SqlAvgAggFunction | _: SqlMinMaxAggFunction |
               _: SqlSumAggFunction | _: SqlSumEmptyIsZeroAggFunction |
-              _: SqlSingleValueAggFunction | _: SqlListAggFunction =>
+              _: SqlSingleValueAggFunction =>
             true
-          case _: SqlFirstLastValueAggFunction => aggCall.getArgList.size() == 1
+          case _: SqlFirstLastValueAggFunction | _: SqlListAggFunction =>
+            aggCall.getArgList.size() == 1
           case _ => false
         }
     }
@@ -1103,24 +1103,6 @@ object AggregateUtil extends Enumeration {
     }
     val distinctBufferNames = aggInfoList.distinctInfos.indices.map(i => s"distinct$$$i")
     (aggBufferNames ++ distinctBufferNames).toArray
-  }
-
-  /** Creates a MiniBatch trigger depends on the config. */
-  def createMiniBatchTrigger(config: ReadableConfig): CountBundleTrigger[RowData] = {
-    val size = config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE)
-    if (size <= 0) {
-      throw new IllegalArgumentException(
-        ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE + " must be > 0.")
-    }
-    new CountBundleTrigger[RowData](size)
-  }
-
-  /** Compute field index of given timeField expression. */
-  def timeFieldIndex(
-      inputType: RelDataType,
-      relBuilder: RelBuilder,
-      timeField: FieldReferenceExpression): Int = {
-    relBuilder.values(inputType).field(timeField.getName).getIndex
   }
 
   /** Computes the positions of (window start, window end, row time). */

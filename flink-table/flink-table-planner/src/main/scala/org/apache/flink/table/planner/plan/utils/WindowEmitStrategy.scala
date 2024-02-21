@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.{JBoolean, JLong}
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SessionGroupWindow}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.isRowtimeAttribute
 import org.apache.flink.table.runtime.operators.window.TimeWindow
-import org.apache.flink.table.runtime.operators.window.triggers._
+import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.{ElementTriggers, EventTimeTriggers, ProcessingTimeTriggers, Trigger}
 
 import java.time.Duration
 

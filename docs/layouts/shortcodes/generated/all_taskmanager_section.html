@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>minicluster.number-of-taskmanagers</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The number of task managers of MiniCluster.</td>
+        </tr>
+        <tr>
             <td><h5>task.cancellation.interval</h5></td>
             <td style="word-wrap: break-word;">30000</td>
             <td>Long</td>
@@ -25,6 +31,24 @@
             <td style="word-wrap: break-word;">7500</td>
             <td>Long</td>
             <td>Time we wait for the timers in milliseconds to finish all pending timer threads when the stream task is cancelled.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.bind-host</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The local address of the network interface that the task manager binds to. If not configured, '0.0.0.0' will be used.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.collect-sink.port</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>The port used for the client to retrieve query results from the TaskManager. The default value is 0, which corresponds to a random port assignment.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.data.bind-port</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The task manager's bind port used for data exchange operations. Also accepts a list of ports (“50100,50101”), ranges (“50100-50200”) or a combination of both. If not configured, 'taskmanager.data.port' will be used.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.data.port</h5></td>
@@ -61,6 +85,18 @@
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>Whether to kill the TaskManager when the task thread throws an OutOfMemoryError.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.load-balance.mode</h5></td>
+            <td style="word-wrap: break-word;">NONE</td>
+            <td><p>Enum</p></td>
+            <td>Mode for the load-balance allocation strategy across all available <code class="highlighter-rouge">TaskManagers</code>.<ul><li>The <code class="highlighter-rouge">SLOTS</code> mode tries to spread out the slots evenly across all available <code class="highlighter-rouge">TaskManagers</code>.</li><li>The <code class="highlighter-rouge">NONE</code> mode is the default mode without any specified strategy.</li></ul><br /><br />Possible values:<ul><li>"NONE"</li><li>"SLOTS"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.log.path</h5></td>
+            <td style="word-wrap: break-word;">System.getProperty("log.file")</td>
+            <td>String</td>
+            <td>The path to the log file of the task manager.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.memory.min-segment-size</h5></td>
@@ -100,16 +136,46 @@
             <td>The TaskManager's ResourceID. If not configured, the ResourceID will be generated with the "RpcAddress:RpcPort" and a 6-character random string. Notice that this option is not valid in Yarn and Native Kubernetes mode.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.rpc.bind-port</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The local RPC port that the TaskManager binds to. If not configured, the external port (configured by 'taskmanager.rpc.port') will be used.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.rpc.port</h5></td>
             <td style="word-wrap: break-word;">"0"</td>
             <td>String</td>
             <td>The external RPC port where the TaskManager is exposed. Accepts a list of ports (“50100,50101”), ranges (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid collisions when multiple TaskManagers are running on the same machine.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.runtime.fs-timeout</h5></td>
+            <td style="word-wrap: break-word;">0 ms</td>
+            <td>Duration</td>
+            <td>The timeout for filesystem stream opening. A value of 0 indicates infinite waiting.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.slot.timeout</h5></td>
             <td style="word-wrap: break-word;">10 s</td>
             <td>Duration</td>
-            <td>Timeout used for identifying inactive slots. The TaskManager will free the slot if it does not become active within the given amount of time. Inactive slots can be caused by an out-dated slot request. If no value is configured, then it will fall back to <code class="highlighter-rouge">akka.ask.timeout</code>.</td>
+            <td>Timeout used for identifying inactive slots. The TaskManager will free the slot if it does not become active within the given amount of time. Inactive slots can be caused by an out-dated slot request. If no value is configured, then it will fall back to <code class="highlighter-rouge">pekko.ask.timeout</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.system-out.log.cache-upper-size</h5></td>
+            <td style="word-wrap: break-word;">100 kb</td>
+            <td>MemorySize</td>
+            <td>The cache upper size when Flink caches current line context of <code class="highlighter-rouge">System.out</code> or <code class="highlighter-rouge">System.err</code> when <code class="highlighter-rouge">taskmanager.system-out.mode</code> is LOG.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.system-out.log.thread-name.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to log the thread name when <code class="highlighter-rouge">taskmanager.system-out.mode</code> is LOG.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.system-out.mode</h5></td>
+            <td style="word-wrap: break-word;">DEFAULT</td>
+            <td><p>Enum</p></td>
+            <td>Redirection mode of <code class="highlighter-rouge">System.out</code> and <code class="highlighter-rouge">System.err</code> for all <code class="highlighter-rouge">TaskManagers</code>.<ul><li><code class="highlighter-rouge">DEFAULT</code>: <code class="highlighter-rouge">TaskManagers</code> don't redirect the <code class="highlighter-rouge">System.out</code> and <code class="highlighter-rouge">System.err</code>, it's the default value.</li><li><code class="highlighter-rouge">LOG</code>: <code class="highlighter-rouge">TaskManagers</code> redirect <code class="highlighter-rouge">System.out</code> and <code class="highlighter-rouge">System.err</code> to LOG.info and LOG.error.</li><li><code class="highlighter-rouge">IGNORE</code>: <code class="highlighter-rouge">TaskManagers</code> ignore <code class="highlighter-rouge">System.out</code> and <code class="highlighter-rouge">System.err</code> directly.</li></ul><br /><br />Possible values:<ul><li>"DEFAULT"</li><li>"LOG"</li><li>"IGNORE"</li></ul></td>
         </tr>
     </tbody>
 </table>

@@ -33,10 +33,10 @@ LogicalIntersect(all=[false])
       <![CDATA[
 HashAggregate(isMerge=[false], groupBy=[a, b, c], select=[a, b, c])
 +- Exchange(distribution=[keep_input_as_is[hash[a, b, c]]])
-   +- HashJoin(joinType=[LeftSemiJoin], where=[(((a = a0) OR (a IS NULL AND a0 IS NULL)) AND ((b = b0) OR (b IS NULL AND b0 IS NULL)) AND ((c = c0) OR (c IS NULL AND c0 IS NULL)))], select=[a, b, c], build=[left])
-      :- Exchange(distribution=[hash[a, b, c]])
+   +- HashJoin(joinType=[LeftSemiJoin], where=[(((a = a0) OR (a IS NULL AND a0 IS NULL)) AND ((b = b0) OR (b IS NULL AND b0 IS NULL)) AND ((c = c0) OR (c IS NULL AND c0 IS NULL)))], select=[a, b, c], build=[right])
+      :- Exchange(distribution=[hash[a, b, c]], shuffle_mode=[BATCH])
       :  +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
-      +- Exchange(distribution=[hash[a, b, c]], shuffle_mode=[BATCH])
+      +- Exchange(distribution=[hash[a, b, c]])
          +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -298,14 +298,15 @@ SELECT * FROM
     <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
-:- LogicalProject(cnt1=[$1], cnt2=[$3])
-:  +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
-:     :- LogicalAggregate(group=[{0}], cnt1=[COUNT()])
-:     :  +- LogicalProject(a=[$0])
-:     :     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
-:     +- LogicalAggregate(group=[{0}], cnt2=[COUNT()])
-:        +- LogicalProject(d=[$0])
-:           +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+:- LogicalProject(cnt1=[$0], cnt2=[$1])
+:  +- LogicalProject(cnt1=[$1], cnt2=[$3])
+:     +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
+:        :- LogicalAggregate(group=[{0}], cnt1=[COUNT()])
+:        :  +- LogicalProject(a=[$0])
+:        :     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+:        +- LogicalAggregate(group=[{0}], cnt2=[COUNT()])
+:           +- LogicalProject(d=[$0])
+:              +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
 +- LogicalProject(cnt1=[$3], cnt2=[$1])
    +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
       :- LogicalAggregate(group=[{0}], cnt2=[COUNT()])
@@ -318,19 +319,19 @@ LogicalUnion(all=[true])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-MultipleInput(readOrder=[0,2,1], members=[\nUnion(all=[true], union=[cnt1, cnt2])\n:- Calc(select=[CAST(cnt1 AS BIGINT) AS cnt1, cnt2])\n:  +- HashJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, cnt1, d, cnt2], build=[right])\n:     :- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt1])(reuse_id=[1])\n:     :  +- [#3] Exchange(distribution=[hash[a]])\n:     +- [#1] HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count1$0) AS cnt2])\n+- Calc(select=[cnt1, CAST(cnt2 AS BIGINT) AS cnt2])\n   +- HashJoin(joinType=[LeftOuterJoin], where=[(d = a)], select=[d, cnt2, a, cnt1], build=[right])\n      :- [#2] Exchange(distribution=[hash[d]], shuffle_mode=[BATCH])\n      +- Reused(reference_id=[1])\n])
-:- Exchange(distribution=[keep_input_as_is[hash[d]]])
-:  +- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count1$0) AS cnt2])(reuse_id=[1])
-:     +- Exchange(distribution=[hash[d]])
-:        +- LocalHashAggregate(groupBy=[d], select=[d, Partial_COUNT(*) AS count1$0])
-:           +- Calc(select=[d])
-:              +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-:- Exchange(distribution=[hash[d]], shuffle_mode=[BATCH])
+MultipleInput(readOrder=[0,2,1], members=[\nUnion(all=[true], union=[cnt1, cnt2])\n:- Calc(select=[CAST(cnt1 AS BIGINT) AS cnt1, cnt2])\n:  +- HashJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, cnt1, d, cnt2], build=[left])\n:     :- [#1] HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt1])\n:     +- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count1$0) AS cnt2])(reuse_id=[1])\n:        +- [#3] Exchange(distribution=[hash[d]])\n+- Calc(select=[cnt1, CAST(cnt2 AS BIGINT) AS cnt2])\n   +- HashJoin(joinType=[LeftOuterJoin], where=[(d = a)], select=[d, cnt2, a, cnt1], build=[left])\n      :- Reused(reference_id=[1])\n      +- [#2] Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])\n])
+:- Exchange(distribution=[keep_input_as_is[hash[a]]])
+:  +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt1])(reuse_id=[1])
+:     +- Exchange(distribution=[hash[a]])
+:        +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
+:           +- Calc(select=[a])
+:              +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
 :  +- Reused(reference_id=[1])
-+- Exchange(distribution=[hash[a]])
-   +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
-      +- Calc(select=[a])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[d]])
+   +- LocalHashAggregate(groupBy=[d], select=[d, Partial_COUNT(*) AS count1$0])
+      +- Calc(select=[d])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -368,7 +369,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], a0=[$3], b0=[$4], c0=[$5], a1=[$6], b1=[$
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[(c = c1)], select=[a, b, c, a0, b0, c0, a1, b1, c1, a00, b00, c00], build=[right])
+HashJoin(joinType=[InnerJoin], where=[(c = c1)], select=[a, b, c, a0, b0, c0, a1, b1, c1, a00, b00, c00], build=[left])
 :- Exchange(distribution=[hash[c]])
 :  +- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, a0, b0, c0], build=[left])
 :     :- Exchange(distribution=[keep_input_as_is[hash[a]]])
@@ -415,11 +416,11 @@ LogicalProject(a=[$0], a0=[$1])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, a0], build=[right])
-:- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, a0], build=[left])
+:- Exchange(distribution=[hash[a]])
 :  +- Calc(select=[a])(reuse_id=[1])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Exchange(distribution=[hash[a]])
++- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -450,17 +451,17 @@ LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3], a0=[$4], b0=[$5], d0=[$6], e0=[$7
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, d, e, a0, b0, d0, e0], build=[right])
-:- Exchange(distribution=[hash[b]], shuffle_mode=[BATCH])
-:  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], build=[right])
+HashJoin(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, d, e, a0, b0, d0, e0], build=[left])
+:- Exchange(distribution=[hash[b]])
+:  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], build=[left])
 :     :- Exchange(distribution=[hash[a]])
 :     :  +- Calc(select=[a, b], where=[(a < 10)])
 :     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])(reuse_id=[1])
 :     +- Exchange(distribution=[hash[d]])
 :        +- Calc(select=[d, e], where=[(d < 10)])
 :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])(reuse_id=[2])
-+- Exchange(distribution=[hash[e]])
-   +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], build=[right])
++- Exchange(distribution=[hash[e]], shuffle_mode=[BATCH])
+   +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], build=[left])
       :- Exchange(distribution=[hash[a]])
       :  +- Calc(select=[a, b], where=[(a > 5)])
       :     +- Reused(reference_id=[1])
@@ -538,8 +539,8 @@ LogicalProject(a=[$0], b=[$1], c=[$2], a0=[$3], b0=[$4], c0=[$5])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[(c = c0)], select=[a, b, c, a0, b0, c0], build=[right])
-:- Exchange(distribution=[hash[c]], shuffle_mode=[BATCH])
+HashJoin(joinType=[InnerJoin], where=[(c = c0)], select=[a, b, c, a0, b0, c0], build=[left])
+:- Exchange(distribution=[hash[c]])
 :  +- Calc(select=[w0$o0 AS a, b, c])
 :     +- OverAggregate(partitionBy=[b], orderBy=[b ASC], window#0=[MAX(a) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[a, b, c, w0$o0])
 :        +- Exchange(distribution=[forward])
@@ -550,7 +551,7 @@ HashJoin(joinType=[InnerJoin], where=[(c = c0)], select=[a, b, c, a0, b0, c0], b
 :                       +- Sort(orderBy=[b ASC])
 :                          +- Exchange(distribution=[hash[b]])
 :                             +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Exchange(distribution=[hash[c]])
++- Exchange(distribution=[hash[c]], shuffle_mode=[BATCH])
    +- Calc(select=[w0$o0 AS a, b, c])
       +- OverAggregate(partitionBy=[b], orderBy=[b ASC], window#0=[MIN(a) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[a, b, c, w0$o0])
          +- Exchange(distribution=[forward])
