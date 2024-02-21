@@ -59,11 +59,11 @@ class SlotSharingGroupTest {
         final SlotSharingGroup slotSharingGroup = SlotSharingGroup.newBuilder(name).build();
 
         assertThat(slotSharingGroup.getName()).isEqualTo(name);
-        assertThat(slotSharingGroup.getCpuCores().isPresent()).isFalse();
-        assertThat(slotSharingGroup.getTaskHeapMemory().isPresent()).isFalse();
-        assertThat(slotSharingGroup.getManagedMemory().isPresent()).isFalse();
-        assertThat(slotSharingGroup.getTaskOffHeapMemory().isPresent()).isFalse();
-        assertThat(slotSharingGroup.getExternalResources().isEmpty()).isTrue();
+        assertThat(slotSharingGroup.getCpuCores()).isNotPresent();
+        assertThat(slotSharingGroup.getTaskHeapMemory()).isNotPresent();
+        assertThat(slotSharingGroup.getManagedMemory()).isNotPresent();
+        assertThat(slotSharingGroup.getTaskOffHeapMemory()).isNotPresent();
+        assertThat(slotSharingGroup.getExternalResources()).isEmpty();
     }
 
     @Test

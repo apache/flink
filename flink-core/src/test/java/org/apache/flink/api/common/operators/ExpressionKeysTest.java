@@ -80,14 +80,7 @@ public class ExpressionKeysTest {
         // corner case tests
         Keys.rangeCheckFields(new int[] {0}, 0);
 
-        Throwable ex = null;
-        try {
-            // throws illegal argument.
-            Keys.rangeCheckFields(new int[] {5}, 0);
-        } catch (Throwable iae) {
-            ex = iae;
-        }
-        assertThat(ex).isNotNull();
+        assertThatThrownBy(() -> Keys.rangeCheckFields(new int[] {5}, 0));
     }
 
     @Test

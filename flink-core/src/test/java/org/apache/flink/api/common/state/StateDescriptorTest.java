@@ -67,7 +67,7 @@ class StateDescriptorTest {
         TestStateDescriptor<String> clone = CommonTestUtils.createCopySerializable(descr);
         assertThat(clone.isSerializerInitialized()).isTrue();
         assertThat(clone.getSerializer()).isNotNull();
-        assertInstanceOf(StringSerializer.class, clone.getSerializer());
+        assertThat(clone.getSerializer()).isInstanceOf(StringSerializer.class);
     }
 
     @Test
@@ -91,7 +91,7 @@ class StateDescriptorTest {
 
         assertThat(clone.isSerializerInitialized()).isTrue();
         assertThat(clone.getSerializer()).isNotNull();
-        assertInstanceOf(StringSerializer.class, clone.getSerializer());
+        assertThat(clone.getSerializer()).isInstanceOf(StringSerializer.class);
     }
 
     @Test
@@ -113,7 +113,7 @@ class StateDescriptorTest {
 
         assertThat(clone.isSerializerInitialized()).isTrue();
         assertThat(clone.getSerializer()).isNotNull();
-        assertInstanceOf(StringSerializer.class, clone.getSerializer());
+        assertThat(clone.getSerializer()).isInstanceOf(StringSerializer.class);
     }
 
     @Test
