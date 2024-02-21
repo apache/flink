@@ -75,7 +75,7 @@ Off-CPU Flame Graph
 
 ##  采样过程
 
-堆栈跟踪的收集纯粹在JVM内部进行，因此只能看到Java运行时内的方法调用（没有系统调用）。
+堆栈跟踪的收集纯粹在 JVM 内部进行，因此只能看到 Java 运行时内的方法调用（看不到系统调用）。
 
 默认情况下，Flame Graph 的构建是在单个[operator]({{< ref "docs/concepts/glossary" >}}#operator)级别上进行的，
 即该算子的所有[task]({{< ref "docs/concepts/glossary" >}}#task)线程并行采样，并将它们的堆栈跟踪合并起来。
