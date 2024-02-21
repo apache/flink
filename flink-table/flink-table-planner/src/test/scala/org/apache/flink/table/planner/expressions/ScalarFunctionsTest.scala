@@ -517,6 +517,15 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testRegexpReplace(): Unit = {
+    testAllApis(
+      "Hello World".regexpReplace("(\\w+)", "[$1]"),
+      "regexp_replace('Hello World', '(\\w+)', '[$1]')",
+      "[Hello] [World]")
+
+    testAllApis(
+      "ERR1,ERR2".regexpReplace("([^,]+)", "AA$1AA"),
+      "regexp_replace('ERR1,ERR2', '([^,]+)', 'AA$1AA')",
+      "AAERR1AA,AAERR2AA")
 
     testAllApis(
       "foobar".regexpReplace("oo|ar", "abc"),
@@ -538,8 +547,8 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testAllApis("foobar".regexpReplace("\\w", ""), "regexp_replace('foobar', '\\w', '')", "")
 
     testAllApis(
-      "fooobar".regexpReplace("oo", "$"),
-      "regexp_replace('fooobar', 'oo', '$')",
+      "fooobar".regexpReplace("oo", "\\$"),
+      "regexp_replace('fooobar', 'oo', '\\$')",
       "f$obar")
 
     testAllApis(
