@@ -25,7 +25,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# 火焰图 Flame Graphs
+# 火焰图
 
 [Flame Graphs](http://www.brendangregg.com/flamegraphs.html) 是一种有效的可视化工具，可以回答以下问题：
 
