@@ -92,7 +92,10 @@ public class KubernetesResourceManagerDriver
     /** Current max pod index. When creating a new pod, it should increase one. */
     private long currentMaxPodId = 0;
 
-    private CompletableFuture<KubernetesWatch> podsWatchOptFuture;
+    private CompletableFuture<KubernetesWatch> podsWatchOptFuture =
+            FutureUtils.completedExceptionally(
+                    new ResourceManagerException(
+                            "KubernetesResourceManagerDriver is not initialized."));
 
     private volatile boolean running;
 
@@ -460,32 +463,27 @@ public class KubernetesResourceManagerDriver
         @Override
         public void handleError(Throwable throwable) {
             if (throwable instanceof KubernetesTooOldResourceVersionException) {
-                getMainThreadExecutor()
-                        .execute(
-                                () ->
-                                        podsWatchOptFuture.whenCompleteAsync(
-                                                (KubernetesWatch watch, Throwable throwable1) -> {
-                                                    if (running) {
-                                                        try {
-                                                            if (watch != null) {
-                                                                watch.close();
-                                                            }
-                                                        } catch (Exception e) {
-                                                            log.warn(
-                                                                    "Error when get old watch to close, which is not supposed to happen",
-                                                                    e);
-                                                        }
-                                                        log.info(
-                                                                "Creating a new watch on TaskManager pods.");
-                                                        try {
-                                                            podsWatchOptFuture =
-                                                                    watchTaskManagerPods();
-                                                        } catch (Exception e) {
-                                                            getResourceEventHandler().onError(e);
-                                                        }
-                                                    }
-                                                },
-                                                getMainThreadExecutor()));
+                podsWatchOptFuture.whenCompleteAsync(
+                        (KubernetesWatch watch, Throwable throwable1) -> {
+                            if (running) {
+                                try {
+                                    if (watch != null) {
+                                        watch.close();
+                                    }
+                                } catch (Exception e) {
+                                    log.warn(
+                                            "Error when get old watch to close, which is not supposed to happen",
+                                            e);
+                                }
+                                log.info("Creating a new watch on TaskManager pods.");
+                                try {
+                                    podsWatchOptFuture = watchTaskManagerPods();
+                                } catch (Exception e) {
+                                    getResourceEventHandler().onError(e);
+                                }
+                            }
+                        },
+                        getMainThreadExecutor());
             } else {
                 getResourceEventHandler().onError(throwable);
             }
