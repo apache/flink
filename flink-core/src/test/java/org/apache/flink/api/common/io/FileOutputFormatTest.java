@@ -30,7 +30,6 @@ import java.io.File;
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class FileOutputFormatTest {
@@ -78,36 +77,32 @@ class FileOutputFormatTest {
         tmpOutPath.delete();
 
         // check success
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath));
-                            dfof.setWriteMode(WriteMode.NO_OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath));
+            dfof.setWriteMode(WriteMode.NO_OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 1);
-                            dfof.close();
-                        });
+            dfof.open(0, 1);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isFile();
         tmpOutPath.delete();
 
         // check fail for path with tailing '/'
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath + "/"));
-                            dfof.setWriteMode(WriteMode.NO_OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath + "/"));
+            dfof.setWriteMode(WriteMode.NO_OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 1);
-                            dfof.close();
-                        });
+            dfof.open(0, 1);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isFile();
         tmpOutPath.delete();
 
@@ -134,38 +129,34 @@ class FileOutputFormatTest {
         // check success if directory exists
         assertThat(tmpOutPath.mkdir()).as("Directory could not be created.").isTrue();
 
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath));
-                            dfof.setWriteMode(WriteMode.NO_OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.ALWAYS);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath));
+            dfof.setWriteMode(WriteMode.NO_OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.ALWAYS);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 1);
-                            dfof.close();
-                        });
+            dfof.open(0, 1);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isDirectory();
         assertThat(tmpOutFile).exists().isFile();
         (new File(tmpOutPath.getAbsoluteFile() + "/1")).delete();
 
         // check custom file name inside directory if directory exists
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath));
-                            dfof.setWriteMode(WriteMode.NO_OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.ALWAYS);
-                            dfof.testFileName = true;
-                            Configuration c = new Configuration();
-                            dfof.configure(c);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath));
+            dfof.setWriteMode(WriteMode.NO_OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.ALWAYS);
+            dfof.testFileName = true;
+            Configuration c = new Configuration();
+            dfof.configure(c);
 
-                            dfof.open(0, 1);
-                            dfof.close();
-                        });
+            dfof.open(0, 1);
+            dfof.close();
+        }
         File customOutFile = new File(tmpOutPath.getAbsolutePath() + "/fancy-1-0.avro");
         assertThat(tmpOutPath).exists().isDirectory();
         assertThat(customOutFile).exists().isFile();
@@ -193,38 +184,34 @@ class FileOutputFormatTest {
         tmpOutPath.delete();
 
         // check success if no file exists
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath));
-                            dfof.setWriteMode(WriteMode.NO_OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.ALWAYS);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath));
+            dfof.setWriteMode(WriteMode.NO_OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.ALWAYS);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 1);
-                            dfof.close();
-                        });
+            dfof.open(0, 1);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isDirectory();
         assertThat(tmpOutFile).exists().isFile();
         (new File(tmpOutPath.getAbsoluteFile() + "/1")).delete();
         tmpOutPath.delete();
 
         // check success for path with tailing '/'
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath + "/"));
-                            dfof.setWriteMode(WriteMode.NO_OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.ALWAYS);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath + "/"));
+            dfof.setWriteMode(WriteMode.NO_OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.ALWAYS);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 1);
-                            dfof.close();
-                        });
+            dfof.open(0, 1);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isDirectory();
         assertThat(tmpOutFile).exists().isFile();
         (new File(tmpOutPath.getAbsoluteFile() + "/1")).delete();
@@ -262,19 +249,17 @@ class FileOutputFormatTest {
         // check success if directory exists
         assertThat(tmpOutPath.mkdir()).as("Directory could not be created.").isTrue();
 
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath));
-                            dfof.setWriteMode(WriteMode.NO_OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath));
+            dfof.setWriteMode(WriteMode.NO_OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 2);
-                            dfof.close();
-                        });
+            dfof.open(0, 2);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isDirectory();
         assertThat(tmpOutFile).exists().isFile();
         tmpOutFile.delete();
@@ -301,38 +286,34 @@ class FileOutputFormatTest {
         tmpOutPath.delete();
 
         // check success if no file exists
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath));
-                            dfof.setWriteMode(WriteMode.NO_OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath));
+            dfof.setWriteMode(WriteMode.NO_OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 2);
-                            dfof.close();
-                        });
+            dfof.open(0, 2);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isDirectory();
         assertThat(tmpOutFile).exists().isFile();
         tmpOutFile.delete();
         tmpOutPath.delete();
 
         // check success for path with tailing '/'
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath + "/"));
-                            dfof.setWriteMode(WriteMode.NO_OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath + "/"));
+            dfof.setWriteMode(WriteMode.NO_OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 2);
-                            dfof.close();
-                        });
+            dfof.open(0, 2);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isDirectory();
         assertThat(tmpOutFile).exists().isFile();
         tmpOutFile.delete();
@@ -351,72 +332,64 @@ class FileOutputFormatTest {
         String tmpFilePath = tmpOutPath.toURI().toString();
 
         // check success if file exists
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath));
-                            dfof.setWriteMode(WriteMode.OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath));
+            dfof.setWriteMode(WriteMode.OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 1);
-                            dfof.close();
-                        });
+            dfof.open(0, 1);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isFile();
 
         // check success if directory exists
         tmpOutPath.delete();
         assertThat(tmpOutPath.mkdir()).as("Directory could not be created.").isTrue();
 
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath));
-                            dfof.setWriteMode(WriteMode.OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath));
+            dfof.setWriteMode(WriteMode.OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 1);
-                            dfof.close();
-                        });
+            dfof.open(0, 1);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isFile();
         tmpOutPath.delete();
 
         // check success
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath));
-                            dfof.setWriteMode(WriteMode.OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath));
+            dfof.setWriteMode(WriteMode.OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 1);
-                            dfof.close();
-                        });
+            dfof.open(0, 1);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isFile();
         tmpOutPath.delete();
 
         // check fail for path with tailing '/'
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath + "/"));
-                            dfof.setWriteMode(WriteMode.OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath + "/"));
+            dfof.setWriteMode(WriteMode.OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 1);
-                            dfof.close();
-                        });
+            dfof.open(0, 1);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isFile();
         tmpOutPath.delete();
 
@@ -425,19 +398,17 @@ class FileOutputFormatTest {
         // check success if file exists
         tmpOutPath.createNewFile();
 
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath));
-                            dfof.setWriteMode(WriteMode.OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.ALWAYS);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath));
+            dfof.setWriteMode(WriteMode.OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.ALWAYS);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 1);
-                            dfof.close();
-                        });
+            dfof.open(0, 1);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isDirectory();
         assertThat(tmpOutFile).exists().isFile();
 
@@ -447,19 +418,17 @@ class FileOutputFormatTest {
         // check success if directory exists
         assertThat(tmpOutPath.mkdir()).as("Directory could not be created.").isTrue();
 
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath));
-                            dfof.setWriteMode(WriteMode.OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.ALWAYS);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath));
+            dfof.setWriteMode(WriteMode.OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.ALWAYS);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 1);
-                            dfof.close();
-                        });
+            dfof.open(0, 1);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isDirectory();
         assertThat(tmpOutFile).exists().isFile();
         tmpOutPath.delete();
@@ -469,38 +438,34 @@ class FileOutputFormatTest {
         tmpOutPath.mkdir();
         tmpOutFile.createNewFile();
 
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath));
-                            dfof.setWriteMode(WriteMode.OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.ALWAYS);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath));
+            dfof.setWriteMode(WriteMode.OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.ALWAYS);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 1);
-                            dfof.close();
-                        });
+            dfof.open(0, 1);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isDirectory();
         assertThat(tmpOutFile).exists().isFile();
         tmpOutPath.delete();
         tmpOutFile.delete();
 
         // check success if no file exists
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath + "/"));
-                            dfof.setWriteMode(WriteMode.OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.ALWAYS);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath + "/"));
+            dfof.setWriteMode(WriteMode.OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.ALWAYS);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 1);
-                            dfof.close();
-                        });
+            dfof.open(0, 1);
+            dfof.close();
+        }
 
         assertThat(tmpOutPath).exists().isDirectory();
         assertThat(tmpOutFile).exists().isFile();
@@ -508,19 +473,17 @@ class FileOutputFormatTest {
         tmpOutPath.delete();
 
         // check success for path with tailing '/'
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath + "/"));
-                            dfof.setWriteMode(WriteMode.OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.ALWAYS);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath + "/"));
+            dfof.setWriteMode(WriteMode.OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.ALWAYS);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 1);
-                            dfof.close();
-                        });
+            dfof.open(0, 1);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isDirectory();
         assertThat(tmpOutFile).exists().isFile();
         tmpOutFile.delete();
@@ -539,19 +502,17 @@ class FileOutputFormatTest {
         String tmpFilePath = tmpOutPath.toURI().toString();
 
         // check success if file exists
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath));
-                            dfof.setWriteMode(WriteMode.OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath));
+            dfof.setWriteMode(WriteMode.OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 2);
-                            dfof.close();
-                        });
+            dfof.open(0, 2);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isDirectory();
         assertThat(tmpOutFile).exists().isFile();
         tmpOutFile.delete();
@@ -560,19 +521,17 @@ class FileOutputFormatTest {
         // check success if directory exists
         assertThat(tmpOutPath.mkdir()).as("Directory could not be created.").isTrue();
 
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath));
-                            dfof.setWriteMode(WriteMode.OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath));
+            dfof.setWriteMode(WriteMode.OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 2);
-                            dfof.close();
-                        });
+            dfof.open(0, 2);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isDirectory();
         assertThat(tmpOutFile).exists().isFile();
         tmpOutFile.delete();
@@ -582,57 +541,51 @@ class FileOutputFormatTest {
         tmpOutPath.mkdir();
         tmpOutFile.createNewFile();
 
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath));
-                            dfof.setWriteMode(WriteMode.OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath));
+            dfof.setWriteMode(WriteMode.OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 2);
-                            dfof.close();
-                        });
+            dfof.open(0, 2);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isDirectory();
         assertThat(tmpOutFile).exists().isFile();
         (new File(tmpOutPath.getAbsoluteFile() + "/1")).delete();
         tmpOutPath.delete();
 
         // check success if no file exists
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath));
-                            dfof.setWriteMode(WriteMode.OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath));
+            dfof.setWriteMode(WriteMode.OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 2);
-                            dfof.close();
-                        });
+            dfof.open(0, 2);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isDirectory();
         assertThat(tmpOutFile).exists().isFile();
         tmpOutFile.delete();
         tmpOutPath.delete();
 
         // check success for path with tailing '/'
-        assertThatNoException()
-                .isThrownBy(
-                        () -> {
-                            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
-                            dfof.setOutputFilePath(new Path(tmpFilePath + "/"));
-                            dfof.setWriteMode(WriteMode.OVERWRITE);
-                            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
+        {
+            DummyFileOutputFormat dfof = new DummyFileOutputFormat();
+            dfof.setOutputFilePath(new Path(tmpFilePath + "/"));
+            dfof.setWriteMode(WriteMode.OVERWRITE);
+            dfof.setOutputDirectoryMode(OutputDirectoryMode.PARONLY);
 
-                            dfof.configure(new Configuration());
+            dfof.configure(new Configuration());
 
-                            dfof.open(0, 2);
-                            dfof.close();
-                        });
+            dfof.open(0, 2);
+            dfof.close();
+        }
         assertThat(tmpOutPath).exists().isDirectory();
         assertThat(tmpOutFile).exists().isFile();
         tmpOutFile.delete();

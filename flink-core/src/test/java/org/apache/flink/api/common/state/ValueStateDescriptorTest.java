@@ -25,14 +25,13 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link ValueStateDescriptor}. */
-public class ValueStateDescriptorTest extends TestLogger {
+public class ValueStateDescriptorTest {
 
     @Test
     void testHashCodeEquals() throws Exception {

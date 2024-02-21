@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.common.resources;
 
-import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -29,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link Resource}. */
 @SuppressWarnings("rawtypes")
-class ResourceTest extends TestLogger {
+class ResourceTest {
 
     @Test
     void testConstructorValid() {

@@ -25,7 +25,6 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -38,7 +37,7 @@ import java.nio.file.Path;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class EnumSerializerCompatibilityTest extends TestLogger {
+class EnumSerializerCompatibilityTest {
 
     @TempDir private static Path tempDir;
     private static final String ENUM_NAME = "EnumSerializerUpgradeTestEnum";

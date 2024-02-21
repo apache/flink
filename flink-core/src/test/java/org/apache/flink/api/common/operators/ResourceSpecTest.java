@@ -21,7 +21,6 @@ package org.apache.flink.api.common.operators;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
 
@@ -32,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Tests for ResourceSpec class, including its all public api: isValid, lessThanOrEqual, equals,
  * hashCode and merge.
  */
-class ResourceSpecTest extends TestLogger {
+class ResourceSpecTest {
     private static final String EXTERNAL_RESOURCE_NAME = "gpu";
 
     @Test

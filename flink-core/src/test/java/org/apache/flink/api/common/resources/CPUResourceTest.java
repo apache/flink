@@ -18,14 +18,12 @@
 
 package org.apache.flink.api.common.resources;
 
-import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link CPUResource}. */
-class CPUResourceTest extends TestLogger {
+class CPUResourceTest {
     @Test
     void toHumanReadableString() {
         assertThat(new CPUResource(0).toHumanReadableString()).isEqualTo("0.00 cores");

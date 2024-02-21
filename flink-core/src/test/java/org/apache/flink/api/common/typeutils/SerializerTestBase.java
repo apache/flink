@@ -107,14 +107,7 @@ public abstract class SerializerTestBase<T> {
         Class<T> type = getTypeClass();
         assertThat(type).as("The test is corrupt: type class is null.").isNotNull();
 
-        if (!type.isAssignableFrom(instance.getClass())) {
-            fail(
-                    "Type of the instantiated object is wrong. "
-                            + "Expected Type: "
-                            + type
-                            + " present type "
-                            + instance.getClass());
-        }
+        assertThat(instance).as("Type of the instantiated object is wrong.").isInstanceOf(type);
     }
 
     @Test

@@ -146,13 +146,7 @@ public class ExpressionKeysTest {
                     new String[] {"f1.f33"}
                 };
         for (String[] test : tests) {
-            Throwable e = null;
-            try {
-                new ExpressionKeys<>(test, typeInfo);
-            } catch (Throwable t) {
-                e = t;
-            }
-            assertThat(e).isNotNull();
+            assertThatThrownBy(() -> new ExpressionKeys<>(test, typeInfo));
         }
     }
 
@@ -391,13 +385,7 @@ public class ExpressionKeysTest {
                     new String[] {"nonexistent"}, new String[] {"date.abc"} // nesting into unnested
                 };
         for (String[] test : tests) {
-            Throwable e = null;
-            try {
-                new ExpressionKeys<>(test, ti);
-            } catch (Throwable t) {
-                e = t;
-            }
-            assertThat(e).isNotNull();
+            assertThatThrownBy(() -> new ExpressionKeys<>(test, ti));
         }
     }
 

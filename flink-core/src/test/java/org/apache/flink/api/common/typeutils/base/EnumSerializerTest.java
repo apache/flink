@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotSerialization
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
 
@@ -35,7 +34,7 @@ import java.io.ByteArrayOutputStream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class EnumSerializerTest extends TestLogger {
+class EnumSerializerTest {
 
     @Test
     void testPublicEnum() {
