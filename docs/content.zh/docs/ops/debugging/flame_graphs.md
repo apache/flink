@@ -81,7 +81,7 @@ Off-CPU Flame Graph
 即该算子的所有[task]({{< ref "docs/concepts/glossary" >}}#task)线程并行采样，并将它们的堆栈跟踪合并起来。
 如果某个方法调用在其中一个并行任务中占用了100%的资源，但在其他任务中没有占用，则可能会被平均化而掩盖住瓶颈。
 
-从Flink 1.17版本开始，Flame Graph 提供了 "drill down" 可视化到任务级别的功能。
+Flink 从 1.17 版本开始提供了单并发级别火焰图可视化的功能。
 选择一个感兴趣的子任务，您可以看到相应子任务的 flame graph 。
 
 {{< img src="/fig/flame_graph_subtask.png" class="img-fluid" width="90%" >}}
