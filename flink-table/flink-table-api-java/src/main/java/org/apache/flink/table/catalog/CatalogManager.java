@@ -312,7 +312,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         }
 
         Catalog catalog = initCatalog(catalogName, catalogDescriptor);
-        try (TemporaryClassLoaderContext context =
+        try (TemporaryClassLoaderContext ignored =
                 TemporaryClassLoaderContext.of(catalogStoreHolder.classLoader())) {
             catalog.open();
         }
