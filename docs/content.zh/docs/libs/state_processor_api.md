@@ -120,7 +120,7 @@ DataStream<Tuple2<Integer, Integer>> broadcastState = savepoint.readBroadcastSta
 
 #### 使用自定义序列化器
 
-如果在写出状态时 `StateDescriptor` 使用了自定义的 `TypeSerializer`，Operator state readers 也支持使用自定义的 `TypeSerializers`。
+如果在写出状态时 `StateDescriptor` 使用了自定义的 `TypeSerializer`，Operator state 也支持使用自定义的 `TypeSerializers` 来读取。
 
 ```java
 DataStream<Integer> listState = savepoint.readListState<>(
@@ -130,7 +130,7 @@ DataStream<Integer> listState = savepoint.readListState<>(
     new MyCustomIntSerializer());
 ```
 
-### 分区状态
+### Keyed State
 
 [Keyed state]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#keyed-state)，又叫分区状态 (partitioned state)，是使用一个 key 进行分区的状态。
 当读取 keyed state 时，需要指定算子 id 和一个 `KeyedStateReaderFunction<KeyType, OutputType>`。
