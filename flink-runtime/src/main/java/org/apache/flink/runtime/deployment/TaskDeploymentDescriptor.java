@@ -82,7 +82,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
         public NonOffloaded() {}
 
         public NonOffloaded(T rawValue) {
-            this.rawValue = rawValue;
+            this.rawValue = Preconditions.checkNotNull(rawValue);
         }
 
         public NonOffloaded(SerializedValue<T> serializedValue) {
