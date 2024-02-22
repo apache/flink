@@ -32,7 +32,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleExecNodeMetadata;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -239,7 +238,7 @@ class ExecNodeMetadataUtilTest {
         List<Class<? extends ExecNode<?>>> classesWithJsonCreatorInUnsupportedList =
                 new ArrayList<>();
         for (Class<? extends ExecNode<?>> clazz : subClasses) {
-            boolean hasJsonCreator = JsonSerdeUtil.hasJsonCreatorAnnotation(clazz);
+            boolean hasJsonCreator = ExecNodeMetadataUtil.hasJsonCreatorAnnotation(clazz);
             if (hasJsonCreator && UNSUPPORTED_JSON_SERDE_CLASSES.contains(clazz)) {
                 classesWithJsonCreatorInUnsupportedList.add(clazz);
             }
