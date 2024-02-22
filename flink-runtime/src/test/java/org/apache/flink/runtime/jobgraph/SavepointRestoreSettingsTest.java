@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.jobgraph;
 
+import org.apache.flink.core.execution.RestoreMode;
+
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertNotEquals;

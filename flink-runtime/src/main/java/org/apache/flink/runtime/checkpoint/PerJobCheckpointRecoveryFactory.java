@@ -21,7 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 
 import javax.annotation.Nullable;
