@@ -22,7 +22,7 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.StateBackendOptions;
+import org.apache.flink.configuration.StateLatencyTrackOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendTest;
 import org.apache.flink.runtime.execution.Environment;
@@ -105,7 +105,7 @@ public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
         Configuration configuration = new Configuration();
-        configuration.set(StateBackendOptions.LATENCY_TRACK_ENABLED, true);
+        configuration.set(StateLatencyTrackOptions.LATENCY_TRACK_ENABLED, true);
         StateBackend stateBackend =
                 getStateBackend()
                         .configure(configuration, Thread.currentThread().getContextClassLoader());

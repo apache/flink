@@ -1,56 +1,55 @@
 {
-  "flinkVersion" : "",
+  "flinkVersion" : "1.19",
   "nodes" : [ {
-    "id" : 1,
+    "id" : 6,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
-        "identifier" : "`default_catalog`.`default_database`.`MyTable`",
+        "identifier" : "`default_catalog`.`default_database`.`source_t`",
         "resolvedTable" : {
           "schema" : {
             "columns" : [ {
               "name" : "a",
-              "dataType" : "BIGINT NOT NULL"
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
             }, {
               "name" : "b",
               "dataType" : "INT NOT NULL"
             }, {
               "name" : "c",
               "dataType" : "VARCHAR(2147483647)"
-            }, {
-              "name" : "d",
-              "dataType" : "TIMESTAMP(3)"
             } ],
             "watermarkSpecs" : [ ],
             "primaryKey" : {
-              "name" : "PK_a_b",
+              "name" : "PK_a",
               "type" : "PRIMARY_KEY",
-              "columns" : [ "a", "b" ]
+              "columns" : [ "a" ]
             }
           },
-          "partitionKeys" : [ ],
-          "options" : {
-            "bounded" : "false",
-            "changelog-mode" : "I,UA,UB,D",
-            "connector" : "values"
-          }
+          "partitionKeys" : [ ]
         }
-      },
-      "abilities" : [ {
-        "type" : "ProjectPushDown",
-        "projectedFields" : [ [ 0 ], [ 1 ] ],
-        "producedType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL> NOT NULL"
-      }, {
-        "type" : "ReadingMetadata",
-        "metadataKeys" : [ ],
-        "producedType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL> NOT NULL"
-      } ]
+      }
     },
-    "outputType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "outputType" : "ROW<`a` VARCHAR(2147483647) NOT NULL, `b` INT NOT NULL, `c` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t]], fields=[a, b, c])",
     "inputProperties" : [ ]
   }, {
-    "id" : 2,
+    "id" : 7,
+    "type" : "stream-exec-mini-batch-assigner_1",
+    "miniBatchInterval" : {
+      "interval" : 10000,
+      "mode" : "ProcTime"
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` VARCHAR(2147483647) NOT NULL, `b` INT NOT NULL, `c` VARCHAR(2147483647)>",
+    "description" : "MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])"
+  }, {
+    "id" : 8,
     "type" : "stream-exec-drop-update-before_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -59,29 +58,29 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL>",
+    "outputType" : "ROW<`a` VARCHAR(2147483647) NOT NULL, `b` INT NOT NULL, `c` VARCHAR(2147483647)>",
     "description" : "DropUpdateBefore"
   }, {
-    "id" : 3,
+    "id" : 9,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
-        "keys" : [ 0, 1 ]
+        "keys" : [ 0 ]
       },
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL>",
-    "description" : "Exchange(distribution=[hash[a, b]])"
+    "outputType" : "ROW<`a` VARCHAR(2147483647) NOT NULL, `b` INT NOT NULL, `c` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[hash[a]])"
   }, {
-    "id" : 4,
+    "id" : 10,
     "type" : "stream-exec-changelog-normalize_1",
     "configuration" : {
-      "table.exec.mini-batch.enabled" : "false",
-      "table.exec.mini-batch.size" : "-1"
+      "table.exec.mini-batch.enabled" : "true",
+      "table.exec.mini-batch.size" : "2"
     },
-    "uniqueKeys" : [ 0, 1 ],
+    "uniqueKeys" : [ 0 ],
     "generateUpdateBefore" : true,
     "state" : [ {
       "index" : 0,
@@ -95,10 +94,10 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL>",
-    "description" : "ChangelogNormalize(key=[a, b])"
+    "outputType" : "ROW<`a` VARCHAR(2147483647) NOT NULL, `b` INT NOT NULL, `c` VARCHAR(2147483647)>",
+    "description" : "ChangelogNormalize(key=[a])"
   }, {
-    "id" : 5,
+    "id" : 11,
     "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -109,29 +108,27 @@
     },
     "dynamicTableSink" : {
       "table" : {
-        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
         "resolvedTable" : {
           "schema" : {
             "columns" : [ {
               "name" : "a",
-              "dataType" : "BIGINT"
+              "dataType" : "VARCHAR(2147483647)"
             }, {
               "name" : "b",
               "dataType" : "INT"
+            }, {
+              "name" : "c",
+              "dataType" : "VARCHAR(2147483647)"
             } ],
             "watermarkSpecs" : [ ]
           },
-          "partitionKeys" : [ ],
-          "options" : {
-            "connector" : "values",
-            "sink-insert-only" : "false",
-            "table-sink-class" : "DEFAULT"
-          }
+          "partitionKeys" : [ ]
         }
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE" ],
-    "inputUpsertKey" : [ 0, 1 ],
+    "inputUpsertKey" : [ 0 ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -139,33 +136,40 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL>",
-    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, b])"
+    "outputType" : "ROW<`a` VARCHAR(2147483647) NOT NULL, `b` INT NOT NULL, `c` VARCHAR(2147483647)>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[a, b, c])"
   } ],
   "edges" : [ {
-    "source" : 1,
-    "target" : 2,
+    "source" : 6,
+    "target" : 7,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 2,
-    "target" : 3,
+    "source" : 7,
+    "target" : 8,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 3,
-    "target" : 4,
+    "source" : 8,
+    "target" : 9,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 4,
-    "target" : 5,
+    "source" : 9,
+    "target" : 10,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 10,
+    "target" : 11,
     "shuffle" : {
       "type" : "FORWARD"
     },

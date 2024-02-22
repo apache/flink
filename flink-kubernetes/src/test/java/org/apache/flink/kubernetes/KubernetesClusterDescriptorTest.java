@@ -39,7 +39,6 @@ import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorator;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.util.concurrent.Executors;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.EnvVar;
@@ -49,6 +48,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.concurrent.Executors;
 
 import static org.apache.flink.kubernetes.utils.Constants.ENV_FLINK_POD_IP_ADDRESS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -84,7 +84,7 @@ class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
                                 return new Fabric8FlinkKubeClient(
                                         flinkConfig,
                                         server.createClient().inNamespace(NAMESPACE),
-                                        Executors.newDirectExecutorService());
+                                        Executors.newSingleThreadScheduledExecutor());
                             }
                         });
     }

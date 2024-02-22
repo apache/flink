@@ -79,6 +79,7 @@ public class SqlCreateTableAs extends SqlCreateTable {
             SqlNodeList columnList,
             List<SqlTableConstraint> tableConstraints,
             SqlNodeList propertyList,
+            SqlDistribution distribution,
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
             @Nullable SqlCharStringLiteral comment,
@@ -92,6 +93,7 @@ public class SqlCreateTableAs extends SqlCreateTable {
                 columnList,
                 tableConstraints,
                 propertyList,
+                distribution,
                 partitionKeyList,
                 watermark,
                 comment,
@@ -133,6 +135,11 @@ public class SqlCreateTableAs extends SqlCreateTable {
             throw new SqlValidateException(
                     getParserPosition(),
                     "CREATE TABLE AS SELECT syntax does not support to specify explicit watermark yet.");
+        }
+        if (getDistribution() != null) {
+            throw new SqlValidateException(
+                    getParserPosition(),
+                    "CREATE TABLE AS SELECT syntax does not support creating distributed tables yet.");
         }
         // TODO flink dialect supports dynamic partition
         if (getPartitionKeyList().size() > 0) {

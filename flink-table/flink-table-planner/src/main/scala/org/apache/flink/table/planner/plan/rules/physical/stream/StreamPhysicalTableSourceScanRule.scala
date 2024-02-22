@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.connector.source.ScanTableSource
-import org.apache.flink.table.planner.connectors.DynamicSourceUtils.{isSourceChangeEventsDuplicate, isUpsertSource}
+import org.apache.flink.table.planner.connectors.DynamicSourceUtils.changelogNormalizeEnabled
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan
@@ -61,12 +61,20 @@ class StreamPhysicalTableSourceScanRule(config: Config) extends ConverterRule(co
     val tableConfig = ShortcutUtils.unwrapContext(rel.getCluster).getTableConfig
     val table = scan.getTable.asInstanceOf[TableSourceTable]
 
-    val newScan = new StreamPhysicalTableSourceScan(rel.getCluster, traitSet, scan.getHints, table)
+    val newScan = new StreamPhysicalTableSourceScan(
+      rel.getCluster,
+      traitSet,
+      scan.getHints,
+      table,
+      scan.eventTimeSnapshotRequired)
     val resolvedSchema = table.contextResolvedTable.getResolvedSchema
 
     if (
-      !scan.eventTimeSnapshotRequired && (isUpsertSource(resolvedSchema, table.tableSource) ||
-        isSourceChangeEventsDuplicate(resolvedSchema, table.tableSource, tableConfig))
+      changelogNormalizeEnabled(
+        scan.eventTimeSnapshotRequired,
+        resolvedSchema,
+        table.tableSource,
+        tableConfig)
     ) {
       // generate changelog normalize node
       // primary key has been validated in CatalogSourceTable

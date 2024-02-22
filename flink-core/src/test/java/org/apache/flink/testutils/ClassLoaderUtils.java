@@ -18,6 +18,8 @@
 
 package org.apache.flink.testutils;
 
+import org.apache.flink.util.Preconditions;
+
 import javax.annotation.Nullable;
 import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
@@ -40,6 +42,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /** Utilities to create class loaders. */
@@ -47,7 +50,7 @@ public class ClassLoaderUtils {
 
     public static URLClassLoader compileAndLoadJava(File root, String filename, String source)
             throws IOException {
-        return withRoot(root).addClass(filename.replaceAll("\\.java", ""), source).build();
+        return withRoot(root).addClass(filename.replace(".java", ""), source).build();
     }
 
     private static URLClassLoader createClassLoader(File root, ClassLoader parent)
@@ -142,6 +145,15 @@ public class ClassLoaderUtils {
             return this;
         }
 
+        public ClassLoaderBuilder addClass(String className) {
+            Preconditions.checkState(
+                    new File(root, className + ".java").exists(),
+                    "The class %s was added without any source code being present.",
+                    className);
+
+            return addClass(className, null);
+        }
+
         public ClassLoaderBuilder addClass(String className, String source) {
             String oldValue = classes.putIfAbsent(className, source);
 
@@ -158,7 +170,7 @@ public class ClassLoaderUtils {
             return this;
         }
 
-        public URLClassLoader build() throws IOException {
+        public void generateSourcesAndCompile() throws IOException {
             for (Map.Entry<String, String> classInfo : classes.entrySet()) {
                 writeAndCompile(root, createFileName(classInfo.getKey()), classInfo.getValue());
             }
@@ -171,8 +183,35 @@ public class ClassLoaderUtils {
             for (Map.Entry<String, String> resource : resources.entrySet()) {
                 writeSourceFile(root, resource.getKey(), resource.getValue());
             }
+        }
+
+        public URLClassLoader buildWithoutCompilation() throws MalformedURLException {
+            final int generatedSourceClassesCount =
+                    Objects.requireNonNull(
+                                    root.listFiles(
+                                            (dir, name) -> {
+                                                if (!name.endsWith(".java")) {
+                                                    return false;
+                                                }
+                                                final String derivedClassName =
+                                                        name.substring(0, name.lastIndexOf('.'));
+                                                return classes.containsKey(derivedClassName);
+                                            }))
+                            .length;
+            Preconditions.checkState(
+                    generatedSourceClassesCount == classes.size(),
+                    "The generated Java sources in %s (%s) do not match the classes in this %s (%s).",
+                    root.getAbsolutePath(),
+                    generatedSourceClassesCount,
+                    ClassLoaderBuilder.class.getSimpleName(),
+                    classes.size());
 
             return createClassLoader(root, parent);
+        }
+
+        public URLClassLoader build() throws IOException {
+            generateSourcesAndCompile();
+            return buildWithoutCompilation();
         }
 
         private String createFileName(String className) {

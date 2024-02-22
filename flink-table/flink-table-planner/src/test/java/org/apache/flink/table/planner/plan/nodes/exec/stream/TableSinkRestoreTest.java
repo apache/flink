@@ -34,6 +34,10 @@ public class TableSinkRestoreTest extends RestoreTestBase {
     @Override
     public List<TableTestProgram> programs() {
         return Arrays.asList(
+                TableSinkTestPrograms.SINK_BUCKETING_WITH_COUNT,
+                TableSinkTestPrograms.SINK_BUCKETING_WITH_KEYS_AND_COUNT,
+                TableSinkTestPrograms.SINK_BUCKETING_HASH_WITH_KEYS_AND_COUNT,
+                TableSinkTestPrograms.SINK_BUCKETING_HASH_WITH_KEYS_AND_WITHOUT_COUNT,
                 TableSinkTestPrograms.SINK_PARTITION,
                 TableSinkTestPrograms.SINK_OVERWRITE,
                 TableSinkTestPrograms.SINK_WRITING_METADATA,

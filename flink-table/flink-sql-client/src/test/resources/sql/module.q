@@ -17,7 +17,7 @@
 
 # set tableau result mode
 SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # ==========================================================================
@@ -87,7 +87,7 @@ org.apache.flink.table.api.ValidationException: Option 'type' = 'dummy' is not s
 !error
 
 LOAD MODULE dummy;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # show enabled modules
@@ -124,7 +124,7 @@ org.apache.flink.table.api.ValidationException: Module 'dummy' appears more than
 
 # change module resolution order
 USE MODULES dummy, core;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SHOW MODULES;
@@ -149,7 +149,7 @@ SHOW FULL MODULES;
 
 # disable dummy module
 USE MODULES core;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SHOW MODULES;
@@ -176,7 +176,7 @@ SHOW FULL MODULES;
 # ==========================================================================
 
 UNLOAD MODULE core;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SHOW MODULES;

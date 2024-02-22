@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.factories.DynamicTableFactory;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -49,6 +50,12 @@ import java.util.Optional;
 @PublicEvolving
 public interface CatalogTable extends CatalogBaseTable {
 
+    /** Builder for configuring and creating instances of {@link CatalogTable}. */
+    @PublicEvolving
+    static CatalogTable.Builder newBuilder() {
+        return new CatalogTable.Builder();
+    }
+
     /**
      * Creates a basic implementation of this interface.
      *
@@ -58,7 +65,9 @@ public interface CatalogTable extends CatalogBaseTable {
      * @param comment optional comment
      * @param partitionKeys list of partition keys or an empty list if not partitioned
      * @param options options to configure the connector
+     * @deprecated Use the builder {@link CatalogTable#newBuilder()} instead.
      */
+    @Deprecated
     static CatalogTable of(
             Schema schema,
             @Nullable String comment,
@@ -75,14 +84,16 @@ public interface CatalogTable extends CatalogBaseTable {
      * @param partitionKeys list of partition keys or an empty list if not partitioned
      * @param options options to configure the connector
      * @param snapshot table snapshot of the table
+     * @deprecated Use the builder {@link CatalogTable#newBuilder()} instead.
      */
+    @Deprecated
     static CatalogTable of(
             Schema schema,
             @Nullable String comment,
             List<String> partitionKeys,
             Map<String, String> options,
             @Nullable Long snapshot) {
-        return new DefaultCatalogTable(schema, comment, partitionKeys, options, snapshot);
+        return new DefaultCatalogTable(schema, comment, partitionKeys, options, snapshot, null);
     }
 
     /**
@@ -143,5 +154,61 @@ public interface CatalogTable extends CatalogBaseTable {
     /** Return the snapshot specified for the table. Return Optional.empty() if not specified. */
     default Optional<Long> getSnapshot() {
         return Optional.empty();
+    }
+
+    /** Returns the distribution of the table if the {@code DISTRIBUTED} clause is defined. */
+    default Optional<TableDistribution> getDistribution() {
+        return Optional.empty();
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    /** Builder for configuring and creating instances of {@link CatalogTable}. */
+    @PublicEvolving
+    class Builder {
+        private @Nullable Schema schema;
+        private @Nullable String comment;
+        private List<String> partitionKeys = Collections.emptyList();
+        private Map<String, String> options = Collections.emptyMap();
+        private @Nullable Long snapshot;
+        private @Nullable TableDistribution distribution;
+
+        private Builder() {}
+
+        public Builder schema(Schema schema) {
+            this.schema = Preconditions.checkNotNull(schema, "Schema must not be null.");
+            return this;
+        }
+
+        public Builder comment(@Nullable String comment) {
+            this.comment = comment;
+            return this;
+        }
+
+        public Builder partitionKeys(List<String> partitionKeys) {
+            this.partitionKeys =
+                    Preconditions.checkNotNull(partitionKeys, "Partition keys must not be null.");
+            return this;
+        }
+
+        public Builder options(Map<String, String> options) {
+            this.options = Preconditions.checkNotNull(options, "Options must not be null.");
+            return this;
+        }
+
+        public Builder snapshot(@Nullable Long snapshot) {
+            this.snapshot = snapshot;
+            return this;
+        }
+
+        public Builder distribution(@Nullable TableDistribution distribution) {
+            this.distribution = distribution;
+            return this;
+        }
+
+        public CatalogTable build() {
+            return new DefaultCatalogTable(
+                    schema, comment, partitionKeys, options, snapshot, distribution);
+        }
     }
 }

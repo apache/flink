@@ -605,7 +605,16 @@ function tox_check() {
         # Only run test in latest python version triggered by a Git push
         $TOX_PATH -vv -c $FLINK_PYTHON_DIR/tox.ini -e ${LATEST_PYTHON} --recreate 2>&1 | tee -a $LOG_FILE
     else
-        $TOX_PATH -vv -c $FLINK_PYTHON_DIR/tox.ini --recreate 2>&1 | tee -a $LOG_FILE
+        # Only run random selected python version in nightly CI.
+        ENV_LIST_STRING=`$TOX_PATH -l -c $FLINK_PYTHON_DIR/tox.ini`
+        _OLD_IFS=$IFS
+        IFS=$'\n'
+        ENV_LIST=(${ENV_LIST_STRING})
+        IFS=$_OLD_IFS
+
+        ENV_LIST_SIZE=${#ENV_LIST[@]}
+        index=$(($RANDOM % ENV_LIST_SIZE))
+        $TOX_PATH -vv -c $FLINK_PYTHON_DIR/tox.ini -e ${ENV_LIST[$index]} --recreate 2>&1 | tee -a $LOG_FILE
     fi
 
     TOX_RESULT=$((grep -c "congratulations :)" "$LOG_FILE") 2>&1)
