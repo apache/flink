@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types.inference.strategies;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.TypeStrategy;
@@ -28,6 +29,7 @@ import java.util.Optional;
 /**
  * MixedTypeOutputStrategy strategy that returns a common, least restrictive type of all arguments.
  */
+@Internal
 public class MixedTypeOutputStrategy implements TypeStrategy {
     @Override
     public Optional<DataType> inferType(CallContext callContext) {

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types.inference.strategies;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
@@ -30,6 +31,7 @@ import java.util.Optional;
 /**
  * MixedTypeOutputStrategy strategy that returns a common, least restrictive type of all arguments.
  */
+@Internal
 public class MixedTypeOutputForRowStrategy implements TypeStrategy {
     @Override
     public Optional<DataType> inferType(CallContext callContext) {
