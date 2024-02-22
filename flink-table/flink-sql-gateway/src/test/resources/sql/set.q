@@ -27,19 +27,19 @@ reset table.resources.download-dir;
 
 set;
 !output
-+--------------------------------------------+-----------+
-|                                        key |     value |
-+--------------------------------------------+-----------+
-|                         execution.attached |      true |
-|           execution.savepoint-restore-mode |  NO_CLAIM |
-| execution.savepoint.ignore-unclaimed-state |     false |
-|        execution.shutdown-on-attached-exit |     false |
-|                           execution.target |    remote |
-|                     jobmanager.rpc.address | localhost |
-|                        pipeline.classpaths |        [] |
-|                              pipeline.jars |        [] |
-|                                  rest.port |     $VAR_REST_PORT |
-+--------------------------------------------+-----------+
++-------------------------------------------------+-----------+
+|                                             key |     value |
++-------------------------------------------------+-----------+
+|                              execution.attached |      true |
+|             execution.shutdown-on-attached-exit |     false |
+|             execution.state-recovery.claim-mode |  NO_CLAIM |
+| execution.state-recovery.ignore-unclaimed-state |     false |
+|                                execution.target |    remote |
+|                          jobmanager.rpc.address | localhost |
+|                             pipeline.classpaths |        [] |
+|                                   pipeline.jars |        [] |
+|                                       rest.port |     $VAR_REST_PORT |
++-------------------------------------------------+-----------+
 9 rows in set
 !ok
 
@@ -51,18 +51,18 @@ java.lang.IllegalArgumentException: No enum constant org.apache.flink.table.api.
 
 set;
 !output
-+--------------------------------------------+-----------+
-|                                        key |     value |
-+--------------------------------------------+-----------+
-|                         execution.attached |      true |
-|           execution.savepoint-restore-mode |  NO_CLAIM |
-| execution.savepoint.ignore-unclaimed-state |     false |
-|        execution.shutdown-on-attached-exit |     false |
-|                           execution.target |    remote |
-|                     jobmanager.rpc.address | localhost |
-|                        pipeline.classpaths |        [] |
-|                              pipeline.jars |        [] |
-|                                  rest.port |     $VAR_REST_PORT |
-+--------------------------------------------+-----------+
++-------------------------------------------------+-----------+
+|                                             key |     value |
++-------------------------------------------------+-----------+
+|                              execution.attached |      true |
+|             execution.shutdown-on-attached-exit |     false |
+|             execution.state-recovery.claim-mode |  NO_CLAIM |
+| execution.state-recovery.ignore-unclaimed-state |     false |
+|                                execution.target |    remote |
+|                          jobmanager.rpc.address | localhost |
+|                             pipeline.classpaths |        [] |
+|                                   pipeline.jars |        [] |
+|                                       rest.port |     $VAR_REST_PORT |
++-------------------------------------------------+-----------+
 9 rows in set
 !ok
