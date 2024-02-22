@@ -24,10 +24,10 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
@@ -136,7 +136,7 @@ public class ClassLoaderITCase extends TestLogger {
 
         // some tests check for serialization problems related to class-loading
         // this requires all RPCs to actually go through serialization
-        config.set(AkkaOptions.FORCE_RPC_INVOCATION_SERIALIZATION, true);
+        config.set(RpcOptions.FORCE_RPC_INVOCATION_SERIALIZATION, true);
 
         miniClusterResource =
                 new MiniClusterResource(

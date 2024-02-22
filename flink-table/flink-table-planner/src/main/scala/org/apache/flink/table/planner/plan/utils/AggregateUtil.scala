@@ -849,7 +849,7 @@ object AggregateUtil extends Enumeration {
             call.getAggregation,
             false,
             false,
-            false,
+            call.ignoreNulls,
             call.getArgList,
             -1, // remove filterArg
             null,
@@ -1103,16 +1103,6 @@ object AggregateUtil extends Enumeration {
     }
     val distinctBufferNames = aggInfoList.distinctInfos.indices.map(i => s"distinct$$$i")
     (aggBufferNames ++ distinctBufferNames).toArray
-  }
-
-  /** Creates a MiniBatch trigger depends on the config. */
-  def createMiniBatchTrigger(config: ReadableConfig): CountBundleTrigger[RowData] = {
-    val size = config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE)
-    if (size <= 0) {
-      throw new IllegalArgumentException(
-        ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE + " must be > 0.")
-    }
-    new CountBundleTrigger[RowData](size)
   }
 
   /** Computes the positions of (window start, window end, row time). */

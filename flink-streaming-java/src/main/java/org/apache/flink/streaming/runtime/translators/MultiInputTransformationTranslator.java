@@ -121,7 +121,9 @@ public class MultiInputTransformationTranslator<OUT>
             KeyedMultipleInputTransformation<OUT> keyedTransform =
                     (KeyedMultipleInputTransformation<OUT>) transformation;
             TypeSerializer<?> keySerializer =
-                    keyedTransform.getStateKeyType().createSerializer(executionConfig);
+                    keyedTransform
+                            .getStateKeyType()
+                            .createSerializer(executionConfig.getSerializerConfig());
             streamGraph.setMultipleInputStateKey(
                     transformationId, keyedTransform.getStateKeySelectors(), keySerializer);
         }

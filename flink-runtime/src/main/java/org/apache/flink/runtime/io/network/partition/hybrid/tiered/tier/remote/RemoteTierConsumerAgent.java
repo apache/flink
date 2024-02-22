@@ -37,16 +37,16 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** The data client is used to fetch data from remote tier. */
 public class RemoteTierConsumerAgent implements TierConsumerAgent, AvailabilityNotifier {
+
+    private final List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs;
 
     private final RemoteStorageScanner remoteStorageScanner;
 
@@ -70,25 +70,18 @@ public class RemoteTierConsumerAgent implements TierConsumerAgent, AvailabilityN
 
     private AvailabilityNotifier notifier;
 
-    private final Map<TieredStoragePartitionId, Set<TieredStorageSubpartitionId>>
-            initSubpartitionIds = new HashMap<>();
-
     public RemoteTierConsumerAgent(
             List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs,
             RemoteStorageScanner remoteStorageScanner,
             PartitionFileReader partitionFileReader,
             int bufferSizeBytes) {
+        this.tieredStorageConsumerSpecs = tieredStorageConsumerSpecs;
         this.remoteStorageScanner = remoteStorageScanner;
         this.currentBufferIndexAndSegmentIds = new HashMap<>();
         this.partitionFileReader = partitionFileReader;
         this.bufferSizeBytes = bufferSizeBytes;
         this.remoteStorageScanner.registerAvailabilityAndPriorityNotifier(this);
         for (TieredStorageConsumerSpec spec : tieredStorageConsumerSpecs) {
-            Set<TieredStorageSubpartitionId> subpartitionIds = new HashSet<>();
-            for (int subpartitionId : spec.getSubpartitionIds().values()) {
-                subpartitionIds.add(new TieredStorageSubpartitionId(subpartitionId));
-            }
-            initSubpartitionIds.put(spec.getPartitionId(), subpartitionIds);
             availableSubpartitionsQueues.putIfAbsent(
                     spec.getPartitionId(), new DeduplicatedQueue<>());
         }
@@ -97,21 +90,18 @@ public class RemoteTierConsumerAgent implements TierConsumerAgent, AvailabilityN
     @Override
     public void start() {
         remoteStorageScanner.start();
+        for (TieredStorageConsumerSpec spec : tieredStorageConsumerSpecs) {
+            for (int subpartitionId : spec.getSubpartitionIds().values()) {
+                remoteStorageScanner.watchSegment(
+                        spec.getPartitionId(), new TieredStorageSubpartitionId(subpartitionId), 0);
+            }
+        }
     }
 
     @Override
     public int peekNextBufferSubpartitionId(
             TieredStoragePartitionId partitionId, ResultSubpartitionIndexSet indexSet)
             throws IOException {
-        if (initSubpartitionIds.containsKey(partitionId)) {
-            TieredStorageSubpartitionId subpartitionId =
-                    initSubpartitionIds.get(partitionId).iterator().next();
-            synchronized (availableSubpartitionsQueues) {
-                availableSubpartitionsQueues.get(partitionId).add(subpartitionId);
-            }
-            return subpartitionId.getSubpartitionId();
-        }
-
         synchronized (availableSubpartitionsQueues) {
             for (TieredStorageSubpartitionId subpartitionId :
                     availableSubpartitionsQueues.get(partitionId).values()) {
@@ -128,20 +118,11 @@ public class RemoteTierConsumerAgent implements TierConsumerAgent, AvailabilityN
             TieredStoragePartitionId partitionId,
             TieredStorageSubpartitionId subpartitionId,
             int segmentId) {
-        if (initSubpartitionIds.containsKey(partitionId)) {
-            Set<TieredStorageSubpartitionId> subpartitionIds = initSubpartitionIds.get(partitionId);
-            if (subpartitionIds.remove(subpartitionId)) {
-                if (subpartitionIds.isEmpty()) {
-                    initSubpartitionIds.remove(partitionId);
-                }
-            }
-        }
-
         // Get current segment id and buffer index.
         Tuple2<Integer, Integer> bufferIndexAndSegmentId =
                 currentBufferIndexAndSegmentIds
                         .computeIfAbsent(partitionId, ignore -> new HashMap<>())
-                        .getOrDefault(subpartitionId, Tuple2.of(0, -1));
+                        .getOrDefault(subpartitionId, Tuple2.of(0, 0));
         int currentBufferIndex = bufferIndexAndSegmentId.f0;
         int currentSegmentId = bufferIndexAndSegmentId.f1;
         if (segmentId != currentSegmentId) {

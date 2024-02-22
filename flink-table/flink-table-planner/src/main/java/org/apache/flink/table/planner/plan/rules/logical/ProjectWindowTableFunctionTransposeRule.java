@@ -19,7 +19,9 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.RexSetSemanticsTableCall;
 import org.apache.flink.table.planner.functions.sql.SqlWindowTableFunction;
+import org.apache.flink.table.planner.plan.logical.SessionWindowSpec;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
 import org.apache.flink.table.planner.plan.utils.WindowUtil;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -41,6 +43,7 @@ import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -76,8 +79,7 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
         LogicalTableFunctionScan scan = call.rel(1);
         RelNode scanInput = scan.getInput(0);
         TimeAttributeWindowingStrategy windowingStrategy =
-                WindowUtil.convertToWindowingStrategy(
-                        (RexCall) scan.getCall(), scanInput.getRowType());
+                WindowUtil.convertToWindowingStrategy((RexCall) scan.getCall(), scanInput);
         // 1. get fields to push down
         ImmutableBitSet projectFields = RelOptUtil.InputFinder.bits(project.getProjects(), null);
         int scanInputFieldCount = scanInput.getRowType().getFieldCount();
@@ -85,6 +87,12 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
                 ImmutableBitSet.range(0, scanInputFieldCount)
                         .intersect(projectFields)
                         .set(windowingStrategy.getTimeAttributeIndex());
+        // partition keys in session window tvf also need be pushed down
+        if (windowingStrategy.getWindow() instanceof SessionWindowSpec) {
+            SessionWindowSpec sessionWindowSpec = (SessionWindowSpec) windowingStrategy.getWindow();
+            int[] partitionKeyIndices = sessionWindowSpec.getPartitionKeyIndices();
+            toPushFields = toPushFields.union(ImmutableBitSet.of(partitionKeyIndices));
+        }
         if (toPushFields.cardinality() == scanInputFieldCount) {
             return;
         }
@@ -168,6 +176,14 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
         List<RexNode> newOperands = new ArrayList<>();
         for (RexNode next : windowCall.getOperands()) {
             newOperands.add(adjustInputRef(next, mapping));
+        }
+        if (windowCall instanceof RexSetSemanticsTableCall) {
+            RexSetSemanticsTableCall originalCall = (RexSetSemanticsTableCall) windowCall;
+            int[] newPartitionKeys =
+                    Arrays.stream(originalCall.getPartitionKeys()).map(mapping::get).toArray();
+            int[] newOrderKeys =
+                    Arrays.stream(originalCall.getOrderKeys()).map(mapping::get).toArray();
+            return originalCall.copy(newOperands, newPartitionKeys, newOrderKeys);
         }
         return relBuilder.call(windowCall.getOperator(), newOperands);
     }

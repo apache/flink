@@ -157,12 +157,15 @@ public class ExecutionFailureHandler {
                     new JobException("The failure is not recoverable", cause),
                     timestamp,
                     failureLabels,
-                    globalFailure);
+                    globalFailure,
+                    true);
         }
 
-        restartBackoffTimeStrategy.notifyFailure(cause);
+        boolean isNewAttempt = restartBackoffTimeStrategy.notifyFailure(cause);
         if (restartBackoffTimeStrategy.canRestart()) {
-            numberOfRestarts++;
+            if (isNewAttempt) {
+                numberOfRestarts++;
+            }
 
             return FailureHandlingResult.restartable(
                     failedExecution,
@@ -171,7 +174,8 @@ public class ExecutionFailureHandler {
                     failureLabels,
                     verticesToRestart,
                     restartBackoffTimeStrategy.getBackoffTime(),
-                    globalFailure);
+                    globalFailure,
+                    isNewAttempt);
         } else {
             return FailureHandlingResult.unrecoverable(
                     failedExecution,
@@ -179,7 +183,8 @@ public class ExecutionFailureHandler {
                             "Recovery is suppressed by " + restartBackoffTimeStrategy, cause),
                     timestamp,
                     failureLabels,
-                    globalFailure);
+                    globalFailure,
+                    isNewAttempt);
         }
     }
 

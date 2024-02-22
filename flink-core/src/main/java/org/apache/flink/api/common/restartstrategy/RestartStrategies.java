@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestartStrategyOptions;
+import org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType;
 
 import java.io.Serializable;
 import java.time.Duration;
@@ -502,7 +503,7 @@ public class RestartStrategies {
     /**
      * Restart strategy configuration that could be used by jobs to use cluster level restart
      * strategy. Useful especially when one has a custom implementation of restart strategy set via
-     * flink-conf.yaml.
+     * config.yaml.
      */
     @PublicEvolving
     public static final class FallbackRestartStrategyConfiguration
@@ -543,13 +544,10 @@ public class RestartStrategies {
 
     private static RestartStrategyConfiguration parseConfiguration(
             String restartstrategyKind, ReadableConfig configuration) {
-        switch (restartstrategyKind.toLowerCase()) {
-            case "none":
-            case "off":
-            case "disable":
+        switch (RestartStrategyType.of(restartstrategyKind.toLowerCase())) {
+            case NO_RESTART_STRATEGY:
                 return noRestart();
-            case "fixeddelay":
-            case "fixed-delay":
+            case FIXED_DELAY:
                 int attempts =
                         configuration.get(
                                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS);
@@ -557,8 +555,7 @@ public class RestartStrategies {
                         configuration.get(
                                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY);
                 return fixedDelayRestart(attempts, delay.toMillis());
-            case "exponentialdelay":
-            case "exponential-delay":
+            case EXPONENTIAL_DELAY:
                 Duration initialBackoff =
                         configuration.get(
                                 RestartStrategyOptions
@@ -585,8 +582,7 @@ public class RestartStrategies {
                         backoffMultiplier,
                         resetBackoffThreshold,
                         jitter);
-            case "failurerate":
-            case "failure-rate":
+            case FAILURE_RATE:
                 int maxFailures =
                         configuration.get(
                                 RestartStrategyOptions

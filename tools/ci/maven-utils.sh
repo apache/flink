@@ -17,6 +17,7 @@
 # Utility for invoking Maven in CI
 function run_mvn {
 	if [[ "$MVN_RUN_VERBOSE" != "false" ]]; then
+		$MAVEN_WRAPPER --version
 		echo "Invoking mvn with '$MVN_GLOBAL_OPTIONS ${@}'"
 	fi
 	$MAVEN_WRAPPER $MVN_GLOBAL_OPTIONS "${@}"

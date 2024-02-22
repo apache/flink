@@ -32,6 +32,58 @@
         </nz-form-control>
       </nz-form-item>
       <nz-form-item>
+        <nz-form-label nzFor="mode">Profiling Mode</nz-form-label>
+        <nz-form-control>
+          <nz-select
+            [(ngModel)]="selectMode"
+            nzPlaceHolder="Profiling Mode"
+            name="mode"
+            style="width: 200px"
+          >
+            <nz-option nzCustomContent nzValue="CPU" nzLabel="CPU">
+              <span
+                nz-tooltip
+                nzTooltipTitle="In this mode profiler collects stack trace samples that include Java methods, native calls, JVM code and kernel functions."
+              >
+                CPU
+              </span>
+            </nz-option>
+            <nz-option nzCustomContent nzValue="LOCK" nzLabel="Lock">
+              <span
+                nz-tooltip
+                nzTooltipTitle="In lock profiling mode the top frame is the class of lock/monitor, and the counter is number of nanoseconds it took to enter this lock/monitor."
+              >
+                Lock
+              </span>
+            </nz-option>
+            <nz-option nzCustomContent nzValue="WALL" nzLabel="Wall-Clock">
+              <span
+                nz-tooltip
+                nzTooltipTitle="Wall-Clock option tells async-profiler to sample all threads equally every given period of time regardless of thread status: Running, Sleeping or Blocked. For instance, this can be helpful when profiling application start-up time."
+              >
+                Wall-Clock
+              </span>
+            </nz-option>
+            <nz-option nzCustomContent nzValue="ALLOC" nzLabel="Allocation">
+              <span
+                nz-tooltip
+                nzTooltipTitle="In allocation profiling mode the top frame of every call trace is the class of the allocated object, and the counter is the heap pressure (the total size of allocated TLABs or objects outside TLAB)."
+              >
+                Allocation
+              </span>
+            </nz-option>
+            <nz-option nzCustomContent nzValue="ITIMER" nzLabel="ITIMER">
+              <span
+                nz-tooltip
+                nzTooltipTitle="You can fall back to itimer profiling mode. It is similar to cpu mode, but does not require perf_events support. As a drawback, there will be no kernel stack traces."
+              >
+                ITIMER
+              </span>
+            </nz-option>
+          </nz-select>
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
         <nz-form-control>
           <button
             nz-button
@@ -43,6 +95,24 @@
           >
             Create Profiling Instance
           </button>
+          <i
+            class="header-icon"
+            style="margin-left: 10px"
+            nz-icon
+            nz-tooltip
+            [nzTooltipTitle]="titleTemplate"
+            nzTooltipTitle=""
+            nzType="info-circle"
+          ></i>
+          <ng-template #titleTemplate>
+            <span>
+              Please refer to
+              <a href="https://github.com/async-profiler/async-profiler/wiki">
+                async-profiler's wiki
+              </a>
+              for more detailed info of this feature.
+            </span>
+          </ng-template>
         </nz-form-control>
       </nz-form-item>
     </form>
@@ -51,7 +121,7 @@
       nzType="warning"
       style="margin-top: 10px"
       nzShowIcon
-      nzMessage="You need to set the config `rest.profiler.enabled: true` to enable this experimental profiler feature."
+      nzMessage="You need to set the config `rest.profiling.enabled: true` to enable this experimental profiler feature."
     ></nz-alert>
   </div>
   <nz-table

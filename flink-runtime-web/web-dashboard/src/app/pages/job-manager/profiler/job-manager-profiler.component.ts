@@ -68,7 +68,7 @@ export class JobManagerProfilerComponent implements OnInit, OnDestroy {
   isLoading = true;
   isCreating = false;
   duration = 30;
-  selectMode = 'CPU';
+  selectMode = 'ITIMER';
   isEnabled = false;
   formatterDuration = (value: number): string => `${value} s`;
   parserDuration = (value: string): string => value.replace(' s', '');

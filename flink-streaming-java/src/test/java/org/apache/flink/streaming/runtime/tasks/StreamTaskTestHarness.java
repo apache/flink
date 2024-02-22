@@ -175,7 +175,7 @@ public class StreamTaskTestHarness<OUT> {
         streamConfig.setManagedMemoryFractionOperatorOfUseCase(
                 ManagedMemoryUseCase.STATE_BACKEND, 1.0);
 
-        outputSerializer = outputType.createSerializer(executionConfig);
+        outputSerializer = outputType.createSerializer(executionConfig.getSerializerConfig());
         outputStreamRecordSerializer = new StreamElementSerializer<>(outputSerializer);
 
         this.taskStateManager = new TestTaskStateManager(localRecoveryConfig);

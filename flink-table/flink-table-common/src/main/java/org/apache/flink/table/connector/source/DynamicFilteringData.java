@@ -20,7 +20,7 @@ package org.apache.flink.table.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArrayComparator;
@@ -139,7 +139,8 @@ public class DynamicFilteringData implements Serializable {
                             .mapToObj(i -> RowData.createFieldGetter(rowType.getTypeAt(i), i))
                             .toArray(RowData.FieldGetter[]::new);
 
-            TypeSerializer<RowData> serializer = typeInfo.createSerializer(new ExecutionConfig());
+            TypeSerializer<RowData> serializer =
+                    typeInfo.createSerializer(new SerializerConfigImpl());
             for (byte[] bytes : serializedData) {
                 try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
                         DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(bais)) {

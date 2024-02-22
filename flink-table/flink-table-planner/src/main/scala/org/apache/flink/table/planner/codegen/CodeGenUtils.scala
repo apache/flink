@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.RuntimeContext
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.core.memory.MemorySegment
 import org.apache.flink.table.data._
 import org.apache.flink.table.data.binary._
@@ -331,7 +332,7 @@ object CodeGenUtils {
           s"Unsupported type($t) to generate hash code," +
             s" the type($t) is not supported as a GROUP_BY/PARTITION_BY/JOIN_EQUAL/UNION field.")
       case ARRAY =>
-        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
+        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader, ctx)
         val genHash =
           HashCodeGenerator.generateArrayHash(
             subCtx,
@@ -339,7 +340,7 @@ object CodeGenUtils {
             "SubHashArray")
         genHashFunction(ctx, subCtx, genHash, term)
       case MULTISET | MAP =>
-        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
+        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader, ctx)
         val (keyType, valueType) = t match {
           case multiset: MultisetType =>
             (multiset.getElementType, new IntType())
@@ -352,7 +353,7 @@ object CodeGenUtils {
       case INTERVAL_DAY_TIME => s"${className[JLong]}.hashCode($term)"
       case ROW | STRUCTURED_TYPE =>
         val fieldCount = getFieldCount(t)
-        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
+        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader, ctx)
         val genHash =
           HashCodeGenerator.generateRowHash(subCtx, t, "SubHashRow", (0 until fieldCount).toArray)
         genHashFunction(ctx, subCtx, genHash, term)
@@ -363,7 +364,7 @@ object CodeGenUtils {
           case rt: RawType[_] =>
             rt.getTypeSerializer
           case tirt: TypeInformationRawType[_] =>
-            tirt.getTypeInformation.createSerializer(new ExecutionConfig)
+            tirt.getTypeInformation.createSerializer(new SerializerConfigImpl)
         }
         val serTerm = ctx.addReusableObject(serializer, "serializer")
         s"$BINARY_RAW_VALUE.getJavaObjectFromRawValueData($term, $serTerm).hashCode()"

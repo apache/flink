@@ -50,7 +50,7 @@ public final class SliceUnsharedWindowAggProcessor extends AbstractSliceWindowAg
     }
 
     @Override
-    public void fireWindow(Long windowEnd) throws Exception {
+    public void fireWindow(long timerTimestamp, Long windowEnd) throws Exception {
         RowData acc = windowState.value(windowEnd);
         if (acc == null) {
             acc = aggregator.createAccumulators();

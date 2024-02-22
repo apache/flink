@@ -47,7 +47,7 @@ class UnionResultSubpartitionViewTest {
 
     @BeforeEach
     void before() {
-        view = new UnionResultSubpartitionView((ResultSubpartitionView x) -> {});
+        view = new UnionResultSubpartitionView((ResultSubpartitionView x) -> {}, 2);
 
         buffers0 =
                 Arrays.asList(
@@ -123,12 +123,46 @@ class UnionResultSubpartitionViewTest {
         assertThat(view.isReleased()).isFalse();
         assertThat(view0.isReleased()).isFalse();
         assertThat(view1.isReleased()).isFalse();
+        assertThat(buffers0).allMatch(x -> !x.isRecycled());
+        assertThat(buffers1).allMatch(x -> !x.isRecycled());
+
+        // Verifies that cached buffers are also recycled.
+        view0.notifyDataAvailable();
 
         view.releaseAllResources();
 
         assertThat(view.isReleased()).isTrue();
         assertThat(view0.isReleased()).isTrue();
         assertThat(view1.isReleased()).isTrue();
+        assertThat(buffers0).allMatch(Buffer::isRecycled);
+        assertThat(buffers1).allMatch(Buffer::isRecycled);
+    }
+
+    @Test
+    public void testDataAvailableBeforeRegistration() {
+        TestAvailabilityListener listener = new TestAvailabilityListener();
+        view = new UnionResultSubpartitionView(listener, 2);
+        view0 = new TestingResultSubpartitionView(view, buffers0);
+        view1 = new TestingResultSubpartitionView(view, buffers1);
+
+        view0.notifyDataAvailable();
+        assertThat(listener.isDataAvailable()).isFalse();
+
+        ResultSubpartitionView.AvailabilityWithBacklog availabilityAndBacklog1 =
+                view.getAvailabilityAndBacklog(true);
+        assertThat(availabilityAndBacklog1.getBacklog()).isZero();
+        assertThat(availabilityAndBacklog1.isAvailable()).isFalse();
+
+        view.notifyViewCreated(0, view0);
+        assertThat(listener.isDataAvailable()).isFalse();
+
+        view.notifyViewCreated(1, view1);
+        assertThat(listener.isDataAvailable()).isTrue();
+
+        ResultSubpartitionView.AvailabilityWithBacklog availabilityAndBacklog2 =
+                view.getAvailabilityAndBacklog(true);
+        assertThat(availabilityAndBacklog2.getBacklog()).isPositive();
+        assertThat(availabilityAndBacklog2.isAvailable()).isTrue();
     }
 
     private static class TestingResultSubpartitionView extends NoOpResultSubpartitionView {
@@ -174,12 +208,27 @@ class UnionResultSubpartitionViewTest {
 
         @Override
         public void releaseAllResources() {
+            buffers.forEach(Buffer::recycleBuffer);
+            buffers.clear();
             isReleased = true;
         }
 
         @Override
         public boolean isReleased() {
             return isReleased;
+        }
+    }
+
+    private static class TestAvailabilityListener implements BufferAvailabilityListener {
+        private boolean isDataAvailable = false;
+
+        @Override
+        public void notifyDataAvailable(ResultSubpartitionView view) {
+            isDataAvailable = true;
+        }
+
+        boolean isDataAvailable() {
+            return isDataAvailable;
         }
     }
 }

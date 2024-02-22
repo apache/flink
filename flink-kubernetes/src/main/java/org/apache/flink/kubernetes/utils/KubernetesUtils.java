@@ -403,20 +403,9 @@ public class KubernetesUtils {
         return Arrays.asList("bash", "-c", command);
     }
 
-    public static List<File> checkJarFileForApplicationMode(Configuration configuration) {
+    public static List<URI> checkJarFileForApplicationMode(Configuration configuration) {
         return configuration.get(PipelineOptions.JARS).stream()
-                .map(
-                        FunctionUtils.uncheckedFunction(
-                                uri -> {
-                                    final URI jarURI = PackagedProgramUtils.resolveURI(uri);
-                                    if (jarURI.getScheme().equals("local") && jarURI.isAbsolute()) {
-                                        return new File(jarURI.getPath());
-                                    }
-                                    throw new IllegalArgumentException(
-                                            "Only \"local\" is supported as schema for application mode."
-                                                    + " This assumes that the jar is located in the image, not the Flink client."
-                                                    + " An example of such path is: local:///opt/flink/examples/streaming/WindowJoin.jar");
-                                }))
+                .map(FunctionUtils.uncheckedFunction(PackagedProgramUtils::resolveURI))
                 .collect(Collectors.toList());
     }
 

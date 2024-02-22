@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.typeutils
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo}
@@ -185,8 +186,8 @@ object LegacyDataViewUtils {
             fieldIndex, // dataview field index in pojo
             fromLegacyInfoToDataType(newTypeInfo),
             false,
-            newTypeInfo.getKeyType.createSerializer(new ExecutionConfig),
-            newTypeInfo.getValueType.createSerializer(new ExecutionConfig)
+            newTypeInfo.getKeyType.createSerializer(new SerializerConfigImpl),
+            newTypeInfo.getValueType.createSerializer(new SerializerConfigImpl)
           )
           spec = Some(mapViewSpec)
         }
@@ -217,7 +218,7 @@ object LegacyDataViewUtils {
             "agg" + aggIndex + "$" + fieldName,
             fieldIndex, // dataview field index in pojo
             fromLegacyInfoToDataType(newTypeInfo),
-            newTypeInfo.getElementType.createSerializer(new ExecutionConfig)
+            newTypeInfo.getElementType.createSerializer(new SerializerConfigImpl)
           )
           spec = Some(listViewSpec)
         }

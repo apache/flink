@@ -21,7 +21,8 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.planner.runtime.utils.{JavaUserDefinedTableAggFunctions, StreamingWithStateTestBase, TestingRetractSink}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.runtime.utils.{JavaUserDefinedTableAggFunctions, StreamingWithStateTestBase, TestData, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverloadedDoubleMaxFunction
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData.tupleData3
@@ -43,28 +44,23 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
   override def before(): Unit = {
     super.before()
     tEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
+    // Create a Table from the array of Rows
+    tEnv.executeSql(s"""
+                       |CREATE TABLE myTable (
+                       |  `id` INT,
+                       |  `name` STRING,
+                       |  `price` INT
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '${TestValuesTableFactory.registerData(TestData.tupleData4)}'
+                       |)
+                       |""".stripMargin)
   }
 
   @TestTemplate
-  def testFlagAggregateWithOrWithoutIncrementalUpdate(): Unit = {
-    // Create a Table from the array of Rows
-    val table = tEnv.fromValues(
-      DataTypes.ROW(
-        DataTypes.FIELD("id", DataTypes.INT),
-        DataTypes.FIELD("name", DataTypes.STRING),
-        DataTypes.FIELD("price", DataTypes.INT)),
-      row(1, "Latte", 6: java.lang.Integer),
-      row(2, "Milk", 3: java.lang.Integer),
-      row(3, "Breve", 5: java.lang.Integer),
-      row(4, "Mocha", 8: java.lang.Integer),
-      row(5, "Tea", 4: java.lang.Integer)
-    )
-
-    // Register the table aggregate function
+  def testFlatAggregateWithoutIncrementalUpdate(): Unit = {
+    // Register the table aggregate function which does not implement emitUpdateWithRetract
     tEnv.createTemporarySystemFunction("top2", new JavaUserDefinedTableAggFunctions.Top2)
-    tEnv.createTemporarySystemFunction(
-      "incrementalTop2",
-      new JavaUserDefinedTableAggFunctions.IncrementalTop2)
 
     checkRank(
       "top2",
@@ -92,6 +88,13 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
         "(true,6,2)"
       )
     )
+  }
+
+  @TestTemplate
+  def testFlatAggregateWithIncrementalUpdate(): Unit = {
+    tEnv.createTemporarySystemFunction(
+      "incrementalTop2",
+      new JavaUserDefinedTableAggFunctions.IncrementalTop2)
     checkRank(
       "incrementalTop2",
       List(
@@ -109,18 +112,19 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
         "(true,6,2)"
       )
     )
+  }
 
-    def checkRank(func: String, expectedResult: List[String]): Unit = {
-      val resultTable =
-        table
-          .flatAggregate(call(func, $("price")).as("top_price", "rank"))
-          .select($("top_price"), $("rank"))
+  def checkRank(func: String, expectedResult: List[String]): Unit = {
+    val resultTable =
+      tEnv
+        .from("myTable")
+        .flatAggregate(call(func, $("price")).as("top_price", "rank"))
+        .select($("top_price"), $("rank"))
 
-      val sink = new TestingRetractSink()
-      resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
-      env.execute()
-      assertThat(sink.getRawResults).isEqualTo(expectedResult)
-    }
+    val sink = new TestingRetractSink()
+    resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    assertThat(sink.getRawResults).isEqualTo(expectedResult)
   }
 
   @TestTemplate

@@ -22,12 +22,16 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 import static org.apache.flink.util.CollectionUtil.HASH_MAP_DEFAULT_LOAD_FACTOR;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for java collection utilities. */
 @ExtendWith(TestLoggerExtension.class)
@@ -107,4 +111,47 @@ public class CollectionUtilTest {
         } catch (IllegalArgumentException expected) {
         }
     }
+
+    @Test
+    public void testIsEmptyOrAllElementsNull() {
+        Assertions.assertTrue(CollectionUtil.isEmptyOrAllElementsNull(Collections.emptyList()));
+        Assertions.assertTrue(
+                CollectionUtil.isEmptyOrAllElementsNull(Collections.singletonList(null)));
+        Assertions.assertTrue(CollectionUtil.isEmptyOrAllElementsNull(Arrays.asList(null, null)));
+        Assertions.assertFalse(
+                CollectionUtil.isEmptyOrAllElementsNull(Collections.singletonList("test")));
+        Assertions.assertFalse(
+                CollectionUtil.isEmptyOrAllElementsNull(Arrays.asList(null, "test")));
+        Assertions.assertFalse(
+                CollectionUtil.isEmptyOrAllElementsNull(Arrays.asList("test", null)));
+        Assertions.assertFalse(
+                CollectionUtil.isEmptyOrAllElementsNull(Arrays.asList(null, "test", null)));
+    }
+
+    @Test
+    public void testCheckedSubTypeCast() {
+        List<A> list = new ArrayList<>();
+        B b = new B();
+        C c = new C();
+        list.add(b);
+        list.add(c);
+        list.add(null);
+        Collection<B> castSuccess = CollectionUtil.checkedSubTypeCast(list, B.class);
+        Iterator<B> iterator = castSuccess.iterator();
+        Assertions.assertEquals(b, iterator.next());
+        Assertions.assertEquals(c, iterator.next());
+        Assertions.assertNull(iterator.next());
+        Assertions.assertFalse(iterator.hasNext());
+        try {
+            Collection<C> castFail = CollectionUtil.checkedSubTypeCast(list, C.class);
+            fail("Expected ClassCastException");
+        } catch (ClassCastException expected) {
+        }
+    }
+
+    static class A {}
+
+    static class B extends A {}
+
+    static class C extends B {}
 }

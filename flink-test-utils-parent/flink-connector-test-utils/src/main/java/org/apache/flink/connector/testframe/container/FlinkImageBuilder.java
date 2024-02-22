@@ -19,6 +19,7 @@
 package org.apache.flink.connector.testframe.container;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.test.util.FileUtils;
 
@@ -40,7 +41,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -125,7 +125,7 @@ public class FlinkImageBuilder {
     }
 
     /**
-     * Sets Flink configuration. This configuration will be used for generating flink-conf.yaml for
+     * Sets Flink configuration. This configuration will be used for generating config.yaml for
      * configuring JobManager and TaskManager.
      */
     public FlinkImageBuilder setConfiguration(Configuration conf) {
@@ -209,12 +209,10 @@ public class FlinkImageBuilder {
             final Path flinkConfFile = createTemporaryFlinkConfFile(conf, tempDirectory);
 
             final Path log4jPropertiesFile = createTemporaryLog4jPropertiesFile(tempDirectory);
-            // Copy flink-conf.yaml into image
-            // NOTE: Before we change the default conf file in the flink-dist to 'config.yaml', we
-            // need to use the legacy flink conf file 'flink-conf.yaml' here.
+            // Copy config.yaml into image
             filesToCopy.put(
                     flinkConfFile,
-                    Paths.get(flinkHome, "conf", GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME));
+                    Paths.get(flinkHome, "conf", GlobalConfiguration.FLINK_CONF_FILENAME));
             filesToCopy.put(
                     log4jPropertiesFile, Paths.get(flinkHome, "conf", LOG4J_PROPERTIES_FILENAME));
 
@@ -292,15 +290,10 @@ public class FlinkImageBuilder {
 
     private Path createTemporaryFlinkConfFile(Configuration finalConfiguration, Path tempDirectory)
             throws IOException {
-        // Create a temporary flink-conf.yaml file and write merged configurations into it
-        // NOTE: Before we change the default conf file in the flink-dist to 'config.yaml', we
-        // need to use the legacy flink conf file 'flink-conf.yaml' here.
-        Path flinkConfFile = tempDirectory.resolve(GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME);
+        Path flinkConfFile = tempDirectory.resolve(GlobalConfiguration.FLINK_CONF_FILENAME);
         Files.write(
                 flinkConfFile,
-                finalConfiguration.toFileWritableMap().entrySet().stream()
-                        .map(entry -> entry.getKey() + ": " + entry.getValue())
-                        .collect(Collectors.toList()));
+                ConfigurationUtils.convertConfigToWritableLines(finalConfiguration, false));
 
         return flinkConfFile;
     }

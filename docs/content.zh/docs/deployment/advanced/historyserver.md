@@ -58,7 +58,7 @@ bin/historyserver.sh (start|start-foreground|stop)
 
 **JobManager**
 
-已完成作业的存档在 JobManager 上进行，将已存档的作业信息上传到文件系统目录中。你可以在 `flink-conf.yaml` 文件中通过 `jobmanager.archive.fs.dir` 设置一个目录存档已完成的作业。
+已完成作业的存档在 JobManager 上进行，将已存档的作业信息上传到文件系统目录中。你可以在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}})中通过 `jobmanager.archive.fs.dir` 设置一个目录存档已完成的作业。
 
 ```yaml
 # 上传已完成作业信息的目录

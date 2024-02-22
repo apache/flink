@@ -21,10 +21,10 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobWriter;
@@ -57,7 +57,6 @@ import org.apache.flink.util.clock.SystemClock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -153,7 +152,7 @@ public final class DefaultSlotPoolServiceSchedulerFactory
             Configuration configuration, JobType jobType, boolean isDynamicGraph) {
 
         final Time rpcTimeout =
-                Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
+                Time.fromDuration(configuration.get(RpcOptions.ASK_TIMEOUT_DURATION));
         final Time slotIdleTimeout =
                 Time.milliseconds(configuration.get(JobManagerOptions.SLOT_IDLE_TIMEOUT));
         final Time batchSlotTimeout =
@@ -186,7 +185,7 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                                 getRequestSlotMatchingStrategy(configuration, jobType));
                 break;
             case Adaptive:
-                schedulerNGFactory = getAdaptiveSchedulerFactoryFromConfiguration(configuration);
+                schedulerNGFactory = new AdaptiveSchedulerFactory();
                 slotPoolServiceFactory =
                         new DeclarativeSlotPoolServiceFactory(
                                 SystemClock.getInstance(), slotIdleTimeout, rpcTimeout);
@@ -280,31 +279,5 @@ public final class DefaultSlotPoolServiceSchedulerFactory
         } else {
             return SimpleRequestSlotMatchingStrategy.INSTANCE;
         }
-    }
-
-    private static AdaptiveSchedulerFactory getAdaptiveSchedulerFactoryFromConfiguration(
-            Configuration configuration) {
-        Duration allocationTimeoutDefault = JobManagerOptions.RESOURCE_WAIT_TIMEOUT.defaultValue();
-        Duration stabilizationTimeoutDefault =
-                JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT.defaultValue();
-
-        if (configuration.get(JobManagerOptions.SCHEDULER_MODE)
-                == SchedulerExecutionMode.REACTIVE) {
-            allocationTimeoutDefault = Duration.ofMillis(-1);
-            stabilizationTimeoutDefault = Duration.ZERO;
-        }
-
-        final Duration initialResourceAllocationTimeout =
-                configuration
-                        .getOptional(JobManagerOptions.RESOURCE_WAIT_TIMEOUT)
-                        .orElse(allocationTimeoutDefault);
-
-        final Duration resourceStabilizationTimeout =
-                configuration
-                        .getOptional(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT)
-                        .orElse(stabilizationTimeoutDefault);
-
-        return new AdaptiveSchedulerFactory(
-                initialResourceAllocationTimeout, resourceStabilizationTimeout);
     }
 }

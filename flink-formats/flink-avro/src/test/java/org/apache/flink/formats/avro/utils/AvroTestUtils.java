@@ -19,11 +19,13 @@
 package org.apache.flink.formats.avro.utils;
 
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed16;
 import org.apache.flink.formats.avro.generated.Fixed2;
+import org.apache.flink.formats.avro.generated.Timestamps;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.formats.avro.typeutils.AvroSerializerLargeGenericRecordTest;
 import org.apache.flink.types.Row;
@@ -48,6 +50,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -259,6 +262,53 @@ public final class AvroTestUtils {
         t.f0 = user;
         t.f1 = rowUser;
         t.f2 = schema;
+
+        return t;
+    }
+
+    public static Tuple4<Class<? extends SpecificRecord>, SpecificRecord, GenericRecord, Row>
+            getTimestampTestData() {
+
+        final String schemaString =
+                "{\"type\":\"record\",\"name\":\"GenericTimestamps\",\"namespace\":\"org.apache.flink.formats.avro.generated\","
+                        + "\"fields\": [{\"name\":\"type_timestamp_millis\",\"type\":{\"type\":\"long\","
+                        + "\"logicalType\":\"timestamp-millis\"}},{\"name\":\"type_timestamp_micros\",\"type\":{\"type\":\"long\","
+                        + "\"logicalType\":\"timestamp-micros\"}},{\"name\": \"type_local_timestamp_millis\", \"type\": {\"type\": \"long\", \"logicalType\": \"local-timestamp-millis\"}},"
+                        + "{\"name\": \"type_local_timestamp_micros\", \"type\": {\"type\": \"long\", \"logicalType\": \"local-timestamp-micros\"}}]}";
+        final Schema schema = new Schema.Parser().parse(schemaString);
+        final GenericRecord timestampRecord = new GenericData.Record(schema);
+        timestampRecord.put("type_timestamp_millis", Instant.parse("2014-03-01T12:12:12.321Z"));
+        timestampRecord.put(
+                "type_timestamp_micros", Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS));
+        timestampRecord.put(
+                "type_local_timestamp_millis", LocalDateTime.parse("2014-03-01T12:12:12.321"));
+        timestampRecord.put(
+                "type_local_timestamp_micros", LocalDateTime.parse("1970-01-01T00:00:00.123456"));
+
+        final Timestamps timestamps =
+                Timestamps.newBuilder()
+                        .setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
+                        .setTypeTimestampMicros(
+                                Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS))
+                        .setTypeLocalTimestampMillis(LocalDateTime.parse("2014-03-01T12:12:12.321"))
+                        .setTypeLocalTimestampMicros(
+                                LocalDateTime.parse("1970-01-01T00:00:00.123456"))
+                        .build();
+
+        final Row timestampRow = new Row(4);
+        timestampRow.setField(0, Timestamp.valueOf("2014-03-01 12:12:12.321"));
+        timestampRow.setField(
+                1, Timestamp.from(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS)));
+        timestampRow.setField(2, Timestamp.valueOf(LocalDateTime.parse("2014-03-01T12:12:12.321")));
+        timestampRow.setField(
+                3, Timestamp.valueOf(LocalDateTime.parse("1970-01-01T00:00:00.123456")));
+
+        final Tuple4<Class<? extends SpecificRecord>, SpecificRecord, GenericRecord, Row> t =
+                new Tuple4<>();
+        t.f0 = Timestamps.class;
+        t.f1 = timestamps;
+        t.f2 = timestampRecord;
+        t.f3 = timestampRow;
 
         return t;
     }

@@ -106,7 +106,9 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
                         new MapSerializer<>(
                                 LongSerializer.INSTANCE,
                                 new ListSerializer<>(
-                                        new KryoSerializer<>(Path.class, getExecutionConfig()))));
+                                        new KryoSerializer<>(
+                                                Path.class,
+                                                getExecutionConfig().getSerializerConfig()))));
         this.expiredFilesState = context.getOperatorStateStore().getListState(metaDescriptor);
         this.expiredFiles = new TreeMap<>();
         this.currentExpiredFiles = new ArrayList<>();

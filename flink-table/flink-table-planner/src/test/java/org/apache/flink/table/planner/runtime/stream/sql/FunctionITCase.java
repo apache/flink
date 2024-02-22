@@ -18,9 +18,10 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.HintFlag;
@@ -763,7 +764,8 @@ public class FunctionITCase extends StreamingTestBase {
 
         final RawType<Object> rawType =
                 new RawType<>(
-                        Object.class, new KryoSerializer<>(Object.class, new ExecutionConfig()));
+                        Object.class,
+                        new KryoSerializer<>(Object.class, new SerializerConfigImpl()));
 
         tEnv().executeSql(
                         "CREATE TABLE SourceTable(i INT, b BYTES) "
@@ -893,7 +895,7 @@ public class FunctionITCase extends StreamingTestBase {
         final RawType<DayOfWeek> rawType =
                 new RawType<>(
                         DayOfWeek.class,
-                        new KryoSerializer<>(DayOfWeek.class, new ExecutionConfig()));
+                        new KryoSerializer<>(DayOfWeek.class, new SerializerConfigImpl()));
 
         tEnv().executeSql(
                         "CREATE TABLE SourceTable("
@@ -1056,7 +1058,187 @@ public class FunctionITCase extends StreamingTestBase {
     }
 
     @Test
-    void testInvalidUseOfScalarFunction() {
+    void testNamedArgumentsTableFunction() throws Exception {
+        final Row[] sinkData = new Row[] {Row.of("str1, str2")};
+
+        TestCollectionTableFactory.reset();
+
+        tEnv().executeSql("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+
+        tEnv().createFunction("NamedArgumentsTableFunction", NamedArgumentsTableFunction.class);
+        tEnv().executeSql(
+                        "INSERT INTO SinkTable "
+                                + "SELECT T1.s FROM TABLE(NamedArgumentsTableFunction(in2 => 'str2', in1 => 'str1')) AS T1(s) ")
+                .await();
+
+        assertThat(TestCollectionTableFactory.getResult()).containsExactlyInAnyOrder(sinkData);
+    }
+
+    @Test
+    void testNamedArgumentsTableFunctionWithOptionalArguments() throws Exception {
+        final Row[] sinkData = new Row[] {Row.of("null, str2")};
+
+        TestCollectionTableFactory.reset();
+
+        tEnv().executeSql("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+
+        tEnv().createFunction(
+                        "NamedArgumentsTableFunctionWithOptionalArguments",
+                        NamedArgumentsTableFunctionWithOptionalArguments.class);
+        tEnv().executeSql(
+                        "INSERT INTO SinkTable "
+                                + "SELECT T1.s FROM TABLE(NamedArgumentsTableFunctionWithOptionalArguments(in2 => 'str2')) AS T1(s)")
+                .await();
+
+        assertThat(TestCollectionTableFactory.getResult()).containsExactlyInAnyOrder(sinkData);
+    }
+
+    @Test
+    void testNamedArgumentsScalarFunction() throws Exception {
+        final List<Row> sourceData =
+                Arrays.asList(Row.of(1, 2, "str1"), Row.of(3, 4, "str2"), Row.of(5, 6, "str3"));
+
+        final List<Row> sinkData =
+                Arrays.asList(Row.of(1, 2, "1: 2"), Row.of(3, 4, "3: 4"), Row.of(5, 6, "5: 6"));
+
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(sourceData);
+
+        tEnv().executeSql(
+                        "CREATE TABLE TestTable(i1 INT NOT NULL, i2 INT NOT NULL, s1 STRING) WITH ('connector' = 'COLLECTION')");
+
+        tEnv().createTemporarySystemFunction(
+                        "NamedArgumentsScalarFunction", NamedArgumentsScalarFunction.class);
+        tEnv().executeSql(
+                        "INSERT INTO TestTable SELECT"
+                                + " i1, i2,"
+                                + " NamedArgumentsScalarFunction(in2 => i2, in1 => i1) as s1 FROM TestTable")
+                .await();
+
+        assertThat(TestCollectionTableFactory.getResult()).isEqualTo(sinkData);
+    }
+
+    @Test
+    void testNamedParametersScalarFunctionWithOverloadedMethod() throws Exception {
+        final List<Row> sourceData =
+                Arrays.asList(Row.of(1, 2, "str1"), Row.of(3, 4, "str2"), Row.of(5, 6, "str3"));
+
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(sourceData);
+
+        tEnv().executeSql(
+                        "CREATE TABLE TestTable(i1 INT NOT NULL, i2 INT NOT NULL, s1 STRING) WITH ('connector' = 'COLLECTION')");
+        tEnv().createTemporarySystemFunction(
+                        "NamedArgumentsScalarFunction",
+                        NamedArgumentsWithOverloadedScalarFunction.class);
+
+        assertThatThrownBy(
+                        () ->
+                                tEnv().executeSql(
+                                                "INSERT INTO TestTable SELECT"
+                                                        + " i1, i2,"
+                                                        + " NamedArgumentsScalarFunction(in2 => i2, in1 => i1) as s1 FROM TestTable")
+                                        .await())
+                .hasMessageContaining(
+                        "SQL validation failed. Could not find the argument names. Currently named arguments are not supported for varArgs and multi different argument names with overload function");
+    }
+
+    @Test
+    void testNamedArgumentsScalarFunctionWithOptionalArguments() throws Exception {
+        final List<Row> sinkData =
+                Arrays.asList(Row.of("s1: null", "null: s2", "s1: s2", "null: null"));
+        TestCollectionTableFactory.reset();
+
+        tEnv().executeSql(
+                        "CREATE TABLE TestTable(s1 STRING, s2 STRING, s3 STRING, s4 STRING) WITH ('connector' = 'COLLECTION')");
+
+        tEnv().createTemporarySystemFunction(
+                        "NamedArgumentsScalarFunctionWithOptionalArguments",
+                        NamedArgumentsScalarFunctionWithOptionalArguments.class);
+        tEnv().executeSql(
+                        "INSERT INTO TestTable SELECT"
+                                + " NamedArgumentsScalarFunctionWithOptionalArguments(in1 => 's1') as s1,"
+                                + " NamedArgumentsScalarFunctionWithOptionalArguments(in2 => 's2') as s2,"
+                                + " NamedArgumentsScalarFunctionWithOptionalArguments(in1 => 's1', in2 => 's2') as s3,"
+                                + " NamedArgumentsScalarFunctionWithOptionalArguments() as s4")
+                .await();
+
+        assertThat(TestCollectionTableFactory.getResult()).isEqualTo(sinkData);
+    }
+
+    @Test
+    void testNamedArgumentAggregateFunction() throws Exception {
+        final List<Row> sourceData =
+                Arrays.asList(
+                        Row.of(LocalDateTime.parse("2007-12-03T10:15:30"), "a", "b", 1, 2),
+                        Row.of(LocalDateTime.parse("2007-12-03T10:15:30"), "c", "d", 33, 44),
+                        Row.of(LocalDateTime.parse("2007-12-03T10:15:32"), "e", "f", 5, 6),
+                        Row.of(LocalDateTime.parse("2007-12-03T10:15:32"), "gg", "hh", 7, 88));
+
+        final List<Row> sinkData =
+                Arrays.asList(Row.of("a: b", "b: a"), Row.of("gg: hh", "hh: gg"));
+
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(sourceData);
+
+        tEnv().executeSql(
+                        "CREATE TABLE SourceTable(ts TIMESTAMP(3), s1 STRING, s2 STRING, i1 INT, i2 INT, WATERMARK FOR ts AS ts - INTERVAL '1' SECOND) "
+                                + "WITH ('connector' = 'COLLECTION')");
+        tEnv().executeSql(
+                        "CREATE TABLE SinkTable(s1 STRING, s2 STRING) WITH ('connector' = 'COLLECTION')");
+
+        tEnv().createTemporarySystemFunction(
+                        "NamedArgumentAggregateFunction", NamedArgumentAggregateFunction.class);
+
+        tEnv().executeSql(
+                        "INSERT INTO SinkTable "
+                                + "SELECT NamedArgumentAggregateFunction(in2 => s2, in1 => s1),"
+                                + "NamedArgumentAggregateFunction(in1 => s2, in2 => s1)"
+                                + "FROM SourceTable "
+                                + "GROUP BY TUMBLE(ts, INTERVAL '1' SECOND)")
+                .await();
+
+        assertThat(TestCollectionTableFactory.getResult()).isEqualTo(sinkData);
+    }
+
+    @Test
+    void testNamedArgumentAggregateFunctionWithOptionalArguments() throws Exception {
+        final List<Row> sourceData =
+                Arrays.asList(
+                        Row.of(LocalDateTime.parse("2007-12-03T10:15:30"), "a", "b", 1, 2),
+                        Row.of(LocalDateTime.parse("2007-12-03T10:15:30"), "c", "d", 33, 44),
+                        Row.of(LocalDateTime.parse("2007-12-03T10:15:32"), "e", "f", 5, 6),
+                        Row.of(LocalDateTime.parse("2007-12-03T10:15:32"), "gg", "hh", 7, 88));
+
+        final List<Row> sinkData =
+                Arrays.asList(Row.of("a: null", "null: b"), Row.of("gg: null", "null: hh"));
+
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(sourceData);
+
+        tEnv().executeSql(
+                        "CREATE TABLE SourceTable(ts TIMESTAMP(3), s1 STRING, s2 STRING, i1 INT, i2 INT, WATERMARK FOR ts AS ts - INTERVAL '1' SECOND) "
+                                + "WITH ('connector' = 'COLLECTION')");
+        tEnv().executeSql(
+                        "CREATE TABLE SinkTable(s1 STRING, s2 STRING) WITH ('connector' = 'COLLECTION')");
+
+        tEnv().createTemporarySystemFunction(
+                        "NamedArgumentAggregateFunctionWithOptionalArguments",
+                        NamedArgumentAggregateFunctionWithOptionalArguments.class);
+
+        tEnv().executeSql(
+                        "INSERT INTO SinkTable "
+                                + "SELECT NamedArgumentAggregateFunctionWithOptionalArguments(in1 => s1), "
+                                + "NamedArgumentAggregateFunctionWithOptionalArguments(in2 => s2) "
+                                + "FROM SourceTable "
+                                + "GROUP BY TUMBLE(ts, INTERVAL '1' SECOND)")
+                .await();
+
+        assertThat(TestCollectionTableFactory.getResult()).isEqualTo(sinkData);
+    }
+
+    @Test
+    public void testInvalidUseOfScalarFunction() {
         tEnv().executeSql(
                         "CREATE TABLE SinkTable(s BIGINT NOT NULL) WITH ('connector' = 'COLLECTION')");
 
@@ -1393,6 +1575,55 @@ public class FunctionITCase extends StreamingTestBase {
         }
     }
 
+    /** Scalar function with argument hint. */
+    public static class NamedArgumentsScalarFunction extends ScalarFunction {
+        @FunctionHint(
+                output = @DataTypeHint("STRING"),
+                argument = {
+                    @ArgumentHint(name = "in1", type = @DataTypeHint("int")),
+                    @ArgumentHint(name = "in2", type = @DataTypeHint("int"))
+                })
+        public String eval(Integer arg1, Integer arg2) {
+            return (arg1 + ": " + arg2);
+        }
+    }
+
+    /** Scalar function with overloaded functions and arguments declared. */
+    public static class NamedArgumentsWithOverloadedScalarFunction extends ScalarFunction {
+        @FunctionHint(
+                output = @DataTypeHint("STRING"),
+                argument = {
+                    @ArgumentHint(name = "in1", type = @DataTypeHint("int")),
+                    @ArgumentHint(name = "in2", type = @DataTypeHint("int"))
+                })
+        public String eval(Integer arg1, Integer arg2) {
+            return (arg1 + ": " + arg2);
+        }
+
+        @FunctionHint(
+                output = @DataTypeHint("STRING"),
+                argument = {
+                    @ArgumentHint(name = "in1", type = @DataTypeHint("string")),
+                    @ArgumentHint(name = "in2", type = @DataTypeHint("string"))
+                })
+        public String eval(String arg1, String arg2) {
+            return (arg1 + ":" + arg2);
+        }
+    }
+
+    /** Function with optional arguments. */
+    public static class NamedArgumentsScalarFunctionWithOptionalArguments extends ScalarFunction {
+        @FunctionHint(
+                output = @DataTypeHint("STRING"),
+                argument = {
+                    @ArgumentHint(name = "in1", type = @DataTypeHint("STRING"), isOptional = true),
+                    @ArgumentHint(name = "in2", type = @DataTypeHint("STRING"), isOptional = true)
+                })
+        public String eval(String arg1, String arg2) {
+            return (arg1 + ": " + arg2);
+        }
+    }
+
     /** Function that is overloaded and takes use of annotations. */
     public static class ComplexScalarFunction extends ScalarFunction {
         public String eval(
@@ -1509,6 +1740,31 @@ public class FunctionITCase extends StreamingTestBase {
         }
     }
 
+    /** Function that returns a string or integer. */
+    public static class NamedArgumentsTableFunction extends TableFunction<Object> {
+        @FunctionHint(
+                input = {@DataTypeHint("STRING"), @DataTypeHint("STRING")},
+                output = @DataTypeHint("STRING"),
+                argumentNames = {"in1", "in2"})
+        public void eval(String arg1, String arg2) {
+            collect(arg1 + ", " + arg2);
+        }
+    }
+
+    /** Function that returns a string or integer. */
+    public static class NamedArgumentsTableFunctionWithOptionalArguments
+            extends TableFunction<Object> {
+        @FunctionHint(
+                argument = {
+                    @ArgumentHint(type = @DataTypeHint("STRING"), name = "in1", isOptional = true),
+                    @ArgumentHint(type = @DataTypeHint("STRING"), name = "in2", isOptional = true)
+                },
+                output = @DataTypeHint("STRING"))
+        public void eval(String arg1, String arg2) {
+            collect(arg1 + ", " + arg2);
+        }
+    }
+
     /**
      * Function that returns which method has been called.
      *
@@ -1611,6 +1867,66 @@ public class FunctionITCase extends StreamingTestBase {
             if (value == null) {
                 return;
             }
+            final String longestString = (String) acc.getField(0);
+            if (longestString == null || longestString.length() < value.length()) {
+                acc.setField(0, value);
+            }
+        }
+
+        @Override
+        public String getValue(Row acc) {
+            return (String) acc.getField(0);
+        }
+    }
+
+    /** Function that aggregates strings and finds the longest string. */
+    public static class NamedArgumentAggregateFunction extends AggregateFunction<String, Row> {
+
+        @Override
+        public Row createAccumulator() {
+            return Row.of((String) null);
+        }
+
+        @FunctionHint(
+                input = {@DataTypeHint("STRING"), @DataTypeHint("STRING")},
+                output = @DataTypeHint("STRING"),
+                argumentNames = {"in1", "in2"},
+                accumulator = @DataTypeHint("ROW<longestString STRING>"))
+        public void accumulate(Row acc, String arg1, String arg2) {
+            if (arg1 == null || arg2 == null) {
+                return;
+            }
+            String value = arg1 + ": " + arg2;
+            final String longestString = (String) acc.getField(0);
+            if (longestString == null || longestString.length() < value.length()) {
+                acc.setField(0, value);
+            }
+        }
+
+        @Override
+        public String getValue(Row acc) {
+            return (String) acc.getField(0);
+        }
+    }
+
+    /** Function that aggregates strings and finds the longest string. */
+    public static class NamedArgumentAggregateFunctionWithOptionalArguments
+            extends AggregateFunction<String, Row> {
+
+        @Override
+        public Row createAccumulator() {
+            return Row.of((String) null);
+        }
+
+        @FunctionHint(
+                output = @DataTypeHint("STRING"),
+                argument = {
+                    @ArgumentHint(name = "in1", type = @DataTypeHint("STRING"), isOptional = true),
+                    @ArgumentHint(name = "in2", type = @DataTypeHint("STRING"), isOptional = true)
+                },
+                accumulator = @DataTypeHint("ROW<longestString STRING>"))
+        public void accumulate(Row acc, String arg1, String arg2) {
+            String value = arg1 + ": " + arg2;
             final String longestString = (String) acc.getField(0);
             if (longestString == null || longestString.length() < value.length()) {
                 acc.setField(0, value);

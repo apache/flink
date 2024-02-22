@@ -24,7 +24,7 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.planner.plan.rules.logical.WrapJsonAggFunctionArgumentsRule;
 import org.apache.flink.util.TimeUtils;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableSet;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableSet;
 
 import org.apache.calcite.rel.hint.HintOptionChecker;
 import org.apache.calcite.rel.hint.HintPredicates;
@@ -122,8 +122,9 @@ public abstract class FlinkHintStrategies {
                                 .build())
                 .hintStrategy(
                         StateTtlHint.STATE_TTL.getHintName(),
-                        // TODO support agg state ttl hint
-                        HintStrategy.builder(HintPredicates.JOIN)
+                        HintStrategy.builder(
+                                        HintPredicates.or(
+                                                HintPredicates.JOIN, HintPredicates.AGGREGATE))
                                 .optionChecker(STATE_TTL_NON_EMPTY_KV_OPTION_CHECKER)
                                 .build())
                 .build();
@@ -252,7 +253,7 @@ public abstract class FlinkHintStrategies {
 
                 litmus.check(
                         ttlHint.kvOptions.size() > 0,
-                        "Invalid hint about STATE_TTL, expecting at least one key-value options specified.");
+                        "Invalid STATE_TTL hint, expecting at least one key-value options specified.");
 
                 // validate the hint value
                 ttlHint.kvOptions

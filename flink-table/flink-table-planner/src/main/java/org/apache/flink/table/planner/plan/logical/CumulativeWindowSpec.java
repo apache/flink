@@ -60,7 +60,7 @@ public class CumulativeWindowSpec implements WindowSpec {
     }
 
     @Override
-    public String toSummaryString(String windowing) {
+    public String toSummaryString(String windowing, String[] inputFieldNames) {
         if (offset == null) {
             return String.format(
                     "CUMULATE(%s, max_size=[%s], step=[%s])",
@@ -119,5 +119,10 @@ public class CumulativeWindowSpec implements WindowSpec {
                     formatWithHighestUnit(step),
                     formatWithHighestUnit(offset));
         }
+    }
+
+    @Override
+    public boolean isAlignedWindow() {
+        return true;
     }
 }

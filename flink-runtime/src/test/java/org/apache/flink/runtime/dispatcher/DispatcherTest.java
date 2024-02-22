@@ -100,7 +100,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.assertj.core.api.Assertions;
@@ -737,7 +737,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
     private CheckpointStatsSnapshot getTestCheckpointStatsSnapshotWithTwoFailedCheckpoints() {
         CheckpointStatsTracker checkpointStatsTracker =
                 new CheckpointStatsTracker(
-                        10, UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup());
+                        10,
+                        UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+                        new JobID());
         checkpointStatsTracker.reportFailedCheckpointsWithoutInProgress();
         checkpointStatsTracker.reportFailedCheckpointsWithoutInProgress();
         return checkpointStatsTracker.createSnapshot();

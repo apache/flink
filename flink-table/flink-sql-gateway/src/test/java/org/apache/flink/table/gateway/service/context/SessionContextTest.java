@@ -184,7 +184,7 @@ class SessionContextTest {
                                 CatalogListener1.class.getName(),
                                 CatalogListener2.class.getName()));
 
-        // Find and create listeners from flink-conf.yaml for session
+        // Find and create listeners from config.yaml for session
         flinkConfig.set(
                 TableConfigOptions.TABLE_CATALOG_MODIFICATION_LISTENERS,
                 Arrays.asList(CatalogFactory1.IDENTIFIER, CatalogFactory2.IDENTIFIER));

@@ -17,12 +17,12 @@
 
 SET 'sql-client.execution.result-mode' = 'tableau';
 !output
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SET 'table.dml-sync' = 'true';
 !output
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create table src (
@@ -32,7 +32,7 @@ create table src (
   'connector' = 'values'
 );
 !output
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # ==========================================================================
@@ -41,7 +41,7 @@ create table src (
 
 SET 'execution.runtime-mode' = 'streaming';
 !output
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create table StreamingTable (
@@ -53,7 +53,7 @@ create table StreamingTable (
   'format' = 'csv'
 );
 !output
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create table StreamingTable2 (
@@ -65,7 +65,7 @@ create table StreamingTable2 (
   'format' = 'csv'
 );
 !output
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 EXPLAIN STATEMENT SET BEGIN
@@ -171,7 +171,7 @@ Was expecting one of:
 
 SET 'execution.runtime-mode' = 'batch';
 !output
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create table BatchTable (
@@ -183,7 +183,7 @@ str string
 'format' = 'csv'
 );
 !output
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create table BatchTable2 (
@@ -195,7 +195,7 @@ str string
 'format' = 'csv'
 );
 !output
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 EXPLAIN STATEMENT SET

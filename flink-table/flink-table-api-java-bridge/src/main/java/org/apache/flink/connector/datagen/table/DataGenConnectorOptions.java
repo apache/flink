@@ -21,6 +21,7 @@ package org.apache.flink.connector.datagen.table;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.table.factories.FactoryUtil;
 
 import java.time.Duration;
 
@@ -52,6 +53,8 @@ public class DataGenConnectorOptions {
                     .noDefaultValue()
                     .withDescription(
                             "Total number of rows to emit. By default, the source is unbounded.");
+
+    public static final ConfigOption<Integer> SOURCE_PARALLELISM = FactoryUtil.SOURCE_PARALLELISM;
 
     // --------------------------------------------------------------------------------------------
     // Placeholder options

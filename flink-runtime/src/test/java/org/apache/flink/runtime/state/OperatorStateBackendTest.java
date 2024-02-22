@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -102,15 +103,16 @@ class OperatorStateBackendTest {
         // different
         // example serializer
         assertThat(
-                        new KryoSerializer<>(File.class, new ExecutionConfig())
+                        new KryoSerializer<>(File.class, new SerializerConfigImpl())
                                         .getKryo()
                                         .getDefaultSerializer(registeredType)
                                 instanceof com.esotericsoftware.kryo.serializers.JavaSerializer)
                 .isFalse();
 
         final ExecutionConfig cfg = new ExecutionConfig();
-        cfg.registerTypeWithKryoSerializer(
-                registeredType, com.esotericsoftware.kryo.serializers.JavaSerializer.class);
+        cfg.getSerializerConfig()
+                .registerTypeWithKryoSerializer(
+                        registeredType, com.esotericsoftware.kryo.serializers.JavaSerializer.class);
 
         final OperatorStateBackend operatorStateBackend =
                 new DefaultOperatorStateBackendBuilder(

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.window.tvf.common;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.GroupWindowAssigner;
 
 import java.io.Serializable;
@@ -29,8 +30,9 @@ import java.io.Serializable;
  * window assigner is translated from the new window TVF syntax, but the other is from the legacy
  * GROUP WINDOW FUNCTION syntax. In the long future, {@link GroupWindowAssigner} will be dropped.
  *
- * <p>See more details in {@link WindowOperatorBase}.
+ * <p>See more details in {@link WindowAggOperator}.
  */
+@Internal
 public interface WindowAssigner extends Serializable {
 
     /**
@@ -38,4 +40,7 @@ public interface WindowAssigner extends Serializable {
      * based on processing time.
      */
     boolean isEventTime();
+
+    /** Returns a description of this window assigner. */
+    String getDescription();
 }

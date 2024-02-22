@@ -157,7 +157,9 @@ public class WindowOperatorBuilder<T, K, W extends Window> {
         } else {
             ReducingStateDescriptor<T> stateDesc =
                     new ReducingStateDescriptor<>(
-                            WINDOW_STATE_NAME, reduceFunction, inputType.createSerializer(config));
+                            WINDOW_STATE_NAME,
+                            reduceFunction,
+                            inputType.createSerializer(config.getSerializerConfig()));
 
             return buildWindowOperator(
                     stateDesc, new InternalSingleValueWindowFunction<>(function));
@@ -181,7 +183,9 @@ public class WindowOperatorBuilder<T, K, W extends Window> {
         } else {
             ReducingStateDescriptor<T> stateDesc =
                     new ReducingStateDescriptor<>(
-                            WINDOW_STATE_NAME, reduceFunction, inputType.createSerializer(config));
+                            WINDOW_STATE_NAME,
+                            reduceFunction,
+                            inputType.createSerializer(config.getSerializerConfig()));
 
             return buildWindowOperator(
                     stateDesc, new InternalSingleValueProcessWindowFunction<>(function));
@@ -210,7 +214,7 @@ public class WindowOperatorBuilder<T, K, W extends Window> {
                     new AggregatingStateDescriptor<>(
                             WINDOW_STATE_NAME,
                             aggregateFunction,
-                            accumulatorType.createSerializer(config));
+                            accumulatorType.createSerializer(config.getSerializerConfig()));
 
             return buildWindowOperator(
                     stateDesc, new InternalSingleValueWindowFunction<>(windowFunction));
@@ -239,7 +243,7 @@ public class WindowOperatorBuilder<T, K, W extends Window> {
                     new AggregatingStateDescriptor<>(
                             WINDOW_STATE_NAME,
                             aggregateFunction,
-                            accumulatorType.createSerializer(config));
+                            accumulatorType.createSerializer(config.getSerializerConfig()));
 
             return buildWindowOperator(
                     stateDesc, new InternalSingleValueProcessWindowFunction<>(windowFunction));
@@ -263,7 +267,8 @@ public class WindowOperatorBuilder<T, K, W extends Window> {
         } else {
             ListStateDescriptor<T> stateDesc =
                     new ListStateDescriptor<>(
-                            WINDOW_STATE_NAME, inputType.createSerializer(config));
+                            WINDOW_STATE_NAME,
+                            inputType.createSerializer(config.getSerializerConfig()));
 
             return buildWindowOperator(stateDesc, function);
         }
@@ -277,7 +282,7 @@ public class WindowOperatorBuilder<T, K, W extends Window> {
                 windowAssigner,
                 windowAssigner.getWindowSerializer(config),
                 keySelector,
-                keyType.createSerializer(config),
+                keyType.createSerializer(config.getSerializerConfig()),
                 stateDesc,
                 function,
                 trigger,
@@ -290,7 +295,8 @@ public class WindowOperatorBuilder<T, K, W extends Window> {
         @SuppressWarnings({"unchecked", "rawtypes"})
         TypeSerializer<StreamRecord<T>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<T>>)
-                        new StreamElementSerializer(inputType.createSerializer(config));
+                        new StreamElementSerializer(
+                                inputType.createSerializer(config.getSerializerConfig()));
 
         ListStateDescriptor<StreamRecord<T>> stateDesc =
                 new ListStateDescriptor<>(WINDOW_STATE_NAME, streamRecordSerializer);
@@ -299,7 +305,7 @@ public class WindowOperatorBuilder<T, K, W extends Window> {
                 windowAssigner,
                 windowAssigner.getWindowSerializer(config),
                 keySelector,
-                keyType.createSerializer(config),
+                keyType.createSerializer(config.getSerializerConfig()),
                 stateDesc,
                 function,
                 trigger,

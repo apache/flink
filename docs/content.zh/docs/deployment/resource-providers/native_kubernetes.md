@@ -97,14 +97,34 @@ COPY /path/of/my-flink-job.jar $FLINK_HOME/usrlib/my-flink-job.jar
 After creating and publishing the Docker image under `custom-image-name`, you can start an Application cluster with the following command:
 
 ```bash
+# Local Schema
 $ ./bin/flink run-application \
     --target kubernetes-application \
     -Dkubernetes.cluster-id=my-first-application-cluster \
     -Dkubernetes.container.image.ref=custom-image-name \
     local:///opt/flink/usrlib/my-flink-job.jar
-```
 
-<span class="label label-info">Note</span> `local` is the only supported scheme in Application Mode.
+# FileSystem
+$ ./bin/flink run-application \
+    --target kubernetes-application \
+    -Dkubernetes.cluster-id=my-first-application-cluster \
+    -Dkubernetes.container.image=custom-image-name \
+    s3://my-bucket/my-flink-job.jar
+
+# HTTP(S)
+$ ./bin/flink run-application \
+    --target kubernetes-application \
+    -Dkubernetes.cluster-id=my-first-application-cluster \
+    -Dkubernetes.container.image=custom-image-name \
+    https://ip:port/my-flink-job.jar
+```
+{{< hint info >}}
+JAR fetching supports downloading from [filesystems]({{< ref "docs/deployment/filesystems/overview" >}}) or HTTP(S) in Application Mode.  
+The JAR will be downloaded to
+[user.artifacts.base-dir]({{< ref "docs/deployment/config" >}}#user-artifacts-base-dir)/[kubernetes.namespace]({{< ref "docs/deployment/config" >}}#kubernetes-namespace)/[kubernetes.cluster-id]({{< ref "docs/deployment/config" >}}#kubernetes-cluster-id) path in image.
+{{< /hint >}}
+
+<span class="label label-info">Note</span> `local` schema is still supported. If you use `local` schema, the JAR must be provided in the image or downloaded by an init container as described in [this example](#example-of-pod-template).
 
 The `kubernetes.cluster-id` option specifies the cluster name and must be unique.
 If you do not specify this option, then Flink will generate a random name.
@@ -120,7 +140,7 @@ $ ./bin/flink list --target kubernetes-application -Dkubernetes.cluster-id=my-fi
 $ ./bin/flink cancel --target kubernetes-application -Dkubernetes.cluster-id=my-first-application-cluster <jobId>
 ```
 
-You can override configurations set in `conf/flink-conf.yaml` by passing key-value pairs `-Dkey=value` to `bin/flink`.
+You can override configurations set in [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}) by passing key-value pairs `-Dkey=value` to `bin/flink`.
 
 ### Per-Job Cluster Mode
 
@@ -146,7 +166,7 @@ $ ./bin/kubernetes-session.sh \
     -Dexecution.attached=true
 ```
 
-You can override configurations set in `conf/flink-conf.yaml` by passing key-value pairs `-Dkey=value` to `bin/kubernetes-session.sh`.
+You can override configurations set in [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}) by passing key-value pairs `-Dkey=value` to `bin/kubernetes-session.sh`.
 
 #### Stop a Running Session Cluster
 
@@ -326,7 +346,7 @@ $ kubectl create clusterrolebinding flink-role-binding-default --clusterrole=edi
 ```
 
 If you do not want to use the `default` service account, use the following command to create a new `flink-service-account` service account and set the role binding.
-Then use the config option `-Dkubernetes.service-account=flink-service-account` to make the JobManager pod use the `flink-service-account` service account to create/delete TaskManager pods and leader ConfigMaps. 
+Then use the config option `-Dkubernetes.service-account=flink-service-account` to configure the JobManager pod's service account used to create and delete TaskManager pods and leader ConfigMaps.
 Also this will allow the TaskManager to watch leader ConfigMaps to retrieve the address of JobManager and ResourceManager.
 
 ```bash

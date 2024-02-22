@@ -30,6 +30,7 @@ import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /** The {@link ConfigOption configuration options} for job execution. */
 @PublicEvolving
@@ -207,6 +208,13 @@ public class PipelineOptions {
                                     + " data to user-code functions will be reused. Keep in mind that this can lead to bugs when the"
                                     + " user-code function of an operation is not aware of this behaviour.");
 
+    /**
+     * @deprecated The config is subsumed by {@link #SERIALIZATION_CONFIG}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
+     */
+    @Deprecated
     public static final ConfigOption<List<String>> KRYO_DEFAULT_SERIALIZERS =
             key("pipeline.default-kryo-serializers")
                     .stringType()
@@ -227,6 +235,13 @@ public class PipelineOptions {
                                                             + " class:org.example.ExampleClass2,serializer:org.example.ExampleSerializer2"))
                                     .build());
 
+    /**
+     * @deprecated The config is subsumed by {@link #SERIALIZATION_CONFIG}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
+     */
+    @Deprecated
     public static final ConfigOption<List<String>> KRYO_REGISTERED_CLASSES =
             key("pipeline.registered-kryo-types")
                     .stringType()
@@ -241,6 +256,13 @@ public class PipelineOptions {
                                                     + " sure that only tags are written.")
                                     .build());
 
+    /**
+     * @deprecated The config is subsumed by {@link #SERIALIZATION_CONFIG}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
+     */
+    @Deprecated
     public static final ConfigOption<List<String>> POJO_REGISTERED_CLASSES =
             key("pipeline.registered-pojo-types")
                     .stringType()
@@ -253,6 +275,51 @@ public class PipelineOptions {
                                                     + " is eventually serialized as a POJO, then the type is registered with the POJO serializer. If the"
                                                     + " type ends up being serialized with Kryo, then it will be registered at Kryo to make"
                                                     + " sure that only tags are written.")
+                                    .build());
+
+    public static final ConfigOption<List<String>> SERIALIZATION_CONFIG =
+            key("pipeline.serialization-config")
+                    .stringType()
+                    .asList()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "List of pairs of class names and serializer configs to be used."
+                                                    + " There is a %s field in the serializer config and each type has its own configuration."
+                                                    + " Note: only standard YAML config parser is supported, please use \"config.yaml\" as the config file."
+                                                    + " The fields involved are:",
+                                            code("type"))
+                                    .list(
+                                            text(
+                                                    "%s: the serializer type which could be \"pojo\", \"kryo\" or \"typeinfo\"."
+                                                            + " If the serializer type is \"pojo\" or \"kryo\" without field %s,"
+                                                            + " it means the data type will use POJO or Kryo serializer directly.",
+                                                    code("type"), code("kryo-type")),
+                                            text(
+                                                    "%s: the Kryo serializer type which could be \"default\" or \"registered\"."
+                                                            + " The Kryo serializer will use the serializer for the data type "
+                                                            + " as default serializers when the kryo-type is \"default\", and register"
+                                                            + " the data type and its serializer to Kryo serializer when the kryo-type is registered."
+                                                            + " When the field exists, there must be a field %s to specify the serializer class name.",
+                                                    code("kryo-type"), code("class")),
+                                            text(
+                                                    "%s: the serializer class name for type \"kryo\" or \"typeinfo\"."
+                                                            + " For \"kryo\", it should be a subclass of %s."
+                                                            + " For \"typeinfo\", it should be a subclass of %s.",
+                                                    code("class"),
+                                                    code("com.esotericsoftware.kryo.Serializer"),
+                                                    code(
+                                                            "org.apache.flink.api.common.typeinfo.TypeInfoFactory")))
+                                    .text("Example:")
+                                    .linebreak()
+                                    .add(
+                                            TextElement.code(
+                                                    "[org.example.ExampleClass1: {type: pojo},"
+                                                            + " org.example.ExampleClass2: {type: kryo},"
+                                                            + " org.example.ExampleClass3: {type: kryo, kryo-type: default, class: org.example.Class3KryoSerializer},"
+                                                            + " org.example.ExampleClass4: {type: kryo, kryo-type: registered, class: org.example.Class4KryoSerializer},"
+                                                            + " org.example.ExampleClass5: {type: typeinfo, class: org.example.Class5TypeInfoFactory}]"))
                                     .build());
 
     public static final ConfigOption<Boolean> OPERATOR_CHAINING =

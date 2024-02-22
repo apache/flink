@@ -59,11 +59,13 @@ import org.rocksdb.BlockBasedTableConfig;
 import org.rocksdb.BloomFilter;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompactionStyle;
+import org.rocksdb.CompressionType;
 import org.rocksdb.DBOptions;
 import org.rocksdb.InfoLogLevel;
 import org.rocksdb.util.SizeUnit;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -247,7 +249,7 @@ public class RocksDBStateBackendConfigTest {
         env.close();
     }
 
-    /** Validates that user custom configuration from code should override the flink-conf.yaml. */
+    /** Validates that user custom configuration from code should override the config.yaml. */
     @Test
     public void testConfigureTimerServiceLoadingFromApplication() throws Exception {
         final MockEnvironment env = new MockEnvironmentBuilder().build();
@@ -522,7 +524,7 @@ public class RocksDBStateBackendConfigTest {
         // verify that we would use PredefinedOptions.DEFAULT by default.
         assertEquals(PredefinedOptions.DEFAULT, rocksDbBackend.getPredefinedOptions());
 
-        // verify that user could configure predefined options via flink-conf.yaml
+        // verify that user could configure predefined options via config.yaml
         Configuration configuration = new Configuration();
         configuration.set(
                 RocksDBOptions.PREDEFINED_OPTIONS, PredefinedOptions.FLASH_SSD_OPTIMIZED.name());
@@ -564,6 +566,7 @@ public class RocksDBStateBackendConfigTest {
             verifyIllegalArgument(RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE, "1");
 
             verifyIllegalArgument(RocksDBConfigurableOptions.COMPACTION_STYLE, "LEV");
+            verifyIllegalArgument(RocksDBConfigurableOptions.COMPRESSION_PER_LEVEL, "SNAP");
             verifyIllegalArgument(RocksDBConfigurableOptions.USE_BLOOM_FILTER, "NO");
             verifyIllegalArgument(RocksDBConfigurableOptions.BLOOM_FILTER_BLOCK_BASED_MODE, "YES");
             verifyIllegalArgument(
@@ -577,6 +580,9 @@ public class RocksDBStateBackendConfigTest {
             configuration.setString(RocksDBConfigurableOptions.LOG_FILE_NUM.key(), "10");
             configuration.setString(RocksDBConfigurableOptions.LOG_MAX_FILE_SIZE.key(), "2MB");
             configuration.setString(RocksDBConfigurableOptions.COMPACTION_STYLE.key(), "level");
+            configuration.setString(
+                    RocksDBConfigurableOptions.COMPRESSION_PER_LEVEL.key(),
+                    "no_compression;snappy_compression;lz4_compression");
             configuration.setString(
                     RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE.key(), "TRUE");
             configuration.setString(RocksDBConfigurableOptions.TARGET_FILE_SIZE_BASE.key(), "8 mb");
@@ -612,6 +618,12 @@ public class RocksDBStateBackendConfigTest {
                 assertEquals(4, columnOptions.maxWriteBufferNumber());
                 assertEquals(2, columnOptions.minWriteBufferNumberToMerge());
                 assertEquals(64 * SizeUnit.MB, columnOptions.writeBufferSize());
+                assertEquals(
+                        Arrays.asList(
+                                CompressionType.NO_COMPRESSION,
+                                CompressionType.SNAPPY_COMPRESSION,
+                                CompressionType.LZ4_COMPRESSION),
+                        columnOptions.compressionPerLevel());
 
                 BlockBasedTableConfig tableConfig =
                         (BlockBasedTableConfig) columnOptions.tableFormatConfig();
@@ -628,7 +640,7 @@ public class RocksDBStateBackendConfigTest {
         String checkpointPath = tempFolder.newFolder().toURI().toString();
         RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
 
-        // verify that user-defined options factory could be configured via flink-conf.yaml
+        // verify that user-defined options factory could be configured via config.yaml
         Configuration config = new Configuration();
         config.setString(RocksDBOptions.OPTIONS_FACTORY.key(), TestOptionsFactory.class.getName());
         config.setString(TestOptionsFactory.BACKGROUND_JOBS_OPTION.key(), "4");
@@ -858,6 +870,49 @@ public class RocksDBStateBackendConfigTest {
         rocksDBStateBackend =
                 rocksDBStateBackend.configure(configuration, getClass().getClassLoader());
         assertTrue(0.3 == rocksDBStateBackend.getOverlapFractionThreshold());
+    }
+
+    @Test
+    public void testDefaultUseIngestDB() {
+        EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend(true);
+        assertEquals(
+                RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE.defaultValue(),
+                rocksDBStateBackend.getUseIngestDbRestoreMode());
+    }
+
+    @Test
+    public void testConfigureUseIngestDB() {
+        EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend(true);
+        Configuration configuration = new Configuration();
+        configuration.set(RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE, true);
+        rocksDBStateBackend =
+                rocksDBStateBackend.configure(configuration, getClass().getClassLoader());
+        assertTrue(rocksDBStateBackend.getUseIngestDbRestoreMode());
+    }
+
+    @Test
+    public void testDefaultIncrementalRestoreInstanceBufferSize() {
+        EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend(true);
+        assertEquals(
+                RocksDBConfigurableOptions.INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE
+                        .defaultValue(),
+                rocksDBStateBackend.getIncrementalRestoreAsyncCompactAfterRescale());
+    }
+
+    @Test
+    public void testConfigureIncrementalRestoreInstanceBufferSize() {
+        EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend(true);
+        Configuration configuration = new Configuration();
+        boolean notDefault =
+                !RocksDBConfigurableOptions.INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE
+                        .defaultValue();
+        configuration.set(
+                RocksDBConfigurableOptions.INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE,
+                notDefault);
+        rocksDBStateBackend =
+                rocksDBStateBackend.configure(configuration, getClass().getClassLoader());
+        assertEquals(
+                notDefault, rocksDBStateBackend.getIncrementalRestoreAsyncCompactAfterRescale());
     }
 
     private void verifySetParameter(Runnable setter) {

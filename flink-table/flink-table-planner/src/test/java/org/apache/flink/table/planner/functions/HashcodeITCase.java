@@ -26,7 +26,6 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.connector.sink.SinkV2Provider;
-import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.MapData;
@@ -158,8 +157,7 @@ public class HashcodeITCase {
         }
 
         @Override
-        public ScanTableSource.ScanRuntimeProvider getScanRuntimeProvider(
-                ScanTableSource.ScanContext context) {
+        public ScanRuntimeProvider getScanRuntimeProvider(ScanContext context) {
             return SourceFunctionProvider.of(new TestSourceFunction(), false);
         }
     }

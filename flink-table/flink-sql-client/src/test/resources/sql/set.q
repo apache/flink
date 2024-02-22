@@ -17,11 +17,11 @@
 
 # test set a configuration
 SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SET 'table.dml-sync' = 'true';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # test "ctas"
@@ -34,7 +34,7 @@ CREATE TABLE foo with(
 !info
 
 RESET 'table.dml-sync';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT * from foo;
@@ -48,7 +48,7 @@ Received a total of 1 row
 
 # test add jar
 ADD JAR '$VAR_UDF_JAR_PATH';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SHOW JARS;
@@ -61,7 +61,7 @@ SHOW JARS;
 !ok
 
 REMOVE JAR '$VAR_UDF_JAR_PATH';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SHOW JARS;
@@ -69,7 +69,7 @@ Empty set
 !ok
 
 reset 'table.resources.download-dir';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # list the configured configuration
@@ -95,7 +95,7 @@ set;
 
 # reset the configuration
 reset;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 set;
@@ -136,7 +136,7 @@ Was expecting one of:
 !error
 
 set 'sql-client.verbose' = 'true';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 set;
@@ -158,11 +158,11 @@ set;
 !ok
 
 set 'execution.attached' = 'false';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 reset 'execution.attached';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 set;
@@ -185,7 +185,7 @@ set;
 
 # test reset can work with add jar
 ADD JAR '$VAR_UDF_JAR_PATH';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SHOW JARS;
@@ -216,7 +216,7 @@ set;
 !ok
 
 reset;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SHOW JARS;
@@ -229,15 +229,15 @@ SHOW JARS;
 !ok
 
 SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SET 'sql-client.display.print-time-cost' = 'false';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create function func1 as 'LowerUDF' LANGUAGE JAVA;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT id, func1(str) FROM (VALUES (1, 'Hello World')) AS T(id, str) ;
@@ -250,7 +250,7 @@ Received a total of 1 row
 !ok
 
 REMOVE JAR '$VAR_UDF_JAR_PATH';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SHOW JARS;

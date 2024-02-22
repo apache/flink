@@ -24,6 +24,7 @@ import org.apache.flink.table.api.{DataTypes, TableException}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestingAppendSink, TestingRetractSink}
+import org.apache.flink.table.planner.runtime.utils.TestData.data1
 import org.apache.flink.table.planner.utils._
 import org.apache.flink.table.runtime.functions.scalar.SourceWatermarkFunction
 import org.apache.flink.table.utils.LegacyRowExtension
@@ -32,6 +33,8 @@ import org.apache.flink.types.Row
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 import org.junit.jupiter.api.{BeforeEach, Test}
 import org.junit.jupiter.api.extension.RegisterExtension
+
+import java.util.concurrent.atomic.AtomicInteger
 
 class TableSourceITCase extends StreamingTestBase {
 
@@ -421,4 +424,81 @@ class TableSourceITCase extends StreamingTestBase {
     val expected = Seq("1,Sarah,1", "2,Rob,1", "3,Mike,1")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
+
+  private def innerTestSetParallelism(provider: String, parallelism: Int, index: Int): Unit = {
+    val dataId = TestValuesTableFactory.registerData(data1)
+    val sourceTableName = s"test_para_source_${provider.toLowerCase.trim}_$index"
+    val sinkTableName = s"test_para_sink_${provider.toLowerCase.trim}_$index"
+    tEnv.executeSql(s"""
+                       |CREATE TABLE $sourceTableName (
+                       |  the_month INT,
+                       |  area STRING,
+                       |  product INT
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId',
+                       |  'bounded' = 'true',
+                       |  'runtime-source' = '$provider',
+                       |  'scan.parallelism' = '$parallelism',
+                       |  'enable-projection-push-down' = 'false'
+                       |)
+                       |""".stripMargin)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE $sinkTableName (
+                       |  the_month INT,
+                       |  area STRING,
+                       |  product INT
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'sink-insert-only' = 'true'
+                       |)
+                       |""".stripMargin)
+    tEnv.executeSql(s"INSERT INTO $sinkTableName SELECT * FROM $sourceTableName").await()
+  }
+
+  @Test
+  def testParallelismWithSourceFunction(): Unit = {
+    val negativeParallelism = -1
+    val validParallelism = 3
+    val index = new AtomicInteger(1)
+
+    assertThatThrownBy(
+      () =>
+        innerTestSetParallelism(
+          "SourceFunction",
+          negativeParallelism,
+          index = index.getAndIncrement))
+      .hasMessageContaining(s"Invalid configured parallelism")
+
+    innerTestSetParallelism("SourceFunction", validParallelism, index = index.getAndIncrement)
+  }
+
+  @Test
+  def testParallelismWithInputFormat(): Unit = {
+    val negativeParallelism = -1
+    val validParallelism = 3
+    val index = new AtomicInteger(2)
+
+    assertThatThrownBy(
+      () =>
+        innerTestSetParallelism("InputFormat", negativeParallelism, index = index.getAndIncrement))
+      .hasMessageContaining(s"Invalid configured parallelism")
+
+    innerTestSetParallelism("InputFormat", validParallelism, index = index.getAndIncrement)
+  }
+
+  @Test
+  def testParallelismWithDataStream(): Unit = {
+    val negativeParallelism = -1
+    val validParallelism = 3
+    val index = new AtomicInteger(3)
+
+    assertThatThrownBy(
+      () =>
+        innerTestSetParallelism("DataStream", negativeParallelism, index = index.getAndIncrement))
+      .hasMessageContaining(s"Invalid configured parallelism")
+
+    innerTestSetParallelism("DataStream", validParallelism, index = index.getAndIncrement)
+  }
+
 }

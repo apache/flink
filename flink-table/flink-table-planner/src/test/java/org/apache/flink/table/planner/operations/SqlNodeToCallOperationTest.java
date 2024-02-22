@@ -53,6 +53,16 @@ public class SqlNodeToCallOperationTest extends SqlNodeToOperationConversionTest
     }
 
     @Test
+    void testWithNamedArguments() {
+        String sql = "call `system`.named_args(d=>'1',c=>'2')";
+        verifyCallOperation(
+                sql,
+                "CALL PROCEDURE:"
+                        + " (procedureIdentifier: [`p1`.`system`.`named_args`],"
+                        + " inputTypes: [STRING, STRING], outputTypes: [INT], arguments: [2, 1])");
+    }
+
+    @Test
     void testCallStatement() {
         // test call the procedure which accepts primitive types as arguments
         String sql = "call `system`.primitive_arg(1, 2)";
@@ -171,6 +181,8 @@ public class SqlNodeToCallOperationTest extends SqlNodeToOperationConversionTest
                     ObjectPath.fromString("system.pojo_result"), new PojoResultProcedure());
             PROCEDURE_MAP.put(
                     ObjectPath.fromString("system.timestamp_arg"), new TimeStampArgProcedure());
+            PROCEDURE_MAP.put(
+                    ObjectPath.fromString("system.named_args"), new ProcedureWithNamedArguments());
         }
 
         public CatalogWithBuiltInProcedure(String name) {
@@ -190,6 +202,17 @@ public class SqlNodeToCallOperationTest extends SqlNodeToOperationConversionTest
 
     private static class ProcedureWithPrimitiveArg implements Procedure {
         public int[] call(ProcedureContext context, int arg1, long arg2) {
+            return null;
+        }
+    }
+
+    private static class ProcedureWithNamedArguments implements Procedure {
+
+        @ProcedureHint(
+                input = {@DataTypeHint("STRING"), @DataTypeHint("STRING")},
+                output = @DataTypeHint("INT"),
+                argumentNames = {"c", "d"})
+        public int[] call(ProcedureContext context, String arg3, String arg4) {
             return null;
         }
     }

@@ -93,11 +93,13 @@ public class StateMetadataTest {
     @ParameterizedTest
     public void testGetOneInputOperatorDefaultMeta(
             Consumer<TableConfig> configModifier,
+            @Nullable Long stateTtlFromHint,
             String expectedStateName,
             long expectedTtlMillis) {
         configModifier.accept(tableConfig);
         List<StateMetadata> stateMetadataList =
-                StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, expectedStateName);
+                StateMetadata.getOneInputOperatorDefaultMeta(
+                        stateTtlFromHint, tableConfig, expectedStateName);
         assertThat(stateMetadataList).hasSize(1);
         assertThat(stateMetadataList.get(0))
                 .isEqualTo(
@@ -173,12 +175,22 @@ public class StateMetadataTest {
 
     public static Stream<Arguments> provideConfigForOneInput() {
         return Stream.of(
-                Arguments.of((Consumer<TableConfig>) config -> {}, "fooState", 0L),
+                Arguments.of((Consumer<TableConfig>) config -> {}, null, "fooState", 0L),
                 Arguments.of(
                         (Consumer<TableConfig>)
                                 config -> config.set(IDLE_STATE_RETENTION, Duration.ofMinutes(10)),
+                        null,
                         "barState",
-                        600000L));
+                        600000L),
+                Arguments.of((Consumer<TableConfig>) config -> {}, 100L, "bazState", 100L),
+                // state ttl from the hint gets a higher priority over job-level
+                // table.exec.state.ttl
+                Arguments.of(
+                        (Consumer<TableConfig>)
+                                config -> config.set(IDLE_STATE_RETENTION, Duration.ofMinutes(10)),
+                        200L,
+                        "quxState",
+                        200L));
     }
 
     public static Stream<Arguments> provideConfigForMultiInput() {

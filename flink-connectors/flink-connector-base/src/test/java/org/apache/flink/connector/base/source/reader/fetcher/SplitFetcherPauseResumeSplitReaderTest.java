@@ -22,11 +22,10 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
+import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.apache.flink.connector.base.source.reader.mocks.MockSourceReader;
 import org.apache.flink.connector.base.source.reader.mocks.MockSplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderContext;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderOutput;
 import org.apache.flink.core.io.InputStatus;
@@ -157,10 +156,8 @@ public class SplitFetcherPauseResumeSplitReaderTest {
             extends SingleThreadFetcherManager<E, SplitT> {
 
         public MockSteppingSplitFetcherManager(
-                FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
-                Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
-                Configuration configuration) {
-            super(elementsQueue, splitReaderSupplier, configuration);
+                Supplier<SplitReader<E, SplitT>> splitReaderSupplier, Configuration configuration) {
+            super(splitReaderSupplier, configuration);
         }
 
         @Override
@@ -215,14 +212,11 @@ public class SplitFetcherPauseResumeSplitReaderTest {
         public SteppingSourceReaderTestHarness(
                 Supplier<SplitReader<int[], MockSourceSplit>> splitReaderSupplier,
                 Configuration configuration) {
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> queue =
-                    new FutureCompletingBlockingQueue<>(10);
+            configuration.set(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 10);
             this.fetcherManager =
-                    new MockSteppingSplitFetcherManager<>(
-                            queue, splitReaderSupplier, configuration);
+                    new MockSteppingSplitFetcherManager<>(splitReaderSupplier, configuration);
             this.sourceReader =
-                    new MockSourceReader(
-                            queue, fetcherManager, configuration, new TestingReaderContext());
+                    new MockSourceReader(fetcherManager, configuration, new TestingReaderContext());
         }
 
         private static List<MockSourceSplit> createPrefilledSplits(int numSplits, int numRecords) {

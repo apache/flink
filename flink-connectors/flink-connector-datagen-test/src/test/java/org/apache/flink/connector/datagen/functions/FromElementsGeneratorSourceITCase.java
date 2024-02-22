@@ -18,8 +18,8 @@
 
 package org.apache.flink.connector.datagen.functions;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -75,7 +75,7 @@ class FromElementsGeneratorSourceITCase extends TestLogger {
         List<String> result = stream.executeAndCollect(data.length + 1);
         TypeSerializer<String> serializer = generatorFunction.getSerializer();
 
-        assertThat(serializer).isEqualTo(Types.STRING.createSerializer(new ExecutionConfig()));
+        assertThat(serializer).isEqualTo(Types.STRING.createSerializer(new SerializerConfigImpl()));
         assertThat(result).containsExactly(data);
     }
 

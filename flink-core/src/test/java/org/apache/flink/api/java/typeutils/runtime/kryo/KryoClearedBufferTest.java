@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -47,13 +47,13 @@ public class KryoClearedBufferTest {
      */
     @Test
     public void testOutputBufferedBeingClearedInCaseOfException() throws Exception {
-        ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.registerTypeWithKryoSerializer(
+        SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
+        serializerConfigImpl.registerTypeWithKryoSerializer(
                 TestRecord.class, new TestRecordSerializer());
-        executionConfig.registerKryoType(TestRecord.class);
+        serializerConfigImpl.registerKryoType(TestRecord.class);
 
         KryoSerializer<TestRecord> kryoSerializer =
-                new KryoSerializer<TestRecord>(TestRecord.class, executionConfig);
+                new KryoSerializer<TestRecord>(TestRecord.class, serializerConfigImpl);
 
         int size = 94;
         int bufferSize = 150;

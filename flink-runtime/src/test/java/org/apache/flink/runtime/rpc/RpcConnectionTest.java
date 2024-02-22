@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.rpc;
 
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 
@@ -41,7 +41,7 @@ class RpcConnectionTest {
         // we start the RPC service with a very long timeout to ensure that the test
         // can only pass if the connection problem is not recognized merely via a timeout
         Configuration configuration = new Configuration();
-        configuration.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(10000000));
+        configuration.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(10000000));
 
         try (RpcSystem rpcSystem = RpcSystem.load()) {
             final RpcService rpcService =

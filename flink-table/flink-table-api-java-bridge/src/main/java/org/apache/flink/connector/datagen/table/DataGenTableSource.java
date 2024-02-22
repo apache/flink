@@ -32,6 +32,8 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.types.DataType;
 
+import javax.annotation.Nullable;
+
 /** A {@link StreamTableSource} that emits generated data rows. */
 @Internal
 public class DataGenTableSource implements ScanTableSource, SupportsLimitPushDown {
@@ -41,24 +43,27 @@ public class DataGenTableSource implements ScanTableSource, SupportsLimitPushDow
     private final DataType rowDataType;
     private final long rowsPerSecond;
     private Long numberOfRows;
+    private final @Nullable Integer parallelism;
 
     public DataGenTableSource(
             DataGenerator<?>[] fieldGenerators,
             String tableName,
             DataType rowDataType,
             long rowsPerSecond,
-            Long numberOfRows) {
+            Long numberOfRows,
+            Integer parallelism) {
         this.fieldGenerators = fieldGenerators;
         this.tableName = tableName;
         this.rowDataType = rowDataType;
         this.rowsPerSecond = rowsPerSecond;
         this.numberOfRows = numberOfRows;
+        this.parallelism = parallelism;
     }
 
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext context) {
         boolean isBounded = numberOfRows != null;
-        return SourceFunctionProvider.of(createSource(), isBounded);
+        return SourceFunctionProvider.of(createSource(), isBounded, parallelism);
     }
 
     @VisibleForTesting
@@ -72,7 +77,7 @@ public class DataGenTableSource implements ScanTableSource, SupportsLimitPushDow
     @Override
     public DynamicTableSource copy() {
         return new DataGenTableSource(
-                fieldGenerators, tableName, rowDataType, rowsPerSecond, numberOfRows);
+                fieldGenerators, tableName, rowDataType, rowsPerSecond, numberOfRows, parallelism);
     }
 
     @Override

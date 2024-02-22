@@ -72,18 +72,20 @@ public interface WindowProcessor<W> extends Serializable {
      *
      * <p>Note: the key context has been set.
      *
+     * @param timerTimestamp the fired timestamp
      * @param window the window to emit
      */
-    void fireWindow(W window) throws Exception;
+    void fireWindow(long timerTimestamp, W window) throws Exception;
 
     /**
      * Clear state and resources associated with the given window namespace.
      *
      * <p>Note: the key context has been set.
      *
+     * @param timerTimestamp the fired timestamp
      * @param window the window to clear
      */
-    void clearWindow(W window) throws Exception;
+    void clearWindow(long timerTimestamp, W window) throws Exception;
 
     /**
      * The tear-down method of the function. It is called after the last call to the main working

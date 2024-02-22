@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.core.testutils.FlinkAssertions;
+import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.InputGroup;
@@ -427,8 +428,8 @@ class TypeInferenceExtractorTest {
                                 "Could not find a publicly accessible method named 'eval'."),
 
                 // named arguments with overloaded function
-                TestSpec.forScalarFunction(NamedArgumentsScalarFunction.class)
-                        .expectNamedArguments("n"),
+                // expected no named argument for overloaded function
+                TestSpec.forScalarFunction(NamedArgumentsScalarFunction.class),
 
                 // scalar function that takes any input
                 TestSpec.forScalarFunction(InputGroupScalarFunction.class)
@@ -535,7 +536,98 @@ class TypeInferenceExtractorTest {
                                         new String[] {}, new ArgumentTypeStrategy[] {}),
                                 TypeStrategies.explicit(
                                         DataTypes.ROW(DataTypes.FIELD("i", DataTypes.INT()))
-                                                .bridgedTo(RowData.class))));
+                                                .bridgedTo(RowData.class))),
+                TestSpec.forScalarFunction(
+                                "Scalar function with arguments hints",
+                                ArgumentHintScalarFunction.class)
+                        .expectNamedArguments("f1", "f2")
+                        .expectTypedArguments(DataTypes.STRING(), DataTypes.INT())
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"f1", "f2"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(DataTypes.STRING()),
+                                            InputTypeStrategies.explicit(DataTypes.INT())
+                                        }),
+                                TypeStrategies.explicit(DataTypes.STRING())),
+                TestSpec.forScalarFunction(
+                                "Scalar function with arguments hints missing type",
+                                ArgumentHintMissingTypeScalarFunction.class)
+                        .expectErrorMessage("The type of the argument at position 0 is not set."),
+                TestSpec.forScalarFunction(
+                                "Scalar function with arguments hints all missing name",
+                                ArgumentHintMissingNameScalarFunction.class)
+                        .expectTypedArguments(DataTypes.STRING(), DataTypes.INT()),
+                TestSpec.forScalarFunction(
+                                "Scalar function with arguments hints all missing partial name",
+                                ArgumentHintMissingPartialNameScalarFunction.class)
+                        .expectErrorMessage(
+                                "The argument name in function hint must be either fully set or not set at all."),
+                TestSpec.forScalarFunction(
+                                "Scalar function with arguments hints name conflict",
+                                ArgumentHintNameConflictScalarFunction.class)
+                        .expectErrorMessage(
+                                "Argument name conflict, there are at least two argument names that are the same."),
+                TestSpec.forScalarFunction(
+                                "Scalar function with arguments hints on method parameter",
+                                ArgumentHintOnParameterScalarFunction.class)
+                        .expectNamedArguments("in1", "in2")
+                        .expectTypedArguments(DataTypes.STRING(), DataTypes.INT())
+                        .expectOptionalArguments(false, false)
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"in1", "in2"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(DataTypes.STRING()),
+                                            InputTypeStrategies.explicit(DataTypes.INT())
+                                        }),
+                                TypeStrategies.explicit(DataTypes.STRING())),
+                TestSpec.forScalarFunction(
+                                "Scalar function with arguments hints and inputs hints both defined",
+                                ArgumentsAndInputsScalarFunction.class)
+                        .expectErrorMessage(
+                                "Argument and input hints cannot be declared in the same function hint."),
+                TestSpec.forScalarFunction(
+                                "Scalar function with argument hint and dataType hint declared in the same parameter",
+                                ArgumentsHintAndDataTypeHintScalarFunction.class)
+                        .expectErrorMessage(
+                                "Argument and dataType hints cannot be declared in the same parameter at position 0."),
+                TestSpec.forScalarFunction(
+                                "An invalid scalar function that declare FunctionHint for both class and method in the same class.",
+                                InvalidFunctionHintOnClassAndMethod.class)
+                        .expectErrorMessage(
+                                "Argument and input hints cannot be declared in the same function hint."),
+                TestSpec.forScalarFunction(
+                                "A valid scalar class that declare FunctionHint for both class and method in the same class.",
+                                ValidFunctionHintOnClassAndMethod.class)
+                        .expectNamedArguments("f1", "f2")
+                        .expectTypedArguments(DataTypes.STRING(), DataTypes.INT())
+                        .expectOptionalArguments(true, true),
+                TestSpec.forScalarFunction(
+                                "The FunctionHint of the function conflicts with the method.",
+                                ScalarFunctionWithFunctionHintConflictMethod.class)
+                        .expectErrorMessage(
+                                "Considering all hints, the method should comply with the signature"),
+                // For function with overloaded function, argument name will be empty
+                TestSpec.forScalarFunction(
+                        "Scalar function with overloaded functions and arguments hint declared.",
+                        ArgumentsHintScalarFunctionWithOverloadedFunction.class),
+                TestSpec.forScalarFunction(
+                                "Scalar function with argument type not null but optional.",
+                                ArgumentHintNotNullTypeWithOptionalsScalarFunction.class)
+                        .expectErrorMessage(
+                                "Argument at position 0 is optional but its type doesn't accept null value."),
+                TestSpec.forScalarFunction(
+                                "Scalar function with arguments hint and variable length args",
+                                ArgumentHintVariableLengthScalarFunction.class)
+                        .expectOutputMapping(
+                                InputTypeStrategies.varyingSequence(
+                                        new String[] {"f1", "f2"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(DataTypes.STRING()),
+                                            InputTypeStrategies.explicit(DataTypes.INT())
+                                        }),
+                                TypeStrategies.explicit(DataTypes.STRING())));
     }
 
     private static Stream<TestSpec> procedureSpecs() {
@@ -700,7 +792,8 @@ class TypeInferenceExtractorTest {
                                 TypeStrategies.explicit(
                                         DataTypes.DOUBLE().notNull().bridgedTo(double.class))),
                 // named arguments with overloaded function
-                TestSpec.forProcedure(NamedArgumentsProcedure.class).expectNamedArguments("n"),
+                // expected no named argument for overloaded function
+                TestSpec.forProcedure(NamedArgumentsProcedure.class),
 
                 // scalar function that takes any input
                 TestSpec.forProcedure(InputGroupProcedure.class)
@@ -791,7 +884,114 @@ class TypeInferenceExtractorTest {
                 // no implementation
                 TestSpec.forProcedure(MissingMethodProcedure.class)
                         .expectErrorMessage(
-                                "Could not find a publicly accessible method named 'call'."));
+                                "Could not find a publicly accessible method named 'call'."),
+                TestSpec.forProcedure(
+                                "Named arguments procedure with argument hint on method",
+                                ArgumentHintOnMethodProcedure.class)
+                        .expectNamedArguments("f1", "f2")
+                        .expectTypedArguments(DataTypes.STRING(), DataTypes.INT())
+                        .expectOptionalArguments(true, true)
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"f1", "f2"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(DataTypes.STRING()),
+                                            InputTypeStrategies.explicit(DataTypes.INT())
+                                        }),
+                                TypeStrategies.explicit(
+                                        DataTypes.INT().notNull().bridgedTo(int.class))),
+                TestSpec.forProcedure(
+                                "Named arguments procedure with argument hint on class",
+                                ArgumentHintOnClassProcedure.class)
+                        .expectNamedArguments("f1", "f2")
+                        .expectTypedArguments(DataTypes.STRING(), DataTypes.INT())
+                        .expectOptionalArguments(true, true)
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"f1", "f2"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(DataTypes.STRING()),
+                                            InputTypeStrategies.explicit(DataTypes.INT())
+                                        }),
+                                TypeStrategies.explicit(
+                                        DataTypes.INT().notNull().bridgedTo(int.class))),
+                TestSpec.forProcedure(
+                                "Named arguments procedure with argument hint on parameter",
+                                ArgumentHintOnParameterProcedure.class)
+                        .expectNamedArguments("parameter_f1", "parameter_f2")
+                        .expectTypedArguments(
+                                DataTypes.STRING(), DataTypes.INT().bridgedTo(int.class))
+                        .expectOptionalArguments(true, false)
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"parameter_f1", "parameter_f2"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(DataTypes.STRING()),
+                                            InputTypeStrategies.explicit(
+                                                    DataTypes.INT().bridgedTo(int.class))
+                                        }),
+                                TypeStrategies.explicit(
+                                        DataTypes.INT().notNull().bridgedTo(int.class))),
+                TestSpec.forProcedure(
+                                "Named arguments procedure with argument hint on method and parameter",
+                                ArgumentHintOnMethodAndParameterProcedure.class)
+                        .expectNamedArguments("local_f1", "local_f2")
+                        .expectTypedArguments(DataTypes.STRING(), DataTypes.INT())
+                        .expectOptionalArguments(true, true)
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"local_f1", "local_f2"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(DataTypes.STRING()),
+                                            InputTypeStrategies.explicit(DataTypes.INT())
+                                        }),
+                                TypeStrategies.explicit(
+                                        DataTypes.INT().notNull().bridgedTo(int.class))),
+                TestSpec.forProcedure(
+                                "Named arguments procedure with argument hint on class and method",
+                                ArgumentHintOnClassAndMethodProcedure.class)
+                        .expectNamedArguments("global_f1", "global_f2")
+                        .expectTypedArguments(DataTypes.STRING(), DataTypes.INT())
+                        .expectOptionalArguments(false, false)
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"global_f1", "global_f2"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(DataTypes.STRING()),
+                                            InputTypeStrategies.explicit(DataTypes.INT())
+                                        }),
+                                TypeStrategies.explicit(
+                                        DataTypes.INT().notNull().bridgedTo(int.class))),
+                TestSpec.forProcedure(
+                                "Named arguments procedure with argument hint on class and method and parameter",
+                                ArgumentHintOnClassAndMethodAndParameterProcedure.class)
+                        .expectNamedArguments("global_f1", "global_f2")
+                        .expectTypedArguments(DataTypes.STRING(), DataTypes.INT())
+                        .expectOptionalArguments(false, false)
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"global_f1", "global_f2"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(DataTypes.STRING()),
+                                            InputTypeStrategies.explicit(DataTypes.INT())
+                                        }),
+                                TypeStrategies.explicit(
+                                        DataTypes.INT().notNull().bridgedTo(int.class))),
+                TestSpec.forProcedure(
+                                "Named arguments procedure with argument hint type not null but optional",
+                                ArgumentHintNotNullWithOptionalProcedure.class)
+                        .expectErrorMessage(
+                                "Argument at position 1 is optional but its type doesn't accept null value."),
+                TestSpec.forProcedure(
+                                "Named arguments procedure with argument name conflict",
+                                ArgumentHintNameConflictProcedure.class)
+                        .expectErrorMessage(
+                                "Argument name conflict, there are at least two argument names that are the same."),
+                TestSpec.forProcedure(
+                                "Named arguments procedure with optional type on primitive type",
+                                ArgumentHintOptionalOnPrimitiveParameterConflictProcedure.class)
+                        .expectErrorMessage(
+                                "Argument at position 1 is optional but a primitive type doesn't accept null value."));
     }
 
     @ParameterizedTest(name = "{index}: {0}")
@@ -803,6 +1003,15 @@ class TypeInferenceExtractorTest {
         } else if (testSpec.expectedErrorMessage == null) {
             assertThat(testSpec.typeInferenceExtraction.get().getNamedArguments())
                     .isEqualTo(Optional.empty());
+        }
+    }
+
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testArgumentOptionals(TestSpec testSpec) {
+        if (testSpec.expectedArgumentOptionals != null) {
+            assertThat(testSpec.typeInferenceExtraction.get().getOptionalArguments())
+                    .isEqualTo(Optional.of(testSpec.expectedArgumentOptionals));
         }
     }
 
@@ -880,6 +1089,8 @@ class TypeInferenceExtractorTest {
         final Supplier<TypeInference> typeInferenceExtraction;
 
         @Nullable List<String> expectedArgumentNames;
+
+        @Nullable List<Boolean> expectedArgumentOptionals;
 
         @Nullable List<DataType> expectedArgumentTypes;
 
@@ -967,6 +1178,11 @@ class TypeInferenceExtractorTest {
 
         TestSpec expectNamedArguments(String... expectedArgumentNames) {
             this.expectedArgumentNames = Arrays.asList(expectedArgumentNames);
+            return this;
+        }
+
+        TestSpec expectOptionalArguments(Boolean... expectedArgumentOptionals) {
+            this.expectedArgumentOptionals = Arrays.asList(expectedArgumentOptionals);
             return this;
         }
 
@@ -1550,6 +1766,176 @@ class TypeInferenceExtractorTest {
         }
     }
 
+    private static class ArgumentHintOnMethodProcedure implements Procedure {
+        @ProcedureHint(
+                argument = {
+                    @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1", isOptional = true),
+                    @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2", isOptional = true)
+                })
+        public int[] call(Object procedureContext, String f1, Integer f2) {
+            return null;
+        }
+    }
+
+    @ProcedureHint(
+            argument = {
+                @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1", isOptional = true),
+                @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2", isOptional = true)
+            })
+    private static class ArgumentHintOnClassProcedure implements Procedure {
+        public int[] call(Object procedureContext, String f1, Integer f2) {
+            return null;
+        }
+    }
+
+    private static class ArgumentHintOnParameterProcedure implements Procedure {
+        public int[] call(
+                Object procedureContext,
+                @ArgumentHint(
+                                type = @DataTypeHint("STRING"),
+                                name = "parameter_f1",
+                                isOptional = true)
+                        String f1,
+                @ArgumentHint(
+                                type = @DataTypeHint("INT"),
+                                name = "parameter_f2",
+                                isOptional = false)
+                        int f2) {
+            return null;
+        }
+    }
+
+    @ProcedureHint(
+            argument = {
+                @ArgumentHint(
+                        type = @DataTypeHint("STRING"),
+                        name = "global_f1",
+                        isOptional = false),
+                @ArgumentHint(
+                        type = @DataTypeHint("INTEGER"),
+                        name = "global_f2",
+                        isOptional = false)
+            })
+    private static class ArgumentHintOnClassAndMethodProcedure implements Procedure {
+        @ProcedureHint(
+                argument = {
+                    @ArgumentHint(
+                            type = @DataTypeHint("STRING"),
+                            name = "local_f1",
+                            isOptional = true),
+                    @ArgumentHint(
+                            type = @DataTypeHint("INTEGER"),
+                            name = "local_f2",
+                            isOptional = true)
+                })
+        public int[] call(Object procedureContext, String f1, Integer f2) {
+            return null;
+        }
+    }
+
+    private static class ArgumentHintOnMethodAndParameterProcedure implements Procedure {
+        @ProcedureHint(
+                argument = {
+                    @ArgumentHint(
+                            type = @DataTypeHint("STRING"),
+                            name = "local_f1",
+                            isOptional = true),
+                    @ArgumentHint(
+                            type = @DataTypeHint("INTEGER"),
+                            name = "local_f2",
+                            isOptional = true)
+                })
+        public int[] call(
+                Object procedureContext,
+                @ArgumentHint(
+                                type = @DataTypeHint("INTEGER"),
+                                name = "parameter_f1",
+                                isOptional = true)
+                        String f1,
+                @ArgumentHint(
+                                type = @DataTypeHint("INTEGER"),
+                                name = "parameter_f2",
+                                isOptional = false)
+                        Integer f2) {
+            return null;
+        }
+    }
+
+    @ProcedureHint(
+            argument = {
+                @ArgumentHint(
+                        type = @DataTypeHint("STRING"),
+                        name = "global_f1",
+                        isOptional = false),
+                @ArgumentHint(
+                        type = @DataTypeHint("INTEGER"),
+                        name = "global_f2",
+                        isOptional = false)
+            })
+    private static class ArgumentHintOnClassAndMethodAndParameterProcedure implements Procedure {
+        @ProcedureHint(
+                argument = {
+                    @ArgumentHint(
+                            type = @DataTypeHint("STRING"),
+                            name = "local_f1",
+                            isOptional = true),
+                    @ArgumentHint(
+                            type = @DataTypeHint("INTEGER"),
+                            name = "local_f2",
+                            isOptional = true)
+                })
+        public int[] call(
+                Object procedureContext,
+                @ArgumentHint(
+                                type = @DataTypeHint("STRING"),
+                                name = "parameter_f1",
+                                isOptional = false)
+                        String f1,
+                Integer f2) {
+            return null;
+        }
+    }
+
+    private static class ArgumentHintNotNullWithOptionalProcedure implements Procedure {
+        @ProcedureHint(
+                argument = {
+                    @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1", isOptional = true),
+                    @ArgumentHint(
+                            type = @DataTypeHint("INTEGER NOT NULL"),
+                            name = "f2",
+                            isOptional = true)
+                })
+        public int[] call(Object procedureContext, String f1, Integer f2) {
+            return null;
+        }
+    }
+
+    private static class ArgumentHintNameConflictProcedure implements Procedure {
+        @ProcedureHint(
+                argument = {
+                    @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1", isOptional = true),
+                    @ArgumentHint(
+                            type = @DataTypeHint("INTEGER NOT NULL"),
+                            name = "f1",
+                            isOptional = true)
+                })
+        public int[] call(Object procedureContext, String f1, Integer f2) {
+            return null;
+        }
+    }
+
+    private static class ArgumentHintOptionalOnPrimitiveParameterConflictProcedure
+            implements Procedure {
+        @ProcedureHint(
+                argument = {
+                    @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1", isOptional = true),
+                    @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2", isOptional = true)
+                })
+        public int[] call(Object procedureContext, String f1, int f2) {
+            return null;
+        }
+    }
+
     private static class ZeroArgFunctionAsync extends AsyncScalarFunction {
         public void eval(CompletableFuture<Integer> f) {}
     }
@@ -1584,5 +1970,181 @@ class TypeInferenceExtractorTest {
 
     private static class DataTypeHintOnScalarFunctionAsync extends AsyncScalarFunction {
         public void eval(@DataTypeHint("ROW<i INT>") CompletableFuture<RowData> f) {}
+    }
+
+    private static class ArgumentHintScalarFunction extends ScalarFunction {
+        @FunctionHint(
+                argument = {
+                    @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
+                    @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
+                })
+        public String eval(String f1, Integer f2) {
+            return "";
+        }
+    }
+
+    private static class ArgumentHintMissingTypeScalarFunction extends ScalarFunction {
+        @FunctionHint(argument = {@ArgumentHint(name = "f1"), @ArgumentHint(name = "f2")})
+        public String eval(String f1, Integer f2) {
+            return "";
+        }
+    }
+
+    private static class ArgumentHintMissingNameScalarFunction extends ScalarFunction {
+        @FunctionHint(
+                argument = {
+                    @ArgumentHint(type = @DataTypeHint("STRING")),
+                    @ArgumentHint(type = @DataTypeHint("INTEGER"))
+                })
+        public String eval(String f1, Integer f2) {
+            return "";
+        }
+    }
+
+    private static class ArgumentHintMissingPartialNameScalarFunction extends ScalarFunction {
+        @FunctionHint(
+                argument = {
+                    @ArgumentHint(type = @DataTypeHint("STRING"), name = "in1"),
+                    @ArgumentHint(type = @DataTypeHint("INTEGER"))
+                })
+        public String eval(String f1, Integer f2) {
+            return "";
+        }
+    }
+
+    private static class ArgumentHintNameConflictScalarFunction extends ScalarFunction {
+        @FunctionHint(
+                argument = {
+                    @ArgumentHint(name = "in1", type = @DataTypeHint("STRING")),
+                    @ArgumentHint(name = "in1", type = @DataTypeHint("INTEGER"))
+                })
+        public String eval(String f1, Integer f2) {
+            return "";
+        }
+    }
+
+    private static class ArgumentHintOnParameterScalarFunction extends ScalarFunction {
+        public String eval(
+                @ArgumentHint(type = @DataTypeHint("STRING"), name = "in1") String f1,
+                @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "in2") Integer f2) {
+            return "";
+        }
+    }
+
+    private static class ArgumentsAndInputsScalarFunction extends ScalarFunction {
+        @FunctionHint(
+                argument = {
+                    @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
+                    @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
+                },
+                input = {@DataTypeHint("STRING"), @DataTypeHint("INTEGER")})
+        public String eval(String f1, Integer f2) {
+            return "";
+        }
+    }
+
+    private static class ArgumentsHintAndDataTypeHintScalarFunction extends ScalarFunction {
+
+        public String eval(
+                @DataTypeHint("STRING") @ArgumentHint(name = "f1", type = @DataTypeHint("STRING"))
+                        String f1,
+                @ArgumentHint(name = "f2", type = @DataTypeHint("INTEGER")) Integer f2) {
+            return "";
+        }
+    }
+
+    @FunctionHint(
+            argument = {
+                @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
+                @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
+            })
+    private static class InvalidFunctionHintOnClassAndMethod extends ScalarFunction {
+        @FunctionHint(
+                argument = {
+                    @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
+                    @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
+                },
+                input = {@DataTypeHint("STRING"), @DataTypeHint("INTEGER")})
+        public String eval(String f1, Integer f2) {
+            return "";
+        }
+    }
+
+    @FunctionHint(
+            argument = {
+                @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1", isOptional = true),
+                @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2", isOptional = true)
+            })
+    private static class ValidFunctionHintOnClassAndMethod extends ScalarFunction {
+        @FunctionHint(
+                argument = {
+                    @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
+                    @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
+                })
+        public String eval(String f1, Integer f2) {
+            return "";
+        }
+    }
+
+    @FunctionHint(
+            argument = {
+                @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
+                @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
+            })
+    @FunctionHint(
+            argument = {
+                @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f1"),
+                @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
+            })
+    private static class ScalarFunctionWithFunctionHintConflictMethod extends ScalarFunction {
+        public String eval(String f1, Integer f2) {
+            return "";
+        }
+    }
+
+    private static class ArgumentsHintScalarFunctionWithOverloadedFunction extends ScalarFunction {
+        @FunctionHint(
+                argument = {
+                    @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
+                    @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
+                })
+        public String eval(String f1, Integer f2) {
+            return "";
+        }
+
+        @FunctionHint(
+                argument = {
+                    @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
+                    @ArgumentHint(type = @DataTypeHint("STRING"), name = "f2")
+                })
+        public String eval(String f1, String f2) {
+            return "";
+        }
+    }
+
+    private static class ArgumentHintNotNullTypeWithOptionalsScalarFunction extends ScalarFunction {
+        @FunctionHint(
+                argument = {
+                    @ArgumentHint(
+                            type = @DataTypeHint("STRING NOT NULL"),
+                            name = "f1",
+                            isOptional = true),
+                    @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2", isOptional = true)
+                })
+        public String eval(String f1, Integer f2) {
+            return "";
+        }
+    }
+
+    private static class ArgumentHintVariableLengthScalarFunction extends ScalarFunction {
+        @FunctionHint(
+                argument = {
+                    @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
+                    @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
+                },
+                isVarArgs = true)
+        public String eval(String f1, Integer... f2) {
+            return "";
+        }
     }
 }

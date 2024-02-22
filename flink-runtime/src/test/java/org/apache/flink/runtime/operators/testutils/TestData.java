@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.operators.testutils;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
@@ -317,7 +319,7 @@ public final class TestData {
 
     public static TypeComparator<Tuple2<Integer, String>> getIntStringTupleComparator() {
         return getIntStringTupleTypeInfo()
-                .createComparator(new int[] {0}, new boolean[] {true}, 0, null);
+                .createComparator(new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
     }
 
     public static MockTuple2Reader<Tuple2<Integer, String>> getIntStringTupleReader() {
@@ -346,7 +348,7 @@ public final class TestData {
 
     public static TypeComparator<Tuple2<Integer, Integer>> getIntIntTupleComparator() {
         return getIntIntTupleTypeInfo()
-                .createComparator(new int[] {0}, new boolean[] {true}, 0, null);
+                .createComparator(new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
     }
 
     public static MockTuple2Reader<Tuple2<Integer, Integer>> getIntIntTupleReader() {
@@ -375,7 +377,7 @@ public final class TestData {
 
         @Override
         public TypeSerializer<T> getSerializer() {
-            return info.createSerializer(null);
+            return info.createSerializer((SerializerConfig) null);
         }
 
         @Override

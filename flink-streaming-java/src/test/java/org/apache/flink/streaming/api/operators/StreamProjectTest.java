@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
@@ -56,7 +56,7 @@ public class StreamProjectTest {
         TupleSerializer<Tuple3<Integer, Integer, String>> serializer =
                 new TupleTypeInfo<Tuple3<Integer, Integer, String>>(
                                 StreamProjection.extractFieldTypes(fields, inType))
-                        .createSerializer(new ExecutionConfig());
+                        .createSerializer(new SerializerConfigImpl());
         @SuppressWarnings("unchecked")
         StreamProject<
                         Tuple5<Integer, String, Integer, String, Integer>,

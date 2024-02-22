@@ -464,7 +464,16 @@ class StreamExecutionEnvironment(object):
         :param type_class_name: The full-qualified java class name of the types serialized with the
                                 given serializer.
         :param serializer_class_name: The full-qualified java class name of the serializer to use.
+
+        .. note:: Deprecated since version 1.19: Register data types and serializers through hard
+                  codes is deprecated, because you need to modify the codes when upgrading job
+                  version. You should configure this by option `pipeline.serialization-config`.
         """
+        warnings.warn("Deprecated since version 1.19: Register data types and serializers through"
+                      " hard codes is deprecated, because you need to modify the codes when"
+                      " upgrading job version. You should configure this by config option "
+                      " 'pipeline.serialization-config'.", DeprecationWarning)
+
         type_clz = load_java_class(type_class_name)
         j_serializer_clz = load_java_class(serializer_class_name)
         self._j_stream_execution_environment.addDefaultKryoSerializer(type_clz, j_serializer_clz)
@@ -483,7 +492,15 @@ class StreamExecutionEnvironment(object):
         :param type_class_name: The full-qualified java class name of the types serialized with
                                 the given serializer.
         :param serializer_class_name: The full-qualified java class name of the serializer to use.
+
+        .. note:: Deprecated since version 1.19: Register data types and serializers through hard
+                  codes is deprecated, because you need to modify the codes when upgrading job
+                  version. You should configure this by option `pipeline.serialization-config`.
         """
+        warnings.warn("Deprecated since version 1.19: Register data types and serializers through"
+                      " hard codes is deprecated, because you need to modify the codes when"
+                      " upgrading job version. You should configure this by config option "
+                      " 'pipeline.serialization-config'.", DeprecationWarning)
         type_clz = load_java_class(type_class_name)
         j_serializer_clz = load_java_class(serializer_class_name)
         self._j_stream_execution_environment.registerTypeWithKryoSerializer(
@@ -502,7 +519,15 @@ class StreamExecutionEnvironment(object):
             >>> env.register_type("com.aaa.bbb.TypeClass")
 
         :param type_class_name: The full-qualified java class name of the type to register.
+
+        .. note:: Deprecated since version 1.19: Register data types and serializers through hard
+                  codes is deprecated, because you need to modify the codes when upgrading job
+                  version. You should configure this by option `pipeline.serialization-config`.
         """
+        warnings.warn("Deprecated since version 1.19: Register data types and serializers through"
+                      " hard codes is deprecated, because you need to modify the codes when"
+                      " upgrading job version. You should configure this by config option "
+                      " 'pipeline.serialization-config'.", DeprecationWarning)
         type_clz = load_java_class(type_class_name)
         self._j_stream_execution_environment.registerType(type_clz)
 
@@ -842,7 +867,7 @@ class StreamExecutionEnvironment(object):
         method returns a local execution environment.
 
         When executed from the command line the given configuration is stacked on top of the
-        global configuration which comes from the flink-conf.yaml, potentially overriding
+        global configuration which comes from the config.yaml, potentially overriding
         duplicated options.
 
         :param configuration: The configuration to instantiate the environment with.

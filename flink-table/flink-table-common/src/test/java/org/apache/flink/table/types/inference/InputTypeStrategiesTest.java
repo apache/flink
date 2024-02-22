@@ -640,6 +640,19 @@ class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
                         .expectArgumentTypes(
                                 DataTypes.ARRAY(DataTypes.INT().notNull()).notNull(),
                                 DataTypes.INT()),
+                TestSpec.forStrategy(sequence(SpecificInputTypeStrategies.ARRAY_FULLY_COMPARABLE))
+                        .expectSignature("f(<ARRAY<COMPARABLE>>)")
+                        .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.ROW()))
+                        .expectErrorMessage(
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "f(<ARRAY<COMPARABLE>>)"),
+                TestSpec.forStrategy(
+                                "Strategy fails if input argument type is not ARRAY",
+                                sequence(SpecificInputTypeStrategies.ARRAY_FULLY_COMPARABLE))
+                        .calledWithArgumentTypes(DataTypes.INT())
+                        .expectErrorMessage(
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "f(<ARRAY<COMPARABLE>>)"),
                 TestSpec.forStrategy(
                                 "PROCTIME type strategy",
                                 SpecificInputTypeStrategies.windowTimeIndicator(

@@ -18,9 +18,9 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -136,7 +136,7 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                 SimpleOperatorFactory.of(
                         new StreamSource<Integer, SourceFunction<Integer>>(
                                 new CancelTestSource(
-                                        INT_TYPE_INFO.createSerializer(new ExecutionConfig()),
+                                        INT_TYPE_INFO.createSerializer(new SerializerConfigImpl()),
                                         42))),
                 busyTime -> busyTime.isNaN());
     }
@@ -232,7 +232,7 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                 .chain(
                         new OperatorID(),
                         new TestBoundedOneInputStreamOperator("Operator1"),
-                        STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl()))
                 .finish();
 
         StreamConfig streamConfig = testHarness.getStreamConfig();
@@ -265,12 +265,13 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                         new OperatorID(),
                         new StreamSource<>(
                                 new CancelTestSource(
-                                        STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+                                        STRING_TYPE_INFO.createSerializer(
+                                                new SerializerConfigImpl()),
                                         "Hello")))
                 .chain(
                         new OperatorID(),
                         new TestBoundedOneInputStreamOperator("Operator1"),
-                        STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl()))
                 .finish();
 
         StreamConfig streamConfig = testHarness.getStreamConfig();
@@ -335,7 +336,7 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                 .chain(
                         new OperatorID(),
                         new TestBoundedOneInputStreamOperator("Operator1"),
-                        STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl()))
                 .finish();
 
         StreamConfig streamConfig = testHarness.getStreamConfig();
@@ -448,7 +449,7 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                 .chain(
                         new OperatorID(),
                         new TestBoundedOneInputStreamOperator("Operator1"),
-                        STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl()))
                 .finish();
 
         StreamConfig streamConfig = testHarness.getStreamConfig();

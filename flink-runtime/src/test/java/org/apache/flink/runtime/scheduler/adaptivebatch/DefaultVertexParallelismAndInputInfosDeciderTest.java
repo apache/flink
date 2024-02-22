@@ -29,7 +29,7 @@ import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.Test;
 
@@ -54,6 +54,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
 
     private static final int MAX_PARALLELISM = 100;
     private static final int MIN_PARALLELISM = 3;
+    private static final int VERTEX_MAX_PARALLELISM = 256;
     private static final int DEFAULT_SOURCE_PARALLELISM = 10;
     private static final long DATA_VOLUME_PER_TASK = 1024 * 1024 * 1024L;
 
@@ -377,6 +378,45 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                         parallelismAndInputInfos.getJobVertexInputInfos().values()),
                 new IndexRange(0, 1023),
                 subpartitionRanges);
+    }
+
+    @Test
+    void testComputeSourceParallelismUpperBound() {
+        Configuration configuration = new Configuration();
+        configuration.setInteger(
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM,
+                DEFAULT_SOURCE_PARALLELISM);
+        VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider =
+                DefaultVertexParallelismAndInputInfosDecider.from(MAX_PARALLELISM, configuration);
+        assertThat(
+                        vertexParallelismAndInputInfosDecider.computeSourceParallelismUpperBound(
+                                new JobVertexID(), VERTEX_MAX_PARALLELISM))
+                .isEqualTo(DEFAULT_SOURCE_PARALLELISM);
+    }
+
+    @Test
+    void testComputeSourceParallelismUpperBoundFallback() {
+        Configuration configuration = new Configuration();
+        VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider =
+                DefaultVertexParallelismAndInputInfosDecider.from(MAX_PARALLELISM, configuration);
+        assertThat(
+                        vertexParallelismAndInputInfosDecider.computeSourceParallelismUpperBound(
+                                new JobVertexID(), VERTEX_MAX_PARALLELISM))
+                .isEqualTo(MAX_PARALLELISM);
+    }
+
+    @Test
+    void testComputeSourceParallelismUpperBoundNotExceedMaxParallelism() {
+        Configuration configuration = new Configuration();
+        configuration.setInteger(
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM,
+                VERTEX_MAX_PARALLELISM * 2);
+        VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider =
+                DefaultVertexParallelismAndInputInfosDecider.from(MAX_PARALLELISM, configuration);
+        assertThat(
+                        vertexParallelismAndInputInfosDecider.computeSourceParallelismUpperBound(
+                                new JobVertexID(), VERTEX_MAX_PARALLELISM))
+                .isEqualTo(VERTEX_MAX_PARALLELISM);
     }
 
     private static void checkAllToAllJobVertexInputInfo(

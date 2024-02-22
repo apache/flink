@@ -275,7 +275,9 @@ public class ChangelogStateBackendTestUtils {
 
             // ============================ restore snapshot ===============================
 
-            env.getExecutionConfig().registerKryoType(StateBackendTestBase.TestPojo.class);
+            env.getExecutionConfig()
+                    .getSerializerConfig()
+                    .registerKryoType(StateBackendTestBase.TestPojo.class);
 
             keyedBackend =
                     (ChangelogKeyedStateBackend<Integer>)

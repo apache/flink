@@ -281,6 +281,14 @@ object TestData {
     data
   }
 
+  lazy val tupleData4: Seq[Row] = Seq(
+    row(1, "Latte", 6),
+    row(2, "Milk", 3),
+    row(3, "Breve", 5),
+    row(4, "Mocha", 8),
+    row(5, "Tea", 4)
+  )
+
   lazy val data3: Seq[Row] = tupleData3.map(d => row(d.productIterator.toList: _*))
 
   val nullablesOfData3 = Array(true, true, true)

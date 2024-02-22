@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.WritableTypeInfo;
@@ -47,7 +47,7 @@ public class WritableSerializerTest {
                 (WritableTypeInfo<StringArrayWritable>) TypeExtractor.getForObject(data[0]);
         WritableSerializer<StringArrayWritable> writableSerializer =
                 (WritableSerializer<StringArrayWritable>)
-                        writableTypeInfo.createSerializer(new ExecutionConfig());
+                        writableTypeInfo.createSerializer(new SerializerConfigImpl());
 
         SerializerTestInstance<StringArrayWritable> testInstance =
                 new SerializerTestInstance<StringArrayWritable>(

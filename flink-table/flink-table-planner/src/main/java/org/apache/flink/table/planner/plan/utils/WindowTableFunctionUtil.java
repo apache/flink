@@ -22,12 +22,14 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.logical.CumulativeWindowSpec;
 import org.apache.flink.table.planner.plan.logical.HoppingWindowSpec;
+import org.apache.flink.table.planner.plan.logical.SessionWindowSpec;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
 import org.apache.flink.table.planner.plan.logical.TumblingWindowSpec;
 import org.apache.flink.table.planner.plan.logical.WindowSpec;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.CumulativeWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.GroupWindowAssigner;
+import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.SessionWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.SlidingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.TumblingWindowAssigner;
 
@@ -78,6 +80,14 @@ public final class WindowTableFunctionUtil {
             }
             if (cumulativeWindowSpec.getOffset() != null) {
                 windowAssigner = windowAssigner.withOffset(cumulativeWindowSpec.getOffset());
+            }
+            return windowAssigner;
+        } else if (windowSpec instanceof SessionWindowSpec) {
+            SessionWindowSpec sessionWindowSpec = (SessionWindowSpec) windowSpec;
+            SessionWindowAssigner windowAssigner =
+                    SessionWindowAssigner.withGap(sessionWindowSpec.getGap());
+            if (isProctime) {
+                windowAssigner = windowAssigner.withProcessingTime();
             }
             return windowAssigner;
         } else {

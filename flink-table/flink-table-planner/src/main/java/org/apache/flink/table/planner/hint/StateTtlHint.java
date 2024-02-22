@@ -22,9 +22,12 @@ import org.apache.flink.util.TimeUtils;
 
 import org.apache.calcite.rel.hint.RelHint;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Hint strategy to configure different {@link
@@ -61,12 +64,13 @@ public enum StateTtlHint {
     }
 
     /**
-     * Get the state ttl from hints.
+     * Get the state ttl from hints on the {@link org.apache.calcite.rel.BiRel} such as Join and
+     * Correlate.
      *
      * @return The key of the map is the input side. The value of the map is the state ttl in
      *     milliseconds.
      */
-    public static Map<Integer, Long> getStateTtlFromHint(List<RelHint> hints) {
+    public static Map<Integer, Long> getStateTtlFromHintOnBiRel(List<RelHint> hints) {
         Map<Integer, Long> stateTtlFromHint = new java.util.HashMap<>();
         hints.stream()
                 .filter(hint -> StateTtlHint.isStateTtlHint(hint.hintName))
@@ -86,5 +90,23 @@ public enum StateTtlHint {
                                         }));
 
         return stateTtlFromHint;
+    }
+
+    /**
+     * Get the state ttl from hints on the {@link org.apache.calcite.rel.SingleRel} such as
+     * Aggregate.
+     *
+     * @return the state ttl in milliseconds. If no state ttl hints set from hint, return "null".
+     */
+    @Nullable
+    public static Long getStateTtlFromHintOnSingleRel(List<RelHint> hints) {
+        List<Long> allStateTtl =
+                hints.stream()
+                        .filter(hint -> StateTtlHint.isStateTtlHint(hint.hintName))
+                        .flatMap(hint -> hint.listOptions.stream())
+                        .map(ttl -> TimeUtils.parseDuration(ttl).toMillis())
+                        .collect(Collectors.toList());
+
+        return allStateTtl.isEmpty() ? null : allStateTtl.get(0);
     }
 }

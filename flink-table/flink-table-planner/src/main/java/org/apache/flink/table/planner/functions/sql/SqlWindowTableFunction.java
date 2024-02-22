@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -62,6 +62,9 @@ public class SqlWindowTableFunction extends org.apache.calcite.sql.SqlWindowTabl
 
     /** The slide interval, only used for HOP window. */
     protected static final String PARAM_STEP = "STEP";
+
+    /** The gap interval, only used for SESSION window. */
+    protected static final String GAP = "GAP";
 
     /**
      * Type-inference strategy whereby the row type of a table function call is a ROW, which is

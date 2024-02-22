@@ -410,6 +410,7 @@ fields.user.min
 fields.user.null-rate
 number-of-rows
 rows-per-second
+scan.parallelism
 !error
 
 # ==========================================================================

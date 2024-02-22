@@ -29,8 +29,13 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.CommitterInitContext;
+import org.apache.flink.api.connector.sink2.CommittingSinkWriter;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.SupportsCommitter;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink.PrecommittingSinkWriter;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -84,6 +89,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
+import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.FIXED_DELAY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -188,6 +194,21 @@ class SpeculativeSchedulerITCase {
         assertThat(DummyCommitter.foundSpeculativeWriter).isTrue();
     }
 
+    /** Should be removed along {@link TwoPhaseCommittingSink}. */
+    @Deprecated
+    @Test
+    public void testSpeculativeSlowSinkDeprecated() throws Exception {
+        executeJob(this::setupSpeculativeSlowSinkDeprecated);
+        waitUntilJobArchived();
+
+        checkResults();
+
+        // no speculative executions for committer
+        assertThat(DummyCommitter.attempts.get()).isEqualTo(parallelism);
+        // there is a speculative execution for writer
+        assertThat(DummyCommitter.foundSpeculativeWriter).isTrue();
+    }
+
     @Test
     public void testNonSpeculativeSlowSinkFunction() throws Exception {
         executeJob(this::setupNonSpeculativeSlowSinkFunction);
@@ -250,7 +271,7 @@ class SpeculativeSchedulerITCase {
         configuration.set(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE, 1);
         configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4kb"));
         configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, MAX_PARALLELISM);
-        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, FIXED_DELAY.getMainValue());
         configuration.set(
                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
 
@@ -343,12 +364,32 @@ class SpeculativeSchedulerITCase {
     }
 
     private void setupSpeculativeSlowSink(StreamExecutionEnvironment env) {
+        DummyCommitter.attempts.set(0);
+        DummyCommitter.blocked.set(false);
+        DummyCommitter.foundSpeculativeWriter = false;
         final DataStream<Long> source =
                 env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
                         .setParallelism(parallelism)
                         .name("source")
                         .slotSharingGroup("sourceGroup");
         source.sinkTo(new SpeculativeSink())
+                .setParallelism(parallelism)
+                .name("sink")
+                .slotSharingGroup("sinkGroup");
+    }
+
+    /** Should be removed along {@link TwoPhaseCommittingSink}. */
+    @Deprecated
+    private void setupSpeculativeSlowSinkDeprecated(StreamExecutionEnvironment env) {
+        DummyCommitter.attempts.set(0);
+        DummyCommitter.blocked.set(false);
+        DummyCommitter.foundSpeculativeWriter = false;
+        final DataStream<Long> source =
+                env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
+                        .setParallelism(parallelism)
+                        .name("source")
+                        .slotSharingGroup("sourceGroup");
+        source.sinkTo(new SpeculativeSinkDeprecated())
                 .setParallelism(parallelism)
                 .name("sink")
                 .slotSharingGroup("sinkGroup");
@@ -524,6 +565,93 @@ class SpeculativeSchedulerITCase {
     }
 
     private static class SpeculativeSink
+            implements Sink<Long>,
+                    SupportsCommitter<Tuple3<Integer, Integer, Map<Long, Long>>>,
+                    SupportsConcurrentExecutionAttempts {
+
+        @Override
+        public SinkWriter<Long> createWriter(InitContext context) {
+            throw new UnsupportedOperationException("Not supported");
+        }
+
+        @Override
+        public CommittingSinkWriter<Long, Tuple3<Integer, Integer, Map<Long, Long>>> createWriter(
+                WriterInitContext context) {
+            return new DummyCommittingSinkWriter(
+                    context.getTaskInfo().getIndexOfThisSubtask(),
+                    context.getTaskInfo().getAttemptNumber());
+        }
+
+        @Override
+        public Committer<Tuple3<Integer, Integer, Map<Long, Long>>> createCommitter(
+                CommitterInitContext context) {
+            return new DummyCommitter();
+        }
+
+        @Override
+        public SimpleVersionedSerializer<Tuple3<Integer, Integer, Map<Long, Long>>>
+                getCommittableSerializer() {
+            return new SimpleVersionedSerializer<Tuple3<Integer, Integer, Map<Long, Long>>>() {
+                @Override
+                public int getVersion() {
+                    return 0;
+                }
+
+                @Override
+                public byte[] serialize(Tuple3<Integer, Integer, Map<Long, Long>> obj)
+                        throws IOException {
+                    return InstantiationUtil.serializeObject(obj);
+                }
+
+                @Override
+                public Tuple3<Integer, Integer, Map<Long, Long>> deserialize(
+                        int version, byte[] serialized) throws IOException {
+                    try {
+                        return InstantiationUtil.deserializeObject(
+                                serialized, Thread.currentThread().getContextClassLoader());
+                    } catch (ClassNotFoundException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            };
+        }
+    }
+
+    private static class DummyCommittingSinkWriter
+            implements CommittingSinkWriter<Long, Tuple3<Integer, Integer, Map<Long, Long>>> {
+
+        private final int subTaskIndex;
+
+        private final int attemptNumber;
+
+        public DummyCommittingSinkWriter(int subTaskIndex, int attemptNumber) {
+            this.subTaskIndex = subTaskIndex;
+            this.attemptNumber = attemptNumber;
+        }
+
+        private final Map<Long, Long> numberCountResult = new HashMap<>();
+
+        @Override
+        public void write(Long value, Context context) throws IOException, InterruptedException {
+            numberCountResult.merge(value, 1L, Long::sum);
+            maybeSleep();
+        }
+
+        @Override
+        public void flush(boolean endOfInput) {}
+
+        @Override
+        public Collection<Tuple3<Integer, Integer, Map<Long, Long>>> prepareCommit() {
+            return Collections.singleton(Tuple3.of(subTaskIndex, attemptNumber, numberCountResult));
+        }
+
+        @Override
+        public void close() throws Exception {}
+    }
+
+    /** Should be removed along {@link TwoPhaseCommittingSink}. */
+    @Deprecated
+    private static class SpeculativeSinkDeprecated
             implements TwoPhaseCommittingSink<Long, Tuple3<Integer, Integer, Map<Long, Long>>>,
                     SupportsConcurrentExecutionAttempts {
 
@@ -570,6 +698,8 @@ class SpeculativeSchedulerITCase {
         }
     }
 
+    /** Should be removed along {@link TwoPhaseCommittingSink}. */
+    @Deprecated
     private static class DummyPrecommittingSinkWriter
             implements PrecommittingSinkWriter<Long, Tuple3<Integer, Integer, Map<Long, Long>>> {
 

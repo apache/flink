@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.connector.source.lib;
 
-import org.apache.flink.api.common.TaskInfo;
-import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
@@ -131,6 +129,11 @@ public class NumberSequenceSourceTest {
         }
 
         @Override
+        public int getIndexOfSubtask() {
+            return 0;
+        }
+
+        @Override
         public void sendSplitRequest() {}
 
         @Override
@@ -142,8 +145,8 @@ public class NumberSequenceSourceTest {
         }
 
         @Override
-        public TaskInfo getTaskInfo() {
-            return new TaskInfoImpl("DummyTask", 1, 0, 1, 0);
+        public int currentParallelism() {
+            return 1;
         }
     }
 

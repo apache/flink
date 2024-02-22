@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.factories.utils
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.OpenContext
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.io.CollectionInputFormat
@@ -125,7 +126,7 @@ object TestCollectionTableFactory {
         new TestCollectionInputFormat[Row](
           emitIntervalMs,
           SOURCE_DATA,
-          typeInfo.createSerializer(new ExecutionConfig)),
+          typeInfo.createSerializer(new SerializerConfigImpl)),
         typeInfo)
     }
 
@@ -167,7 +168,7 @@ object TestCollectionTableFactory {
     private var serializer: TypeSerializer[Row] = _
 
     override def open(openContext: OpenContext): Unit = {
-      serializer = outputType.createSerializer(new ExecutionConfig)
+      serializer = outputType.createSerializer(new SerializerConfigImpl)
     }
 
     @throws[Exception]

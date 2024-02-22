@@ -395,6 +395,7 @@ public abstract class AbstractQueryableStateTestBase {
 
         // Custom serializer is not needed, it's used just to check if serialization works.
         env.getConfig()
+                .getSerializerConfig()
                 .addDefaultKryoSerializer(
                         Byte.class,
                         (Serializer<?> & Serializable) createSerializer(userClassLoader));

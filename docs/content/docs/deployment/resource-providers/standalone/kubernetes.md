@@ -117,10 +117,14 @@ The `args` attribute in the `jobmanager-job.yaml` has to specify the main class 
 See also [how to specify the JobManager arguments]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#jobmanager-additional-command-line-arguments) to understand
 how to pass other `args` to the Flink image in the `jobmanager-job.yaml`.
 
-The *job artifacts* should be available from the `job-artifacts-volume` in [the resource definition examples](#application-cluster-resource-definitions).
-The definition examples mount the volume as a local directory of the host assuming that you create the components in a minikube cluster.
-If you do not use a minikube cluster, you can use any other type of volume, available in your Kubernetes cluster, to supply the *job artifacts*.
-Alternatively, you can build [a custom image]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#advanced-customization) which already contains the artifacts instead.
+
+The *job artifacts* could be provided by these way：
+
+*  The *job artifacts* could be available from the `job-artifacts-volume` in [the resource definition examples](#application-cluster-resource-definitions).
+   The definition examples mount the volume as a local directory of the host assuming that you create the components in a minikube cluster.
+   If you do not use a minikube cluster, you can use any other type of volume, available in your Kubernetes cluster, to supply the *job artifacts*.
+*  You can build [a custom image]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#advanced-customization) which already contains the artifacts instead.
+*  You can pass artifacts via the [--jars]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#jobmanager-additional-command-line-arguments) option that are stored locally, on [remote DFS]({{< ref "docs/deployment/filesystems/overview" >}}), or accessible via an HTTP(S) endpoint.
 
 After creating [the common cluster components](#common-cluster-resource-definitions), use [the Application cluster specific resource definitions](#application-cluster-resource-definitions) to launch the cluster with the `kubectl` command:
 
@@ -151,7 +155,7 @@ Deployment of a Session cluster is explained in the [Getting Started](#getting-s
 
 ### Configuration
 
-All configuration options are listed on the [configuration page]({{< ref "docs/deployment/config" >}}). Configuration options can be added to the `flink-conf.yaml` section of the `flink-configuration-configmap.yaml` config map.
+All configuration options are listed on the [configuration page]({{< ref "docs/deployment/config" >}}). Configuration options can be added to the [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) section of the `flink-configuration-configmap.yaml` config map.
 
 ### Accessing Flink in Kubernetes
 
@@ -214,7 +218,7 @@ metadata:
   labels:
     app: flink
 data:
-  flink-conf.yaml: |+
+  config.yaml: |+
   ...
     kubernetes.cluster-id: <cluster-id>
     high-availability.type: kubernetes
@@ -270,7 +274,7 @@ metadata:
   labels:
     app: flink
 data:
-  flink-conf.yaml: |+
+  config.yaml: |+
     jobmanager.rpc.address: flink-jobmanager
     taskmanager.numberOfTaskSlots: 2
     blob.server.port: 6124
@@ -337,7 +341,7 @@ metadata:
   labels:
     app: flink
 data:
-  flink-conf.yaml: |+
+  config.yaml: |+
     jobmanager.rpc.address: flink-jobmanager
     taskmanager.numberOfTaskSlots: 2
     blob.server.port: 6124
@@ -479,8 +483,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
 ```
@@ -537,8 +541,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
 ```
@@ -583,8 +587,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
 ```
@@ -609,7 +613,7 @@ spec:
         - name: jobmanager
           image: apache/flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
           env:
-          args: ["standalone-job", "--job-classname", "com.job.ClassName", <optional arguments>, <job arguments>] # optional arguments: ["--job-id", "<job id>", "--fromSavepoint", "/path/to/savepoint", "--allowNonRestoredState"]
+          args: ["standalone-job", "--job-classname", "com.job.ClassName", <optional arguments>, <job arguments>] # optional arguments: ["--job-id", "<job id>", "--jars", "/path/to/artifact1,/path/to/artifact2", "--fromSavepoint", "/path/to/savepoint", "--allowNonRestoredState"]
           ports:
             - containerPort: 6123
               name: rpc
@@ -634,8 +638,8 @@ spec:
           configMap:
             name: flink-config
             items:
-              - key: flink-conf.yaml
-                path: flink-conf.yaml
+              - key: config.yaml
+                path: config.yaml
               - key: log4j-console.properties
                 path: log4j-console.properties
         - name: job-artifacts-volume
@@ -668,7 +672,7 @@ spec:
                 apiVersion: v1
                 fieldPath: status.podIP
           # The following args overwrite the value of jobmanager.rpc.address configured in the configuration config map to POD_IP.
-          args: ["standalone-job", "--host", "$(POD_IP)", "--job-classname", "com.job.ClassName", <optional arguments>, <job arguments>] # optional arguments: ["--job-id", "<job id>", "--fromSavepoint", "/path/to/savepoint", "--allowNonRestoredState"]
+          args: ["standalone-job", "--host", "$(POD_IP)", "--job-classname", "com.job.ClassName", <optional arguments>, <job arguments>] # optional arguments: ["--job-id", "<job id>", "--jars", "/path/to/artifact1,/path/to/artifact2", "--fromSavepoint", "/path/to/savepoint", "--allowNonRestoredState"]
           ports:
             - containerPort: 6123
               name: rpc
@@ -694,8 +698,8 @@ spec:
           configMap:
             name: flink-config
             items:
-              - key: flink-conf.yaml
-                path: flink-conf.yaml
+              - key: config.yaml
+                path: config.yaml
               - key: log4j-console.properties
                 path: log4j-console.properties
         - name: job-artifacts-volume
@@ -746,8 +750,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
       - name: job-artifacts-volume
@@ -765,7 +769,7 @@ metadata:
   labels:
     app: flink
 data:
-  flink-conf.yaml: |+
+  config.yaml: |+
     jobmanager.rpc.address: flink-jobmanager
     taskmanager.numberOfTaskSlots: 2
     blob.server.port: 6124
@@ -833,8 +837,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
   volumeClaimTemplates:

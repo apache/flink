@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.misc;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -48,7 +48,7 @@ class KryoSerializerRegistrationsTest {
      */
     @Test
     void testDefaultKryoRegisteredClassesDidNotChange() throws Exception {
-        final Kryo kryo = new KryoSerializer<>(Integer.class, new ExecutionConfig()).getKryo();
+        final Kryo kryo = new KryoSerializer<>(Integer.class, new SerializerConfigImpl()).getKryo();
 
         try (BufferedReader reader =
                 new BufferedReader(

@@ -145,7 +145,9 @@ public class TopSpeedWindowing {
                                                 return newDataPoint.f2 - oldDataPoint.f2;
                                             }
                                         },
-                                        carData.getType().createSerializer(env.getConfig())))
+                                        carData.getType()
+                                                .createSerializer(
+                                                        env.getConfig().getSerializerConfig())))
                         .maxBy(1);
 
         if (params.getOutput().isPresent()) {

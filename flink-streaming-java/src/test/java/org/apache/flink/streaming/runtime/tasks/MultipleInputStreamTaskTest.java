@@ -24,6 +24,7 @@ import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -439,15 +440,15 @@ public class MultipleInputStreamTaskTest {
                         .chain(
                                 new OneInputStreamTaskTest.DuplicatingOperator(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()))
+                                        new SerializerConfigImpl()))
                         .chain(
                                 new OneInputStreamTaskTest.DuplicatingOperator(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()))
+                                        new SerializerConfigImpl()))
                         .chain(
                                 new OneInputStreamTaskTest.DuplicatingOperator(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()))
+                                        new SerializerConfigImpl()))
                         .finish()
                         .setTaskMetricGroup(taskMetricGroup)
                         .build()) {
@@ -536,7 +537,7 @@ public class MultipleInputStreamTaskTest {
                         .chain(
                                 new LifeCycleTrackingMap<>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()))
+                                        new SerializerConfigImpl()))
                         .finish()
                         .build()) {
 
@@ -783,7 +784,7 @@ public class MultipleInputStreamTaskTest {
                                 chainedOperatorId,
                                 new WatermarkMetricOperator(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()))
+                                        new SerializerConfigImpl()))
                         .finish()
                         .setTaskMetricGroup(taskMetricGroup)
                         .build()) {
@@ -1407,7 +1408,7 @@ public class MultipleInputStreamTaskTest {
                             new ArrayDeque<>(),
                             new StreamElementSerializer<>(
                                     BasicTypeInfo.INT_TYPE_INFO.createSerializer(
-                                            new ExecutionConfig())));
+                                            new SerializerConfigImpl())));
             partitionWriters[i].setup();
         }
 
@@ -1420,7 +1421,9 @@ public class MultipleInputStreamTaskTest {
                         .addInput(BasicTypeInfo.INT_TYPE_INFO)
                         .addAdditionalOutput(partitionWriters)
                         .setupOperatorChain(new PassThroughOperatorFactory<>())
-                        .chain(BasicTypeInfo.INT_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        .chain(
+                                BasicTypeInfo.INT_TYPE_INFO.createSerializer(
+                                        new SerializerConfigImpl()))
                         .setOperatorFactory(
                                 SimpleOperatorFactory.of(
                                         new OneInputStreamTaskTest.OddEvenOperator()))
@@ -1428,7 +1431,9 @@ public class MultipleInputStreamTaskTest {
                                 new OutputTag<>("odd", BasicTypeInfo.INT_TYPE_INFO), 2)
                         .addNonChainedOutputsCount(1)
                         .build()
-                        .chain(BasicTypeInfo.INT_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        .chain(
+                                BasicTypeInfo.INT_TYPE_INFO.createSerializer(
+                                        new SerializerConfigImpl()))
                         .setOperatorFactory(
                                 SimpleOperatorFactory.of(
                                         new OneInputStreamTaskTest.DuplicatingOperator()))

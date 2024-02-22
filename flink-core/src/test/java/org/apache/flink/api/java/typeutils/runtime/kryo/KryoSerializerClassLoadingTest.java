@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
@@ -71,7 +71,7 @@ class KryoSerializerClassLoadingTest extends SerializerTestBase<Object> {
 
     @Override
     protected TypeSerializer<Object> createSerializer() {
-        return new KryoSerializer<>(Object.class, new ExecutionConfig());
+        return new KryoSerializer<>(Object.class, new SerializerConfigImpl());
     }
 
     @Override

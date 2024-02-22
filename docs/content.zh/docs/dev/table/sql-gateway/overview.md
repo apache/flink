@@ -237,14 +237,14 @@ SQL Gateway 默认集成 REST Endpoint。由于架构的可扩展性，用户可
 $ ./bin/sql-gateway.sh start -Dsql-gateway.endpoint.type=hiveserver2
 ```
 
-或者在 `conf/flink-conf.yaml` 中增加如下配置：
+或者在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中增加如下配置：
 
 ```yaml
 sql-gateway.endpoint.type: hiveserver2
 ```
 
 {{< hint info >}}
-Notice: 如果 CLI 命令和 flink-conf.yaml 都有 `sql-gateway.endpoint.type`，CLI 的优先级比 flink-conf.yaml 更高。
+Notice: 如果 CLI 命令和 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 都有 `sql-gateway.endpoint.type`，CLI 的优先级比 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 更高。
 {{< /hint >}}
 
 具体的 endpoint 请参考相应页面。

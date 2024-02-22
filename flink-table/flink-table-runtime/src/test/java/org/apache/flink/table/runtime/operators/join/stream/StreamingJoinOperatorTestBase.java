@@ -51,7 +51,7 @@ public abstract class StreamingJoinOperatorTestBase {
                             },
                             new String[] {"order_id", "line_order_id", "shipping_address"}));
 
-    protected final InternalTypeInfo<RowData> rightTypeInfo =
+    protected InternalTypeInfo<RowData> rightTypeInfo =
             InternalTypeInfo.of(
                     RowType.of(
                             new LogicalType[] {new CharType(false, 20), new CharType(true, 10)},
@@ -61,7 +61,7 @@ public abstract class StreamingJoinOperatorTestBase {
             HandwrittenSelectorUtil.getRowDataSelector(
                     new int[] {1},
                     leftTypeInfo.toRowType().getChildren().toArray(new LogicalType[0]));
-    protected final RowDataKeySelector rightKeySelector =
+    protected RowDataKeySelector rightKeySelector =
             HandwrittenSelectorUtil.getRowDataSelector(
                     new int[] {0},
                     rightTypeInfo.toRowType().getChildren().toArray(new LogicalType[0]));
@@ -94,8 +94,7 @@ public abstract class StreamingJoinOperatorTestBase {
     protected final GeneratedJoinCondition joinCondition =
             new GeneratedJoinCondition("ConditionFunction", funcCode, new Object[0]);
 
-    protected final RowDataHarnessAssertor assertor =
-            new RowDataHarnessAssertor(getOutputType().getChildren().toArray(new LogicalType[0]));
+    protected RowDataHarnessAssertor assertor;
 
     protected KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
             testHarness;
@@ -109,6 +108,10 @@ public abstract class StreamingJoinOperatorTestBase {
                         rightKeySelector,
                         joinKeyTypeInfo);
         testHarness.open();
+        // extend for mini-batch join test
+        assertor =
+                new RowDataHarnessAssertor(
+                        getOutputType().getChildren().toArray(new LogicalType[0]));
     }
 
     @AfterEach
@@ -121,7 +124,7 @@ public abstract class StreamingJoinOperatorTestBase {
                 if (tags.isEmpty()) {
                     return new Long[] {0L, 0L};
                 }
-                Long[] ttl = new Long[2];
+                Long[] ttl = new Long[] {0L, 0L};
                 for (String tag : tags) {
                     String[] splits = tag.split("=");
                     long value = Long.parseLong(splits[1].trim());

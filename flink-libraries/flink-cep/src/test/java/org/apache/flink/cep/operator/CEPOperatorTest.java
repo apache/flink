@@ -18,7 +18,7 @@
 
 package org.apache.flink.cep.operator;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -52,7 +52,7 @@ import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -324,7 +324,7 @@ public class CEPOperatorTest extends TestLogger {
             harness.setup(
                     new KryoSerializer<>(
                             (Class<Map<String, List<Event>>>) (Object) Map.class,
-                            new ExecutionConfig()));
+                            new SerializerConfigImpl()));
             harness.open();
 
             harness.processElement(new StreamRecord<>(startEvent, 3L));

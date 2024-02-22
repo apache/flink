@@ -21,17 +21,20 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.BiMap;
-import org.apache.flink.shaded.guava32.com.google.common.collect.HashBiMap;
+import org.apache.flink.shaded.guava31.com.google.common.collect.BiMap;
+import org.apache.flink.shaded.guava31.com.google.common.collect.HashBiMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.Set;
 
 /**
  * A wrapper to union the output from multiple {@link ResultSubpartitionView}s. This class provides
@@ -55,9 +58,11 @@ public class UnionResultSubpartitionView
     private final Object lock = new Object();
 
     /** All the {@link ResultSubpartitionView}s managed by this class. */
+    @GuardedBy("lock")
     private final BiMap<Integer, ResultSubpartitionView> allViews = HashBiMap.create();
 
     /** All the {@link ResultSubpartitionView}s that have data available. */
+    @GuardedBy("lock")
     private final SubpartitionSelector<ResultSubpartitionView> availableViews =
             new RoundRobinSubpartitionSelector<>();
 
@@ -68,21 +73,46 @@ public class UnionResultSubpartitionView
      * where each buffer comes from. Cache is used to provide the data type of the next buffer and
      * an estimation of the backlog, as required by {@link ResultSubpartition.BufferAndBacklog}.
      */
+    @GuardedBy("lock")
     private final Queue<Tuple2<ResultSubpartition.BufferAndBacklog, Integer>> cachedBuffers =
             new LinkedList<>();
 
+    /**
+     * A collection storing views that have triggered {@link
+     * #notifyDataAvailable(ResultSubpartitionView)} without {@link #notifyViewCreated(int,
+     * ResultSubpartitionView)}. This is used to resolve the race condition between these two
+     * methods.
+     */
+    @GuardedBy("lock")
+    private final Set<ResultSubpartitionView> unregisteredAvailableViews = new HashSet<>();
+
+    private final int numTotalViews;
+
+    @GuardedBy("lock")
     private boolean isReleased;
 
+    @GuardedBy("lock")
     private int sequenceNumber;
 
-    public UnionResultSubpartitionView(BufferAvailabilityListener availabilityListener) {
+    public UnionResultSubpartitionView(
+            BufferAvailabilityListener availabilityListener, int numTotalViews) {
         this.availabilityListener = availabilityListener;
         this.isReleased = false;
         this.sequenceNumber = 0;
+        this.numTotalViews = numTotalViews;
     }
 
     public void notifyViewCreated(int subpartitionId, ResultSubpartitionView view) {
-        allViews.put(subpartitionId, view);
+        synchronized (lock) {
+            allViews.put(subpartitionId, view);
+            if (allViews.size() == numTotalViews) {
+                for (ResultSubpartitionView unregisteredAvailableView :
+                        unregisteredAvailableViews) {
+                    notifyDataAvailable(unregisteredAvailableView);
+                }
+                unregisteredAvailableViews.clear();
+            }
+        }
     }
 
     @Override
@@ -148,8 +178,18 @@ public class UnionResultSubpartitionView
     @Override
     public void notifyDataAvailable(ResultSubpartitionView view) {
         synchronized (lock) {
+            if (!allViews.containsValue(view)) {
+                unregisteredAvailableViews.add(view);
+                return;
+            }
+
             if (!availableViews.notifyDataAvailable(view) || !cachedBuffers.isEmpty()) {
                 // The availabilityListener has already been notified.
+                return;
+            }
+
+            if (allViews.size() < numTotalViews) {
+                // Only notify availability after all views have been successfully created.
                 return;
             }
 
@@ -174,15 +214,31 @@ public class UnionResultSubpartitionView
 
     @Override
     public void releaseAllResources() throws IOException {
-        for (ResultSubpartitionView view : allViews.values()) {
-            view.releaseAllResources();
+        synchronized (lock) {
+            for (ResultSubpartitionView view : allViews.values()) {
+                view.releaseAllResources();
+            }
+            allViews.clear();
+
+            for (ResultSubpartitionView view : unregisteredAvailableViews) {
+                view.releaseAllResources();
+            }
+            unregisteredAvailableViews.clear();
+
+            for (Tuple2<ResultSubpartition.BufferAndBacklog, Integer> tuple2 : cachedBuffers) {
+                tuple2.f0.buffer().recycleBuffer();
+            }
+            cachedBuffers.clear();
+
+            isReleased = true;
         }
-        isReleased = true;
     }
 
     @Override
     public boolean isReleased() {
-        return isReleased;
+        synchronized (lock) {
+            return isReleased;
+        }
     }
 
     @Override
@@ -200,10 +256,12 @@ public class UnionResultSubpartitionView
     @Override
     public Throwable getFailureCause() {
         Throwable cause = null;
-        for (ResultSubpartitionView view : allViews.values()) {
-            if (view.getFailureCause() != null) {
-                cause = view.getFailureCause();
-                LOG.error(cause.toString());
+        synchronized (lock) {
+            for (ResultSubpartitionView view : allViews.values()) {
+                if (view.getFailureCause() != null) {
+                    cause = view.getFailureCause();
+                    LOG.error(cause.toString());
+                }
             }
         }
         return cause;
@@ -251,8 +309,10 @@ public class UnionResultSubpartitionView
 
     @Override
     public void notifyNewBufferSize(int newBufferSize) {
-        for (ResultSubpartitionView view : allViews.values()) {
-            view.notifyNewBufferSize(newBufferSize);
+        synchronized (lock) {
+            for (ResultSubpartitionView view : allViews.values()) {
+                view.notifyNewBufferSize(newBufferSize);
+            }
         }
     }
 }

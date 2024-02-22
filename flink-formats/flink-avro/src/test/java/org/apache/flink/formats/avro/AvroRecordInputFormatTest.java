@@ -328,10 +328,11 @@ public class AvroRecordInputFormatTest {
             ExecutionConfig ec = new ExecutionConfig();
             assertThat(te).isExactlyInstanceOf(GenericTypeInfo.class);
 
-            Serializers.recursivelyRegisterType(te.getTypeClass(), ec, new HashSet<>());
+            Serializers.recursivelyRegisterType(
+                    te.getTypeClass(), ec.getSerializerConfig(), new HashSet<>());
 
-            TypeSerializer<GenericData.Record> tser = te.createSerializer(ec);
-            assertThat(ec.getDefaultKryoSerializerClasses())
+            TypeSerializer<GenericData.Record> tser = te.createSerializer(ec.getSerializerConfig());
+            assertThat(ec.getSerializerConfig().getDefaultKryoSerializerClasses())
                     .hasSize(1)
                     .containsEntry(
                             Schema.class, AvroKryoSerializerUtils.AvroSchemaSerializer.class);
@@ -374,7 +375,7 @@ public class AvroRecordInputFormatTest {
             TypeInformation<User> te = TypeExtractor.createTypeInfo(User.class);
 
             assertThat(te).isExactlyInstanceOf(AvroTypeInfo.class);
-            TypeSerializer<User> tser = te.createSerializer(ec);
+            TypeSerializer<User> tser = te.createSerializer(ec.getSerializerConfig());
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             try (DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(out)) {

@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.hint.StateTtlHint
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecJoin
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
-import org.apache.flink.table.planner.plan.utils.JoinUtil
+import org.apache.flink.table.planner.plan.utils.{JoinUtil, MinibatchUtil}
 import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapClassLoader, unwrapTableConfig}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
@@ -112,6 +112,7 @@ class StreamPhysicalJoin(
           getUpsertKeys(right, joinSpec.getRightKeys)
         )
       )
+      .itemIf("miniBatch", "true", MinibatchUtil.isMiniBatchEnabled(unwrapTableConfig(this)))
   }
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
@@ -127,7 +128,7 @@ class StreamPhysicalJoin(
       getUpsertKeys(right, joinSpec.getRightKeys),
       InputProperty.DEFAULT,
       InputProperty.DEFAULT,
-      StateTtlHint.getStateTtlFromHint(getHints),
+      StateTtlHint.getStateTtlFromHintOnBiRel(getHints),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

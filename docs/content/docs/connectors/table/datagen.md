@@ -271,6 +271,13 @@ Connector Options
       <td>The total number of rows to emit. By default, the table is unbounded.</td>
     </tr>
     <tr>
+      <td><h5>scan.parallelism</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Integer</td>
+      <td>Defines the parallelism of the source. If not set, the global default parallelism is used.</td>
+    </tr>
+    <tr>
       <td><h5>fields.#.kind</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">random</td>

@@ -24,6 +24,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -580,9 +581,14 @@ public class CoGroupedStreams<T1, T2> {
         }
 
         @Override
-        public TypeSerializer<TaggedUnion<T1, T2>> createSerializer(ExecutionConfig config) {
+        public TypeSerializer<TaggedUnion<T1, T2>> createSerializer(SerializerConfig config) {
             return new UnionSerializer<>(
                     oneType.createSerializer(config), twoType.createSerializer(config));
+        }
+
+        @Override
+        public TypeSerializer<TaggedUnion<T1, T2>> createSerializer(ExecutionConfig config) {
+            return createSerializer(config.getSerializerConfig());
         }
 
         @Override

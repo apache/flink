@@ -97,7 +97,7 @@ Flink reports a single span trace for the whole checkpoint and job initializatio
   </thead>
   <tbody>
     <tr>
-      <th rowspan="16">org.apache.flink.</br>runtime.checkpoint.</br>CheckpointStatsTracker</th>
+      <th rowspan="18">org.apache.flink.</br>runtime.checkpoint.</br>CheckpointStatsTracker</th>
       <th rowspan="6"><strong>Checkpoint</strong></th>
       <td>startTs</td>
       <td>Timestamp when the checkpoint has started.</td>
@@ -123,7 +123,7 @@ Flink reports a single span trace for the whole checkpoint and job initializatio
       <td>What was the state of this checkpoint: FAILED or COMPLETED.</td>
     </tr>
     <tr>
-      <th rowspan="10"><strong>JobInitialization</strong></th>
+      <th rowspan="12"><strong>JobInitialization</strong></th>
       <td>startTs</td>
       <td>Timestamp when the job initialization has started.</td>
     </tr>
@@ -157,7 +157,11 @@ Flink reports a single span trace for the whole checkpoint and job initializatio
     </tr>
     <tr>
       <td>(Max/Sum)DownloadStateDurationMs<br><br>(optional - currently only supported by RocksDB Incremental)</td>
-      <td>The aggregated (max and sum) across all subtasks duration of downloading state files from the DFS.</td>
+      <td>The aggregated (max and sum) duration across all subtasks of downloading state files from the DFS.</td>
+    </tr>
+    <tr>
+      <td>(Max/Sum)RestoreStateDurationMs<br><br>(optional - currently only supported by RocksDB Incremental)</td>
+      <td>The aggregated (max and sum) duration across all subtasks of restoring the state backend from fully localized state, i.e. after all remote state was downloaded.</td>
     </tr>
     <tr>
       <td>(Max/Sum)RestoredStateSizeBytes.[location]</td>
@@ -166,6 +170,10 @@ Flink reports a single span trace for the whole checkpoint and job initializatio
         LOCAL_DISK,
         REMOTE,
         UNKNOWN.</td>
+    </tr>
+    <tr>
+      <td>(Max/Sum)RestoreAsyncCompactionDurationMs<br><br>(optional - currently only supported by RocksDB Incremental)</td>
+      <td>The aggregated (max and sum) duration across all subtasks for async compaction after incremental restore.</td>
     </tr>
   </tbody>
 </table>

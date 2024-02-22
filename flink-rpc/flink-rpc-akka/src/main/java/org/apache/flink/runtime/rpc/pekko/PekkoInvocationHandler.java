@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.rpc.pekko;
 
-import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.concurrent.pekko.ScalaFutureUtils;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.Local;
@@ -400,7 +400,7 @@ class PekkoInvocationHandler implements InvocationHandler, PekkoBasedEndpoint, R
                                             + "more time for responding, due to problems like slow machines or network jitters. In that case, you can try to increase %s.",
                                     rpcInvocation,
                                     recipient,
-                                    AkkaOptions.ASK_TIMEOUT_DURATION.key()));
+                                    RpcOptions.ASK_TIMEOUT_DURATION.key()));
         }
 
         newException.initCause(exception);

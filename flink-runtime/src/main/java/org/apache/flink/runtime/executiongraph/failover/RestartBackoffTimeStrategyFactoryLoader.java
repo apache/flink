@@ -29,6 +29,7 @@ import org.apache.flink.configuration.RestartStrategyOptions;
 
 import java.util.Optional;
 
+import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A utility class to load {@link RestartBackoffTimeStrategy.Factory} from the configuration. */
@@ -45,8 +46,8 @@ public final class RestartBackoffTimeStrategyFactoryLoader {
      *   <li>Strategy set within job graph, i.e. {@link
      *       RestartStrategies.RestartStrategyConfiguration}, unless the config is {@link
      *       RestartStrategies.FallbackRestartStrategyConfiguration}.
-     *   <li>Strategy set in the cluster(server-side) config (flink-conf.yaml), unless the strategy
-     *       is not specified
+     *   <li>Strategy set in the cluster(server-side) config (config.yaml), unless the strategy is
+     *       not specified
      *   <li>{@link
      *       FixedDelayRestartBackoffTimeStrategy.FixedDelayRestartBackoffTimeStrategyFactory} if
      *       checkpointing is enabled. Otherwise {@link
@@ -132,22 +133,17 @@ public final class RestartBackoffTimeStrategyFactoryLoader {
                 configuration.getOptional(RestartStrategyOptions.RESTART_STRATEGY);
         return restartStrategyNameOptional.map(
                 restartStrategyName -> {
-                    switch (restartStrategyName.toLowerCase()) {
-                        case "none":
-                        case "off":
-                        case "disable":
+                    switch (RestartStrategyType.of(restartStrategyName.toLowerCase())) {
+                        case NO_RESTART_STRATEGY:
                             return NoRestartBackoffTimeStrategy.NoRestartBackoffTimeStrategyFactory
                                     .INSTANCE;
-                        case "fixeddelay":
-                        case "fixed-delay":
+                        case FIXED_DELAY:
                             return FixedDelayRestartBackoffTimeStrategy.createFactory(
                                     configuration);
-                        case "failurerate":
-                        case "failure-rate":
+                        case FAILURE_RATE:
                             return FailureRateRestartBackoffTimeStrategy.createFactory(
                                     configuration);
-                        case "exponentialdelay":
-                        case "exponential-delay":
+                        case EXPONENTIAL_DELAY:
                             return ExponentialDelayRestartBackoffTimeStrategy.createFactory(
                                     configuration);
                         default:

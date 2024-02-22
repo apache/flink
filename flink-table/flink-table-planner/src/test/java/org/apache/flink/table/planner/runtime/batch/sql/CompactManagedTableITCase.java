@@ -61,8 +61,7 @@ import static org.assertj.core.api.Assertions.fail;
 /** IT Case for testing managed table compaction. */
 class CompactManagedTableITCase extends BatchTestBase {
 
-    private final ObjectIdentifier tableIdentifier =
-            ObjectIdentifier.of(tEnv().getCurrentCatalog(), tEnv().getCurrentDatabase(), "MyTable");
+    private ObjectIdentifier tableIdentifier;
     private final Map<CatalogPartitionSpec, List<RowData>> collectedElements = new HashMap<>();
 
     private Path rootPath;
@@ -73,6 +72,9 @@ class CompactManagedTableITCase extends BatchTestBase {
     @BeforeEach
     public void before() throws Exception {
         super.before();
+        tableIdentifier =
+                ObjectIdentifier.of(
+                        tEnv().getCurrentCatalog(), tEnv().getCurrentDatabase(), "MyTable");
         MANAGED_TABLES.put(tableIdentifier, new AtomicReference<>());
         referenceOfManagedTableFileEntries = new AtomicReference<>();
         MANAGED_TABLE_FILE_ENTRIES.put(tableIdentifier, referenceOfManagedTableFileEntries);

@@ -38,8 +38,11 @@ public interface RestartBackoffTimeStrategy {
      * Notify the strategy about the task failure cause.
      *
      * @param cause of the task failure
+     * @return True means that the current failure is the first one after the most-recent failure
+     *     handling happened, false means that there has been a failure before that was not handled,
+     *     yet, and the current failure will be considered in a combined failure handling effort.
      */
-    void notifyFailure(Throwable cause);
+    boolean notifyFailure(Throwable cause);
 
     // ------------------------------------------------------------------------
     //  factory

@@ -18,9 +18,9 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -478,11 +478,11 @@ public class TwoInputStreamTaskTest {
                 .chain(
                         new OperatorID(),
                         new OneInputStreamTaskTest.DuplicatingOperator(),
-                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl()))
                 .chain(
                         new OperatorID(),
                         new OneInputStreamTaskTest.DuplicatingOperator(),
-                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl()))
                 .finish();
 
         final TaskMetricGroup taskMetricGroup =
@@ -601,7 +601,7 @@ public class TwoInputStreamTaskTest {
                 .chain(
                         chainedOperatorId,
                         chainedOperator,
-                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl()))
                 .finish();
 
         InterceptingOperatorMetricGroup headOperatorMetricGroup =
@@ -727,7 +727,7 @@ public class TwoInputStreamTaskTest {
                 .chain(
                         new OperatorID(),
                         new TestBoundedOneInputStreamOperator("Operator1"),
-                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl()))
                 .finish();
 
         testHarness.invoke();
@@ -844,7 +844,7 @@ public class TwoInputStreamTaskTest {
                             new ArrayDeque<>(),
                             new StreamElementSerializer<>(
                                     BasicTypeInfo.INT_TYPE_INFO.createSerializer(
-                                            new ExecutionConfig())));
+                                            new SerializerConfigImpl())));
             partitionWriters[i].setup();
         }
 
@@ -855,7 +855,9 @@ public class TwoInputStreamTaskTest {
                         .addInput(BasicTypeInfo.INT_TYPE_INFO)
                         .addAdditionalOutput(partitionWriters)
                         .setupOperatorChain(new OperatorID(), new PassThroughOperator<>())
-                        .chain(BasicTypeInfo.INT_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        .chain(
+                                BasicTypeInfo.INT_TYPE_INFO.createSerializer(
+                                        new SerializerConfigImpl()))
                         .setOperatorFactory(
                                 SimpleOperatorFactory.of(
                                         new OneInputStreamTaskTest.OddEvenOperator()))
@@ -863,7 +865,9 @@ public class TwoInputStreamTaskTest {
                                 new OutputTag<>("odd", BasicTypeInfo.INT_TYPE_INFO), 2)
                         .addNonChainedOutputsCount(1)
                         .build()
-                        .chain(BasicTypeInfo.INT_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        .chain(
+                                BasicTypeInfo.INT_TYPE_INFO.createSerializer(
+                                        new SerializerConfigImpl()))
                         .setOperatorFactory(
                                 SimpleOperatorFactory.of(
                                         new OneInputStreamTaskTest.DuplicatingOperator()))

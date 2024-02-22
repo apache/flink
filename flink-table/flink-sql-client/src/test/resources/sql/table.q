@@ -45,7 +45,7 @@ org.apache.flink.table.api.ValidationException: Table `default_catalog`.`default
 !error
 
 alter table if exists non_exist rename to non_exist2;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # ==========================================================================
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS orders (
 ) with (
  'connector' = 'datagen'
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # test SHOW TABLES
@@ -114,7 +114,7 @@ show columns from orders;
 
 # test display max colum width
 SET 'table.display.max-column-width' = '10';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show columns from orders;
@@ -131,7 +131,7 @@ show columns from orders;
 !ok
 
 SET 'table.display.max-column-width' = '100';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show columns from orders;
@@ -148,7 +148,7 @@ show columns from orders;
 !ok
 
 SET 'sql-client.display.max-column-width' = '10';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show columns from orders;
@@ -165,7 +165,7 @@ show columns from orders;
 !ok
 
 SET 'sql-client.display.max-column-width' = '100';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show columns from orders;
@@ -359,7 +359,7 @@ show columns in orders not like 'use_';
 # ==========================================================================
 
 alter table orders rename to orders2;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # ==========================================================================
@@ -368,7 +368,7 @@ alter table orders rename to orders2;
 
 # test alter table properties
 alter table orders2 set ('connector' = 'kafka', 'scan.startup.mode' = 'earliest-offset');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # verify table options using SHOW CREATE TABLE
@@ -395,7 +395,7 @@ show create table orders2;
 
 # change connector to 'datagen' without removing 'scan.startup.mode' for the fix later
 alter table orders2 set ('connector' = 'datagen');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # verify table options are problematic
@@ -455,6 +455,7 @@ fields.user.min
 fields.user.null-rate
 number-of-rows
 rows-per-second
+scan.parallelism
 !error
 
 # ==========================================================================
@@ -463,7 +464,7 @@ rows-per-second
 
 # test alter table reset to remove invalid key
 alter table orders2 reset ('scan.startup.mode');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # verify table options using SHOW CREATE TABLE
@@ -498,7 +499,7 @@ org.apache.flink.table.api.ValidationException: ALTER TABLE RESET does not suppo
 # ==========================================================================
 
 alter table orders2 rename amount to amount1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # verify table options using SHOW CREATE TABLE
@@ -542,7 +543,7 @@ Referenced column `shipment_info` by 'AFTER' does not exist in the table.
 
 # test alter table add one column
 alter table orders2 add product_id bigint not null after `user`;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # verify table schema using SHOW CREATE TABLE
@@ -569,7 +570,7 @@ show create table orders2;
 
 # test alter table add multiple columns
 alter table orders2 add (user_email string not null after `user`, cleaned_product as coalesce(product, 'missing_sku') after product, trade_order_id bigint not null first);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # verify table schema using SHOW CREATE TABLE
@@ -602,7 +603,7 @@ show create table orders2;
 # ==========================================================================
 # test alter table schema modify primary key
 alter table orders2 modify constraint order_constraint primary key (trade_order_id) not enforced;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # verify table schema using SHOW CREATE TABLE
@@ -632,7 +633,7 @@ show create table orders2;
 
 # test alter table schema modify watermark offset, change column position
 alter table orders2 modify (watermark for ts as ts - interval '1' minute, ts timestamp(3) not null after trade_order_id, `user` string);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # verify table schema using SHOW CREATE TABLE
@@ -665,7 +666,7 @@ show create table orders2;
 # ==========================================================================
 
 alter table orders2 drop (amount1, product, cleaned_product);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # verify table options using SHOW CREATE TABLE
@@ -695,7 +696,7 @@ show create table orders2;
 # ==========================================================================
 
 alter table orders2 drop primary key;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # verify table options using SHOW CREATE TABLE
@@ -724,7 +725,7 @@ show create table orders2;
 # ==========================================================================
 
 alter table orders2 drop watermark;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # verify table options using SHOW CREATE TABLE
@@ -785,7 +786,7 @@ desc orders2;
 # ==========================================================================
 
 drop table orders2;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # verify table is dropped
@@ -804,7 +805,7 @@ create temporary table tbl1 (
 ) with (
  'connector' = 'datagen'
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # TODO: warning users the table already exists
@@ -815,7 +816,7 @@ create temporary table if not exists tbl1 (
 ) with (
  'connector' = 'datagen'
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # list permanent and temporary tables together
@@ -846,7 +847,7 @@ show create table tbl1;
 !ok
 
 drop temporary table tbl1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # ==========================================================================
@@ -854,7 +855,7 @@ drop temporary table tbl1;
 # ==========================================================================
 
 create table `mod` (`table` string, `database` string) with ('connector' = 'values');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 describe `mod`;
@@ -878,7 +879,7 @@ desc `mod`;
 !ok
 
 drop table `mod`;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show tables;
@@ -901,7 +902,7 @@ CREATE TABLE `default_catalog`.`default_database`.`orders3` (
   'connector' = 'kafka',
   'scan.startup.mode' = 'earliest-offset'
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # test describe
@@ -993,7 +994,7 @@ CREATE TABLE IF NOT EXISTS orders (
 ) with (
  'connector' = 'datagen'
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 CREATE TABLE IF NOT EXISTS orders2 (
@@ -1005,7 +1006,7 @@ CREATE TABLE IF NOT EXISTS orders2 (
 ) with (
  'connector' = 'blackhole'
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 CREATE TABLE IF NOT EXISTS daily_orders (
@@ -1019,7 +1020,7 @@ CREATE TABLE IF NOT EXISTS daily_orders (
  'path' = '$VAR_BATCH_PATH',
  'format' = 'csv'
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # test explain plan for select

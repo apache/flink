@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.runtime.stream.table;
 
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
@@ -101,5 +102,29 @@ class DataGeneratorConnectorITCase extends BatchTestBase {
         assertThat(CollectionUtil.iteratorToList(table.execute().collect()))
                 .as("Unexpected number of results")
                 .hasSize(5);
+    }
+
+    @Test
+    void testWithParallelism() {
+        final TestingTableEnvironment env =
+                TestingTableEnvironment.create(
+                        EnvironmentSettings.newInstance().inStreamingMode().build(),
+                        null,
+                        TableConfig.getDefault());
+
+        env.executeSql(
+                "CREATE TABLE datagen_t (\n"
+                        + "	f0 CHAR(1)\n"
+                        + ") WITH ("
+                        + "	'connector' = 'datagen',"
+                        + "	'scan.parallelism' = '2'"
+                        + ")");
+
+        final Table table = env.sqlQuery("select * from datagen_t");
+        final String explain = table.explain(ExplainDetail.JSON_EXECUTION_PLAN);
+        final String expectedPhysicalExecutionPlanFragment =
+                "table=[[default_catalog, default_database, datagen_t]], fields=[f0])\",\n"
+                        + "    \"parallelism\" : 2";
+        assertThat(explain).contains(expectedPhysicalExecutionPlanFragment);
     }
 }

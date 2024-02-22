@@ -24,7 +24,7 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.connector.testutils.source.TestingJobInfo;
 import org.apache.flink.connector.testutils.source.TestingTaskInfo;
 import org.apache.flink.metrics.Counter;
@@ -48,7 +48,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ScheduledFuture;
 
 /** A mock implementation of a {@code Sink.InitContext} to be used in sink unit tests. */
-public class TestSinkInitContext implements Sink.InitContext {
+public class TestSinkInitContext implements WriterInitContext {
 
     private static final TestProcessingTimeService processingTimeService;
     private final MetricListener metricListener = new MetricListener();

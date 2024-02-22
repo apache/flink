@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.NullByteKeySelector;
@@ -105,14 +105,14 @@ public class ContinuousProcessingTimeTriggerTest {
         ListStateDescriptor<Integer> stateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        BasicTypeInfo.INT_TYPE_INFO.createSerializer(new ExecutionConfig()));
+                        BasicTypeInfo.INT_TYPE_INFO.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<Byte, Integer, Iterable<Integer>, WindowedInteger, TimeWindow> operator =
                 new WindowOperator<>(
                         TumblingProcessingTimeWindows.of(Time.milliseconds(10)),
                         new TimeWindow.Serializer(),
                         new NullByteKeySelector<>(),
-                        BasicTypeInfo.BYTE_TYPE_INFO.createSerializer(new ExecutionConfig()),
+                        BasicTypeInfo.BYTE_TYPE_INFO.createSerializer(new SerializerConfigImpl()),
                         stateDesc,
                         new InternalIterableWindowFunction<>(new IntegerSumWindowFunction()),
                         trigger,
@@ -182,14 +182,14 @@ public class ContinuousProcessingTimeTriggerTest {
         ListStateDescriptor<Integer> stateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        BasicTypeInfo.INT_TYPE_INFO.createSerializer(new ExecutionConfig()));
+                        BasicTypeInfo.INT_TYPE_INFO.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<Byte, Integer, Iterable<Integer>, WindowedInteger, TimeWindow> operator =
                 new WindowOperator<>(
                         ProcessingTimeSessionWindows.withGap(Time.milliseconds(10)),
                         new TimeWindow.Serializer(),
                         new NullByteKeySelector<>(),
-                        BasicTypeInfo.BYTE_TYPE_INFO.createSerializer(new ExecutionConfig()),
+                        BasicTypeInfo.BYTE_TYPE_INFO.createSerializer(new SerializerConfigImpl()),
                         stateDesc,
                         new InternalIterableWindowFunction<>(new IntegerSumWindowFunction()),
                         trigger,

@@ -334,7 +334,8 @@ class KubernetesResourceManagerDriverTest
                             } else {
                                 initWatchFuture.complete(null);
                                 getSetWatchPodsAndDoCallbackFuture().complete(handler);
-                                return new TestingFlinkKubeClient.MockKubernetesWatch();
+                                return CompletableFuture.supplyAsync(
+                                        TestingFlinkKubeClient.MockKubernetesWatch::new);
                             }
                         });
                 runTest(
@@ -383,7 +384,7 @@ class KubernetesResourceManagerDriverTest
                                                 }
                                             };
                                     podsWatches.add(watch);
-                                    return watch;
+                                    return CompletableFuture.supplyAsync(() -> watch);
                                 })
                         .setStopAndCleanupClusterConsumer(stopAndCleanupClusterFuture::complete)
                         .setCreateTaskManagerPodFunction(

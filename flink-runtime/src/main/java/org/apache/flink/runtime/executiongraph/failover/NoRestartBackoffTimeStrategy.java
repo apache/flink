@@ -33,8 +33,9 @@ public enum NoRestartBackoffTimeStrategy implements RestartBackoffTimeStrategy {
     }
 
     @Override
-    public void notifyFailure(final Throwable cause) {
+    public boolean notifyFailure(final Throwable cause) {
         // nothing to do
+        return true;
     }
 
     @Override

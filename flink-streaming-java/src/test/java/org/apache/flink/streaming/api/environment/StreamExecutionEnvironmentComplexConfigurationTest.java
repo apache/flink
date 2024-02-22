@@ -54,6 +54,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.Executors;
 
+import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.EXPONENTIAL_DELAY;
 import static org.apache.flink.configuration.StateChangelogOptions.ENABLE_STATE_CHANGE_LOG;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -73,7 +74,8 @@ class StreamExecutionEnvironmentComplexConfigurationTest {
         String path = "file:///valid";
         configuration.set(CheckpointingOptions.CHECKPOINT_STORAGE, "jobmanager");
         configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, path);
-        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "exponentialdelay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY, EXPONENTIAL_DELAY.getMainValue());
 
         // mutate config according to configuration
         env.configure(configuration, Thread.currentThread().getContextClassLoader());
@@ -141,7 +143,11 @@ class StreamExecutionEnvironmentComplexConfigurationTest {
 
         LinkedHashMap<Object, Object> serializers = new LinkedHashMap<>();
         serializers.put(CustomPojo.class, CustomPojoSerializer.class);
-        assertThat(envFromConfiguration.getConfig().getDefaultKryoSerializerClasses())
+        assertThat(
+                        envFromConfiguration
+                                .getConfig()
+                                .getSerializerConfig()
+                                .getDefaultKryoSerializerClasses())
                 .isEqualTo(serializers);
     }
 

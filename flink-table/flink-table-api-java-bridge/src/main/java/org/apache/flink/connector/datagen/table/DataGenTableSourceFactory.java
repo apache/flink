@@ -64,6 +64,7 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(DataGenConnectorOptions.ROWS_PER_SECOND);
         options.add(DataGenConnectorOptions.NUMBER_OF_ROWS);
+        options.add(DataGenConnectorOptions.SOURCE_PARALLELISM);
 
         // Placeholder options
         options.add(DataGenConnectorOptions.FIELD_KIND);
@@ -116,6 +117,7 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
         consumedOptionKeys.add(CONNECTOR.key());
         consumedOptionKeys.add(DataGenConnectorOptions.ROWS_PER_SECOND.key());
         consumedOptionKeys.add(DataGenConnectorOptions.NUMBER_OF_ROWS.key());
+        consumedOptionKeys.add(DataGenConnectorOptions.SOURCE_PARALLELISM.key());
         optionalOptions.stream().map(ConfigOption::key).forEach(consumedOptionKeys::add);
         FactoryUtil.validateUnconsumedKeys(
                 factoryIdentifier(), options.keySet(), consumedOptionKeys);
@@ -126,7 +128,8 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
                 name,
                 rowDataType,
                 options.get(DataGenConnectorOptions.ROWS_PER_SECOND),
-                options.get(DataGenConnectorOptions.NUMBER_OF_ROWS));
+                options.get(DataGenConnectorOptions.NUMBER_OF_ROWS),
+                options.getOptional(DataGenConnectorOptions.SOURCE_PARALLELISM).orElse(null));
     }
 
     private DataGeneratorContainer createContainer(

@@ -21,7 +21,9 @@ package org.apache.flink.table.planner.factories;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.ProcedureHint;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -84,6 +86,14 @@ public class TestProcedureCatalogFactory implements CatalogFactory {
             PROCEDURE_MAP.put(ObjectPath.fromString("system.get_year"), new GetYearProcedure());
             PROCEDURE_MAP.put(
                     ObjectPath.fromString("system.generate_user"), new GenerateUserProcedure());
+            PROCEDURE_MAP.put(
+                    ObjectPath.fromString("system.named_args"), new NamedArgumentsProcedure());
+            PROCEDURE_MAP.put(
+                    ObjectPath.fromString("system.named_args_overload"),
+                    new NamedArgumentsProcedureWithOverload());
+            PROCEDURE_MAP.put(
+                    ObjectPath.fromString("system.named_args_optional"),
+                    new NamedArgumentsProcedureWithOptionalArguments());
         }
 
         public CatalogWithBuiltInProcedure(String name) {
@@ -171,6 +181,52 @@ public class TestProcedureCatalogFactory implements CatalogFactory {
     public static class GenerateUserProcedure implements Procedure {
         public UserPojo[] call(ProcedureContext procedureContext, String name, Integer age) {
             return new UserPojo[] {new UserPojo(name, age)};
+        }
+    }
+
+    /** A procedure to generate a user according to the passed parameters for testing purpose. */
+    public static class NamedArgumentsProcedure implements Procedure {
+
+        @ProcedureHint(
+                input = {@DataTypeHint("STRING"), @DataTypeHint("INT")},
+                output = @DataTypeHint("STRING"),
+                argumentNames = {"c", "d"})
+        public String[] call(ProcedureContext procedureContext, String arg1, Integer arg2) {
+            return new String[] {arg1 + ", " + arg2};
+        }
+    }
+
+    /** A procedure to generate a user according to the passed parameters for testing purpose. */
+    public static class NamedArgumentsProcedureWithOverload implements Procedure {
+
+        @ProcedureHint(
+                input = {@DataTypeHint("STRING"), @DataTypeHint("INT")},
+                output = @DataTypeHint("STRING"),
+                argumentNames = {"c", "d"})
+        public String[] call(ProcedureContext procedureContext, String arg1, Integer arg2) {
+            return new String[] {arg1 + ", " + arg2};
+        }
+
+        @ProcedureHint(
+                input = {@DataTypeHint("STRING"), @DataTypeHint("STRING")},
+                output = @DataTypeHint("STRING"),
+                argumentNames = {"c", "d"})
+        public String[] call(ProcedureContext procedureContext, String arg1, String arg2) {
+            return new String[] {arg1 + ", " + arg2};
+        }
+    }
+
+    /** A procedure with named arguments and optional arguments. */
+    public static class NamedArgumentsProcedureWithOptionalArguments implements Procedure {
+
+        @ProcedureHint(
+                output = @DataTypeHint("STRING"),
+                argument = {
+                    @ArgumentHint(type = @DataTypeHint("STRING"), name = "c", isOptional = true),
+                    @ArgumentHint(type = @DataTypeHint("INT"), name = "d", isOptional = true)
+                })
+        public String[] call(ProcedureContext procedureContext, String arg1, Integer arg2) {
+            return new String[] {arg1 + ", " + arg2};
         }
     }
 

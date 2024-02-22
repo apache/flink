@@ -525,9 +525,8 @@ public class AdaptiveSchedulerTest {
                         Time.minutes(10),
                         Time.minutes(10));
 
-        final Configuration configuration = new Configuration();
+        final Configuration configuration = createConfigurationWithNoTimeouts();
         configuration.set(JobManagerOptions.MIN_PARALLELISM_INCREASE, 1);
-        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
 
         final AdaptiveScheduler scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -612,7 +611,7 @@ public class AdaptiveSchedulerTest {
         final DefaultDeclarativeSlotPool declarativeSlotPool =
                 createDeclarativeSlotPool(jobGraph.getJobID());
 
-        final Configuration configuration = new Configuration();
+        final Configuration configuration = createConfigurationWithNoTimeouts();
         configuration.set(JobManagerOptions.MIN_PARALLELISM_INCREASE, 1);
         configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(10L));
         configuration.set(
@@ -977,16 +976,13 @@ public class AdaptiveSchedulerTest {
         final DefaultDeclarativeSlotPool declarativeSlotPool =
                 createDeclarativeSlotPool(jobGraph.getJobID());
 
-        final Configuration configuration = new Configuration();
-        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
-
         final AdaptiveScheduler scheduler =
                 new AdaptiveSchedulerBuilder(
                                 jobGraph,
                                 singleThreadMainThreadExecutor,
                                 EXECUTOR_RESOURCE.getExecutor())
                         .setDeclarativeSlotPool(declarativeSlotPool)
-                        .setJobMasterConfiguration(configuration)
+                        .setJobMasterConfiguration(createConfigurationWithNoTimeouts())
                         .build();
 
         final SubmissionBufferingTaskManagerGateway taskManagerGateway =
@@ -1049,7 +1045,7 @@ public class AdaptiveSchedulerTest {
                 createDeclarativeSlotPool(jobGraph.getJobID());
 
         final AdaptiveScheduler scheduler =
-                createSchedulerWithNoResourceWaitTimeout(jobGraph, declarativeSlotPool);
+                createSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool);
 
         final int scaledUpParallelism = PARALLELISM * 2;
 
@@ -1085,7 +1081,7 @@ public class AdaptiveSchedulerTest {
                 createDeclarativeSlotPool(jobGraph.getJobID());
 
         final AdaptiveScheduler scheduler =
-                createSchedulerWithNoResourceWaitTimeout(jobGraph, declarativeSlotPool);
+                createSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool);
 
         final SubmissionBufferingTaskManagerGateway taskManagerGateway =
                 createSubmissionBufferingTaskManagerGateway(PARALLELISM, scheduler);
@@ -1112,7 +1108,7 @@ public class AdaptiveSchedulerTest {
                 createDeclarativeSlotPool(jobGraph.getJobID());
 
         final AdaptiveScheduler scheduler =
-                createSchedulerWithNoResourceWaitTimeout(jobGraph, declarativeSlotPool);
+                createSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool);
 
         final SubmissionBufferingTaskManagerGateway taskManagerGateway =
                 createSubmissionBufferingTaskManagerGateway(PARALLELISM, scheduler);
@@ -1149,7 +1145,7 @@ public class AdaptiveSchedulerTest {
                 createDeclarativeSlotPool(jobGraph.getJobID());
 
         final AdaptiveScheduler scheduler =
-                createSchedulerWithNoResourceWaitTimeout(jobGraph, declarativeSlotPool);
+                createSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool);
         int scaledUpParallelism = PARALLELISM * 10;
 
         final SubmissionBufferingTaskManagerGateway taskManagerGateway =
@@ -1219,8 +1215,7 @@ public class AdaptiveSchedulerTest {
                 createRequirementsWithEqualLowerAndUpperParallelism(PARALLELISM);
 
         final AdaptiveScheduler scheduler =
-                prepareScheduler(jobGraph, declarativeSlotPool)
-                        .setJobMasterConfiguration(getConfigurationWithNoResourceWaitTimeout())
+                prepareSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool)
                         .setJobResourceRequirements(initialJobResourceRequirements)
                         .build();
 
@@ -1251,7 +1246,7 @@ public class AdaptiveSchedulerTest {
                 createRequirementsWithEqualLowerAndUpperParallelism(PARALLELISM);
 
         final AdaptiveScheduler scheduler =
-                prepareScheduler(jobGraph, declarativeSlotPool)
+                prepareSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool)
                         .setJobResourceRequirements(initialJobResourceRequirements)
                         .build();
 
@@ -1278,27 +1273,23 @@ public class AdaptiveSchedulerTest {
         awaitJobReachingParallelism(taskManagerGateway, scheduler, availableSlots);
     }
 
-    private AdaptiveSchedulerBuilder prepareScheduler(
+    private static Configuration createConfigurationWithNoTimeouts() {
+        return new Configuration()
+                .set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L))
+                .set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, Duration.ofMillis(1L));
+    }
+
+    private AdaptiveSchedulerBuilder prepareSchedulerWithNoTimeouts(
             JobGraph jobGraph, DeclarativeSlotPool declarativeSlotPool) {
         return new AdaptiveSchedulerBuilder(
                         jobGraph, singleThreadMainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
-                .setDeclarativeSlotPool(declarativeSlotPool);
+                .setDeclarativeSlotPool(declarativeSlotPool)
+                .setJobMasterConfiguration(createConfigurationWithNoTimeouts());
     }
 
-    private static Configuration getConfigurationWithNoResourceWaitTimeout() {
-        return new Configuration()
-                .set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
-    }
-
-    private AdaptiveSchedulerBuilder prepareSchedulerWithNoResourceWaitTimeout(
-            JobGraph jobGraph, DeclarativeSlotPool declarativeSlotPool) {
-        return prepareScheduler(jobGraph, declarativeSlotPool)
-                .setJobMasterConfiguration(getConfigurationWithNoResourceWaitTimeout());
-    }
-
-    private AdaptiveScheduler createSchedulerWithNoResourceWaitTimeout(
+    private AdaptiveScheduler createSchedulerWithNoTimeouts(
             JobGraph jobGraph, DeclarativeSlotPool declarativeSlotPool) throws Exception {
-        return prepareSchedulerWithNoResourceWaitTimeout(jobGraph, declarativeSlotPool).build();
+        return prepareSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool).build();
     }
 
     private SubmissionBufferingTaskManagerGateway createSubmissionBufferingTaskManagerGateway(
@@ -1922,7 +1913,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
         final Duration slotIdleTimeout = Duration.ofMillis(10);
 
-        final Configuration configuration = new Configuration();
+        final Configuration configuration = createConfigurationWithNoTimeouts();
         configuration.set(JobManagerOptions.SLOT_IDLE_TIMEOUT, slotIdleTimeout.toMillis());
 
         final DeclarativeSlotPool declarativeSlotPool =
@@ -2072,6 +2063,57 @@ public class AdaptiveSchedulerTest {
         scheduler.updateJobResourceRequirements(newJobResourceRequirements2);
         assertThat(scheduler.requestJobResourceRequirements())
                 .isEqualTo(newJobResourceRequirements2);
+    }
+
+    @Test
+    public void testScalingIntervalConfigurationIsRespected() throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraph.getJobID());
+
+        final Duration scalingIntervalMin = Duration.ofMillis(1337);
+        final Duration scalingIntervalMax = Duration.ofMillis(7331);
+        final Configuration configuration = createConfigurationWithNoTimeouts();
+        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, scalingIntervalMin);
+        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX, scalingIntervalMax);
+
+        final AdaptiveScheduler scheduler =
+                prepareSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool)
+                        .setJobMasterConfiguration(configuration)
+                        .build();
+        final SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                new SubmissionBufferingTaskManagerGateway(PARALLELISM);
+        startJobWithSlotsMatchingParallelism(
+                scheduler, declarativeSlotPool, taskManagerGateway, PARALLELISM);
+
+        // Wait for all tasks to be submitted
+        taskManagerGateway.waitForSubmissions(PARALLELISM);
+
+        final CompletableFuture<Executing> executingFuture = new CompletableFuture<>();
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    final Optional<Executing> maybeExecuting =
+                            scheduler.getState().as(Executing.class);
+                    if (maybeExecuting.isPresent()) {
+                        executingFuture.complete(maybeExecuting.get());
+                    } else {
+                        executingFuture.completeExceptionally(
+                                new IllegalStateException(
+                                        String.format("State is not [%s].", Executing.class)));
+                    }
+                });
+        assertThatFuture(executingFuture)
+                .eventuallySucceeds()
+                .satisfies(
+                        executing -> {
+                            assertThat(executing.scalingIntervalMin).isEqualTo(scalingIntervalMin);
+                            assertThat(executing.scalingIntervalMax).isEqualTo(scalingIntervalMax);
+                        });
+
+        final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+        singleThreadMainThreadExecutor.execute(
+                () -> FutureUtils.forward(scheduler.closeAsync(), closeFuture));
+        assertThatFuture(closeFuture).eventuallySucceeds();
     }
 
     // ---------------------------------------------------------------------------------------------

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -334,7 +335,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
     @Override
     @PublicEvolving
     @SuppressWarnings("unchecked")
-    public TypeSerializer<T> createSerializer(ExecutionConfig config) {
+    public TypeSerializer<T> createSerializer(SerializerConfig config) {
         if (config.isForceKryoEnabled()) {
             return new KryoSerializer<>(getTypeClass(), config);
         }
@@ -346,7 +347,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
         return createPojoSerializer(config);
     }
 
-    public PojoSerializer<T> createPojoSerializer(ExecutionConfig config) {
+    public PojoSerializer<T> createPojoSerializer(SerializerConfig config) {
         TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[fields.length];
         Field[] reflectiveFields = new Field[fields.length];
 
@@ -356,6 +357,27 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
         }
 
         return new PojoSerializer<T>(getTypeClass(), fieldSerializers, reflectiveFields, config);
+    }
+
+    @Override
+    @PublicEvolving
+    @Deprecated
+    @SuppressWarnings("unchecked")
+    public TypeSerializer<T> createSerializer(ExecutionConfig config) {
+        if (config.isForceKryoEnabled()) {
+            return new KryoSerializer<>(getTypeClass(), config.getSerializerConfig());
+        }
+
+        if (config.isForceAvroEnabled()) {
+            return AvroUtils.getAvroUtils().createAvroSerializer(getTypeClass());
+        }
+
+        return createPojoSerializer(config);
+    }
+
+    @Deprecated
+    public PojoSerializer<T> createPojoSerializer(ExecutionConfig config) {
+        return createPojoSerializer(config.getSerializerConfig());
     }
 
     @Override
@@ -439,7 +461,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
             return new PojoComparator<T>(
                     keyFields.toArray(new Field[keyFields.size()]),
                     fieldComparators.toArray(new TypeComparator[fieldComparators.size()]),
-                    createSerializer(config),
+                    createSerializer(config.getSerializerConfig()),
                     getTypeClass());
         }
     }

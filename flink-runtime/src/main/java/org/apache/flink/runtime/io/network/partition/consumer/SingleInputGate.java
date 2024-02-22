@@ -377,9 +377,6 @@ public class SingleInputGate extends IndexedInputGate {
                         inputChannelsForCurrentPartition.put(
                                 realInputChannel.getChannelInfo(), realInputChannel);
                         channels[inputChannel.getChannelIndex()] = realInputChannel;
-                        if (enabledTieredStorage()) {
-                            queueChannel(realInputChannel, null, false);
-                        }
                     } catch (Throwable t) {
                         inputChannel.setError(t);
                         return;
@@ -851,6 +848,7 @@ public class SingleInputGate extends IndexedInputGate {
                         case END_OF_DATA:
                             endOfDatas[inputChannel.getChannelIndex()]++;
                             if (endOfDatas[inputChannel.getChannelIndex()] < numSubpartitions) {
+                                buffer.get().recycleBuffer();
                                 continue;
                             }
                             break;
@@ -858,6 +856,7 @@ public class SingleInputGate extends IndexedInputGate {
                             endOfPartitions[inputChannel.getChannelIndex()]++;
                             if (endOfPartitions[inputChannel.getChannelIndex()]
                                     < numSubpartitions) {
+                                buffer.get().recycleBuffer();
                                 continue;
                             }
                             break;
@@ -887,7 +886,7 @@ public class SingleInputGate extends IndexedInputGate {
     private Optional<Buffer> readRecoveredOrNormalBuffer(InputChannel inputChannel)
             throws IOException, InterruptedException {
         // Firstly, read the buffers from the recovered channel
-        if (inputChannel instanceof RecoveredInputChannel) {
+        if (inputChannel instanceof RecoveredInputChannel && !inputChannel.isReleased()) {
             Optional<Buffer> buffer = readBufferFromInputChannel(inputChannel);
             if (!((RecoveredInputChannel) inputChannel).getStateConsumedFuture().isDone()) {
                 return buffer;

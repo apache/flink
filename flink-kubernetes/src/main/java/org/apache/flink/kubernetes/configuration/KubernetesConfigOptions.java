@@ -33,6 +33,7 @@ import org.apache.flink.kubernetes.kubeclient.services.ServiceType;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -301,7 +302,7 @@ public class KubernetesConfigOptions {
                     .stringType()
                     .defaultValue("/opt/flink/conf")
                     .withDescription(
-                            "The flink conf directory that will be mounted in pod. The flink-conf.yaml, log4j.properties, "
+                            "The flink conf directory that will be mounted in pod. The config.yaml, log4j.properties, "
                                     + "logback.xml in this path will be overwritten from config map.");
 
     public static final ConfigOption<String> FLINK_LOG_DIR =
@@ -431,13 +432,36 @@ public class KubernetesConfigOptions {
     public static final ConfigOption<Integer> KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES =
             key("kubernetes.transactional-operation.max-retries")
                     .intType()
-                    .defaultValue(5)
+                    .defaultValue(15)
                     .withDescription(
                             Description.builder()
                                     .text(
                                             "Defines the number of Kubernetes transactional operation retries before the "
                                                     + "client gives up. For example, %s.",
                                             code("FlinkKubeClient#checkAndUpdateConfigMap"))
+                                    .build());
+
+    public static final ConfigOption<Duration>
+            KUBERNETES_TRANSACTIONAL_OPERATION_INITIAL_RETRY_DEALY =
+                    key("kubernetes.transactional-operation.initial-retry-delay")
+                            .durationType()
+                            .defaultValue(Duration.ofMillis(50))
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "Defines the initial duration of Kubernetes transactional operation retries "
+                                                            + "after fail")
+                                            .build());
+
+    public static final ConfigOption<Duration> KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRY_DEALY =
+            key("kubernetes.transactional-operation.max-retry-delay")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(1))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Defines the max duration of Kubernetes transactional operation retries "
+                                                    + "after fail")
                                     .build());
 
     public static final ConfigOption<String> JOB_MANAGER_POD_TEMPLATE;

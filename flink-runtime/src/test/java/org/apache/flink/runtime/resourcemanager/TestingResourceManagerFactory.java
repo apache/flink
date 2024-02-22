@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.blocklist.BlocklistHandler;
 import org.apache.flink.runtime.blocklist.BlocklistUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -101,7 +101,7 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
                 clusterInformation,
                 fatalErrorHandler,
                 resourceManagerMetricGroup,
-                Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION)),
+                Time.fromDuration(configuration.get(RpcOptions.ASK_TIMEOUT_DURATION)),
                 ioExecutor);
     }
 

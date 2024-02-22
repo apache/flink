@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -41,7 +42,7 @@ public class ListStateDescriptorTest {
     public void testListStateDescriptor() throws Exception {
 
         TypeSerializer<String> serializer =
-                new KryoSerializer<>(String.class, new ExecutionConfig());
+                new KryoSerializer<>(String.class, new SerializerConfigImpl());
 
         ListStateDescriptor<String> descr = new ListStateDescriptor<>("testName", serializer);
 
@@ -101,7 +102,7 @@ public class ListStateDescriptorTest {
         // we need a serializer that actually duplicates for testing (a stateful one)
         // we use Kryo here, because it meets these conditions
         TypeSerializer<String> statefulSerializer =
-                new KryoSerializer<>(String.class, new ExecutionConfig());
+                new KryoSerializer<>(String.class, new SerializerConfigImpl());
 
         ListStateDescriptor<String> descr = new ListStateDescriptor<>("foobar", statefulSerializer);
 
