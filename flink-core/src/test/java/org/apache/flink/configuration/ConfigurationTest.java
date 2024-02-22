@@ -555,6 +555,19 @@ public class ConfigurationTest {
     }
 
     @TestTemplate
+    void testToStringDoesNotLeakSensitiveData() {
+        ConfigOption<Map<String, String>> secret =
+                ConfigOptions.key("secret").mapType().noDefaultValue();
+
+        Assertions.assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
+
+        final Configuration cfg = new Configuration(standardYaml);
+        cfg.setString(secret.key(), "secret_value");
+
+        assertThat(cfg.toString()).doesNotContain("secret_value");
+    }
+
+    @TestTemplate
     void testGetWithOverrideDefault() {
         final Configuration conf = new Configuration(standardYaml);
 

@@ -41,6 +41,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ConfigurationUtils.canBePrefixMap;
 import static org.apache.flink.configuration.ConfigurationUtils.containsPrefixMap;
@@ -1126,6 +1127,12 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 
     @Override
     public String toString() {
-        return this.confData.toString();
+        return ConfigurationUtils.hideSensitiveValues(
+                        this.confData.entrySet().stream()
+                                .collect(
+                                        Collectors.toMap(
+                                                Map.Entry::getKey,
+                                                entry -> entry.getValue().toString())))
+                .toString();
     }
 }
