@@ -35,6 +35,7 @@ import io.fabric8.kubernetes.api.model.NodeSpecBuilder;
 import io.fabric8.kubernetes.api.model.NodeStatusBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
+import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePort;
@@ -181,6 +182,22 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
                 .andEmit(new WatchEvent(pod, "DELETED"))
                 .done()
                 .once();
+    }
+
+    protected void mockWatchPodSuccessAfterFailTwoTimes(
+            String namespace, String resourceVersion, Map<String, String> labels) {
+        // mock four kinds of events.
+        String mockPath =
+                String.format(
+                        "/api/v1/namespaces/%s/pods?labelSelector=%s&resourceVersion=%s&allowWatchBookmarks=true&watch=true",
+                        namespace,
+                        labels.entrySet().stream()
+                                .map(entry -> entry.getKey() + "%3D" + entry.getValue())
+                                .collect(Collectors.joining("%2C")),
+                        resourceVersion);
+        server.expect().get().withPath(mockPath).andReturn(500, "Expected error").times(2);
+        server.expect().get().withPath(mockPath).andReturn(200, new PodList()).always();
+        server.expect().withPath(mockPath).andUpgradeToWebSocket().open().done().once();
     }
 
     protected Service buildExternalServiceWithLoadBalancer(

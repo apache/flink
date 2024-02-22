@@ -90,12 +90,22 @@ public class ChangelogCompatibilityITCase {
                         .restoreWithChangelog(true)
                         .from(RestoreSource.CANONICAL_SAVEPOINT)
                         .allowRestore(true),
-                // taking native savepoints is not supported with changelog
+                // enable changelog - allow restore from changelog NATIVE_SAVEPOINT
                 TestCase.startWithChangelog(true)
                         .restoreWithChangelog(true)
                         .from(RestoreSource.NATIVE_SAVEPOINT)
-                        .allowSave(false)
-                        .allowRestore(false),
+                        .allowRestore(true),
+                // enable recovery from non-changelog NATIVE_SAVEPOINT
+                TestCase.startWithChangelog(false)
+                        .restoreWithChangelog(true)
+                        .from(RestoreSource.NATIVE_SAVEPOINT)
+                        .allowRestore(true),
+                // disable changelog - allow restore from changelog NATIVE_SAVEPOINT
+                TestCase.startWithChangelog(true)
+                        .restoreWithChangelog(false)
+                        .from(RestoreSource.NATIVE_SAVEPOINT)
+                        .allowRestore(true),
+                // enable changelog - allow restore from changelog CHECKPOINT
                 TestCase.startWithChangelog(true)
                         .restoreWithChangelog(true)
                         .from(RestoreSource.CHECKPOINT)

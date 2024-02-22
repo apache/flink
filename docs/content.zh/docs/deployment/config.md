@@ -453,9 +453,9 @@ Please refer to the [Debugging Classloading Docs]({{< ref "docs/ops/debugging/de
 
 {{< generated/expert_state_backends_section >}}
 
-### State Backends Latency Tracking Options
+### State Latency Tracking Options
 
-{{< generated/state_backend_latency_tracking_section >}}
+{{< generated/state_latency_tracking_section >}}
 
 ### Advanced RocksDB State Backends Options
 
@@ -466,11 +466,11 @@ Advanced options to tune RocksDB and RocksDB checkpoints.
 ### State Changelog Options
 
 Please refer to [State Backends]({{< ref "docs/ops/state/state_backends#enabling-changelog" >}}) for information on
-using State Changelog. {{< generated/state_backend_changelog_section >}}
+using State Changelog. {{< generated/state_changelog_section >}}
 
 #### FileSystem-based Changelog options
 
-These settings take effect when the `state.backend.changelog.storage`  is set to `filesystem` (see [above](#state-backend-changelog-storage)).
+These settings take effect when the `state.changelog.storage`  is set to `filesystem` (see [above](#state-changelog-storage)).
 {{< generated/fs_state_changelog_configuration >}}
 
 **RocksDB Configurable Options**

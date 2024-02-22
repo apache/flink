@@ -384,7 +384,7 @@ However, resource usage is higher:
 It is worth noting that changelog adds a small amount of daily CPU and network bandwidth resources, 
 but reduces peak CPU and network bandwidth usage.
 
-Recovery time is another thing to consider. Depending on the `state.backend.changelog.periodic-materialize.interval`
+Recovery time is another thing to consider. Depending on the `state.changelog.periodic-materialize.interval`
 setting, the changelog can become lengthy and replaying it may take more time. However, recovery time combined with
 checkpoint duration will likely still be lower than in non-changelog setups, providing lower end-to-end latency even in
 failover case. However, it's also possible that the effective recovery time will increase, depending on the actual ratio
@@ -402,9 +402,9 @@ Make sure to [add]({{< ref "docs/deployment/filesystems/overview" >}}) the neces
 
 Here is an example configuration in YAML:
 ```yaml
-state.backend.changelog.enabled: true
-state.backend.changelog.storage: filesystem # currently, only filesystem and memory (for tests) are supported
-dstl.dfs.base-path: s3://<bucket-name> # similar to state.checkpoints.dir
+state.changelog.enabled: true
+state.changelog.storage: filesystem # currently, only filesystem and memory (for tests) are supported
+state.changelog.dstl.dfs.base-path: s3://<bucket-name> # similar to state.checkpoints.dir
 ```
 
 Please keep the following defaults (see [limitations](#limitations)):

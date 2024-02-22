@@ -36,7 +36,9 @@ import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.concurrent.ExponentialBackoffRetryStrategy;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
@@ -54,6 +56,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -61,7 +64,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -78,17 +81,19 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     private final String clusterId;
     private final String namespace;
     private final int maxRetryAttempts;
+    private final Duration initialRetryInterval;
+    private final Duration maxRetryInterval;
     private final KubernetesConfigOptions.NodePortAddressType nodePortAddressType;
 
     private final NamespacedKubernetesClient internalClient;
-    private final ExecutorService kubeClientExecutorService;
+    private final ScheduledExecutorService kubeClientExecutorService;
     // save the master deployment atomic reference for setting owner reference of task manager pods
     private final AtomicReference<Deployment> masterDeploymentRef;
 
     public Fabric8FlinkKubeClient(
             Configuration flinkConfig,
             NamespacedKubernetesClient client,
-            ExecutorService executorService) {
+            ScheduledExecutorService executorService) {
         this.clusterId =
                 flinkConfig
                         .getOptional(KubernetesConfigOptions.CLUSTER_ID)
@@ -102,6 +107,13 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
         this.maxRetryAttempts =
                 flinkConfig.get(
                         KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES);
+        this.initialRetryInterval =
+                flinkConfig.get(
+                        KubernetesConfigOptions
+                                .KUBERNETES_TRANSACTIONAL_OPERATION_INITIAL_RETRY_DEALY);
+        this.maxRetryInterval =
+                flinkConfig.get(
+                        KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRY_DEALY);
         this.nodePortAddressType =
                 flinkConfig.get(
                         KubernetesConfigOptions.REST_SERVICE_EXPOSED_NODE_PORT_ADDRESS_TYPE);
@@ -230,29 +242,26 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     }
 
     @Override
-    public KubernetesWatch watchPodsAndDoCallback(
-            Map<String, String> labels, WatchCallbackHandler<KubernetesPod> podCallbackHandler)
-            throws Exception {
-        return FutureUtils.retry(
-                        () ->
-                                CompletableFuture.supplyAsync(
-                                        () ->
-                                                new KubernetesWatch(
-                                                        this.internalClient
-                                                                .pods()
-                                                                .withLabels(labels)
-                                                                .withResourceVersion(
-                                                                        KUBERNETES_ZERO_RESOURCE_VERSION)
-                                                                .watch(
-                                                                        new KubernetesPodsWatcher(
-                                                                                podCallbackHandler))),
-                                        kubeClientExecutorService),
-                        maxRetryAttempts,
-                        t ->
-                                ExceptionUtils.findThrowable(t, KubernetesClientException.class)
-                                        .isPresent(),
-                        kubeClientExecutorService)
-                .get();
+    public CompletableFuture<KubernetesWatch> watchPodsAndDoCallback(
+            Map<String, String> labels, WatchCallbackHandler<KubernetesPod> podCallbackHandler) {
+        return FutureUtils.retryWithDelay(
+                () ->
+                        CompletableFuture.supplyAsync(
+                                () ->
+                                        new KubernetesWatch(
+                                                this.internalClient
+                                                        .pods()
+                                                        .withLabels(labels)
+                                                        .withResourceVersion(
+                                                                KUBERNETES_ZERO_RESOURCE_VERSION)
+                                                        .watch(
+                                                                new KubernetesPodsWatcher(
+                                                                        podCallbackHandler))),
+                                kubeClientExecutorService),
+                new ExponentialBackoffRetryStrategy(
+                        maxRetryAttempts, initialRetryInterval, maxRetryInterval),
+                t -> ExceptionUtils.findThrowable(t, KubernetesClientException.class).isPresent(),
+                new ScheduledExecutorServiceAdapter(kubeClientExecutorService));
     }
 
     @Override

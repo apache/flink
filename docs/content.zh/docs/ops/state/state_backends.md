@@ -383,7 +383,7 @@ Changelog 是一项旨在减少 checkpointing 时间的功能，因此也可以�
 值得注意的是虽然 Changelog 增加了少量的日常 CPU 和网络带宽资源使用，
 但会降低峰值的 CPU 和网络带宽使用量。
 
-另一项需要考虑的事情是恢复时间。取决于 `state.backend.changelog.periodic-materialize.interval` 的设置，changelog 可能会变得冗长，因此重放会花费更多时间。即使这样，恢复时间加上 checkpoint 持续时间仍然可能低于不开启 changelog 功能的时间，从而在故障恢复的情况下也能提供更低的端到端延迟。当然，取决于上述时间的实际比例，有效恢复时间也有可能会增加。
+另一项需要考虑的事情是恢复时间。取决于 `state.changelog.periodic-materialize.interval` 的设置，changelog 可能会变得冗长，因此重放会花费更多时间。即使这样，恢复时间加上 checkpoint 持续时间仍然可能低于不开启 changelog 功能的时间，从而在故障恢复的情况下也能提供更低的端到端延迟。当然，取决于上述时间的实际比例，有效恢复时间也有可能会增加。
 
 有关更多详细信息，请参阅 [FLIP-158](https://cwiki.apache.org/confluence/display/FLINK/FLIP-158%3A+Generalized+incremental+checkpoints)。
 
@@ -401,9 +401,9 @@ Changelog 是一项旨在减少 checkpointing 时间的功能，因此也可以�
 
 这是 YAML 中的示例配置：
 ```yaml
-state.backend.changelog.enabled: true
-state.backend.changelog.storage: filesystem # 当前只支持 filesystem 和 memory（仅供测试用）
-dstl.dfs.base-path: s3://<bucket-name> # 类似于 state.checkpoints.dir
+state.changelog.enabled: true
+state.changelog.storage: filesystem # 当前只支持 filesystem 和 memory（仅供测试用）
+state.changelog.dstl.dfs.base-path: s3://<bucket-name> # 类似于 state.checkpoints.dir
 ```
 
 请将如下配置保持默认值 （参见[限制](#limitations)）:
