@@ -22,18 +22,21 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+
 /** {@link JobGraphWriter} implementation which does not allow to store {@link JobGraph}. */
 public enum ThrowingJobGraphWriter implements JobGraphWriter {
     INSTANCE;
 
     @Override
-    public void putJobGraph(JobGraph jobGraph) {
+    public CompletableFuture<Void> putJobGraph(JobGraph jobGraph, Executor executor) {
         throw new UnsupportedOperationException("Cannot store job graphs.");
     }
 
     @Override
-    public void putJobResourceRequirements(
-            JobID jobId, JobResourceRequirements jobResourceRequirements) {
+    public CompletableFuture<Void> putJobResourceRequirements(
+            JobID jobId, JobResourceRequirements jobResourceRequirements, Executor executor) {
         throw new UnsupportedOperationException("Cannot persist job resource requirements.");
     }
 }

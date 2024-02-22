@@ -35,7 +35,10 @@ public interface JobGraphWriter extends LocallyCleanableResource, GloballyCleana
      *
      * <p>If a job graph with the same {@link JobID} exists, it is replaced.
      */
-    void putJobGraph(JobGraph jobGraph) throws Exception;
+    default CompletableFuture<Void> putJobGraph(JobGraph jobGraph, Executor executor)
+            throws Exception {
+        return FutureUtils.completedVoidFuture();
+    }
 
     /**
      * Persist {@link JobResourceRequirements job resource requirements} for the given job.
@@ -44,8 +47,11 @@ public interface JobGraphWriter extends LocallyCleanableResource, GloballyCleana
      * @param jobResourceRequirements requirements to persist
      * @throws Exception in case we're not able to persist the requirements for some reason
      */
-    void putJobResourceRequirements(JobID jobId, JobResourceRequirements jobResourceRequirements)
-            throws Exception;
+    default CompletableFuture<Void> putJobResourceRequirements(
+            JobID jobId, JobResourceRequirements jobResourceRequirements, Executor executor)
+            throws Exception {
+        return FutureUtils.completedVoidFuture();
+    }
 
     @Override
     default CompletableFuture<Void> localCleanupAsync(JobID jobId, Executor executor) {

@@ -102,7 +102,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
             assertThat(jobGraphs.getJobIds()).isEmpty();
 
             // Add initial
-            jobGraphs.putJobGraph(jobGraph);
+            jobGraphs.putJobGraph(jobGraph, Executors.directExecutor());
 
             // Verify initial job graph
             Collection<JobID> jobIds = jobGraphs.getJobIds();
@@ -114,7 +114,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
 
             // Update (same ID)
             jobGraph = createJobGraph(jobGraph.getJobID(), "Updated JobName");
-            jobGraphs.putJobGraph(jobGraph);
+            jobGraphs.putJobGraph(jobGraph, Executors.directExecutor());
 
             // Verify updated
             jobIds = jobGraphs.getJobIds();
@@ -177,7 +177,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
 
             // Add all
             for (JobGraph jobGraph : expected.values()) {
-                jobGraphs.putJobGraph(jobGraph);
+                jobGraphs.putJobGraph(jobGraph, Executors.directExecutor());
             }
 
             Collection<JobID> actual = jobGraphs.getJobIds();
@@ -241,14 +241,14 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
             jobGraphs.start(listener);
             otherJobGraphs.start(NoOpJobGraphListener.INSTANCE);
 
-            jobGraphs.putJobGraph(jobGraph);
+            jobGraphs.putJobGraph(jobGraph, Executors.directExecutor());
 
             // Everything is cool... not much happening ;)
             verify(listener, never()).onAddedJobGraph(any(JobID.class));
             verify(listener, never()).onRemovedJobGraph(any(JobID.class));
 
             // This bad boy adds the other job graph
-            otherJobGraphs.putJobGraph(otherJobGraph);
+            otherJobGraphs.putJobGraph(otherJobGraph, Executors.directExecutor());
 
             // Wait for the cache to call back
             sync.await();
@@ -281,10 +281,10 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
 
         JobGraph jobGraph = createJobGraph(new JobID());
 
-        jobGraphs.putJobGraph(jobGraph);
+        jobGraphs.putJobGraph(jobGraph, Executors.directExecutor());
 
         assertThatExceptionOfType(IllegalStateException.class)
-                .isThrownBy(() -> otherJobGraphs.putJobGraph(jobGraph));
+                .isThrownBy(() -> otherJobGraphs.putJobGraph(jobGraph, Executors.directExecutor()));
     }
 
     /**
@@ -305,7 +305,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
         otherSubmittedJobGraphStore.start(listener);
 
         final JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
-        submittedJobGraphStore.putJobGraph(jobGraph);
+        submittedJobGraphStore.putJobGraph(jobGraph, Executors.directExecutor());
 
         final JobGraph recoveredJobGraph =
                 otherSubmittedJobGraphStore.recoverJobGraph(jobGraph.getJobID());

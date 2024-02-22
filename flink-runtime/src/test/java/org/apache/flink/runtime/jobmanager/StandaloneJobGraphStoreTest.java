@@ -39,7 +39,7 @@ public class StandaloneJobGraphStoreTest {
 
         assertEquals(0, jobGraphs.getJobIds().size());
 
-        jobGraphs.putJobGraph(jobGraph);
+        jobGraphs.putJobGraph(jobGraph, Executors.directExecutor());
         assertEquals(0, jobGraphs.getJobIds().size());
 
         jobGraphs.globalCleanupAsync(jobGraph.getJobID(), Executors.directExecutor()).join();
