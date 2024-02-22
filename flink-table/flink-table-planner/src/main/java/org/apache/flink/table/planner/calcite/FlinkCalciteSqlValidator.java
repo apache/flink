@@ -42,6 +42,7 @@ import org.apache.calcite.schema.SchemaVersion;
 import org.apache.calcite.sql.JoinType;
 import org.apache.calcite.sql.SqlAsOperator;
 import org.apache.calcite.sql.SqlBasicCall;
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -85,6 +86,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.calcite.sql.type.SqlTypeName.DECIMAL;
 import static org.apache.flink.table.expressions.resolver.lookups.FieldReferenceLookup.includeExpandedColumn;
@@ -363,20 +365,23 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
 
             final List<SqlIdentifier> descriptors =
                     call.getOperandList().stream()
-                            .filter(op -> op.getKind() == SqlKind.DESCRIPTOR)
-                            .flatMap(
-                                    desc ->
-                                            ((SqlBasicCall) desc)
-                                                    .getOperandList().stream()
-                                                            .filter(SqlIdentifier.class::isInstance)
-                                                            .map(SqlIdentifier.class::cast))
+                            .flatMap(FlinkCalciteSqlValidator::extractDescriptors)
                             .collect(Collectors.toList());
 
             for (int i = 0; i < call.operandCount(); i++) {
                 final SqlIdentifier tableArg = explicitTableArgs.get(i);
                 if (tableArg != null) {
-                    call.setOperand(i, new ExplicitTableSqlSelect(tableArg, descriptors));
+                    final SqlNode opReplacement = new ExplicitTableSqlSelect(tableArg, descriptors);
+                    if (call.operand(i).getKind() == SqlKind.ARGUMENT_ASSIGNMENT) {
+                        // for TUMBLE(DATA => TABLE t3, ...)
+                        final SqlCall assignment = call.operand(i);
+                        assignment.setOperand(0, opReplacement);
+                    } else {
+                        // for TUMBLE(TABLE t3, ...)
+                        call.setOperand(i, opReplacement);
+                    }
                 }
+                // for TUMBLE([DATA =>] SELECT ..., ...)
             }
         }
 
@@ -447,18 +452,38 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
         }
 
         return call.getOperandList().stream()
-                .map(
-                        op -> {
-                            if (op.getKind() == SqlKind.EXPLICIT_TABLE) {
-                                final SqlBasicCall opCall = (SqlBasicCall) op;
-                                if (opCall.operandCount() == 1
-                                        && opCall.operand(0) instanceof SqlIdentifier) {
-                                    return (SqlIdentifier) opCall.operand(0);
-                                }
-                            }
-                            return null;
-                        })
+                .map(FlinkCalciteSqlValidator::extractExplicitTable)
                 .collect(Collectors.toList());
+    }
+
+    private static @Nullable SqlIdentifier extractExplicitTable(SqlNode op) {
+        if (op.getKind() == SqlKind.EXPLICIT_TABLE) {
+            final SqlBasicCall opCall = (SqlBasicCall) op;
+            if (opCall.operandCount() == 1 && opCall.operand(0) instanceof SqlIdentifier) {
+                // for TUMBLE(TABLE t3, ...)
+                return opCall.operand(0);
+            }
+        } else if (op.getKind() == SqlKind.ARGUMENT_ASSIGNMENT) {
+            // for TUMBLE(DATA => TABLE t3, ...)
+            final SqlBasicCall opCall = (SqlBasicCall) op;
+            return extractExplicitTable(opCall.operand(0));
+        }
+        return null;
+    }
+
+    private static Stream<SqlIdentifier> extractDescriptors(SqlNode op) {
+        if (op.getKind() == SqlKind.DESCRIPTOR) {
+            // for TUMBLE(..., DESCRIPTOR(col), ...)
+            final SqlBasicCall opCall = (SqlBasicCall) op;
+            return opCall.getOperandList().stream()
+                    .filter(SqlIdentifier.class::isInstance)
+                    .map(SqlIdentifier.class::cast);
+        } else if (op.getKind() == SqlKind.ARGUMENT_ASSIGNMENT) {
+            // for TUMBLE(..., TIMECOL => DESCRIPTOR(col), ...)
+            final SqlBasicCall opCall = (SqlBasicCall) op;
+            return extractDescriptors(opCall.operand(0));
+        }
+        return Stream.empty();
     }
 
     private static boolean isTableFunction(SqlFunction function) {
