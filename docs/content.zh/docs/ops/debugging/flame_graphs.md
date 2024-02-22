@@ -29,7 +29,7 @@ under the License.
 
 [Flame Graphs](http://www.brendangregg.com/flamegraphs.html) 是一种有效的可视化工具，可以回答以下问题：
 
-- 目前哪些方法正在消耗CPU资源？
+- 目前哪些方法正在消耗 CPU 资源？
 - 一个方法的消耗与其他方法相比如何？
 - 哪一系列的堆栈调用导致了特定方法的执行?
 
