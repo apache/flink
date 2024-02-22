@@ -468,7 +468,7 @@ Advanced options to tune RocksDB and RocksDB checkpoints.
 ### State Changelog Options
 
 Please refer to [State Backends]({{< ref "docs/ops/state/state_backends#enabling-changelog" >}}) for information on
-using State Changelog.
+using State Changelog. {{< generated/state_backend_changelog_section >}}
 
 #### FileSystem-based Changelog options
 
