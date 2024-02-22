@@ -254,7 +254,7 @@ public class ExecutionCheckpointingOptions {
     /**
      * @deprecated Use {@link StateRecoveryOptions#CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA} instead.
      */
-    @Deprecated
+    @Deprecated @Documentation.ExcludeFromDocumentation
     public static final ConfigOption<Long> CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA =
             ConfigOptions.key("execution.checkpointing.recover-without-channel-state.checkpoint-id")
                     .longType()
@@ -306,7 +306,7 @@ public class ExecutionCheckpointingOptions {
      *
      * @deprecated Use {@link StateRecoveryOptions#APPROXIMATE_LOCAL_RECOVERY} instead.
      */
-    @Internal @Documentation.ExcludeFromDocumentation @Deprecated
+    @Internal @Deprecated @Documentation.ExcludeFromDocumentation
     public static final ConfigOption<Boolean> APPROXIMATE_LOCAL_RECOVERY =
             key("execution.checkpointing.approximate-local-recovery")
                     .booleanType()
