@@ -29,12 +29,10 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.testutils.CustomEqualityMatcher;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -56,7 +54,6 @@ import static org.assertj.core.api.Fail.fail;
  * to pass this test but the internal state would be corrupt, which becomes evident when toString is
  * called.
  */
-@ExtendWith(TestLoggerExtension.class)
 public abstract class SerializerTestBase<T> {
 
     private final DeeplyEqualsChecker checker;

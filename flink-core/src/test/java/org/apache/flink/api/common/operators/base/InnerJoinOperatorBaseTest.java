@@ -98,7 +98,7 @@ public class InnerJoinOperatorBaseTest implements Serializable {
                         assertThat(getRuntimeContext().getTaskInfo().getIndexOfThisSubtask())
                                 .isZero();
                         assertThat(getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks())
-                                .isEqualTo(1);
+                                .isOne();
                     }
 
                     @Override

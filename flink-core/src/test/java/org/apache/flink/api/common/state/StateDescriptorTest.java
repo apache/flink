@@ -239,9 +239,9 @@ class StateDescriptorTest {
         for (CheckedThread t : threads) {
             t.sync();
         }
-        assertThat(serializers.size())
+        assertThat(serializers)
                 .as("Should use only one serializer but actually: " + serializers)
-                .isEqualTo(1);
+                .hasSize(1);
         threads.clear();
     }
 

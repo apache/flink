@@ -22,17 +22,14 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Abstract test base for type information. */
-@ExtendWith(TestLoggerExtension.class)
 public abstract class TypeInformationTestBase<T extends TypeInformation<?>> {
 
     protected abstract T[] getTestData();
@@ -84,7 +81,7 @@ public abstract class TypeInformationTestBase<T extends TypeInformation<?>> {
     }
 
     @Test
-    public void testSerialization() {
+    void testSerialization() {
         final T[] testData = getTestData();
 
         for (T typeInfo : testData) {
@@ -110,7 +107,7 @@ public abstract class TypeInformationTestBase<T extends TypeInformation<?>> {
     }
 
     @Test
-    public void testGetTotalFields() {
+    void testGetTotalFields() {
         final T[] testData = getTestData();
         for (T typeInfo : testData) {
             assertThat(typeInfo.getTotalFields())

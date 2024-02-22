@@ -29,7 +29,7 @@ import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 /** Tests for the {@link CompositeTypeSerializerUtil}. */
 class CompositeTypeSerializerUtilTest {
