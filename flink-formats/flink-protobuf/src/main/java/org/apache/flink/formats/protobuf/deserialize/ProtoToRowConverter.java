@@ -76,7 +76,7 @@ public class ProtoToRowConverter {
             PbCodegenAppender codegenAppender = new PbCodegenAppender();
             PbFormatContext pbFormatContext =
                     new PbFormatContext(formatConfig, readDefaultValuesForPrimitiveTypes);
-            String uuid = UUID.randomUUID().toString().replaceAll("\\-", "");
+            String uuid = UUID.randomUUID().toString().replace("-", "");
             String generatedClassName = "GeneratedProtoToRow_" + uuid;
             String generatedPackageName = ProtoToRowConverter.class.getPackage().getName();
             codegenAppender.appendLine("package " + generatedPackageName);
