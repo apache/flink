@@ -419,7 +419,6 @@ Flink can fetch user artifacts stored locally, on remote DFS, or accessible via 
 # Execution
 
 {{< generated/deployment_configuration >}}
-{{< generated/savepoint_config_configuration >}}
 {{< generated/execution_configuration >}}
 
 ### Pipeline
@@ -429,6 +428,10 @@ Flink can fetch user artifacts stored locally, on remote DFS, or accessible via 
 ### Checkpointing
 
 {{< generated/execution_checkpointing_configuration >}}
+
+### Recovery
+
+{{< generated/state_recovery_configuration >}}
 
 ----
 ----

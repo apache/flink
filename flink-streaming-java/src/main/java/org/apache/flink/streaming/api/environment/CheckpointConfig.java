@@ -27,6 +27,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -113,13 +114,11 @@ public class CheckpointConfig implements java.io.Serializable {
      * Default id of checkpoint for which in-flight data should be ignored on recovery.
      *
      * @deprecated This field is no longer used. Please use {@link
-     *     ExecutionCheckpointingOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA} instead.
+     *     StateRecoveryOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA} instead.
      */
     @Deprecated
     public static final int DEFAULT_CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA =
-            ExecutionCheckpointingOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA
-                    .defaultValue()
-                    .intValue();
+            StateRecoveryOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA.defaultValue().intValue();
 
     // --------------------------------------------------------------------------------------------
 
@@ -700,7 +699,7 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @Experimental
     public boolean isApproximateLocalRecoveryEnabled() {
-        return configuration.get(ExecutionCheckpointingOptions.APPROXIMATE_LOCAL_RECOVERY);
+        return configuration.get(StateRecoveryOptions.APPROXIMATE_LOCAL_RECOVERY);
     }
 
     /**
@@ -719,7 +718,7 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @Experimental
     public void enableApproximateLocalRecovery(boolean enabled) {
-        configuration.set(ExecutionCheckpointingOptions.APPROXIMATE_LOCAL_RECOVERY, enabled);
+        configuration.set(StateRecoveryOptions.APPROXIMATE_LOCAL_RECOVERY, enabled);
     }
 
     /**
@@ -892,7 +891,7 @@ public class CheckpointConfig implements java.io.Serializable {
     @PublicEvolving
     public void setCheckpointIdOfIgnoredInFlightData(long checkpointIdOfIgnoredInFlightData) {
         configuration.set(
-                ExecutionCheckpointingOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA,
+                StateRecoveryOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA,
                 checkpointIdOfIgnoredInFlightData);
     }
 
@@ -902,8 +901,7 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @PublicEvolving
     public long getCheckpointIdOfIgnoredInFlightData() {
-        return configuration.get(
-                ExecutionCheckpointingOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA);
+        return configuration.get(StateRecoveryOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA);
     }
 
     /** Cleanup behaviour for externalized checkpoints when the job is cancelled. */
@@ -1001,7 +999,7 @@ public class CheckpointConfig implements java.io.Serializable {
                 .getOptional(ExecutionCheckpointingOptions.ENABLE_UNALIGNED)
                 .ifPresent(this::enableUnalignedCheckpoints);
         configuration
-                .getOptional(ExecutionCheckpointingOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA)
+                .getOptional(StateRecoveryOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA)
                 .ifPresent(this::setCheckpointIdOfIgnoredInFlightData);
         configuration
                 .getOptional(ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT)

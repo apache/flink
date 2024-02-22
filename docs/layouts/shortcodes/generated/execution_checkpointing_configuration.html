@@ -57,12 +57,6 @@
             <td>The checkpointing mode (exactly-once vs. at-least-once).<br /><br />Possible values:<ul><li>"EXACTLY_ONCE"</li><li>"AT_LEAST_ONCE"</li></ul></td>
         </tr>
         <tr>
-            <td><h5>execution.checkpointing.recover-without-channel-state.checkpoint-id</h5></td>
-            <td style="word-wrap: break-word;">-1</td>
-            <td>Long</td>
-            <td>Checkpoint id for which in-flight data should be ignored in case of the recovery from this checkpoint.<br /><br />It is better to keep this value empty until there is explicit needs to restore from the specific checkpoint without in-flight data.<br /></td>
-        </tr>
-        <tr>
             <td><h5>execution.checkpointing.timeout</h5></td>
             <td style="word-wrap: break-word;">10 min</td>
             <td>Duration</td>
