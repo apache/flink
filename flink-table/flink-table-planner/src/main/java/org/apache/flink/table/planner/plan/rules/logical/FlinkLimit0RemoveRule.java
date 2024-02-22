@@ -25,7 +25,7 @@ import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rex.RexLiteral;
 import org.immutables.value.Value;
 
-/** Planner rule that rewrites `limit 0` to empty [[org.apache.calcite.rel.core.Values]]. */
+/** Planner rule that rewrites `limit 0` to empty {@link org.apache.calcite.rel.core.Values}. */
 @Value.Enclosing
 public class FlinkLimit0RemoveRule
         extends RelRule<FlinkLimit0RemoveRule.FlinkLimit0RemoveRuleConfig> {
