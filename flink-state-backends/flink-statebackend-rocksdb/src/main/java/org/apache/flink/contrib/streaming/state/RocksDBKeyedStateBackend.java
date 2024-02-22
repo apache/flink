@@ -467,7 +467,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         // disposed, as
         // working on the disposed object results in SEGFAULTS.
         if (db != null) {
-
             IOUtils.closeQuietly(writeBatchWrapper);
 
             // Metric collection occurs on a background thread. When this method returns
@@ -1018,6 +1017,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         return writeBatchSize;
     }
 
+    @VisibleForTesting
     public Optional<CompletableFuture<Void>> getAsyncCompactAfterRestoreFuture() {
         return Optional.ofNullable(asyncCompactAfterRestoreFuture);
     }
