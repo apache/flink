@@ -142,22 +142,27 @@ public class RocksDBOperationUtils {
                         ttlCompactFiltersManager,
                         writeBufferManagerCapacity);
 
-        final ColumnFamilyHandle columnFamilyHandle;
         try {
-            columnFamilyHandle =
+            ColumnFamilyHandle columnFamilyHandle =
                     createColumnFamily(
                             columnFamilyDescriptor,
                             db,
                             importFilesMetaData,
                             cancelStreamRegistryForRestore);
+            return new RocksDBKeyedStateBackend.RocksDbKvStateInfo(
+                    columnFamilyHandle, metaInfoBase);
         } catch (Exception ex) {
             IOUtils.closeQuietly(columnFamilyDescriptor.getOptions());
             throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", ex);
         }
-
-        return new RocksDBKeyedStateBackend.RocksDbKvStateInfo(columnFamilyHandle, metaInfoBase);
     }
 
+    /**
+     * Create RocksDB-backed KV-state, including RocksDB ColumnFamily.
+     *
+     * @param cancelStreamRegistryForRestore {@link ICloseableRegistry#close closing} it interrupts
+     *     KV state creation
+     */
     public static RocksDBKeyedStateBackend.RocksDbKvStateInfo createStateInfo(
             RegisteredStateMetaInfoBase metaInfoBase,
             RocksDB db,

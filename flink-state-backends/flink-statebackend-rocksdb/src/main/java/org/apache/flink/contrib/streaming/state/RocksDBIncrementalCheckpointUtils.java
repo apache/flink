@@ -17,12 +17,14 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ResourceGuard;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.apache.flink.shaded.guava32.com.google.common.primitives.UnsignedBytes;
@@ -41,6 +43,7 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.Closeable;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -50,7 +53,6 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -243,60 +245,93 @@ public class RocksDBIncrementalCheckpointUtils {
      * @param keyGroupPrefixBytes the number of bytes used to serialize the key-group prefix of keys
      *     in the DB.
      * @param dbExpectedKeyGroupRange the expected key-groups range of the DB.
+     * @param rocksDBResourceGuard the resource guard for the given db instance.
      * @return runnable that performs compaction upon execution if the key-groups range is exceeded.
      *     Otherwise, empty optional is returned.
      */
-    public static Optional<RunnableWithException> createRangeCompactionTaskIfNeeded(
+    public static RunnableWithException createAsyncRangeCompactionTask(
             RocksDB db,
             Collection<ColumnFamilyHandle> columnFamilyHandles,
             int keyGroupPrefixBytes,
-            KeyGroupRange dbExpectedKeyGroupRange) {
+            KeyGroupRange dbExpectedKeyGroupRange,
+            ResourceGuard rocksDBResourceGuard,
+            CloseableRegistry closeableRegistry) {
 
-        RangeCheckResult rangeCheckResult =
-                checkSstDataAgainstKeyGroupRange(db, keyGroupPrefixBytes, dbExpectedKeyGroupRange);
+        return () -> {
+            logger.debug(
+                    "Starting range check for async compaction targeting key-groups range {}.",
+                    dbExpectedKeyGroupRange.prettyPrintInterval());
+            final RangeCheckResult rangeCheckResult;
+            try (ResourceGuard.Lease ignored = rocksDBResourceGuard.acquireResource()) {
+                rangeCheckResult =
+                        checkSstDataAgainstKeyGroupRange(
+                                db, keyGroupPrefixBytes, dbExpectedKeyGroupRange);
+            }
 
-        if (rangeCheckResult.allInRange()) {
-            // No keys exceed the proclaimed range of the backend, so we don't need a compaction
-            // from this point of view.
-            return Optional.empty();
-        }
+            if (rangeCheckResult.allInRange()) {
+                logger.debug(
+                        "Nothing to compact in async compaction targeting key-groups range {}.",
+                        dbExpectedKeyGroupRange.prettyPrintInterval());
+                // No keys exceed the proclaimed range of the backend, so we don't need a compaction
+                // from this point of view.
+                return;
+            }
 
-        return Optional.of(
-                () -> {
-                    try (CompactRangeOptions compactionOptions =
-                            new CompactRangeOptions()
-                                    .setExclusiveManualCompaction(true)
-                                    .setBottommostLevelCompaction(
-                                            CompactRangeOptions.BottommostLevelCompaction
-                                                    .kForceOptimized)) {
+            try (CompactRangeOptions compactionOptions =
+                    new CompactRangeOptions()
+                            .setBottommostLevelCompaction(
+                                    CompactRangeOptions.BottommostLevelCompaction
+                                            .kForceOptimized)) {
 
-                        if (!rangeCheckResult.leftInRange) {
-                            // Compact all keys before from the expected key-groups range
-                            for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
-                                db.compactRange(
-                                        columnFamilyHandle,
-                                        // TODO: change to null once this API is fixed
-                                        new byte[] {},
-                                        rangeCheckResult.minKey,
-                                        compactionOptions);
-                            }
-                        }
+                // To cancel an ongoing compaction asap, we register cancelling through the options
+                // with the registry
+                final Closeable cancelCompactionCloseable =
+                        () -> {
+                            logger.debug(
+                                    "Cancel request for async compaction targeting key-groups range {}.",
+                                    dbExpectedKeyGroupRange.prettyPrintInterval());
+                            compactionOptions.setCanceled(true);
+                        };
 
-                        if (!rangeCheckResult.rightInRange) {
-                            // Compact all keys after the expected key-groups range
-                            for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
-                                db.compactRange(
-                                        columnFamilyHandle,
-                                        rangeCheckResult.maxKey,
-                                        // TODO: change to null once this API is fixed
-                                        new byte[] {
-                                            (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff
-                                        },
-                                        compactionOptions);
-                            }
+                closeableRegistry.registerCloseable(cancelCompactionCloseable);
+
+                if (!rangeCheckResult.leftInRange) {
+                    logger.debug(
+                            "Compacting left interval in async compaction targeting key-groups range {}.",
+                            dbExpectedKeyGroupRange.prettyPrintInterval());
+                    // Compact all keys before from the expected key-groups range
+                    for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
+                        try (ResourceGuard.Lease ignored = rocksDBResourceGuard.acquireResource()) {
+                            db.compactRange(
+                                    columnFamilyHandle,
+                                    // TODO: change to null once this API is fixed
+                                    new byte[] {},
+                                    rangeCheckResult.minKey,
+                                    compactionOptions);
                         }
                     }
-                });
+                }
+
+                if (!rangeCheckResult.rightInRange) {
+                    logger.debug(
+                            "Compacting right interval in async compaction targeting key-groups range {}.",
+                            dbExpectedKeyGroupRange.prettyPrintInterval());
+                    // Compact all keys after the expected key-groups range
+                    for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
+                        try (ResourceGuard.Lease ignored = rocksDBResourceGuard.acquireResource()) {
+                            db.compactRange(
+                                    columnFamilyHandle,
+                                    rangeCheckResult.maxKey,
+                                    // TODO: change to null once this API is fixed
+                                    new byte[] {(byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff},
+                                    compactionOptions);
+                        }
+                    }
+                }
+
+                closeableRegistry.unregisterCloseable(cancelCompactionCloseable);
+            }
+        };
     }
 
     /**

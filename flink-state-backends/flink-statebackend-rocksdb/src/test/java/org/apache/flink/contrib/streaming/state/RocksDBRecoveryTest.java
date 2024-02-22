@@ -45,6 +45,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
 import java.util.stream.Collectors;
 
@@ -108,6 +110,7 @@ public class RocksDBRecoveryTest {
             int startParallelism, int targetParallelism, int numKeys, int updateDistance)
             throws Exception {
 
+        ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
         OUTPUT.println("Rescaling from " + startParallelism + " to " + targetParallelism + "...");
         final String stateName = "TestValueState";
         final int maxParallelism = startParallelism * targetParallelism;
@@ -133,6 +136,7 @@ public class RocksDBRecoveryTest {
                                             Collections.emptyList())
                                     .setEnableIncrementalCheckpointing(true)
                                     .setUseIngestDbRestoreMode(true)
+                                    .setIOExecutor(ioExecutor)
                                     .build();
 
                     valueStates.add(
@@ -183,7 +187,8 @@ public class RocksDBRecoveryTest {
                             targetParallelism,
                             maxParallelism,
                             startSnapshotResult,
-                            backends);
+                            backends,
+                            ioExecutor);
 
                     backends.forEach(
                             backend ->
@@ -216,7 +221,8 @@ public class RocksDBRecoveryTest {
                             startParallelism,
                             maxParallelism,
                             rescaleSnapshotResult,
-                            backends);
+                            backends,
+                            ioExecutor);
 
                     count = 0;
                     for (RocksDBKeyedStateBackend<Integer> backend : backends) {
@@ -243,6 +249,7 @@ public class RocksDBRecoveryTest {
             for (SnapshotResult<KeyedStateHandle> snapshotResult : cleanupSnapshotResult) {
                 snapshotResult.discardState();
             }
+            ioExecutor.shutdown();
         }
     }
 
@@ -252,7 +259,8 @@ public class RocksDBRecoveryTest {
             int targetParallelism,
             int maxParallelism,
             List<SnapshotResult<KeyedStateHandle>> snapshotResult,
-            List<RocksDBKeyedStateBackend<Integer>> backendsOut)
+            List<RocksDBKeyedStateBackend<Integer>> backendsOut,
+            ExecutorService ioExecutor)
             throws IOException {
 
         List<KeyedStateHandle> stateHandles =
@@ -290,6 +298,7 @@ public class RocksDBRecoveryTest {
                             .setUseIngestDbRestoreMode(useIngest)
                             .setIncrementalRestoreAsyncCompactAfterRescale(asyncCompactAfterRescale)
                             .setRescalingUseDeleteFilesInRange(true)
+                            .setIOExecutor(ioExecutor)
                             .build();
 
             long instanceTime = System.currentTimeMillis() - tInstance;
