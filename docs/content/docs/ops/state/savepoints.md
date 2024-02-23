@@ -225,7 +225,7 @@ Still, we believe the default *NO_CLAIM* mode is a good tradeoff in most situati
 
 You can pass the restore mode as:
 ```shell
-$ bin/flink run -s :savepointPath -restoreMode :mode -n [:runArgs]
+$ bin/flink run -s :savepointPath -claimMode :mode -n [:runArgs]
 ```
 
 **NO_CLAIM (default)**

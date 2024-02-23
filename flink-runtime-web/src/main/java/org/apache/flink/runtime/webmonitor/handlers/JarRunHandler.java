@@ -155,6 +155,9 @@ public class JarRunHandler
                                 () ->
                                         effectiveConfiguration.get(
                                                 StateRecoveryOptions.RESTORE_MODE));
+        if (requestBody.isDeprecatedRestoreModeHasValue()) {
+            log.warn("The option 'restoreMode' is deprecated, please use 'claimMode' instead.");
+        }
         if (restoreMode.equals(RestoreMode.LEGACY)) {
             log.warn(
                     "The {} restore mode is deprecated, please use {} or {} mode instead.",

@@ -132,10 +132,10 @@ public class CliFrontendParser {
                             + "You need to allow this if you removed an operator from your "
                             + "program that was part of the program when the savepoint was triggered.");
 
-    public static final Option SAVEPOINT_RESTORE_MODE =
+    public static final Option SAVEPOINT_CLAIM_MODE =
             new Option(
-                    "rm",
-                    "restoreMode",
+                    "cm",
+                    "claimMode",
                     true,
                     "Defines how should we restore from the given savepoint. Supported options: "
                             + "[claim - claim ownership of the savepoint and delete once it is"
@@ -143,6 +143,16 @@ public class CliFrontendParser {
                             + " checkpoint will not reuse any files from the restored one, legacy "
                             + "(deprecated) - the old behaviour, do not assume ownership of the "
                             + "savepoint files, but can reuse some shared files.");
+
+    @Deprecated
+    public static final Option SAVEPOINT_RESTORE_MODE =
+            new Option(
+                    "rm",
+                    "restoreMode",
+                    true,
+                    "This option is deprecated, please use '"
+                            + SAVEPOINT_CLAIM_MODE.getLongOpt()
+                            + "' instead.");
 
     static final Option SAVEPOINT_DISPOSE_OPTION =
             new Option("d", "dispose", true, "Path of savepoint to dispose.");
@@ -335,6 +345,7 @@ public class CliFrontendParser {
         SAVEPOINT_PATH_OPTION.setArgName("savepointPath");
 
         SAVEPOINT_ALLOW_NON_RESTORED_OPTION.setRequired(false);
+        SAVEPOINT_CLAIM_MODE.setRequired(false);
         SAVEPOINT_RESTORE_MODE.setRequired(false);
 
         SAVEPOINT_FORMAT_OPTION.setRequired(false);
@@ -422,6 +433,7 @@ public class CliFrontendParser {
         return getProgramSpecificOptions(buildGeneralOptions(new Options()))
                 .addOption(SAVEPOINT_PATH_OPTION)
                 .addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION)
+                .addOption(SAVEPOINT_CLAIM_MODE)
                 .addOption(SAVEPOINT_RESTORE_MODE);
     }
 
@@ -471,6 +483,7 @@ public class CliFrontendParser {
         return getProgramSpecificOptionsWithoutDeprecatedOptions(options)
                 .addOption(SAVEPOINT_PATH_OPTION)
                 .addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION)
+                .addOption(SAVEPOINT_CLAIM_MODE)
                 .addOption(SAVEPOINT_RESTORE_MODE);
     }
 
@@ -684,11 +697,19 @@ public class CliFrontendParser {
             boolean allowNonRestoredState =
                     commandLine.hasOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION.getOpt());
             final RestoreMode restoreMode;
-            if (commandLine.hasOption(SAVEPOINT_RESTORE_MODE)) {
+            if (commandLine.hasOption(SAVEPOINT_CLAIM_MODE)) {
+                restoreMode =
+                        ConfigurationUtils.convertValue(
+                                commandLine.getOptionValue(SAVEPOINT_CLAIM_MODE),
+                                RestoreMode.class);
+            } else if (commandLine.hasOption(SAVEPOINT_RESTORE_MODE)) {
                 restoreMode =
                         ConfigurationUtils.convertValue(
                                 commandLine.getOptionValue(SAVEPOINT_RESTORE_MODE),
                                 RestoreMode.class);
+                System.out.printf(
+                        "The option '%s' is deprecated. Please use '%s' instead.%n",
+                        SAVEPOINT_RESTORE_MODE.getLongOpt(), SAVEPOINT_CLAIM_MODE.getLongOpt());
             } else {
                 restoreMode = StateRecoveryOptions.RESTORE_MODE.defaultValue();
             }
