@@ -57,7 +57,7 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
      * Save the intermediate state of the data to be sent by the current subtask, when the state
      * restore, the sequence values continue to be sent based on the intermediate state.
      */
-    private final transient Queue<SubTaskState> subTaskStates;
+    private transient Queue<SubTaskState> subTaskStates;
 
     private transient ListState<SubTaskState> checkpointedState;
 
@@ -80,7 +80,6 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
                 inclEnd);
         this.start = inclStart;
         this.end = inclEnd;
-        this.subTaskStates = Queues.newPriorityQueue();
     }
 
     @Override
@@ -96,16 +95,14 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
                         name + "-sequence-state", TypeInformation.of(SubTaskState.class));
         this.checkpointedState = context.getOperatorStateStore().getListState(stateDescriptor);
 
-        if (!subTaskStates.isEmpty()) {
-            this.subTaskStates.clear();
-        }
+        this.subTaskStates = Queues.newPriorityQueue();
 
         if (context.isRestored()) {
             checkpointedState.get().forEach(subTaskStates::offer);
         } else {
             // The first time the job is executed.
-            final int startOffset = runtimeContext.getIndexOfThisSubtask();
-            final long stepSize = runtimeContext.getNumberOfParallelSubtasks();
+            final int startOffset = runtimeContext.getTaskInfo().getIndexOfThisSubtask();
+            final long stepSize = runtimeContext.getTaskInfo().getNumberOfParallelSubtasks();
             final SubTaskState state = new SubTaskState(stepSize, start + startOffset);
             subTaskStates.offer(state);
         }
@@ -141,7 +138,7 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
                 "The " + getClass().getSimpleName() + " state has not been properly initialized.");
 
         this.checkpointedState.clear();
-        this.checkpointedState.addAll(new ArrayList<>(subTaskStates));
+        this.checkpointedState.update(new ArrayList<>(subTaskStates));
     }
 
     @Override
