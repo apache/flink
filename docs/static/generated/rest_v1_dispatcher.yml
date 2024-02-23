@@ -2255,6 +2255,8 @@ components:
       properties:
         allowNonRestoredState:
           type: boolean
+        claimMode:
+          $ref: '#/components/schemas/RestoreMode'
         entryClass:
           type: string
         flinkConfiguration:

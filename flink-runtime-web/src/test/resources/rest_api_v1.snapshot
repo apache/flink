@@ -467,7 +467,7 @@
         "savepointPath" : {
           "type" : "string"
         },
-        "restoreMode" : {
+        "claimMode" : {
           "type" : "string",
           "enum" : [ "CLAIM", "NO_CLAIM", "LEGACY" ]
         },
@@ -476,6 +476,10 @@
           "additionalProperties" : {
             "type" : "string"
           }
+        },
+        "restoreMode" : {
+          "type" : "string",
+          "enum" : [ "CLAIM", "NO_CLAIM", "LEGACY" ]
         }
       }
     },

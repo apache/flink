@@ -147,17 +147,17 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 
     @Test
     void testClaimRestoreModeParsingLongOption() throws Exception {
-        testRestoreMode("--restoreMode", "claim", RestoreMode.CLAIM);
+        testRestoreMode("--claimMode", "claim", RestoreMode.CLAIM);
     }
 
     @Test
     void testLegacyRestoreModeParsingLongOption() throws Exception {
-        testRestoreMode("--restoreMode", "legacy", RestoreMode.LEGACY);
+        testRestoreMode("--claimMode", "legacy", RestoreMode.LEGACY);
     }
 
     @Test
     void testNoClaimRestoreModeParsingLongOption() throws Exception {
-        testRestoreMode("--restoreMode", "no_claim", RestoreMode.NO_CLAIM);
+        testRestoreMode("--claimMode", "no_claim", RestoreMode.NO_CLAIM);
     }
 
     private void testRestoreMode(String flag, String arg, RestoreMode expectedMode)

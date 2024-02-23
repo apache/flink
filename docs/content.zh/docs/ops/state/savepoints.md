@@ -193,7 +193,7 @@ $ bin/flink run -s :savepointPath [:runArgs]
 
 你可以通过如下方式指定 restore 模式：
 ```shell
-$ bin/flink run -s :savepointPath -restoreMode :mode -n [:runArgs]
+$ bin/flink run -s :savepointPath -claimMode :mode -n [:runArgs]
 ```
 
 **NO_CLAIM （默认的）**
