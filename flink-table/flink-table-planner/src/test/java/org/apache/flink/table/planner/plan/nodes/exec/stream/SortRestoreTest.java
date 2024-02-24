@@ -16,23 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobgraph;
+package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
+import org.apache.flink.table.test.program.TableTestProgram;
 
-import org.junit.jupiter.api.Test;
+import java.util.Arrays;
+import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
+/** Restore tests for {@link StreamExecSort}. */
+public class SortRestoreTest extends RestoreTestBase {
 
-/** Tests for {@link SavepointRestoreSettings}. */
-public class SavepointRestoreSettingsTest {
+    public SortRestoreTest() {
+        super(StreamExecSort.class, AfterRestoreSource.NO_RESTORE);
+    }
 
-    @Test
-    public void testEqualsWithDifferentRestoreMode() {
-        SavepointRestoreSettings claimSettings =
-                SavepointRestoreSettings.forPath("/tmp", false, RestoreMode.CLAIM);
-        SavepointRestoreSettings noClaimSettings =
-                SavepointRestoreSettings.forPath("/tmp", false, RestoreMode.NO_CLAIM);
-        assertNotEquals(claimSettings, noClaimSettings);
+    @Override
+    public List<TableTestProgram> programs() {
+        return Arrays.asList(SortTestPrograms.SORT_ASC, SortTestPrograms.SORT_DESC);
     }
 }

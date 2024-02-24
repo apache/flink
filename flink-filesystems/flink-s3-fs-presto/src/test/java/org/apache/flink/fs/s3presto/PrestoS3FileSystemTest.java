@@ -21,6 +21,7 @@ package org.apache.flink.fs.s3presto;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.fs.s3.common.FlinkS3FileSystem;
+import org.apache.flink.fs.s3.common.token.DynamicTemporaryAWSCredentialsProvider;
 import org.apache.flink.runtime.util.HadoopConfigLoader;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
@@ -32,6 +33,7 @@ import org.junit.Test;
 import java.lang.reflect.Field;
 import java.net.URI;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -51,6 +53,21 @@ public class PrestoS3FileSystemTest {
 
         FileSystem fs = FileSystem.get(new URI("s3://test"));
         validateBasicCredentials(fs);
+    }
+
+    @Test
+    public void testDynamicConfigProvider() throws Exception {
+        final Configuration conf = new Configuration();
+
+        conf.setString(
+                "presto.s3.credentials-provider",
+                DynamicTemporaryAWSCredentialsProvider.class.getName());
+
+        FileSystem.initialize(conf);
+
+        FileSystem fs = FileSystem.get(new URI("s3://test"));
+        assertThat(getAwsCredentialsProvider(getPrestoFileSystem(fs)))
+                .isInstanceOf(DynamicTemporaryAWSCredentialsProvider.class);
     }
 
     @Test
@@ -98,15 +115,18 @@ public class PrestoS3FileSystemTest {
     // ------------------------------------------------------------------------
 
     private static void validateBasicCredentials(FileSystem fs) throws Exception {
+        try (PrestoS3FileSystem prestoFs = getPrestoFileSystem(fs)) {
+            AWSCredentialsProvider provider = getAwsCredentialsProvider(prestoFs);
+            assertTrue(provider instanceof AWSStaticCredentialsProvider);
+        }
+    }
+
+    private static PrestoS3FileSystem getPrestoFileSystem(FileSystem fs) {
         assertTrue(fs instanceof FlinkS3FileSystem);
 
         org.apache.hadoop.fs.FileSystem hadoopFs = ((FlinkS3FileSystem) fs).getHadoopFileSystem();
         assertTrue(hadoopFs instanceof PrestoS3FileSystem);
-
-        try (PrestoS3FileSystem prestoFs = (PrestoS3FileSystem) hadoopFs) {
-            AWSCredentialsProvider provider = getAwsCredentialsProvider(prestoFs);
-            assertTrue(provider instanceof AWSStaticCredentialsProvider);
-        }
+        return (PrestoS3FileSystem) hadoopFs;
     }
 
     private static AWSCredentialsProvider getAwsCredentialsProvider(PrestoS3FileSystem fs)
