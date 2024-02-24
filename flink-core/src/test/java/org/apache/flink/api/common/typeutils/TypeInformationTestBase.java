@@ -81,7 +81,7 @@ public abstract class TypeInformationTestBase<T extends TypeInformation<?>> {
     }
 
     @Test
-    void testSerialization() {
+    protected void testSerialization() {
         final T[] testData = getTestData();
 
         for (T typeInfo : testData) {
@@ -107,7 +107,7 @@ public abstract class TypeInformationTestBase<T extends TypeInformation<?>> {
     }
 
     @Test
-    void testGetTotalFields() {
+    protected void testGetTotalFields() {
         final T[] testData = getTestData();
         for (T typeInfo : testData) {
             assertThat(typeInfo.getTotalFields())
