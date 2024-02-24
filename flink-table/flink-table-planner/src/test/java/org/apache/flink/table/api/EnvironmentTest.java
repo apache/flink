@@ -163,7 +163,7 @@ class EnvironmentTest {
     void testRegisterCatalogStoreVarTableEnvironment(@TempDir File tempFolder) {
         Configuration configuration = new Configuration();
 
-        configuration.setString(TABLE_CATALOG_STORE_KIND, "file");
+        configuration.set(TABLE_CATALOG_STORE_KIND, "file");
         configuration.setString(
                 TABLE_CATALOG_STORE_OPTION_PREFIX + "file.path", tempFolder.getAbsolutePath());
         EnvironmentSettings settings =
@@ -182,6 +182,11 @@ class EnvironmentTest {
 
         TableEnvironment env3 = TableEnvironment.create(EnvironmentSettings.newInstance().build());
         assertThat(env3.getCatalog("test_catalog").isPresent()).isFalse();
+
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+        StreamTableEnvironment env4 = StreamTableEnvironment.create(env);
+        assertThat(env4.getCatalog("test_catalog").isPresent()).isTrue();
     }
 
     @Test
