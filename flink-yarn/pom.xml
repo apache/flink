@@ -34,6 +34,8 @@ under the License.
 		<!-- for testing (will override Hadoop's default dependency on too low SDK versions that
 			do not work with our httpcomponents version) -->
 		<aws.sdk.version>1.12.319</aws.sdk.version>
+		<leveldb.version>0.9</leveldb.version>
+		<s3mock.version>0.2.6</s3mock.version>
 		<surefire.module.config><!--
 			CommonTestUtils#setEnv
 			-->--add-opens=java.base/java.util=ALL-UNNAMED
@@ -248,6 +250,34 @@ under the License.
 			<artifactId>aws-java-sdk-sts</artifactId>
 			<version>${aws.sdk.version}</version>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.iq80.leveldb</groupId>
+			<artifactId>leveldb</artifactId>
+			<version>${leveldb.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<artifactId>guava</artifactId>
+					<groupId>com.google.guava</groupId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>io.findify</groupId>
+			<artifactId>s3mock_${scala.binary.version}</artifactId>
+			<version>${s3mock.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.iq80.leveldb</groupId>
+					<artifactId>leveldb</artifactId>
+				</exclusion>
+				<exclusion>
+					<artifactId>aws-java-sdk-s3</artifactId>
+					<groupId>com.amazonaws</groupId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 	</dependencies>
 

@@ -29,6 +29,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
@@ -36,24 +37,37 @@ import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
 import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 
+import com.amazonaws.client.builder.AwsClientBuilder;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.S3Object;
+import io.findify.s3mock.S3Mock;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider;
+import org.apache.hadoop.fs.s3a.S3AFileSystem;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -93,6 +107,11 @@ class YarnClusterDescriptorTest {
     @TempDir java.nio.file.Path temporaryFolder;
 
     private File flinkJar;
+    static AmazonS3 client;
+    File tmpConfigurationFile;
+    YarnApplicationFileUploader fileUploader;
+    static String bucketName = "testbucket";
+    static int port = 8001;
 
     @BeforeAll
     static void setupClass() {
@@ -100,6 +119,7 @@ class YarnClusterDescriptorTest {
         yarnClient = YarnClient.createYarnClient();
         yarnClient.init(yarnConfiguration);
         yarnClient.start();
+        client = createS3Client(bucketName, port);
     }
 
     @BeforeEach
@@ -110,6 +130,117 @@ class YarnClusterDescriptorTest {
     @AfterAll
     static void tearDownClass() {
         yarnClient.stop();
+    }
+
+    private static AmazonS3 createS3Client(String bucketName, int port) {
+        String endPoint = "http://127.0.0.1:" + port;
+        S3Mock api = S3Mock.create(port, "/tmp/s3");
+        api.start();
+        AmazonS3ClientBuilder builder =
+                AmazonS3ClientBuilder.standard()
+                        .withCredentials(new AnonymousAWSCredentialsProvider());
+        builder.setEndpointConfiguration(
+                new AwsClientBuilder.EndpointConfiguration(endPoint, "regionName"));
+        AmazonS3 client = builder.build();
+        client.createBucket(bucketName);
+        client.putObject(bucketName, "usrlib/.flink/application_0_0000/file.txt", "filecontent");
+        return client;
+    }
+
+    private FileSystem createS3FileSystem(String bucketName, int port) throws Exception {
+        String endPoint = "http://127.0.0.1:" + port;
+        org.apache.hadoop.conf.Configuration hadoopConfig =
+                new org.apache.hadoop.conf.Configuration();
+        hadoopConfig.set("fs.defaultFS", "s3://" + bucketName);
+        hadoopConfig.set("fs.AbstractFileSystem.s3a.imp", "org.apache.hadoop.fs.s3a.S3A");
+        hadoopConfig.set(
+                "fs.s3a.aws.credentials.provider",
+                "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider");
+        hadoopConfig.set("fs.s3a.endpoint", endPoint);
+        hadoopConfig.set("fs.s3a.connection.ssl.enabled", "false");
+        URI defaultUri = org.apache.hadoop.fs.FileSystem.getDefaultUri(hadoopConfig);
+        FileSystem fileSystem = new S3AFileSystem();
+        Path homedir = new Path("s3://" + bucketName + "/usrlib");
+        fileSystem.initialize(defaultUri, hadoopConfig);
+        fileSystem.setWorkingDirectory(homedir);
+        return fileSystem;
+    }
+
+    private String getStringByInputStream(InputStream inputStream) {
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+        try {
+            StringBuilder result = new StringBuilder();
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                result.append(line);
+            }
+            return result.toString();
+        } catch (Exception e) {
+            try {
+                inputStream.close();
+                bufferedReader.close();
+            } catch (Exception e1) {
+            }
+        }
+        return null;
+    }
+
+    private void createTestS3File(String bucketName) throws Exception {
+        FileSystem fileSystem = createS3FileSystem(bucketName, port);
+        Configuration flinkConf = new Configuration();
+        flinkConf.setString("fs.default-scheme", "s3://" + bucketName);
+        org.apache.flink.core.fs.FileSystem.initialize(flinkConf, null);
+        Path homedir = new Path("s3://" + bucketName + "/usrlib");
+        tmpConfigurationFile = File.createTempFile("appId-flink-conf.yaml", null);
+        fileUploader =
+                YarnApplicationFileUploader.from(
+                        fileSystem,
+                        homedir,
+                        Collections.emptyList(),
+                        ApplicationId.newInstance(0, 0),
+                        DFSConfigKeys.DFS_REPLICATION_DEFAULT);
+    }
+
+    @Test
+    void testFileUploadWithURISuccess() throws Exception {
+        String bucketName = "testbucket";
+        String tempConfKey = "tempkeytest";
+        String tempConfValue = "tempvaluetest";
+        String flinkConfigKey = "flink-conf.yaml";
+        Configuration tempConf = new Configuration();
+        tempConf.setString(tempConfKey, tempConfValue);
+        createTestS3File(bucketName);
+        BootstrapTools.writeConfiguration(tempConf, tmpConfigurationFile);
+        YarnLocalResourceDescriptor yarnLocalResourceDescriptor =
+                fileUploader.registerSingleLocalResource(
+                        flinkConfigKey,
+                        new Path(tmpConfigurationFile.toURI()),
+                        "",
+                        LocalResourceType.FILE,
+                        true,
+                        true);
+        S3Object s3Object =
+                client.getObject(
+                        bucketName,
+                        yarnLocalResourceDescriptor.getPath().toUri().getPath().substring(1));
+        String s3ObjectContent = getStringByInputStream(s3Object.getObjectContent());
+        assertThat(s3ObjectContent.equals(tempConfKey + ": " + tempConfValue));
+    }
+
+    @Test
+    void testFileUploadAbsolutePathError() throws Exception {
+        String flinkConfigKey = "flink-conf.yaml";
+        createTestS3File(bucketName);
+        Assertions.assertThrows(
+                Exception.class,
+                () ->
+                        fileUploader.registerSingleLocalResource(
+                                flinkConfigKey,
+                                new Path(tmpConfigurationFile.getAbsolutePath()),
+                                "",
+                                LocalResourceType.FILE,
+                                true,
+                                true));
     }
 
     @Test
