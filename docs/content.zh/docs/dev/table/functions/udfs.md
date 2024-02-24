@@ -734,8 +734,8 @@ class NamedParameterClass extends ScalarFunction {
 
 
 {{< hint info >}}
-* `@ArgumentHint` 内部包含了 `@DataTypeHint` 注解，因此在 `@FunctionHint` 中不能同时声明 `input` 和 `argument`, 当作用于函数的参数时 `@ArgumentHint` 也不能和 `@DataTypeHint` 同时使用，推荐使用 `@ArgumentHint`。
-* 命名参数只有在对应的类不包含重载函数和可变参函数才会生效， 否则使用命名参数会导致报错。
+* `@ArgumentHint` 内部包含了 `@DataTypeHint` 注解，因此在 `@FunctionHint` 中不能同时声明 `input` 和 `argument` ，当作用于函数的参数时 `@ArgumentHint` 也不能和 `@DataTypeHint` 同时使用，推荐使用 `@ArgumentHint` 。
+* 命名参数只有在对应的类不包含重载函数和可变参函数才会生效，否则使用命名参数会导致报错。
 {{< /hint >}}
 
 ### 确定性
