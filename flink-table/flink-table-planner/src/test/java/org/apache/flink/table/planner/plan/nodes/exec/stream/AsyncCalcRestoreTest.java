@@ -28,7 +28,7 @@ import java.util.List;
 public class AsyncCalcRestoreTest extends RestoreTestBase {
 
     public AsyncCalcRestoreTest() {
-        super(StreamExecCalc.class);
+        super(StreamExecAsyncCalc.class);
     }
 
     @Override
