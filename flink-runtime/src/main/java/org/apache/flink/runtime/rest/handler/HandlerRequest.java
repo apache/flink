@@ -177,7 +177,8 @@ public class HandlerRequest<R extends RequestBody> {
                                     + pathParameter.getKey()
                                     + ") from value \""
                                     + value
-                                    + "\".");
+                                    + "\".",
+                            e);
                 }
             }
         }
@@ -201,7 +202,8 @@ public class HandlerRequest<R extends RequestBody> {
                                     + queryParameter.getKey()
                                     + ") from value \""
                                     + joiner
-                                    + "\".");
+                                    + "\".",
+                            e);
                 }
             }
         }
