@@ -38,7 +38,7 @@ public interface CheckpointRecoveryFactory {
      * @param sharedStateRegistryFactory Simple factory to produce {@link SharedStateRegistry}
      *     objects.
      * @param ioExecutor Executor used to run (async) deletes.
-     * @param restoreMode the restore mode with which the job is restoring.
+     * @param restoreMode the claim mode with which the job is restoring.
      * @return {@link CompletedCheckpointStore} instance for the job
      */
     CompletedCheckpointStore createRecoveredCompletedCheckpointStore(

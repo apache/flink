@@ -61,7 +61,7 @@ public class StandaloneCompletedCheckpointStore extends AbstractCompleteCheckpoi
                 maxNumberOfCheckpointsToRetain,
                 SharedStateRegistry.DEFAULT_FACTORY,
                 Executors.directExecutor(),
-                /* Using the default restore mode in tests to detect any breaking changes early. */
+                /* Using the default mode in tests to detect any breaking changes early. */
                 RestoreMode.DEFAULT);
     }
 
