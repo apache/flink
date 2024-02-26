@@ -289,6 +289,7 @@ public class RocksDBRecoveryTest {
                             .setEnableIncrementalCheckpointing(true)
                             .setUseIngestDbRestoreMode(useIngest)
                             .setIncrementalRestoreAsyncCompactAfterRescale(asyncCompactAfterRescale)
+                            .setRescalingUseDeleteFilesInRange(true)
                             .build();
 
             long instanceTime = System.currentTimeMillis() - tInstance;
