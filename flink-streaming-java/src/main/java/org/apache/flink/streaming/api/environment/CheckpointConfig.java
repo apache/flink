@@ -177,7 +177,9 @@ public class CheckpointConfig implements java.io.Serializable {
      * Gets the checkpointing mode (exactly-once vs. at-least-once).
      *
      * @return The checkpointing mode.
+     * @deprecated Use {@link #getCheckpointMode} instead.
      */
+    @Deprecated
     public CheckpointingMode getCheckpointingMode() {
         return configuration.get(ExecutionCheckpointingOptions.CHECKPOINTING_MODE);
     }
@@ -186,9 +188,30 @@ public class CheckpointConfig implements java.io.Serializable {
      * Sets the checkpointing mode (exactly-once vs. at-least-once).
      *
      * @param checkpointingMode The checkpointing mode.
+     * @deprecated Use {@link #setCheckpointMode} instead.
      */
+    @Deprecated
     public void setCheckpointingMode(CheckpointingMode checkpointingMode) {
         configuration.set(ExecutionCheckpointingOptions.CHECKPOINTING_MODE, checkpointingMode);
+    }
+
+    /**
+     * Gets the checkpointing mode (exactly-once vs. at-least-once).
+     *
+     * @return The checkpointing mode.
+     */
+    public org.apache.flink.core.execution.CheckpointingMode getCheckpointMode() {
+        return configuration.get(ExecutionCheckpointingOptions.CHECKPOINTING_MODE_V2);
+    }
+
+    /**
+     * Sets the checkpointing mode (exactly-once vs. at-least-once).
+     *
+     * @param checkpointingMode The checkpointing mode.
+     */
+    public void setCheckpointMode(
+            org.apache.flink.core.execution.CheckpointingMode checkpointingMode) {
+        configuration.set(ExecutionCheckpointingOptions.CHECKPOINTING_MODE_V2, checkpointingMode);
     }
 
     /**
