@@ -579,13 +579,15 @@ public class StreamingJobGraphGenerator {
         for (Integer sourceNodeId : streamGraph.getSourceIDs()) {
             final StreamNode sourceNode = streamGraph.getStreamNode(sourceNodeId);
 
-            if (sourceNode.getOperatorFactory() instanceof SourceOperatorFactory
+            if (sourceNode.getOperatorFactory() != null
+                    && sourceNode.getOperatorFactory() instanceof SourceOperatorFactory
                     && sourceNode.getOutEdges().size() == 1) {
                 // as long as only NAry ops support this chaining, we need to skip the other parts
                 final StreamEdge sourceOutEdge = sourceNode.getOutEdges().get(0);
                 final StreamNode target = streamGraph.getStreamNode(sourceOutEdge.getTargetId());
                 final ChainingStrategy targetChainingStrategy =
-                        target.getOperatorFactory().getChainingStrategy();
+                        Preconditions.checkNotNull(target.getOperatorFactory())
+                                .getChainingStrategy();
 
                 if (targetChainingStrategy == ChainingStrategy.HEAD_WITH_SOURCES
                         && isChainableInput(sourceOutEdge, streamGraph)) {
@@ -1630,7 +1632,7 @@ public class StreamingJobGraphGenerator {
             return getHeadOperator(
                     streamGraph.getSourceVertex(upStreamVertex.getInEdges().get(0)), streamGraph);
         }
-        return upStreamVertex.getOperatorFactory();
+        return Preconditions.checkNotNull(upStreamVertex.getOperatorFactory());
     }
 
     private void markSupportingConcurrentExecutionAttempts() {
@@ -1952,7 +1954,8 @@ public class StreamingJobGraphGenerator {
         final ArrayList<MasterTriggerRestoreHook.Factory> hooks = new ArrayList<>();
 
         for (StreamNode node : streamGraph.getStreamNodes()) {
-            if (node.getOperatorFactory() instanceof UdfStreamOperatorFactory) {
+            if (node.getOperatorFactory() != null
+                    && node.getOperatorFactory() instanceof UdfStreamOperatorFactory) {
                 Function f =
                         ((UdfStreamOperatorFactory) node.getOperatorFactory()).getUserFunction();
 
