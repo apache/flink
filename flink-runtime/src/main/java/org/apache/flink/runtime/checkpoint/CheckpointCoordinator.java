@@ -1907,7 +1907,7 @@ public class CheckpointCoordinator {
                 checkpointProperties = CheckpointProperties.forUnclaimedSnapshot();
                 break;
             default:
-                throw new IllegalArgumentException("Unknown snapshot restore mode");
+                throw new IllegalArgumentException("Unknown snapshot claim mode");
         }
 
         // Load the savepoint as a checkpoint into the system
