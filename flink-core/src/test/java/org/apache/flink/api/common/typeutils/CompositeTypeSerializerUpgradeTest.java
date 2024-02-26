@@ -118,8 +118,7 @@ class CompositeTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<O
 
         @Override
         public String[] createTestData() {
-            String[] data = {"Apache", "Flink"};
-            return data;
+            return new String[] {"Apache", "Flink"};
         }
     }
 
@@ -148,7 +147,7 @@ class CompositeTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<O
     }
 
     @Test
-    public void testUpgradeFromDeprecatedSnapshot() {
+    void testUpgradeFromDeprecatedSnapshot() {
         GenericArraySerializer<String> genericArraySerializer =
                 new GenericArraySerializer<>(String.class, StringSerializer.INSTANCE);
         GenericArraySerializerConfigSnapshot<String> oldSnapshot =

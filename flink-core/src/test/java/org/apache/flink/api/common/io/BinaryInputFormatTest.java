@@ -22,22 +22,23 @@ import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.types.Record;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.fail;
 
-public class BinaryInputFormatTest {
+class BinaryInputFormatTest {
 
-    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+    @TempDir private Path tempDir;
 
     private static final class MyBinaryInputFormat extends BinaryInputFormat<Record> {
 
@@ -55,7 +56,7 @@ public class BinaryInputFormatTest {
     }
 
     @Test
-    public void testCreateInputSplitsWithOneFile() throws IOException {
+    void testCreateInputSplitsWithOneFile() throws IOException {
         final int blockInfoSize = new BlockInfo().getInfoSize();
         final int blockSize = blockInfoSize + 8;
         final int numBlocks = 3;
@@ -92,7 +93,7 @@ public class BinaryInputFormatTest {
     }
 
     @Test
-    public void testCreateInputSplitsWithMulitpleFiles() throws IOException {
+    void testCreateInputSplitsWithMultipleFiles() throws IOException {
         final int blockInfoSize = new BlockInfo().getInfoSize();
         final int blockSize = blockInfoSize + 8;
         final int numBlocks1 = 3;
@@ -136,7 +137,7 @@ public class BinaryInputFormatTest {
     }
 
     @Test
-    public void testGetStatisticsNonExistingFiles() {
+    void testGetStatisticsNonExistingFiles() {
         final MyBinaryInputFormat format = new MyBinaryInputFormat();
         format.setFilePaths(
                 "file:///some/none/existing/directory/",
@@ -148,7 +149,7 @@ public class BinaryInputFormatTest {
     }
 
     @Test
-    public void testGetStatisticsMultiplePaths() throws IOException {
+    void testGetStatisticsMultiplePaths() throws IOException {
         final int blockInfoSize = new BlockInfo().getInfoSize();
         final int blockSize = blockInfoSize + 8;
         final int numBlocks1 = 3;
@@ -167,11 +168,11 @@ public class BinaryInputFormatTest {
 
         assertThat(stats.getTotalInputSize())
                 .as("The file size statistics is wrong")
-                .isEqualTo(blockSize * (numBlocks1 + numBlocks2));
+                .isEqualTo((long) blockSize * (numBlocks1 + numBlocks2));
     }
 
     @Test
-    public void testCreateInputSplitsWithEmptySplit() throws IOException {
+    void testCreateInputSplitsWithEmptySplit() throws IOException {
         final int blockInfoSize = new BlockInfo().getInfoSize();
         final int blockSize = blockInfoSize + 8;
         final int numBlocks = 3;
@@ -215,7 +216,7 @@ public class BinaryInputFormatTest {
     /** Creates a temp file with a certain number of blocks of a certain size. */
     private File createBinaryInputFile(String fileName, int blockSize, int numBlocks)
             throws IOException {
-        final File tempFile = tempFolder.newFile(fileName);
+        final File tempFile = TempDirUtils.newFile(tempDir, fileName);
         try (FileOutputStream fileOutputStream = new FileOutputStream(tempFile)) {
             for (int i = 0; i < blockSize * numBlocks; i++) {
                 fileOutputStream.write(new byte[] {1});

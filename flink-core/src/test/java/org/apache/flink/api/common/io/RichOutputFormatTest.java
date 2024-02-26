@@ -21,25 +21,22 @@ package org.apache.flink.api.common.io;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.TaskInfoImpl;
-import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.types.Value;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
-import java.util.concurrent.Future;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests runtime context access from inside an RichOutputFormat class. */
-public class RichOutputFormatTest {
+class RichOutputFormatTest {
 
     @Test
-    public void testCheckRuntimeContextAccess() {
-        final SerializedOutputFormat<Value> inputFormat = new SerializedOutputFormat<Value>();
+    void testCheckRuntimeContextAccess() {
+        final SerializedOutputFormat<Value> inputFormat = new SerializedOutputFormat<>();
         final TaskInfo taskInfo = new TaskInfoImpl("test name", 3, 1, 3, 0);
 
         inputFormat.setRuntimeContext(
@@ -47,12 +44,12 @@ public class RichOutputFormatTest {
                         taskInfo,
                         getClass().getClassLoader(),
                         new ExecutionConfig(),
-                        new HashMap<String, Future<Path>>(),
-                        new HashMap<String, Accumulator<?, ?>>(),
+                        new HashMap<>(),
+                        new HashMap<>(),
                         UnregisteredMetricsGroup.createOperatorMetricGroup()));
 
-        assertEquals(inputFormat.getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(), 1);
-        assertEquals(
-                inputFormat.getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks(), 3);
+        assertThat(inputFormat.getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()).isOne();
+        assertThat(inputFormat.getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks())
+                .isEqualTo(3);
     }
 }

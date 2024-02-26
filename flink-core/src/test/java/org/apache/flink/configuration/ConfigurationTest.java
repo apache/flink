@@ -105,7 +105,7 @@ public class ConfigurationTest {
 
             assertThat(orig).isEqualTo(copy);
             assertThat(orig.keySet()).isEqualTo(copy.keySet());
-            assertThat(orig.hashCode()).isEqualTo(copy.hashCode());
+            assertThat(orig).hasSameHashCodeAs(copy);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -145,7 +145,7 @@ public class ConfigurationTest {
         assertThat("abc").isEqualTo(cfg.getString(presentStringOption));
         assertThat("abc").isEqualTo(cfg.getValue(presentStringOption));
 
-        assertThat(11).isEqualTo(cfg.getInteger(presentIntOption));
+        assertThat(cfg.getInteger(presentIntOption)).isEqualTo(11);
         assertThat("11").isEqualTo(cfg.getValue(presentIntOption));
 
         // test getting default when no value is present
@@ -162,7 +162,7 @@ public class ConfigurationTest {
         assertThat("override").isEqualTo(cfg.getString(stringOption, "override"));
 
         // getting a primitive with a default value should work
-        assertThat(87).isEqualTo(cfg.getInteger(intOption));
+        assertThat(cfg.getInteger(intOption)).isEqualTo(87);
         assertThat("87").isEqualTo(cfg.getValue(intOption));
     }
 
@@ -221,10 +221,10 @@ public class ConfigurationTest {
                         .defaultValue(-1)
                         .withDeprecatedKeys("not-there", "also-not-there");
 
-        assertThat(11).isEqualTo(cfg.getInteger(matchesFirst));
-        assertThat(12).isEqualTo(cfg.getInteger(matchesSecond));
-        assertThat(13).isEqualTo(cfg.getInteger(matchesThird));
-        assertThat(-1).isEqualTo(cfg.getInteger(notContained));
+        assertThat(cfg.getInteger(matchesFirst)).isEqualTo(11);
+        assertThat(cfg.getInteger(matchesSecond)).isEqualTo(12);
+        assertThat(cfg.getInteger(matchesThird)).isEqualTo(13);
+        assertThat(cfg.getInteger(notContained)).isEqualTo(-1);
     }
 
     @TestTemplate
@@ -258,10 +258,10 @@ public class ConfigurationTest {
                         .defaultValue(-1)
                         .withFallbackKeys("not-there", "also-not-there");
 
-        assertThat(11).isEqualTo(cfg.getInteger(matchesFirst));
-        assertThat(12).isEqualTo(cfg.getInteger(matchesSecond));
-        assertThat(13).isEqualTo(cfg.getInteger(matchesThird));
-        assertThat(-1).isEqualTo(cfg.getInteger(notContained));
+        assertThat(cfg.getInteger(matchesFirst)).isEqualTo(11);
+        assertThat(cfg.getInteger(matchesSecond)).isEqualTo(12);
+        assertThat(cfg.getInteger(matchesThird)).isEqualTo(13);
+        assertThat(cfg.getInteger(notContained)).isEqualTo(-1);
     }
 
     @TestTemplate

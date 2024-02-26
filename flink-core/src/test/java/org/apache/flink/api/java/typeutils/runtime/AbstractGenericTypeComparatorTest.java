@@ -25,13 +25,14 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 public abstract class AbstractGenericTypeComparatorTest {
 
     @Test
-    public void testString() {
+    public void testString() throws IOException {
         runTests(
                 "",
                 "Lorem Ipsum Dolor Omit Longer",
@@ -44,7 +45,7 @@ public abstract class AbstractGenericTypeComparatorTest {
     }
 
     @Test
-    public void testSimpleTypesObjects() {
+    public void testSimpleTypesObjects() throws IOException {
         runTests(
                 new SimpleTypes(0, 1, (byte) 2, "", (short) 3, 4.0),
                 new SimpleTypes(1, 1, (byte) 2, "", (short) 3, 4.0),
@@ -57,7 +58,7 @@ public abstract class AbstractGenericTypeComparatorTest {
     }
 
     @Test
-    public void testCompositeObject() {
+    public void testCompositeObject() throws IOException {
         ComplexNestedObject1 o1 = new ComplexNestedObject1(-1100);
         ComplexNestedObject1 o2 = new ComplexNestedObject1(0);
         ComplexNestedObject1 o3 = new ComplexNestedObject1(44);
@@ -68,7 +69,7 @@ public abstract class AbstractGenericTypeComparatorTest {
     }
 
     @Test
-    public void testBeanStyleObjects() {
+    public void testBeanStyleObjects() throws IOException {
         {
             Book b111 = new Book(-1L, "A Low level interfaces", 0xC);
             Book b122 = new Book(-1L, "Low level interfaces", 0xC);
@@ -98,7 +99,7 @@ public abstract class AbstractGenericTypeComparatorTest {
 
     // ------------------------------------------------------------------------
 
-    private <T> void runTests(T... sortedTestData) {
+    private <T> void runTests(T... sortedTestData) throws IOException {
         ComparatorTestInstance<T> testBase = new ComparatorTestInstance<T>(sortedTestData);
         testBase.testAll();
     }
@@ -145,7 +146,7 @@ public abstract class AbstractGenericTypeComparatorTest {
             return this.testData;
         }
 
-        public void testAll() {
+        public void testAll() throws IOException {
             testDuplicate();
             testEquality();
             testEqualityWithReference();

@@ -60,7 +60,7 @@ class BytePrimitiveArraySerializerTest extends SerializerTestBase<byte[]> {
         };
     }
 
-    private final byte[] randomByteArray() {
+    private byte[] randomByteArray() {
         int len = rnd.nextInt(1024 * 1024);
         byte[] data = new byte[len];
         for (int i = 0; i < len; i++) {
