@@ -148,6 +148,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphUtils.isAnyOutputBlocking;
+
 /**
  * A {@link SchedulerNG} implementation that uses the declarative resource management and
  * automatically adapts the parallelism in case not enough resource could be acquired to run at the
@@ -757,9 +759,15 @@ public class AdaptiveScheduler
             @Nullable String targetDirectory, boolean cancelJob, SavepointFormatType formatType) {
         return state.tryCall(
                         StateWithExecutionGraph.class,
-                        stateWithExecutionGraph ->
-                                stateWithExecutionGraph.triggerSavepoint(
-                                        targetDirectory, cancelJob, formatType),
+                        stateWithExecutionGraph -> {
+                            if (isAnyOutputBlocking(stateWithExecutionGraph.getExecutionGraph())) {
+                                return FutureUtils.<String>completedExceptionally(
+                                        new CheckpointException(
+                                                CheckpointFailureReason.BLOCKING_OUTPUT_EXIST));
+                            }
+                            return stateWithExecutionGraph.triggerSavepoint(
+                                    targetDirectory, cancelJob, formatType);
+                        },
                         "triggerSavepoint")
                 .orElse(
                         FutureUtils.completedExceptionally(
@@ -847,8 +855,15 @@ public class AdaptiveScheduler
             @Nullable String targetDirectory, boolean terminate, SavepointFormatType formatType) {
         return state.tryCall(
                         Executing.class,
-                        executing ->
-                                executing.stopWithSavepoint(targetDirectory, terminate, formatType),
+                        executing -> {
+                            if (isAnyOutputBlocking(executing.getExecutionGraph())) {
+                                return FutureUtils.<String>completedExceptionally(
+                                        new CheckpointException(
+                                                CheckpointFailureReason.BLOCKING_OUTPUT_EXIST));
+                            }
+                            return executing.stopWithSavepoint(
+                                    targetDirectory, terminate, formatType);
+                        },
                         "stopWithSavepoint")
                 .orElse(
                         FutureUtils.completedExceptionally(
