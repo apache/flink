@@ -116,6 +116,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphUtils.isAnyOutputBlocking;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -1381,7 +1382,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 return attempt.switchToInitializing();
 
             case RUNNING:
-                if (!isAnyOutputBlocking()
+                if (!isAnyOutputBlocking(this)
                         && checkpointCoordinator != null
                         && checkpointCoordinator.isPeriodicCheckpointingConfigured()
                         && !checkpointCoordinator.isPeriodicCheckpointingStarted()) {
@@ -1423,11 +1424,6 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                                         + state.getExecutionState()));
                 return false;
         }
-    }
-
-    private boolean isAnyOutputBlocking() {
-        return currentExecutions.values().stream()
-                .anyMatch(x -> x.getVertex().getJobVertex().getJobVertex().isAnyOutputBlocking());
     }
 
     private void maybeReleasePartitionGroupsFor(final Execution attempt) {
