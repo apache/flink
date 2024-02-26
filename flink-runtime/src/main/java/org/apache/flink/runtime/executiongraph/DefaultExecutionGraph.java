@@ -89,7 +89,6 @@ import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.concurrent.FutureUtils;
-import org.apache.flink.util.concurrent.FutureUtils.ConjunctFuture;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.slf4j.Logger;
@@ -114,6 +113,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -953,36 +953,25 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                     || current == JobStatus.CREATED
                     || current == JobStatus.RESTARTING) {
                 if (transitionState(current, JobStatus.CANCELLING)) {
-
-                    incrementRestarts();
-
-                    final CompletableFuture<Void> ongoingSchedulingFuture = schedulingFuture;
-
-                    // cancel ongoing scheduling action
-                    if (ongoingSchedulingFuture != null) {
-                        ongoingSchedulingFuture.cancel(false);
-                    }
-
-                    final ConjunctFuture<Void> allTerminal = cancelVerticesAsync();
-                    allTerminal.whenComplete(
-                            (Void value, Throwable throwable) -> {
-                                if (throwable != null) {
-                                    transitionState(
-                                            JobStatus.CANCELLING,
-                                            JobStatus.FAILED,
-                                            new FlinkException(
-                                                    "Could not cancel job "
-                                                            + getJobName()
-                                                            + " because not all execution job vertices could be cancelled.",
-                                                    throwable));
-                                } else {
-                                    // cancellations may currently be overridden by failures which
-                                    // trigger
-                                    // restarts, so we need to pass a proper restart global version
-                                    // here
-                                    allVerticesInTerminalState();
-                                }
-                            });
+                    resetExecutionGraph(ExecutionJobVertex::cancelWithFuture)
+                            .whenComplete(
+                                    (Void value, Throwable throwable) -> {
+                                        if (throwable != null) {
+                                            transitionState(
+                                                    JobStatus.CANCELLING,
+                                                    JobStatus.FAILED,
+                                                    new FlinkException(
+                                                            "Could not cancel job "
+                                                                    + getJobName()
+                                                                    + " because not all execution job vertices could be cancelled.",
+                                                            throwable));
+                                        } else {
+                                            // cancellations may currently be overridden by failures
+                                            // which trigger restarts, so we need to pass a proper
+                                            // restart global version here
+                                            allVerticesInTerminalState();
+                                        }
+                                    });
 
                     return;
                 }
@@ -1000,18 +989,26 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         }
     }
 
-    @VisibleForTesting
-    protected ConjunctFuture<Void> cancelVerticesAsync() {
-        final ArrayList<CompletableFuture<?>> futures =
-                new ArrayList<>(verticesInCreationOrder.size());
+    private CompletableFuture<Void> resetExecutionGraph(
+            Function<ExecutionJobVertex, CompletableFuture<Void>> perVertexOperationAsync) {
+        assertRunningInJobMasterMainThread();
 
-        // cancel all tasks (that still need cancelling)
-        for (ExecutionJobVertex ejv : verticesInCreationOrder) {
-            futures.add(ejv.cancelWithFuture());
+        incrementRestarts();
+
+        // cancel ongoing scheduling action
+        if (schedulingFuture != null) {
+            schedulingFuture.cancel(false);
         }
 
-        // we build a future that is complete once all vertices have reached a terminal state
-        return FutureUtils.waitForAll(futures);
+        return applyToVertexAsync(perVertexOperationAsync);
+    }
+
+    private CompletableFuture<Void> applyToVertexAsync(
+            Function<ExecutionJobVertex, CompletableFuture<Void>> perVertexOperationAsync) {
+        return FutureUtils.waitForAll(
+                verticesInCreationOrder.stream()
+                        .map(perVertexOperationAsync)
+                        .collect(Collectors.toList()));
     }
 
     @Override
@@ -1025,21 +1022,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         } else if (transitionState(state, JobStatus.SUSPENDED, suspensionCause)) {
             initFailureCause(suspensionCause, System.currentTimeMillis());
 
-            incrementRestarts();
-
-            // cancel ongoing scheduling action
-            if (schedulingFuture != null) {
-                schedulingFuture.cancel(false);
-            }
-            final ArrayList<CompletableFuture<Void>> executionJobVertexTerminationFutures =
-                    new ArrayList<>(verticesInCreationOrder.size());
-
-            for (ExecutionJobVertex ejv : verticesInCreationOrder) {
-                executionJobVertexTerminationFutures.add(ejv.suspend());
-            }
-
-            final ConjunctFuture<Void> jobVerticesTerminationFuture =
-                    FutureUtils.waitForAll(executionJobVertexTerminationFutures);
+            final CompletableFuture<Void> jobVerticesTerminationFuture =
+                    resetExecutionGraph(ExecutionJobVertex::suspend);
 
             checkState(jobVerticesTerminationFuture.isDone(), "Suspend needs to happen atomically");
 
@@ -1313,7 +1297,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         initFailureCause(cause, timestamp);
 
         FutureUtils.assertNoException(
-                cancelVerticesAsync()
+                applyToVertexAsync(ExecutionJobVertex::cancelWithFuture)
                         .whenComplete(
                                 (aVoid, throwable) -> {
                                     if (transitionState(
