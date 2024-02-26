@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api;
+package org.apache.flink.core.execution;
 
 import org.apache.flink.annotation.Public;
 
@@ -29,12 +29,8 @@ import org.apache.flink.annotation.Public;
  * whether the system draws checkpoints such that a recovery behaves as if the operators/functions
  * see each record "exactly once" ({@link #EXACTLY_ONCE}), or whether the checkpoints are drawn in a
  * simpler fashion that typically encounters some duplicates upon recovery ({@link #AT_LEAST_ONCE})
- *
- * @deprecated This class has been moved to {@link
- *     org.apache.flink.core.execution.CheckpointingMode}.
  */
 @Public
-@Deprecated
 public enum CheckpointingMode {
 
     /**
