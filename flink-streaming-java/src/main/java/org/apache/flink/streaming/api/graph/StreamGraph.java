@@ -486,7 +486,7 @@ public class StreamGraph implements Pipeline {
             @Nullable String slotSharingGroup,
             @Nullable String coLocationGroup,
             Class<? extends TaskInvokable> vertexClass,
-            StreamOperatorFactory<?> operatorFactory,
+            @Nullable StreamOperatorFactory<?> operatorFactory,
             String operatorName) {
 
         if (streamNodes.containsKey(vertexID)) {
