@@ -17,6 +17,7 @@
 package org.apache.calcite.sql.validate;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.planner.calcite.FlinkSqlCallBinding;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCall;
@@ -56,9 +57,9 @@ public final class ProcedureNamespace extends AbstractNamespace {
     public RelDataType validateImpl(RelDataType targetRowType) {
         validator.inferUnknownTypes(validator.unknownType, scope, call);
         // The result is ignored but the type is derived to trigger the validation
-        validator.deriveTypeImpl(scope, call);
+        final SqlCallBinding callBinding = new FlinkSqlCallBinding(validator, scope, call);
+        validator.deriveTypeImpl(scope, callBinding.permutedCall());
         final SqlOperator operator = call.getOperator();
-        final SqlCallBinding callBinding = new SqlCallBinding(validator, scope, call);
         if (!(operator instanceof SqlTableFunction)) {
             throw new IllegalArgumentException(
                     "Argument must be a table function: " + operator.getNameAsId());
