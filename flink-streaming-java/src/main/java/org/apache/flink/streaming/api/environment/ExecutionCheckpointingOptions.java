@@ -41,11 +41,23 @@ import static org.apache.flink.configuration.description.LinkElement.link;
  */
 @PublicEvolving
 public class ExecutionCheckpointingOptions {
+
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecatd.")
     public static final ConfigOption<CheckpointingMode> CHECKPOINTING_MODE =
             ConfigOptions.key("execution.checkpointing.mode")
                     .enumType(CheckpointingMode.class)
                     .defaultValue(CheckpointingMode.EXACTLY_ONCE)
                     .withDescription("The checkpointing mode (exactly-once vs. at-least-once).");
+
+    public static final ConfigOption<org.apache.flink.core.execution.CheckpointingMode>
+            CHECKPOINTING_MODE_V2 =
+                    ConfigOptions.key("execution.checkpointing.mode")
+                            .enumType(org.apache.flink.core.execution.CheckpointingMode.class)
+                            .defaultValue(
+                                    org.apache.flink.core.execution.CheckpointingMode.EXACTLY_ONCE)
+                            .withDescription(
+                                    "The checkpointing mode (exactly-once vs. at-least-once).");
 
     public static final ConfigOption<Duration> CHECKPOINTING_TIMEOUT =
             ConfigOptions.key("execution.checkpointing.timeout")

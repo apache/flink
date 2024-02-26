@@ -48,6 +48,32 @@ public class CheckpointConfigFromConfigurationTest {
                         .viaSetter(CheckpointConfig::setCheckpointingMode)
                         .getterVia(CheckpointConfig::getCheckpointingMode)
                         .nonDefaultValue(CheckpointingMode.AT_LEAST_ONCE),
+                TestSpec.testValue(org.apache.flink.core.execution.CheckpointingMode.AT_LEAST_ONCE)
+                        .whenSetFromFile("execution.checkpointing.mode", "AT_LEAST_ONCE")
+                        .viaSetter(CheckpointConfig::setCheckpointMode)
+                        .getterVia(CheckpointConfig::getCheckpointMode)
+                        .nonDefaultValue(
+                                org.apache.flink.core.execution.CheckpointingMode.AT_LEAST_ONCE),
+                TestSpec.testValue(org.apache.flink.core.execution.CheckpointingMode.AT_LEAST_ONCE)
+                        .whenSetFromFile("execution.checkpointing.mode", "AT_LEAST_ONCE")
+                        .viaSetter(
+                                (config, v) -> {
+                                    config.setCheckpointingMode(
+                                            CheckpointingMode.valueOf(v.name()));
+                                })
+                        .getterVia(CheckpointConfig::getCheckpointMode)
+                        .nonDefaultValue(
+                                org.apache.flink.core.execution.CheckpointingMode.AT_LEAST_ONCE),
+                TestSpec.testValue(CheckpointingMode.AT_LEAST_ONCE)
+                        .whenSetFromFile("execution.checkpointing.mode", "AT_LEAST_ONCE")
+                        .viaSetter(
+                                (config, v) -> {
+                                    config.setCheckpointMode(
+                                            org.apache.flink.core.execution.CheckpointingMode
+                                                    .valueOf(v.name()));
+                                })
+                        .getterVia(CheckpointConfig::getCheckpointingMode)
+                        .nonDefaultValue(CheckpointingMode.AT_LEAST_ONCE),
                 TestSpec.testValue(10000L)
                         .whenSetFromFile("execution.checkpointing.interval", "10 s")
                         .viaSetter(CheckpointConfig::setCheckpointInterval)
