@@ -893,14 +893,6 @@ public class StreamGraph implements Pipeline {
         return streamNodes.values();
     }
 
-    public Set<Tuple2<Integer, StreamOperatorFactory<?>>> getAllOperatorFactory() {
-        Set<Tuple2<Integer, StreamOperatorFactory<?>>> operatorSet = new HashSet<>();
-        for (StreamNode vertex : streamNodes.values()) {
-            operatorSet.add(new Tuple2<>(vertex.getId(), vertex.getOperatorFactory()));
-        }
-        return operatorSet;
-    }
-
     public String getBrokerID(Integer vertexID) {
         return vertexIDtoBrokerID.get(vertexID);
     }
