@@ -39,7 +39,7 @@ $ ./build_docs.sh
 
 The shell `./build_docs.sh` will integrate external connector docs, referencing `setup_docs.sh#integrate_connector_docs`.
 This process involves cloning the repo of some external connectors, which can be time-consuming and prone to network issues.
-So, if you wish to skip this step, you can do so by adding the following arg:
+So, if the connector docs have been synced before, and you wish to skip this step, you can do so by adding the following arg:
 
 ```sh
 $ ./build_docs.sh --skip-integrate-connector-docs
