@@ -77,6 +77,9 @@ env.from("MyTable").select(call("SubstringFunction", $("myField"), 5, 12));
 // 在 SQL 里调用注册好的函数
 env.sqlQuery("SELECT SubstringFunction(myField, 5, 12) FROM MyTable");
 
+// 在 SQL 里使用命名参数调用注册好的函数
+env.sqlQuery("SELECT SubstringFunction(param1 => myField, param2 => 5, param3 => 12) FROM MyTable");
+
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -598,6 +601,142 @@ public static class LiteralFunction extends ScalarFunction {
 
 For more examples of custom type inference, see also the `flink-examples-table` module with
 {{< gh_link file="flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/functions/AdvancedFunctionsExample.java" name="advanced function implementation" >}}.
+
+### 命名参数
+
+在调用函数时，可以使用参数名称来指定参数值。命名参数允许同时传递参数名和值给函数，避免了因为错误的参数顺序而导致混淆，并提高了代码的可读性和可维护性。 此外，命名参数还可以省略非必需的参数，默认情况下会使用 `null` 进行填充。
+我们可以通过 `@ArgumentHint` 注解来指定参数的名称，类型，是否是必需的参数等。
+
+**`@ArgumentHint`**
+
+下面三个示例展示了如何在不同的范围内使用 `@ArgumentHint`。更多信息请参考注解类的文档。
+
+1. 在 function 的 `eval` 方法的参数上使用 `@ArgumentHint` 注解。
+
+{{< tabs "8064df87-eb42-4def-9bd2-0988fc246d37" >}}
+{{< tab "Java" >}}
+
+```java
+import com.sun.tracing.dtrace.ArgsAttributes;
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+public static class NamedParameterClass extends ScalarFunction {
+
+    // 使用 @ArgumentHint 注解指定参数的名称，参数类型，以及是否是必需的参数
+    public String eval(@ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")) String s1,
+                       @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INT")) Integer s2) {
+        return s1 + ", " + s2;
+    }
+}
+
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+class NamedParameterClass extends ScalarFunction {
+
+  // 使用 @ArgumentHint 注解指定参数的名称，参数类型，以及是否是必需的参数
+  def eval(@ArgumentHint(name = "param1", isOptional = false, `type` = @DataTypeHint("STRING")) s1: String,
+          @ArgumentHint(name = "param2", isOptional = true, `type` = @DataTypeHint("INTEGER")) s2: Integer) = {
+    s1 + ", " + s2
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+2. 在 function 的 `eval` 方法上使用 `@ArgumentHint` 注解。
+
+{{< tabs "1356086c-189c-4932-a797-badf5b5e27ab" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+public static class NamedParameterClass extends ScalarFunction {
+    
+  // 使用 @ArgumentHint 注解指定参数的名称，参数类型，以及该参数是否是必需的参数
+  @FunctionHint(
+          argument = {@ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
+                  @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))}
+  )
+  public String eval(String s1, Integer s2) {
+    return s1 + ", " + s2;
+  }
+}
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+class NamedParameterClass extends ScalarFunction {
+
+  // 使用 @ArgumentHint 注解指定参数的名称，参数类型，以及是否是必需的参数
+  @FunctionHint(
+    argument = Array(new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
+                  new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER")))
+  )
+  def eval(s1: String, s2: Int): String = {
+    s1 + ", " + s2
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+3. 在 function 的 class 上使用 `@ArgumentHint` 注解。
+
+{{< tabs "ba00146a-08bf-496c-89bc-8d5e333f04f7" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+// 使用 @ArgumentHint 注解指定参数的名称，参数类型，以及是否是必需的参数
+@FunctionHint(
+        argument = {@ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
+                @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))}
+)
+public static class NamedParameterClass extends ScalarFunction {
+    
+  public String eval(String s1, Integer s2) {
+    return s1 + ", " + s2;
+  }
+}
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+// 使用 @ArgumentHint 注解指定参数的名称，参数类型，以及是否是必需的参数
+@FunctionHint(
+  argument = Array(new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
+    new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER")))
+)
+class NamedParameterClass extends ScalarFunction {
+
+  // 使用 @ArgumentHint 注解指定参数的名称，参数类型，以及是否是必需的参数
+  def eval(s1: String, s2: Int): String = {
+    s1 + ", " + s2
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+
+{{< hint info >}}
+* `@ArgumentHint` 内部包含了 `@DataTypeHint` 注解，因此在 `@FunctionHint` 中不能同时声明 `input` 和 `argument` ，当作用于函数的参数时 `@ArgumentHint` 也不能和 `@DataTypeHint` 同时使用，推荐使用 `@ArgumentHint` 。
+* 命名参数只有在对应的类不包含重载函数和可变参函数才会生效，否则使用命名参数会导致报错。
+{{< /hint >}}
 
 ### 确定性
 

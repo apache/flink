@@ -77,6 +77,9 @@ env.from("MyTable").select(call("SubstringFunction", $("myField"), 5, 12));
 // call registered function in SQL
 env.sqlQuery("SELECT SubstringFunction(myField, 5, 12) FROM MyTable");
 
+// call registered function in SQL using named parameters
+env.sqlQuery("SELECT SubstringFunction(param1 => myField, param2 => 5, param3 => 12) FROM MyTable");
+
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -609,6 +612,140 @@ public static class LiteralFunction extends ScalarFunction {
 
 For more examples of custom type inference, see also the `flink-examples-table` module with
 {{< gh_link file="/flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/functions/AdvancedFunctionsExample.java" name="advanced function implementation" >}}.
+
+### Named Parameters
+
+When calling a function, you can use parameter names to specify the values of the parameters. Named parameters allow passing both the parameter name and value to a function, avoiding confusion caused by incorrect parameter order and improving code readability and maintainability. In addition, named parameters can also omit optional parameters, which are filled with `null` by default.
+We can use the `@ArgumentHint` annotation to specify the name, type, and whether a parameter is required or not.
+
+**`@ArgumentHint`**
+
+The following 3 examples demonstrate how to use `@ArgumentHint` in different scopes. More information can be found in the documentation of the annotation class.
+
+1. Using `@ArgumentHint` annotation on the parameters of the `eval` method of the function.
+
+{{< tabs "20405d05-739c-4038-a885-3bde5f7998e8" >}}
+{{< tab "Java" >}}
+```java
+import com.sun.tracing.dtrace.ArgsAttributes;
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+public static class NamedParameterClass extends ScalarFunction {
+
+    // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
+    public String eval(@ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")) String s1,
+                       @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INT")) Integer s2) {
+        return s1 + ", " + s2;
+    }
+}
+
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+class NamedParameterClass extends ScalarFunction {
+
+  // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
+  def eval(@ArgumentHint(name = "param1", isOptional = false, `type` = @DataTypeHint("STRING")) s1: String,
+          @ArgumentHint(name = "param2", isOptional = true, `type` = @DataTypeHint("INTEGER")) s2: Integer) = {
+    s1 + ", " + s2
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+2. Using `@ArgumentHint` annotation on the `eval` method of the function.
+
+{{< tabs "dbecd8a8-6285-4bc8-94e0-e79f6ca7f7c3" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+public static class NamedParameterClass extends ScalarFunction {
+    
+  // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
+  @FunctionHint(
+          argument = {@ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
+                  @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))}
+  )
+  public String eval(String s1, Integer s2) {
+    return s1 + ", " + s2;
+  }
+}
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+class NamedParameterClass extends ScalarFunction {
+
+  // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
+  @FunctionHint(
+    argument = Array(new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
+                  new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER")))
+  )
+  def eval(s1: String, s2: Int): String = {
+    s1 + ", " + s2
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+3. Using `@ArgumentHint` annotation on the class of the function.
+
+{{< tabs "924dd007-3827-44ce-83c6-017dea78b9c4" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+// Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
+@FunctionHint(
+        argument = {@ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
+                @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))}
+)
+public static class NamedParameterClass extends ScalarFunction {
+    
+  public String eval(String s1, Integer s2) {
+    return s1 + ", " + s2;
+  }
+}
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+// Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
+@FunctionHint(
+  argument = Array(new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
+    new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER")))
+)
+class NamedParameterClass extends ScalarFunction {
+
+  def eval(s1: String, s2: Int): String = {
+    s1 + ", " + s2
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+
+{{< hint info >}}
+* `@ArgumentHint` annotation already contains `@DataTypeHint` annotation, so it cannot be used together with `@DataTypeHint` in `@FunctionHint`. When applied to function parameters, `@ArgumentHint` cannot be used with `@DataTypeHint` at the same time, and it is recommended to use `@ArgumentHint`.
+* Named parameters only take effect when the corresponding class does not contain overloaded functions and variable parameter functions, otherwise using named parameters will cause an error.
+{{< /hint >}}
 
 ### Determinism
 
