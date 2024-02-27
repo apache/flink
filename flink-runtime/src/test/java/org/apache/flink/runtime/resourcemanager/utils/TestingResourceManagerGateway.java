@@ -94,9 +94,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     private volatile Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>>
             requestTaskManagerFileUploadByTypeFunction;
 
-    private volatile Function<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>>
-            requestTaskManagerFileUploadByNameFunction;
-
     private volatile Function<
                     Tuple3<ResourceID, String, FileType>, CompletableFuture<TransientBlobKey>>
             requestTaskManagerFileUploadByNameAndTypeFunction;
@@ -190,13 +187,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
                     requestTaskManagerFileUploadByTypeFunction) {
         this.requestTaskManagerFileUploadByTypeFunction =
                 requestTaskManagerFileUploadByTypeFunction;
-    }
-
-    public void setRequestTaskManagerFileUploadByNameFunction(
-            Function<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>>
-                    requestTaskManagerFileUploadByNameFunction) {
-        this.requestTaskManagerFileUploadByNameFunction =
-                requestTaskManagerFileUploadByNameFunction;
     }
 
     public void setRequestTaskManagerFileUploadByNameAndTypeFunction(
