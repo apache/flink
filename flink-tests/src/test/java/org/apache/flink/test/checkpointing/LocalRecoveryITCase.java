@@ -18,8 +18,8 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Ignore;
@@ -116,7 +116,7 @@ public class LocalRecoveryITCase extends TestLogger {
         protected Configuration createClusterConfig() throws IOException {
             Configuration config = super.createClusterConfig();
 
-            config.set(CheckpointingOptions.LOCAL_RECOVERY, localRecoveryEnabled);
+            config.set(StateRecoveryOptions.LOCAL_RECOVERY, localRecoveryEnabled);
 
             return config;
         }

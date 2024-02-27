@@ -178,8 +178,12 @@ public class CheckpointingOptions {
      *
      * <p>Local recovery currently only covers keyed state backends (including both the
      * EmbeddedRocksDBStateBackend and the HashMapStateBackend).
+     *
+     * @Deprecated use {@link StateRecoveryOptions#LOCAL_RECOVERY} instead.
      */
     @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
+    @Deprecated
     public static final ConfigOption<Boolean> LOCAL_RECOVERY =
             ConfigOptions.key("state.backend.local-recovery")
                     .booleanType()

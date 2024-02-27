@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.util;
 
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
@@ -50,7 +50,7 @@ public class SlotSelectionStrategyUtils {
                         : LocationPreferenceSlotSelectionStrategy.createDefault();
 
         final boolean isLocalRecoveryEnabled =
-                configuration.get(CheckpointingOptions.LOCAL_RECOVERY);
+                configuration.get(StateRecoveryOptions.LOCAL_RECOVERY);
         if (isLocalRecoveryEnabled) {
             if (jobType == JobType.STREAMING) {
                 return PreviousAllocationSlotSelectionStrategy.create(
