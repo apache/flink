@@ -27,6 +27,9 @@ class Duration(object):
     def __init__(self, j_duration):
         self._j_duration = j_duration
 
+    def to_j_duration(self) -> get_gateway().jvm.java.time.Duration:
+        return self._j_duration
+
     @staticmethod
     def of_days(days: int):
         return Duration(get_gateway().jvm.java.time.Duration.ofDays(days))
