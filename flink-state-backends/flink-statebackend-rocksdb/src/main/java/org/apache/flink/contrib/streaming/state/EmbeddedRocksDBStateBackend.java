@@ -321,21 +321,20 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                 "Overlap fraction threshold of restoring should be between 0 and 1");
 
         incrementalRestoreAsyncCompactAfterRescale =
-                original.incrementalRestoreAsyncCompactAfterRescale == TernaryBoolean.UNDEFINED
-                        ? TernaryBoolean.fromBoxedBoolean(
-                                config.get(INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE))
-                        : original.incrementalRestoreAsyncCompactAfterRescale;
+                TernaryBoolean.mergeTernaryBooleanWithConfig(
+                        original.incrementalRestoreAsyncCompactAfterRescale,
+                        INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE,
+                        config);
 
         useIngestDbRestoreMode =
-                original.useIngestDbRestoreMode == TernaryBoolean.UNDEFINED
-                        ? TernaryBoolean.fromBoxedBoolean(config.get(USE_INGEST_DB_RESTORE_MODE))
-                        : TernaryBoolean.fromBoolean(original.getUseIngestDbRestoreMode());
+                TernaryBoolean.mergeTernaryBooleanWithConfig(
+                        original.useIngestDbRestoreMode, USE_INGEST_DB_RESTORE_MODE, config);
 
         rescalingUseDeleteFilesInRange =
-                original.rescalingUseDeleteFilesInRange == TernaryBoolean.UNDEFINED
-                        ? TernaryBoolean.fromBoxedBoolean(
-                                config.get(USE_DELETE_FILES_IN_RANGE_DURING_RESCALING))
-                        : original.rescalingUseDeleteFilesInRange;
+                TernaryBoolean.mergeTernaryBooleanWithConfig(
+                        original.rescalingUseDeleteFilesInRange,
+                        USE_DELETE_FILES_IN_RANGE_DURING_RESCALING,
+                        config);
 
         this.rocksDBMemoryFactory = original.rocksDBMemoryFactory;
     }
