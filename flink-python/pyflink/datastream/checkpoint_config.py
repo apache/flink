@@ -399,7 +399,7 @@ class CheckpointConfig(object):
     def get_alignment_timeout(self) -> 'Duration':
         """
         Returns the alignment timeout, as configured via :func:`set_alignment_timeout` or
-        ``org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions#ALIGNMENT_TIMEOUT``.
+        ``org.apache.flink.configuration.CheckpointingOptions#ALIGNMENT_TIMEOUT``.
 
         :return: the alignment timeout.
         """

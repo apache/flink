@@ -521,7 +521,7 @@ We recommend setting all configuration options in DataStream API early before sw
 {{< tab "Java" >}}
 ```java
 import java.time.ZoneId;
-import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.configuration.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
@@ -553,7 +553,7 @@ tableEnv.getConfig().setLocalTimeZone(ZoneId.of("Europe/Berlin"));
 import java.time.ZoneId
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.CheckpointingMode
+import org.apache.flink.configuration.CheckpointingMode
 import org.apache.flink.table.api.bridge.scala._
 
 // create Scala DataStream API

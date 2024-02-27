@@ -83,7 +83,7 @@ import static org.apache.flink.table.api.internal.TableConfigValidation.validate
  *          new Configuration()
  *              .set(CoreOptions.DEFAULT_PARALLELISM, 128)
  *              .set(PipelineOptions.AUTO_WATERMARK_INTERVAL, Duration.ofMillis(800))
- *              .set(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(30))
+ *              .set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(30))
  *      );
  * }</pre>
  *

@@ -19,6 +19,7 @@
 package org.apache.flink.connector.testframe.junit.annotations;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.configuration.CheckpointingMode;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -26,8 +27,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks the field in test class defining supported semantic: {@link
- * org.apache.flink.streaming.api.CheckpointingMode}.
+ * Marks the field in test class defining supported semantic: {@link CheckpointingMode}.
  *
  * <p>Only one field can be annotated in test class.
  */

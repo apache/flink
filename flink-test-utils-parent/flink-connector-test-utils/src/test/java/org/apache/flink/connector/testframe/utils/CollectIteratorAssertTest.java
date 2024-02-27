@@ -18,7 +18,7 @@
 
 package org.apache.flink.connector.testframe.utils;
 
-import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.configuration.CheckpointingMode;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Nested;

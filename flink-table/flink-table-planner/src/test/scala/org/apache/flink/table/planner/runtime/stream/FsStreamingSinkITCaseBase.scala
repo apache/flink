@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.runtime.stream
 import org.apache.flink.api.common.state.CheckpointListener
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.configuration.CheckpointingMode
 import org.apache.flink.connector.file.table.FileSystemConnectorOptions._
-import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.watermark.Watermark

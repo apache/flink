@@ -130,7 +130,7 @@ env.configure(config);
 
 // enable checkpointing with finished tasks
 Configuration config = new Configuration();
-config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
+config.set(CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
 env.configure(config);
 ```
 {{< /tab >}}
@@ -171,7 +171,7 @@ env.getCheckpointConfig.setCheckpointStorage("hdfs:///my/checkpoint/dir")
 
 // enable checkpointing with finished tasks
 val config = new Configuration()
-config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true)
+config.set(CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true)
 env.configure(config)
 ```
 {{< /tab >}}
@@ -251,7 +251,7 @@ is enabled by default since 1.15, and it could be disabled via a feature flag:
 
 ```java
 Configuration config = new Configuration();
-config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, false);
+config.set(CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, false);
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 

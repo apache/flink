@@ -30,15 +30,15 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.configuration.CheckpointingMode;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.ExternalizedCheckpointCleanup;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
@@ -303,15 +303,13 @@ public class DataStreamAllroundTestJobFactory {
                             ENVIRONMENT_EXTERNALIZE_CHECKPOINT_CLEANUP.key(),
                             ENVIRONMENT_EXTERNALIZE_CHECKPOINT_CLEANUP.defaultValue());
 
-            CheckpointConfig.ExternalizedCheckpointCleanup cleanupMode;
+            ExternalizedCheckpointCleanup cleanupMode;
             switch (cleanupModeConfig) {
                 case "retain":
-                    cleanupMode =
-                            CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION;
+                    cleanupMode = ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION;
                     break;
                 case "delete":
-                    cleanupMode =
-                            CheckpointConfig.ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION;
+                    cleanupMode = ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION;
                     break;
                 default:
                     throw new IllegalArgumentException(

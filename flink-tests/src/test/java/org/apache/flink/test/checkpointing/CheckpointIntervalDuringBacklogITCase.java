@@ -54,13 +54,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
-import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL;
-import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG;
+import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTING_INTERVAL;
+import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * A test suite that verifies the correctness of the configuration {@link
- * org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions#CHECKPOINTING_INTERVAL_DURING_BACKLOG}.
+ * org.apache.flink.configuration.CheckpointingOptions#CHECKPOINTING_INTERVAL_DURING_BACKLOG}.
  */
 public class CheckpointIntervalDuringBacklogITCase {
     private static final int NUM_SPLITS = 2;

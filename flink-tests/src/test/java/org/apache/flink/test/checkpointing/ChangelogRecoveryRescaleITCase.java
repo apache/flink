@@ -17,8 +17,8 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.configuration.ExternalizedCheckpointCleanup;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import org.junit.Test;
@@ -47,7 +47,7 @@ public class ChangelogRecoveryRescaleITCase extends ChangelogRecoverySwitchEnvTe
         StreamExecutionEnvironment env = getEnv(delegatedStateBackend, 50, 0, 20, 0);
         env.getCheckpointConfig()
                 .setExternalizedCheckpointCleanup(
-                        CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+                        ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
         env.setParallelism(parallelism);
         return env;
     }

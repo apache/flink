@@ -18,12 +18,13 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.configuration.CheckpointingMode;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExternalizedCheckpointCleanup;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
-import org.apache.flink.streaming.api.CheckpointingMode;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -68,17 +69,13 @@ public class CheckpointConfigFromConfigurationTest {
                         .viaSetter(CheckpointConfig::setMinPauseBetweenCheckpoints)
                         .getterVia(CheckpointConfig::getMinPauseBetweenCheckpoints)
                         .nonDefaultValue(100L),
-                TestSpec.testValue(
-                                CheckpointConfig.ExternalizedCheckpointCleanup
-                                        .RETAIN_ON_CANCELLATION)
+                TestSpec.testValue(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
                         .whenSetFromFile(
                                 "execution.checkpointing.externalized-checkpoint-retention",
                                 "RETAIN_ON_CANCELLATION")
                         .viaSetter(CheckpointConfig::setExternalizedCheckpointCleanup)
                         .getterVia(CheckpointConfig::getExternalizedCheckpointCleanup)
-                        .nonDefaultValue(
-                                CheckpointConfig.ExternalizedCheckpointCleanup
-                                        .DELETE_ON_CANCELLATION),
+                        .nonDefaultValue(ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION),
                 TestSpec.testValue(12)
                         .whenSetFromFile(
                                 "execution.checkpointing.tolerable-failed-checkpoints", "12")

@@ -26,6 +26,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.configuration.CheckpointingMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.connector.testframe.environment.TestEnvironment;
@@ -44,7 +45,6 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -79,14 +79,14 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.CheckpointingMode.AT_LEAST_ONCE;
+import static org.apache.flink.configuration.CheckpointingMode.EXACTLY_ONCE;
 import static org.apache.flink.connector.testframe.utils.MetricQuerier.getJobDetails;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.terminateJob;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForJobStatus;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondition;
-import static org.apache.flink.streaming.api.CheckpointingMode.AT_LEAST_ONCE;
-import static org.apache.flink.streaming.api.CheckpointingMode.EXACTLY_ONCE;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**

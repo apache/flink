@@ -19,6 +19,7 @@
 package org.apache.flink.connector.testframe.junit.extensions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.CheckpointingMode;
 import org.apache.flink.connector.testframe.TestResource;
 import org.apache.flink.connector.testframe.environment.TestEnvironment;
 import org.apache.flink.connector.testframe.external.ExternalContextFactory;
@@ -26,7 +27,6 @@ import org.apache.flink.connector.testframe.junit.annotations.TestContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
 import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem;
 import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
-import org.apache.flink.streaming.api.CheckpointingMode;
 
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;

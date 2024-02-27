@@ -24,7 +24,7 @@ import org.apache.flink.configuration.MemorySize;
 
 import java.time.Duration;
 
-import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT;
+import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTING_TIMEOUT;
 
 /** {@link ConfigOptions} for {@link FsStateChangelogStorage}. */
 @Experimental
