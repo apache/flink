@@ -71,7 +71,7 @@ class SerializerConfigImplTest {
             assertThat(tpe).isEqualTo(expectedTypes.get(counter++));
         }
 
-        assertThat(expectedTypes.size()).isEqualTo(counter);
+        assertThat(expectedTypes).hasSize(counter);
     }
 
     @Test

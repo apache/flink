@@ -39,7 +39,6 @@ import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowStreamWriter;
-import org.assertj.core.api.HamcrestCondition;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -270,10 +269,9 @@ abstract class ArrowSourceFunctionTestBase {
         expected.sort(comparator);
         for (int i = 0; i < expected.size(); i++) {
             assertThat(actual.get(i))
-                    .is(
-                            HamcrestCondition.matching(
-                                    CustomEqualityMatcher.deeplyEquals(expected.get(i))
-                                            .withChecker(checker)));
+                    .matches(
+                            CustomEqualityMatcher.deeplyEquals(expected.get(i))
+                                    .withChecker(checker));
         }
     }
 

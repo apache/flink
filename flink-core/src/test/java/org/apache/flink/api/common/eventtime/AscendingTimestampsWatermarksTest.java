@@ -18,26 +18,26 @@
 
 package org.apache.flink.api.common.eventtime;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link AscendingTimestampsWatermarks} class. */
-public class AscendingTimestampsWatermarksTest {
+class AscendingTimestampsWatermarksTest {
 
     @Test
-    public void testWatermarkBeforeRecords() {
+    void testWatermarkBeforeRecords() {
         final TestingWatermarkOutput output = new TestingWatermarkOutput();
         final AscendingTimestampsWatermarks<Object> watermarks =
                 new AscendingTimestampsWatermarks<>();
 
         watermarks.onPeriodicEmit(output);
 
-        assertEquals(Long.MIN_VALUE, output.lastWatermark().getTimestamp());
+        assertThat(output.lastWatermark().getTimestamp()).isEqualTo(Long.MIN_VALUE);
     }
 
     @Test
-    public void testWatermarkAfterEvent() {
+    void testWatermarkAfterEvent() {
         final TestingWatermarkOutput output = new TestingWatermarkOutput();
         final AscendingTimestampsWatermarks<Object> watermarks =
                 new AscendingTimestampsWatermarks<>();
@@ -45,11 +45,11 @@ public class AscendingTimestampsWatermarksTest {
         watermarks.onEvent(new Object(), 1337L, output);
         watermarks.onPeriodicEmit(output);
 
-        assertEquals(1336L, output.lastWatermark().getTimestamp());
+        assertThat(output.lastWatermark().getTimestamp()).isEqualTo(1336L);
     }
 
     @Test
-    public void testWatermarkAfterEventWithLowerTimestamp() {
+    void testWatermarkAfterEventWithLowerTimestamp() {
         final TestingWatermarkOutput output = new TestingWatermarkOutput();
         final AscendingTimestampsWatermarks<Object> watermarks =
                 new AscendingTimestampsWatermarks<>();
@@ -58,6 +58,6 @@ public class AscendingTimestampsWatermarksTest {
         watermarks.onEvent(new Object(), 12340L, output);
         watermarks.onPeriodicEmit(output);
 
-        assertEquals(12344L, output.lastWatermark().getTimestamp());
+        assertThat(output.lastWatermark().getTimestamp()).isEqualTo(12344L);
     }
 }

@@ -41,7 +41,7 @@ import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.hamcrest.CoreMatchers.not;
 
@@ -135,9 +135,6 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
             try (ThreadContextClassLoader ignored =
                     new ThreadContextClassLoader(setupClassloader)) {
                 return delegateSetup.createPriorSerializer();
-            } catch (IOException e) {
-                throw new RuntimeException(
-                        "Error creating prior serializer via ClassLoaderSafePreUpgradeSetup.", e);
             }
         }
 
@@ -146,9 +143,6 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
             try (ThreadContextClassLoader ignored =
                     new ThreadContextClassLoader(setupClassloader)) {
                 return delegateSetup.createTestData();
-            } catch (IOException e) {
-                throw new RuntimeException(
-                        "Error creating test data via ThreadContextClassLoader.", e);
             }
         }
     }
@@ -178,10 +172,6 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
             try (ThreadContextClassLoader ignored =
                     new ThreadContextClassLoader(verifierClassloader)) {
                 return delegateVerifier.createUpgradedSerializer();
-            } catch (IOException e) {
-                throw new RuntimeException(
-                        "Error creating upgraded serializer via ClassLoaderSafeUpgradeVerifier.",
-                        e);
             }
         }
 
@@ -190,9 +180,6 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
             try (ThreadContextClassLoader ignored =
                     new ThreadContextClassLoader(verifierClassloader)) {
                 return delegateVerifier.testDataMatcher();
-            } catch (IOException e) {
-                throw new RuntimeException(
-                        "Error creating expected test data via ClassLoaderSafeUpgradeVerifier.", e);
             }
         }
 
@@ -202,10 +189,6 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
             try (ThreadContextClassLoader ignored =
                     new ThreadContextClassLoader(verifierClassloader)) {
                 return delegateVerifier.schemaCompatibilityMatcher(version);
-            } catch (IOException e) {
-                throw new RuntimeException(
-                        "Error creating schema compatibility matcher via ClassLoaderSafeUpgradeVerifier.",
-                        e);
             }
         }
     }
