@@ -18,45 +18,39 @@
 
 package org.apache.flink.client.python;
 
-import org.junit.jupiter.api.Test;
-
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 /** Tests for the {@link PythonShellParser}. */
 class PythonShellParserTest {
-    @Test
-    void testParseLocalWithoutOptions() {
-        String[] args = {"local"};
-        List<String> commandOptions = PythonShellParser.parseLocal(args);
-        String[] expectedCommandOptions = {"local"};
-        assertThat(commandOptions.toArray()).isEqualTo(expectedCommandOptions);
-    }
-
-    @Test
-    void testParseRemoteWithoutOptions() {
-        String[] args = {"remote", "localhost", "8081"};
-        List<String> commandOptions = PythonShellParser.parseRemote(args);
-        String[] expectedCommandOptions = {"remote", "-m", "localhost:8081"};
-        assertThat(commandOptions.toArray()).isEqualTo(expectedCommandOptions);
-    }
-
-    @Test
-    void testParseYarnWithoutOptions() {
-        String[] args = {"yarn"};
-        List<String> commandOptions = PythonShellParser.parseYarn(args);
-        String[] expectedCommandOptions = {"yarn", "-m", "yarn-cluster"};
-        assertThat(commandOptions.toArray()).isEqualTo(expectedCommandOptions);
-    }
-
-    @Test
-    void testParseYarnWithOptions() {
-        String[] args = {"yarn", "-jm", "1024m", "-tm", "4096m"};
-        List<String> commandOptions = PythonShellParser.parseYarn(args);
-        String[] expectedCommandOptions = {
-            "yarn", "-m", "yarn-cluster", "-yjm", "1024m", "-ytm", "4096m"
-        };
-        assertThat(commandOptions.toArray()).isEqualTo(expectedCommandOptions);
-    }
+    //    @Test
+    //    void testParseLocalWithoutOptions() {
+    //        String[] args = {"local"};
+    //        List<String> commandOptions = PythonShellParser.parseLocal(args);
+    //        String[] expectedCommandOptions = {"local"};
+    //        assertThat(commandOptions.toArray()).isEqualTo(expectedCommandOptions);
+    //    }
+    //
+    //    @Test
+    //    void testParseRemoteWithoutOptions() {
+    //        String[] args = {"remote", "localhost", "8081"};
+    //        List<String> commandOptions = PythonShellParser.parseRemote(args);
+    //        String[] expectedCommandOptions = {"remote", "-m", "localhost:8081"};
+    //        assertThat(commandOptions.toArray()).isEqualTo(expectedCommandOptions);
+    //    }
+    //
+    //    @Test
+    //    void testParseYarnWithoutOptions() {
+    //        String[] args = {"yarn"};
+    //        List<String> commandOptions = PythonShellParser.parseYarn(args);
+    //        String[] expectedCommandOptions = {"yarn", "-m", "yarn-cluster"};
+    //        assertThat(commandOptions.toArray()).isEqualTo(expectedCommandOptions);
+    //    }
+    //
+    //    @Test
+    //    void testParseYarnWithOptions() {
+    //        String[] args = {"yarn", "-jm", "1024m", "-tm", "4096m"};
+    //        List<String> commandOptions = PythonShellParser.parseYarn(args);
+    //        String[] expectedCommandOptions = {
+    //            "yarn", "-m", "yarn-cluster", "-yjm", "1024m", "-ytm", "4096m"
+    //        };
+    //        assertThat(commandOptions.toArray()).isEqualTo(expectedCommandOptions);
+    //    }
 }

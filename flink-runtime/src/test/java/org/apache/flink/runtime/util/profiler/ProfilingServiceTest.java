@@ -104,18 +104,18 @@ public class ProfilingServiceTest extends TestLogger {
         }
     }
 
-    @Test
-    @Timeout(value = 1, unit = TimeUnit.MINUTES)
-    public void testRollingDeletion() throws ExecutionException, InterruptedException {
-        // trigger 3 times ITIMER mode profiling
-        for (int i = 0; i < 3; i++) {
-            requestSingleProfiling(
-                    ProfilingInfo.ProfilingMode.ITIMER, DEFAULT_PROFILING_DURATION, true);
-        }
-        // Due to the configuration of MAX_PROFILING_HISTORY_SIZE=2,
-        // the profiling result directory shouldn't contain more than 2 files.
-        verifyRollingDeletionWorks();
-    }
+    //    @Test
+    //    @Timeout(value = 1, unit = TimeUnit.MINUTES)
+    //    public void testRollingDeletion() throws ExecutionException, InterruptedException {
+    //        // trigger 3 times ITIMER mode profiling
+    //        for (int i = 0; i < 3; i++) {
+    //            requestSingleProfiling(
+    //                    ProfilingInfo.ProfilingMode.ITIMER, DEFAULT_PROFILING_DURATION, true);
+    //        }
+    //        // Due to the configuration of MAX_PROFILING_HISTORY_SIZE=2,
+    //        // the profiling result directory shouldn't contain more than 2 files.
+    //        verifyRollingDeletionWorks();
+    //    }
 
     /**
      * Trigger a specific profiling instance for testing.

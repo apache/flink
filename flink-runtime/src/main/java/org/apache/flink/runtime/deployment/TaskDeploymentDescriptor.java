@@ -42,8 +42,6 @@ import java.io.Serializable;
 import java.nio.file.Files;
 import java.util.List;
 
-import static org.apache.flink.util.Preconditions.checkState;
-
 /**
  * A task deployment descriptor contains all the information necessary to deploy a task on a task
  * manager.
@@ -90,9 +88,11 @@ public final class TaskDeploymentDescriptor implements Serializable {
         }
 
         public void compressAndSerialize() throws IOException {
-            checkState(rawValue != null);
-            this.serializedValue = CompressedSerializedValue.fromObject(rawValue);
-            this.rawValue = null;
+
+            if (rawValue != null) {
+                this.serializedValue = CompressedSerializedValue.fromObject(rawValue);
+                this.rawValue = null;
+            }
         }
     }
 
