@@ -374,7 +374,8 @@ public class FileSystemTableSink extends AbstractFileSystemTable
     }
 
     private Path toStagingPath() {
-        Path stagingDir = new Path(path, ".staging_" + System.currentTimeMillis());
+        Path stagingDir =
+                new Path(path, ".staging_" + UUID.randomUUID() + System.currentTimeMillis());
         try {
             FileSystem fs = stagingDir.getFileSystem();
             Preconditions.checkState(
