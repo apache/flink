@@ -374,6 +374,8 @@ public class FileSystemTableSink extends AbstractFileSystemTable
     }
 
     private Path toStagingPath() {
+        // Add a random UUID to prevent multiple sinks from sharing the same staging dir.
+        // Please see FLINK-29114 for more details
         Path stagingDir =
                 new Path(path, ".staging_" + UUID.randomUUID() + System.currentTimeMillis());
         try {
