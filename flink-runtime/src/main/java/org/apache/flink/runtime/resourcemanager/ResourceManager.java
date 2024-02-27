@@ -811,13 +811,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     }
 
     @Override
-    public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByName(
-            ResourceID taskManagerId, String fileName, Time timeout) {
-        return requestTaskManagerFileUploadByNameAndType(
-                taskManagerId, fileName, FileType.LOG, Duration.ofMillis(timeout.toMilliseconds()));
-    }
-
-    @Override
     public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByNameAndType(
             ResourceID taskManagerId, String fileName, FileType fileType, Duration timeout) {
         log.debug(

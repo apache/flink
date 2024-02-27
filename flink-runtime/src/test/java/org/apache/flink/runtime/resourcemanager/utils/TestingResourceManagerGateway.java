@@ -459,19 +459,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     }
 
     @Override
-    public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByName(
-            ResourceID taskManagerId, String fileName, Time timeout) {
-        final Function<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>> function =
-                requestTaskManagerFileUploadByNameFunction;
-
-        if (function != null) {
-            return function.apply(Tuple2.of(taskManagerId, fileName));
-        } else {
-            return CompletableFuture.completedFuture(new TransientBlobKey());
-        }
-    }
-
-    @Override
     public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByNameAndType(
             ResourceID taskManagerId, String fileName, FileType fileType, Duration timeout) {
         final Function<Tuple3<ResourceID, String, FileType>, CompletableFuture<TransientBlobKey>>
