@@ -19,7 +19,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import TypeVar, Generic, Iterable, List, Iterator, Dict, Tuple, Optional
 
-from pyflink.common.time import Time
+from pyflink.common.time import Duration, Time
 from pyflink.common.typeinfo import TypeInformation, Types
 
 __all__ = [
@@ -809,7 +809,7 @@ class StateTtlConfig(object):
         def cleanup_in_rocksdb_compact_filter(
                 self,
                 query_time_after_num_entries,
-                periodic_compaction_time=Time.days(30)) -> \
+                periodic_compaction_time=Duration.of_days(30)) -> \
                 'StateTtlConfig.Builder':
             """
             Cleanup expired state while Rocksdb compaction is running.
@@ -925,14 +925,14 @@ class StateTtlConfig(object):
 
             def __init__(self,
                          query_time_after_num_entries: int,
-                         periodic_compaction_time=Time.days(30)):
+                         periodic_compaction_time=Duration.of_days(30)):
                 self._query_time_after_num_entries = query_time_after_num_entries
                 self._periodic_compaction_time = periodic_compaction_time
 
             def get_query_time_after_num_entries(self) -> int:
                 return self._query_time_after_num_entries
 
-            def get_periodic_compaction_time(self) -> Time:
+            def get_periodic_compaction_time(self) -> Duration:
                 return self._periodic_compaction_time
 
         EMPTY_STRATEGY = EmptyCleanupStrategy()
