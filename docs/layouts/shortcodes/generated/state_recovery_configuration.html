@@ -15,6 +15,12 @@
             <td>Describes the mode how Flink should restore from the given savepoint or retained checkpoint.<br /><br />Possible values:<ul><li>"CLAIM": Flink will take ownership of the given snapshot. It will clean the snapshot once it is subsumed by newer ones.</li><li>"NO_CLAIM": Flink will not claim ownership of the snapshot files. However it will make sure it does not depend on any artefacts from the restored snapshot. In order to do that, Flink will take the first checkpoint as a full one, which means it might reupload/duplicate files that are part of the restored checkpoint.</li></ul></td>
         </tr>
         <tr>
+            <td><h5>execution.state-recovery.from-local</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td> This option configures local recovery for the state backend. By default, local recovery is deactivated. Local recovery currently only covers keyed state backends (including both the EmbeddedRocksDBStateBackend and the HashMapStateBackend)."</td>
+        </tr>
+        <tr>
             <td><h5>execution.state-recovery.ignore-unclaimed-state</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>

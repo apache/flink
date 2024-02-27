@@ -26,6 +26,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RpcOptions;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -283,7 +284,7 @@ public class TaskManagerServicesConfiguration {
             localStateDirs = Reference.owned(createdLocalStateDirs);
         }
 
-        boolean localRecoveryMode = configuration.get(CheckpointingOptions.LOCAL_RECOVERY);
+        boolean localRecoveryMode = configuration.get(StateRecoveryOptions.LOCAL_RECOVERY);
 
         final QueryableStateConfiguration queryableStateConfig =
                 QueryableStateConfiguration.fromConfiguration(configuration);

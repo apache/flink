@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.runtime.blob.VoidPermanentBlobService;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -81,7 +82,7 @@ class TaskExecutorLocalStateStoresManagerTest {
         config.set(CheckpointingOptions.LOCAL_RECOVERY_TASK_MANAGER_STATE_ROOT_DIRS, rootDirString);
 
         // test configuration of the local state mode
-        config.set(CheckpointingOptions.LOCAL_RECOVERY, true);
+        config.set(StateRecoveryOptions.LOCAL_RECOVERY, true);
 
         final WorkingDirectory workingDirectory =
                 WORKING_DIRECTORY_EXTENSION_WRAPPER

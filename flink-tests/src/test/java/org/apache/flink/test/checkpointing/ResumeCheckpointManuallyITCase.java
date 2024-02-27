@@ -30,6 +30,7 @@ import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -340,7 +341,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 
         config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
         config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
-        config.set(CheckpointingOptions.LOCAL_RECOVERY, localRecovery);
+        config.set(StateRecoveryOptions.LOCAL_RECOVERY, localRecovery);
 
         // Configure DFS DSTL for this test as it might produce too much GC pressure if
         // ChangelogStateBackend is used.
