@@ -341,7 +341,7 @@ public class StateTtlConfig implements Serializable {
          */
         @Nonnull
         public Builder cleanupInRocksdbCompactFilter(
-                long queryTimeAfterNumEntries, Time periodicCompactionTime) {
+                long queryTimeAfterNumEntries, Duration periodicCompactionTime) {
             strategies.put(
                     CleanupStrategies.Strategies.ROCKSDB_COMPACTION_FILTER,
                     new RocksdbCompactFilterCleanupStrategy(
@@ -354,7 +354,7 @@ public class StateTtlConfig implements Serializable {
          *
          * <p>If some specific cleanup is configured, e.g. {@link #cleanupIncrementally(int,
          * boolean)} or {@link #cleanupInRocksdbCompactFilter(long)} or {@link
-         * #cleanupInRocksdbCompactFilter(long, Time)} , this setting does not disable it.
+         * #cleanupInRocksdbCompactFilter(long, Duration)} , this setting does not disable it.
          */
         @Nonnull
         public Builder disableCleanupInBackground() {
@@ -497,7 +497,7 @@ public class StateTtlConfig implements Serializable {
          * Default value is 30 days so that every file goes through the compaction process at least
          * once every 30 days if not compacted sooner.
          */
-        static final Time DEFAULT_PERIODIC_COMPACTION_TIME = Time.days(30);
+        static final Duration DEFAULT_PERIODIC_COMPACTION_TIME = Duration.ofDays(30);
 
         static final RocksdbCompactFilterCleanupStrategy
                 DEFAULT_ROCKSDB_COMPACT_FILTER_CLEANUP_STRATEGY =
@@ -515,14 +515,14 @@ public class StateTtlConfig implements Serializable {
          * and re-written to the same level as they were before. It makes sure a file goes through
          * compaction filters periodically. 0 means turning off periodic compaction.
          */
-        private final Time periodicCompactionTime;
+        private final Duration periodicCompactionTime;
 
         private RocksdbCompactFilterCleanupStrategy(long queryTimeAfterNumEntries) {
             this(queryTimeAfterNumEntries, DEFAULT_PERIODIC_COMPACTION_TIME);
         }
 
         private RocksdbCompactFilterCleanupStrategy(
-                long queryTimeAfterNumEntries, Time periodicCompactionTime) {
+                long queryTimeAfterNumEntries, Duration periodicCompactionTime) {
             this.queryTimeAfterNumEntries = queryTimeAfterNumEntries;
             this.periodicCompactionTime = periodicCompactionTime;
         }
@@ -531,7 +531,7 @@ public class StateTtlConfig implements Serializable {
             return queryTimeAfterNumEntries;
         }
 
-        public Time getPeriodicCompactionTime() {
+        public Duration getPeriodicCompactionTime() {
             return periodicCompactionTime;
         }
     }
