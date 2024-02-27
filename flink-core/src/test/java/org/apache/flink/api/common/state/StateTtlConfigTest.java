@@ -25,6 +25,7 @@ import org.apache.flink.api.common.time.Time;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
@@ -74,7 +75,7 @@ public class StateTtlConfigTest {
         assertThat(incrementalCleanupStrategy.getCleanupSize(), is(5));
         assertThat(incrementalCleanupStrategy.runCleanupForEveryRecord(), is(false));
         assertThat(rocksdbCleanupStrategy.getQueryTimeAfterNumEntries(), is(1000L));
-        assertThat(rocksdbCleanupStrategy.getPeriodicCompactionTime(), is(Time.days(30)));
+        assertThat(rocksdbCleanupStrategy.getPeriodicCompactionTime(), is(Duration.ofDays(30)));
     }
 
     @Test
