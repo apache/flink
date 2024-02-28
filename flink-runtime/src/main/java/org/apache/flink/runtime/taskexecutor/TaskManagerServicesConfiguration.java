@@ -83,6 +83,8 @@ public class TaskManagerServicesConfiguration {
 
     private final boolean localRecoveryEnabled;
 
+    private final boolean localBackupEnabled;
+
     private final RetryingRegistrationConfiguration retryingRegistrationConfiguration;
 
     private Optional<Time> systemResourceMetricsProbingInterval;
@@ -105,6 +107,7 @@ public class TaskManagerServicesConfiguration {
             String[] tmpDirPaths,
             Reference<File[]> localRecoveryStateDirectories,
             boolean localRecoveryEnabled,
+            boolean localBackupEnabled,
             @Nullable QueryableStateConfiguration queryableStateConfig,
             int numberOfSlots,
             int pageSize,
@@ -126,6 +129,7 @@ public class TaskManagerServicesConfiguration {
         this.tmpDirPaths = checkNotNull(tmpDirPaths);
         this.localRecoveryStateDirectories = checkNotNull(localRecoveryStateDirectories);
         this.localRecoveryEnabled = localRecoveryEnabled;
+        this.localBackupEnabled = localBackupEnabled;
         this.queryableStateConfig = queryableStateConfig;
         this.numberOfSlots = numberOfSlots;
 
@@ -186,6 +190,10 @@ public class TaskManagerServicesConfiguration {
 
     boolean isLocalRecoveryEnabled() {
         return localRecoveryEnabled;
+    }
+
+    boolean isLocalBackupEnabled() {
+        return localBackupEnabled;
     }
 
     @Nullable
@@ -284,7 +292,8 @@ public class TaskManagerServicesConfiguration {
             localStateDirs = Reference.owned(createdLocalStateDirs);
         }
 
-        boolean localRecoveryMode = configuration.get(StateRecoveryOptions.LOCAL_RECOVERY);
+        boolean localRecoveryEnabled = configuration.get(StateRecoveryOptions.LOCAL_RECOVERY);
+        boolean localBackupEnabled = configuration.get(CheckpointingOptions.LOCAL_BACKUP_ENABLED);
 
         final QueryableStateConfiguration queryableStateConfig =
                 QueryableStateConfiguration.fromConfiguration(configuration);
@@ -327,7 +336,8 @@ public class TaskManagerServicesConfiguration {
                 localCommunicationOnly,
                 tmpDirs,
                 localStateDirs,
-                localRecoveryMode,
+                localRecoveryEnabled,
+                localBackupEnabled,
                 queryableStateConfig,
                 ConfigurationParserUtils.getSlot(configuration),
                 ConfigurationParserUtils.getPageSize(configuration),

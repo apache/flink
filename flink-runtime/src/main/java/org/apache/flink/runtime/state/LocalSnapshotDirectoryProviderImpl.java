@@ -33,15 +33,15 @@ import java.io.File;
 import java.nio.file.Paths;
 import java.util.Arrays;
 
-/** Implementation of {@link LocalRecoveryDirectoryProvider}. */
-public class LocalRecoveryDirectoryProviderImpl implements LocalRecoveryDirectoryProvider {
+/** Implementation of {@link LocalSnapshotDirectoryProvider}. */
+public class LocalSnapshotDirectoryProviderImpl implements LocalSnapshotDirectoryProvider {
 
     /** Serial version. */
     private static final long serialVersionUID = 1L;
 
     /** Logger for this class. */
     private static final Logger LOG =
-            LoggerFactory.getLogger(LocalRecoveryDirectoryProviderImpl.class);
+            LoggerFactory.getLogger(LocalSnapshotDirectoryProviderImpl.class);
 
     /** All available root directories that this can potentially deliver. */
     @Nonnull private final File[] allocationBaseDirs;
@@ -55,7 +55,7 @@ public class LocalRecoveryDirectoryProviderImpl implements LocalRecoveryDirector
     /** Index of the owning subtask. */
     @Nonnegative private final int subtaskIndex;
 
-    public LocalRecoveryDirectoryProviderImpl(
+    public LocalSnapshotDirectoryProviderImpl(
             File allocationBaseDir,
             @Nonnull JobID jobID,
             @Nonnull JobVertexID jobVertexID,
@@ -63,7 +63,7 @@ public class LocalRecoveryDirectoryProviderImpl implements LocalRecoveryDirector
         this(new File[] {allocationBaseDir}, jobID, jobVertexID, subtaskIndex);
     }
 
-    public LocalRecoveryDirectoryProviderImpl(
+    public LocalSnapshotDirectoryProviderImpl(
             @Nonnull File[] allocationBaseDirs,
             @Nonnull JobID jobID,
             @Nonnull JobVertexID jobVertexID,

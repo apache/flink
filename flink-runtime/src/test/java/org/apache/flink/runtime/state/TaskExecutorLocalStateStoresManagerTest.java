@@ -220,7 +220,7 @@ class TaskExecutorLocalStateStoresManagerTest {
                         new Configuration(),
                         new Configuration());
 
-        LocalRecoveryDirectoryProvider directoryProvider =
+        LocalSnapshotDirectoryProvider directoryProvider =
                 taskLocalStateStore
                         .getLocalRecoveryConfig()
                         .getLocalStateDirectoryProvider()

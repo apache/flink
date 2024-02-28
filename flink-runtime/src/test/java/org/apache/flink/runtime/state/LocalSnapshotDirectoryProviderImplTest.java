@@ -33,8 +33,8 @@ import java.io.IOException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for {@link LocalRecoveryDirectoryProvider}. */
-class LocalRecoveryDirectoryProviderImplTest {
+/** Tests for {@link LocalSnapshotDirectoryProvider}. */
+class LocalSnapshotDirectoryProviderImplTest {
 
     private static final JobID JOB_ID = new JobID();
     private static final JobVertexID JOB_VERTEX_ID = new JobVertexID();
@@ -42,7 +42,7 @@ class LocalRecoveryDirectoryProviderImplTest {
 
     @TempDir private java.nio.file.Path tmpFolder;
 
-    private LocalRecoveryDirectoryProviderImpl directoryProvider;
+    private LocalSnapshotDirectoryProviderImpl directoryProvider;
     private File[] allocBaseFolders;
 
     @BeforeEach
@@ -54,7 +54,7 @@ class LocalRecoveryDirectoryProviderImplTest {
                     TempDirUtils.newFolder(tmpFolder)
                 };
         this.directoryProvider =
-                new LocalRecoveryDirectoryProviderImpl(
+                new LocalSnapshotDirectoryProviderImpl(
                         allocBaseFolders, JOB_ID, JOB_VERTEX_ID, SUBTASK_INDEX);
     }
 
@@ -123,7 +123,7 @@ class LocalRecoveryDirectoryProviderImplTest {
     void testPreconditionsNotNullFiles() {
         assertThatThrownBy(
                         () ->
-                                new LocalRecoveryDirectoryProviderImpl(
+                                new LocalSnapshotDirectoryProviderImpl(
                                         new File[] {null}, JOB_ID, JOB_VERTEX_ID, SUBTASK_INDEX))
                 .isInstanceOf(NullPointerException.class);
     }

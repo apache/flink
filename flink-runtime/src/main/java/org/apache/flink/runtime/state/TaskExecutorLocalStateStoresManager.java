@@ -67,8 +67,11 @@ public class TaskExecutorLocalStateStoresManager {
     private final Map<AllocationID, Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore>>
             taskStateStoresByAllocationID;
 
-    /** The configured mode for local recovery on this task manager. */
+    /** Whether to recover from the local snapshot. */
     private final boolean localRecoveryEnabled;
+
+    /** Whether to do backup checkpoint on local disk. */
+    private final boolean localBackupEnabled;
 
     /** This is the root directory for all local state of this task manager / executor. */
     private final Reference<File[]> localStateRootDirectories;
@@ -86,6 +89,7 @@ public class TaskExecutorLocalStateStoresManager {
 
     public TaskExecutorLocalStateStoresManager(
             boolean localRecoveryEnabled,
+            boolean localBackupEnabled,
             @Nonnull Reference<File[]> localStateRootDirectories,
             @Nonnull Executor discardExecutor)
             throws IOException {
@@ -97,6 +101,7 @@ public class TaskExecutorLocalStateStoresManager {
 
         this.taskStateStoresByAllocationID = new HashMap<>();
         this.localRecoveryEnabled = localRecoveryEnabled;
+        this.localBackupEnabled = localBackupEnabled;
         this.localStateRootDirectories = localStateRootDirectories;
         this.discardExecutor = discardExecutor;
         this.lock = new Object();
@@ -157,17 +162,17 @@ public class TaskExecutorLocalStateStoresManager {
 
             if (taskLocalStateStore == null) {
 
-                LocalRecoveryDirectoryProviderImpl directoryProvider = null;
-                if (localRecoveryEnabled) {
+                LocalSnapshotDirectoryProviderImpl directoryProvider = null;
+                if (localRecoveryEnabled || localBackupEnabled) {
                     // create the allocation base dirs, one inside each root dir.
                     File[] allocationBaseDirectories = allocationBaseDirectories(allocationID);
                     directoryProvider =
-                            new LocalRecoveryDirectoryProviderImpl(
+                            new LocalSnapshotDirectoryProviderImpl(
                                     allocationBaseDirectories, jobId, jobVertexID, subtaskIndex);
                 }
-
                 LocalRecoveryConfig localRecoveryConfig =
-                        new LocalRecoveryConfig(directoryProvider);
+                        new LocalRecoveryConfig(
+                                localRecoveryEnabled, localBackupEnabled, directoryProvider);
 
                 boolean changelogEnabled =
                         jobConfiguration
@@ -176,7 +181,7 @@ public class TaskExecutorLocalStateStoresManager {
                                         clusterConfiguration.get(
                                                 StateChangelogOptions.ENABLE_STATE_CHANGE_LOG));
 
-                if (localRecoveryConfig.isLocalRecoveryEnabled() && changelogEnabled) {
+                if (localRecoveryConfig.isLocalRecoveryOrLocalBackupEnabled() && changelogEnabled) {
                     taskLocalStateStore =
                             new ChangelogTaskLocalStateStore(
                                     jobId,
@@ -185,7 +190,7 @@ public class TaskExecutorLocalStateStoresManager {
                                     subtaskIndex,
                                     localRecoveryConfig,
                                     discardExecutor);
-                } else if (localRecoveryConfig.isLocalRecoveryEnabled()) {
+                } else if (localRecoveryConfig.isLocalRecoveryOrLocalBackupEnabled()) {
                     taskLocalStateStore =
                             new TaskLocalStateStoreImpl(
                                     jobId,

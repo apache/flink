@@ -214,10 +214,11 @@ class TaskStateManagerImplTest {
                     TempDirUtils.newFolder(tmpFolder)
                 };
 
-        LocalRecoveryDirectoryProviderImpl directoryProvider =
-                new LocalRecoveryDirectoryProviderImpl(allocBaseDirs, jobID, jobVertexID, 0);
+        LocalSnapshotDirectoryProviderImpl directoryProvider =
+                new LocalSnapshotDirectoryProviderImpl(allocBaseDirs, jobID, jobVertexID, 0);
 
-        LocalRecoveryConfig localRecoveryConfig = new LocalRecoveryConfig(directoryProvider);
+        LocalRecoveryConfig localRecoveryConfig =
+                LocalRecoveryConfig.backupAndRecoveryEnabled(directoryProvider);
 
         TaskLocalStateStore taskLocalStateStore =
                 new TaskLocalStateStoreImpl(

@@ -34,7 +34,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
-import org.apache.flink.runtime.state.LocalRecoveryDirectoryProvider;
+import org.apache.flink.runtime.state.LocalSnapshotDirectoryProvider;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.SnapshotDirectory;
 import org.apache.flink.runtime.state.SnapshotResources;
@@ -184,9 +184,9 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
     protected SnapshotDirectory prepareLocalSnapshotDirectory(long checkpointId)
             throws IOException {
 
-        if (localRecoveryConfig.isLocalRecoveryEnabled()) {
+        if (localRecoveryConfig.isLocalBackupEnabled()) {
             // create a "permanent" snapshot directory for local recovery.
-            LocalRecoveryDirectoryProvider directoryProvider =
+            LocalSnapshotDirectoryProvider directoryProvider =
                     localRecoveryConfig
                             .getLocalStateDirectoryProvider()
                             .orElseThrow(LocalRecoveryConfig.localRecoveryNotEnabled());
@@ -260,7 +260,7 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
             throws Exception {
 
         CheckpointStreamWithResultProvider streamWithResultProvider =
-                localRecoveryConfig.isLocalRecoveryEnabled()
+                localRecoveryConfig.isLocalBackupEnabled()
                         ? CheckpointStreamWithResultProvider.createDuplicatingStream(
                                 checkpointId,
                                 CheckpointedStateScope.EXCLUSIVE,

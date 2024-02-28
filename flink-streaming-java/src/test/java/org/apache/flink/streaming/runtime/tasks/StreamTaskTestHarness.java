@@ -46,7 +46,7 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
-import org.apache.flink.runtime.state.LocalRecoveryDirectoryProviderImpl;
+import org.apache.flink.runtime.state.LocalSnapshotDirectoryProviderImpl;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
@@ -153,8 +153,8 @@ public class StreamTaskTestHarness<OUT> {
         this(
                 taskFactory,
                 outputType,
-                new LocalRecoveryConfig(
-                        new LocalRecoveryDirectoryProviderImpl(
+                LocalRecoveryConfig.backupAndRecoveryEnabled(
+                        new LocalSnapshotDirectoryProviderImpl(
                                 localRootDir, new JobID(), new JobVertexID(), 0)));
     }
 

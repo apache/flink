@@ -143,7 +143,7 @@ public class FsStateChangelogStorage extends FsStateChangelogStorageForRecovery
         this.changelogRegistry = changelogRegistry;
         this.uploader = uploader;
         this.localRecoveryConfig = localRecoveryConfig;
-        if (localRecoveryConfig.isLocalRecoveryEnabled()) {
+        if (localRecoveryConfig.isLocalBackupEnabled()) {
             this.localChangelogRegistry =
                     new LocalChangelogRegistryImpl(Executors.newSingleThreadExecutor());
         }

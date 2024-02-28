@@ -187,7 +187,7 @@ public class StateBackendBenchmarkUtils {
                         2,
                         new KeyGroupRange(0, 1),
                         executionConfig,
-                        new LocalRecoveryConfig(null),
+                        LocalRecoveryConfig.BACKUP_AND_RECOVERY_DISABLED,
                         RocksDBPriorityQueueConfig.buildWithPriorityQueueType(
                                 EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB),
                         ttlTimeProvider,
@@ -225,7 +225,7 @@ public class StateBackendBenchmarkUtils {
                         LatencyTrackingStateConfig.disabled(),
                         Collections.emptyList(),
                         AbstractStateBackend.getCompressionDecorator(executionConfig),
-                        new LocalRecoveryConfig(null),
+                        LocalRecoveryConfig.BACKUP_AND_RECOVERY_DISABLED,
                         priorityQueueSetFactory,
                         false,
                         new CloseableRegistry());

@@ -79,11 +79,12 @@ class TaskLocalStateStoreImplTest {
             AllocationID allocationID,
             JobVertexID jobVertexID,
             int subtaskIdx) {
-        LocalRecoveryDirectoryProviderImpl directoryProvider =
-                new LocalRecoveryDirectoryProviderImpl(
+        LocalSnapshotDirectoryProviderImpl directoryProvider =
+                new LocalSnapshotDirectoryProviderImpl(
                         allocationBaseDirs, jobID, jobVertexID, subtaskIdx);
 
-        LocalRecoveryConfig localRecoveryConfig = new LocalRecoveryConfig(directoryProvider);
+        LocalRecoveryConfig localRecoveryConfig =
+                LocalRecoveryConfig.backupAndRecoveryEnabled(directoryProvider);
         return new TaskLocalStateStoreImpl(
                 jobID,
                 allocationID,
