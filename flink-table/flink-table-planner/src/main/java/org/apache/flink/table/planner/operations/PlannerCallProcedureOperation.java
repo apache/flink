@@ -138,8 +138,9 @@ public class PlannerCallProcedureOperation implements CallProcedureOperation {
     }
 
     private ProcedureContext getProcedureContext(TableConfig tableConfig) {
-        Configuration configuration = tableConfig.getConfiguration();
-        configuration.addAll((Configuration) tableConfig.getRootConfiguration());
+        Configuration configuration =
+                new Configuration((Configuration) tableConfig.getRootConfiguration());
+        configuration.addAll(tableConfig.getConfiguration());
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         return new DefaultProcedureContext(env);

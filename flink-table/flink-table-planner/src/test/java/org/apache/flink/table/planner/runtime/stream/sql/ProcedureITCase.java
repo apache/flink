@@ -216,11 +216,14 @@ class ProcedureITCase extends StreamingTestBase {
 
     @Test
     void testEnvironmentConf() throws DatabaseAlreadyExistException {
+        // root conf should work
         Configuration configuration = new Configuration();
         configuration.setString("key1", "value1");
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+        tableEnv.getConfig().set("key2", "value2");
+
         TestProcedureCatalogFactory.CatalogWithBuiltInProcedure procedureCatalog =
                 new TestProcedureCatalogFactory.CatalogWithBuiltInProcedure("procedure_catalog");
         procedureCatalog.createDatabase(
@@ -230,6 +233,13 @@ class ProcedureITCase extends StreamingTestBase {
         TableResult tableResult = tableEnv.executeSql("call `system`.get_env_conf()");
         List<Row> environmentConf = CollectionUtil.iteratorToList(tableResult.collect());
         assertThat(environmentConf.contains(Row.of("key1", "value1"))).isTrue();
+        assertThat(environmentConf.contains(Row.of("key2", "value2"))).isTrue();
+
+        // table conf should overwrite root conf
+        tableEnv.getConfig().set("key1", "value11");
+        tableResult = tableEnv.executeSql("call `system`.get_env_conf()");
+        environmentConf = CollectionUtil.iteratorToList(tableResult.collect());
+        assertThat(environmentConf.contains(Row.of("key1", "value11"))).isTrue();
     }
 
     private void verifyTableResult(
