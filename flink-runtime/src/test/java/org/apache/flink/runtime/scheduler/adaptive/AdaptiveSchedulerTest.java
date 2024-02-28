@@ -1263,14 +1263,6 @@ public class AdaptiveSchedulerTest {
         startJobWithSlotsMatchingParallelism(
                 scheduler, declarativeSlotPool, taskManagerGateway, availableSlots);
 
-        // at this point we'd ideally check that the job is stuck in WaitingForResources, but we
-        // can't differentiate between waiting due to the minimum requirements not being fulfilled
-        // and the resource timeout not being elapsed
-        // We just continue here, as the following tests validate that the lower bound can prevent
-        // a job from running:
-        // - #testInitialRequirementLowerBoundBeyondAvailableSlotsCausesImmediateFailure()
-        // - #testRequirementLowerBoundIncreaseBeyondCurrentParallelismAttemptsImmediateRescale()
-
         // unlock job by decreasing the parallelism
         JobResourceRequirements newJobResourceRequirements =
                 createRequirementsWithLowerAndUpperParallelism(availableSlots, PARALLELISM);
