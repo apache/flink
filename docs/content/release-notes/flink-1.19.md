@@ -81,7 +81,7 @@ checkpoint is triggered if the job is configured to take incremental ones period
 [FLINK-30613](https://issues.apache.org/jira/browse/FLINK-30613)
 In Flink 1.19, the old method of resolving schema compatibility has been deprecated and the new one
 is introduced. See [FLIP-263](https://cwiki.apache.org/confluence/display/FLINK/FLIP-263%3A+Improve+resolving+schema+compatibility?src=contextnavpagetreemode) for more details.
-Please migrate to the new method following [link](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/datastream/fault-tolerance/serialization/custom_serialization/#migrating-from-deprecated-typeserializersnapshotresolveschemacompatibilityt)
+Please migrate to the new method following [link](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/datastream/fault-tolerance/serialization/custom_serialization/#migrating-from-deprecated-typeserializersnapshotresolveschemacompatibilityt).
 
 #### Deprecate old serialization config methods and options
 
@@ -122,7 +122,7 @@ If users want to use the legacy configuration file `flink-conf.yaml`, users just
 file into the `conf/` directory. Once the legacy configuration file `flink-conf.yaml` is detected,
 Flink will prioritize using it as the configuration file.And in the upcoming Flink 2.0, the
 `flink-conf.yaml` configuration file will no longer work.
-More details could be found at Flink website ([https://nightlies.apache.org/flink/flink-docs-master/docs/deployment/config/#flink-configuration-file](https://nightlies.apache.org/flink/flink-docs-master/docs/deployment/config/#flink-configuration-file))
+More details could be found at [flink-configuration-file](https://nightlies.apache.org/flink/flink-docs-master/docs/deployment/config/#flink-configuration-file).
 
 #### Add config options for administrator JVM options
 
@@ -149,7 +149,7 @@ This feature is a significant improvement over previous versions, which only ass
 parallelism to source vertices.
 Source connectors need to implement the inference interface to enable dynamic parallelism inference.
 Currently, the FileSource connector has already been developed with this functionality in place.
-Additionally, the configuration `execution.batch.adaptive.auto-parallelism.default-source-parallelism`'
+Additionally, the configuration `execution.batch.adaptive.auto-parallelism.default-source-parallelism`
 will be used as the upper bound of source parallelism inference. And now it will not default to 1.
 Instead, if it is not set, the upper bound of allowed parallelism set via
 `execution.batch.adaptive.auto-parallelism.max-parallelism` will be used. If that configuration is
@@ -209,7 +209,7 @@ information to distinguish multiple TaskManagers on the same host.
 ##### [FLINK-33712](https://issues.apache.org/jira/browse/FLINK-33712)
 
 `RuntimeContext#getExecutionConfig` is now being deprecated in Flink 1.19. And this method is planned
-to be removed in Flink 2.0. More details can be found at[https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=278465937](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=278465937).
+to be removed in Flink 2.0. More details can be found at [FLIP-391](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=278465937).
 
 #### Deprecate RichFunction#open(Configuration parameters)
 
@@ -243,7 +243,7 @@ The following interfaces are deprecated: `TwoPhaseCommittingSink`, `StatefulSink
 The following new interfaces have been introduced: `CommitterInitContext`, `CommittingSinkWriter`, `WriterInitContext`, `StatefulSinkWriter`.
 The following interface method's parameter has been changed: `Sink#createWriter`
 The original interfaces will remain available during the 1.19 release line, but they will be removed
-in consecutive releases. For the changes required when migrating, please consult the Migration Plan detailed in the FLIP
+in consecutive releases. For the changes required when migrating, please consult the Migration Plan detailed in the FLIP.
 
 
 #### Deprecate configuration getters/setters that return/set complex Java objects
@@ -265,7 +265,7 @@ More details can be found at [FLIP-381](https://cwiki.apache.org/confluence/page
 
 Scan table sources can now be set a custom parallelism for performance tuning via the `scan.parallelism`
 option. Currently, only the DataGen connector has been adapted to support that, Kafka connector is
-on the way. Check[https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sourcessinks/#scan-table-source](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sourcessinks/#scan-table-source) on how to adapt your custom connectors to it.
+on the way. Please check [https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sourcessinks/#scan-table-source](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sourcessinks/#scan-table-source) on how to adapt your custom connectors to it.
 
 #### Adding a separate configuration for specifying Java Options of the SQL Gateway
 
@@ -290,7 +290,7 @@ dynamically adjust the TTL based on your operational requirements.
 ##### [FLINK-34219](https://issues.apache.org/jira/browse/FLINK-34219)
 
 Support mini-batch regular join to reduce intermediate result and resolve record amplification in
-cascading join scenarios. More details can be found at[https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/tuning/#minibatch-regular-joins](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/dev/table/tuning/#minibatch-regular-joins).
+cascading join scenarios. More details can be found at [minibatch-regular-joins](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/dev/table/tuning/#minibatch-regular-joins).
 
 #### Support named parameters for functions and procedures
 
@@ -311,7 +311,7 @@ nodes such as a CDC connector.
 
 ##### [FLINK-24024](https://issues.apache.org/jira/browse/FLINK-24024)
 
-Users can use SESSION Window TVF in streaming mode. More details can be found at [https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sql/queries/window-tvf/#session](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sql/queries/window-tvf/#session).
+Users can use SESSION Window TVF in streaming mode. More details can be found at [session window-tvf](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sql/queries/window-tvf/#session).
 
 ### Connectors Add committer metrics to track the status of committables
 
@@ -321,7 +321,7 @@ The `TwoPhaseCommittingSink#createCommitter` method parameterization has been ch
 `CommitterInitContext` parameter has been added.
 The original method will remain available during the 1.19 release line, but they will be removed in
 consecutive releases.
-When migrating please also consider changes introduced by [FLINK-33973](https://issues.apache.org/jira/browse/FLINK-33973) and [FLIP-372]([https://cwiki.apache.org/confluence/display/FLINK/FLIP-372%3A+Enhance+and+synchronize+Sink+API+to+match+the+Source+API)
+When migrating please also consider changes introduced by [FLINK-33973](https://issues.apache.org/jira/browse/FLINK-33973) and [FLIP-372]([https://cwiki.apache.org/confluence/display/FLINK/FLIP-372%3A+Enhance+and+synchronize+Sink+API+to+match+the+Source+API).
 
 ### FileSystems
 
