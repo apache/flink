@@ -1216,6 +1216,13 @@ public class AdaptiveSchedulerTest {
 
         final AdaptiveScheduler scheduler =
                 prepareSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool)
+                        .withConfigurationOverride(
+                                conf -> {
+                                    conf.set(
+                                            JobManagerOptions.RESOURCE_WAIT_TIMEOUT,
+                                            Duration.ofMillis(1));
+                                    return conf;
+                                })
                         .setJobResourceRequirements(initialJobResourceRequirements)
                         .build();
 
@@ -1256,14 +1263,6 @@ public class AdaptiveSchedulerTest {
         startJobWithSlotsMatchingParallelism(
                 scheduler, declarativeSlotPool, taskManagerGateway, availableSlots);
 
-        // at this point we'd ideally check that the job is stuck in WaitingForResources, but we
-        // can't differentiate between waiting due to the minimum requirements not being fulfilled
-        // and the resource timeout not being elapsed
-        // We just continue here, as the following tests validate that the lower bound can prevent
-        // a job from running:
-        // - #testInitialRequirementLowerBoundBeyondAvailableSlotsCausesImmediateFailure()
-        // - #testRequirementLowerBoundIncreaseBeyondCurrentParallelismAttemptsImmediateRescale()
-
         // unlock job by decreasing the parallelism
         JobResourceRequirements newJobResourceRequirements =
                 createRequirementsWithLowerAndUpperParallelism(availableSlots, PARALLELISM);
@@ -1275,7 +1274,8 @@ public class AdaptiveSchedulerTest {
 
     private static Configuration createConfigurationWithNoTimeouts() {
         return new Configuration()
-                .set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L))
+                .set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(-1L))
+                .set(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, Duration.ofMillis(1L))
                 .set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, Duration.ofMillis(1L));
     }
 
