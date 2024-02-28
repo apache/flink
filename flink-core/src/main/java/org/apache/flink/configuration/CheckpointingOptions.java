@@ -76,6 +76,39 @@ public class CheckpointingOptions {
      * CheckpointStorageFactory#createFromConfig(ReadableConfig, ClassLoader)} method is called.
      *
      * <p>Recognized shortcut names are 'jobmanager' and 'filesystem'.
+     *
+     * <p>{@link #CHECKPOINT_STORAGE} and {@link #CHECKPOINTS_DIRECTORY} are usually combined to
+     * configure the checkpoint location. The behaviors of different combinations are as follows:
+     *
+     * <table>
+     *         <tr>
+     *             <th><pre>CHECKPOINT_STORAGE
+     * \CHECKPOINTS_DIRECTORY</pre>
+     *             </th>
+     *             <th><pre>Empty                    </pre></th>
+     *             <th>A valid path</th>
+     *         </tr>
+     *         <tr>
+     *             <td><b>Empty</b></td>
+     *             <td>JM w/o meta persistence</td>
+     *             <td>FS</td>
+     *         </tr>
+     *         <tr>
+     *             <td><b>'jobmanager'</b></td>
+     *             <td>JM w/o meta persistence</td>
+     *             <td>JM with meta persistence</td>
+     *         </tr>
+     *         <tr>
+     *             <td><b>'filesystem'</b></td>
+     *             <td>Illegal behavior</td>
+     *             <td>FS</td>
+     *         </tr>
+     *         <tr>
+     *             <td><b>A class name</b></td>
+     *             <td>Customize checkpoint store</td>
+     *             <td>Customize checkpoint store</td>
+     *         </tr>
+     *     </table>
      */
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 2)
     public static final ConfigOption<String> CHECKPOINT_STORAGE =
@@ -215,7 +248,8 @@ public class CheckpointingOptions {
     /**
      * The default directory used for storing the data files and meta data of checkpoints in a Flink
      * supported filesystem. The storage path must be accessible from all participating
-     * processes/nodes(i.e. all TaskManagers and JobManagers).
+     * processes/nodes(i.e. all TaskManagers and JobManagers). If {@link #CHECKPOINT_STORAGE} is set
+     * to 'jobmanager', only the meta data of checkpoints will be stored in this directory.
      */
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 2)
     public static final ConfigOption<String> CHECKPOINTS_DIRECTORY =
@@ -226,7 +260,9 @@ public class CheckpointingOptions {
                     .withDescription(
                             "The default directory used for storing the data files and meta data of checkpoints "
                                     + "in a Flink supported filesystem. The storage path must be accessible from all participating processes/nodes"
-                                    + "(i.e. all TaskManagers and JobManagers).");
+                                    + "(i.e. all TaskManagers and JobManagers). If the '"
+                                    + CHECKPOINT_STORAGE.key()
+                                    + "' is set to 'jobmanager', only the meta data of checkpoints will be stored in this directory.");
 
     /**
      * Whether to create sub-directories named by job id to store the data files and meta data of
