@@ -59,7 +59,7 @@ import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.runtime.utils.{TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.sinks.CollectRowTableSink
 import org.apache.flink.table.planner.utils.PlanKind.PlanKind
-import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
+import org.apache.flink.table.planner.utils.TableTestUtil.{replaceJobId, replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
 import org.apache.flink.table.resource.ResourceManager
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.sinks._
@@ -1093,6 +1093,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
         case ExplainDetail.ESTIMATED_COST => replaceEstimatedCost(result)
         case ExplainDetail.JSON_EXECUTION_PLAN =>
           replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(result)))
+        case ExplainDetail.JSON_JOB_PLAN =>
+          replaceJobId(result)
         case _ => result
       }
       replaced
@@ -1822,6 +1824,11 @@ object TableTestUtil {
    */
   def replaceStreamNodeId(s: String): String = {
     s.replaceAll("\"id\"\\s*:\\s*\\d+", "\"id\" : ").trim
+  }
+
+  /** JobJson {jid} is ignored. */
+  def replaceJobId(s: String): String = {
+    s.replaceAll("\"jid\"\\s*:\\s*\"[\\w.-]*\"", "\"jid\":\"\"").trim
   }
 
   /** ExecNode {id} is ignored, because id keeps incrementing in test class. */

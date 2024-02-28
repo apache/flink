@@ -1,0 +1,25 @@
+== Abstract Syntax Tree ==
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
++- LogicalProject(last=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first, id, score, last)]]])
+
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
++- LogicalProject(first=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first, id, score, last)]]])
+
+== Optimized Physical Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: last)]]], fields=[last])
+
+LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first)]]], fields=[first])
+
+== Optimized Execution Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: last)]]], fields=[last])
+
+LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first)]]], fields=[first])
+
+== Job Execution Plan ==
+{"jid":"","name":"Flink Exec Table Job","type":"STREAMING","nodes":[{"id":"51397532e2d9c7a21097a30d590b3114","parallelism":1,"operator":"","operator_strategy":"","description":"CsvTableSource(read fields: last)<br/>+- [1]:SourceConversion(table=[default_catalog.default_database.MyTable, source: [CsvTableSource(read fields: last)]], fields=[last])<br/>   +- [2]:SinkConversion To Row<br/>      +- Map<br/>         +- Sink: CsvTableSink(first)<br/>","inputs":[{"num":0,"id":"bc764cd8ddf7a0cff126f51c16239658","ship_strategy":"FORWARD","exchange":"pipelined_bounded"}],"optimizer_properties":{}},{"id":"bc764cd8ddf7a0cff126f51c16239658","parallelism":1,"operator":"","operator_strategy":"","description":"Source: Custom File source<br/>","optimizer_properties":{}},{"id":"8b9f3e513101bcc5d198aee685286d98","parallelism":1,"operator":"","operator_strategy":"","description":"CsvTableSource(read fields: first)<br/>+- [3]:SourceConversion(table=[default_catalog.default_database.MyTable, source: [CsvTableSource(read fields: first)]], fields=[first])<br/>   +- [4]:SinkConversion To Row<br/>      +- Map<br/>         +- Sink: CsvTableSink(first)<br/>","inputs":[{"num":0,"id":"feca28aff5a3958840bee985ee7de4d3","ship_strategy":"FORWARD","exchange":"pipelined_bounded"}],"optimizer_properties":{}},{"id":"feca28aff5a3958840bee985ee7de4d3","parallelism":1,"operator":"","operator_strategy":"","description":"Source: Custom File source<br/>","optimizer_properties":{}}]}

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.delegation
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
+import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader
 import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api._
@@ -154,6 +155,13 @@ class StreamPlanner(
       sb.append(streamGraph.getStreamingPlanAsJSON)
     }
 
+    if (extraDetails.contains(ExplainDetail.JSON_JOB_PLAN)) {
+      sb.append(System.lineSeparator)
+      sb.append("== Job Execution Plan ==")
+      sb.append(System.lineSeparator)
+      sb.append(JsonPlanGenerator.generatePlan(streamGraph.getJobGraph))
+    }
+
     sb.toString()
   }
 
@@ -243,6 +251,13 @@ class StreamPlanner(
       sb.append("== Physical Execution Plan ==")
       sb.append(System.lineSeparator)
       sb.append(streamGraph.getStreamingPlanAsJSON)
+    }
+
+    if (extraDetails.contains(ExplainDetail.JSON_JOB_PLAN)) {
+      sb.append(System.lineSeparator)
+      sb.append("== Job Execution Plan ==")
+      sb.append(System.lineSeparator)
+      sb.append(JsonPlanGenerator.generatePlan(streamGraph.getJobGraph))
     }
 
     sb.toString()

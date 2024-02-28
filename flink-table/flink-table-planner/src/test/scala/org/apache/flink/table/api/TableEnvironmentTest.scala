@@ -312,6 +312,39 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testExecuteStatementSetExecutionJobJsonExplain(): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    execEnv.setParallelism(1)
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
+
+    TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
+
+    TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv,
+      new TableSchema(Array("first"), Array(STRING)),
+      "MySink",
+      -1)
+
+    val expected =
+      TableTestUtil.readFromResource("/explain/testStatementSetJobJsonExplain.out")
+
+    val actual = tEnv.explainSql(
+      "execute statement set begin " +
+        "insert into MySink select last from MyTable; " +
+        "insert into MySink select first from MyTable; end",
+      ExplainDetail.JSON_JOB_PLAN
+    )
+
+    assertEquals(
+      TableTestUtil.replaceJobId(
+        TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(expected))),
+      TableTestUtil.replaceJobId(
+        TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))
+    )
+  }
+
+  @Test
   def testAlterTableResetEmptyOptionKey(): Unit = {
     val statement =
       """
