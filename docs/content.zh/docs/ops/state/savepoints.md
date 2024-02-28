@@ -180,7 +180,15 @@ $ bin/flink run -s :savepointPath [:runArgs]
 
 #### 跳过无法映射的状态恢复
 
-默认情况下，resume 操作将尝试将 Savepoint 的所有状态映射回你要还原的程序。 如果删除了运算符，则可以通过 `--allowNonRestoredState`（short：`-n`）选项跳过无法映射到新程序的状态：
+默认情况下，resume 操作将尝试将 Savepoint 的所有状态映射回你要还原的程序。 如果删除了运算符，则可以通过 `--allowNonRestoredState`（short：`-n`）选项跳过无法映射到新程序的状态。
+
+{{< hint warning  >}}
+错误使用这个功能可能会导致应用程序出现严重的正确性问题。其中最重要的是确认剩余的状态是否能够准确地映射到相应的运算符上。
+
+需要注意在默认情况下，运算符的 UID 是根据拓扑顺序重新分配的，这会导致状态与运算符无法正确关联，最终造成状态未能按照预期正确恢复。
+
+为了防止这种不匹配，建议在 DataStream 作业中显式地为所有操作符[指定 UID ]({{< ref "docs/ops/production_ready" >}}/#set-uuids-for-all-operators)。
+{{< /hint >}}
 
 #### Claim 模式
 
