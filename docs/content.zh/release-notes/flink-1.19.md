@@ -78,7 +78,8 @@ checkpoint is triggered if the job is configured to take incremental ones period
 
 #### Migrate TypeserializeSnapshotr#resolveSchemaCompatibility
 
-[FLINK-30613](https://issues.apache.org/jira/browse/FLINK-30613)
+##### [FLINK-30613](https://issues.apache.org/jira/browse/FLINK-30613)
+
 In Flink 1.19, the old method of resolving schema compatibility has been deprecated and the new one
 is introduced. See [FLIP-263](https://cwiki.apache.org/confluence/display/FLINK/FLIP-263%3A+Improve+resolving+schema+compatibility?src=contextnavpagetreemode) for more details.
 Please migrate to the new method following [link](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/datastream/fault-tolerance/serialization/custom_serialization/#migrating-from-deprecated-typeserializersnapshotresolveschemacompatibilityt).
