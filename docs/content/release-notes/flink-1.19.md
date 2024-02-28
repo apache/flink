@@ -265,7 +265,7 @@ More details can be found at [FLIP-381](https://cwiki.apache.org/confluence/page
 
 Scan table sources can now be set a custom parallelism for performance tuning via the `scan.parallelism`
 option. Currently, only the DataGen connector has been adapted to support that, Kafka connector is
-on the way. Please check [https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sourcessinks/#scan-table-source](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sourcessinks/#scan-table-source) on how to adapt your custom connectors to it.
+on the way. Please check [scan-table-source](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sourcessinks/#scan-table-source) on how to adapt your custom connectors to it.
 
 #### Adding a separate configuration for specifying Java Options of the SQL Gateway
 
@@ -313,7 +313,9 @@ nodes such as a CDC connector.
 
 Users can use SESSION Window TVF in streaming mode. More details can be found at [session window-tvf](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sql/queries/window-tvf/#session).
 
-### Connectors Add committer metrics to track the status of committables
+### Connectors
+
+#### Add committer metrics to track the status of committables
 
 ##### [FLINK-25857](https://issues.apache.org/jira/browse/FLINK-25857)
 
