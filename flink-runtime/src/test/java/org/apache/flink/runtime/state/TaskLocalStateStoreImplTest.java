@@ -196,6 +196,28 @@ class TaskLocalStateStoreImplTest {
     }
 
     @Test
+    void retrieveNullIfDisableLocalRecovery() {
+        LocalSnapshotDirectoryProvider directoryProvider =
+                new LocalSnapshotDirectoryProviderImpl(
+                        allocationBaseDirs, jobID, jobVertexID, subtaskIdx);
+        LocalRecoveryConfig localRecoveryConfig =
+                new LocalRecoveryConfig(false, true, directoryProvider);
+        TaskLocalStateStoreImpl localStateStore =
+                new TaskLocalStateStoreImpl(
+                        jobID,
+                        allocationID,
+                        jobVertexID,
+                        subtaskIdx,
+                        localRecoveryConfig,
+                        Executors.directExecutor());
+
+        final TaskStateSnapshot taskStateSnapshot = createTaskStateSnapshot();
+        final long checkpointId = 1L;
+        localStateStore.storeLocalState(checkpointId, taskStateSnapshot);
+        assertThat(localStateStore.retrieveLocalState(checkpointId)).isNull();
+    }
+
+    @Test
     void retrievePersistedLocalStateFromDisc() {
         final TaskStateSnapshot taskStateSnapshot = createTaskStateSnapshot();
         final long checkpointId = 0L;

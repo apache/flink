@@ -275,6 +275,7 @@ class TaskExecutorTest {
         final TaskExecutorLocalStateStoresManager localStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
                         false,
+                        false,
                         Reference.borrowed(ioManager.getSpillingDirectories()),
                         Executors.directExecutor());
 
@@ -2740,6 +2741,7 @@ class TaskExecutorTest {
     private TaskExecutorLocalStateStoresManager createTaskExecutorLocalStateStoresManager()
             throws IOException {
         return new TaskExecutorLocalStateStoresManager(
+                false,
                 false,
                 Reference.owned(new File[] {TempDirUtils.newFolder(tempDir)}),
                 Executors.directExecutor());

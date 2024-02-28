@@ -152,7 +152,7 @@ class TaskExecutorLocalStateStoresManagerTest {
     }
 
     @Test
-    void testLocalStateNoCreateDirWhenDisabledLocalRecovery() throws Exception {
+    void testLocalStateNoCreateDirWhenDisabledLocalBackupAndRecovery() throws Exception {
         JobID jobID = new JobID();
         JobVertexID jobVertexID = new JobVertexID();
         AllocationID allocationID = new AllocationID();
@@ -165,9 +165,11 @@ class TaskExecutorLocalStateStoresManagerTest {
         };
 
         boolean localRecoveryEnabled = false;
+        boolean localBackupEnabled = false;
         TaskExecutorLocalStateStoresManager storesManager =
                 new TaskExecutorLocalStateStoresManager(
                         localRecoveryEnabled,
+                        localBackupEnabled,
                         Reference.owned(rootDirs),
                         Executors.directExecutor());
 
@@ -196,6 +198,21 @@ class TaskExecutorLocalStateStoresManagerTest {
      */
     @Test
     void testSubtaskStateStoreDirectoryCreateAndDelete() throws Exception {
+        testSubtaskStateStoreDirectoryCreateAndDelete(true, true);
+    }
+
+    @Test
+    void testStateStoreDirectoryCreateAndDeleteWithLocalRecoveryEnabled() throws Exception {
+        testSubtaskStateStoreDirectoryCreateAndDelete(true, false);
+    }
+
+    @Test
+    void testStateStoreDirectoryCreateAndDeleteWithLocalBackupEnabled() throws Exception {
+        testSubtaskStateStoreDirectoryCreateAndDelete(false, true);
+    }
+
+    private void testSubtaskStateStoreDirectoryCreateAndDelete(
+            boolean localRecoveryEnabled, boolean localBackupEnabled) throws Exception {
 
         JobID jobID = new JobID();
         JobVertexID jobVertexID = new JobVertexID();
@@ -209,7 +226,10 @@ class TaskExecutorLocalStateStoresManagerTest {
         };
         TaskExecutorLocalStateStoresManager storesManager =
                 new TaskExecutorLocalStateStoresManager(
-                        true, Reference.owned(rootDirs), Executors.directExecutor());
+                        localRecoveryEnabled,
+                        localBackupEnabled,
+                        Reference.owned(rootDirs),
+                        Executors.directExecutor());
 
         TaskLocalStateStore taskLocalStateStore =
                 storesManager.localStateStoreForSubtask(
@@ -305,7 +325,10 @@ class TaskExecutorLocalStateStoresManagerTest {
 
         final TaskExecutorLocalStateStoresManager taskExecutorLocalStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
-                        true, Reference.owned(localStateDirectories), Executors.directExecutor());
+                        true,
+                        true,
+                        Reference.owned(localStateDirectories),
+                        Executors.directExecutor());
 
         for (File localStateDirectory : localStateDirectories) {
             assertThat(localStateDirectory).exists();
@@ -328,6 +351,7 @@ class TaskExecutorLocalStateStoresManagerTest {
         final TaskExecutorLocalStateStoresManager taskExecutorLocalStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
                         true,
+                        true,
                         Reference.borrowed(localStateDirectories),
                         Executors.directExecutor());
 
@@ -348,6 +372,7 @@ class TaskExecutorLocalStateStoresManagerTest {
         final File localStateStore = TempDirUtils.newFolder(temporaryFolder.toPath());
         final TaskExecutorLocalStateStoresManager taskExecutorLocalStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
+                        true,
                         true,
                         Reference.owned(new File[] {localStateStore}),
                         Executors.directExecutor());

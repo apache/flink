@@ -427,6 +427,7 @@ class TaskExecutorPartitionLifecycleTest {
         final TaskExecutorLocalStateStoresManager localStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
                         false,
+                        false,
                         Reference.owned(new File[] {TempDirUtils.newFolder(tempDir)}),
                         Executors.directExecutor());
 
