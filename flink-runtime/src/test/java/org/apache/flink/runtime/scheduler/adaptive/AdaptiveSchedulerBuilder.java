@@ -53,6 +53,7 @@ import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Function;
 
 /** Builder for {@link AdaptiveScheduler}. */
 public class AdaptiveSchedulerBuilder {
@@ -115,6 +116,12 @@ public class AdaptiveSchedulerBuilder {
     public AdaptiveSchedulerBuilder setJobMasterConfiguration(
             final Configuration jobMasterConfiguration) {
         this.jobMasterConfiguration = jobMasterConfiguration;
+        return this;
+    }
+
+    public AdaptiveSchedulerBuilder withConfigurationOverride(
+            Function<Configuration, Configuration> modifyFn) {
+        this.jobMasterConfiguration = modifyFn.apply(jobMasterConfiguration);
         return this;
     }
 

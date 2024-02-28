@@ -1218,9 +1218,12 @@ public class AdaptiveSchedulerTest {
         JobResourceRequirements initialJobResourceRequirements =
                 createRequirementsWithEqualLowerAndUpperParallelism(PARALLELISM);
 
+        final Configuration config = getConfigurationWithNoTimeouts();
+        // enable the ResourceWaitTimeout to trigger the immediate failure
+        config.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1));
         final AdaptiveScheduler scheduler =
                 prepareScheduler(jobGraph, declarativeSlotPool)
-                        .setJobMasterConfiguration(getConfigurationWithNoResourceWaitTimeout())
+                        .setJobMasterConfiguration(config)
                         .setJobResourceRequirements(initialJobResourceRequirements)
                         .build();
 
@@ -1252,6 +1255,7 @@ public class AdaptiveSchedulerTest {
 
         final AdaptiveScheduler scheduler =
                 prepareScheduler(jobGraph, declarativeSlotPool)
+                        .setJobMasterConfiguration(getConfigurationWithNoTimeouts())
                         .setJobResourceRequirements(initialJobResourceRequirements)
                         .build();
 
@@ -1260,14 +1264,6 @@ public class AdaptiveSchedulerTest {
 
         startJobWithSlotsMatchingParallelism(
                 scheduler, declarativeSlotPool, taskManagerGateway, availableSlots);
-
-        // at this point we'd ideally check that the job is stuck in WaitingForResources, but we
-        // can't differentiate between waiting due to the minimum requirements not being fulfilled
-        // and the resource timeout not being elapsed
-        // We just continue here, as the following tests validate that the lower bound can prevent
-        // a job from running:
-        // - #testInitialRequirementLowerBoundBeyondAvailableSlotsCausesImmediateFailure()
-        // - #testRequirementLowerBoundIncreaseBeyondCurrentParallelismAttemptsImmediateRescale()
 
         // unlock job by decreasing the parallelism
         JobResourceRequirements newJobResourceRequirements =
@@ -1285,15 +1281,16 @@ public class AdaptiveSchedulerTest {
                 .setDeclarativeSlotPool(declarativeSlotPool);
     }
 
-    private static Configuration getConfigurationWithNoResourceWaitTimeout() {
+    private static Configuration getConfigurationWithNoTimeouts() {
         return new Configuration()
-                .set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
+                .set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(-1L))
+                .set(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, Duration.ofMillis(1L));
     }
 
     private AdaptiveSchedulerBuilder prepareSchedulerWithNoResourceWaitTimeout(
             JobGraph jobGraph, DeclarativeSlotPool declarativeSlotPool) {
         return prepareScheduler(jobGraph, declarativeSlotPool)
-                .setJobMasterConfiguration(getConfigurationWithNoResourceWaitTimeout());
+                .setJobMasterConfiguration(getConfigurationWithNoTimeouts());
     }
 
     private AdaptiveScheduler createSchedulerWithNoResourceWaitTimeout(
