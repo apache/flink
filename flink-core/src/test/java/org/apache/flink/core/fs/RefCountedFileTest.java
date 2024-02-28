@@ -72,7 +72,7 @@ public class RefCountedFileTest {
         verifyTheFileIsStillThere();
 
         fileUnderTest.release();
-        assertThat(fileUnderTest.getReferenceCounter()).isEqualTo(1);
+        assertThat(fileUnderTest.getReferenceCounter()).isOne();
         verifyTheFileIsStillThere();
 
         fileUnderTest.release();

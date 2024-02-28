@@ -442,9 +442,9 @@ public class LimitedConnectionsFileSystemTest {
     void testFailingStreamsUnregister() throws Exception {
         final LimitedConnectionsFileSystem fs = new LimitedConnectionsFileSystem(new FailFs(), 1);
 
-        assertThat(fs.getNumberOfOpenInputStreams()).isEqualTo(0);
-        assertThat(fs.getNumberOfOpenOutputStreams()).isEqualTo(0);
-        assertThat(fs.getTotalNumberOfOpenStreams()).isEqualTo(0);
+        assertThat(fs.getNumberOfOpenInputStreams()).isZero();
+        assertThat(fs.getNumberOfOpenOutputStreams()).isZero();
+        assertThat(fs.getTotalNumberOfOpenStreams()).isZero();
 
         try {
             fs.open(new Path(File.createTempFile("junit", null, tempFolder).toURI()));
@@ -460,9 +460,9 @@ public class LimitedConnectionsFileSystemTest {
             // expected
         }
 
-        assertThat(fs.getNumberOfOpenInputStreams()).isEqualTo(0);
-        assertThat(fs.getNumberOfOpenOutputStreams()).isEqualTo(0);
-        assertThat(fs.getTotalNumberOfOpenStreams()).isEqualTo(0);
+        assertThat(fs.getNumberOfOpenInputStreams()).isZero();
+        assertThat(fs.getNumberOfOpenOutputStreams()).isZero();
+        assertThat(fs.getTotalNumberOfOpenStreams()).isZero();
     }
 
     /**

@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link SecurityOptions}. */
-class SecurityOptionsTest extends TestLogger {
+class SecurityOptionsTest{
 
     /** Tests whether activation of internal / REST SSL evaluates the config flags correctly. */
     @SuppressWarnings("deprecation")

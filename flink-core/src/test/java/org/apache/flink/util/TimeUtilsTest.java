@@ -26,6 +26,7 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.TimeUnit;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
@@ -121,53 +122,32 @@ public class TimeUtilsTest {
     @Test
     public void testParseDurationInvalid() {
         // null
-        try {
-            TimeUtils.parseDuration(null);
-            fail("exception expected");
-        } catch (NullPointerException ignored) {
-        }
+        assertThatThrownBy(() -> TimeUtils.parseDuration(null))
+                .isInstanceOf(NullPointerException.class);
 
         // empty
-        try {
-            TimeUtils.parseDuration("");
-            fail("exception expected");
-        } catch (IllegalArgumentException ignored) {
-        }
+        assertThatThrownBy(() -> TimeUtils.parseDuration(""))
+                .isInstanceOf(IllegalArgumentException.class);
 
         // blank
-        try {
-            TimeUtils.parseDuration("     ");
-            fail("exception expected");
-        } catch (IllegalArgumentException ignored) {
-        }
+        assertThatThrownBy(() -> TimeUtils.parseDuration("     "))
+                .isInstanceOf(IllegalArgumentException.class);
 
         // no number
-        try {
-            TimeUtils.parseDuration("foobar or fubar or foo bazz");
-            fail("exception expected");
-        } catch (IllegalArgumentException ignored) {
-        }
+        assertThatThrownBy(() -> TimeUtils.parseDuration("foobar or fubar or foo bazz"))
+                .isInstanceOf(IllegalArgumentException.class);
 
         // wrong unit
-        try {
-            TimeUtils.parseDuration("16 gjah");
-            fail("exception expected");
-        } catch (IllegalArgumentException ignored) {
-        }
+        assertThatThrownBy(() -> TimeUtils.parseDuration("16 gjah"))
+                .isInstanceOf(IllegalArgumentException.class);
 
         // multiple numbers
-        try {
-            TimeUtils.parseDuration("16 16 17 18 ms");
-            fail("exception expected");
-        } catch (IllegalArgumentException ignored) {
-        }
+        assertThatThrownBy(() -> TimeUtils.parseDuration("16 16 17 18 ms"))
+                .isInstanceOf(IllegalArgumentException.class);
 
         // negative number
-        try {
-            TimeUtils.parseDuration("-100 ms");
-            fail("exception expected");
-        } catch (IllegalArgumentException ignored) {
-        }
+        assertThatThrownBy(() -> TimeUtils.parseDuration("-100 ms"))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test(expected = IllegalArgumentException.class)

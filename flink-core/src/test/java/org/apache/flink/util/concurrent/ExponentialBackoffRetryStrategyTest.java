@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link ExponentialBackoffRetryStrategy}. */
-public class ExponentialBackoffRetryStrategyTest extends TestLogger {
+public class ExponentialBackoffRetryStrategyTest{
 
     @Test
     public void testGettersNotCapped() {

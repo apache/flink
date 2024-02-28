@@ -264,9 +264,9 @@ class ComplexMap implements MapFunction<Integer, Integer> {
 
     private static MapFunction<Integer, Integer> map1;
 
-    private transient MapFunction<Integer, Integer> map2;
-    private CustomMap map3;
-    private LocalMap map4;
+    private final transient MapFunction<Integer, Integer> map2;
+    private final CustomMap map3;
+    private final LocalMap map4;
 
     class LocalMap implements MapFunction<Integer, Integer> {
 
@@ -312,7 +312,7 @@ interface MapCreator {
 
 class WrapperMapFunction implements MapFunction<Integer, Integer> {
 
-    private MapFunction<Integer, Integer> innerMapFuc;
+    private final MapFunction<Integer, Integer> innerMapFuc;
 
     WrapperMapFunction(MapFunction<Integer, Integer> mapFunction) {
         innerMapFuc = mapFunction;
@@ -362,7 +362,7 @@ class SerializableMapCreator implements MapCreator, Serializable {
 class NestedSerializableMapCreator implements MapCreator, Serializable {
 
     private int add = 0;
-    private InnerSerializableMapCreator inner;
+    private final InnerSerializableMapCreator inner;
 
     NestedSerializableMapCreator(int add) {
         this.add = add;
@@ -391,7 +391,7 @@ class NestedSerializableMapCreator implements MapCreator, Serializable {
 class NestedNonSerializableMapCreator implements MapCreator {
 
     private int add = 0;
-    private InnerSerializableMapCreator inner;
+    private final InnerSerializableMapCreator inner;
 
     NestedNonSerializableMapCreator(int add) {
         this.add = add;

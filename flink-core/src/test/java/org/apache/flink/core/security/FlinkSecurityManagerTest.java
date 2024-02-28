@@ -45,7 +45,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for {@code FlinkUserSecurityManager}. */
-public class FlinkSecurityManagerTest extends TestLogger {
+public class FlinkSecurityManagerTest{
 
     @ClassRule
     public static final TestExecutorResource<ExecutorService> EXECUTOR_RESOURCE =
@@ -370,7 +370,7 @@ public class FlinkSecurityManagerTest extends TestLogger {
     }
 
     private class TestExitSecurityManager extends SecurityManager {
-        private SecurityManager originalSecurityManager;
+        private final SecurityManager originalSecurityManager;
         private Integer exitStatus;
 
         public TestExitSecurityManager() {

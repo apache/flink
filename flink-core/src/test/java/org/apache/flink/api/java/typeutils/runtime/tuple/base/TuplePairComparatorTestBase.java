@@ -35,7 +35,7 @@ import static org.assertj.core.api.Assertions.fail;
  * @param <R>
  */
 public abstract class TuplePairComparatorTestBase<T extends Tuple, R extends Tuple>
-        extends TestLogger {
+       {
 
     protected abstract TypePairComparator<T, R> createComparator(boolean ascending);
 

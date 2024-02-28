@@ -54,14 +54,14 @@ class CoreOptionsTest {
 
         config.set(patternOption, Arrays.asList("hello", "world"));
 
-        assertThat(patternGetter.apply(config)).containsExactly(new String[]{"hello", "world"});
+        assertThat(patternGetter.apply(config)).containsExactly("hello", "world");
 
         config.set(additionalOption, Arrays.asList("how", "are", "you"));
 
-        assertThat(patternGetter.apply(config)).containsExactly(new String[]{"hello", "world", "how", "are", "you"});
+        assertThat(patternGetter.apply(config)).containsExactly("hello", "world", "how", "are", "you");
 
         config.set(patternOption, Collections.emptyList());
 
-        assertThat(patternGetter.apply(config)).containsExactly(new String[]{"how", "are", "you"});
+        assertThat(patternGetter.apply(config)).containsExactly("how", "are", "you");
     }
 }

@@ -31,7 +31,7 @@ import java.util.Date;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
-public class BasicTypeInfoTest extends TestLogger {
+public class BasicTypeInfoTest{
 
     static Class<?>[] classes = {
         String.class,

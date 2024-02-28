@@ -77,7 +77,7 @@ class SimpleVersionedSerializationTest {
                     @Override
                     public String deserialize(int version, byte[] serialized) throws IOException {
                         assertThat(version).isEqualTo(42);
-                        assertThat(serialized.length).isEqualTo(0);
+                        assertThat(serialized.length).isZero();
                         return testString;
                     }
                 };

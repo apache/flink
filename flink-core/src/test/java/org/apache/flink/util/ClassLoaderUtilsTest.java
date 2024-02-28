@@ -52,14 +52,12 @@ public class ClassLoaderUtilsTest {
             JarFile jarFile = null;
             try {
                 jarFile = new JarFile(validJar.getAbsolutePath());
-            } catch (Exception e) {
-                e.printStackTrace();
-                fail("test setup broken: cannot create a valid jar file");
             } finally {
                 if (jarFile != null) {
                     jarFile.close();
                 }
             }
+
 
             // file with some random contents
             invalidJar = File.createTempFile("flink-url-test", ".tmp");

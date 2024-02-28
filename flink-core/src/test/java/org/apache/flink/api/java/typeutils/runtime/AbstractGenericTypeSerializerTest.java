@@ -229,11 +229,7 @@ public abstract class AbstractGenericTypeSerializerTest {
             if (!list.equals(that.list)) {
                 return false;
             }
-            if (!map1.equals(that.map1)) {
-                return false;
-            }
-
-            return true;
+            return map1.equals(that.map1);
         }
 
         @Override
@@ -325,7 +321,7 @@ public abstract class AbstractGenericTypeSerializerTest {
 
         private long longValue;
 
-        private Map<String, ComplexNestedObject1> theMap =
+        private final Map<String, ComplexNestedObject1> theMap =
                 new HashMap<String, ComplexNestedObject1>();
 
         public ComplexNestedObject2() {}

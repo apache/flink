@@ -40,8 +40,8 @@ import java.io.IOException;
 
 import static org.apache.flink.types.Either.Left;
 import static org.apache.flink.types.Either.Right;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-import static org.junit.jupiter.api.Assertions.fail;
 
 class EitherSerializerTest {
 
@@ -59,9 +59,8 @@ class EitherSerializerTest {
                 };
 
         EitherTypeInfo<String, Double> eitherTypeInfo =
-                (EitherTypeInfo<String, Double>)
-                        new EitherTypeInfo<String, Double>(
-                                BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.DOUBLE_TYPE_INFO);
+                new EitherTypeInfo<String, Double>(
+                        BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.DOUBLE_TYPE_INFO);
         EitherSerializer<String, Double> eitherSerializer =
                 (EitherSerializer<String, Double>)
                         eitherTypeInfo.createSerializer(new SerializerConfigImpl());
@@ -110,11 +109,10 @@ class EitherSerializerTest {
                 };
 
         EitherTypeInfo<Tuple2<Long, Long>, Double> eitherTypeInfo =
-                (EitherTypeInfo<Tuple2<Long, Long>, Double>)
-                        new EitherTypeInfo<Tuple2<Long, Long>, Double>(
-                                new TupleTypeInfo<Tuple2<Long, Long>>(
-                                        BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO),
-                                BasicTypeInfo.DOUBLE_TYPE_INFO);
+                new EitherTypeInfo<Tuple2<Long, Long>, Double>(
+                        new TupleTypeInfo<Tuple2<Long, Long>>(
+                                BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO),
+                        BasicTypeInfo.DOUBLE_TYPE_INFO);
         EitherSerializer<Tuple2<Long, Long>, Double> eitherSerializer =
                 (EitherSerializer<Tuple2<Long, Long>, Double>)
                         eitherTypeInfo.createSerializer(new SerializerConfigImpl());
@@ -237,7 +235,6 @@ class EitherSerializerTest {
         @Override
         @Test
         protected void testInstantiate() {
-            try {
                 TypeSerializer<T> serializer = getSerializer();
 
                 T instance = serializer.createInstance();
@@ -245,11 +242,7 @@ class EitherSerializerTest {
 
                 Class<T> type = getTypeClass();
                 assertThat(type).as("The test is corrupt: type class is null.").isNotNull();
-            } catch (Exception e) {
-                System.err.println(e.getMessage());
-                e.printStackTrace();
-                fail("", "Exception in test: " + e.getMessage());
-            }
+
         }
     }
 }

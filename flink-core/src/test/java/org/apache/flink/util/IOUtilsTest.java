@@ -27,7 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 /** Tests for the {@link IOUtils}. */
-public class IOUtilsTest extends TestLogger {
+public class IOUtilsTest{
 
     @Test
     public void testTryReadFullyFromLongerStream() throws IOException {

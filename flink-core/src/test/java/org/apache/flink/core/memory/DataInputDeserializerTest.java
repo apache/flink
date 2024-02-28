@@ -44,9 +44,9 @@ class DataInputDeserializerTest {
         dis.readByte();
         assertThat(dis.available()).isEqualTo(2);
         dis.readByte();
-        assertThat(dis.available()).isEqualTo(1);
+        assertThat(dis.available()).isOne();
         dis.readByte();
-        assertThat(dis.available()).isEqualTo(0);
+        assertThat(dis.available()).isZero();
 
         try {
             dis.readByte();
@@ -54,16 +54,16 @@ class DataInputDeserializerTest {
         } catch (IOException e) {
             // ignore
         }
-        assertThat(dis.available()).isEqualTo(0);
+        assertThat(dis.available()).isZero();
     }
 
     @Test
     void testReadWithLenZero() throws IOException {
         byte[] bytes = new byte[0];
         DataInputDeserializer dis = new DataInputDeserializer(bytes, 0, bytes.length);
-        assertThat(dis.available()).isEqualTo(0);
+        assertThat(dis.available()).isZero();
 
         byte[] bytesForRead = new byte[0];
-        assertThat(dis.read(bytesForRead, 0, 0)).isEqualTo(0); // do not throw when read with len 0
+        assertThat(dis.read(bytesForRead, 0, 0)).isZero(); // do not throw when read with len 0
     }
 }

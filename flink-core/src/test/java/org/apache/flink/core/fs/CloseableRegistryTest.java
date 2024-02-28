@@ -105,7 +105,7 @@ class CloseableRegistryTest
             // Check that unregistered Closable isn't closed.
             TestClosable unregisteredClosable = new TestClosable();
             closeableRegistry.unregisterAndCloseAll(unregisteredClosable);
-            assertThat(unregisteredClosable.getCallsToClose()).isEqualTo(0);
+            assertThat(unregisteredClosable.getCallsToClose()).isZero();
         }
     }
 
@@ -131,7 +131,7 @@ class CloseableRegistryTest
         }
 
         for (TestClosable testClosable : registeredClosableList) {
-            assertThat(testClosable.getCallsToClose()).isEqualTo(1);
+            assertThat(testClosable.getCallsToClose()).isOne();
             testClosable.resetCallsToClose();
         }
     }

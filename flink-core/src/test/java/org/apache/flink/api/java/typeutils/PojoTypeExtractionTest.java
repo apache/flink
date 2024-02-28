@@ -46,7 +46,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -267,7 +266,7 @@ class PojoTypeExtractionTest {
         assertThat(positions.length).isEqualTo(fields.length);
         for (int i = 0; i < fields.length; i++) {
             pojoType.getFlatFields(fields[i], 0, ffd);
-            assertThat(ffd.size()).as("Too many keys returned").isEqualTo(1);
+            assertThat(ffd.size()).as("Too many keys returned").isOne();
             assertThat(ffd.get(0).getPosition()).as("position of field " + fields[i] + " wrong").isEqualTo(positions[i]);
             ffd.clear();
         }

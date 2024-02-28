@@ -38,7 +38,6 @@ import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-import static org.junit.jupiter.api.Assertions.fail;
 
 class KryoClearedBufferTest {
 
@@ -102,7 +101,7 @@ class KryoClearedBufferTest {
     }
 
     public static class TestRecord {
-        private byte[] buffer;
+        private final byte[] buffer;
 
         public TestRecord(int size) {
             buffer = new byte[size];
@@ -148,7 +147,7 @@ class KryoClearedBufferTest {
 
     public static class TestDataOutputView implements DataOutputView {
 
-        private byte[] buffer;
+        private final byte[] buffer;
         private int position;
 
         public TestDataOutputView(int size) {

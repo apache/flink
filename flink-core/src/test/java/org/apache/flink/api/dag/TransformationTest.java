@@ -37,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 
 /** Tests for {@link Transformation}. */
-class TransformationTest extends TestLogger {
+class TransformationTest{
 
     private Transformation<Void> transformation;
 

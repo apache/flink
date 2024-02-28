@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.MEGA_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 
@@ -35,32 +36,32 @@ class MemorySizeTest {
     @Test
     void testUnitConversion() {
         final MemorySize zero = MemorySize.ZERO;
-        assertThat(zero.getBytes()).isEqualTo(0);
-        assertThat(zero.getKibiBytes()).isEqualTo(0);
-        assertThat(zero.getMebiBytes()).isEqualTo(0);
-        assertThat(zero.getGibiBytes()).isEqualTo(0);
-        assertThat(zero.getTebiBytes()).isEqualTo(0);
+        assertThat(zero.getBytes()).isZero();
+        assertThat(zero.getKibiBytes()).isZero();
+        assertThat(zero.getMebiBytes()).isZero();
+        assertThat(zero.getGibiBytes()).isZero();
+        assertThat(zero.getTebiBytes()).isZero();
 
         final MemorySize bytes = new MemorySize(955);
         assertThat(bytes.getBytes()).isEqualTo(955);
-        assertThat(bytes.getKibiBytes()).isEqualTo(0);
-        assertThat(bytes.getMebiBytes()).isEqualTo(0);
-        assertThat(bytes.getGibiBytes()).isEqualTo(0);
-        assertThat(bytes.getTebiBytes()).isEqualTo(0);
+        assertThat(bytes.getKibiBytes()).isZero();
+        assertThat(bytes.getMebiBytes()).isZero();
+        assertThat(bytes.getGibiBytes()).isZero();
+        assertThat(bytes.getTebiBytes()).isZero();
 
         final MemorySize kilos = new MemorySize(18500);
         assertThat(kilos.getBytes()).isEqualTo(18500);
         assertThat(kilos.getKibiBytes()).isEqualTo(18);
-        assertThat(kilos.getMebiBytes()).isEqualTo(0);
-        assertThat(kilos.getGibiBytes()).isEqualTo(0);
-        assertThat(kilos.getTebiBytes()).isEqualTo(0);
+        assertThat(kilos.getMebiBytes()).isZero();
+        assertThat(kilos.getGibiBytes()).isZero();
+        assertThat(kilos.getTebiBytes()).isZero();
 
         final MemorySize megas = new MemorySize(15 * 1024 * 1024);
         assertThat(megas.getBytes()).isEqualTo(15_728_640);
         assertThat(megas.getKibiBytes()).isEqualTo(15_360);
         assertThat(megas.getMebiBytes()).isEqualTo(15);
-        assertThat(megas.getGibiBytes()).isEqualTo(0);
-        assertThat(megas.getTebiBytes()).isEqualTo(0);
+        assertThat(megas.getGibiBytes()).isZero();
+        assertThat(megas.getTebiBytes()).isZero();
 
         final MemorySize teras = new MemorySize(2L * 1024 * 1024 * 1024 * 1024 + 10);
         assertThat(teras.getBytes()).isEqualTo(2199023255562L);
@@ -154,53 +155,32 @@ class MemorySizeTest {
     @Test
     void testParseInvalid() {
         // null
-        try {
-            MemorySize.parseBytes(null);
-            fail("exception expected");
-        } catch (NullPointerException ignored) {
-        }
+        assertThatThrownBy(() -> MemorySize.parseBytes(null))
+                .isInstanceOf(NullPointerException.class);
 
         // empty
-        try {
-            MemorySize.parseBytes("");
-            fail("exception expected");
-        } catch (IllegalArgumentException ignored) {
-        }
+        assertThatThrownBy(() -> MemorySize.parseBytes(""))
+                .isInstanceOf(IllegalArgumentException.class);
 
         // blank
-        try {
-            MemorySize.parseBytes("     ");
-            fail("exception expected");
-        } catch (IllegalArgumentException ignored) {
-        }
+        assertThatThrownBy(() -> MemorySize.parseBytes("     "))
+                .isInstanceOf(IllegalArgumentException.class);
 
         // no number
-        try {
-            MemorySize.parseBytes("foobar or fubar or foo bazz");
-            fail("exception expected");
-        } catch (IllegalArgumentException ignored) {
-        }
+        assertThatThrownBy(() -> MemorySize.parseBytes("foobar or fubar or foo bazz"))
+                .isInstanceOf(IllegalArgumentException.class);
 
         // wrong unit
-        try {
-            MemorySize.parseBytes("16 gjah");
-            fail("exception expected");
-        } catch (IllegalArgumentException ignored) {
-        }
+        assertThatThrownBy(() -> MemorySize.parseBytes("16 gjah"))
+                .isInstanceOf(IllegalArgumentException.class);
 
         // multiple numbers
-        try {
-            MemorySize.parseBytes("16 16 17 18 bytes");
-            fail("exception expected");
-        } catch (IllegalArgumentException ignored) {
-        }
+        assertThatThrownBy(() -> MemorySize.parseBytes("16 16 17 18 bytes"))
+                .isInstanceOf(IllegalArgumentException.class);
 
         // negative number
-        try {
-            MemorySize.parseBytes("-100 bytes");
-            fail("exception expected");
-        } catch (IllegalArgumentException ignored) {
-        }
+        assertThatThrownBy(() -> MemorySize.parseBytes("-100 bytes"))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

@@ -44,11 +44,12 @@ import java.util.Random;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link InstantiationUtil}. */
-public class InstantiationUtilTest extends TestLogger {
+public class InstantiationUtilTest{
 
     @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -204,8 +205,8 @@ public class InstantiationUtilTest extends TestLogger {
         WritableType original = new WritableType();
         WritableType copy = InstantiationUtil.createCopyWritable(original);
 
-        assertTrue(original != copy);
-        assertTrue(original.equals(copy));
+        assertNotSame(original, copy);
+        assertEquals(original, copy);
     }
 
     // --------------------------------------------------------------------------------------------

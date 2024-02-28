@@ -32,7 +32,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** */
-public abstract class ParserTestBase<T> extends TestLogger {
+public abstract class ParserTestBase<T>{
 
     public abstract String[] getValidTestValues();
 
@@ -53,7 +53,7 @@ public abstract class ParserTestBase<T> extends TestLogger {
         assertNotNull(getValidTestValues());
         assertNotNull(getValidTestResults());
         assertNotNull(getInvalidTestValues());
-        assertTrue(getValidTestValues().length == getValidTestResults().length);
+        assertEquals(getValidTestValues().length, getValidTestResults().length);
     }
 
     @Test
@@ -307,8 +307,7 @@ public abstract class ParserTestBase<T> extends TestLogger {
                         parser.parseField(
                                 bytes, 0, bytes.length, new byte[] {'|'}, parser.createValue());
 
-                assertTrue(
-                        "Parser accepted the invalid value " + testValues[i] + ".", numRead == -1);
+                assertEquals("Parser accepted the invalid value " + testValues[i] + ".", -1, numRead);
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());
@@ -358,7 +357,7 @@ public abstract class ParserTestBase<T> extends TestLogger {
 
                 // fail on the invalid part
                 pos = parser.parseField(bytes, pos, bytes.length, new byte[] {'%'}, value);
-                assertTrue("Parser accepted the invalid value " + invalid + ".", pos == -1);
+                assertEquals("Parser accepted the invalid value " + invalid + ".", -1, pos);
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());
@@ -498,7 +497,7 @@ public abstract class ParserTestBase<T> extends TestLogger {
                     assertTrue("Parser declared the empty string as invalid.", numRead != -1);
                     assertEquals("Invalid number of bytes read returned.", i + 1, numRead);
                 } else {
-                    assertTrue("Parser accepted the empty string.", numRead == -1);
+                    assertEquals("Parser accepted the empty string.", -1, numRead);
                 }
 
                 parser.resetParserState();

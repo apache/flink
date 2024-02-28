@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -42,7 +43,7 @@ import static org.junit.jupiter.api.Assertions.fail;
  * A base test-suite for the {@link RecoverableWriter}. This should be subclassed to test each
  * filesystem specific writer.
  */
-public abstract class AbstractRecoverableWriterTest extends TestLogger {
+public abstract class AbstractRecoverableWriterTest{
 
     private static final Random RND = new Random();
 
@@ -232,7 +233,7 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 
             // we expect the data to be truncated
             Map<Path, String> files = getFileContentByPath(testDir);
-            assertThat(files).hasSize(1L);
+            assertThat(files).hasSize(1);
 
             for (Map.Entry<Path, String> fileContents : files.entrySet()) {
                 assertThat(fileContents.getKey().getName()).startsWith(".part-0.inprogress.");
@@ -243,7 +244,7 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
             recoveredStream.closeForCommit().commit();
 
             files = getFileContentByPath(testDir);
-            assertThat(files).hasSize(1L);
+            assertThat(files).hasSize(1);
 
             for (Map.Entry<Path, String> fileContents : files.entrySet()) {
                 assertThat(fileContents.getKey().getName()).isEqualTo("part-0");
@@ -294,7 +295,7 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
         committer.commitAfterRecovery();
 
         Map<Path, String> files = getFileContentByPath(testDir);
-        assertThat(files).hasSize(1L);
+        assertThat(files).hasSize(1);
 
         for (Map.Entry<Path, String> fileContents : files.entrySet()) {
             assertThat(fileContents.getKey().getName()).isEqualTo("part-0");
@@ -380,20 +381,10 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
             IOUtils.closeQuietly(stream);
         }
 
-        try (RecoverableFsDataOutputStream ignored = writer.recover(recoverable1)) {
-            // this should work fine
-        } catch (Exception e) {
-            fail("");
-        }
+        RecoverableFsDataOutputStream ignored = writer.recover(recoverable1);
 
         // this should throw an exception
-        try (RecoverableFsDataOutputStream ignored = writer.recover(recoverable2)) {
-            fail("");
-        } catch (IOException e) {
-            // we expect this
-            return;
-        }
-        fail("");
+        assertThatThrownBy(() -> writer.recover(recoverable2)).isInstanceOf(IOException.class);
     }
 
     private Map<Path, String> getFileContentByPath(Path directory) throws Exception {

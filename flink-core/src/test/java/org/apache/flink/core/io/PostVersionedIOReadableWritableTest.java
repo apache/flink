@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Suite of tests for {@link PostVersionedIOReadableWritable}. */
@@ -124,18 +125,14 @@ class PostVersionedIOReadableWritableTest {
         return restoredVersionedReadableWritable.getData();
     }
 
-    private static void assertEmpty(DataInputView in) throws IOException {
-        try {
-            in.readByte();
-            fail("");
-        } catch (EOFException ignore) {
-        }
+    private static void assertEmpty(DataInputView in) {
+        assertThatThrownBy(in::readByte).isInstanceOf(EOFException.class);
     }
 
     static class TestPostVersionedReadableWritable extends PostVersionedIOReadableWritable {
 
         private static final int VERSION = 1;
-        private byte[] data;
+        private final byte[] data;
 
         TestPostVersionedReadableWritable(int len) {
             this.data = new byte[len];
@@ -169,7 +166,7 @@ class PostVersionedIOReadableWritableTest {
 
     static class TestNonVersionedReadableWritable implements IOReadableWritable {
 
-        private byte[] data;
+        private final byte[] data;
 
         TestNonVersionedReadableWritable(byte[] data) {
             this.data = data;

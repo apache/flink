@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link FixedRetryStrategy}. */
-public class FixedRetryStrategyTest extends TestLogger {
+public class FixedRetryStrategyTest{
 
     @Test
     public void testGetters() {

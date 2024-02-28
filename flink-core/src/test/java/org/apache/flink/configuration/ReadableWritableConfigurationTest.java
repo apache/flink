@@ -141,7 +141,7 @@ public class ReadableWritableConfigurationTest {
                                                         Arrays.asList(
                                                                 Tuple2.of("key1", "value1"),
                                                                 Tuple2.of("key2", "value2"))),
-                                                asMap(Arrays.asList(Tuple2.of("key3", "value3")))),
+                                                asMap(Collections.singletonList(Tuple2.of("key3", "value3")))),
                                         "key1:value1,key2:value2;key3:value3",
                                         "[{key1: value1, key2: value2}, {key3: value3}]")
                                 .checkDefaultOverride(Collections.emptyList()));

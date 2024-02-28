@@ -52,7 +52,7 @@ public class UnionIteratorTest {
 
             iter.clear();
             iter.addList(Arrays.asList(1, 2, 3, 4, 5, 6, 7));
-            iter.addList(Collections.<Integer>emptyList());
+            iter.addList(Collections.emptyList());
             iter.addList(Arrays.asList(8, 9, 10, 11));
 
             int val = 1;

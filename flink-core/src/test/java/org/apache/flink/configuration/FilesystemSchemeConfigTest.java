@@ -35,7 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the configuration of the default file system scheme. */
-public class FilesystemSchemeConfigTest extends TestLogger {
+public class FilesystemSchemeConfigTest{
 
     @TempDir
     public File tempFolder;

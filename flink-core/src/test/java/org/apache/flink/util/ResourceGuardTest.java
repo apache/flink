@@ -25,7 +25,7 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Tests for the {@link ResourceGuard}. */
-public class ResourceGuardTest extends TestLogger {
+public class ResourceGuardTest{
 
     @Test
     public void testClose() {

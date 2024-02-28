@@ -24,7 +24,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link LongValueSequenceIterator}. */
-public class LongValueSequenceIteratorTest extends TestLogger {
+public class LongValueSequenceIteratorTest{
 
     @Test
     public void testSplitRegular() {

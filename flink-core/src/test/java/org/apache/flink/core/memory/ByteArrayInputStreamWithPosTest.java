@@ -41,7 +41,7 @@ class ByteArrayInputStreamWithPosTest {
     @Test
     void testGetWithNegativeLength() {
         int read = stream.read(new byte[0], 0, -1);
-        assertThat(read).isEqualTo(0);
+        assertThat(read).isZero();
     }
 
     @Test
@@ -80,7 +80,7 @@ class ByteArrayInputStreamWithPosTest {
         assertThat(stream.read()).isEqualTo('3');
 
         stream.setPosition(data.length);
-        assertThat(stream.available()).isEqualTo(0);
+        assertThat(stream.available()).isZero();
         assertThat(stream.read()).isEqualTo(-1);
     }
 

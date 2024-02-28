@@ -319,8 +319,8 @@ class TypeInfoFactoryTest {
     }
 
     public static class MyTupleTypeInfo<T0, T1> extends TypeInformation<MyTuple<T0, T1>> {
-        private TypeInformation field0;
-        private TypeInformation field1;
+        private final TypeInformation field0;
+        private final TypeInformation field1;
 
         public TypeInformation getField0() {
             return field0;

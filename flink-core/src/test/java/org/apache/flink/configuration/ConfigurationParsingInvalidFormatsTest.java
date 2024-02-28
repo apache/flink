@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Tests for reading configuration parameters with invalid formats. */
-public class ConfigurationParsingInvalidFormatsTest extends TestLogger {
+public class ConfigurationParsingInvalidFormatsTest{
     public static Object[][] getSpecs() {
         return new Object[][] {
             new Object[] {ConfigOptions.key("int").intType().defaultValue(1), "ABC"},

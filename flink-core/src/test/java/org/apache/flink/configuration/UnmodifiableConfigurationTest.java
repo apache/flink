@@ -28,33 +28,27 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
-import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * This class verifies that the Unmodifiable Configuration class overrides all setter methods in
  * Configuration.
  */
-class UnmodifiableConfigurationTest extends TestLogger {
+class UnmodifiableConfigurationTest{
 
     @Test
     void testOverrideAddMethods() {
-        try {
             Class<UnmodifiableConfiguration> clazz = UnmodifiableConfiguration.class;
             for (Method m : clazz.getMethods()) {
                 if (m.getName().startsWith("add")) {
                     assertThat(m.getDeclaringClass()).isEqualTo(clazz);
                 }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail("", e.getMessage());
-        }
     }
 
     @Test
     void testExceptionOnSet() {
-        try {
             @SuppressWarnings("rawtypes")
             final ConfigOption rawOption = ConfigOptions.key("testkey").defaultValue("value");
 
@@ -82,17 +76,10 @@ class UnmodifiableConfigurationTest extends TestLogger {
                     Object parameter = parameters.get(parameterClass);
                     assertThat(parameter).as("method " + m + " not covered by test").isNotNull();
 
-                    try {
-                        m.invoke(config, key, parameter);
-                        fail("should fail with an exception");
-                    } catch (InvocationTargetException e) {
-                        assertThat(e.getTargetException() instanceof UnsupportedOperationException).isTrue();
-                    }
+                    assertThatThrownBy(() -> m.invoke(config, key, parameter))
+                            .isInstanceOf(InvocationTargetException.class)
+                            .hasCauseInstanceOf(UnsupportedOperationException.class);
                 }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail("", e.getMessage());
-        }
     }
 }

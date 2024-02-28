@@ -31,7 +31,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link AbstractAutoCloseableRegistry}. */
@@ -89,8 +88,8 @@ public abstract class AbstractAutoCloseableRegistryTest<C extends Closeable, E e
 
         joinThreads();
 
-        assertThat(unclosedCounter.get()).isEqualTo(0);
-        assertThat(closeableRegistry.getNumberOfRegisteredCloseables()).isEqualTo(0);
+        assertThat(unclosedCounter.get()).isZero();
+        assertThat(closeableRegistry.getNumberOfRegisteredCloseables()).isZero();
 
         final TestCloseable testCloseable = new TestCloseable();
 
@@ -101,8 +100,8 @@ public abstract class AbstractAutoCloseableRegistryTest<C extends Closeable, E e
         }
 
         assertThat(testCloseable.isClosed()).isTrue();
-        assertThat(unclosedCounter.get()).isEqualTo(0);
-        assertThat(closeableRegistry.getNumberOfRegisteredCloseables()).isEqualTo(0);
+        assertThat(unclosedCounter.get()).isZero();
+        assertThat(closeableRegistry.getNumberOfRegisteredCloseables()).isZero();
     }
 
     @Test
@@ -112,7 +111,7 @@ public abstract class AbstractAutoCloseableRegistryTest<C extends Closeable, E e
         final BlockingTestCloseable blockingCloseable = new BlockingTestCloseable();
         registerCloseable(blockingCloseable);
 
-        assertThat(closeableRegistry.getNumberOfRegisteredCloseables()).isEqualTo(1);
+        assertThat(closeableRegistry.getNumberOfRegisteredCloseables()).isOne();
 
         Thread closer =
                 new Thread(
@@ -137,7 +136,7 @@ public abstract class AbstractAutoCloseableRegistryTest<C extends Closeable, E e
         closer.join();
 
         assertThat(testCloseable.isClosed()).isTrue();
-        assertThat(closeableRegistry.getNumberOfRegisteredCloseables()).isEqualTo(0);
+        assertThat(closeableRegistry.getNumberOfRegisteredCloseables()).isZero();
     }
 
     /** A testing producer. */
@@ -186,7 +185,7 @@ public abstract class AbstractAutoCloseableRegistryTest<C extends Closeable, E e
     /** Testing stream which adds itself to a reference counter while not closed. */
     protected static final class TestStream extends FSDataInputStream {
 
-        protected AtomicInteger refCount;
+        private AtomicInteger refCount;
 
         public TestStream(AtomicInteger refCount) {
             this.refCount = refCount;

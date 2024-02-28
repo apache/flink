@@ -31,7 +31,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for the utility methods in {@link ExceptionUtils}. */
-public class ExceptionUtilsTest extends TestLogger {
+public class ExceptionUtilsTest{
 
     @Test
     public void testStringifyNullException() {

@@ -173,7 +173,7 @@ class TupleComparatorTTT3Test
             // Tuple2 fields.
             if (should.getField(x) instanceof Tuple2) {
                 this.deepEquals(
-                        message, (Tuple2<?, ?>) should.getField(x), (Tuple2<?, ?>) is.getField(x));
+                        message, should.getField(x), (Tuple2<?, ?>) is.getField(x));
             } else {
                 assertThat((Object) is.getField(x)).as(message).isEqualTo(should.getField(x));
             }

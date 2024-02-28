@@ -102,8 +102,8 @@ public class LimitedConnectionsConfigurationTest {
                     ConnectionLimitingSettings.fromConfig(conf, scheme);
             assertThat(settings).isNotNull();
             assertThat(settings.limitTotal).isEqualTo(10);
-            assertThat(settings.limitInput).isEqualTo(0);
-            assertThat(settings.limitOutput).isEqualTo(0);
+            assertThat(settings.limitInput).isZero();
+            assertThat(settings.limitOutput).isZero();
         }
 
         // only input limit set
@@ -114,9 +114,9 @@ public class LimitedConnectionsConfigurationTest {
             ConnectionLimitingSettings settings =
                     ConnectionLimitingSettings.fromConfig(conf, scheme);
             assertThat(settings).isNotNull();
-            assertThat(settings.limitTotal).isEqualTo(0);
+            assertThat(settings.limitTotal).isZero();
             assertThat(settings.limitInput).isEqualTo(10);
-            assertThat(settings.limitOutput).isEqualTo(0);
+            assertThat(settings.limitOutput).isZero();
         }
 
         // only output limit set
@@ -127,8 +127,8 @@ public class LimitedConnectionsConfigurationTest {
             ConnectionLimitingSettings settings =
                     ConnectionLimitingSettings.fromConfig(conf, scheme);
             assertThat(settings).isNotNull();
-            assertThat(settings.limitTotal).isEqualTo(0);
-            assertThat(settings.limitInput).isEqualTo(0);
+            assertThat(settings.limitTotal).isZero();
+            assertThat(settings.limitInput).isZero();
             assertThat(settings.limitOutput).isEqualTo(10);
         }
     }

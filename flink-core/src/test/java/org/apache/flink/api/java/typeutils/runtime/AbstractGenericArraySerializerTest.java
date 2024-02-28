@@ -212,7 +212,7 @@ public abstract class AbstractGenericArraySerializerTest {
         }
 
         @SuppressWarnings("unchecked")
-        Class<T[]> arrayClass = (Class<T[]>) (Class<?>) Array.newInstance(type, 0).getClass();
+        Class<T[]> arrayClass = (Class<T[]>) Array.newInstance(type, 0).getClass();
 
         GenericArraySerializer<T> serializer = createSerializer(type, componentSerializer);
         SerializerTestInstance<T[]> test =

@@ -30,15 +30,15 @@ import java.io.InputStream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for {@link DataInputViewStream}. */
-class DataInputViewStreamTest extends TestLogger {
+class DataInputViewStreamTest{
 
     @Test
     void testSkip() throws IOException {
         final TestInputStream inputStream = new TestInputStream();
         try (TestDataInputView dataInputView = new TestDataInputView(inputStream)) {
             try (DataInputViewStream dataInputViewStream = new DataInputViewStream(dataInputView)) {
-                assertThat(dataInputViewStream.skip(1)).isEqualTo(1);
-                assertThat(inputStream.skipped).isEqualTo(1);
+                assertThat(dataInputViewStream.skip(1)).isOne();
+                assertThat(inputStream.skipped).isOne();
 
                 final long bigNumberToSkip = 1024L + 2L * Integer.MAX_VALUE;
                 assertThat(dataInputViewStream.skip(bigNumberToSkip)).isEqualTo(bigNumberToSkip);

@@ -27,7 +27,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link MemorySize#toString()}. */
-public class MemorySizePrettyPrintingTest extends TestLogger {
+public class MemorySizePrettyPrintingTest{
     public static Object[][] parameters() {
         return new Object[][] {
             new Object[] {new MemorySize(MemoryUnit.KILO_BYTES.getMultiplier() + 1), "1025 bytes"},

@@ -81,7 +81,7 @@ public class RefCountedBufferingFileStreamTest {
         final byte[] contentToWrite = bytesOf("hello big world");
         stream.write(contentToWrite);
 
-        assertThat(stream.getPositionInBuffer()).isEqualTo(0);
+        assertThat(stream.getPositionInBuffer()).isZero();
         assertThat(stream.getPos()).isEqualTo(contentToWrite.length);
 
         stream.close();
@@ -120,7 +120,7 @@ public class RefCountedBufferingFileStreamTest {
 
         stream.flush();
 
-        assertThat(stream.getPositionInBuffer()).isEqualTo(0);
+        assertThat(stream.getPositionInBuffer()).isZero();
         assertThat(stream.getPos()).isEqualTo(contentToWrite.length);
 
         final byte[] contentRead = new byte[contentToWrite.length];

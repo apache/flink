@@ -29,7 +29,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link FlinkUserCodeClassLoader}. */
-public class FlinkUserCodeClassLoaderTest extends TestLogger {
+public class FlinkUserCodeClassLoaderTest{
     @Test
     public void testExceptionHandling() {
         RuntimeException expectedException = new RuntimeException("Expected exception");

@@ -2067,7 +2067,7 @@ public abstract class MemorySegmentTestBase {
                     }
 
                     // position/limit may not have changed
-                    assertThat(bb.position()).isEqualTo(0);
+                    assertThat(bb.position()).isZero();
                     assertThat(bb.limit()).isEqualTo(bb.capacity());
                 }
             }
@@ -2087,7 +2087,7 @@ public abstract class MemorySegmentTestBase {
                     }
 
                     // position/limit may not have changed
-                    assertThat(bb.position()).isEqualTo(0);
+                    assertThat(bb.position()).isZero();
                     assertThat(bb.limit()).isEqualTo(bb.capacity());
                 }
             }
@@ -2108,7 +2108,7 @@ public abstract class MemorySegmentTestBase {
                         }
 
                         // position/limit may not have changed
-                        assertThat(bb.position()).isEqualTo(0);
+                        assertThat(bb.position()).isZero();
                         assertThat(bb.limit()).isEqualTo(bb.capacity());
                     }
                 }
@@ -2132,7 +2132,7 @@ public abstract class MemorySegmentTestBase {
         }
 
         // position / limit should not have been modified
-        assertThat(bb.position()).isEqualTo(0);
+        assertThat(bb.position()).isZero();
         assertThat(bb.limit()).isEqualTo(bb.capacity());
 
         try {
@@ -2142,7 +2142,7 @@ public abstract class MemorySegmentTestBase {
         }
 
         // position / limit should not have been modified
-        assertThat(bb.position()).isEqualTo(0);
+        assertThat(bb.position()).isZero();
         assertThat(bb.limit()).isEqualTo(bb.capacity());
 
         int pos = bb.capacity() / 3;
@@ -2231,11 +2231,11 @@ public abstract class MemorySegmentTestBase {
         seg2.put(0, bytes2);
 
         assertThat(seg1.compare(seg2, 0, 0, 3, 4)).isLessThan(0);
-        assertThat(seg1.compare(seg2, 0, 0, 3, 3)).isEqualTo(0);
+        assertThat(seg1.compare(seg2, 0, 0, 3, 3)).isZero();
         assertThat(seg1.compare(seg2, 0, 0, 3, 2)).isGreaterThan(0);
         // test non-zero offset
         assertThat(seg1.compare(seg2, 1, 1, 2, 3)).isLessThan(0);
-        assertThat(seg1.compare(seg2, 1, 1, 2, 2)).isEqualTo(0);
+        assertThat(seg1.compare(seg2, 1, 1, 2, 2)).isZero();
         assertThat(seg1.compare(seg2, 1, 1, 2, 1)).isGreaterThan(0);
     }
 
@@ -2348,7 +2348,7 @@ public abstract class MemorySegmentTestBase {
         assertThat(buf2.remaining()).isEqualTo(267);
 
         ByteBuffer buf3 = seg.wrap(0, 1024);
-        assertThat(buf3.position()).isEqualTo(0);
+        assertThat(buf3.position()).isZero();
         assertThat(buf3.limit()).isEqualTo(1024);
         assertThat(buf3.remaining()).isEqualTo(1024);
 

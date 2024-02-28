@@ -28,6 +28,7 @@ import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
@@ -77,8 +78,7 @@ public class ConfigurationTest {
 
     /** This test checks the serialization/deserialization of configuration objects. */
     @TestTemplate
-    void testConfigurationSerializationAndGetters() {
-        try {
+    void testConfigurationSerializationAndGetters() throws ClassNotFoundException, IOException {
             final Configuration orig = new Configuration(standardYaml);
             orig.setString("mykey", "myvalue");
             orig.setInteger("mynumber", 100);
@@ -104,15 +104,10 @@ public class ConfigurationTest {
             assertThat(orig.keySet()).isEqualTo(copy.keySet());
             assertThat(orig).hasSameHashCodeAs(copy);
 
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail("", e.getMessage());
-        }
     }
 
     @TestTemplate
     void testCopyConstructor() {
-        try {
             final String key = "theKey";
 
             Configuration cfg1 = new Configuration(standardYaml);
@@ -122,10 +117,6 @@ public class ConfigurationTest {
             cfg2.setString(key, "another value");
 
             assertThat("value").isEqualTo(cfg1.getString(key, ""));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail("", e.getMessage());
-        }
     }
 
     @TestTemplate

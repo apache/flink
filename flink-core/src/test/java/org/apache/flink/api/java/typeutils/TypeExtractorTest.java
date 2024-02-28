@@ -69,6 +69,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 
@@ -266,7 +267,7 @@ class TypeExtractorTest {
         List<FlatFieldDescriptor> ffd = new ArrayList<FlatFieldDescriptor>();
 
         ((TupleTypeInfo) ti).getFlatFields("f0.f0", 0, ffd);
-        assertThat(ffd.get(0).getPosition()).isEqualTo(0);
+        assertThat(ffd.get(0).getPosition()).isZero();
         ffd.clear();
 
         ((TupleTypeInfo) ti).getFlatFields("f0.f0", 0, ffd);
@@ -275,7 +276,7 @@ class TypeExtractorTest {
         ffd.clear();
 
         ((TupleTypeInfo) ti).getFlatFields("f1.f0", 0, ffd);
-        assertThat(ffd.get(0).getPosition()).isEqualTo(1);
+        assertThat(ffd.get(0).getPosition()).isOne();
         ffd.clear();
 
         TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
@@ -289,8 +290,8 @@ class TypeExtractorTest {
         assertThat(tti.getTypeAt(1).getTypeClass()).isEqualTo(Tuple1.class);
         assertThat(tti.getTypeAt(2).getTypeClass()).isEqualTo(Tuple2.class);
 
-        assertThat(tti.getTypeAt(0).getArity()).isEqualTo(1);
-        assertThat(tti.getTypeAt(1).getArity()).isEqualTo(1);
+        assertThat(tti.getTypeAt(0).getArity()).isOne();
+        assertThat(tti.getTypeAt(1).getArity()).isOne();
         assertThat(tti.getTypeAt(2).getArity()).isEqualTo(2);
 
         assertThat(((TupleTypeInfo<?>) tti.getTypeAt(0)).getTypeAt(0)).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
@@ -307,8 +308,8 @@ class TypeExtractorTest {
         assertThat(TypeExtractor.getForObject(t) instanceof TupleTypeInfo).isTrue();
         TupleTypeInfo<?> tti2 = (TupleTypeInfo<?>) TypeExtractor.getForObject(t);
 
-        assertThat(tti2.getTypeAt(0).getArity()).isEqualTo(1);
-        assertThat(tti2.getTypeAt(1).getArity()).isEqualTo(1);
+        assertThat(tti2.getTypeAt(0).getArity()).isOne();
+        assertThat(tti2.getTypeAt(1).getArity()).isOne();
         assertThat(tti2.getTypeAt(2).getArity()).isEqualTo(2);
 
         assertThat(((TupleTypeInfo<?>) tti2.getTypeAt(0)).getTypeAt(0)).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
@@ -336,7 +337,7 @@ class TypeExtractorTest {
                         function, (TypeInformation) TypeInformation.of(new TypeHint<Tuple0>() {}));
 
         assertThat(ti.isTupleType()).isTrue();
-        assertThat(ti.getArity()).isEqualTo(0);
+        assertThat(ti.getArity()).isZero();
         assertThat(ti instanceof TupleTypeInfo).isTrue();
     }
 
@@ -537,12 +538,12 @@ class TypeExtractorTest {
 
         tti.getFlatFields("f0", 0, ffd);
         assertThat(ffd).hasSize(1);
-        assertThat(ffd.get(0).getPosition()).isEqualTo(0); // Long
+        assertThat(ffd.get(0).getPosition()).isZero(); // Long
         assertThat(ffd.get(0).getType().getTypeClass()).isEqualTo(Long.class);
         ffd.clear();
 
         tti.getFlatFields("f1.myField1", 0, ffd);
-        assertThat(ffd.get(0).getPosition()).isEqualTo(1);
+        assertThat(ffd.get(0).getPosition()).isOne();
         assertThat(ffd.get(0).getType().getTypeClass()).isEqualTo(String.class);
         ffd.clear();
 
@@ -1047,7 +1048,7 @@ class TypeExtractorTest {
                 };
 
         TypeInformation<?> ti =
-                TypeExtractor.getMapReturnTypes(function, (TypeInformation) Types.BOOLEAN);
+                TypeExtractor.getMapReturnTypes(function, Types.BOOLEAN);
 
         assertThat(ti.isBasicType()).isTrue();
         assertThat(ti).isEqualTo(BasicTypeInfo.BOOLEAN_TYPE_INFO);
@@ -1077,12 +1078,8 @@ class TypeExtractorTest {
     void testFunctionDependingOnInputWithMissingInput() {
         IdentityMapper<Boolean> function = new IdentityMapper<Boolean>();
 
-        try {
-            TypeExtractor.getMapReturnTypes(function, null);
-            fail("exception expected");
-        } catch (InvalidTypesException e) {
-            // right
-        }
+        assertThatThrownBy(() -> TypeExtractor.getMapReturnTypes(function, null))
+                .isInstanceOf(InvalidTypesException.class);
     }
 
     public class IdentityMapper2<T> extends RichMapFunction<Tuple2<T, String>, T> {
@@ -1553,7 +1550,7 @@ class TypeExtractorTest {
         TypeInformation<?> ti =
                 TypeExtractor.getMapReturnTypes(
                         function,
-                        (TypeInformation) TypeInformation.of(new TypeHint<Boolean[]>() {}));
+                        TypeInformation.of(new TypeHint<Boolean[]>() {}));
         assertThat(ti instanceof ObjectArrayTypeInfo<?, ?>).isTrue();
         ObjectArrayTypeInfo<?, ?> oati = (ObjectArrayTypeInfo<?, ?>) ti;
         assertThat(oati.getComponentInfo()).isEqualTo(BasicTypeInfo.BOOLEAN_TYPE_INFO);
@@ -1593,12 +1590,8 @@ class TypeExtractorTest {
         // input is: Tuple2<Boolean, Integer>
         // allowed: Tuple2<?, String>
 
-        try {
-            TypeExtractor.getMapReturnTypes(function, inputType);
-            fail("exception expected");
-        } catch (InvalidTypesException e) {
-            // right
-        }
+        assertThatThrownBy(() -> TypeExtractor.getMapReturnTypes(function, inputType))
+                .isInstanceOf(InvalidTypesException.class);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -1615,25 +1608,17 @@ class TypeExtractorTest {
                     }
                 };
 
-        try {
-            TypeExtractor.getMapReturnTypes(
-                    function,
-                    (TypeInformation)
-                            TypeInformation.of(new TypeHint<Tuple2<Integer, String>>() {}));
-            fail("exception expected");
-        } catch (InvalidTypesException e) {
-            // right
-        }
+        assertThatThrownBy(() -> TypeExtractor.getMapReturnTypes(
+                function,
+                (TypeInformation)
+                        TypeInformation.of(new TypeHint<Tuple2<Integer, String>>() {})))
+                .isInstanceOf(InvalidTypesException.class);
 
-        try {
-            TypeExtractor.getMapReturnTypes(
-                    function,
-                    (TypeInformation)
-                            TypeInformation.of(new TypeHint<Tuple3<String, String, String>>() {}));
-            fail("exception expected");
-        } catch (InvalidTypesException e) {
-            // right
-        }
+        assertThatThrownBy(() -> TypeExtractor.getMapReturnTypes(
+                function,
+                (TypeInformation)
+                        TypeInformation.of(new TypeHint<Tuple3<String, String, String>>() {})))
+                .isInstanceOf(InvalidTypesException.class);
 
         RichMapFunction<?, ?> function2 =
                 new RichMapFunction<StringValue, String>() {
@@ -1645,13 +1630,9 @@ class TypeExtractorTest {
                     }
                 };
 
-        try {
-            TypeExtractor.getMapReturnTypes(
-                    function2, (TypeInformation) TypeInformation.of(new TypeHint<IntValue>() {}));
-            fail("exception expected");
-        } catch (InvalidTypesException e) {
-            // right
-        }
+        assertThatThrownBy(() -> TypeExtractor.getMapReturnTypes(
+                function2, (TypeInformation) TypeInformation.of(new TypeHint<IntValue>() {})))
+                .isInstanceOf(InvalidTypesException.class);
 
         RichMapFunction<?, ?> function3 =
                 new RichMapFunction<Tuple1<Integer>[], String>() {
@@ -1663,13 +1644,9 @@ class TypeExtractorTest {
                     }
                 };
 
-        try {
-            TypeExtractor.getMapReturnTypes(
-                    function3, (TypeInformation) TypeInformation.of(new TypeHint<Integer[]>() {}));
-            fail("exception expected");
-        } catch (InvalidTypesException e) {
-            // right
-        }
+        assertThatThrownBy(() -> TypeExtractor.getMapReturnTypes(
+                function3, (TypeInformation) TypeInformation.of(new TypeHint<Integer[]>() {})))
+                .isInstanceOf(InvalidTypesException.class);
     }
 
     public static class DummyFlatMapFunction<A, B, C, D>
@@ -1686,8 +1663,7 @@ class TypeExtractorTest {
         TypeInformation<?> ti =
                 TypeExtractor.getFlatMapReturnTypes(
                         new DummyFlatMapFunction<String, Integer, String, Boolean>(),
-                        (TypeInformation)
-                                TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}),
+                        TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}),
                         "name",
                         true);
         assertThat(ti instanceof MissingTypeInfo).isTrue();
@@ -1695,8 +1671,7 @@ class TypeExtractorTest {
         try {
             TypeExtractor.getFlatMapReturnTypes(
                     new DummyFlatMapFunction<String, Integer, String, Boolean>(),
-                    (TypeInformation)
-                            TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}));
+                    TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}));
 
             fail("Expected an exception");
         } catch (InvalidTypesException e) {
@@ -1875,15 +1850,9 @@ class TypeExtractorTest {
                 TypeExtractor.getKeySelectorTypes(selector, BasicTypeInfo.STRING_TYPE_INFO);
         assertThat(ti).isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
 
-        try {
-            TypeExtractor.getKeySelectorTypes(
-                    (KeySelector) selector, BasicTypeInfo.BOOLEAN_TYPE_INFO);
-            fail("");
-        } catch (InvalidTypesException e) {
-            // good
-        } catch (Exception e) {
-            fail("wrong exception type");
-        }
+        assertThatThrownBy(() -> TypeExtractor.getKeySelectorTypes(
+                (KeySelector) selector, BasicTypeInfo.BOOLEAN_TYPE_INFO))
+                .isInstanceOf(InvalidTypesException.class);
     }
 
     public static class DuplicateValue<T> implements MapFunction<Tuple1<T>, Tuple2<T, T>> {
@@ -2067,7 +2036,7 @@ class TypeExtractorTest {
         assertThat(oati.getComponentInfo()).isEqualTo(BasicTypeInfo.LONG_TYPE_INFO);
     }
 
-    public static enum MyEnum {
+    public enum MyEnum {
         ONE,
         TWO,
         THREE

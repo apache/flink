@@ -28,13 +28,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-import static org.junit.jupiter.api.Assertions.fail;
 
 class DefaultSplitAssignerTest {
 
     @Test
     void testSerialSplitAssignment() {
-        try {
             final int NUM_SPLITS = 50;
 
             Set<InputSplit> splits = new HashSet<InputSplit>();
@@ -50,15 +48,10 @@ class DefaultSplitAssignerTest {
 
             assertThat(splits).isEmpty();
             assertThat(ia.getNextInputSplit("", 0)).isNull();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail("", e.getMessage());
-        }
     }
 
     @Test
-    void testConcurrentSplitAssignment() {
-        try {
+    void testConcurrentSplitAssignment() throws InterruptedException {
             final int NUM_THREADS = 10;
             final int NUM_SPLITS = 500;
             final int SUM_OF_IDS = (NUM_SPLITS - 1) * (NUM_SPLITS) / 2;
@@ -117,9 +110,5 @@ class DefaultSplitAssignerTest {
 
             // nothing left
             assertThat(ia.getNextInputSplit("", 0)).isNull();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail("", e.getMessage());
-        }
     }
 }

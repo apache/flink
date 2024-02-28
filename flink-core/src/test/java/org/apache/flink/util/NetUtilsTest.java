@@ -43,7 +43,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link NetUtils}. */
-public class NetUtilsTest extends TestLogger {
+public class NetUtilsTest{
 
     @Test
     public void testCorrectHostnamePort() throws Exception {

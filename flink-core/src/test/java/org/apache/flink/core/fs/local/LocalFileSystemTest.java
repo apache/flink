@@ -58,7 +58,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOf
  * This class tests the functionality of the {@link LocalFileSystem} class in its components. In
  * particular, file/directory access, creation, deletion, read, write is tested.
  */
-public class LocalFileSystemTest extends TestLogger {
+public class LocalFileSystemTest{
 
     @TempDir
     public File temporaryFolder;
@@ -97,7 +97,7 @@ public class LocalFileSystemTest extends TestLogger {
         final FileStatus[] statusforfiles = lfs.listStatus(pathtotmpdir);
 
         // no files in there.. hence, must be zero
-        assertThat(statusforfiles.length).isEqualTo(0);
+        assertThat(statusforfiles.length).isZero();
 
         // check that lfs can delete directory..
         lfs.delete(pathtotmpdir, true);
@@ -159,7 +159,7 @@ public class LocalFileSystemTest extends TestLogger {
         assertThat(lfs.listStatus(pathtotmpdir).length).isEqualTo(2);
 
         // do we get exactly one blocklocation per file? no matter what start and len we provide
-        assertThat(lfs.getFileBlockLocations(lfs.getFileStatus(pathtotestfile1), 0, 0).length).isEqualTo(1);
+        assertThat(lfs.getFileBlockLocations(lfs.getFileStatus(pathtotestfile1), 0, 0).length).isOne();
 
         /*
          * can lfs delete files / directories?

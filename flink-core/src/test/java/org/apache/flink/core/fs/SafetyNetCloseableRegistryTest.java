@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link SafetyNetCloseableRegistry}. */
@@ -171,12 +172,7 @@ public class SafetyNetCloseableRegistryTest
                                 FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
 
                                 // ensure leaking stream was closed
-                                try {
-                                    stream.write(43);
-                                    fail("");
-                                } catch (IOException ignore) {
-
-                                }
+                                assertThatThrownBy(() -> stream.write(43)).isInstanceOf(IOException.class);
                                 fs1 = FileSystem.getLocalFileSystem();
                                 // ensure safety net was removed
                                 assertThat(fs1 instanceof SafetyNetWrapperFileSystem).isFalse();
@@ -205,7 +201,7 @@ public class SafetyNetCloseableRegistryTest
             Thread.sleep(50);
         }
 
-        assertThat(unclosedCounter.get()).isEqualTo(0);
+        assertThat(unclosedCounter.get()).isZero();
         closeableRegistry.close();
     }
 

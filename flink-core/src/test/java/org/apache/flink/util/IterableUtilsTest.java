@@ -28,7 +28,7 @@ import java.util.stream.Stream;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link IterableUtils}. */
-public class IterableUtilsTest extends TestLogger {
+public class IterableUtilsTest{
 
     private final Iterable<Integer> testIterable = Arrays.asList(1, 8, 5, 3, 8);
 

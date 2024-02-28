@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link AutoCloseableRegistry}. */
-class AutoCloseableRegistryTest extends TestLogger {
+class AutoCloseableRegistryTest{
     @Test
     void testReverseOrderOfClosing() throws Exception {
         ArrayList<Integer> closeOrder = new ArrayList<>();

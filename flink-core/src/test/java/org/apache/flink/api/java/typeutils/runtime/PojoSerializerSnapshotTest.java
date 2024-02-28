@@ -94,9 +94,9 @@ class PojoSerializerSnapshotTest {
         }
     }
 
-    private static TestPojoField ID_FIELD;
-    private static TestPojoField NAME_FIELD;
-    private static TestPojoField HEIGHT_FIELD;
+    private static final TestPojoField ID_FIELD;
+    private static final TestPojoField NAME_FIELD;
+    private static final TestPojoField HEIGHT_FIELD;
 
     static {
         try {
@@ -123,13 +123,11 @@ class PojoSerializerSnapshotTest {
                 (PojoSerializer<TestPojo>) restoredSerializer;
 
         final Field[] restoredFields = restoredPojoSerializer.getFields();
-        assertThat(restoredFields).containsExactly(new Field[]{ID_FIELD.field, NAME_FIELD.field, HEIGHT_FIELD.field});
+        assertThat(restoredFields).containsExactly(ID_FIELD.field, NAME_FIELD.field, HEIGHT_FIELD.field);
 
         final TypeSerializer<?>[] restoredFieldSerializers =
                 restoredPojoSerializer.getFieldSerializers();
-        assertThat(restoredFieldSerializers).containsExactly(new TypeSerializer[]{
-                IntSerializer.INSTANCE, StringSerializer.INSTANCE, DoubleSerializer.INSTANCE
-        });
+        assertThat(restoredFieldSerializers).containsExactly(IntSerializer.INSTANCE, StringSerializer.INSTANCE, DoubleSerializer.INSTANCE);
     }
 
     @Test
@@ -147,13 +145,11 @@ class PojoSerializerSnapshotTest {
                 (PojoSerializer<TestPojo>) restoredSerializer;
 
         final Field[] restoredFields = restoredPojoSerializer.getFields();
-        assertThat(restoredFields).containsExactly(new Field[]{null, NAME_FIELD.field, null});
+        assertThat(restoredFields).containsExactly(null, NAME_FIELD.field, null);
 
         final TypeSerializer<?>[] restoredFieldSerializers =
                 restoredPojoSerializer.getFieldSerializers();
-        assertThat(restoredFieldSerializers).containsExactly(new TypeSerializer[]{
-                IntSerializer.INSTANCE, StringSerializer.INSTANCE, DoubleSerializer.INSTANCE
-        });
+        assertThat(restoredFieldSerializers).containsExactly(IntSerializer.INSTANCE, StringSerializer.INSTANCE, DoubleSerializer.INSTANCE);
     }
 
     @Test
@@ -167,11 +163,11 @@ class PojoSerializerSnapshotTest {
                 (PojoSerializer<TestPojo>) restoredSerializer;
 
         final Field[] restoredFields = restoredPojoSerializer.getFields();
-        assertThat(restoredFields).containsExactly(new Field[]{HEIGHT_FIELD.field});
+        assertThat(restoredFields).containsExactly(HEIGHT_FIELD.field);
 
         final TypeSerializer<?>[] restoredFieldSerializers =
                 restoredPojoSerializer.getFieldSerializers();
-        assertThat(restoredFieldSerializers).containsExactly(new TypeSerializer[]{DoubleSerializer.INSTANCE});
+        assertThat(restoredFieldSerializers).containsExactly(DoubleSerializer.INSTANCE);
     }
 
     // ------------------------------------------------------------------------------------------------
@@ -329,11 +325,9 @@ class PojoSerializerSnapshotTest {
 
         final TypeSerializer<?>[] reconfiguredFieldSerializers =
                 reconfiguredPojoSerializer.getFieldSerializers();
-        assertThat(reconfiguredFieldSerializers).containsExactly(new TypeSerializer[]{
-                new SchemaCompatibilityTestingSerializer(),
+        assertThat(reconfiguredFieldSerializers).containsExactly(new SchemaCompatibilityTestingSerializer(),
                 StringSerializer.INSTANCE,
-                DoubleSerializer.INSTANCE
-        });
+                DoubleSerializer.INSTANCE);
     }
 
     // ------------------------------------------------------------------------------------------------

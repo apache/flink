@@ -40,7 +40,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for classloading and class loader utilities. */
-public class FlinkUserCodeClassLoadersTest extends TestLogger {
+public class FlinkUserCodeClassLoadersTest{
 
     @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 

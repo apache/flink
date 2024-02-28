@@ -48,7 +48,7 @@ class TupleTypeInfoTest extends TypeInformationTestBase<TupleTypeInfo<?>> {
 
         TupleTypeInfoBase<Tuple1> anonymousTupleTypeInfo =
                 new TupleTypeInfoBase<Tuple1>(
-                        Tuple1.class, (TypeInformation<?>) BasicTypeInfo.INT_TYPE_INFO) {
+                        Tuple1.class, BasicTypeInfo.INT_TYPE_INFO) {
 
                     private static final long serialVersionUID = -7985593598027660836L;
 

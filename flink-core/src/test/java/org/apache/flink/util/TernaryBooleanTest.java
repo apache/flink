@@ -26,6 +26,7 @@ import static org.apache.flink.util.TernaryBoolean.UNDEFINED;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link TernaryBoolean} class. */
@@ -57,8 +58,8 @@ public class TernaryBooleanTest {
 
     @Test
     public void testToBoolean() {
-        assertTrue(Boolean.TRUE == TRUE.getAsBoolean());
-        assertTrue(Boolean.FALSE == FALSE.getAsBoolean());
+        assertSame(Boolean.TRUE, TRUE.getAsBoolean());
+        assertSame(Boolean.FALSE, FALSE.getAsBoolean());
         assertNull(UNDEFINED.getAsBoolean());
     }
 

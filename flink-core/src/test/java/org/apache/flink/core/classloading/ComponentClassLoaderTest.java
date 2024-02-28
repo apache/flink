@@ -39,7 +39,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 
 /** Tests for the {@link ComponentClassLoader}. */
-public class ComponentClassLoaderTest extends TestLogger {
+public class ComponentClassLoaderTest{
 
     private static final String NON_EXISTENT_CLASS_NAME = "foo.Bar";
     private static final Class<?> CLASS_TO_LOAD = Class.class;

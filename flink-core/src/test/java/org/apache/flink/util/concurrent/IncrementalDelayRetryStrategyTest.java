@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link IncrementalDelayRetryStrategy}. */
-public class IncrementalDelayRetryStrategyTest extends TestLogger {
+public class IncrementalDelayRetryStrategyTest{
 
     @Test
     public void testGettersNotCapped() throws Exception {

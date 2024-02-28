@@ -28,7 +28,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link StringValueUtils}. */
-public class StringValueUtilsTest extends TestLogger {
+public class StringValueUtilsTest{
 
     @Test
     public void testToLowerCaseConverting() {

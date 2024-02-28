@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public abstract class AbstractGenericTypeComparatorTest {
@@ -250,9 +251,7 @@ public abstract class AbstractGenericTypeComparatorTest {
             this.doubleValue = value;
 
             this.stringList = new ArrayList<String>();
-            for (String str : listElements) {
-                this.stringList.add(str);
-            }
+            Collections.addAll(this.stringList, listElements);
         }
 
         @Override

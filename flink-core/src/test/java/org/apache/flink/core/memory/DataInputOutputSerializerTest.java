@@ -29,8 +29,8 @@ import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
-import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the combination of {@link DataOutputSerializer} and {@link DataInputDeserializer}. */
 class DataInputOutputSerializerTest {
@@ -46,32 +46,32 @@ class DataInputOutputSerializerTest {
             // empty buffer, read buffer should be empty
             ByteBuffer wrapper = serializer.wrapAsByteBuffer();
 
-            assertThat(wrapper.position()).isEqualTo(0);
-            assertThat(wrapper.limit()).isEqualTo(0);
+            assertThat(wrapper.position()).isZero();
+            assertThat(wrapper.limit()).isZero();
 
             // write to data output, read buffer should still be empty
             randomInt.write(serializer);
 
-            assertThat(wrapper.position()).isEqualTo(0);
-            assertThat(wrapper.limit()).isEqualTo(0);
+            assertThat(wrapper.position()).isZero();
+            assertThat(wrapper.limit()).isZero();
 
             // get updated read buffer, read buffer should contain written data
             wrapper = serializer.wrapAsByteBuffer();
 
-            assertThat(wrapper.position()).isEqualTo(0);
+            assertThat(wrapper.position()).isZero();
             assertThat(wrapper.limit()).isEqualTo(randomInt.length());
 
             // clear data output, read buffer should still contain written data
             serializer.clear();
 
-            assertThat(wrapper.position()).isEqualTo(0);
+            assertThat(wrapper.position()).isZero();
             assertThat(wrapper.limit()).isEqualTo(randomInt.length());
 
             // get updated read buffer, should be empty
             wrapper = serializer.wrapAsByteBuffer();
 
-            assertThat(wrapper.position()).isEqualTo(0);
-            assertThat(wrapper.limit()).isEqualTo(0);
+            assertThat(wrapper.position()).isZero();
+            assertThat(wrapper.limit()).isZero();
 
             // write to data output and read back to memory
             randomInt.write(serializer);
@@ -88,7 +88,7 @@ class DataInputOutputSerializerTest {
     }
 
     @Test
-    void testRandomValuesWriteRead() {
+    void testRandomValuesWriteRead() throws IOException, InstantiationException, IllegalAccessException {
         final int numElements = 100000;
         final ArrayDeque<SerializationTestType> reference = new ArrayDeque<>();
 
@@ -97,27 +97,17 @@ class DataInputOutputSerializerTest {
         for (SerializationTestType value : Util.randomRecords(numElements)) {
             reference.add(value);
 
-            try {
                 value.write(serializer);
-            } catch (IOException e) {
-                e.printStackTrace();
-                fail("Test encountered an unexpected exception.");
-            }
         }
 
         DataInputDeserializer deserializer =
                 new DataInputDeserializer(serializer.wrapAsByteBuffer());
 
         for (SerializationTestType expected : reference) {
-            try {
                 SerializationTestType actual = expected.getClass().newInstance();
                 actual.read(deserializer);
 
                 assertThat(actual).isEqualTo(expected);
-            } catch (Exception e) {
-                e.printStackTrace();
-                fail("Test encountered an unexpected exception.");
-            }
         }
 
         reference.clear();

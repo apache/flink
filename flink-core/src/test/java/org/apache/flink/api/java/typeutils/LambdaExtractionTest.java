@@ -113,7 +113,7 @@ class LambdaExtractionTest {
     private static final MapFunction<String, Integer> STATIC_LAMBDA = Integer::parseInt;
 
     private static class MyClass {
-        private String s = "mystring";
+        private final String s = "mystring";
 
         public MapFunction<Integer, String> getMapFunction() {
             return (i) -> s;

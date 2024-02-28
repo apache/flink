@@ -47,7 +47,7 @@ import static org.junit.Assert.fail;
 
 /** Tests for the {@link ConjunctFuture} and its sub classes. */
 @RunWith(Parameterized.class)
-public class ConjunctFutureTest extends TestLogger {
+public class ConjunctFutureTest{
 
     @Parameterized.Parameters
     public static Collection<FutureFactory> parameters() {

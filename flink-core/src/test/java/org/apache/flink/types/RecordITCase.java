@@ -32,7 +32,7 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.util.Random;
 
-public class RecordITCase extends TestLogger {
+public class RecordITCase{
 
     private static final long SEED = 354144423270432543L;
     private final Random rand = new Random(RecordITCase.SEED);

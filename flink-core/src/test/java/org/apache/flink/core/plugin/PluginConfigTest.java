@@ -39,7 +39,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link PluginConfig} utility class. */
-public class PluginConfigTest extends TestLogger {
+public class PluginConfigTest{
 
     @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 

@@ -25,7 +25,7 @@ import static org.hamcrest.CoreMatchers.sameInstance;
 import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link ArrayUtils}. */
-public class ArrayUtilsTest extends TestLogger {
+public class ArrayUtilsTest{
 
     @Test
     public void concatWithEmptyArray() {

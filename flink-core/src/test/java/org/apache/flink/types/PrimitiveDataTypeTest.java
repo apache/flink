@@ -113,7 +113,7 @@ public class PrimitiveDataTypeTest {
             Assert.assertEquals(double3.compareTo(double3n), 0);
             Assert.assertEquals(double3.getValue(), double3n.getValue(), 0.0001);
         } catch (Exception e) {
-            Assert.assertTrue(false);
+            Assert.fail();
         }
     }
 
@@ -134,19 +134,19 @@ public class PrimitiveDataTypeTest {
         StringValue string6 = (StringValue) string0.subSequence(0, string0.length());
         StringValue string7 = (StringValue) string0.subSequence(5, 9);
         StringValue string8 = (StringValue) string0.subSequence(0, 0);
-        Assert.assertTrue(string0.compareTo(string0) == 0);
-        Assert.assertTrue(string0.compareTo(string1) == 0);
+        Assert.assertEquals(0, string0.compareTo(string0));
+        Assert.assertEquals(0, string0.compareTo(string1));
         Assert.assertTrue(string0.compareTo(string2) > 0);
         Assert.assertTrue(string0.compareTo(string3) < 0);
-        Assert.assertTrue(stringThis.equals(chars5));
-        Assert.assertTrue(stringThis.compareTo(string5) == 0);
-        Assert.assertTrue(string0.compareTo(string6) == 0);
-        Assert.assertTrue(stringIsA.compareTo(string7) == 0);
+        Assert.assertEquals(stringThis, chars5);
+        Assert.assertEquals(0, stringThis.compareTo(string5));
+        Assert.assertEquals(0, string0.compareTo(string6));
+        Assert.assertEquals(0, stringIsA.compareTo(string7));
         string7.setValue("This is a test");
         Assert.assertTrue(stringIsA.compareTo(string7) > 0);
-        Assert.assertTrue(string0.compareTo(string7) == 0);
+        Assert.assertEquals(0, string0.compareTo(string7));
         string7.setValue("is a");
-        Assert.assertTrue(stringIsA.compareTo(string7) == 0);
+        Assert.assertEquals(0, stringIsA.compareTo(string7));
         Assert.assertTrue(string0.compareTo(string7) < 0);
         Assert.assertEquals(stringIsA.hashCode(), string7.hashCode());
         Assert.assertEquals(string7.length(), 4);
@@ -198,7 +198,7 @@ public class PrimitiveDataTypeTest {
             }
 
         } catch (Exception e) {
-            Assert.assertTrue(false);
+            Assert.fail();
         }
     }
 
@@ -211,7 +211,7 @@ public class PrimitiveDataTypeTest {
         Assert.assertEquals("PactNull not equal to other PactNulls.", pn1, pn2);
         Assert.assertEquals("PactNull not equal to other PactNulls.", pn2, pn1);
 
-        Assert.assertFalse("PactNull equal to other null.", pn1.equals(null));
+        Assert.assertNotEquals("PactNull equal to other null.", null, pn1);
 
         // test serialization
         final NullValue pn = new NullValue();

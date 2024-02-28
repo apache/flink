@@ -31,7 +31,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** This class contains tests for the {@link org.apache.flink.util.AbstractID} class. */
-public class AbstractIDTest extends TestLogger {
+public class AbstractIDTest{
 
     /** Tests the serialization/deserialization of an abstract ID. */
     @Test
@@ -141,6 +141,6 @@ public class AbstractIDTest extends TestLogger {
         int sgnBA = cmpBA > 0 ? 1 : (cmpBA < 0 ? -1 : 0);
 
         assertEquals(signum, sgnAB);
-        assertTrue(sgnAB == -sgnBA);
+        assertEquals(sgnAB, -sgnBA);
     }
 }

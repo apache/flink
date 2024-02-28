@@ -24,8 +24,8 @@ import java.io.IOException;
 import java.net.URI;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
-import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link Path} class. */
 class PathTest {
@@ -71,19 +71,9 @@ class PathTest {
         p = new Path("file:/C:/my/windows/path");
         assertThat(p.toUri().getPath()).isEqualTo("/C:/my/windows/path");
 
-        try {
-            new Path((String) null);
-            fail("");
-        } catch (Exception e) {
-            // exception expected
-        }
+        assertThatThrownBy(() -> new Path((String) null)).isInstanceOf(Exception.class);
 
-        try {
-            new Path("");
-            fail("");
-        } catch (Exception e) {
-            // exception expected
-        }
+        assertThatThrownBy(() -> new Path("")).isInstanceOf(Exception.class);
     }
 
     @Test
@@ -224,7 +214,7 @@ class PathTest {
         assertThat(p.depth()).isEqualTo(12);
 
         p = new Path("/");
-        assertThat(p.depth()).isEqualTo(0);
+        assertThat(p.depth()).isZero();
 
         p = new Path("C:/my/windows/path");
         assertThat(p.depth()).isEqualTo(4);
