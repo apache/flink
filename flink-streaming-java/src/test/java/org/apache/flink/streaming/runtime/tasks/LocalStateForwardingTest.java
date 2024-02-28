@@ -36,7 +36,7 @@ import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
-import org.apache.flink.runtime.state.LocalRecoveryDirectoryProviderImpl;
+import org.apache.flink.runtime.state.LocalSnapshotDirectoryProviderImpl;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
@@ -220,11 +220,12 @@ public class LocalStateForwardingTest extends TestLogger {
 
         Executor executor = Executors.directExecutor();
 
-        LocalRecoveryDirectoryProviderImpl directoryProvider =
-                new LocalRecoveryDirectoryProviderImpl(
+        LocalSnapshotDirectoryProviderImpl directoryProvider =
+                new LocalSnapshotDirectoryProviderImpl(
                         temporaryFolder.newFolder(), jobID, jobVertexID, subtaskIdx);
 
-        LocalRecoveryConfig localRecoveryConfig = new LocalRecoveryConfig(directoryProvider);
+        LocalRecoveryConfig localRecoveryConfig =
+                LocalRecoveryConfig.backupAndRecoveryEnabled(directoryProvider);
 
         TaskLocalStateStore taskLocalStateStore =
                 new TaskLocalStateStoreImpl(

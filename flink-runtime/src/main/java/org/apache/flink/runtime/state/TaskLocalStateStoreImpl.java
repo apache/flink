@@ -203,7 +203,7 @@ public class TaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
         }
     }
 
-    protected LocalRecoveryDirectoryProvider getLocalRecoveryDirectoryProvider() {
+    protected LocalSnapshotDirectoryProvider getLocalRecoveryDirectoryProvider() {
         return localRecoveryConfig
                 .getLocalStateDirectoryProvider()
                 .orElseThrow(() -> new IllegalStateException("Local recovery must be enabled."));
@@ -217,6 +217,18 @@ public class TaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
 
         synchronized (lock) {
             snapshot = loadTaskStateSnapshot(checkpointID);
+        }
+
+        // Even if local recovery is disabled, it is still necessary to load the TaskStateSnapshot
+        // so that it can be managed by the TaskLocalStateStore.
+        if (!localRecoveryConfig.isLocalRecoveryEnabled()) {
+            LOG.debug(
+                    "Local recovery is disabled for checkpoint {} in subtask ({} - {} - {})",
+                    checkpointID,
+                    jobID,
+                    jobVertexID,
+                    subtaskIndex);
+            return null;
         }
 
         if (snapshot != null) {

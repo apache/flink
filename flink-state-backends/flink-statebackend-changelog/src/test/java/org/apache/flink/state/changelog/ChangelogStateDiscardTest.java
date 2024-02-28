@@ -274,7 +274,7 @@ public class ChangelogStateDiscardTest {
                                 LatencyTrackingStateConfig.disabled(),
                                 emptyList(),
                                 UncompressedStreamCompressionDecorator.INSTANCE,
-                                new LocalRecoveryConfig(null),
+                                LocalRecoveryConfig.BACKUP_AND_RECOVERY_DISABLED,
                                 new HeapPriorityQueueSetFactory(
                                         kgRange, kgRange.getNumberOfKeyGroups(), 128),
                                 true,

@@ -389,6 +389,7 @@ public class TaskManagerServices {
         final TaskExecutorLocalStateStoresManager taskStateManager =
                 new TaskExecutorLocalStateStoresManager(
                         taskManagerServicesConfiguration.isLocalRecoveryEnabled(),
+                        taskManagerServicesConfiguration.isLocalBackupEnabled(),
                         taskManagerServicesConfiguration.getLocalRecoveryStateDirectories(),
                         ioExecutor);
 

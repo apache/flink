@@ -89,7 +89,7 @@ final class SavepointTaskStateManager implements TaskStateManager {
     @Nonnull
     @Override
     public LocalRecoveryConfig createLocalRecoveryConfig() {
-        return new LocalRecoveryConfig(null);
+        return LocalRecoveryConfig.BACKUP_AND_RECOVERY_DISABLED;
     }
 
     @Override
