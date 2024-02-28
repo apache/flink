@@ -22,21 +22,33 @@ import org.apache.flink.core.fs.AbstractRecoverableWriterTest;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
-import org.junit.ClassRule;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.File;
+import java.io.IOException;
 
 /** Tests for the {@link LocalRecoverableWriter}. */
 public class LocalFileSystemRecoverableWriterTest extends AbstractRecoverableWriterTest {
 
-    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @TempDir
+    public static File TEMP_FOLDER;
 
     @Override
     public Path getBasePath() throws Exception {
-        return new Path(TEMP_FOLDER.newFolder().toURI());
+        return new Path(newFolder(TEMP_FOLDER, "junit").toURI());
     }
 
     @Override
     public FileSystem initializeFileSystem() {
         return FileSystem.getLocalFileSystem();
+    }
+
+    private static File newFolder(File root, String... subDirs) throws IOException {
+        String subFolder = String.join("/", subDirs);
+        File result = new File(root, subFolder);
+        if (!result.mkdirs()) {
+            throw new IOException("Couldn't create folders " + root);
+        }
+        return result;
     }
 }

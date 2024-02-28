@@ -20,10 +20,10 @@ package org.apache.flink.api.java.typeutils.runtime.kryo;
 
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 /**
  * A test that validates that the concurrency checks in the Kryo Serializer are not hard coded to
@@ -36,7 +36,7 @@ import static org.junit.Assume.assumeFalse;
  * <p><b>Important:</b> If you see this test fail and the initial settings are still correct, check
  * the assumptions above (on fresh JVM fork).
  */
-public class KryoSerializerConcurrencyCheckInactiveITCase extends TestLogger {
+class KryoSerializerConcurrencyCheckInactiveITCase extends TestLogger {
 
     // this sets the debug initialization back to its default, even if
     // by default tests modify it (implicitly via assertion loading)
@@ -49,7 +49,7 @@ public class KryoSerializerConcurrencyCheckInactiveITCase extends TestLogger {
      * concurrency checks are off by default.
      */
     @Test
-    public void testWithNoConcurrencyCheck() throws Exception {
+    void testWithNoConcurrencyCheck() throws Exception {
         // this test will fail on DEBUG log level: If we run the test with DEBUG log level
         // the KryoSerializer.CONCURRENT_ACCESS_CHECK will be enabled, causing a failure here.
         assumeFalse(log.isDebugEnabled());
@@ -62,8 +62,8 @@ public class KryoSerializerConcurrencyCheckInactiveITCase extends TestLogger {
         }
 
         assertTrue(
+                assertionError,
                 "testConcurrentUseOfSerializer() should have failed if "
-                        + "concurrency checks are off by default",
-                assertionError);
+                        + "concurrency checks are off by default");
     }
 }

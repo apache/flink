@@ -23,10 +23,10 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Abstract test base for TuplePairComparators.
@@ -49,12 +49,12 @@ public abstract class TuplePairComparatorTestBase<T extends Tuple, R extends Tup
             for (int x = 0; x < data.f0.length; x++) {
                 comparator.setReference(data.f0[x]);
 
-                assertTrue(comparator.equalToReference(data.f1[x]));
+                assertThat(comparator.equalToReference(data.f1[x])).isTrue();
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            fail("Exception in test: " + e.getMessage());
+            fail("", "Exception in test: " + e.getMessage());
         }
     }
 
@@ -75,16 +75,16 @@ public abstract class TuplePairComparatorTestBase<T extends Tuple, R extends Tup
                 for (int y = x + 1; y < data.f1.length; y++) {
                     comparator.setReference(data.f0[x]);
                     if (ascending) {
-                        assertTrue(comparator.compareToReference(data.f1[y]) > 0);
+                        assertThat(comparator.compareToReference(data.f1[y]) > 0).isTrue();
                     } else {
-                        assertTrue(comparator.compareToReference(data.f1[y]) < 0);
+                        assertThat(comparator.compareToReference(data.f1[y]) < 0).isTrue();
                     }
                 }
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            fail("Exception in test: " + e.getMessage());
+            fail("", "Exception in test: " + e.getMessage());
         }
     }
 

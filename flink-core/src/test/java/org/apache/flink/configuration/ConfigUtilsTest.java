@@ -18,7 +18,7 @@
 
 package org.apache.flink.configuration;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -26,13 +26,13 @@ import java.util.List;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertThat;
 
 /** Tests the {@link ConfigUtils} methods. */
-public class ConfigUtilsTest {
+class ConfigUtilsTest {
 
     private static final ConfigOption<List<String>> TEST_OPTION =
             key("test.option.key").stringType().asList().noDefaultValue();
@@ -41,7 +41,7 @@ public class ConfigUtilsTest {
     private static final List<Integer> intList = Arrays.asList(intArray);
 
     @Test
-    public void collectionIsCorrectlyPutAndFetched() {
+    void collectionIsCorrectlyPutAndFetched() {
         final Configuration configurationUnderTest = new Configuration();
         ConfigUtils.encodeCollectionToConfig(
                 configurationUnderTest, TEST_OPTION, intList, Object::toString);
@@ -53,7 +53,7 @@ public class ConfigUtilsTest {
     }
 
     @Test
-    public void arrayIsCorrectlyPutAndFetched() {
+    void arrayIsCorrectlyPutAndFetched() {
         final Configuration configurationUnderTest = new Configuration();
         ConfigUtils.encodeArrayToConfig(
                 configurationUnderTest, TEST_OPTION, intArray, Object::toString);
@@ -65,7 +65,7 @@ public class ConfigUtilsTest {
     }
 
     @Test
-    public void nullCollectionPutsNothingInConfig() {
+    void nullCollectionPutsNothingInConfig() {
         final Configuration configurationUnderTest = new Configuration();
         ConfigUtils.encodeCollectionToConfig(
                 configurationUnderTest, TEST_OPTION, null, Object::toString);
@@ -82,7 +82,7 @@ public class ConfigUtilsTest {
     }
 
     @Test
-    public void nullArrayPutsNothingInConfig() {
+    void nullArrayPutsNothingInConfig() {
         final Configuration configurationUnderTest = new Configuration();
         ConfigUtils.encodeArrayToConfig(
                 configurationUnderTest, TEST_OPTION, null, Object::toString);
@@ -99,7 +99,7 @@ public class ConfigUtilsTest {
     }
 
     @Test
-    public void emptyCollectionPutsEmptyValueInConfig() {
+    void emptyCollectionPutsEmptyValueInConfig() {
         final Configuration configurationUnderTest = new Configuration();
         ConfigUtils.encodeCollectionToConfig(
                 configurationUnderTest, TEST_OPTION, Collections.emptyList(), Object::toString);
@@ -114,7 +114,7 @@ public class ConfigUtilsTest {
     }
 
     @Test
-    public void emptyArrayPutsEmptyValueInConfig() {
+    void emptyArrayPutsEmptyValueInConfig() {
         final Configuration configurationUnderTest = new Configuration();
         ConfigUtils.encodeArrayToConfig(
                 configurationUnderTest, TEST_OPTION, new Integer[5], Object::toString);

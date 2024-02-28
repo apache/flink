@@ -24,7 +24,6 @@ import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.assertj.core.api.Assertions;
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,9 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.*;
 
 /**
  * This class contains test for the configuration package. In particular, the serialization of
@@ -109,7 +106,7 @@ public class ConfigurationTest {
 
         } catch (Exception e) {
             e.printStackTrace();
-            fail(e.getMessage());
+            fail("", e.getMessage());
         }
     }
 
@@ -127,7 +124,7 @@ public class ConfigurationTest {
             assertThat("value").isEqualTo(cfg1.getString(key, ""));
         } catch (Exception e) {
             e.printStackTrace();
-            fail(e.getMessage());
+            fail("", e.getMessage());
         }
     }
 
@@ -457,7 +454,7 @@ public class ConfigurationTest {
     void testMapNotContained() {
         final Configuration cfg = new Configuration(standardYaml);
 
-        assertThat(cfg.getOptional(MAP_OPTION).isPresent()).isFalse();
+        assertThat(cfg.getOptional(MAP_OPTION)).isNotPresent();
         assertThat(cfg.contains(MAP_OPTION)).isFalse();
     }
 
@@ -521,7 +518,7 @@ public class ConfigurationTest {
         ConfigOption<List<String>> secret =
                 ConfigOptions.key("secret").stringType().asList().noDefaultValue();
 
-        Assertions.assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
+        assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
 
         final Configuration cfg = new Configuration(standardYaml);
         // missing closing quote
@@ -531,7 +528,7 @@ public class ConfigurationTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .satisfies(
                         e ->
-                                Assertions.assertThat(ExceptionUtils.stringifyException(e))
+                                assertThat(ExceptionUtils.stringifyException(e))
                                         .doesNotContain("secret_value"));
     }
 
@@ -540,7 +537,7 @@ public class ConfigurationTest {
         ConfigOption<Map<String, String>> secret =
                 ConfigOptions.key("secret").mapType().noDefaultValue();
 
-        Assertions.assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
+        assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
 
         final Configuration cfg = new Configuration(standardYaml);
         // malformed map representation
@@ -550,7 +547,7 @@ public class ConfigurationTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .satisfies(
                         e ->
-                                Assertions.assertThat(ExceptionUtils.stringifyException(e))
+                                assertThat(ExceptionUtils.stringifyException(e))
                                         .doesNotContain("secret_value"));
     }
 

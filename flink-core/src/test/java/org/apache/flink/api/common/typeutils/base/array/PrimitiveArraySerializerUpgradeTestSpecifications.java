@@ -28,8 +28,8 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import org.hamcrest.Matcher;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertSame;
 
 public class PrimitiveArraySerializerUpgradeTestSpecifications {
     // ----------------------------------------------------------------------------------------------
@@ -42,7 +42,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
             TypeSerializer<boolean[]> serializer =
                     TypeExtractor.createTypeInfo(boolean[].class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(serializer.getClass(), BooleanPrimitiveArraySerializer.class);
+            assertThat(serializer.getClass()).isSameAs(BooleanPrimitiveArraySerializer.class);
             return serializer;
         }
 
@@ -62,7 +62,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
             TypeSerializer<boolean[]> serializer =
                     TypeExtractor.createTypeInfo(boolean[].class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(serializer.getClass(), BooleanPrimitiveArraySerializer.class);
+            assertThat(serializer.getClass()).isSameAs(BooleanPrimitiveArraySerializer.class);
             return serializer;
         }
 
@@ -91,7 +91,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
             TypeSerializer<byte[]> serializer =
                     TypeExtractor.createTypeInfo(byte[].class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(serializer.getClass(), BytePrimitiveArraySerializer.class);
+            assertThat(serializer.getClass()).isSameAs(BytePrimitiveArraySerializer.class);
             return serializer;
         }
 
@@ -112,7 +112,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
             TypeSerializer<byte[]> serializer =
                     TypeExtractor.createTypeInfo(byte[].class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(serializer.getClass(), BytePrimitiveArraySerializer.class);
+            assertThat(serializer.getClass()).isSameAs(BytePrimitiveArraySerializer.class);
             return serializer;
         }
 
@@ -142,7 +142,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
             TypeSerializer<char[]> serializer =
                     TypeExtractor.createTypeInfo(char[].class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(serializer.getClass(), CharPrimitiveArraySerializer.class);
+            assertThat(serializer.getClass()).isSameAs(CharPrimitiveArraySerializer.class);
             return serializer;
         }
 
@@ -163,7 +163,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
             TypeSerializer<char[]> serializer =
                     TypeExtractor.createTypeInfo(char[].class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(serializer.getClass(), CharPrimitiveArraySerializer.class);
+            assertThat(serializer.getClass()).isSameAs(CharPrimitiveArraySerializer.class);
             return serializer;
         }
 
@@ -193,7 +193,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
             TypeSerializer<double[]> serializer =
                     TypeExtractor.createTypeInfo(double[].class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(serializer.getClass(), DoublePrimitiveArraySerializer.class);
+            assertThat(serializer.getClass()).isSameAs(DoublePrimitiveArraySerializer.class);
             return serializer;
         }
 
@@ -214,7 +214,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
             TypeSerializer<double[]> serializer =
                     TypeExtractor.createTypeInfo(double[].class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(serializer.getClass(), DoublePrimitiveArraySerializer.class);
+            assertThat(serializer.getClass()).isSameAs(DoublePrimitiveArraySerializer.class);
             return serializer;
         }
 
@@ -244,7 +244,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
             TypeSerializer<float[]> serializer =
                     TypeExtractor.createTypeInfo(float[].class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(serializer.getClass(), FloatPrimitiveArraySerializer.class);
+            assertThat(serializer.getClass()).isSameAs(FloatPrimitiveArraySerializer.class);
             return serializer;
         }
 
@@ -265,7 +265,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
             TypeSerializer<float[]> serializer =
                     TypeExtractor.createTypeInfo(float[].class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(serializer.getClass(), FloatPrimitiveArraySerializer.class);
+            assertThat(serializer.getClass()).isSameAs(FloatPrimitiveArraySerializer.class);
             return serializer;
         }
 
@@ -295,7 +295,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
             TypeSerializer<int[]> serializer =
                     TypeExtractor.createTypeInfo(int[].class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(serializer.getClass(), IntPrimitiveArraySerializer.class);
+            assertThat(serializer.getClass()).isSameAs(IntPrimitiveArraySerializer.class);
             return serializer;
         }
 
@@ -316,7 +316,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
             TypeSerializer<int[]> serializer =
                     TypeExtractor.createTypeInfo(int[].class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(serializer.getClass(), IntPrimitiveArraySerializer.class);
+            assertThat(serializer.getClass()).isSameAs(IntPrimitiveArraySerializer.class);
             return serializer;
         }
 
@@ -346,7 +346,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
             TypeSerializer<long[]> serializer =
                     TypeExtractor.createTypeInfo(long[].class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(serializer.getClass(), LongPrimitiveArraySerializer.class);
+            assertThat(serializer.getClass()).isSameAs(LongPrimitiveArraySerializer.class);
             return serializer;
         }
 
@@ -367,7 +367,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
             TypeSerializer<long[]> serializer =
                     TypeExtractor.createTypeInfo(long[].class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(serializer.getClass(), LongPrimitiveArraySerializer.class);
+            assertThat(serializer.getClass()).isSameAs(LongPrimitiveArraySerializer.class);
             return serializer;
         }
 
@@ -397,7 +397,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
             TypeSerializer<short[]> serializer =
                     TypeExtractor.createTypeInfo(short[].class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(serializer.getClass(), ShortPrimitiveArraySerializer.class);
+            assertThat(serializer.getClass()).isSameAs(ShortPrimitiveArraySerializer.class);
             return serializer;
         }
 
@@ -418,7 +418,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
             TypeSerializer<short[]> serializer =
                     TypeExtractor.createTypeInfo(short[].class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(serializer.getClass(), ShortPrimitiveArraySerializer.class);
+            assertThat(serializer.getClass()).isSameAs(ShortPrimitiveArraySerializer.class);
             return serializer;
         }
 
@@ -448,7 +448,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
             TypeSerializer<String[]> serializer =
                     TypeExtractor.createTypeInfo(String[].class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(serializer.getClass(), StringArraySerializer.class);
+            assertThat(serializer.getClass()).isSameAs(StringArraySerializer.class);
             return serializer;
         }
 
@@ -469,7 +469,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
             TypeSerializer<String[]> serializer =
                     TypeExtractor.createTypeInfo(String[].class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(serializer.getClass(), StringArraySerializer.class);
+            assertThat(serializer.getClass()).isSameAs(StringArraySerializer.class);
             return serializer;
         }
 

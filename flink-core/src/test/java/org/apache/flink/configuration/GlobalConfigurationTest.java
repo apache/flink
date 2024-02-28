@@ -205,7 +205,7 @@ class GlobalConfigurationTest {
     }
 
     @Test
-    public void testHiddenKey() {
+    void testHiddenKey() {
         assertThat(GlobalConfiguration.isSensitive("password123")).isTrue();
         assertThat(GlobalConfiguration.isSensitive("123pasSword")).isTrue();
         assertThat(GlobalConfiguration.isSensitive("PasSword")).isTrue();

@@ -18,11 +18,9 @@
 
 package org.apache.flink.configuration;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import javax.annotation.Nullable;
 
@@ -32,16 +30,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link StructuredOptionsSplitter}. */
-@RunWith(Parameterized.class)
 public class StructuredOptionsSplitterTest {
 
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
-    @Parameterized.Parameters(name = "{0}")
     public static Collection<TestSpec> getSpecs() {
         return Arrays.asList(
 
@@ -92,12 +85,12 @@ public class StructuredOptionsSplitterTest {
                 TestSpec.split("   A;B    ;   C   ", ';').expect("A", "B", "C"),
                 TestSpec.split("'A;B'    ;C A", ';').expect("A;B", "C A"),
                 TestSpec.split("' A    ;B'    ;'   C'", ';').expect(" A    ;B", "   C"));
-    }
+    } public TestSpec testSpec;
 
-    @Parameterized.Parameter public TestSpec testSpec;
-
-    @Test
-    public void testParse() {
+    @MethodSource("getSpecs")
+    @ParameterizedTest(name = "{0}")
+    public void testParse(TestSpec testSpec) {
+        initStructuredOptionsSplitterTest(testSpec);
         testSpec.getExpectedException()
                 .ifPresent(
                         exception -> {
@@ -108,7 +101,7 @@ public class StructuredOptionsSplitterTest {
                 StructuredOptionsSplitter.splitEscaped(
                         testSpec.getString(), testSpec.getDelimiter());
 
-        assertThat(splits, equalTo(testSpec.getExpectedSplits()));
+        assertThat(splits).isEqualTo(testSpec.getExpectedSplits());
     }
 
     private static class TestSpec {
@@ -166,5 +159,9 @@ public class StructuredOptionsSplitterTest {
                                                     .collect(
                                                             Collectors.joining("], [", "[", "]"))));
         }
+    }
+
+    public void initStructuredOptionsSplitterTest(TestSpec testSpec) {
+        this.testSpec = testSpec;
     }
 }

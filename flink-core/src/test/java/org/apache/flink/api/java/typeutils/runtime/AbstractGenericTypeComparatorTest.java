@@ -22,8 +22,8 @@ import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -110,7 +110,7 @@ public abstract class AbstractGenericTypeComparatorTest {
     // test instance
     // ------------------------------------------------------------------------
 
-    @Ignore("Prevents this class from being considered a test class by JUnit.")
+    @Disabled("Prevents this class from being considered a test class by JUnit.")
     private class ComparatorTestInstance<T> extends ComparatorTestBase<T> {
 
         private final T[] testData;

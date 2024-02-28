@@ -21,17 +21,13 @@ package org.apache.flink.configuration;
 import org.apache.flink.configuration.MemorySize.MemoryUnit;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link MemorySize#toString()}. */
-@RunWith(Parameterized.class)
 public class MemorySizePrettyPrintingTest extends TestLogger {
-    @Parameterized.Parameters
     public static Object[][] parameters() {
         return new Object[][] {
             new Object[] {new MemorySize(MemoryUnit.KILO_BYTES.getMultiplier() + 1), "1025 bytes"},
@@ -43,15 +39,18 @@ public class MemorySizePrettyPrintingTest extends TestLogger {
             },
             new Object[] {new MemorySize(0), "0 bytes"}
         };
-    }
-
-    @Parameterized.Parameter public MemorySize memorySize;
-
-    @Parameterized.Parameter(1)
+    } public MemorySize memorySize;
     public String expectedString;
 
-    @Test
-    public void testFormatting() {
-        assertThat(memorySize.toString(), is(expectedString));
+    @MethodSource("parameters")
+    @ParameterizedTest
+    public void testFormatting(MemorySize memorySize, String expectedString) {
+        initMemorySizePrettyPrintingTest(memorySize, expectedString);
+        assertThat(memorySize.toString()).isEqualTo(expectedString);
+    }
+
+    public void initMemorySizePrettyPrintingTest(MemorySize memorySize, String expectedString) {
+        this.memorySize = memorySize;
+        this.expectedString = expectedString;
     }
 }

@@ -25,7 +25,7 @@ import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializer
 import org.apache.flink.api.java.typeutils.runtime.TestDataOutputSerializer;
 
 import com.esotericsoftware.kryo.Kryo;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -33,17 +33,16 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings("unchecked")
-public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializerTest {
+class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializerTest {
 
     SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
 
     @Test
-    public void testJavaList() {
+    void testJavaList() {
         Collection<Integer> a = new ArrayList<>();
 
         fillCollection(a);
@@ -52,7 +51,7 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
     }
 
     @Test
-    public void testJavaSet() {
+    void testJavaSet() {
         Collection<Integer> b = new HashSet<>();
 
         fillCollection(b);
@@ -61,7 +60,7 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
     }
 
     @Test
-    public void testJavaDequeue() {
+    void testJavaDequeue() {
         Collection<Integer> c = new LinkedList<>();
         fillCollection(c);
         runTests(c);
@@ -81,7 +80,7 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 
     /** Make sure that the kryo serializer forwards EOF exceptions properly when serializing */
     @Test
-    public void testForwardEOFExceptionWhileSerializing() {
+    void testForwardEOFExceptionWhileSerializing() {
         try {
             // construct a long string
             String str;
@@ -107,19 +106,18 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
             } catch (java.io.EOFException e) {
                 // that is how we like it
             } catch (Exception e) {
-                fail(
-                        "throws wrong exception: should throw a java.io.EOFException, has thrown a "
-                                + e.getClass().getName());
+                fail("", "throws wrong exception: should throw a java.io.EOFException, has thrown a "
+                        + e.getClass().getName());
             }
         } catch (Exception e) {
             e.printStackTrace();
-            fail(e.getMessage());
+            fail("", e.getMessage());
         }
     }
 
     /** Make sure that the kryo serializer forwards EOF exceptions properly when serializing */
     @Test
-    public void testForwardEOFExceptionWhileDeserializing() {
+    void testForwardEOFExceptionWhileDeserializing() {
         try {
             int numElements = 100;
             // construct a memory target that is too small for the string
@@ -137,7 +135,7 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 
             for (int i = 0; i < numElements; i++) {
                 int value = serializer.deserialize(source);
-                assertEquals(i, value);
+                assertThat(value).isEqualTo(i);
             }
 
             try {
@@ -146,21 +144,20 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
             } catch (java.io.EOFException e) {
                 // that is how we like it :-)
             } catch (Exception e) {
-                fail(
-                        "throws wrong exception: should throw a java.io.EOFException, has thrown a "
-                                + e.getClass().getName());
+                fail("", "throws wrong exception: should throw a java.io.EOFException, has thrown a "
+                        + e.getClass().getName());
             }
         } catch (Exception e) {
             e.printStackTrace();
-            fail(e.getMessage());
+            fail("", e.getMessage());
         }
     }
 
     @Test
-    public void validateReferenceMappingEnabled() {
+    void validateReferenceMappingEnabled() {
         KryoSerializer<String> serializer =
                 new KryoSerializer<>(String.class, new SerializerConfigImpl());
         Kryo kryo = serializer.getKryo();
-        assertTrue(kryo.getReferences());
+        assertThat(kryo.getReferences()).isTrue();
     }
 }

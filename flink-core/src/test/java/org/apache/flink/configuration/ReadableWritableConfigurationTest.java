@@ -38,8 +38,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests read access ({@link ReadableConfig}) to {@link Configuration}. There are 4 different test
@@ -169,7 +168,7 @@ public class ReadableWritableConfigurationTest {
         testSpec.setValue(configuration);
 
         Optional<?> optional = configuration.getOptional(testSpec.getOption());
-        assertThat(optional.get(), equalTo(testSpec.getValue()));
+        assertThat(optional).contains(testSpec.getValue());
     }
 
     @TestTemplate
@@ -179,7 +178,7 @@ public class ReadableWritableConfigurationTest {
         configuration.setString(option.key(), testSpec.getStringValue(standardYaml));
 
         Optional<?> optional = configuration.getOptional(option);
-        assertThat(optional.get(), equalTo(testSpec.getValue()));
+        assertThat(optional).contains(testSpec.getValue());
     }
 
     @TestTemplate
@@ -188,7 +187,7 @@ public class ReadableWritableConfigurationTest {
 
         ConfigOption<?> option = testSpec.getOption();
         Object value = configuration.get(option);
-        assertThat(value, equalTo(option.defaultValue()));
+        assertThat(value).isEqualTo(option.defaultValue());
     }
 
     @TestTemplate
@@ -200,7 +199,7 @@ public class ReadableWritableConfigurationTest {
         Object value =
                 ((Optional<Object>) configuration.getOptional(option))
                         .orElse(testSpec.getDefaultValueOverride());
-        assertThat(value, equalTo(testSpec.getDefaultValueOverride()));
+        assertThat(value).isEqualTo(testSpec.getDefaultValueOverride());
     }
 
     private static class TestSpec<T> {

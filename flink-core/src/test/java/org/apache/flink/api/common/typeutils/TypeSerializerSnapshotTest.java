@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link TypeSerializerSnapshot} */
-public class TypeSerializerSnapshotTest {
+class TypeSerializerSnapshotTest {
 
     @Test
     void testIllegalSchemaCompatibility() {

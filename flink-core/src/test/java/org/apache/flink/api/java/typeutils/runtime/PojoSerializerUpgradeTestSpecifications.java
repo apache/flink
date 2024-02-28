@@ -32,8 +32,8 @@ import org.hamcrest.Matcher;
 
 import java.util.Objects;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertSame;
 
 /** A collection of test specifications for the {@link PojoSerializerUpgradeTest}. */
 public class PojoSerializerUpgradeTestSpecifications {
@@ -211,7 +211,7 @@ public class PojoSerializerUpgradeTestSpecifications {
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -229,7 +229,7 @@ public class PojoSerializerUpgradeTestSpecifications {
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -276,7 +276,7 @@ public class PojoSerializerUpgradeTestSpecifications {
             TypeSerializer<PojoBeforeSchemaUpgrade> serializer =
                     TypeExtractor.createTypeInfo(PojoBeforeSchemaUpgrade.class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -343,7 +343,7 @@ public class PojoSerializerUpgradeTestSpecifications {
             TypeSerializer<PojoAfterSchemaUpgrade> serializer =
                     TypeExtractor.createTypeInfo(PojoAfterSchemaUpgrade.class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -385,7 +385,7 @@ public class PojoSerializerUpgradeTestSpecifications {
             TypeSerializer<PojoWithIntField> serializer =
                     TypeExtractor.createTypeInfo(PojoWithIntField.class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -417,7 +417,7 @@ public class PojoSerializerUpgradeTestSpecifications {
             TypeSerializer<PojoWithStringField> serializer =
                     TypeExtractor.createTypeInfo(PojoWithStringField.class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -480,7 +480,7 @@ public class PojoSerializerUpgradeTestSpecifications {
             TypeSerializer<BasePojo> serializer =
                     TypeExtractor.createTypeInfo(BasePojo.class)
                             .createSerializer(serializerConfigImpl);
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -560,7 +560,7 @@ public class PojoSerializerUpgradeTestSpecifications {
             TypeSerializer<BasePojo> serializer =
                     TypeExtractor.createTypeInfo(BasePojo.class)
                             .createSerializer(serializerConfigImpl);
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -606,7 +606,7 @@ public class PojoSerializerUpgradeTestSpecifications {
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
                             .createSerializer(serializerConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -643,7 +643,7 @@ public class PojoSerializerUpgradeTestSpecifications {
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
                             .createSerializer(serializerConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -673,7 +673,7 @@ public class PojoSerializerUpgradeTestSpecifications {
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -692,7 +692,7 @@ public class PojoSerializerUpgradeTestSpecifications {
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -726,7 +726,7 @@ public class PojoSerializerUpgradeTestSpecifications {
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
                             .createSerializer(serializerConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -749,7 +749,7 @@ public class PojoSerializerUpgradeTestSpecifications {
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
                             .createSerializer(serializerConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -784,7 +784,7 @@ public class PojoSerializerUpgradeTestSpecifications {
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
                             .createSerializer(serializerConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -806,7 +806,7 @@ public class PojoSerializerUpgradeTestSpecifications {
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
                             .createSerializer(serializerConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -838,7 +838,7 @@ public class PojoSerializerUpgradeTestSpecifications {
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
                             .createSerializer(serializerConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -861,7 +861,7 @@ public class PojoSerializerUpgradeTestSpecifications {
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
                             .createSerializer(serializerConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -895,7 +895,7 @@ public class PojoSerializerUpgradeTestSpecifications {
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
                             .createSerializer(serializerConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -917,7 +917,7 @@ public class PojoSerializerUpgradeTestSpecifications {
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
                             .createSerializer(serializerConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 

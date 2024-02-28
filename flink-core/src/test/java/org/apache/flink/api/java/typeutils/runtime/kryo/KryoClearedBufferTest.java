@@ -28,8 +28,7 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.EOFException;
@@ -37,7 +36,11 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 
-public class KryoClearedBufferTest {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.fail;
+
+class KryoClearedBufferTest {
 
     /**
      * Tests that the kryo output buffer is cleared in case of an exception. Flink uses the
@@ -46,7 +49,7 @@ public class KryoClearedBufferTest {
      * cleared.
      */
     @Test
-    public void testOutputBufferedBeingClearedInCaseOfException() throws Exception {
+    void testOutputBufferedBeingClearedInCaseOfException() throws Exception {
         SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
         serializerConfigImpl.registerTypeWithKryoSerializer(
                 TestRecord.class, new TestRecordSerializer());
@@ -66,7 +69,7 @@ public class KryoClearedBufferTest {
 
         try {
             kryoSerializer.serialize(testRecord, target);
-            Assert.fail("Expected an EOFException.");
+            fail("Expected an EOFException.");
         } catch (EOFException eofException) {
             // expected exception
             // now the Kryo Output should have been cleared
@@ -77,7 +80,7 @@ public class KryoClearedBufferTest {
                         new DataInputViewStreamWrapper(
                                 new ByteArrayInputStream(target.getBuffer())));
 
-        Assert.assertEquals(testRecord, actualRecord);
+        assertThat(actualRecord).isEqualTo(testRecord);
 
         target.clear();
 
@@ -95,7 +98,7 @@ public class KryoClearedBufferTest {
             }
         }
 
-        Assert.assertEquals(size, counter);
+        assertThat(counter).isEqualTo(size);
     }
 
     public static class TestRecord {
