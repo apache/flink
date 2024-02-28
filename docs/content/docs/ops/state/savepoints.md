@@ -208,7 +208,13 @@ This submits a job and specifies a savepoint to resume from. You may give a path
 
 #### Allowing Non-Restored State
 
-By default, the resume operation will try to map all state of the savepoint back to the program you are restoring with. If you dropped an operator, you can allow to skip state that cannot be mapped to the new program via `--allowNonRestoredState` (short: `-n`) option:
+By default, the resume operation will try to map all state of the savepoint back to the program you are restoring with. If you dropped an operator, you can allow to skip state that cannot be mapped to the new program via `--allowNonRestoredState` (short: `-n`) option.
+
+{{< hint warning  >}}
+Improper usage of this feature could result in significant issues with the correctness of the application. It is crucial to verify that any remaining states can be accurately mapped to the appropriate operators.
+It is worth noting that operator UIDs are reassigned based on topological order by default, which may lead to incorrect associations between states and operators, thus consequently states are not correctly restored as wished.
+To prevent such mismatches, it is advisable to explicitly [assign UIDs] ({{< ref "docs/ops/production_ready" >}}/#set-uuids-for-all-operators) to all operators in a DataStream job. 
+{{< /hint >}}
 
 #### Claim mode
 
