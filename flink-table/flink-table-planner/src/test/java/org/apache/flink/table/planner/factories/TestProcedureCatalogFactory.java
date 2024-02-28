@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.factories;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.DataTypeHint;
@@ -39,6 +40,7 @@ import org.apache.flink.util.CloseableIterator;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -94,6 +96,8 @@ public class TestProcedureCatalogFactory implements CatalogFactory {
             PROCEDURE_MAP.put(
                     ObjectPath.fromString("system.named_args_optional"),
                     new NamedArgumentsProcedureWithOptionalArguments());
+            PROCEDURE_MAP.put(
+                    ObjectPath.fromString("system.get_env_conf"), new EnvironmentConfProcedure());
         }
 
         public CatalogWithBuiltInProcedure(String name) {
@@ -227,6 +231,22 @@ public class TestProcedureCatalogFactory implements CatalogFactory {
                 })
         public String[] call(ProcedureContext procedureContext, String arg1, Integer arg2) {
             return new String[] {arg1 + ", " + arg2};
+        }
+    }
+
+    /** A procedure to get environment configs for testing purpose. */
+    @ProcedureHint(output = @DataTypeHint("ROW<k STRING, v STRING>"))
+    public static class EnvironmentConfProcedure implements Procedure {
+        public Row[] call(ProcedureContext procedureContext) throws Exception {
+            StreamExecutionEnvironment env = procedureContext.getExecutionEnvironment();
+            Configuration config = (Configuration) env.getConfiguration();
+            List<Row> rows = new ArrayList<>();
+            config.toMap()
+                    .forEach(
+                            (k, v) -> {
+                                rows.add(Row.of(k, v));
+                            });
+            return rows.toArray(new Row[0]);
         }
     }
 
