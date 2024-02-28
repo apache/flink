@@ -18,17 +18,15 @@
 
 package org.apache.flink.core.fs;
 
-import org.apache.flink.util.TestLogger;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
-
-import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link AutoCloseableRegistry}. */
-class AutoCloseableRegistryTest{
+class AutoCloseableRegistryTest {
     @Test
     void testReverseOrderOfClosing() throws Exception {
         ArrayList<Integer> closeOrder = new ArrayList<>();

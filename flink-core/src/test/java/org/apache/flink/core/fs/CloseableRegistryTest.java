@@ -33,7 +33,6 @@ import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for the {@link CloseableRegistry}. */
 class CloseableRegistryTest
@@ -99,7 +98,7 @@ class CloseableRegistryTest
                             checksum += Integer.parseInt(throwable.getMessage());
                         }
                         // Checksum is sum from 1..6 = 15
-                        assertEquals(15, checksum);
+                        assertThat(checksum).isEqualTo(15);
                     });
 
             // Check that unregistered Closable isn't closed.

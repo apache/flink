@@ -29,6 +29,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Random;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -141,7 +142,7 @@ public class StringValueSerializationTest {
             num++;
         }
 
-        assertEquals("Wrong number of deserialized values", values.length, num);
+        assertThat(values.length).isCloseTo("Wrong number of deserialized values", within(num));
     }
 
     public static void testCopy(String[] values) throws IOException {
@@ -182,6 +183,6 @@ public class StringValueSerializationTest {
             num++;
         }
 
-        assertEquals("Wrong number of deserialized values", values.length, num);
+        assertThat(values.length).isCloseTo("Wrong number of deserialized values", within(num));
     }
 }

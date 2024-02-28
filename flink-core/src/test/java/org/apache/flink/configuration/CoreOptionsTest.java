@@ -50,7 +50,8 @@ class CoreOptionsTest {
             ConfigOption<List<String>> patternOption,
             ConfigOption<List<String>> additionalOption) {
         Configuration config = new Configuration();
-        assertThat(patternGetter.apply(config)).containsExactly(patternOption.defaultValue().toArray(new String[0]));
+        assertThat(patternGetter.apply(config))
+                .containsExactly(patternOption.defaultValue().toArray(new String[0]));
 
         config.set(patternOption, Arrays.asList("hello", "world"));
 
@@ -58,7 +59,8 @@ class CoreOptionsTest {
 
         config.set(additionalOption, Arrays.asList("how", "are", "you"));
 
-        assertThat(patternGetter.apply(config)).containsExactly("hello", "world", "how", "are", "you");
+        assertThat(patternGetter.apply(config))
+                .containsExactly("hello", "world", "how", "are", "you");
 
         config.set(patternOption, Collections.emptyList());
 

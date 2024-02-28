@@ -30,9 +30,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 
-import java.lang.reflect.Type;
-
 import org.junit.jupiter.api.Test;
+
+import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -128,7 +128,8 @@ class TypeInfoFactoryTest {
         TupleTypeInfo<?> tti = (TupleTypeInfo) ti;
         assertThat(tti.getTypeAt(0) instanceof MyTupleTypeInfo).isTrue();
         MyTupleTypeInfo mtti = (MyTupleTypeInfo) tti.getTypeAt(0);
-        assertThat(mtti.getField0()).isEqualTo(new TupleTypeInfo<>(FLOAT_TYPE_INFO, STRING_TYPE_INFO));
+        assertThat(mtti.getField0())
+                .isEqualTo(new TupleTypeInfo<>(FLOAT_TYPE_INFO, STRING_TYPE_INFO));
         assertThat(mtti.getField1()).isEqualTo(BOOLEAN_TYPE_INFO);
     }
 
@@ -168,18 +169,22 @@ class TypeInfoFactoryTest {
 
     @Test
     void testMissingTypeInfo() {
-        assertThatExceptionOfType(InvalidTypesException.class).isThrownBy(() -> {
-            MapFunction f = new MyFaultyMapper();
-            TypeExtractor.getMapReturnTypes(f, INT_TYPE_INFO);
-        });
+        assertThatExceptionOfType(InvalidTypesException.class)
+                .isThrownBy(
+                        () -> {
+                            MapFunction f = new MyFaultyMapper();
+                            TypeExtractor.getMapReturnTypes(f, INT_TYPE_INFO);
+                        });
     }
 
     @Test
     void testMissingTypeInference() {
-        assertThatExceptionOfType(InvalidTypesException.class).isThrownBy(() -> {
-            MapFunction f = new MyFaultyMapper2();
-            TypeExtractor.getMapReturnTypes(f, new MyFaultyTypeInfo());
-        });
+        assertThatExceptionOfType(InvalidTypesException.class)
+                .isThrownBy(
+                        () -> {
+                            MapFunction f = new MyFaultyMapper2();
+                            TypeExtractor.getMapReturnTypes(f, new MyFaultyTypeInfo());
+                        });
     }
 
     // --------------------------------------------------------------------------------------------

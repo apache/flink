@@ -30,17 +30,15 @@ import java.net.URL;
 import java.net.URLClassLoader;
 
 import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.hamcrest.CoreMatchers.isA;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 /** Tests for classloading and class loader utilities. */
-public class FlinkUserCodeClassLoadersTest{
+public class FlinkUserCodeClassLoadersTest {
 
     @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -85,8 +83,8 @@ public class FlinkUserCodeClassLoadersTest{
         final Class<?> clazz2 = Class.forName(className, false, childClassLoader1);
         final Class<?> clazz3 = Class.forName(className, false, childClassLoader2);
 
-        assertEquals(clazz1, clazz2);
-        assertEquals(clazz1, clazz3);
+        assertThat(clazz2).isEqualTo(clazz1);
+        assertThat(clazz3).isEqualTo(clazz1);
 
         childClassLoader1.close();
         childClassLoader2.close();
@@ -112,9 +110,9 @@ public class FlinkUserCodeClassLoadersTest{
         final Class<?> clazz2 = Class.forName(className, false, childClassLoader1);
         final Class<?> clazz3 = Class.forName(className, false, childClassLoader2);
 
-        assertNotEquals(clazz1, clazz2);
-        assertNotEquals(clazz1, clazz3);
-        assertNotEquals(clazz2, clazz3);
+        assertThat(clazz2).isNotEqualTo(clazz1);
+        assertThat(clazz3).isNotEqualTo(clazz1);
+        assertThat(clazz3).isNotEqualTo(clazz2);
 
         childClassLoader1.close();
         childClassLoader2.close();
@@ -138,10 +136,10 @@ public class FlinkUserCodeClassLoadersTest{
         final Class<?> clazz3 = Class.forName(className, false, childClassLoader);
         final Class<?> clazz4 = Class.forName(className, false, childClassLoader);
 
-        assertNotEquals(clazz1, clazz2);
+        assertThat(clazz2).isNotEqualTo(clazz1);
 
-        assertEquals(clazz2, clazz3);
-        assertEquals(clazz2, clazz4);
+        assertThat(clazz3).isEqualTo(clazz2);
+        assertThat(clazz4).isEqualTo(clazz2);
 
         childClassLoader.close();
     }
@@ -170,9 +168,9 @@ public class FlinkUserCodeClassLoadersTest{
         final Class<?> clazz3 = Class.forName(className, false, childClassLoader);
         final Class<?> clazz4 = Class.forName(className, false, childClassLoader);
 
-        assertEquals(clazz1, clazz2);
-        assertEquals(clazz1, clazz3);
-        assertEquals(clazz1, clazz4);
+        assertThat(clazz2).isEqualTo(clazz1);
+        assertThat(clazz3).isEqualTo(clazz1);
+        assertThat(clazz4).isEqualTo(clazz1);
 
         childClassLoader.close();
     }
@@ -240,7 +238,7 @@ public class FlinkUserCodeClassLoadersTest{
 
         final Class<?> loadedClass = childClassLoader.loadClass(className);
 
-        assertNotSame(ClassToLoad.class, loadedClass);
+        assertThat(loadedClass).isNotSameAs(ClassToLoad.class);
 
         childClassLoader.close();
 
@@ -253,7 +251,7 @@ public class FlinkUserCodeClassLoadersTest{
     public void testParallelCapable() {
         // It will be true only if all the super classes (except class Object) of the caller are
         // registered as parallel capable.
-        assertTrue(TestParentFirstClassLoader.isParallelCapable);
+        assertThat(TestParentFirstClassLoader.isParallelCapable).isTrue();
     }
 
     @Test
@@ -282,8 +280,8 @@ public class FlinkUserCodeClassLoadersTest{
         final Class<?> clazz2 = Class.forName(USER_CLASS, false, childClassLoader1);
         final Class<?> clazz3 = Class.forName(USER_CLASS, false, childClassLoader2);
 
-        assertEquals(clazz1, clazz2);
-        assertEquals(clazz1, clazz3);
+        assertThat(clazz2).isEqualTo(clazz1);
+        assertThat(clazz3).isEqualTo(clazz1);
 
         parentClassLoader.close();
         childClassLoader1.close();
@@ -320,7 +318,7 @@ public class FlinkUserCodeClassLoadersTest{
         final Class<?> clazz1 = Class.forName(USER_CLASS, false, childClassLoader1);
         final Class<?> clazz2 = Class.forName(USER_CLASS, false, childClassLoader2);
 
-        assertNotEquals(clazz1, clazz2);
+        assertThat(clazz2).isNotEqualTo(clazz1);
 
         parentClassLoader.close();
         childClassLoader1.close();

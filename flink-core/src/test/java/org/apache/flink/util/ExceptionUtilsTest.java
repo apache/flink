@@ -20,22 +20,21 @@ package org.apache.flink.util;
 
 import org.junit.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.CoreMatchers.sameInstance;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for the utility methods in {@link ExceptionUtils}. */
-public class ExceptionUtilsTest{
+public class ExceptionUtilsTest {
 
     @Test
     public void testStringifyNullException() {
-        assertNotNull(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION);
+        assertThat(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION).isNotNull();
         assertEquals(
                 ExceptionUtils.STRINGIFIED_NULL_EXCEPTION, ExceptionUtils.stringifyException(null));
     }
@@ -43,14 +42,14 @@ public class ExceptionUtilsTest{
     @Test
     public void testJvmFatalError() {
         // not all errors are fatal
-        assertFalse(ExceptionUtils.isJvmFatalError(new Error()));
+        assertThat(ExceptionUtils.isJvmFatalError(new Error())).isFalse();
 
         // linkage errors are not fatal
-        assertFalse(ExceptionUtils.isJvmFatalError(new LinkageError()));
+        assertThat(ExceptionUtils.isJvmFatalError(new LinkageError())).isFalse();
 
         // some errors are fatal
-        assertTrue(ExceptionUtils.isJvmFatalError(new InternalError()));
-        assertTrue(ExceptionUtils.isJvmFatalError(new UnknownError()));
+        assertThat(ExceptionUtils.isJvmFatalError(new InternalError())).isTrue();
+        assertThat(ExceptionUtils.isJvmFatalError(new UnknownError())).isTrue();
     }
 
     @Test
@@ -158,11 +157,11 @@ public class ExceptionUtilsTest{
 
     @Test
     public void testIsMetaspaceOutOfMemoryErrorCanHandleNullValue() {
-        assertFalse(ExceptionUtils.isMetaspaceOutOfMemoryError(null));
+        assertThat(ExceptionUtils.isMetaspaceOutOfMemoryError(null)).isFalse();
     }
 
     @Test
     public void testIsDirectOutOfMemoryErrorCanHandleNullValue() {
-        assertFalse(ExceptionUtils.isDirectOutOfMemoryError(null));
+        assertThat(ExceptionUtils.isDirectOutOfMemoryError(null)).isFalse();
     }
 }

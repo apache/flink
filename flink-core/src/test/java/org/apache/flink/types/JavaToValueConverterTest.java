@@ -25,6 +25,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.*;
 
 public class JavaToValueConverterTest {
@@ -32,7 +33,7 @@ public class JavaToValueConverterTest {
     @Test
     public void testJavaToValueConversion() {
         try {
-            assertNull(JavaToValueConverter.convertBoxedJavaType(null));
+            assertThat(JavaToValueConverter.convertBoxedJavaType(null)).isNull();
 
             assertEquals(
                     new StringValue("123Test"),
@@ -42,16 +43,20 @@ public class JavaToValueConverterTest {
             assertEquals(
                     new ShortValue((short) 10000),
                     JavaToValueConverter.convertBoxedJavaType((short) 10000));
-            assertEquals(new IntValue(3567564), JavaToValueConverter.convertBoxedJavaType(3567564));
+            assertThat(JavaToValueConverter.convertBoxedJavaType(3567564))
+                    .isEqualTo(new IntValue(3567564));
             assertEquals(
                     new LongValue(767692734),
                     JavaToValueConverter.convertBoxedJavaType(767692734L));
-            assertEquals(new FloatValue(17.5f), JavaToValueConverter.convertBoxedJavaType(17.5f));
+            assertThat(JavaToValueConverter.convertBoxedJavaType(17.5f))
+                    .isEqualTo(new FloatValue(17.5f));
             assertEquals(
                     new DoubleValue(3.1415926),
                     JavaToValueConverter.convertBoxedJavaType(3.1415926));
-            assertEquals(new BooleanValue(true), JavaToValueConverter.convertBoxedJavaType(true));
-            assertEquals(new CharValue('@'), JavaToValueConverter.convertBoxedJavaType('@'));
+            assertThat(JavaToValueConverter.convertBoxedJavaType(true))
+                    .isEqualTo(new BooleanValue(true));
+            assertThat(JavaToValueConverter.convertBoxedJavaType('@'))
+                    .isEqualTo(new CharValue('@'));
 
             try {
                 JavaToValueConverter.convertBoxedJavaType(new ArrayList<Object>());
@@ -68,7 +73,7 @@ public class JavaToValueConverterTest {
     @Test
     public void testValueToJavaConversion() {
         try {
-            assertNull(JavaToValueConverter.convertValueType(null));
+            assertThat(JavaToValueConverter.convertValueType(null)).isNull();
 
             assertEquals(
                     "123Test", JavaToValueConverter.convertValueType(new StringValue("123Test")));
@@ -77,14 +82,17 @@ public class JavaToValueConverterTest {
             assertEquals(
                     (short) 10000,
                     JavaToValueConverter.convertValueType(new ShortValue((short) 10000)));
-            assertEquals(3567564, JavaToValueConverter.convertValueType(new IntValue(3567564)));
+            assertThat(JavaToValueConverter.convertValueType(new IntValue(3567564)))
+                    .isEqualTo(3567564);
             assertEquals(
                     767692734L, JavaToValueConverter.convertValueType(new LongValue(767692734)));
-            assertEquals(17.5f, JavaToValueConverter.convertValueType(new FloatValue(17.5f)));
+            assertThat(JavaToValueConverter.convertValueType(new FloatValue(17.5f)))
+                    .isEqualTo(17.5f);
             assertEquals(
                     3.1415926, JavaToValueConverter.convertValueType(new DoubleValue(3.1415926)));
-            assertEquals(true, JavaToValueConverter.convertValueType(new BooleanValue(true)));
-            assertEquals('@', JavaToValueConverter.convertValueType(new CharValue('@')));
+            assertThat(JavaToValueConverter.convertValueType(new BooleanValue(true)))
+                    .isEqualTo(true);
+            assertThat(JavaToValueConverter.convertValueType(new CharValue('@'))).isEqualTo('@');
 
             try {
                 JavaToValueConverter.convertValueType(new MyValue());

@@ -29,7 +29,7 @@ import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
 import java.util.function.BiConsumer;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
 
 /**
@@ -133,7 +133,7 @@ public class OperationsOnFreedSegmentTest {
 
     private void testOpsOnFreedSegment(MemorySegment segment) throws Exception {
         segment.free();
-        assertTrue(segment.isFreed());
+        assertThat(segment.isFreed()).isTrue();
 
         // --------- bytes -----------
 

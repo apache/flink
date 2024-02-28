@@ -18,12 +18,12 @@
 
 package org.apache.flink.util;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Properties;
 
 import static org.apache.flink.util.PropertiesUtil.flatten;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link PropertiesUtil}. */
 public class PropertiesUtilTest {
@@ -43,8 +43,8 @@ public class PropertiesUtilTest {
         prop3.put("key3", "value3");
 
         Properties flattened = flatten(prop3);
-        Assert.assertEquals(flattened.get("key1"), "value1");
-        Assert.assertEquals(flattened.get("key2"), "value2");
-        Assert.assertEquals(flattened.get("key3"), "value3");
+        assertThat("value1").isEqualTo(flattened.get("key1"));
+        assertThat("value2").isEqualTo(flattened.get("key2"));
+        assertThat("value3").isEqualTo(flattened.get("key3"));
     }
 }

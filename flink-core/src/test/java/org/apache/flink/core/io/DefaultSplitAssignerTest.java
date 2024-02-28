@@ -20,9 +20,9 @@ package org.apache.flink.core.io;
 
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 
-import java.util.HashSet;
-
 import org.junit.jupiter.api.Test;
+
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -33,82 +33,82 @@ class DefaultSplitAssignerTest {
 
     @Test
     void testSerialSplitAssignment() {
-            final int NUM_SPLITS = 50;
+        final int NUM_SPLITS = 50;
 
-            Set<InputSplit> splits = new HashSet<InputSplit>();
-            for (int i = 0; i < NUM_SPLITS; i++) {
-                splits.add(new GenericInputSplit(i, NUM_SPLITS));
-            }
+        Set<InputSplit> splits = new HashSet<InputSplit>();
+        for (int i = 0; i < NUM_SPLITS; i++) {
+            splits.add(new GenericInputSplit(i, NUM_SPLITS));
+        }
 
-            DefaultInputSplitAssigner ia = new DefaultInputSplitAssigner(splits);
-            InputSplit is = null;
-            while ((is = ia.getNextInputSplit("", 0)) != null) {
-                assertThat(splits.remove(is)).isTrue();
-            }
+        DefaultInputSplitAssigner ia = new DefaultInputSplitAssigner(splits);
+        InputSplit is = null;
+        while ((is = ia.getNextInputSplit("", 0)) != null) {
+            assertThat(splits.remove(is)).isTrue();
+        }
 
-            assertThat(splits).isEmpty();
-            assertThat(ia.getNextInputSplit("", 0)).isNull();
+        assertThat(splits).isEmpty();
+        assertThat(ia.getNextInputSplit("", 0)).isNull();
     }
 
     @Test
     void testConcurrentSplitAssignment() throws InterruptedException {
-            final int NUM_THREADS = 10;
-            final int NUM_SPLITS = 500;
-            final int SUM_OF_IDS = (NUM_SPLITS - 1) * (NUM_SPLITS) / 2;
+        final int NUM_THREADS = 10;
+        final int NUM_SPLITS = 500;
+        final int SUM_OF_IDS = (NUM_SPLITS - 1) * (NUM_SPLITS) / 2;
 
-            Set<InputSplit> splits = new HashSet<InputSplit>();
-            for (int i = 0; i < NUM_SPLITS; i++) {
-                splits.add(new GenericInputSplit(i, NUM_SPLITS));
-            }
+        Set<InputSplit> splits = new HashSet<InputSplit>();
+        for (int i = 0; i < NUM_SPLITS; i++) {
+            splits.add(new GenericInputSplit(i, NUM_SPLITS));
+        }
 
-            final DefaultInputSplitAssigner ia = new DefaultInputSplitAssigner(splits);
+        final DefaultInputSplitAssigner ia = new DefaultInputSplitAssigner(splits);
 
-            final AtomicInteger splitsRetrieved = new AtomicInteger(0);
-            final AtomicInteger sumOfIds = new AtomicInteger(0);
+        final AtomicInteger splitsRetrieved = new AtomicInteger(0);
+        final AtomicInteger sumOfIds = new AtomicInteger(0);
 
-            Runnable retriever =
-                    new Runnable() {
+        Runnable retriever =
+                new Runnable() {
 
-                        @Override
-                        public void run() {
-                            String host = "";
-                            GenericInputSplit split;
-                            while ((split = (GenericInputSplit) ia.getNextInputSplit(host, 0))
-                                    != null) {
-                                splitsRetrieved.incrementAndGet();
-                                sumOfIds.addAndGet(split.getSplitNumber());
-                            }
+                    @Override
+                    public void run() {
+                        String host = "";
+                        GenericInputSplit split;
+                        while ((split = (GenericInputSplit) ia.getNextInputSplit(host, 0))
+                                != null) {
+                            splitsRetrieved.incrementAndGet();
+                            sumOfIds.addAndGet(split.getSplitNumber());
                         }
-                    };
+                    }
+                };
 
-            // create the threads
-            Thread[] threads = new Thread[NUM_THREADS];
-            for (int i = 0; i < NUM_THREADS; i++) {
-                threads[i] = new Thread(retriever);
-                threads[i].setDaemon(true);
+        // create the threads
+        Thread[] threads = new Thread[NUM_THREADS];
+        for (int i = 0; i < NUM_THREADS; i++) {
+            threads[i] = new Thread(retriever);
+            threads[i].setDaemon(true);
+        }
+
+        // launch concurrently
+        for (int i = 0; i < NUM_THREADS; i++) {
+            threads[i].start();
+        }
+
+        // sync
+        for (int i = 0; i < NUM_THREADS; i++) {
+            threads[i].join(5000);
+        }
+
+        // verify
+        for (int i = 0; i < NUM_THREADS; i++) {
+            if (threads[i].isAlive()) {
+                fail("The concurrency test case is erroneous, the thread did not respond in time.");
             }
+        }
 
-            // launch concurrently
-            for (int i = 0; i < NUM_THREADS; i++) {
-                threads[i].start();
-            }
+        assertThat(splitsRetrieved.get()).isEqualTo(NUM_SPLITS);
+        assertThat(sumOfIds.get()).isEqualTo(SUM_OF_IDS);
 
-            // sync
-            for (int i = 0; i < NUM_THREADS; i++) {
-                threads[i].join(5000);
-            }
-
-            // verify
-            for (int i = 0; i < NUM_THREADS; i++) {
-                if (threads[i].isAlive()) {
-                    fail("The concurrency test case is erroneous, the thread did not respond in time.");
-                }
-            }
-
-            assertThat(splitsRetrieved.get()).isEqualTo(NUM_SPLITS);
-            assertThat(sumOfIds.get()).isEqualTo(SUM_OF_IDS);
-
-            // nothing left
-            assertThat(ia.getNextInputSplit("", 0)).isNull();
+        // nothing left
+        assertThat(ia.getNextInputSplit("", 0)).isNull();
     }
 }

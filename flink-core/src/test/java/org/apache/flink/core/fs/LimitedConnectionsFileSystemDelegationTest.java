@@ -43,8 +43,7 @@ import static org.mockito.Mockito.when;
  */
 public class LimitedConnectionsFileSystemDelegationTest {
 
-    @TempDir
-    public File tempFolder;
+    @TempDir public File tempFolder;
 
     @Test
     @SuppressWarnings("deprecation")

@@ -21,7 +21,6 @@ package org.apache.flink.api.java.typeutils.runtime.tuple.base;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
 
@@ -34,8 +33,7 @@ import static org.assertj.core.api.Assertions.fail;
  * @param <T>
  * @param <R>
  */
-public abstract class TuplePairComparatorTestBase<T extends Tuple, R extends Tuple>
-       {
+public abstract class TuplePairComparatorTestBase<T extends Tuple, R extends Tuple> {
 
     protected abstract TypePairComparator<T, R> createComparator(boolean ascending);
 

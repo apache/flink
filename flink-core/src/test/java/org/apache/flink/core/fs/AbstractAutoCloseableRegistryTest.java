@@ -31,7 +31,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link AbstractAutoCloseableRegistry}. */
 public abstract class AbstractAutoCloseableRegistryTest<C extends Closeable, E extends C, T> {
@@ -247,7 +246,9 @@ public abstract class AbstractAutoCloseableRegistryTest<C extends Closeable, E e
 
         @Override
         public void close() throws IOException {
-            assertTrue(closed.compareAndSet(false, true), "TestCloseable was already closed");
+            assertThat(closed.compareAndSet(false, true))
+                    .as("TestCloseable was already closed")
+                    .isTrue();
         }
 
         public boolean isClosed() {

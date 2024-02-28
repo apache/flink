@@ -22,7 +22,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,7 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 
 /** Tests for {@link Transformation}. */
-class TransformationTest{
+class TransformationTest {
 
     private Transformation<Void> transformation;
 
@@ -90,38 +89,50 @@ class TransformationTest{
         transformation.declareManagedMemoryUseCaseAtOperatorScope(
                 ManagedMemoryUseCase.OPERATOR, 123);
         transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.STATE_BACKEND);
-        assertThat(transformation
-                .getManagedMemoryOperatorScopeUseCaseWeights()).containsEntry(ManagedMemoryUseCase.OPERATOR, 123);
-        assertThat(transformation.getManagedMemorySlotScopeUseCases()).containsExactly(ManagedMemoryUseCase.STATE_BACKEND);
+        assertThat(transformation.getManagedMemoryOperatorScopeUseCaseWeights())
+                .containsEntry(ManagedMemoryUseCase.OPERATOR, 123);
+        assertThat(transformation.getManagedMemorySlotScopeUseCases())
+                .containsExactly(ManagedMemoryUseCase.STATE_BACKEND);
     }
 
     @Test
     void testDeclareManagedMemoryOperatorScopeUseCaseFailWrongScope() {
-        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> {
-            transformation.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.PYTHON, 123);
-        });
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(
+                        () -> {
+                            transformation.declareManagedMemoryUseCaseAtOperatorScope(
+                                    ManagedMemoryUseCase.PYTHON, 123);
+                        });
     }
 
     @Test
     void testDeclareManagedMemoryOperatorScopeUseCaseFailZeroWeight() {
-        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> {
-            transformation.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, 0);
-        });
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(
+                        () -> {
+                            transformation.declareManagedMemoryUseCaseAtOperatorScope(
+                                    ManagedMemoryUseCase.OPERATOR, 0);
+                        });
     }
 
     @Test
     void testDeclareManagedMemoryOperatorScopeUseCaseFailNegativeWeight() {
-        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> {
-            transformation.declareManagedMemoryUseCaseAtOperatorScope(
-                    ManagedMemoryUseCase.OPERATOR, -1);
-        });
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(
+                        () -> {
+                            transformation.declareManagedMemoryUseCaseAtOperatorScope(
+                                    ManagedMemoryUseCase.OPERATOR, -1);
+                        });
     }
 
     @Test
     void testDeclareManagedMemorySlotScopeUseCaseFailWrongScope() {
-        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> {
-            transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.OPERATOR);
-        });
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(
+                        () -> {
+                            transformation.declareManagedMemoryUseCaseAtSlotScope(
+                                    ManagedMemoryUseCase.OPERATOR);
+                        });
     }
 
     /** A test implementation of {@link Transformation}. */

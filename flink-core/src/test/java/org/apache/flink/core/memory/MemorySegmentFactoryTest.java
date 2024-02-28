@@ -52,15 +52,19 @@ class MemorySegmentFactoryTest {
 
     @Test
     void testWrapCopyWrongStart() {
-        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> {
-            MemorySegmentFactory.wrapCopy(new byte[]{1, 2, 3}, 10, 3);
-        });
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(
+                        () -> {
+                            MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 10, 3);
+                        });
     }
 
     @Test
     void testWrapCopyWrongEnd() {
-        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> {
-            MemorySegmentFactory.wrapCopy(new byte[]{1, 2, 3}, 0, 10);
-        });
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(
+                        () -> {
+                            MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 0, 10);
+                        });
     }
 }

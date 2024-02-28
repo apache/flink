@@ -19,7 +19,6 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.configuration.MemorySize.MemoryUnit;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -27,7 +26,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link MemorySize#toString()}. */
-public class MemorySizePrettyPrintingTest{
+public class MemorySizePrettyPrintingTest {
     public static Object[][] parameters() {
         return new Object[][] {
             new Object[] {new MemorySize(MemoryUnit.KILO_BYTES.getMultiplier() + 1), "1025 bytes"},
@@ -39,7 +38,9 @@ public class MemorySizePrettyPrintingTest{
             },
             new Object[] {new MemorySize(0), "0 bytes"}
         };
-    } public MemorySize memorySize;
+    }
+
+    public MemorySize memorySize;
     public String expectedString;
 
     @MethodSource("parameters")

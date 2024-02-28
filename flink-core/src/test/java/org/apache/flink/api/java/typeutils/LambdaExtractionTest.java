@@ -34,9 +34,9 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 
-import java.lang.reflect.Method;
-
 import org.junit.jupiter.api.Test;
+
+import java.lang.reflect.Method;
 
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.checkAndExtractLambda;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -160,7 +160,8 @@ class LambdaExtractionTest {
             assertThat(ti.isTupleType()).isTrue();
             assertThat(ti.getArity()).isEqualTo(2);
             assertThat(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType()).isTrue();
-            assertThat(((TupleTypeInfo<?>) ti).getTypeAt(1)).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
+            assertThat(((TupleTypeInfo<?>) ti).getTypeAt(1))
+                    .isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
         }
     }
 
@@ -175,7 +176,8 @@ class LambdaExtractionTest {
             assertThat(ti.isTupleType()).isTrue();
             assertThat(ti.getArity()).isEqualTo(2);
             assertThat(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType()).isTrue();
-            assertThat(((TupleTypeInfo<?>) ti).getTypeAt(1)).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
+            assertThat(((TupleTypeInfo<?>) ti).getTypeAt(1))
+                    .isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
         }
     }
 
@@ -190,7 +192,8 @@ class LambdaExtractionTest {
             assertThat(ti.isTupleType()).isTrue();
             assertThat(ti.getArity()).isEqualTo(2);
             assertThat(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType()).isTrue();
-            assertThat(((TupleTypeInfo<?>) ti).getTypeAt(1)).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
+            assertThat(((TupleTypeInfo<?>) ti).getTypeAt(1))
+                    .isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
         }
     }
 
@@ -209,7 +212,8 @@ class LambdaExtractionTest {
             assertThat(ti.isTupleType()).isTrue();
             assertThat(ti.getArity()).isEqualTo(2);
             assertThat(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType()).isTrue();
-            assertThat(((TupleTypeInfo<?>) ti).getTypeAt(1)).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
+            assertThat(((TupleTypeInfo<?>) ti).getTypeAt(1))
+                    .isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
         }
     }
 
@@ -228,7 +232,8 @@ class LambdaExtractionTest {
             assertThat(ti.isTupleType()).isTrue();
             assertThat(ti.getArity()).isEqualTo(2);
             assertThat(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType()).isTrue();
-            assertThat(((TupleTypeInfo<?>) ti).getTypeAt(1)).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
+            assertThat(((TupleTypeInfo<?>) ti).getTypeAt(1))
+                    .isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
         }
     }
 
@@ -243,7 +248,8 @@ class LambdaExtractionTest {
             assertThat(ti.isTupleType()).isTrue();
             assertThat(ti.getArity()).isEqualTo(2);
             assertThat(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType()).isTrue();
-            assertThat(((TupleTypeInfo<?>) ti).getTypeAt(1)).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
+            assertThat(((TupleTypeInfo<?>) ti).getTypeAt(1))
+                    .isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
         }
     }
 
@@ -275,7 +281,8 @@ class LambdaExtractionTest {
             assertThat(ti.isTupleType()).isTrue();
             assertThat(ti.getArity()).isEqualTo(2);
             assertThat(((TupleTypeInfo<?>) ti).getTypeAt(0)).isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
-            assertThat(((TupleTypeInfo<?>) ti).getTypeAt(1)).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
+            assertThat(((TupleTypeInfo<?>) ti).getTypeAt(1))
+                    .isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
         }
     }
 
@@ -351,9 +358,12 @@ class LambdaExtractionTest {
 
     @Test
     void getSingleAbstractMethodMultipleMethods() {
-        assertThatExceptionOfType(InvalidTypesException.class).isThrownBy(() -> {
-            TypeExtractionUtils.getSingleAbstractMethod(InterfaceWithMultipleMethods.class);
-        });
+        assertThatExceptionOfType(InvalidTypesException.class)
+                .isThrownBy(
+                        () -> {
+                            TypeExtractionUtils.getSingleAbstractMethod(
+                                    InterfaceWithMultipleMethods.class);
+                        });
     }
 
     private interface InterfaceWithoutAbstractMethod {
@@ -362,9 +372,12 @@ class LambdaExtractionTest {
 
     @Test
     void testSingleAbstractMethodNoAbstractMethods() {
-        assertThatExceptionOfType(InvalidTypesException.class).isThrownBy(() -> {
-            TypeExtractionUtils.getSingleAbstractMethod(InterfaceWithoutAbstractMethod.class);
-        });
+        assertThatExceptionOfType(InvalidTypesException.class)
+                .isThrownBy(
+                        () -> {
+                            TypeExtractionUtils.getSingleAbstractMethod(
+                                    InterfaceWithoutAbstractMethod.class);
+                        });
     }
 
     private abstract class AbstractClassWithSingleAbstractMethod {
@@ -373,8 +386,11 @@ class LambdaExtractionTest {
 
     @Test
     void testSingleAbstractMethodNotAnInterface() {
-        assertThatExceptionOfType(InvalidTypesException.class).isThrownBy(() -> {
-            TypeExtractionUtils.getSingleAbstractMethod(AbstractClassWithSingleAbstractMethod.class);
-        });
+        assertThatExceptionOfType(InvalidTypesException.class)
+                .isThrownBy(
+                        () -> {
+                            TypeExtractionUtils.getSingleAbstractMethod(
+                                    AbstractClassWithSingleAbstractMethod.class);
+                        });
     }
 }

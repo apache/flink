@@ -25,9 +25,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link UnionIterator}. */
@@ -39,7 +37,7 @@ public class UnionIteratorTest {
             UnionIterator<Integer> iter = new UnionIterator<>();
 
             // should succeed and be empty
-            assertFalse(iter.iterator().hasNext());
+            assertThat(iter.iterator().hasNext()).isFalse();
 
             iter.clear();
 
@@ -57,7 +55,7 @@ public class UnionIteratorTest {
 
             int val = 1;
             for (int i : iter) {
-                assertEquals(val++, i);
+                assertThat(i).isEqualTo(val++);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -117,9 +115,9 @@ public class UnionIteratorTest {
 
             // should succeed
             Iterator<Integer> ints = iter.iterator();
-            assertNotNull(ints.next());
-            assertNotNull(ints.next());
-            assertNotNull(ints.next());
+            assertThat(ints.next()).isNotNull();
+            assertThat(ints.next()).isNotNull();
+            assertThat(ints.next()).isNotNull();
 
             // should fail if called in the middle of operations
             try {
@@ -133,7 +131,7 @@ public class UnionIteratorTest {
             iter.clear();
 
             // should succeed again
-            assertFalse(iter.iterator().hasNext());
+            assertThat(iter.iterator().hasNext()).isFalse();
 
         } catch (Exception e) {
             e.printStackTrace();

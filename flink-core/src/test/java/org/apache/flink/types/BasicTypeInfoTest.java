@@ -19,7 +19,6 @@
 package org.apache.flink.types;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -28,10 +27,9 @@ import java.math.BigInteger;
 import java.time.Instant;
 import java.util.Date;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class BasicTypeInfoTest{
+public class BasicTypeInfoTest {
 
     static Class<?>[] classes = {
         String.class,
@@ -56,8 +54,8 @@ public class BasicTypeInfoTest{
             BasicTypeInfo<?> tpeInfo1 = BasicTypeInfo.getInfoFor(clazz);
             BasicTypeInfo<?> tpeInfo2 = BasicTypeInfo.getInfoFor(clazz);
 
-            assertEquals(tpeInfo1, tpeInfo2);
-            assertEquals(tpeInfo1.hashCode(), tpeInfo2.hashCode());
+            assertThat(tpeInfo2).isEqualTo(tpeInfo1);
+            assertThat(tpeInfo2.hashCode()).isEqualTo(tpeInfo1.hashCode());
         }
     }
 
@@ -68,7 +66,7 @@ public class BasicTypeInfoTest{
                 if (!clazz1.equals(clazz2)) {
                     BasicTypeInfo<?> tpeInfo1 = BasicTypeInfo.getInfoFor(clazz1);
                     BasicTypeInfo<?> tpeInfo2 = BasicTypeInfo.getInfoFor(clazz2);
-                    assertNotEquals(tpeInfo1, tpeInfo2);
+                    assertThat(tpeInfo2).isNotEqualTo(tpeInfo1);
                 }
             }
         }

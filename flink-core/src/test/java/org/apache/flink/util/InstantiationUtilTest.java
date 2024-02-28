@@ -41,15 +41,12 @@ import java.net.URLClassLoader;
 import java.util.Objects;
 import java.util.Random;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link InstantiationUtil}. */
-public class InstantiationUtilTest{
+public class InstantiationUtilTest {
 
     @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -82,7 +79,7 @@ public class InstantiationUtilTest{
             byte[] serializeObject = InstantiationUtil.serializeObject(proxy);
             Object deserializedProxy =
                     InstantiationUtil.deserializeObject(serializeObject, userClassLoader);
-            assertNotNull(deserializedProxy);
+            assertThat(deserializedProxy).isNotNull();
         }
     }
 
@@ -102,28 +99,28 @@ public class InstantiationUtilTest{
     @Test
     public void testInstantiationOfStringValue() {
         StringValue stringValue = InstantiationUtil.instantiate(StringValue.class, null);
-        assertNotNull(stringValue);
+        assertThat(stringValue).isNotNull();
     }
 
     @Test
     public void testInstantiationOfStringValueAndCastToValue() {
         StringValue stringValue = InstantiationUtil.instantiate(StringValue.class, Value.class);
-        assertNotNull(stringValue);
+        assertThat(stringValue).isNotNull();
     }
 
     @Test
     public void testHasNullaryConstructor() {
-        assertTrue(InstantiationUtil.hasPublicNullaryConstructor(StringValue.class));
+        assertThat(InstantiationUtil.hasPublicNullaryConstructor(StringValue.class)).isTrue();
     }
 
     @Test
     public void testClassIsProper() {
-        assertTrue(InstantiationUtil.isProperClass(StringValue.class));
+        assertThat(InstantiationUtil.isProperClass(StringValue.class)).isTrue();
     }
 
     @Test
     public void testClassIsNotProper() {
-        assertFalse(InstantiationUtil.isProperClass(Value.class));
+        assertThat(InstantiationUtil.isProperClass(Value.class)).isFalse();
     }
 
     @Test(expected = RuntimeException.class)
@@ -205,8 +202,8 @@ public class InstantiationUtilTest{
         WritableType original = new WritableType();
         WritableType copy = InstantiationUtil.createCopyWritable(original);
 
-        assertNotSame(original, copy);
-        assertEquals(original, copy);
+        assertThat(copy).isNotSameAs(original);
+        assertThat(copy).isEqualTo(original);
     }
 
     // --------------------------------------------------------------------------------------------

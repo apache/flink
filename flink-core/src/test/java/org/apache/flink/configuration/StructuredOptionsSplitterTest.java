@@ -20,7 +20,6 @@ package org.apache.flink.configuration;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
 
@@ -85,7 +84,9 @@ public class StructuredOptionsSplitterTest {
                 TestSpec.split("   A;B    ;   C   ", ';').expect("A", "B", "C"),
                 TestSpec.split("'A;B'    ;C A", ';').expect("A;B", "C A"),
                 TestSpec.split("' A    ;B'    ;'   C'", ';').expect(" A    ;B", "   C"));
-    } public TestSpec testSpec;
+    }
+
+    public TestSpec testSpec;
 
     @MethodSource("getSpecs")
     @ParameterizedTest(name = "{0}")

@@ -18,8 +18,6 @@
 
 package org.apache.flink.util.concurrent;
 
-import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -28,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link FixedRetryStrategy}. */
-public class FixedRetryStrategyTest{
+public class FixedRetryStrategyTest {
 
     @Test
     public void testGetters() {

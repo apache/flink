@@ -18,8 +18,6 @@
 
 package org.apache.flink.util.concurrent;
 
-import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -28,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link IncrementalDelayRetryStrategy}. */
-public class IncrementalDelayRetryStrategyTest{
+public class IncrementalDelayRetryStrategyTest {
 
     @Test
     public void testGettersNotCapped() throws Exception {

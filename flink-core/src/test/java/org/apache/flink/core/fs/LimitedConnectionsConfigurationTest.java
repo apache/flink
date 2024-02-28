@@ -34,8 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests that validate that the configuration for limited FS connections are properly picked up. */
 public class LimitedConnectionsConfigurationTest {
 
-    @TempDir
-    public File tempDir;
+    @TempDir public File tempDir;
 
     /**
      * This test validates that the File System is correctly wrapped by the file system factories

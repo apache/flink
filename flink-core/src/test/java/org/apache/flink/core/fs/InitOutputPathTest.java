@@ -46,8 +46,7 @@ import static org.powermock.api.mockito.PowerMockito.whenNew;
 @PrepareForTest(LocalFileSystem.class)
 public class InitOutputPathTest {
 
-    @TempDir
-    public File tempDir;
+    @TempDir public File tempDir;
 
     /**
      * This test validates that this test case makes sense - that the error can be produced in the

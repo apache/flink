@@ -61,9 +61,11 @@ class CompositeTypeSerializerUtilTest {
 
         assertThat(intermediateCompatibilityResult.isCompatibleAsIs()).isTrue();
         assertThat(intermediateCompatibilityResult.getFinalResult().isCompatibleAsIs()).isTrue();
-        assertThat(intermediateCompatibilityResult.getNestedSerializers()).containsExactly(Arrays.stream(newSerializerSnapshots)
-                .map(TypeSerializerSnapshot::restoreSerializer)
-                .toArray(TypeSerializer[]::new));
+        assertThat(intermediateCompatibilityResult.getNestedSerializers())
+                .containsExactly(
+                        Arrays.stream(newSerializerSnapshots)
+                                .map(TypeSerializerSnapshot::restoreSerializer)
+                                .toArray(TypeSerializer[]::new));
     }
 
     @Test

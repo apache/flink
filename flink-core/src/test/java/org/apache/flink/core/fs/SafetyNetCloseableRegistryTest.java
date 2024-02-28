@@ -42,8 +42,7 @@ public class SafetyNetCloseableRegistryTest
                 WrappingProxyCloseable<? extends Closeable>,
                 SafetyNetCloseableRegistry.PhantomDelegatingCloseableRef> {
 
-    @TempDir
-    public File tmpFolder;
+    @TempDir public File tmpFolder;
 
     @Override
     protected void registerCloseable(final Closeable closeable) throws IOException {
@@ -140,7 +139,9 @@ public class SafetyNetCloseableRegistryTest
                             assertThat(fs1 instanceof SafetyNetWrapperFileSystem).isTrue();
 
                             Path tmp =
-                                    new Path(newFolder(tmpFolder, "junit").toURI().toString(), "test_file");
+                                    new Path(
+                                            newFolder(tmpFolder, "junit").toURI().toString(),
+                                            "test_file");
 
                             try (FSDataOutputStream stream =
                                     fs1.create(tmp, FileSystem.WriteMode.NO_OVERWRITE)) {
@@ -150,16 +151,28 @@ public class SafetyNetCloseableRegistryTest
                                             public void go() {
                                                 FileSystem fs2 = FileSystem.getLocalFileSystem();
                                                 // ensure the safety net does not leak here
-                                                assertThat(fs2 instanceof SafetyNetWrapperFileSystem).isFalse();
+                                                assertThat(
+                                                                fs2
+                                                                        instanceof
+                                                                        SafetyNetWrapperFileSystem)
+                                                        .isFalse();
                                                 FileSystemSafetyNet.initializeSafetyNetForThread();
                                                 fs2 = FileSystem.getLocalFileSystem();
                                                 // ensure we can bring another safety net in place
-                                                assertThat(fs2 instanceof SafetyNetWrapperFileSystem).isTrue();
+                                                assertThat(
+                                                                fs2
+                                                                        instanceof
+                                                                        SafetyNetWrapperFileSystem)
+                                                        .isTrue();
                                                 FileSystemSafetyNet
                                                         .closeSafetyNetAndGuardedResourcesForThread();
                                                 fs2 = FileSystem.getLocalFileSystem();
                                                 // and that we can remove it again
-                                                assertThat(fs2 instanceof SafetyNetWrapperFileSystem).isFalse();
+                                                assertThat(
+                                                                fs2
+                                                                        instanceof
+                                                                        SafetyNetWrapperFileSystem)
+                                                        .isFalse();
                                             }
                                         };
 
@@ -172,7 +185,8 @@ public class SafetyNetCloseableRegistryTest
                                 FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
 
                                 // ensure leaking stream was closed
-                                assertThatThrownBy(() -> stream.write(43)).isInstanceOf(IOException.class);
+                                assertThatThrownBy(() -> stream.write(43))
+                                        .isInstanceOf(IOException.class);
                                 fs1 = FileSystem.getLocalFileSystem();
                                 // ensure safety net was removed
                                 assertThat(fs1 instanceof SafetyNetWrapperFileSystem).isFalse();

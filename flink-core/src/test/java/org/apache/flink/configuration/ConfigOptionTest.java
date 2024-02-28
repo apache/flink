@@ -18,8 +18,6 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.util.TestLogger;
-
 import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
 
 import org.junit.jupiter.api.Test;
@@ -31,11 +29,9 @@ import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /** Tests for the {@link ConfigOption}. */
-class ConfigOptionTest{
+class ConfigOptionTest {
 
     @Test
     void testDeprecationFlagForDeprecatedKeys() {
@@ -47,7 +43,9 @@ class ConfigOptionTest{
 
         assertThat(optionWithDeprecatedKeys.hasFallbackKeys()).isTrue();
         for (final FallbackKey fallbackKey : optionWithDeprecatedKeys.fallbackKeys()) {
-            assertTrue(fallbackKey.isDeprecated(), "deprecated key not flagged as deprecated");
+            assertThat(fallbackKey.isDeprecated())
+                    .as("deprecated key not flagged as deprecated")
+                    .isTrue();
         }
     }
 
@@ -61,7 +59,9 @@ class ConfigOptionTest{
 
         assertThat(optionWithFallbackKeys.hasFallbackKeys()).isTrue();
         for (final FallbackKey fallbackKey : optionWithFallbackKeys.fallbackKeys()) {
-            assertFalse(fallbackKey.isDeprecated(), "falback key flagged as deprecated");
+            assertThat(fallbackKey.isDeprecated())
+                    .as("falback key flagged as deprecated")
+                    .isFalse();
         }
     }
 
@@ -104,7 +104,8 @@ class ConfigOptionTest{
                         .withFallbackKeys("fallback1");
 
         assertThat(optionWithDeprecatedKeys.hasDeprecatedKeys()).isTrue();
-        assertThat(Sets.newHashSet(optionWithDeprecatedKeys.deprecatedKeys())).isEqualTo(expectedDeprecatedKeys);
+        assertThat(Sets.newHashSet(optionWithDeprecatedKeys.deprecatedKeys()))
+                .isEqualTo(expectedDeprecatedKeys);
     }
 
     @Test

@@ -17,8 +17,6 @@
 
 package org.apache.flink.core.classloading;
 
-import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -39,7 +37,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 
 /** Tests for the {@link ComponentClassLoader}. */
-public class ComponentClassLoaderTest{
+public class ComponentClassLoaderTest {
 
     private static final String NON_EXISTENT_CLASS_NAME = "foo.Bar";
     private static final Class<?> CLASS_TO_LOAD = Class.class;
@@ -49,8 +47,7 @@ public class ComponentClassLoaderTest{
     private static String resourceToLoad;
     private static final URL RESOURCE_RETURNED_BY_OWNER = createURL();
 
-    @TempDir
-    public static File TMP;
+    @TempDir public static File TMP;
 
     @BeforeAll
     static void setup() throws IOException {
@@ -63,16 +60,23 @@ public class ComponentClassLoaderTest{
 
     @Test
     void testComponentOnlyIsDefaultForClasses() throws Exception {
-        assertThatExceptionOfType(ClassNotFoundException.class).isThrownBy(() -> {
-            TestUrlClassLoader owner =
-                    new TestUrlClassLoader(NON_EXISTENT_CLASS_NAME, CLASS_RETURNED_BY_OWNER);
+        assertThatExceptionOfType(ClassNotFoundException.class)
+                .isThrownBy(
+                        () -> {
+                            TestUrlClassLoader owner =
+                                    new TestUrlClassLoader(
+                                            NON_EXISTENT_CLASS_NAME, CLASS_RETURNED_BY_OWNER);
 
-            final ComponentClassLoader componentClassLoader =
-                    new ComponentClassLoader(
-                            new URL[0], owner, new String[0], new String[0], Collections.emptyMap());
+                            final ComponentClassLoader componentClassLoader =
+                                    new ComponentClassLoader(
+                                            new URL[0],
+                                            owner,
+                                            new String[0],
+                                            new String[0],
+                                            Collections.emptyMap());
 
-            componentClassLoader.loadClass(NON_EXISTENT_CLASS_NAME);
-        });
+                            componentClassLoader.loadClass(NON_EXISTENT_CLASS_NAME);
+                        });
     }
 
     @Test

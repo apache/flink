@@ -21,7 +21,6 @@ package org.apache.flink.configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.UnsupportedFileSystemSchemeException;
 import org.apache.flink.core.fs.local.LocalFileSystem;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -35,10 +34,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the configuration of the default file system scheme. */
-public class FilesystemSchemeConfigTest{
+public class FilesystemSchemeConfigTest {
 
-    @TempDir
-    public File tempFolder;
+    @TempDir public File tempFolder;
 
     @AfterEach
     void clearFsSettings() throws IOException {

@@ -37,8 +37,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOf
 /** Tests for the {@link RefCountedFileWithStream}. */
 public class RefCountedFileWithStreamTest {
 
-    @TempDir
-    public File temporaryFolder;
+    @TempDir public File temporaryFolder;
 
     @Test
     void writeShouldSucceed() throws IOException {
@@ -58,21 +57,25 @@ public class RefCountedFileWithStreamTest {
 
     @Test
     void writeAfterCloseShouldThrowException() throws IOException {
-        assertThatExceptionOfType(IOException.class).isThrownBy(() -> {
-            final RefCountedFileWithStream fileUnderTest =
-                    getClosedRefCountedFileWithContent("hello world");
-            byte[] content = bytesOf("Hello Again");
-            fileUnderTest.write(content, 0, content.length);
-        });
+        assertThatExceptionOfType(IOException.class)
+                .isThrownBy(
+                        () -> {
+                            final RefCountedFileWithStream fileUnderTest =
+                                    getClosedRefCountedFileWithContent("hello world");
+                            byte[] content = bytesOf("Hello Again");
+                            fileUnderTest.write(content, 0, content.length);
+                        });
     }
 
     @Test
     void flushAfterCloseShouldThrowException() throws IOException {
-        assertThatExceptionOfType(IOException.class).isThrownBy(() -> {
-            final RefCountedFileWithStream fileUnderTest =
-                    getClosedRefCountedFileWithContent("hello world");
-            fileUnderTest.flush();
-        });
+        assertThatExceptionOfType(IOException.class)
+                .isThrownBy(
+                        () -> {
+                            final RefCountedFileWithStream fileUnderTest =
+                                    getClosedRefCountedFileWithContent("hello world");
+                            fileUnderTest.flush();
+                        });
     }
 
     // ------------------------------------- Utilities -------------------------------------

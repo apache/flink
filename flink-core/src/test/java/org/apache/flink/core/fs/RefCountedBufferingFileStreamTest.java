@@ -33,15 +33,13 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for the {@link RefCountedBufferingFileStream}. */
 public class RefCountedBufferingFileStreamTest {
 
     private static final int BUFFER_SIZE = 10;
 
-    @TempDir
-    public File temporaryFolder;
+    @TempDir public File temporaryFolder;
 
     @Test
     void testSmallWritesGoToBuffer() throws IOException {
@@ -59,19 +57,22 @@ public class RefCountedBufferingFileStreamTest {
 
     @Test
     void testExceptionWhenWritingToClosedFile() throws IOException {
-        assertThatExceptionOfType(IOException.class).isThrownBy(() -> {
-            RefCountedBufferingFileStream stream = getStreamToTest();
+        assertThatExceptionOfType(IOException.class)
+                .isThrownBy(
+                        () -> {
+                            RefCountedBufferingFileStream stream = getStreamToTest();
 
-            final byte[] contentToWrite = bytesOf("hello");
-            stream.write(contentToWrite);
+                            final byte[] contentToWrite = bytesOf("hello");
+                            stream.write(contentToWrite);
 
-            assertEquals(contentToWrite.length, stream.getPositionInBuffer());
-            assertEquals(contentToWrite.length, stream.getPos());
+                            assertThat(stream.getPositionInBuffer())
+                                    .isEqualTo(contentToWrite.length);
+                            assertThat(stream.getPos()).isEqualTo(contentToWrite.length);
 
-            stream.close();
+                            stream.close();
 
-            stream.write(contentToWrite);
-        });
+                            stream.write(contentToWrite);
+                        });
     }
 
     @Test
@@ -102,7 +103,8 @@ public class RefCountedBufferingFileStreamTest {
         stream.write(secondContentToWrite);
 
         assertThat(stream.getPositionInBuffer()).isEqualTo(secondContentToWrite.length);
-        assertThat(stream.getPos()).isEqualTo(firstContentToWrite.length + secondContentToWrite.length);
+        assertThat(stream.getPos())
+                .isEqualTo(firstContentToWrite.length + secondContentToWrite.length);
 
         stream.close();
         stream.release();

@@ -41,7 +41,6 @@ import java.io.IOException;
 import static org.apache.flink.types.Either.Left;
 import static org.apache.flink.types.Either.Right;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 
 class EitherSerializerTest {
 
@@ -235,14 +234,13 @@ class EitherSerializerTest {
         @Override
         @Test
         protected void testInstantiate() {
-                TypeSerializer<T> serializer = getSerializer();
+            TypeSerializer<T> serializer = getSerializer();
 
-                T instance = serializer.createInstance();
-                assertThat(instance).as("The created instance must not be null.").isNotNull();
+            T instance = serializer.createInstance();
+            assertThat(instance).as("The created instance must not be null.").isNotNull();
 
-                Class<T> type = getTypeClass();
-                assertThat(type).as("The test is corrupt: type class is null.").isNotNull();
-
+            Class<T> type = getTypeClass();
+            assertThat(type).as("The test is corrupt: type class is null.").isNotNull();
         }
     }
 }

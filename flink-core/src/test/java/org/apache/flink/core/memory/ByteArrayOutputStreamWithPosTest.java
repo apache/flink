@@ -61,10 +61,13 @@ class ByteArrayOutputStreamWithPosTest {
     /** Test setting negative position. */
     @Test
     void testSetNegativePosition() throws Exception {
-        Throwable exception = assertThrows(IllegalArgumentException.class, () -> {
-            stream.write(new byte[BUFFER_SIZE]);
-            stream.setPosition(-1);
-        });
+        Throwable exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> {
+                            stream.write(new byte[BUFFER_SIZE]);
+                            stream.setPosition(-1);
+                        });
         assertThat(exception.getMessage()).contains("Position out of bounds");
     }
 
@@ -89,15 +92,18 @@ class ByteArrayOutputStreamWithPosTest {
         ByteArrayOutputStreamWithPos stream = new ByteArrayOutputStreamWithPos(data.length);
 
         stream.write(data);
-        assertThat(stream.toString().getBytes(ConfigConstants.DEFAULT_CHARSET)).containsExactly(data);
+        assertThat(stream.toString().getBytes(ConfigConstants.DEFAULT_CHARSET))
+                .containsExactly(data);
 
         for (int i = 0; i < data.length; i++) {
             stream.setPosition(i);
-            assertThat(stream.toString().getBytes(ConfigConstants.DEFAULT_CHARSET)).containsExactly(Arrays.copyOf(data, i));
+            assertThat(stream.toString().getBytes(ConfigConstants.DEFAULT_CHARSET))
+                    .containsExactly(Arrays.copyOf(data, i));
         }
 
         // validate that the stored bytes are still tracked properly even when expanding array
         stream.setPosition(data.length + 1);
-        assertThat(stream.toString().getBytes(ConfigConstants.DEFAULT_CHARSET)).containsExactly(Arrays.copyOf(data, data.length + 1));
+        assertThat(stream.toString().getBytes(ConfigConstants.DEFAULT_CHARSET))
+                .containsExactly(Arrays.copyOf(data, data.length + 1));
     }
 }

@@ -37,8 +37,7 @@ import static org.assertj.core.api.Assertions.fail;
 /** Tests for the {@link LimitedConnectionsFileSystem}. */
 public class LimitedConnectionsFileSystemTest {
 
-    @TempDir
-    public File tempFolder;
+    @TempDir public File tempFolder;
 
     @Test
     void testConstructionNumericOverflow() {
@@ -185,7 +184,9 @@ public class LimitedConnectionsFileSystemTest {
 
         // try to open another thread
         try {
-            limitedFs.create(new Path(File.createTempFile("junit", null, tempFolder).toURI()), WriteMode.OVERWRITE);
+            limitedFs.create(
+                    new Path(File.createTempFile("junit", null, tempFolder).toURI()),
+                    WriteMode.OVERWRITE);
             fail("this should have timed out");
         } catch (IOException e) {
             // expected
@@ -454,7 +455,9 @@ public class LimitedConnectionsFileSystemTest {
         }
 
         try {
-            fs.create(new Path(File.createTempFile("junit", null, tempFolder).toURI()), WriteMode.NO_OVERWRITE);
+            fs.create(
+                    new Path(File.createTempFile("junit", null, tempFolder).toURI()),
+                    WriteMode.NO_OVERWRITE);
             fail("this is expected to fail with an exception");
         } catch (IOException e) {
             // expected
@@ -487,7 +490,9 @@ public class LimitedConnectionsFileSystemTest {
 
         // open the stream we test
         try (FSDataOutputStream out =
-                fs.create(new Path(File.createTempFile("junit", null, tempFolder).toURI()), WriteMode.OVERWRITE)) {
+                fs.create(
+                        new Path(File.createTempFile("junit", null, tempFolder).toURI()),
+                        WriteMode.OVERWRITE)) {
 
             // start the other threads that will try to shoot this stream down
             for (ReaderThread t : threads) {
@@ -596,7 +601,8 @@ public class LimitedConnectionsFileSystemTest {
         public void go() throws Exception {
 
             try (FSDataOutputStream stream = fs.create(path, WriteMode.OVERWRITE)) {
-                assertThat(fs.getNumberOfOpenOutputStreams() <= maxConcurrentOutputStreams).isTrue();
+                assertThat(fs.getNumberOfOpenOutputStreams() <= maxConcurrentOutputStreams)
+                        .isTrue();
                 assertThat(fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal).isTrue();
 
                 final Random rnd = new Random();
@@ -683,7 +689,8 @@ public class LimitedConnectionsFileSystemTest {
         public void go() throws Exception {
 
             try (FSDataOutputStream stream = fs.create(path, WriteMode.OVERWRITE)) {
-                assertThat(fs.getNumberOfOpenOutputStreams() <= maxConcurrentOutputStreams).isTrue();
+                assertThat(fs.getNumberOfOpenOutputStreams() <= maxConcurrentOutputStreams)
+                        .isTrue();
                 assertThat(fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal).isTrue();
 
                 final Random rnd = new Random();

@@ -17,14 +17,12 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link SecurityOptions}. */
-class SecurityOptionsTest{
+class SecurityOptionsTest {
 
     /** Tests whether activation of internal / REST SSL evaluates the config flags correctly. */
     @SuppressWarnings("deprecation")

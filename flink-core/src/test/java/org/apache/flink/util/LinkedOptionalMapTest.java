@@ -24,14 +24,13 @@ import org.junit.Test;
 
 import java.util.LinkedHashMap;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 /** Test {@link LinkedOptionalMap}. */
 public class LinkedOptionalMapTest {
@@ -169,7 +168,7 @@ public class LinkedOptionalMapTest {
 
         right.put("c", Boolean.class, "bbb");
 
-        assertTrue(LinkedOptionalMap.isLeftPrefixOfRight(left, right));
+        assertThat(LinkedOptionalMap.isLeftPrefixOfRight(left, right)).isTrue();
     }
 
     @Test
@@ -184,7 +183,7 @@ public class LinkedOptionalMapTest {
         right.put("b", Boolean.class, "bbb");
         right.put("c", Boolean.class, "bbb");
 
-        assertFalse(LinkedOptionalMap.isLeftPrefixOfRight(left, right));
+        assertThat(LinkedOptionalMap.isLeftPrefixOfRight(left, right)).isFalse();
     }
 
     @Test

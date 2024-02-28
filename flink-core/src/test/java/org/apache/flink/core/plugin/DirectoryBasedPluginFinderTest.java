@@ -20,7 +20,6 @@ package org.apache.flink.core.plugin;
 
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -39,6 +38,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
 
 /** Test for {@link DirectoryBasedPluginFinder}. */
@@ -52,7 +52,7 @@ public class DirectoryBasedPluginFinderTest {
         PluginFinder descriptorsFactory = new DirectoryBasedPluginFinder(rootFolder.toPath());
         Collection<PluginDescriptor> actual = descriptorsFactory.findPlugins();
 
-        Assert.assertTrue("empty root dir -> expected no actual", actual.isEmpty());
+        assertThat("empty root dir -> expected no actual", actual.isEmpty()).isTrue();
 
         List<File> subDirs =
                 Stream.of("A", "B", "C")
@@ -67,7 +67,7 @@ public class DirectoryBasedPluginFinderTest {
             descriptorsFactory.findPlugins();
             fail("all empty plugin sub-dirs");
         } catch (RuntimeException expected) {
-            Assert.assertTrue(expected.getCause() instanceof IOException);
+            assertThat(expected.getCause() instanceof IOException).isTrue();
         }
 
         for (File subDir : subDirs) {
@@ -80,7 +80,7 @@ public class DirectoryBasedPluginFinderTest {
             descriptorsFactory.findPlugins();
             fail("still no jars in plugin sub-dirs");
         } catch (RuntimeException expected) {
-            Assert.assertTrue(expected.getCause() instanceof IOException);
+            assertThat(expected.getCause() instanceof IOException).isTrue();
         }
 
         List<PluginDescriptor> expected = new ArrayList<>(3);
@@ -101,7 +101,7 @@ public class DirectoryBasedPluginFinderTest {
 
         actual = descriptorsFactory.findPlugins();
 
-        Assert.assertTrue(equalsIgnoreOrder(expected, new ArrayList<>(actual)));
+        assertThat(equalsIgnoreOrder(expected, new ArrayList<>(actual))).isTrue();
     }
 
     private boolean equalsIgnoreOrder(List<PluginDescriptor> a, List<PluginDescriptor> b) {

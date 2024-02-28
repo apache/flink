@@ -35,7 +35,9 @@ class DescriptionHtmlTest {
 
         String formattedDescription = new HtmlFormatter().format(description);
 
-        assertThat(formattedDescription).isEqualTo("This is a text with a link <a href=\"https://somepage\">" + "to here</a>");
+        assertThat(formattedDescription)
+                .isEqualTo(
+                        "This is a text with a link <a href=\"https://somepage\">" + "to here</a>");
     }
 
     @Test
@@ -47,7 +49,8 @@ class DescriptionHtmlTest {
 
         String formattedDescription = new HtmlFormatter().format(description);
 
-        assertThat(formattedDescription).isEqualTo("This is a text that has some percentage value of 20%.");
+        assertThat(formattedDescription)
+                .isEqualTo("This is a text that has some percentage value of 20%.");
     }
 
     @Test
@@ -61,8 +64,10 @@ class DescriptionHtmlTest {
 
         String formattedDescription = new HtmlFormatter().format(description);
 
-        assertThat(formattedDescription).isEqualTo("This is a text with a link <a href=\"https://somepage\">to here</a> and another "
-                + "<a href=\"https://link\">https://link</a>");
+        assertThat(formattedDescription)
+                .isEqualTo(
+                        "This is a text with a link <a href=\"https://somepage\">to here</a> and another "
+                                + "<a href=\"https://link\">https://link</a>");
     }
 
     @Test
@@ -79,9 +84,11 @@ class DescriptionHtmlTest {
 
         String formattedDescription = new HtmlFormatter().format(description);
 
-        assertThat(formattedDescription).isEqualTo("This is some list: <ul><li><a href=\"http://first_link\">http://first_link"
-                + "</a></li><li>this is second element of list "
-                + "with a <a href=\"https://link\">https://link</a></li></ul>");
+        assertThat(formattedDescription)
+                .isEqualTo(
+                        "This is some list: <ul><li><a href=\"http://first_link\">http://first_link"
+                                + "</a></li><li>this is second element of list "
+                                + "with a <a href=\"https://link\">https://link</a></li></ul>");
     }
 
     @Test
@@ -108,6 +115,8 @@ class DescriptionHtmlTest {
 
         String formattedDescription = new HtmlFormatter().format(description);
 
-        assertThat(formattedDescription).isEqualTo("This is some list: <ul><li>this is first element with illegal character '&gt;' and '&lt;'</li></ul>");
+        assertThat(formattedDescription)
+                .isEqualTo(
+                        "This is some list: <ul><li>this is first element with illegal character '&gt;' and '&lt;'</li></ul>");
     }
 }

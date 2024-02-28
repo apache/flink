@@ -18,8 +18,6 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -30,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Tests for reading configuration parameters with invalid formats. */
-public class ConfigurationParsingInvalidFormatsTest{
+public class ConfigurationParsingInvalidFormatsTest {
     public static Object[][] getSpecs() {
         return new Object[][] {
             new Object[] {ConfigOptions.key("int").intType().defaultValue(1), "ABC"},
@@ -60,30 +58,39 @@ public class ConfigurationParsingInvalidFormatsTest{
                 ConfigOptions.key("list<string>").stringType().asList().defaultValues("A"), "'A;B;C"
             }
         };
-    } public ConfigOption<?> option;
+    }
+
+    public ConfigOption<?> option;
     public String invalidString;
 
     @MethodSource("getSpecs")
     @ParameterizedTest(name = "option: {0}, invalidString: {1}")
-    public void testInvalidStringParsingWithGetOptional(ConfigOption<?> option, String invalidString) {
-        Throwable exception = assertThrows(IllegalArgumentException.class, () -> {
-            initConfigurationParsingInvalidFormatsTest(option, invalidString);
-            Configuration configuration = new Configuration();
-            configuration.setString(option.key(), invalidString);
-            configuration.getOptional(option);
-        });
+    public void testInvalidStringParsingWithGetOptional(
+            ConfigOption<?> option, String invalidString) {
+        Throwable exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> {
+                            initConfigurationParsingInvalidFormatsTest(option, invalidString);
+                            Configuration configuration = new Configuration();
+                            configuration.setString(option.key(), invalidString);
+                            configuration.getOptional(option);
+                        });
         assertThat(exception.getMessage()).contains(String);
     }
 
     @MethodSource("getSpecs")
     @ParameterizedTest(name = "option: {0}, invalidString: {1}")
     public void testInvalidStringParsingWithGet(ConfigOption<?> option, String invalidString) {
-        Throwable exception = assertThrows(IllegalArgumentException.class, () -> {
-            initConfigurationParsingInvalidFormatsTest(option, invalidString);
-            Configuration configuration = new Configuration();
-            configuration.setString(option.key(), invalidString);
-            configuration.get(option);
-        });
+        Throwable exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> {
+                            initConfigurationParsingInvalidFormatsTest(option, invalidString);
+                            Configuration configuration = new Configuration();
+                            configuration.setString(option.key(), invalidString);
+                            configuration.get(option);
+                        });
         assertThat(exception.getMessage()).contains(String);
     }
 
@@ -92,7 +99,8 @@ public class ConfigurationParsingInvalidFormatsTest{
         ENUM2
     }
 
-    public void initConfigurationParsingInvalidFormatsTest(ConfigOption<?> option, String invalidString) {
+    public void initConfigurationParsingInvalidFormatsTest(
+            ConfigOption<?> option, String invalidString) {
         this.option = option;
         this.invalidString = invalidString;
     }

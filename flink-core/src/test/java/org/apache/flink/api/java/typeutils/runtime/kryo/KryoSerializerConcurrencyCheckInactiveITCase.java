@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
-import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -36,7 +34,7 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
  * <p><b>Important:</b> If you see this test fail and the initial settings are still correct, check
  * the assumptions above (on fresh JVM fork).
  */
-class KryoSerializerConcurrencyCheckInactiveITCase{
+class KryoSerializerConcurrencyCheckInactiveITCase {
 
     // this sets the debug initialization back to its default, even if
     // by default tests modify it (implicitly via assertion loading)

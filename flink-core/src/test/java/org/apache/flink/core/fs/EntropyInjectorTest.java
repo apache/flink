@@ -34,8 +34,7 @@ import static org.assertj.core.api.Assertions.fail;
 /** Tests for the {@link EntropyInjector}. */
 public class EntropyInjectorTest {
 
-    @TempDir
-    public static File TMP_FOLDER;
+    @TempDir public static File TMP_FOLDER;
 
     @Test
     void testEmptyPath() throws Exception {
@@ -60,8 +59,10 @@ public class EntropyInjectorTest {
         EntropyInjectingFileSystem efs = new TestEntropyInjectingFs("s0mek3y", "12345678");
         Path path = new Path("s3://hugo@myawesomehost:55522/path/s0mek3y/the/file");
 
-        assertThat(EntropyInjector.resolveEntropy(path, efs, true)).isEqualTo(new Path("s3://hugo@myawesomehost:55522/path/12345678/the/file"));
-        assertThat(EntropyInjector.resolveEntropy(path, efs, false)).isEqualTo(new Path("s3://hugo@myawesomehost:55522/path/the/file"));
+        assertThat(EntropyInjector.resolveEntropy(path, efs, true))
+                .isEqualTo(new Path("s3://hugo@myawesomehost:55522/path/12345678/the/file"));
+        assertThat(EntropyInjector.resolveEntropy(path, efs, false))
+                .isEqualTo(new Path("s3://hugo@myawesomehost:55522/path/the/file"));
     }
 
     @Test
@@ -78,8 +79,10 @@ public class EntropyInjectorTest {
         EntropyInjectingFileSystem efs = new TestEntropyInjectingFs("_entropy_key_", "xyzz");
         Path path = new Path("/path/_entropy_key_/file");
 
-        assertThat(EntropyInjector.resolveEntropy(path, efs, true)).isEqualTo(new Path("/path/xyzz/file"));
-        assertThat(EntropyInjector.resolveEntropy(path, efs, false)).isEqualTo(new Path("/path/file"));
+        assertThat(EntropyInjector.resolveEntropy(path, efs, true))
+                .isEqualTo(new Path("/path/xyzz/file"));
+        assertThat(EntropyInjector.resolveEntropy(path, efs, false))
+                .isEqualTo(new Path("/path/file"));
     }
 
     @Test
@@ -87,8 +90,10 @@ public class EntropyInjectorTest {
         EntropyInjectingFileSystem efs = new TestEntropyInjectingFs("_entropy_key_", "pqr");
         Path path = new Path("s3://myhost:122/entropy-_entropy_key_-suffix/file");
 
-        assertThat(EntropyInjector.resolveEntropy(path, efs, true)).isEqualTo(new Path("s3://myhost:122/entropy-pqr-suffix/file"));
-        assertThat(EntropyInjector.resolveEntropy(path, efs, false)).isEqualTo(new Path("s3://myhost:122/entropy--suffix/file"));
+        assertThat(EntropyInjector.resolveEntropy(path, efs, true))
+                .isEqualTo(new Path("s3://myhost:122/entropy-pqr-suffix/file"));
+        assertThat(EntropyInjector.resolveEntropy(path, efs, false))
+                .isEqualTo(new Path("s3://myhost:122/entropy--suffix/file"));
     }
 
     @Test

@@ -294,10 +294,14 @@ class TypeExtractorTest {
         assertThat(tti.getTypeAt(1).getArity()).isOne();
         assertThat(tti.getTypeAt(2).getArity()).isEqualTo(2);
 
-        assertThat(((TupleTypeInfo<?>) tti.getTypeAt(0)).getTypeAt(0)).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
-        assertThat(((TupleTypeInfo<?>) tti.getTypeAt(1)).getTypeAt(0)).isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
-        assertThat(((TupleTypeInfo<?>) tti.getTypeAt(2)).getTypeAt(0)).isEqualTo(BasicTypeInfo.LONG_TYPE_INFO);
-        assertThat(((TupleTypeInfo<?>) tti.getTypeAt(2)).getTypeAt(1)).isEqualTo(BasicTypeInfo.LONG_TYPE_INFO);
+        assertThat(((TupleTypeInfo<?>) tti.getTypeAt(0)).getTypeAt(0))
+                .isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
+        assertThat(((TupleTypeInfo<?>) tti.getTypeAt(1)).getTypeAt(0))
+                .isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
+        assertThat(((TupleTypeInfo<?>) tti.getTypeAt(2)).getTypeAt(0))
+                .isEqualTo(BasicTypeInfo.LONG_TYPE_INFO);
+        assertThat(((TupleTypeInfo<?>) tti.getTypeAt(2)).getTypeAt(1))
+                .isEqualTo(BasicTypeInfo.LONG_TYPE_INFO);
 
         // use getForObject()
         Tuple3<Tuple1<String>, Tuple1<Integer>, Tuple2<Long, Long>> t =
@@ -312,10 +316,14 @@ class TypeExtractorTest {
         assertThat(tti2.getTypeAt(1).getArity()).isOne();
         assertThat(tti2.getTypeAt(2).getArity()).isEqualTo(2);
 
-        assertThat(((TupleTypeInfo<?>) tti2.getTypeAt(0)).getTypeAt(0)).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
-        assertThat(((TupleTypeInfo<?>) tti2.getTypeAt(1)).getTypeAt(0)).isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
-        assertThat(((TupleTypeInfo<?>) tti2.getTypeAt(2)).getTypeAt(0)).isEqualTo(BasicTypeInfo.LONG_TYPE_INFO);
-        assertThat(((TupleTypeInfo<?>) tti2.getTypeAt(2)).getTypeAt(1)).isEqualTo(BasicTypeInfo.LONG_TYPE_INFO);
+        assertThat(((TupleTypeInfo<?>) tti2.getTypeAt(0)).getTypeAt(0))
+                .isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
+        assertThat(((TupleTypeInfo<?>) tti2.getTypeAt(1)).getTypeAt(0))
+                .isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
+        assertThat(((TupleTypeInfo<?>) tti2.getTypeAt(2)).getTypeAt(0))
+                .isEqualTo(BasicTypeInfo.LONG_TYPE_INFO);
+        assertThat(((TupleTypeInfo<?>) tti2.getTypeAt(2)).getTypeAt(1))
+                .isEqualTo(BasicTypeInfo.LONG_TYPE_INFO);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -429,7 +437,8 @@ class TypeExtractorTest {
 
         // use getForClass()
         assertThat(TypeExtractor.getForClass(CustomType.class) instanceof PojoTypeInfo).isTrue();
-        assertThat(ti.getTypeClass()).isEqualTo(TypeExtractor.getForClass(CustomType.class).getTypeClass());
+        assertThat(ti.getTypeClass())
+                .isEqualTo(TypeExtractor.getForClass(CustomType.class).getTypeClass());
 
         // use getForObject()
         CustomType t = new CustomType("World", 1);
@@ -440,8 +449,10 @@ class TypeExtractorTest {
         assertThat(ti2 instanceof PojoTypeInfo).isTrue();
         assertThat(ti2.getTypeClass()).isEqualTo(CustomType.class);
 
-        assertThat(TypeExtractor.getForClass(PojoWithNonPublicDefaultCtor.class)
-                instanceof PojoTypeInfo).isFalse();
+        assertThat(
+                        TypeExtractor.getForClass(PojoWithNonPublicDefaultCtor.class)
+                                instanceof PojoTypeInfo)
+                .isFalse();
     }
 
     @Test
@@ -464,7 +475,10 @@ class TypeExtractorTest {
         TypeInformation<Row> rowInfo = TypeExtractor.getForObject(row);
         assertThat(rowInfo.getClass()).isEqualTo(RowTypeInfo.class);
         assertThat(rowInfo.getArity()).isEqualTo(2);
-        assertThat(rowInfo).isEqualTo(new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO));
+        assertThat(rowInfo)
+                .isEqualTo(
+                        new RowTypeInfo(
+                                BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO));
 
         Row nullRow = new Row(2);
         TypeInformation<Row> genericRowInfo = TypeExtractor.getForObject(nullRow);
@@ -595,7 +609,8 @@ class TypeExtractorTest {
 
         // use getForClass()
         assertThat(TypeExtractor.getForClass(StringValue.class) instanceof ValueTypeInfo).isTrue();
-        assertThat(ti.getTypeClass()).isEqualTo(TypeExtractor.getForClass(StringValue.class).getTypeClass());
+        assertThat(ti.getTypeClass())
+                .isEqualTo(TypeExtractor.getForClass(StringValue.class).getTypeClass());
 
         // use getForObject()
         StringValue v = new StringValue("Hello");
@@ -628,7 +643,8 @@ class TypeExtractorTest {
 
         assertThat(ti.isBasicType()).isFalse();
         assertThat(ti.isTupleType()).isTrue();
-        assertThat(((TupleTypeInfo<?>) ti).getTypeAt(0).getTypeClass()).isEqualTo(StringValue.class);
+        assertThat(((TupleTypeInfo<?>) ti).getTypeAt(0).getTypeClass())
+                .isEqualTo(StringValue.class);
         assertThat(((TupleTypeInfo<?>) ti).getTypeAt(1).getTypeClass()).isEqualTo(IntValue.class);
 
         // use getForObject()
@@ -638,7 +654,8 @@ class TypeExtractorTest {
 
         assertThat(ti2.isBasicType()).isFalse();
         assertThat(ti2.isTupleType()).isTrue();
-        assertThat(((TupleTypeInfo<?>) ti2).getTypeAt(0).getTypeClass()).isEqualTo(StringValue.class);
+        assertThat(((TupleTypeInfo<?>) ti2).getTypeAt(0).getTypeClass())
+                .isEqualTo(StringValue.class);
         assertThat(((TupleTypeInfo<?>) ti2).getTypeAt(1).getTypeClass()).isEqualTo(IntValue.class);
     }
 
@@ -1047,8 +1064,7 @@ class TypeExtractorTest {
                     private static final long serialVersionUID = 1L;
                 };
 
-        TypeInformation<?> ti =
-                TypeExtractor.getMapReturnTypes(function, Types.BOOLEAN);
+        TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, Types.BOOLEAN);
 
         assertThat(ti.isBasicType()).isTrue();
         assertThat(ti).isEqualTo(BasicTypeInfo.BOOLEAN_TYPE_INFO);
@@ -1432,12 +1448,16 @@ class TypeExtractorTest {
         assertThat(ti.isTupleType()).isFalse();
 
         // Due to a Java 6 bug the classification can be slightly wrong
-        assertThat(ti instanceof BasicArrayTypeInfo<?, ?> || ti instanceof ObjectArrayTypeInfo<?, ?>).isTrue();
+        assertThat(
+                        ti instanceof BasicArrayTypeInfo<?, ?>
+                                || ti instanceof ObjectArrayTypeInfo<?, ?>)
+                .isTrue();
 
         if (ti instanceof BasicArrayTypeInfo<?, ?>) {
             assertThat(ti).isEqualTo(BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO);
         } else {
-            assertThat(((ObjectArrayTypeInfo<?, ?>) ti).getComponentInfo()).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
+            assertThat(((ObjectArrayTypeInfo<?, ?>) ti).getComponentInfo())
+                    .isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
         }
     }
 
@@ -1477,7 +1497,8 @@ class TypeExtractorTest {
                                 TypeInformation.of(new TypeHint<CustomArrayObject[]>() {}));
 
         assertThat(ti instanceof ObjectArrayTypeInfo<?, ?>).isTrue();
-        assertThat(((ObjectArrayTypeInfo<?, ?>) ti).getComponentInfo().getTypeClass()).isEqualTo(CustomArrayObject.class);
+        assertThat(((ObjectArrayTypeInfo<?, ?>) ti).getComponentInfo().getTypeClass())
+                .isEqualTo(CustomArrayObject.class);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -1549,8 +1570,7 @@ class TypeExtractorTest {
 
         TypeInformation<?> ti =
                 TypeExtractor.getMapReturnTypes(
-                        function,
-                        TypeInformation.of(new TypeHint<Boolean[]>() {}));
+                        function, TypeInformation.of(new TypeHint<Boolean[]>() {}));
         assertThat(ti instanceof ObjectArrayTypeInfo<?, ?>).isTrue();
         ObjectArrayTypeInfo<?, ?> oati = (ObjectArrayTypeInfo<?, ?>) ti;
         assertThat(oati.getComponentInfo()).isEqualTo(BasicTypeInfo.BOOLEAN_TYPE_INFO);
@@ -1608,16 +1628,27 @@ class TypeExtractorTest {
                     }
                 };
 
-        assertThatThrownBy(() -> TypeExtractor.getMapReturnTypes(
-                function,
-                (TypeInformation)
-                        TypeInformation.of(new TypeHint<Tuple2<Integer, String>>() {})))
+        assertThatThrownBy(
+                        () ->
+                                TypeExtractor.getMapReturnTypes(
+                                        function,
+                                        (TypeInformation)
+                                                TypeInformation.of(
+                                                        new TypeHint<
+                                                                Tuple2<Integer, String>>() {})))
                 .isInstanceOf(InvalidTypesException.class);
 
-        assertThatThrownBy(() -> TypeExtractor.getMapReturnTypes(
-                function,
-                (TypeInformation)
-                        TypeInformation.of(new TypeHint<Tuple3<String, String, String>>() {})))
+        assertThatThrownBy(
+                        () ->
+                                TypeExtractor.getMapReturnTypes(
+                                        function,
+                                        (TypeInformation)
+                                                TypeInformation.of(
+                                                        new TypeHint<
+                                                                Tuple3<
+                                                                        String,
+                                                                        String,
+                                                                        String>>() {})))
                 .isInstanceOf(InvalidTypesException.class);
 
         RichMapFunction<?, ?> function2 =
@@ -1630,8 +1661,12 @@ class TypeExtractorTest {
                     }
                 };
 
-        assertThatThrownBy(() -> TypeExtractor.getMapReturnTypes(
-                function2, (TypeInformation) TypeInformation.of(new TypeHint<IntValue>() {})))
+        assertThatThrownBy(
+                        () ->
+                                TypeExtractor.getMapReturnTypes(
+                                        function2,
+                                        (TypeInformation)
+                                                TypeInformation.of(new TypeHint<IntValue>() {})))
                 .isInstanceOf(InvalidTypesException.class);
 
         RichMapFunction<?, ?> function3 =
@@ -1644,8 +1679,12 @@ class TypeExtractorTest {
                     }
                 };
 
-        assertThatThrownBy(() -> TypeExtractor.getMapReturnTypes(
-                function3, (TypeInformation) TypeInformation.of(new TypeHint<Integer[]>() {})))
+        assertThatThrownBy(
+                        () ->
+                                TypeExtractor.getMapReturnTypes(
+                                        function3,
+                                        (TypeInformation)
+                                                TypeInformation.of(new TypeHint<Integer[]>() {})))
                 .isInstanceOf(InvalidTypesException.class);
     }
 
@@ -1751,14 +1790,22 @@ class TypeExtractorTest {
         TypeInformation<?> ti =
                 TypeExtractor.getMapReturnTypes(function, BasicTypeInfo.INT_TYPE_INFO);
         TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
-        assertThat(tti.getTypeAt(0)).isEqualTo(PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO);
-        assertThat(tti.getTypeAt(1)).isEqualTo(PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO);
-        assertThat(tti.getTypeAt(2)).isEqualTo(PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO);
-        assertThat(tti.getTypeAt(3)).isEqualTo(PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO);
-        assertThat(tti.getTypeAt(4)).isEqualTo(PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO);
-        assertThat(tti.getTypeAt(5)).isEqualTo(PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO);
-        assertThat(tti.getTypeAt(6)).isEqualTo(PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO);
-        assertThat(tti.getTypeAt(7)).isEqualTo(PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO);
+        assertThat(tti.getTypeAt(0))
+                .isEqualTo(PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO);
+        assertThat(tti.getTypeAt(1))
+                .isEqualTo(PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO);
+        assertThat(tti.getTypeAt(2))
+                .isEqualTo(PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO);
+        assertThat(tti.getTypeAt(3))
+                .isEqualTo(PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO);
+        assertThat(tti.getTypeAt(4))
+                .isEqualTo(PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO);
+        assertThat(tti.getTypeAt(5))
+                .isEqualTo(PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO);
+        assertThat(tti.getTypeAt(6))
+                .isEqualTo(PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO);
+        assertThat(tti.getTypeAt(7))
+                .isEqualTo(PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO);
         assertThat(tti.getTypeAt(8)).isEqualTo(BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO);
     }
 
@@ -1850,8 +1897,10 @@ class TypeExtractorTest {
                 TypeExtractor.getKeySelectorTypes(selector, BasicTypeInfo.STRING_TYPE_INFO);
         assertThat(ti).isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
 
-        assertThatThrownBy(() -> TypeExtractor.getKeySelectorTypes(
-                (KeySelector) selector, BasicTypeInfo.BOOLEAN_TYPE_INFO))
+        assertThatThrownBy(
+                        () ->
+                                TypeExtractor.getKeySelectorTypes(
+                                        (KeySelector) selector, BasicTypeInfo.BOOLEAN_TYPE_INFO))
                 .isInstanceOf(InvalidTypesException.class);
     }
 
@@ -2089,7 +2138,9 @@ class TypeExtractorTest {
                 TypeExtractor.getMapReturnTypes(
                         (MapFunction) function,
                         TypeInformation.of(new TypeHint<Tuple2<Integer, Double>[][]>() {}));
-        assertThat(ti.toString()).isEqualTo("ObjectArrayTypeInfo<ObjectArrayTypeInfo<Java Tuple2<Integer, Double>>>");
+        assertThat(ti.toString())
+                .isEqualTo(
+                        "ObjectArrayTypeInfo<ObjectArrayTypeInfo<Java Tuple2<Integer, Double>>>");
 
         // primitive array
         function =
@@ -2120,7 +2171,8 @@ class TypeExtractorTest {
                 TypeExtractor.getMapReturnTypes(
                         (MapFunction) function,
                         TypeInformation.of(new TypeHint<Integer[][][]>() {}));
-        assertThat(ti.toString()).isEqualTo("ObjectArrayTypeInfo<ObjectArrayTypeInfo<BasicArrayTypeInfo<Integer>>>");
+        assertThat(ti.toString())
+                .isEqualTo("ObjectArrayTypeInfo<ObjectArrayTypeInfo<BasicArrayTypeInfo<Integer>>>");
 
         // pojo array
         function =
@@ -2137,16 +2189,20 @@ class TypeExtractorTest {
                         (MapFunction) function,
                         TypeInformation.of(new TypeHint<CustomType[][][]>() {}));
 
-        assertThat(ti.toString()).isEqualTo("ObjectArrayTypeInfo<ObjectArrayTypeInfo<ObjectArrayTypeInfo<"
-                + "PojoType<org.apache.flink.api.java.typeutils.TypeExtractorTest$CustomType, fields = [myField1: String, myField2: Integer]>"
-                + ">>>");
+        assertThat(ti.toString())
+                .isEqualTo(
+                        "ObjectArrayTypeInfo<ObjectArrayTypeInfo<ObjectArrayTypeInfo<"
+                                + "PojoType<org.apache.flink.api.java.typeutils.TypeExtractorTest$CustomType, fields = [myField1: String, myField2: Integer]>"
+                                + ">>>");
 
         // generic array
         ti =
                 TypeExtractor.getMapReturnTypes(
                         (MapFunction) new MapperWithMultiDimGenericArray<String>(),
                         TypeInformation.of(new TypeHint<String[][][]>() {}));
-        assertThat(ti.toString()).isEqualTo("ObjectArrayTypeInfo<ObjectArrayTypeInfo<ObjectArrayTypeInfo<Java Tuple1<String>>>>");
+        assertThat(ti.toString())
+                .isEqualTo(
+                        "ObjectArrayTypeInfo<ObjectArrayTypeInfo<ObjectArrayTypeInfo<Java Tuple1<String>>>>");
     }
 
     @SuppressWarnings("rawtypes")
@@ -2259,10 +2315,12 @@ class TypeExtractorTest {
 
     @Test
     void testEitherFromObjectException() {
-        assertThatExceptionOfType(InvalidTypesException.class).isThrownBy(() -> {
-            Either<String, Tuple1<Integer>> either = Either.Left("test");
-            TypeExtractor.getForObject(either);
-        });
+        assertThatExceptionOfType(InvalidTypesException.class)
+                .isThrownBy(
+                        () -> {
+                            Either<String, Tuple1<Integer>> either = Either.Left("test");
+                            TypeExtractor.getForObject(either);
+                        });
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -2291,21 +2349,25 @@ class TypeExtractorTest {
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Test
     void testGenericTypeWithSuperclassInput() {
-        assertThatExceptionOfType(InvalidTypesException.class).isThrownBy(() -> {
-            TypeInformation<?> inputType = TypeExtractor.createTypeInfo(Map.class);
+        assertThatExceptionOfType(InvalidTypesException.class)
+                .isThrownBy(
+                        () -> {
+                            TypeInformation<?> inputType = TypeExtractor.createTypeInfo(Map.class);
 
-            MapFunction<?, ?> function =
-                    new MapFunction<HashMap<String, Object>, Map<String, Object>>() {
+                            MapFunction<?, ?> function =
+                                    new MapFunction<
+                                            HashMap<String, Object>, Map<String, Object>>() {
 
-                        @Override
-                        public Map<String, Object> map(HashMap<String, Object> stringObjectMap)
-                                throws Exception {
-                            return stringObjectMap;
-                        }
-                    };
+                                        @Override
+                                        public Map<String, Object> map(
+                                                HashMap<String, Object> stringObjectMap)
+                                                throws Exception {
+                                            return stringObjectMap;
+                                        }
+                                    };
 
-            TypeExtractor.getMapReturnTypes(function, (TypeInformation) inputType);
-        });
+                            TypeExtractor.getMapReturnTypes(function, (TypeInformation) inputType);
+                        });
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -2418,8 +2480,10 @@ class TypeExtractorTest {
         assertThat(TypeExtractor.getForClass(BigDecimal.class)).isEqualTo(tti.getTypeAt(1));
 
         // use getForObject()
-        assertThat(TypeExtractor.getForObject(new BigInteger("42"))).isEqualTo(BasicTypeInfo.BIG_INT_TYPE_INFO);
-        assertThat(TypeExtractor.getForObject(new BigDecimal("42.42"))).isEqualTo(BasicTypeInfo.BIG_DEC_TYPE_INFO);
+        assertThat(TypeExtractor.getForObject(new BigInteger("42")))
+                .isEqualTo(BasicTypeInfo.BIG_INT_TYPE_INFO);
+        assertThat(TypeExtractor.getForObject(new BigDecimal("42.42")))
+                .isEqualTo(BasicTypeInfo.BIG_DEC_TYPE_INFO);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -2453,8 +2517,11 @@ class TypeExtractorTest {
         assertThat(TypeExtractor.getForClass(Timestamp.class)).isEqualTo(tti.getTypeAt(2));
 
         // use getForObject()
-        assertThat(TypeExtractor.getForObject(Date.valueOf("1998-12-12"))).isEqualTo(SqlTimeTypeInfo.DATE);
-        assertThat(TypeExtractor.getForObject(Time.valueOf("12:37:45"))).isEqualTo(SqlTimeTypeInfo.TIME);
-        assertThat(TypeExtractor.getForObject(Timestamp.valueOf("1998-12-12 12:37:45"))).isEqualTo(SqlTimeTypeInfo.TIMESTAMP);
+        assertThat(TypeExtractor.getForObject(Date.valueOf("1998-12-12")))
+                .isEqualTo(SqlTimeTypeInfo.DATE);
+        assertThat(TypeExtractor.getForObject(Time.valueOf("12:37:45")))
+                .isEqualTo(SqlTimeTypeInfo.TIME);
+        assertThat(TypeExtractor.getForObject(Timestamp.valueOf("1998-12-12 12:37:45")))
+                .isEqualTo(SqlTimeTypeInfo.TIMESTAMP);
     }
 }

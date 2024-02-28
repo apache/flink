@@ -28,9 +28,9 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.testutils.migration.SchemaCompatibilityTestingSerializer;
 import org.apache.flink.testutils.migration.SchemaCompatibilityTestingSerializer.SchemaCompatibilityTestingSnapshot;
 
-import java.lang.reflect.Field;
-
 import org.junit.jupiter.api.Test;
+
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -123,11 +123,16 @@ class PojoSerializerSnapshotTest {
                 (PojoSerializer<TestPojo>) restoredSerializer;
 
         final Field[] restoredFields = restoredPojoSerializer.getFields();
-        assertThat(restoredFields).containsExactly(ID_FIELD.field, NAME_FIELD.field, HEIGHT_FIELD.field);
+        assertThat(restoredFields)
+                .containsExactly(ID_FIELD.field, NAME_FIELD.field, HEIGHT_FIELD.field);
 
         final TypeSerializer<?>[] restoredFieldSerializers =
                 restoredPojoSerializer.getFieldSerializers();
-        assertThat(restoredFieldSerializers).containsExactly(IntSerializer.INSTANCE, StringSerializer.INSTANCE, DoubleSerializer.INSTANCE);
+        assertThat(restoredFieldSerializers)
+                .containsExactly(
+                        IntSerializer.INSTANCE,
+                        StringSerializer.INSTANCE,
+                        DoubleSerializer.INSTANCE);
     }
 
     @Test
@@ -149,7 +154,11 @@ class PojoSerializerSnapshotTest {
 
         final TypeSerializer<?>[] restoredFieldSerializers =
                 restoredPojoSerializer.getFieldSerializers();
-        assertThat(restoredFieldSerializers).containsExactly(IntSerializer.INSTANCE, StringSerializer.INSTANCE, DoubleSerializer.INSTANCE);
+        assertThat(restoredFieldSerializers)
+                .containsExactly(
+                        IntSerializer.INSTANCE,
+                        StringSerializer.INSTANCE,
+                        DoubleSerializer.INSTANCE);
     }
 
     @Test
@@ -325,9 +334,11 @@ class PojoSerializerSnapshotTest {
 
         final TypeSerializer<?>[] reconfiguredFieldSerializers =
                 reconfiguredPojoSerializer.getFieldSerializers();
-        assertThat(reconfiguredFieldSerializers).containsExactly(new SchemaCompatibilityTestingSerializer(),
-                StringSerializer.INSTANCE,
-                DoubleSerializer.INSTANCE);
+        assertThat(reconfiguredFieldSerializers)
+                .containsExactly(
+                        new SchemaCompatibilityTestingSerializer(),
+                        StringSerializer.INSTANCE,
+                        DoubleSerializer.INSTANCE);
     }
 
     // ------------------------------------------------------------------------------------------------

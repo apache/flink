@@ -35,8 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for the {@link RefCountedFile}. */
 public class RefCountedFileTest {
 
-    @TempDir
-    public File temporaryFolder;
+    @TempDir public File temporaryFolder;
 
     @Test
     void releaseToZeroRefCounterShouldDeleteTheFile() throws IOException {

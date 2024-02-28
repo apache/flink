@@ -26,7 +26,6 @@ import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.apache.commons.lang3.RandomStringUtils;
@@ -58,10 +57,9 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOf
  * This class tests the functionality of the {@link LocalFileSystem} class in its components. In
  * particular, file/directory access, creation, deletion, read, write is tested.
  */
-public class LocalFileSystemTest{
+public class LocalFileSystemTest {
 
-    @TempDir
-    public File temporaryFolder;
+    @TempDir public File temporaryFolder;
 
     /** This test checks the functionality of the {@link LocalFileSystem} class. */
     @Test
@@ -159,7 +157,8 @@ public class LocalFileSystemTest{
         assertThat(lfs.listStatus(pathtotmpdir).length).isEqualTo(2);
 
         // do we get exactly one blocklocation per file? no matter what start and len we provide
-        assertThat(lfs.getFileBlockLocations(lfs.getFileStatus(pathtotestfile1), 0, 0).length).isOne();
+        assertThat(lfs.getFileBlockLocations(lfs.getFileStatus(pathtotestfile1), 0, 0).length)
+                .isOne();
 
         /*
          * can lfs delete files / directories?
@@ -311,7 +310,8 @@ public class LocalFileSystemTest{
                                 () -> {
                                     try {
                                         cyclicBarrier.await();
-                                        assertThat(fs.mkdirs(Path.fromLocalFile(targetDirectory))).isEqualTo(true);
+                                        assertThat(fs.mkdirs(Path.fromLocalFile(targetDirectory)))
+                                                .isEqualTo(true);
                                     } catch (Exception e) {
                                         throw new CompletionException(e);
                                     }
@@ -349,37 +349,47 @@ public class LocalFileSystemTest{
 
     @Test
     void testFlushMethodFailsOnClosedOutputStream() throws IOException {
-        assertThatExceptionOfType(ClosedChannelException.class).isThrownBy(() -> {
-            testMethodCallFailureOnClosedStream(FSDataOutputStream::flush);
-        });
+        assertThatExceptionOfType(ClosedChannelException.class)
+                .isThrownBy(
+                        () -> {
+                            testMethodCallFailureOnClosedStream(FSDataOutputStream::flush);
+                        });
     }
 
     @Test
     void testWriteIntegerMethodFailsOnClosedOutputStream() throws IOException {
-        assertThatExceptionOfType(ClosedChannelException.class).isThrownBy(() -> {
-            testMethodCallFailureOnClosedStream(os -> os.write(0));
-        });
+        assertThatExceptionOfType(ClosedChannelException.class)
+                .isThrownBy(
+                        () -> {
+                            testMethodCallFailureOnClosedStream(os -> os.write(0));
+                        });
     }
 
     @Test
     void testWriteBytesMethodFailsOnClosedOutputStream() throws IOException {
-        assertThatExceptionOfType(ClosedChannelException.class).isThrownBy(() -> {
-            testMethodCallFailureOnClosedStream(os -> os.write(new byte[0]));
-        });
+        assertThatExceptionOfType(ClosedChannelException.class)
+                .isThrownBy(
+                        () -> {
+                            testMethodCallFailureOnClosedStream(os -> os.write(new byte[0]));
+                        });
     }
 
     @Test
     void testWriteBytesSubArrayMethodFailsOnClosedOutputStream() throws IOException {
-        assertThatExceptionOfType(ClosedChannelException.class).isThrownBy(() -> {
-            testMethodCallFailureOnClosedStream(os -> os.write(new byte[0], 0, 0));
-        });
+        assertThatExceptionOfType(ClosedChannelException.class)
+                .isThrownBy(
+                        () -> {
+                            testMethodCallFailureOnClosedStream(os -> os.write(new byte[0], 0, 0));
+                        });
     }
 
     @Test
     void testGetPosMethodFailsOnClosedOutputStream() throws IOException {
-        assertThatExceptionOfType(ClosedChannelException.class).isThrownBy(() -> {
-            testMethodCallFailureOnClosedStream(FSDataOutputStream::getPos);
-        });
+        assertThatExceptionOfType(ClosedChannelException.class)
+                .isThrownBy(
+                        () -> {
+                            testMethodCallFailureOnClosedStream(FSDataOutputStream::getPos);
+                        });
     }
 
     private void testMethodCallFailureOnClosedStream(
@@ -387,9 +397,7 @@ public class LocalFileSystemTest{
         final FileSystem fs = FileSystem.getLocalFileSystem();
         final FSDataOutputStream outputStream =
                 fs.create(
-                        new Path(
-                                temporaryFolder.toString(),
-                                "close_fs_test_" + UUID.randomUUID()),
+                        new Path(temporaryFolder.toString(), "close_fs_test_" + UUID.randomUUID()),
                         WriteMode.OVERWRITE);
         outputStream.close();
         callback.accept(outputStream);

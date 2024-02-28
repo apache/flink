@@ -23,27 +23,27 @@ import org.junit.Test;
 import java.time.DayOfWeek;
 import java.util.Random;
 
-import static org.junit.Assert.assertArrayEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link StringUtils}. */
-public class StringUtilsTest{
+public class StringUtilsTest {
 
     @Test
     public void testControlCharacters() {
         String testString = "\b \t \n \f \r default";
         String controlString = StringUtils.showControlCharacters(testString);
-        assertEquals("\\b \\t \\n \\f \\r default", controlString);
+        assertThat(controlString).isEqualTo("\\b \\t \\n \\f \\r default");
     }
 
     @Test
     public void testArrayAwareToString() {
-        assertEquals("null", StringUtils.arrayAwareToString(null));
+        assertThat(StringUtils.arrayAwareToString(null)).isEqualTo("null");
 
-        assertEquals("MONDAY", StringUtils.arrayAwareToString(DayOfWeek.MONDAY));
+        assertThat(StringUtils.arrayAwareToString(DayOfWeek.MONDAY)).isEqualTo("MONDAY");
 
-        assertEquals("[1, 2, 3]", StringUtils.arrayAwareToString(new int[] {1, 2, 3}));
+        assertThat(StringUtils.arrayAwareToString(new int[] {1, 2, 3})).isEqualTo("[1, 2, 3]");
 
         assertEquals(
                 "[[4, 5, 6], null, []]",
@@ -60,14 +60,14 @@ public class StringUtilsTest{
         String hex = "019f314a";
         byte[] hexArray = StringUtils.hexStringToByte(hex);
         byte[] expectedArray = new byte[] {1, -97, 49, 74};
-        assertArrayEquals(expectedArray, hexArray);
+        assertThat(hexArray).isEqualTo(expectedArray);
     }
 
     @Test
     public void testHexArrayToString() {
         byte[] byteArray = new byte[] {1, -97, 49, 74};
         String hex = StringUtils.byteToHexString(byteArray);
-        assertEquals("019f314a", hex);
+        assertThat(hex).isEqualTo("019f314a");
     }
 
     @Test

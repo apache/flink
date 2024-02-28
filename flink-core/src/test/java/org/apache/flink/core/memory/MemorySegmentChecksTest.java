@@ -29,22 +29,28 @@ class MemorySegmentChecksTest {
 
     @Test
     void testHeapNullBuffer2() {
-        assertThatExceptionOfType(NullPointerException.class).isThrownBy(() -> {
-            new MemorySegment((byte[]) null, new Object());
-        });
+        assertThatExceptionOfType(NullPointerException.class)
+                .isThrownBy(
+                        () -> {
+                            new MemorySegment((byte[]) null, new Object());
+                        });
     }
 
     @Test
     void testOffHeapNullBuffer2() {
-        assertThatExceptionOfType(NullPointerException.class).isThrownBy(() -> {
-            new MemorySegment((ByteBuffer) null, new Object());
-        });
+        assertThatExceptionOfType(NullPointerException.class)
+                .isThrownBy(
+                        () -> {
+                            new MemorySegment((ByteBuffer) null, new Object());
+                        });
     }
 
     @Test
     void testNonDirectBuffer() {
-        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> {
-            new MemorySegment(ByteBuffer.allocate(1024), new Object());
-        });
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(
+                        () -> {
+                            new MemorySegment(ByteBuffer.allocate(1024), new Object());
+                        });
     }
 }

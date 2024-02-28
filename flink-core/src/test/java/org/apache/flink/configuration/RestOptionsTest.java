@@ -18,14 +18,12 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link RestOptions}. */
-class RestOptionsTest{
+class RestOptionsTest {
 
     @Test
     void testBindAddressFirstDeprecatedKey() {

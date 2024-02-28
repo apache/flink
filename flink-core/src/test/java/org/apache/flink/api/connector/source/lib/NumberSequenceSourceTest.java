@@ -31,9 +31,9 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.SimpleUserCodeClassLoader;
 import org.apache.flink.util.UserCodeClassLoader;
 
-import java.util.ArrayList;
-
 import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -93,9 +93,11 @@ class NumberSequenceSourceTest {
     }
 
     private static void failSequence(final List<Long> sequence, final long from, final long to) {
-        fail("", String.format(
-                "Expected: A sequence [%d, %d], but found: sequence (size %d) : %s",
-                from, to, sequence.size(), sequence));
+        fail(
+                "",
+                String.format(
+                        "Expected: A sequence [%d, %d], but found: sequence (size %d) : %s",
+                        from, to, sequence.size(), sequence));
     }
 
     private static SourceReader<Long, NumberSequenceSource.NumberSequenceSplit> createReader() {

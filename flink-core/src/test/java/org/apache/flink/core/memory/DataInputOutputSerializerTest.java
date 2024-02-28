@@ -29,7 +29,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the combination of {@link DataOutputSerializer} and {@link DataInputDeserializer}. */
@@ -88,7 +87,8 @@ class DataInputOutputSerializerTest {
     }
 
     @Test
-    void testRandomValuesWriteRead() throws IOException, InstantiationException, IllegalAccessException {
+    void testRandomValuesWriteRead()
+            throws IOException, InstantiationException, IllegalAccessException {
         final int numElements = 100000;
         final ArrayDeque<SerializationTestType> reference = new ArrayDeque<>();
 
@@ -97,17 +97,17 @@ class DataInputOutputSerializerTest {
         for (SerializationTestType value : Util.randomRecords(numElements)) {
             reference.add(value);
 
-                value.write(serializer);
+            value.write(serializer);
         }
 
         DataInputDeserializer deserializer =
                 new DataInputDeserializer(serializer.wrapAsByteBuffer());
 
         for (SerializationTestType expected : reference) {
-                SerializationTestType actual = expected.getClass().newInstance();
-                actual.read(deserializer);
+            SerializationTestType actual = expected.getClass().newInstance();
+            actual.read(deserializer);
 
-                assertThat(actual).isEqualTo(expected);
+            assertThat(actual).isEqualTo(expected);
         }
 
         reference.clear();

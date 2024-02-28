@@ -79,44 +79,43 @@ public class ConfigurationTest {
     /** This test checks the serialization/deserialization of configuration objects. */
     @TestTemplate
     void testConfigurationSerializationAndGetters() throws ClassNotFoundException, IOException {
-            final Configuration orig = new Configuration(standardYaml);
-            orig.setString("mykey", "myvalue");
-            orig.setInteger("mynumber", 100);
-            orig.setLong("longvalue", 478236947162389746L);
-            orig.setFloat("PI", 3.1415926f);
-            orig.setDouble("E", Math.E);
-            orig.setBoolean("shouldbetrue", true);
-            orig.setBytes("bytes sequence", new byte[] {1, 2, 3, 4, 5});
-            orig.setClass("myclass", this.getClass());
+        final Configuration orig = new Configuration(standardYaml);
+        orig.setString("mykey", "myvalue");
+        orig.setInteger("mynumber", 100);
+        orig.setLong("longvalue", 478236947162389746L);
+        orig.setFloat("PI", 3.1415926f);
+        orig.setDouble("E", Math.E);
+        orig.setBoolean("shouldbetrue", true);
+        orig.setBytes("bytes sequence", new byte[] {1, 2, 3, 4, 5});
+        orig.setClass("myclass", this.getClass());
 
-            final Configuration copy = InstantiationUtil.createCopyWritable(orig);
-            assertThat("myvalue").isEqualTo(copy.getString("mykey", "null"));
-            assertThat(copy.getInteger("mynumber", 0)).isEqualTo(100);
-            assertThat(478236947162389746L).isEqualTo(copy.getLong("longvalue", 0L));
-            assertThat(3.1415926f).isCloseTo(copy.getFloat("PI", 3.1415926f), Offset.offset(0.0f));
-            assertThat(Math.E).isCloseTo(copy.getDouble("E", 0.0), Offset.offset(0.0));
-            assertThat(copy.getBoolean("shouldbetrue", false)).isTrue();
-            assertThat(new byte[] {1, 2, 3, 4, 5}).isEqualTo(copy.getBytes("bytes sequence", null));
-            assertThat(getClass())
-                    .isEqualTo(copy.getClass("myclass", null, getClass().getClassLoader()));
+        final Configuration copy = InstantiationUtil.createCopyWritable(orig);
+        assertThat("myvalue").isEqualTo(copy.getString("mykey", "null"));
+        assertThat(copy.getInteger("mynumber", 0)).isEqualTo(100);
+        assertThat(478236947162389746L).isEqualTo(copy.getLong("longvalue", 0L));
+        assertThat(3.1415926f).isCloseTo(copy.getFloat("PI", 3.1415926f), Offset.offset(0.0f));
+        assertThat(Math.E).isCloseTo(copy.getDouble("E", 0.0), Offset.offset(0.0));
+        assertThat(copy.getBoolean("shouldbetrue", false)).isTrue();
+        assertThat(new byte[] {1, 2, 3, 4, 5}).isEqualTo(copy.getBytes("bytes sequence", null));
+        assertThat(getClass())
+                .isEqualTo(copy.getClass("myclass", null, getClass().getClassLoader()));
 
-            assertThat(orig).isEqualTo(copy);
-            assertThat(orig.keySet()).isEqualTo(copy.keySet());
-            assertThat(orig).hasSameHashCodeAs(copy);
-
+        assertThat(orig).isEqualTo(copy);
+        assertThat(orig.keySet()).isEqualTo(copy.keySet());
+        assertThat(orig).hasSameHashCodeAs(copy);
     }
 
     @TestTemplate
     void testCopyConstructor() {
-            final String key = "theKey";
+        final String key = "theKey";
 
-            Configuration cfg1 = new Configuration(standardYaml);
-            cfg1.setString(key, "value");
+        Configuration cfg1 = new Configuration(standardYaml);
+        cfg1.setString(key, "value");
 
-            Configuration cfg2 = new Configuration(cfg1);
-            cfg2.setString(key, "another value");
+        Configuration cfg2 = new Configuration(cfg1);
+        cfg2.setString(key, "another value");
 
-            assertThat("value").isEqualTo(cfg1.getString(key, ""));
+        assertThat("value").isEqualTo(cfg1.getString(key, ""));
     }
 
     @TestTemplate

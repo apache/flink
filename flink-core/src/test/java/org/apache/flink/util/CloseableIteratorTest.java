@@ -23,8 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link CloseableIterator} test. */
 @SuppressWarnings("unchecked")
@@ -40,7 +39,7 @@ public class CloseableIteratorTest {
                         CloseableIterator.flatten(CloseableIterator.empty()),
                         CloseableIterator.flatten(CloseableIterator.flatten()));
         for (CloseableIterator<?> i : iterators) {
-            assertFalse(i.hasNext());
+            assertThat(i.hasNext()).isFalse();
             i.close();
         }
     }
@@ -54,7 +53,7 @@ public class CloseableIteratorTest {
 
         List<String> iterated = new ArrayList<>();
         iterator.forEachRemaining(iterated::add);
-        assertArrayEquals(ELEMENTS, iterated.toArray());
+        assertThat(iterated.toArray()).isEqualTo(ELEMENTS);
     }
 
     @Test(expected = TestException.class)
@@ -72,7 +71,7 @@ public class CloseableIteratorTest {
         try {
             iterator.close();
         } finally {
-            assertArrayEquals(ELEMENTS, closed.toArray());
+            assertThat(closed.toArray()).isEqualTo(ELEMENTS);
         }
     }
 

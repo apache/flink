@@ -112,10 +112,14 @@ class CompositeTypeTest {
         assertThat(nestedTypeInfo.getFlatFields("f3")).hasSize(2);
         assertThat(nestedTypeInfo.getFlatFields("f3").get(0).getPosition()).isEqualTo(5);
         assertThat(nestedTypeInfo.getFlatFields("f3").get(1).getPosition()).isEqualTo(6);
-        assertThat(nestedTypeInfo.getFlatFields("0").get(0).getType()).isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
-        assertThat(nestedTypeInfo.getFlatFields("1.1").get(0).getType()).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
-        assertThat(nestedTypeInfo.getFlatFields("1").get(2).getType()).isEqualTo(BasicTypeInfo.LONG_TYPE_INFO);
-        assertThat(nestedTypeInfo.getFlatFields("3").get(1).getType()).isEqualTo(BasicTypeInfo.DOUBLE_TYPE_INFO);
+        assertThat(nestedTypeInfo.getFlatFields("0").get(0).getType())
+                .isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
+        assertThat(nestedTypeInfo.getFlatFields("1.1").get(0).getType())
+                .isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
+        assertThat(nestedTypeInfo.getFlatFields("1").get(2).getType())
+                .isEqualTo(BasicTypeInfo.LONG_TYPE_INFO);
+        assertThat(nestedTypeInfo.getFlatFields("3").get(1).getType())
+                .isEqualTo(BasicTypeInfo.DOUBLE_TYPE_INFO);
 
         assertThat(deepNestedTupleTypeInfo.getFlatFields("1")).hasSize(3);
         assertThat(deepNestedTupleTypeInfo.getFlatFields("1").get(0).getPosition()).isOne();

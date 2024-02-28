@@ -33,22 +33,23 @@ import java.io.Serializable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link ClosureCleaner}. */
 class ClosureCleanerTest {
 
     @Test
     void testNonSerializable() throws Exception {
-        assertThatExceptionOfType(InvalidProgramException.class).isThrownBy(() -> {
-            MapCreator creator = new NonSerializableMapCreator();
-            MapFunction<Integer, Integer> map = creator.getMap();
+        assertThatExceptionOfType(InvalidProgramException.class)
+                .isThrownBy(
+                        () -> {
+                            MapCreator creator = new NonSerializableMapCreator();
+                            MapFunction<Integer, Integer> map = creator.getMap();
 
-            ClosureCleaner.ensureSerializable(map);
+                            ClosureCleaner.ensureSerializable(map);
 
-            int result = map.map(3);
-            assertEquals(4, result);
-        });
+                            int result = map.map(3);
+                            assertThat(result).isEqualTo(4);
+                        });
     }
 
     @Test
@@ -88,17 +89,20 @@ class ClosureCleanerTest {
 
     @Test
     void testNestedNonSerializable() throws Exception {
-        assertThatExceptionOfType(InvalidProgramException.class).isThrownBy(() -> {
-            MapCreator creator = new NestedNonSerializableMapCreator(1);
-            MapFunction<Integer, Integer> map = creator.getMap();
+        assertThatExceptionOfType(InvalidProgramException.class)
+                .isThrownBy(
+                        () -> {
+                            MapCreator creator = new NestedNonSerializableMapCreator(1);
+                            MapFunction<Integer, Integer> map = creator.getMap();
 
-            ClosureCleaner.clean(map, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+                            ClosureCleaner.clean(
+                                    map, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
-            ClosureCleaner.ensureSerializable(map);
+                            ClosureCleaner.ensureSerializable(map);
 
-            int result = map.map(3);
-            assertEquals(4, result);
-        });
+                            int result = map.map(3);
+                            assertThat(result).isEqualTo(4);
+                        });
     }
 
     @Test
@@ -243,9 +247,14 @@ class ClosureCleanerTest {
      */
     @Test
     void testCleanObject() {
-        assertThatExceptionOfType(InvalidProgramException.class).isThrownBy(() -> {
-            ClosureCleaner.clean(new Object(), ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
-        });
+        assertThatExceptionOfType(InvalidProgramException.class)
+                .isThrownBy(
+                        () -> {
+                            ClosureCleaner.clean(
+                                    new Object(),
+                                    ExecutionConfig.ClosureCleanerLevel.RECURSIVE,
+                                    true);
+                        });
     }
 }
 

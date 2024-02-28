@@ -19,18 +19,17 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.util.TestLogger;
-
-import java.io.DataInputStream;
 
 import org.junit.jupiter.api.Test;
+
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for {@link DataInputViewStream}. */
-class DataInputViewStreamTest{
+class DataInputViewStreamTest {
 
     @Test
     void testSkip() throws IOException {

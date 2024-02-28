@@ -19,7 +19,6 @@
 package org.apache.flink.types.parser;
 
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -32,7 +31,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** */
-public abstract class ParserTestBase<T>{
+public abstract class ParserTestBase<T> {
 
     public abstract String[] getValidTestValues();
 
@@ -307,7 +306,8 @@ public abstract class ParserTestBase<T>{
                         parser.parseField(
                                 bytes, 0, bytes.length, new byte[] {'|'}, parser.createValue());
 
-                assertEquals("Parser accepted the invalid value " + testValues[i] + ".", -1, numRead);
+                assertEquals(
+                        "Parser accepted the invalid value " + testValues[i] + ".", -1, numRead);
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());

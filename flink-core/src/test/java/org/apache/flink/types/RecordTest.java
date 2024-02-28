@@ -33,9 +33,7 @@ import java.io.PipedOutputStream;
 import java.util.Arrays;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
 
 public class RecordTest {
@@ -67,14 +65,20 @@ public class RecordTest {
             Record empty = new Record();
             empty.write(this.out);
             empty.read(in);
-            assertEquals("Deserialized Empty record is not another empty record.", 0, empty.getNumFields());
+            assertThat(0)
+                    .isCloseTo(
+                            "Deserialized Empty record is not another empty record.",
+                            within(empty.getNumFields()));
 
             // test deserialize into new
             empty = new Record();
             empty.write(this.out);
             empty = new Record();
             empty.read(this.in);
-            assertEquals("Deserialized Empty record is not another empty record.", 0, empty.getNumFields());
+            assertThat(0)
+                    .isCloseTo(
+                            "Deserialized Empty record is not another empty record.",
+                            within(empty.getNumFields()));
 
         } catch (Throwable t) {
             Assert.fail("Test failed due to an exception: " + t.getMessage());
@@ -86,10 +90,12 @@ public class RecordTest {
         try {
             // Add a value to an empty record
             Record record = new Record();
-            assertEquals(0, record.getNumFields());
+            assertThat(record.getNumFields()).isEqualTo(0);
             record.addField(this.origVal1);
-            assertEquals(1, record.getNumFields());
-            assertEquals(origVal1.getValue(), record.getField(0, StringValue.class).getValue());
+            assertThat(record.getNumFields()).isEqualTo(1);
+            assertThat(
+                    record.getField(0)
+                            .isCloseTo(origVal1.getValue(), within(StringValue.class).getValue()));
 
             // Add 100 random integers to the record
             record = new Record();
@@ -98,23 +104,26 @@ public class RecordTest {
                 record.addField(orig);
                 IntValue rec = record.getField(i, IntValue.class);
 
-                assertEquals(record.getNumFields(), i + 1);
-                assertEquals(orig.getValue(), rec.getValue());
+                assertThat(i + 1).isEqualTo(record.getNumFields());
+                assertThat(rec.getValue()).isEqualTo(orig.getValue());
             }
 
             // Add 3 values of different type to the record
             record = new Record(this.origVal1, this.origVal2);
             record.addField(this.origVal3);
 
-            assertEquals(3, record.getNumFields());
+            assertThat(record.getNumFields()).isEqualTo(3);
 
             StringValue recVal1 = record.getField(0, StringValue.class);
             DoubleValue recVal2 = record.getField(1, DoubleValue.class);
             IntValue recVal3 = record.getField(2, IntValue.class);
 
-            assertEquals("The value of the first field has changed", recVal1, this.origVal1);
-            assertEquals("The value of the second field changed", recVal2, this.origVal2);
-            assertEquals("The value of the third field has changed", recVal3, this.origVal3);
+            assertThat(recVal1)
+                    .isCloseTo("The value of the first field has changed", within(this.origVal1));
+            assertThat(recVal2)
+                    .isCloseTo("The value of the second field changed", within(this.origVal2));
+            assertThat(recVal3)
+                    .isCloseTo("The value of the third field has changed", within(this.origVal3));
         } catch (Throwable t) {
             Assert.fail("Test failed due to an exception: " + t.getMessage());
         }
@@ -129,36 +138,36 @@ public class RecordTest {
     //		record = new Record(this.origVal1, this.origVal3);
     //		record.insertField(1, this.origVal2);
     //
-    //		assertTrue(record.getNumFields() == 3);
+    //		assertThat(record.getNumFields() == 3).isTrue();
     //
     //		StringValue recVal1 = record.getField(0, StringValue.class);
     //		DoubleValue recVal2 = record.getField(1, DoubleValue.class);
     //		IntValue recVal3 = record.getField(2, IntValue.class);
     //
-    //		assertTrue(recVal1.getValue().equals(this.origVal1.getValue()));
-    //		assertTrue(recVal2.getValue() == this.origVal2.getValue());
-    //		assertTrue(recVal3.getValue() == this.origVal3.getValue());
+    //		assertThat(recVal1.getValue().equals(this.origVal1.getValue())).isTrue();
+    //		assertThat(recVal2.getValue() == this.origVal2.getValue()).isTrue();
+    //		assertThat(recVal3.getValue() == this.origVal3.getValue()).isTrue();
     //
     //		record = this.generateFilledDenseRecord(100);
     //
     //		// Insert field at the first position of the record
     //		oldLen = record.getNumFields();
     //		record.insertField(0, this.origVal1);
-    //		assertTrue(record.getNumFields() == oldLen + 1);
-    //		assertTrue(this.origVal1.equals(record.getField(0, StringValue.class)));
+    //		assertThat(record.getNumFields() == oldLen + 1).isTrue();
+    //		assertThat(this.origVal1.equals(record.getField(0, StringValue.class))).isTrue();
     //
     //		// Insert field at the end of the record
     //		oldLen = record.getNumFields();
     //		record.insertField(oldLen, this.origVal2);
-    //		assertTrue(record.getNumFields() == oldLen + 1);
-    //		assertTrue(this.origVal2 == record.getField(oldLen, DoubleValue.class));
+    //		assertThat(record.getNumFields() == oldLen + 1).isTrue();
+    //		assertThat(this.origVal2 == record.getField(oldLen, DoubleValue.class)).isTrue();
     //
     //		// Insert several random fields into the record
     //		for (int i = 0; i < 100; i++) {
     //			int pos = rand.nextInt(record.getNumFields());
     //			IntValue val = new IntValue(rand.nextInt());
     //			record.insertField(pos, val);
-    //			assertTrue(val.getValue() == record.getField(pos, IntValue.class).getValue());
+    //			assertThat(val.getValue() == record.getField(pos, IntValue.class).getValue()).isTrue();
     //		}
     //	}
 
@@ -172,25 +181,25 @@ public class RecordTest {
         record.addField(this.origVal3);
         record.removeField(1);
 
-        assertEquals(2, record.getNumFields());
+        assertThat(record.getNumFields()).isEqualTo(2);
 
         StringValue recVal1 = record.getField(0, StringValue.class);
         IntValue recVal2 = record.getField(1, IntValue.class);
 
-        assertEquals(recVal1.getValue(), this.origVal1.getValue());
-        assertEquals(recVal2.getValue(), this.origVal3.getValue());
+        assertThat(this.origVal1.getValue()).isEqualTo(recVal1.getValue());
+        assertThat(this.origVal3.getValue()).isEqualTo(recVal2.getValue());
 
         record = this.generateFilledDenseRecord(100);
 
         // Remove field from the first position of the record
         oldLen = record.getNumFields();
         record.removeField(0);
-        assertEquals(record.getNumFields(), oldLen - 1);
+        assertThat(oldLen - 1).isEqualTo(record.getNumFields());
 
         // Remove field from the end of the record
         oldLen = record.getNumFields();
         record.removeField(oldLen - 1);
-        assertEquals(record.getNumFields(), oldLen - 1);
+        assertThat(oldLen - 1).isEqualTo(record.getNumFields());
 
         // Insert several random fields into the record
         record = this.generateFilledDenseRecord(100);
@@ -199,7 +208,7 @@ public class RecordTest {
             oldLen = record.getNumFields();
             int pos = this.rand.nextInt(record.getNumFields());
             record.removeField(pos);
-            assertEquals(record.getNumFields(), oldLen - 1);
+            assertThat(oldLen - 1).isEqualTo(record.getNumFields());
         }
     }
 
@@ -215,31 +224,34 @@ public class RecordTest {
     //		// Keep all fields
     //		mask = 7L;
     //		record.project(mask);
-    //		assertTrue(record.getNumFields() == 3);
-    //		assertTrue(this.origVal1.getValue().equals(record.getField(0,
+    //		assertThat(record.getNumFields() == 3).isTrue();
+    //		assertThat(this.origVal1.getValue().isTrue().equals(record.getField(0,
     // StringValue.class).getValue()));
-    //		assertTrue(this.origVal2.getValue() == record.getField(1, DoubleValue.class).getValue());
-    //		assertTrue(this.origVal3.getValue() == record.getField(2, IntValue.class).getValue());
+    //		assertThat(this.origVal2.getValue() == record.getField(1,
+    // DoubleValue.class).getValue()).isTrue();
+    //		assertThat(this.origVal3.getValue() == record.getField(2,
+    // IntValue.class).getValue()).isTrue();
     //
     //		// Keep the first and the last field
     //		mask = 5L; // Keep the first and the third/ last column
     //		record.project(mask);
-    //		assertTrue(record.getNumFields() == 2);
-    //		assertTrue(this.origVal1.getValue().equals(record.getField(0,
+    //		assertThat(record.getNumFields() == 2).isTrue();
+    //		assertThat(this.origVal1.getValue().isTrue().equals(record.getField(0,
     // StringValue.class).getValue()));
-    //		assertTrue(this.origVal3.getValue() == record.getField(1, IntValue.class).getValue());
+    //		assertThat(this.origVal3.getValue() == record.getField(1,
+    // IntValue.class).getValue()).isTrue();
     //
     //		// Keep no fields
     //		mask = 0L;
     //		record.project(mask);
-    //		assertTrue(record.getNumFields() == 0);
+    //		assertThat(record.getNumFields() == 0).isTrue();
     //
     //		// Keep random fields
     //		record = this.generateFilledDenseRecord(64);
     //		mask = this.generateRandomBitmask(64);
     //
     //		record.project(mask);
-    //		assertTrue(record.getNumFields() == Long.bitCount(mask));
+    //		assertThat(record.getNumFields() == Long.bitCount(mask)).isTrue();
     //	}
 
     //	@Test
@@ -248,7 +260,7 @@ public class RecordTest {
     //		long[] mask = {1L, 1L, 1L, 1L};
     //
     //		record.project(mask);
-    //		assertTrue(record.getNumFields() == 4);
+    //		assertThat(record.getNumFields() == 4).isTrue();
     //
     //		record = this.generateFilledDenseRecord(612);
     //		mask = new long[10];
@@ -263,7 +275,7 @@ public class RecordTest {
     //		}
     //
     //		record.project(mask);
-    //		assertTrue(record.getNumFields() == numBits);
+    //		assertThat(record.getNumFields() == numBits).isTrue();
     //	}
 
     @Test
@@ -272,8 +284,8 @@ public class RecordTest {
             Record record = this.generateFilledDenseRecord(58);
 
             record.setNull(42);
-            assertEquals(58, record.getNumFields());
-            assertNull(record.getField(42, IntValue.class));
+            assertThat(record.getNumFields()).isEqualTo(58);
+            assertThat(record.getField(42, IntValue.class)).isNull();
         } catch (Throwable t) {
             Assert.fail("Test failed due to an exception: " + t.getMessage());
         }
@@ -289,11 +301,11 @@ public class RecordTest {
 
             for (int i = 0; i < 58; i++) {
                 if (((1L << i) & mask) != 0) {
-                    assertNull(record.getField(i, IntValue.class));
+                    assertThat(record.getField(i, IntValue.class)).isNull();
                 }
             }
 
-            assertEquals(58, record.getNumFields());
+            assertThat(record.getNumFields()).isEqualTo(58);
         } catch (Throwable t) {
             Assert.fail("Test failed due to an exception: " + t.getMessage());
         }
@@ -306,10 +318,10 @@ public class RecordTest {
             long[] mask = {1L, 1L, 1L, 1L};
             record.setNull(mask);
 
-            assertNull(record.getField(0, IntValue.class));
-            assertNull(record.getField(64, IntValue.class));
-            assertNull(record.getField(128, IntValue.class));
-            assertNull(record.getField(192, IntValue.class));
+            assertThat(record.getField(0, IntValue.class)).isNull();
+            assertThat(record.getField(64, IntValue.class)).isNull();
+            assertThat(record.getField(128, IntValue.class)).isNull();
+            assertThat(record.getField(192, IntValue.class)).isNull();
 
             mask = new long[10];
             for (int i = 0; i < mask.length; i++) {
@@ -337,9 +349,10 @@ public class RecordTest {
     //
     //		record1.append(record2);
     //
-    //		assertTrue(record1.getNumFields() == 42 + 1337);
-    //		assertTrue(rec1val.getValue() == record1.getField(12, IntValue.class).getValue());
-    //		assertTrue(rec2val.getValue() == record1.getField(42 + 23, IntValue.class).getValue());
+    //		assertThat(record1.getNumFields() == 42 + 1337).isTrue();
+    //		assertThat(rec1val.getValue() == record1.getField(12, IntValue.class).getValue()).isTrue();
+    //		assertThat(rec2val.getValue() == record1.getField(42 + 23,
+    // IntValue.class).getValue()).isTrue();
     //	}
 
     //	@Test
@@ -373,10 +386,10 @@ public class RecordTest {
 
                 r.updateBinaryRepresenation();
 
-                assertEquals(1, r.getField(1, IntValue.class).getValue());
-                assertEquals(2, r.getField(3, IntValue.class).getValue());
-                assertEquals(3, r.getField(7, IntValue.class).getValue());
-                assertEquals(4, r.getField(8, IntValue.class).getValue());
+                assertThat(r.getField(1).isCloseTo(1, within(IntValue.class).getValue()));
+                assertThat(r.getField(3).isCloseTo(2, within(IntValue.class).getValue()));
+                assertThat(r.getField(7).isCloseTo(3, within(IntValue.class).getValue()));
+                assertThat(r.getField(8).isCloseTo(4, within(IntValue.class).getValue()));
             } catch (RuntimeException re) {
                 fail("Error updating binary representation: " + re.getMessage());
             }
@@ -403,17 +416,24 @@ public class RecordTest {
                 r = new Record();
                 r.read(this.in);
 
-                assertEquals(0, r.getField(0, IntValue.class).getValue());
-                assertEquals(10, r.getField(1, IntValue.class).getValue());
-                assertEquals(2, r.getField(2, IntValue.class).getValue());
-                assertEquals(3, r.getField(3, IntValue.class).getValue());
-                assertEquals("Some long value", r.getField(4, StringValue.class).getValue());
-                assertEquals("An even longer value", r.getField(5, StringValue.class).getValue());
-                assertEquals(6, r.getField(6, IntValue.class).getValue());
-                assertEquals(7, r.getField(7, IntValue.class).getValue());
-                assertNull(r.getField(8, IntValue.class));
-                assertNull(r.getField(9, IntValue.class));
-                assertEquals(10, r.getField(10, IntValue.class).getValue());
+                assertThat(r.getField(0).isCloseTo(0, within(IntValue.class).getValue()));
+                assertThat(r.getField(1).isCloseTo(10, within(IntValue.class).getValue()));
+                assertThat(r.getField(2).isCloseTo(2, within(IntValue.class).getValue()));
+                assertThat(r.getField(3).isCloseTo(3, within(IntValue.class).getValue()));
+                assertThat(
+                        r.getField(4)
+                                .isCloseTo(
+                                        "Some long value", within(StringValue.class).getValue()));
+                assertThat(
+                        r.getField(5)
+                                .isCloseTo(
+                                        "An even longer value",
+                                        within(StringValue.class).getValue()));
+                assertThat(r.getField(6).isCloseTo(6, within(IntValue.class).getValue()));
+                assertThat(r.getField(7).isCloseTo(7, within(IntValue.class).getValue()));
+                assertThat(r.getField(8, IntValue.class)).isNull();
+                assertThat(r.getField(9, IntValue.class)).isNull();
+                assertThat(r.getField(10).isCloseTo(10, within(IntValue.class).getValue()));
 
             } catch (RuntimeException | IOException re) {
                 fail("Error updating binary representation: " + re.getMessage());
@@ -435,17 +455,17 @@ public class RecordTest {
                 record1.write(this.out);
                 record2.read(this.in);
 
-                assertEquals(record1.getNumFields(), record2.getNumFields());
+                assertThat(record2.getNumFields()).isEqualTo(record1.getNumFields());
 
                 StringValue rec1Val1 = record1.getField(0, StringValue.class);
                 IntValue rec1Val2 = record1.getField(1, IntValue.class);
                 StringValue rec2Val1 = record2.getField(0, StringValue.class);
                 IntValue rec2Val2 = record2.getField(1, IntValue.class);
 
-                assertEquals(origValue1, rec1Val1);
-                assertEquals(origValue2, rec1Val2);
-                assertEquals(origValue1, rec2Val1);
-                assertEquals(origValue2, rec2Val2);
+                assertThat(rec1Val1).isEqualTo(origValue1);
+                assertThat(rec1Val2).isEqualTo(origValue2);
+                assertThat(rec2Val1).isEqualTo(origValue1);
+                assertThat(rec2Val2).isEqualTo(origValue2);
             } catch (IOException e) {
                 fail("Error writing Record");
                 e.printStackTrace();
@@ -461,20 +481,20 @@ public class RecordTest {
             Record record = new Record(new IntValue(42));
 
             record.write(this.out);
-            Assert.assertEquals(42, record.getField(0, IntValue.class).getValue());
+            assertThat(record.getField(0).isCloseTo(42, within(IntValue.class).getValue()));
 
             record.setField(0, new IntValue(23));
             record.write(this.out);
-            Assert.assertEquals(23, record.getField(0, IntValue.class).getValue());
+            assertThat(record.getField(0).isCloseTo(23, within(IntValue.class).getValue()));
 
             record.clear();
-            Assert.assertEquals(0, record.getNumFields());
+            assertThat(record.getNumFields()).isEqualTo(0);
 
             Record record2 = new Record(new IntValue(42));
             record2.read(in);
-            Assert.assertEquals(42, record2.getField(0, IntValue.class).getValue());
+            assertThat(record2.getField(0).isCloseTo(42, within(IntValue.class).getValue()));
             record2.read(in);
-            Assert.assertEquals(23, record2.getField(0, IntValue.class).getValue());
+            assertThat(record2.getField(0).isCloseTo(23, within(IntValue.class).getValue()));
         } catch (Throwable t) {
             Assert.fail("Test failed due to an exception: " + t.getMessage());
         }

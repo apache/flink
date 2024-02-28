@@ -22,8 +22,7 @@ import org.junit.Test;
 
 import java.net.ServerSocket;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the singleton usage via {@link JMXService}. */
 public class JMXServiceTest {
@@ -33,7 +32,7 @@ public class JMXServiceTest {
     public void testJMXServiceInit() throws Exception {
         try {
             JMXService.startInstance("23456-23466");
-            assertTrue(JMXService.getPort().isPresent());
+            assertThat(JMXService.getPort().isPresent()).isTrue();
         } finally {
             JMXService.stopInstance();
         }
@@ -44,7 +43,7 @@ public class JMXServiceTest {
     public void testJMXServiceInitWithOccupiedPort() throws Exception {
         try (ServerSocket socket = new ServerSocket(0)) {
             JMXService.startInstance(String.valueOf(socket.getLocalPort()));
-            assertFalse(JMXService.getInstance().isPresent());
+            assertThat(JMXService.getInstance().isPresent()).isFalse();
         }
     }
 }

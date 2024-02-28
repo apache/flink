@@ -20,8 +20,7 @@ package org.apache.flink.util;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link ProcessorArchitecture}. */
 public class ProcessorArchitectureTest {
@@ -29,13 +28,13 @@ public class ProcessorArchitectureTest {
     @Test
     public void testArchitectureNotUnknown() {
         final ProcessorArchitecture arch = ProcessorArchitecture.getProcessorArchitecture();
-        assertNotEquals(ProcessorArchitecture.UNKNOWN, arch);
+        assertThat(arch).isNotEqualTo(ProcessorArchitecture.UNKNOWN);
     }
 
     @Test
     public void testNamesNotNull() {
         final ProcessorArchitecture arch = ProcessorArchitecture.getProcessorArchitecture();
-        assertNotNull(arch.getArchitectureName());
-        assertNotNull(arch.getAlternativeNames());
+        assertThat(arch.getArchitectureName()).isNotNull();
+        assertThat(arch.getAlternativeNames()).isNotNull();
     }
 }

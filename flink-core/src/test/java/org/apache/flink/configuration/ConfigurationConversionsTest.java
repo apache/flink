@@ -24,7 +24,6 @@ import org.hamcrest.TypeSafeMatcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
 
@@ -353,7 +352,9 @@ public class ConfigurationConversionsTest {
                                                         .getClassLoader()))
                         .expectException(
                                 "Configuration cannot evaluate object of class class java.lang.Boolean as a class name"));
-    } public TestSpec<?> testSpec;
+    }
+
+    public TestSpec<?> testSpec;
 
     @MethodSource("getSpecs")
     @ParameterizedTest

@@ -20,14 +20,13 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 
-import java.io.IOException;
-
 import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
 
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.MEGA_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 
 /** Tests for the {@link MemorySize} class. */
@@ -73,9 +72,11 @@ class MemorySizeTest {
 
     @Test
     void testInvalid() {
-        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> {
-            new MemorySize(-1);
-        });
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(
+                        () -> {
+                            new MemorySize(-1);
+                        });
     }
 
     @Test
@@ -185,16 +186,20 @@ class MemorySizeTest {
 
     @Test
     void testParseNumberOverflow() {
-        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> {
-            MemorySize.parseBytes("100000000000000000000000000000000 bytes");
-        });
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(
+                        () -> {
+                            MemorySize.parseBytes("100000000000000000000000000000000 bytes");
+                        });
     }
 
     @Test
     void testParseNumberTimeUnitOverflow() {
-        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> {
-            MemorySize.parseBytes("100000000000000 tb");
-        });
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(
+                        () -> {
+                            MemorySize.parseBytes("100000000000000 tb");
+                        });
     }
 
     @Test
@@ -219,10 +224,12 @@ class MemorySizeTest {
 
     @Test
     void testDivideByNegativeLong() {
-        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> {
-            final MemorySize memory = new MemorySize(100L);
-            memory.divide(-23L);
-        });
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(
+                        () -> {
+                            final MemorySize memory = new MemorySize(100L);
+                            memory.divide(-23L);
+                        });
     }
 
     @Test
@@ -232,9 +239,13 @@ class MemorySizeTest {
         assertThat(new MemorySize(1024L).toHumanReadableString()).isEqualTo("1024 bytes");
         assertThat(new MemorySize(1025L).toHumanReadableString()).isEqualTo("1.001kb (1025 bytes)");
         assertThat(new MemorySize(1536L).toHumanReadableString()).isEqualTo("1.500kb (1536 bytes)");
-        assertThat(new MemorySize(1_000_000L).toHumanReadableString()).isEqualTo("976.563kb (1000000 bytes)");
-        assertThat(new MemorySize(1_000_000_000L).toHumanReadableString()).isEqualTo("953.674mb (1000000000 bytes)");
-        assertThat(new MemorySize(1_000_000_000_000L).toHumanReadableString()).isEqualTo("931.323gb (1000000000000 bytes)");
-        assertThat(new MemorySize(1_000_000_000_000_000L).toHumanReadableString()).isEqualTo("909.495tb (1000000000000000 bytes)");
+        assertThat(new MemorySize(1_000_000L).toHumanReadableString())
+                .isEqualTo("976.563kb (1000000 bytes)");
+        assertThat(new MemorySize(1_000_000_000L).toHumanReadableString())
+                .isEqualTo("953.674mb (1000000000 bytes)");
+        assertThat(new MemorySize(1_000_000_000_000L).toHumanReadableString())
+                .isEqualTo("931.323gb (1000000000000 bytes)");
+        assertThat(new MemorySize(1_000_000_000_000_000L).toHumanReadableString())
+                .isEqualTo("909.495tb (1000000000000000 bytes)");
     }
 }

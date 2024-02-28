@@ -22,7 +22,6 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -32,7 +31,7 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.util.Random;
 
-public class RecordITCase{
+public class RecordITCase {
 
     private static final long SEED = 354144423270432543L;
     private final Random rand = new Random(RecordITCase.SEED);

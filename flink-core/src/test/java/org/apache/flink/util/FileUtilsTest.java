@@ -369,11 +369,11 @@ public class FileUtilsTest {
         final File parent = TempDirUtils.newFolder(temporaryFolder);
 
         // Empty directory should have size 0
-        Assertions.assertEquals(0, FileUtils.getDirectoryFilesSize(parent.toPath()));
+        Assertions.assertThat(FileUtils.getDirectoryFilesSize(parent.toPath())).isEqualTo(0);
 
         // Expected size: (20*5^0 + 20*5^1 + 20*5^2 + 20*5^3) * 1 byte = 3120 bytes
         generateRandomDirs(parent, 20, 5, 3);
-        Assertions.assertEquals(3120, FileUtils.getDirectoryFilesSize(parent.toPath()));
+        Assertions.assertThat(FileUtils.getDirectoryFilesSize(parent.toPath())).isEqualTo(3120);
     }
 
     // ------------------------------------------------------------------------

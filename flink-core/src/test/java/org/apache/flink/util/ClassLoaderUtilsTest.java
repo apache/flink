@@ -31,7 +31,7 @@ import java.util.jar.JarFile;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -58,7 +58,6 @@ public class ClassLoaderUtilsTest {
                 }
             }
 
-
             // file with some random contents
             invalidJar = File.createTempFile("flink-url-test", ".tmp");
             try (FileOutputStream invalidout = new FileOutputStream(invalidJar)) {
@@ -70,7 +69,7 @@ public class ClassLoaderUtilsTest {
 
             // non existing file
             File nonExisting = File.createTempFile("flink-url-test", ".tmp");
-            assertTrue("Cannot create and delete temp file", nonExisting.delete());
+            assertThat("Cannot create and delete temp file", nonExisting.delete()).isTrue();
 
             // create a URL classloader with
             // - a HTTP URL
@@ -89,9 +88,9 @@ public class ClassLoaderUtilsTest {
             String info = ClassLoaderUtil.getUserCodeClassLoaderInfo(loader);
 
             assertTrue(info.indexOf("/some/file/path") > 0);
-            assertTrue(info.indexOf(validJar.getAbsolutePath() + "' (valid") > 0);
-            assertTrue(info.indexOf(invalidJar.getAbsolutePath() + "' (invalid JAR") > 0);
-            assertTrue(info.indexOf(nonExisting.getAbsolutePath() + "' (missing") > 0);
+            assertThat(info.indexOf(validJar.getAbsolutePath().isTrue() + "' (valid") > 0);
+            assertThat(info.indexOf(invalidJar.getAbsolutePath().isTrue() + "' (invalid JAR") > 0);
+            assertThat(info.indexOf(nonExisting.getAbsolutePath().isTrue() + "' (missing") > 0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -137,7 +136,7 @@ public class ClassLoaderUtilsTest {
         try {
             String result =
                     ClassLoaderUtil.getUserCodeClassLoaderInfo(ClassLoader.getSystemClassLoader());
-            assertTrue(result.toLowerCase().contains("system classloader"));
+            assertThat(result.toLowerCase().contains("system classloader")).isTrue();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -148,7 +147,7 @@ public class ClassLoaderUtilsTest {
     public void testInvalidClassLoaders() {
         try {
             // must return something when invoked with 'null'
-            assertNotNull(ClassLoaderUtil.getUserCodeClassLoaderInfo(null));
+            assertThat(ClassLoaderUtil.getUserCodeClassLoaderInfo(null)).isNotNull();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

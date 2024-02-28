@@ -24,12 +24,13 @@ import java.net.URL;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link FlinkUserCodeClassLoader}. */
-public class FlinkUserCodeClassLoaderTest{
+public class FlinkUserCodeClassLoaderTest {
     @Test
     public void testExceptionHandling() {
         RuntimeException expectedException = new RuntimeException("Expected exception");

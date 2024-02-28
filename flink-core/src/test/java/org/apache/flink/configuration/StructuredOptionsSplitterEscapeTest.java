@@ -42,7 +42,9 @@ public class StructuredOptionsSplitterEscapeTest {
                 TestSpec.encode("AB'\"D:B", ",").expect("'AB''\"D:B'"),
                 TestSpec.encode("A;B;C;D", ",", ":").expect("A;B;C;D"),
                 TestSpec.encode("A;B;C:D", ",", ":").expect("'A;B;C:D'"));
-    } public TestSpec testSpec;
+    }
+
+    public TestSpec testSpec;
 
     @MethodSource("getEncodeSpecs")
     @ParameterizedTest(name = "{0}")

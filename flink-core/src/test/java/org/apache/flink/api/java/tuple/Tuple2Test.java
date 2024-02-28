@@ -24,7 +24,6 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link Tuple2}. */
 class Tuple2Test {
@@ -41,11 +40,13 @@ class Tuple2Test {
 
     @Test
     void testGetFieldNotNull() {
-        assertThatExceptionOfType(NullFieldException.class).isThrownBy(() -> {
-            Tuple2<String, Integer> tuple = new Tuple2<>("Test case", null);
+        assertThatExceptionOfType(NullFieldException.class)
+                .isThrownBy(
+                        () -> {
+                            Tuple2<String, Integer> tuple = new Tuple2<>("Test case", null);
 
-            assertEquals("Test case", tuple.getFieldNotNull(0));
-            tuple.getFieldNotNull(1);
-        });
+                            assertThat(tuple.getFieldNotNull(0)).isEqualTo("Test case");
+                            tuple.getFieldNotNull(1);
+                        });
     }
 }

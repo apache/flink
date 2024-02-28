@@ -23,8 +23,7 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link RowUtils}. */
 public class RowUtilsTest {
@@ -45,7 +44,7 @@ public class RowUtilsTest {
                             Row.of("b", 12, false),
                             Row.of("b", 12, false),
                             Row.of("b", 12, true));
-            assertTrue(RowUtils.compareRows(originalList, list, false));
+            assertThat(RowUtils.compareRows(originalList, list, false)).isTrue();
         }
 
         {
@@ -55,7 +54,7 @@ public class RowUtilsTest {
                             Row.of("b", 12, false),
                             Row.of("b", 12, true), // diff order here
                             Row.of("b", 12, false));
-            assertFalse(RowUtils.compareRows(originalList, list, false));
+            assertThat(RowUtils.compareRows(originalList, list, false)).isFalse();
         }
 
         {
@@ -65,7 +64,7 @@ public class RowUtilsTest {
                             Row.of("b", 12, false),
                             Row.of("b", 12, true), // diff order here
                             Row.of("b", 12, false));
-            assertTrue(RowUtils.compareRows(originalList, list, true));
+            assertThat(RowUtils.compareRows(originalList, list, true)).isTrue();
         }
 
         {
@@ -76,7 +75,7 @@ public class RowUtilsTest {
                             Row.of("b", 12, false),
                             Row.of("b", 12, true),
                             Row.of("b", 12, true)); // diff here
-            assertFalse(RowUtils.compareRows(originalList, list, true));
+            assertThat(RowUtils.compareRows(originalList, list, true)).isFalse();
         }
     }
 }

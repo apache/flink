@@ -20,7 +20,6 @@ package org.apache.flink.core.plugin;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
 
@@ -34,12 +33,12 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link PluginConfig} utility class. */
-public class PluginConfigTest{
+public class PluginConfigTest {
 
     @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -77,6 +76,6 @@ public class PluginConfigTest{
                                 .getAbsolutePath());
         CommonTestUtils.setEnv(envVariables);
 
-        assertFalse(PluginConfig.getPluginsDir().isPresent());
+        assertThat(PluginConfig.getPluginsDir().isPresent()).isFalse();
     }
 }

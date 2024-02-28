@@ -23,9 +23,9 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
 
-import java.io.IOException;
-
 import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -116,10 +116,12 @@ class SimpleVersionedSerializationTest {
 
     @Test
     void testUnderflow() throws Exception {
-        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> {
-            SimpleVersionedSerialization.readVersionAndDeSerialize(
-                    new TestStringSerializer(), new byte[7]);
-        });
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(
+                        () -> {
+                            SimpleVersionedSerialization.readVersionAndDeSerialize(
+                                    new TestStringSerializer(), new byte[7]);
+                        });
     }
 
     // ------------------------------------------------------------------------

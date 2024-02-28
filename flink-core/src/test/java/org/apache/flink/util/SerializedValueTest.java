@@ -24,10 +24,7 @@ import org.junit.Test;
 
 import java.util.Arrays;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link SerializedValue}. */
@@ -41,23 +38,23 @@ public class SerializedValueTest {
             SerializedValue<String> v = new SerializedValue<>(value);
             SerializedValue<String> copy = CommonTestUtils.createCopySerializable(v);
 
-            assertEquals(value, v.deserializeValue(getClass().getClassLoader()));
-            assertEquals(value, copy.deserializeValue(getClass().getClassLoader()));
+            assertThat(v.deserializeValue(getClass().getClassLoader())).isEqualTo(value);
+            assertThat(copy.deserializeValue(getClass().getClassLoader())).isEqualTo(value);
 
-            assertEquals(v, copy);
-            assertEquals(v.hashCode(), copy.hashCode());
+            assertThat(copy).isEqualTo(v);
+            assertThat(copy.hashCode()).isEqualTo(v.hashCode());
 
-            assertNotNull(v.toString());
-            assertNotNull(copy.toString());
+            assertThat(v.toString()).isNotNull();
+            assertThat(copy.toString()).isNotNull();
 
-            assertNotEquals(0, v.getByteArray().length);
-            assertArrayEquals(v.getByteArray(), copy.getByteArray());
+            assertThat(v.getByteArray().length).isNotEqualTo(0);
+            assertThat(copy.getByteArray()).isEqualTo(v.getByteArray());
 
             byte[] bytes = v.getByteArray();
             SerializedValue<String> saved =
                     SerializedValue.fromBytes(Arrays.copyOf(bytes, bytes.length));
-            assertEquals(v, saved);
-            assertArrayEquals(v.getByteArray(), saved.getByteArray());
+            assertThat(saved).isEqualTo(v);
+            assertThat(saved.getByteArray()).isEqualTo(v.getByteArray());
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

@@ -20,11 +20,10 @@ package org.apache.flink.util;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link LongValueSequenceIterator}. */
-public class LongValueSequenceIteratorTest{
+public class LongValueSequenceIteratorTest {
 
     @Test
     public void testSplitRegular() {
@@ -57,15 +56,15 @@ public class LongValueSequenceIteratorTest{
             org.apache.flink.util.LongValueSequenceIterator iter, int numSplits) {
         org.apache.flink.util.LongValueSequenceIterator[] splits = iter.split(numSplits);
 
-        assertEquals(numSplits, splits.length);
+        assertThat(splits.length).isEqualTo(numSplits);
 
         // test start and end of range
-        assertEquals(iter.getCurrent(), splits[0].getCurrent());
-        assertEquals(iter.getTo(), splits[numSplits - 1].getTo());
+        assertThat(splits[0].getCurrent()).isEqualTo(iter.getCurrent());
+        assertThat(splits[numSplits - 1].getTo()).isEqualTo(iter.getTo());
 
         // test continuous range
         for (int i = 1; i < splits.length; i++) {
-            assertEquals(splits[i - 1].getTo() + 1, splits[i].getCurrent());
+            assertThat(splits[i].getCurrent()).isEqualTo(splits[i - 1].getTo() + 1);
         }
 
         testMaxSplitDiff(splits);
@@ -90,6 +89,6 @@ public class LongValueSequenceIteratorTest{
             maxSplitSize = Math.max(maxSplitSize, diff);
         }
 
-        assertTrue(maxSplitSize == minSplitSize || maxSplitSize - 1 == minSplitSize);
+        assertThat(maxSplitSize == minSplitSize || maxSplitSize - 1 == minSplitSize).isTrue();
     }
 }

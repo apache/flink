@@ -22,8 +22,8 @@ import org.junit.Test;
 
 import java.util.function.Supplier;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link ClassLoaderUtils}. */
@@ -58,7 +58,7 @@ public class ClassLoaderUtilsTest {
         final ClassLoaderUtils.ObjectAndClassLoader<X> objectAndClassLoader = supplier.get();
         final Object o = objectAndClassLoader.getObject();
 
-        assertNotEquals(ClassLoader.getSystemClassLoader(), o.getClass().getClassLoader());
+        assertThat(o.getClass().getClassLoader()).isNotEqualTo(ClassLoader.getSystemClassLoader());
 
         try {
             Class.forName(o.getClass().getName());
@@ -71,7 +71,8 @@ public class ClassLoaderUtilsTest {
             Supplier<ClassLoaderUtils.ObjectAndClassLoader<X>> supplier) {
         final ClassLoaderUtils.ObjectAndClassLoader<X> objectAndClassLoader = supplier.get();
 
-        assertNotEquals(ClassLoader.getSystemClassLoader(), objectAndClassLoader.getClassLoader());
+        assertThat(objectAndClassLoader.getClassLoader())
+                .isNotEqualTo(ClassLoader.getSystemClassLoader());
         assertEquals(
                 ClassLoader.getSystemClassLoader(),
                 objectAndClassLoader.getClassLoader().getParent());

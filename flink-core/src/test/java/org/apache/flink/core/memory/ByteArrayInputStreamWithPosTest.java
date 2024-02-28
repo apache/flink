@@ -33,9 +33,11 @@ class ByteArrayInputStreamWithPosTest {
 
     @Test
     void testGetWithNullArray() {
-        assertThatExceptionOfType(NullPointerException.class).isThrownBy(() -> {
-            stream.read(null, 0, 1);
-        });
+        assertThatExceptionOfType(NullPointerException.class)
+                .isThrownBy(
+                        () -> {
+                            stream.read(null, 0, 1);
+                        });
     }
 
     @Test
@@ -46,9 +48,11 @@ class ByteArrayInputStreamWithPosTest {
 
     @Test
     void testGetWithTargetArrayOverflow() {
-        assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(() -> {
-            stream.read(new byte[0], 0, 2);
-        });
+        assertThatExceptionOfType(IndexOutOfBoundsException.class)
+                .isThrownBy(
+                        () -> {
+                            stream.read(new byte[0], 0, 2);
+                        });
     }
 
     @Test
@@ -87,18 +91,24 @@ class ByteArrayInputStreamWithPosTest {
     /** Test that the expected position exceeds the capacity of the byte array. */
     @Test
     void testSetTooLargePosition() throws Exception {
-        Throwable exception = assertThrows(IllegalArgumentException.class, () -> {
-            stream.setPosition(data.length + 1);
-        });
+        Throwable exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> {
+                            stream.setPosition(data.length + 1);
+                        });
         assertThat(exception.getMessage()).contains("Position out of bounds.");
     }
 
     /** Test setting a negative position. */
     @Test
     void testSetNegativePosition() throws Exception {
-        Throwable exception = assertThrows(IllegalArgumentException.class, () -> {
-            stream.setPosition(-1);
-        });
+        Throwable exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> {
+                            stream.setPosition(-1);
+                        });
         assertThat(exception.getMessage()).contains("Position out of bounds.");
     }
 

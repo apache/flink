@@ -27,16 +27,13 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
@@ -101,7 +98,7 @@ public class RowTest {
 
         // test invalid getter
         try {
-            assertNull(row.getField(0));
+            assertThat(row.getField(0)).isNull();
             fail();
         } catch (Throwable t) {
             assertThat(t, hasMessage(containsString("not supported in name-based field mode")));
@@ -165,7 +162,7 @@ public class RowTest {
 
         // test invalid getter
         try {
-            assertNull(row.getField("a"));
+            assertThat(row.getField("a")).isNull();
             fail();
         } catch (Throwable t) {
             assertThat(t, hasMessage(containsString("not supported in position-based field mode")));
@@ -235,7 +232,7 @@ public class RowTest {
 
         // test invalid getter
         try {
-            assertNull(row.getField("DOES_NOT_EXIST"));
+            assertThat(row.getField("DOES_NOT_EXIST")).isNull();
             fail();
         } catch (Throwable t) {
             assertThat(t, hasMessage(containsString("Unknown field name 'DOES_NOT_EXIST'")));
@@ -253,7 +250,7 @@ public class RowTest {
         row2.setField(3, new Tuple2<>(2L, "hi"));
         row2.setField(4, true);
 
-        assertEquals(row1, row2);
+        assertThat(row2).isEqualTo(row1);
     }
 
     @Test
@@ -266,8 +263,8 @@ public class RowTest {
         row.setField(4, "hello world");
 
         final Row copy = Row.copy(row);
-        assertEquals(row, copy);
-        assertNotSame(row, copy);
+        assertThat(copy).isEqualTo(row);
+        assertThat(copy).isNotSameAs(row);
     }
 
     @Test
@@ -280,8 +277,8 @@ public class RowTest {
         row.setField("e", "hello world");
 
         final Row copy = Row.copy(row);
-        assertEquals(row, copy);
-        assertNotSame(row, copy);
+        assertThat(copy).isEqualTo(row);
+        assertThat(copy).isNotSameAs(row);
     }
 
     @Test
@@ -300,7 +297,7 @@ public class RowTest {
         expected.setField(1, null);
         expected.setField(2, "hello world");
 
-        assertEquals(expected, projected);
+        assertThat(projected).isEqualTo(expected);
     }
 
     @Test
@@ -319,7 +316,7 @@ public class RowTest {
         expected.setField("c", null);
         expected.setField("e", "hello world");
 
-        assertEquals(expected, projected);
+        assertThat(projected).isEqualTo(expected);
     }
 
     @Test
@@ -343,7 +340,7 @@ public class RowTest {
         expected.setField(2, null);
         expected.setField(3, new Tuple2<>(2, "hi"));
         expected.setField(4, "hello world");
-        assertEquals(expected, joinedRow);
+        assertThat(joinedRow).isEqualTo(expected);
     }
 
     @Test
@@ -362,8 +359,8 @@ public class RowTest {
                         Collections.emptyMap(),
                         new int[][] {{1, 2, 3}, {}, {4, 5}},
                         1.44);
-        assertEquals(originalRow, originalRow);
-        assertEquals(originalRow.hashCode(), originalRow.hashCode());
+        assertThat(originalRow).isEqualTo(originalRow);
+        assertThat(originalRow.hashCode()).isEqualTo(originalRow.hashCode());
 
         {
             // no diff
@@ -377,8 +374,8 @@ public class RowTest {
                             Collections.emptyMap(),
                             new int[][] {{1, 2, 3}, {}, {4, 5}},
                             1.44);
-            assertEquals(row, originalRow);
-            assertEquals(row.hashCode(), originalRow.hashCode());
+            assertThat(originalRow).isEqualTo(row);
+            assertThat(originalRow.hashCode()).isEqualTo(row.hashCode());
         }
 
         {
@@ -396,8 +393,8 @@ public class RowTest {
                             Collections.emptyMap(),
                             new int[][] {{1, 2, 3}, {}, {4, 5}},
                             1.44);
-            assertNotEquals(row, originalRow);
-            assertNotEquals(row.hashCode(), originalRow.hashCode());
+            assertThat(originalRow).isNotEqualTo(row);
+            assertThat(originalRow.hashCode()).isNotEqualTo(row.hashCode());
         }
 
         {
@@ -415,8 +412,8 @@ public class RowTest {
                             Collections.emptyMap(),
                             new int[][] {{1, 2, 3}, {}, {4, 5}},
                             1.44);
-            assertNotEquals(row, originalRow);
-            assertNotEquals(row.hashCode(), originalRow.hashCode());
+            assertThat(originalRow).isNotEqualTo(row);
+            assertThat(originalRow.hashCode()).isNotEqualTo(row.hashCode());
         }
 
         {
@@ -434,8 +431,8 @@ public class RowTest {
                             Collections.emptyMap(),
                             new Integer[][] {{1, 2, 3}, {}, {4, 5}}, // diff here
                             1.44);
-            assertNotEquals(row, originalRow);
-            assertNotEquals(row.hashCode(), originalRow.hashCode());
+            assertThat(originalRow).isNotEqualTo(row);
+            assertThat(originalRow.hashCode()).isNotEqualTo(row.hashCode());
         }
     }
 

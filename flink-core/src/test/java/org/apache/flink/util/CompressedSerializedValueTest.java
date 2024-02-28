@@ -24,10 +24,7 @@ import org.junit.Test;
 
 import java.util.Arrays;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link CompressedSerializedValue}. */
 public class CompressedSerializedValueTest {
@@ -39,23 +36,23 @@ public class CompressedSerializedValueTest {
         CompressedSerializedValue<String> v = CompressedSerializedValue.fromObject(value);
         CompressedSerializedValue<String> copy = CommonTestUtils.createCopySerializable(v);
 
-        assertEquals(value, v.deserializeValue(getClass().getClassLoader()));
-        assertEquals(value, copy.deserializeValue(getClass().getClassLoader()));
+        assertThat(v.deserializeValue(getClass().getClassLoader())).isEqualTo(value);
+        assertThat(copy.deserializeValue(getClass().getClassLoader())).isEqualTo(value);
 
-        assertEquals(v, copy);
-        assertEquals(v.hashCode(), copy.hashCode());
+        assertThat(copy).isEqualTo(v);
+        assertThat(copy.hashCode()).isEqualTo(v.hashCode());
 
-        assertNotNull(v.toString());
-        assertNotNull(copy.toString());
+        assertThat(v.toString()).isNotNull();
+        assertThat(copy.toString()).isNotNull();
 
-        assertNotEquals(0, v.getSize());
-        assertArrayEquals(v.getByteArray(), copy.getByteArray());
+        assertThat(v.getSize()).isNotEqualTo(0);
+        assertThat(copy.getByteArray()).isEqualTo(v.getByteArray());
 
         byte[] bytes = v.getByteArray();
         CompressedSerializedValue<String> saved =
                 CompressedSerializedValue.fromBytes(Arrays.copyOf(bytes, bytes.length));
-        assertEquals(v, saved);
-        assertArrayEquals(v.getByteArray(), saved.getByteArray());
+        assertThat(saved).isEqualTo(v);
+        assertThat(saved.getByteArray()).isEqualTo(v.getByteArray());
     }
 
     @Test(expected = NullPointerException.class)

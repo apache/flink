@@ -450,7 +450,8 @@ public abstract class MemorySegmentTestBase {
                 occupied[pos + 1] = true;
             }
 
-            assertThat(segment.getChar(pos)).isEqualTo((char) (random.nextInt(Character.MAX_VALUE)));
+            assertThat(segment.getChar(pos))
+                    .isEqualTo((char) (random.nextInt(Character.MAX_VALUE)));
         }
     }
 
@@ -1872,18 +1873,22 @@ public abstract class MemorySegmentTestBase {
     @ParameterizedTest(name = "segment-size = {0}")
     public void testHeapByteBufferGetReadOnly(int pageSize) {
         initMemorySegmentTestBase(pageSize);
-        assertThatExceptionOfType(ReadOnlyBufferException.class).isThrownBy(() -> {
-            testByteBufferGetReadOnly(false);
-        });
+        assertThatExceptionOfType(ReadOnlyBufferException.class)
+                .isThrownBy(
+                        () -> {
+                            testByteBufferGetReadOnly(false);
+                        });
     }
 
     @MethodSource("executionModes")
     @ParameterizedTest(name = "segment-size = {0}")
     public void testOffHeapByteBufferGetReadOnly(int pageSize) {
         initMemorySegmentTestBase(pageSize);
-        assertThatExceptionOfType(ReadOnlyBufferException.class).isThrownBy(() -> {
-            testByteBufferGetReadOnly(true);
-        });
+        assertThatExceptionOfType(ReadOnlyBufferException.class)
+                .isThrownBy(
+                        () -> {
+                            testByteBufferGetReadOnly(true);
+                        });
     }
 
     /**
@@ -2287,21 +2292,24 @@ public abstract class MemorySegmentTestBase {
             seg.get(0);
             fail("Expecting an IllegalStateException");
         } catch (Exception e) {
-            assertThat(e instanceof IllegalStateException || e instanceof NullPointerException).isTrue();
+            assertThat(e instanceof IllegalStateException || e instanceof NullPointerException)
+                    .isTrue();
         }
 
         try {
             seg.get(Integer.MAX_VALUE);
             fail("Expecting an IllegalStateException");
         } catch (Exception e) {
-            assertThat(e instanceof IllegalStateException || e instanceof NullPointerException).isTrue();
+            assertThat(e instanceof IllegalStateException || e instanceof NullPointerException)
+                    .isTrue();
         }
 
         try {
             seg.get(Integer.MIN_VALUE);
             fail("Expecting an IllegalStateException");
         } catch (Exception e) {
-            assertThat(e instanceof IllegalStateException || e instanceof NullPointerException).isTrue();
+            assertThat(e instanceof IllegalStateException || e instanceof NullPointerException)
+                    .isTrue();
         }
 
         // --- longs (largest type) ---
@@ -2309,21 +2317,24 @@ public abstract class MemorySegmentTestBase {
             seg.getLong(0);
             fail("Expecting an IllegalStateException");
         } catch (Exception e) {
-            assertThat(e instanceof IllegalStateException || e instanceof NullPointerException).isTrue();
+            assertThat(e instanceof IllegalStateException || e instanceof NullPointerException)
+                    .isTrue();
         }
 
         try {
             seg.getLong(Integer.MAX_VALUE);
             fail("Expecting an IllegalStateException");
         } catch (Exception e) {
-            assertThat(e instanceof IllegalStateException || e instanceof NullPointerException).isTrue();
+            assertThat(e instanceof IllegalStateException || e instanceof NullPointerException)
+                    .isTrue();
         }
 
         try {
             seg.getLong(Integer.MIN_VALUE);
             fail("Expecting an IllegalStateException");
         } catch (Exception e) {
-            assertThat(e instanceof IllegalStateException || e instanceof NullPointerException).isTrue();
+            assertThat(e instanceof IllegalStateException || e instanceof NullPointerException)
+                    .isTrue();
         }
     }
 
