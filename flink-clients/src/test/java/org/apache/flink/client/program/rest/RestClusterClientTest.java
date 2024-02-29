@@ -37,10 +37,13 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.io.network.partition.DataSetMetaInfo;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -71,6 +74,7 @@ import org.apache.flink.runtime.rest.messages.JobAccumulatorsMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobCancellationHeaders;
 import org.apache.flink.runtime.rest.messages.JobCancellationMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
+import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
@@ -86,6 +90,8 @@ import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetDeleteTrigge
 import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetIdPathParameter;
 import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetListHeaders;
 import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetListResponseBody;
+import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
+import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultResponseBody;
 import org.apache.flink.runtime.rest.messages.job.JobStatusInfoHeaders;
@@ -96,6 +102,7 @@ import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinatio
 import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationRequestBody;
 import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationResponseBody;
+import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalRequest;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalStatusHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalStatusMessageParameters;
@@ -1236,6 +1243,58 @@ class RestClusterClientTest {
         }
     }
 
+    @Test
+    void testJobDetailsContainsSlotSharingGroupId() throws Exception {
+        final IOMetricsInfo jobVertexMetrics =
+                new IOMetricsInfo(0, false, 0, false, 0, false, 0, false, 0, 0, 0);
+        SlotSharingGroupId slotSharingGroupId = new SlotSharingGroupId();
+        final Collection<JobDetailsInfo.JobVertexDetailsInfo> jobVertexDetailsInfos =
+                Collections.singletonList(
+                        new JobDetailsInfo.JobVertexDetailsInfo(
+                                new JobVertexID(),
+                                slotSharingGroupId,
+                                "jobVertex1",
+                                2,
+                                1,
+                                ExecutionState.RUNNING,
+                                1,
+                                2,
+                                1,
+                                Collections.singletonMap(ExecutionState.RUNNING, 0),
+                                jobVertexMetrics));
+        final JobDetailsInfo jobDetailsInfo =
+                new JobDetailsInfo(
+                        jobId,
+                        "foobar",
+                        false,
+                        JobStatus.RUNNING,
+                        1,
+                        2,
+                        1,
+                        2,
+                        10,
+                        Collections.singletonMap(JobStatus.RUNNING, 1L),
+                        jobVertexDetailsInfos,
+                        Collections.singletonMap(ExecutionState.RUNNING, 1),
+                        new JobPlanInfo.RawJson("{\"id\":\"1234\"}"));
+        final TestJobDetailsInfoHandler jobDetailsInfoHandler =
+                new TestJobDetailsInfoHandler(jobDetailsInfo);
+
+        try (TestRestServerEndpoint restServerEndpoint =
+                createRestServerEndpoint(jobDetailsInfoHandler)) {
+            try (RestClusterClient<?> restClusterClient =
+                    createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
+                final CompletableFuture<JobDetailsInfo> jobDetailsInfoFuture =
+                        restClusterClient.getJobDetails(jobId);
+                Collection<JobDetailsInfo.JobVertexDetailsInfo> jobVertexInfos =
+                        jobDetailsInfoFuture.get().getJobVertexInfos();
+                assertThat(jobVertexInfos).hasSize(1);
+                assertThat(jobVertexInfos.iterator().next().getSlotSharingGroupId())
+                        .isEqualTo(slotSharingGroupId);
+            }
+        }
+    }
+
     private class TestClientCoordinationHandler
             extends TestHandler<
                     ClientCoordinationRequestBody,
@@ -1399,6 +1458,25 @@ class RestClusterClientTest {
                 throw new IllegalStateException("More job status were requested than configured");
             }
             return CompletableFuture.completedFuture(jobStatusInfo.next());
+        }
+    }
+
+    private class TestJobDetailsInfoHandler
+            extends TestHandler<EmptyRequestBody, JobDetailsInfo, JobMessageParameters> {
+
+        private final JobDetailsInfo jobDetailsInfo;
+
+        private TestJobDetailsInfoHandler(@Nonnull JobDetailsInfo jobDetailsInfo) {
+            super(JobDetailsHeaders.getInstance());
+            this.jobDetailsInfo = checkNotNull(jobDetailsInfo);
+        }
+
+        @Override
+        protected CompletableFuture<JobDetailsInfo> handleRequest(
+                @Nonnull HandlerRequest<EmptyRequestBody> request,
+                @Nonnull DispatcherGateway gateway)
+                throws RestHandlerException {
+            return CompletableFuture.completedFuture(jobDetailsInfo);
         }
     }
 

@@ -899,6 +899,9 @@
               "id" : {
                 "type" : "any"
               },
+              "slotSharingGroupId" : {
+                "type" : "any"
+              },
               "name" : {
                 "type" : "string"
               },

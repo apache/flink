@@ -391,6 +391,7 @@ public class ExecutionJobVertex
         return splitAssigner;
     }
 
+    @Override
     public SlotSharingGroup getSlotSharingGroup() {
         return slotSharingGroup;
     }
