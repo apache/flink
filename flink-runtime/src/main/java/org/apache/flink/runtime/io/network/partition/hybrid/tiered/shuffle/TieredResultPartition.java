@@ -76,6 +76,8 @@ public class TieredResultPartition extends ResultPartition {
 
     private boolean hasNotifiedEndOfUserRecords;
 
+    private final Object lock = new Object();
+
     public TieredResultPartition(
             String owningTaskName,
             int partitionIndex,
@@ -112,11 +114,16 @@ public class TieredResultPartition extends ResultPartition {
 
     @Override
     protected void setupInternal() throws IOException {
-        if (isReleased()) {
-            throw new IOException("Result partition has been released.");
+        synchronized (lock) {
+            if (isReleased()) {
+                throw new IOException("Result partition has been released.");
+            }
+            storageMemoryManager.setup(bufferPool, tieredStorageMemorySpecs);
+            tieredStorageResourceRegistry.registerResource(
+                    partitionId, storageMemoryManager::release);
+            tieredStorageResourceRegistry.registerResource(
+                    partitionId, tieredStorageProducerClient::releaseResources);
         }
-        storageMemoryManager.setup(bufferPool, tieredStorageMemorySpecs);
-        tieredStorageResourceRegistry.registerResource(partitionId, storageMemoryManager::release);
     }
 
     @Override
@@ -172,17 +179,22 @@ public class TieredResultPartition extends ResultPartition {
     protected ResultSubpartitionView createSubpartitionView(
             int subpartitionId, BufferAvailabilityListener availabilityListener)
             throws IOException {
-        checkState(!isReleased(), "ResultPartition already released.");
-        return nettyService.createResultSubpartitionView(
-                partitionId, new TieredStorageSubpartitionId(subpartitionId), availabilityListener);
+        synchronized (lock) {
+            checkState(!isReleased(), "ResultPartition already released.");
+            return nettyService.createResultSubpartitionView(
+                    partitionId,
+                    new TieredStorageSubpartitionId(subpartitionId),
+                    availabilityListener);
+        }
     }
 
     @Override
     public void finish() throws IOException {
-        checkState(!isReleased(), "Result partition is already released.");
         broadcastEvent(EndOfPartitionEvent.INSTANCE, false);
-        tieredStorageProducerClient.close();
-        super.finish();
+        synchronized (lock) {
+            tieredStorageProducerClient.close();
+            super.finish();
+        }
     }
 
     @Override
@@ -193,7 +205,9 @@ public class TieredResultPartition extends ResultPartition {
 
     @Override
     protected void releaseInternal() {
-        tieredStorageResourceRegistry.clearResourceFor(partitionId);
+        synchronized (lock) {
+            tieredStorageResourceRegistry.clearResourceFor(partitionId);
+        }
     }
 
     @Override
