@@ -836,6 +836,15 @@ class Expression(Generic[T]):
     def array_agg(self) -> 'Expression':
         return _unary_op("arrayAgg")(self)
 
+    @property
+    def mode_agg(self) -> 'Expression':
+        """
+        Returns the most frequent value in a group of values.
+        If there are multiple values that appear the same number of times, one of them will be returned.
+        NULL values are ignored. If there is no non-null value, the function returns NULL.
+        """
+        return _unary_op("modeAgg")(self)
+
     def alias(self, name: str, *extra_names: str) -> 'Expression[T]':
         """
         Specifies a name for an expression i.e. a field.

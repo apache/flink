@@ -2808,6 +2808,31 @@ class OverAggregateITCase extends BatchTestBase {
   }
 
   @Test
+  def testMode(): Unit = {
+    checkResult(
+      "SELECT h, d, MODE(d) over(partition by h)" +
+        " FROM Table5",
+      Seq(
+        row(1, 1, 4),
+        row(1, 2, 4),
+        row(1, 4, 4),
+        row(1, 4, 4),
+        row(1, 5, 4),
+        row(2, 2, 3),
+        row(2, 3, 3),
+        row(2, 3, 3),
+        row(2, 4, 3),
+        row(2, 4, 3),
+        row(2, 5, 3),
+        row(2, 5, 3),
+        row(3, 3, 5),
+        row(3, 5, 5),
+        row(3, 5, 5)
+      )
+    )
+  }
+
+  @Test
   def testPercentRank(): Unit = {
     checkResult(
       "SELECT f, PERCENT_RANK() over (order by e desc)," +

@@ -149,6 +149,9 @@ class AggFunctionFactory(
       case a: SqlAggFunction if a.getKind == SqlKind.ARRAY_AGG =>
         createArrayAggFunction(argTypes, call.ignoreNulls)
 
+      case a: SqlAggFunction if a.getKind == SqlKind.MODE =>
+        createModeAggFunction(argTypes)
+
       case fn: SqlAggFunction if fn.getKind == SqlKind.JSON_OBJECTAGG =>
         val onNull = fn.asInstanceOf[SqlJsonObjectAggAggFunction].getNullClause
         new JsonObjectAggFunction(argTypes, onNull == SqlJsonConstructorNullClause.ABSENT_ON_NULL)
@@ -628,5 +631,9 @@ class AggFunctionFactory(
       types: Array[LogicalType],
       ignoreNulls: Boolean): UserDefinedFunction = {
     new ArrayAggFunction(types(0), ignoreNulls)
+  }
+
+  private def createModeAggFunction(types: Array[LogicalType]): UserDefinedFunction = {
+    new ModeAggFunction(types(0))
   }
 }
