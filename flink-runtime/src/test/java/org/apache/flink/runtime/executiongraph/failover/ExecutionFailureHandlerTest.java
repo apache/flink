@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.executiongraph.failover;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TraceOptions;
 import org.apache.flink.core.failure.TestingFailureEnricher;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -29,6 +32,8 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.traces.Span;
+import org.apache.flink.traces.SpanBuilder;
 import org.apache.flink.util.IterableUtils;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -36,7 +41,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -66,6 +74,8 @@ class ExecutionFailureHandlerTest {
 
     private TestingFailureEnricher testingFailureEnricher;
 
+    private List<Span> spanCollector;
+
     @BeforeEach
     void setUp() {
         TestingSchedulingTopology topology = new TestingSchedulingTopology();
@@ -77,15 +87,25 @@ class ExecutionFailureHandlerTest {
         isNewAttempt = new AtomicBoolean(true);
         backoffTimeStrategy =
                 new TestRestartBackoffTimeStrategy(true, RESTART_DELAY_MS, isNewAttempt::get);
+        spanCollector = new CopyOnWriteArrayList<>();
+        Configuration configuration = new Configuration();
+        configuration.set(TraceOptions.REPORT_EVENTS_AS_SPANS, Boolean.TRUE);
         executionFailureHandler =
                 new ExecutionFailureHandler(
+                        configuration,
                         schedulingTopology,
                         failoverStrategy,
                         backoffTimeStrategy,
                         ComponentMainThreadExecutorServiceAdapter.forMainThread(),
                         Collections.singleton(testingFailureEnricher),
                         null,
-                        null);
+                        null,
+                        new UnregisteredMetricsGroup() {
+                            @Override
+                            public void addSpan(SpanBuilder spanBuilder) {
+                                spanCollector.add(spanBuilder.build());
+                            }
+                        });
     }
 
     /** Tests the case that task restarting is accepted. */
@@ -115,6 +135,7 @@ class ExecutionFailureHandlerTest {
         assertThat(result.getFailureLabels().get())
                 .isEqualTo(testingFailureEnricher.getFailureLabels());
         assertThat(executionFailureHandler.getNumberOfRestarts()).isOne();
+        checkMetrics(spanCollector, false, true);
     }
 
     /** Tests the case that task restarting is suppressed. */
@@ -151,6 +172,7 @@ class ExecutionFailureHandlerTest {
                 .isInstanceOf(IllegalStateException.class);
 
         assertThat(executionFailureHandler.getNumberOfRestarts()).isZero();
+        checkMetrics(spanCollector, false, false);
     }
 
     /** Tests the case that the failure is non-recoverable type. */
@@ -192,6 +214,7 @@ class ExecutionFailureHandlerTest {
                 .isInstanceOf(IllegalStateException.class);
 
         assertThat(executionFailureHandler.getNumberOfRestarts()).isZero();
+        checkMetrics(spanCollector, false, false);
     }
 
     @Test
@@ -217,6 +240,7 @@ class ExecutionFailureHandlerTest {
         isNewAttempt.set(false);
         testHandlingConcurrentException(execution, error);
         testHandlingConcurrentException(execution, error);
+        checkMetrics(spanCollector, false, true);
     }
 
     private void testHandlingRootException(Execution execution, Throwable error) {
@@ -283,6 +307,7 @@ class ExecutionFailureHandlerTest {
         assertThat(testingFailureEnricher.getSeenThrowables()).containsExactly(error);
         assertThat(result.getFailureLabels().get())
                 .isEqualTo(testingFailureEnricher.getFailureLabels());
+        checkMetrics(spanCollector, true, true);
     }
 
     // ------------------------------------------------------------------------
@@ -308,6 +333,18 @@ class ExecutionFailureHandlerTest {
                 final ExecutionVertexID executionVertexId, final Throwable cause) {
 
             return tasksToRestart;
+        }
+    }
+
+    private void checkMetrics(List<Span> results, boolean global, boolean canRestart) {
+        assertThat(results).isNotEmpty();
+        for (Span span : results) {
+            assertThat(span.getScope()).isEqualTo(ExecutionFailureHandler.class.getCanonicalName());
+            assertThat(span.getName()).isEqualTo("JobFailure");
+            Map<String, Object> attributes = span.getAttributes();
+            assertThat(attributes).containsEntry("failureLabel.failKey", "failValue");
+            assertThat(attributes).containsEntry("canRestart", String.valueOf(canRestart));
+            assertThat(attributes).containsEntry("isGlobalFailure", String.valueOf(global));
         }
     }
 }

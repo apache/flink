@@ -57,6 +57,20 @@ public class TraceOptions {
                                     + " the configuration will be started.");
 
     /**
+     * Temporary option to report events as span. This option will be removed once we support
+     * reporting events.
+     */
+    @Deprecated
+    public static final ConfigOption<Boolean> REPORT_EVENTS_AS_SPANS =
+            key("traces.report-events-as-spans")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether to report events as spans. This is a temporary parameter that "
+                                    + "is in place until we have support for reporting events. "
+                                    + "In the meantime, this can be activated to report them as spans instead.");
+
+    /**
      * Returns a view over the given configuration via which options can be set/retrieved for the
      * given reporter.
      *

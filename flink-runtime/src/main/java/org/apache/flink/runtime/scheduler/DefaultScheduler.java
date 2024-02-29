@@ -181,13 +181,15 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
         this.executionFailureHandler =
                 new ExecutionFailureHandler(
+                        jobMasterConfiguration,
                         getSchedulingTopology(),
                         failoverStrategy,
                         restartBackoffTimeStrategy,
                         mainThreadExecutor,
                         failureEnrichers,
                         taskFailureCtx,
-                        globalFailureCtx);
+                        globalFailureCtx,
+                        jobManagerJobMetricGroup);
 
         this.schedulingStrategy =
                 schedulingStrategyFactory.createInstance(this, getSchedulingTopology());
