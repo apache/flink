@@ -358,6 +358,38 @@ public class FileMergingSnapshotManagerTest {
         }
     }
 
+    @Test
+    public void testCheckpointNotification() throws Exception {
+        try (FileMergingSnapshotManager fmsm = createFileMergingSnapshotManager(checkpointBaseDir);
+                CloseableRegistry closeableRegistry = new CloseableRegistry()) {
+            FileMergingCheckpointStateOutputStream cp1Stream =
+                    writeCheckpointAndGetStream(1, fmsm, closeableRegistry);
+            SegmentFileStateHandle cp1StateHandle = cp1Stream.closeAndGetHandle();
+            fmsm.notifyCheckpointComplete(subtaskKey1, 1);
+            assertFileInManagedDir(fmsm, cp1StateHandle);
+
+            // complete checkpoint-2
+            FileMergingCheckpointStateOutputStream cp2Stream =
+                    writeCheckpointAndGetStream(2, fmsm, closeableRegistry);
+            SegmentFileStateHandle cp2StateHandle = cp2Stream.closeAndGetHandle();
+            fmsm.notifyCheckpointComplete(subtaskKey1, 2);
+            assertFileInManagedDir(fmsm, cp2StateHandle);
+
+            // subsume checkpoint-1
+            assertThat(fileExists(cp1StateHandle)).isTrue();
+            fmsm.notifyCheckpointSubsumed(subtaskKey1, 1);
+            assertThat(fileExists(cp1StateHandle)).isFalse();
+
+            // abort checkpoint-3
+            FileMergingCheckpointStateOutputStream cp3Stream =
+                    writeCheckpointAndGetStream(3, fmsm, closeableRegistry);
+            SegmentFileStateHandle cp3StateHandle = cp3Stream.closeAndGetHandle();
+            assertFileInManagedDir(fmsm, cp3StateHandle);
+            fmsm.notifyCheckpointAborted(subtaskKey1, 3);
+            assertThat(fileExists(cp3StateHandle)).isFalse();
+        }
+    }
+
     private FileMergingSnapshotManager createFileMergingSnapshotManager(Path checkpointBaseDir)
             throws IOException {
         FileSystem fs = LocalFileSystem.getSharedInstance();
@@ -383,5 +415,43 @@ public class FileMergingSnapshotManagerTest {
                 writeBufferSize);
         assertThat(fmsm).isNotNull();
         return fmsm;
+    }
+
+    private FileMergingCheckpointStateOutputStream writeCheckpointAndGetStream(
+            long checkpointId, FileMergingSnapshotManager fmsm, CloseableRegistry closeableRegistry)
+            throws IOException {
+        return writeCheckpointAndGetStream(checkpointId, fmsm, closeableRegistry, 32);
+    }
+
+    private FileMergingCheckpointStateOutputStream writeCheckpointAndGetStream(
+            long checkpointId,
+            FileMergingSnapshotManager fmsm,
+            CloseableRegistry closeableRegistry,
+            int numBytes)
+            throws IOException {
+        FileMergingCheckpointStateOutputStream stream =
+                fmsm.createCheckpointStateOutputStream(
+                        subtaskKey1, checkpointId, CheckpointedStateScope.EXCLUSIVE);
+        closeableRegistry.registerCloseable(stream);
+        for (int i = 0; i < numBytes; i++) {
+            stream.write(i);
+        }
+        return stream;
+    }
+
+    private void assertFileInManagedDir(
+            FileMergingSnapshotManager fmsm, SegmentFileStateHandle stateHandle) {
+        assertThat(fmsm instanceof FileMergingSnapshotManagerBase).isTrue();
+        assertThat(stateHandle).isNotNull();
+        Path filePath = stateHandle.getFilePath();
+        assertThat(filePath).isNotNull();
+        assertThat(((FileMergingSnapshotManagerBase) fmsm).isResponsibleForFile(filePath)).isTrue();
+    }
+
+    private boolean fileExists(SegmentFileStateHandle stateHandle) throws IOException {
+        assertThat(stateHandle).isNotNull();
+        Path filePath = stateHandle.getFilePath();
+        assertThat(filePath).isNotNull();
+        return filePath.getFileSystem().exists(filePath);
     }
 }
