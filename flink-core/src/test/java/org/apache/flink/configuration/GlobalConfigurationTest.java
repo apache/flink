@@ -42,34 +42,27 @@ class GlobalConfigurationTest {
     @TempDir private File tmpDir;
 
     @Test
-    void testConfigurationWithLegacyYAML() {
+    void testConfigurationWithLegacyYAML() throws FileNotFoundException {
         File confFile = new File(tmpDir, GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME);
+        try (PrintWriter pw = new PrintWriter(confFile)) {
+            pw.println("###########################"); // should be skipped
+            pw.println("# Some : comments : to skip"); // should be skipped
+            pw.println("###########################"); // should be skipped
+            pw.println("mykey1: myvalue1"); // OK, simple correct case
+            pw.println("mykey2       : myvalue2"); // OK, whitespace before colon is correct
+            pw.println("mykey3:myvalue3"); // SKIP, missing white space after colon
+            pw.println(" some nonsense without colon and whitespace separator"); // SKIP
+            pw.println(" :  "); // SKIP
+            pw.println("   "); // SKIP (silently)
+            pw.println(" "); // SKIP (silently)
+            pw.println("mykey4: myvalue4# some comments"); // OK, skip comments only
+            pw.println("   mykey5    :    myvalue5    "); // OK, trim unnecessary whitespace
+            pw.println("mykey6: my: value6"); // OK, only use first ': ' as separator
+            pw.println("mykey7: "); // SKIP, no value provided
+            pw.println(": myvalue8"); // SKIP, no key provided
 
-        try {
-            try (final PrintWriter pw = new PrintWriter(confFile)) {
-
-                pw.println("###########################"); // should be skipped
-                pw.println("# Some : comments : to skip"); // should be skipped
-                pw.println("###########################"); // should be skipped
-                pw.println("mykey1: myvalue1"); // OK, simple correct case
-                pw.println("mykey2       : myvalue2"); // OK, whitespace before colon is correct
-                pw.println("mykey3:myvalue3"); // SKIP, missing white space after colon
-                pw.println(" some nonsense without colon and whitespace separator"); // SKIP
-                pw.println(" :  "); // SKIP
-                pw.println("   "); // SKIP (silently)
-                pw.println(" "); // SKIP (silently)
-                pw.println("mykey4: myvalue4# some comments"); // OK, skip comments only
-                pw.println("   mykey5    :    myvalue5    "); // OK, trim unnecessary whitespace
-                pw.println("mykey6: my: value6"); // OK, only use first ': ' as separator
-                pw.println("mykey7: "); // SKIP, no value provided
-                pw.println(": myvalue8"); // SKIP, no key provided
-
-                pw.println("mykey9: myvalue9"); // OK
-                pw.println("mykey9: myvalue10"); // OK, overwrite last value
-
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            }
+            pw.println("mykey9: myvalue9"); // OK
+            pw.println("mykey9: myvalue10"); // OK, overwrite last value
 
             Configuration conf = GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
 

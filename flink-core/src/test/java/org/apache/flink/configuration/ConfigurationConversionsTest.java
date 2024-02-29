@@ -31,10 +31,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Optional;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.startsWith;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.closeTo;
 
 /**
  * Tests for {@link Configuration} conversion between types. Extracted from {@link

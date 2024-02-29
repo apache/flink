@@ -32,16 +32,14 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
 import static org.apache.flink.util.NetUtils.socketToUrl;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.core.IsCollectionContaining.hasItems;
-import static org.hamcrest.core.IsNot.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+
 
 /** Tests for the {@link NetUtils}. */
 public class NetUtilsTest {
@@ -128,74 +126,52 @@ public class NetUtilsTest {
     }
 
     @Test
-    public void testIPv4toURL() {
-        try {
-            final String addressString = "192.168.0.1";
+    public void testIPv4toURL() throws UnknownHostException {
+        final String addressString = "192.168.0.1";
 
-            InetAddress address = InetAddress.getByName(addressString);
-            assertThat(NetUtils.ipAddressToUrlString(address)).isEqualTo(addressString);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        InetAddress address = InetAddress.getByName(addressString);
+        assertThat(NetUtils.ipAddressToUrlString(address)).isEqualTo(addressString);
     }
 
     @Test
-    public void testIPv6toURL() {
-        try {
-            final String addressString = "2001:01db8:00:0:00:ff00:42:8329";
-            final String normalizedAddress = "[2001:1db8::ff00:42:8329]";
+    public void testIPv6toURL() throws UnknownHostException {
+        final String addressString = "2001:01db8:00:0:00:ff00:42:8329";
+        final String normalizedAddress = "[2001:1db8::ff00:42:8329]";
 
-            InetAddress address = InetAddress.getByName(addressString);
-            assertThat(NetUtils.ipAddressToUrlString(address)).isEqualTo(normalizedAddress);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        InetAddress address = InetAddress.getByName(addressString);
+        assertThat(NetUtils.ipAddressToUrlString(address)).isEqualTo(normalizedAddress);
     }
 
     @Test
-    public void testIPv4URLEncoding() {
-        try {
-            final String addressString = "10.244.243.12";
-            final int port = 23453;
+    public void testIPv4URLEncoding() throws UnknownHostException {
+        final String addressString = "10.244.243.12";
+        final int port = 23453;
 
-            InetAddress address = InetAddress.getByName(addressString);
-            InetSocketAddress socketAddress = new InetSocketAddress(address, port);
+        InetAddress address = InetAddress.getByName(addressString);
+        InetSocketAddress socketAddress = new InetSocketAddress(address, port);
 
-            assertThat(NetUtils.ipAddressToUrlString(address)).isEqualTo(addressString);
-            assertEquals(
-                    addressString + ':' + port,
-                    NetUtils.ipAddressAndPortToUrlString(address, port));
-            assertEquals(
-                    addressString + ':' + port, NetUtils.socketAddressToUrlString(socketAddress));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThat(NetUtils.ipAddressToUrlString(address)).isEqualTo(addressString);
+        assertEquals(
+                addressString + ':' + port, NetUtils.ipAddressAndPortToUrlString(address, port));
+        assertEquals(addressString + ':' + port, NetUtils.socketAddressToUrlString(socketAddress));
     }
 
     @Test
-    public void testIPv6URLEncoding() {
-        try {
-            final String addressString = "2001:db8:10:11:12:ff00:42:8329";
-            final String bracketedAddressString = '[' + addressString + ']';
-            final int port = 23453;
+    public void testIPv6URLEncoding() throws UnknownHostException {
+        final String addressString = "2001:db8:10:11:12:ff00:42:8329";
+        final String bracketedAddressString = '[' + addressString + ']';
+        final int port = 23453;
 
-            InetAddress address = InetAddress.getByName(addressString);
-            InetSocketAddress socketAddress = new InetSocketAddress(address, port);
+        InetAddress address = InetAddress.getByName(addressString);
+        InetSocketAddress socketAddress = new InetSocketAddress(address, port);
 
-            assertThat(NetUtils.ipAddressToUrlString(address)).isEqualTo(bracketedAddressString);
-            assertEquals(
-                    bracketedAddressString + ':' + port,
-                    NetUtils.ipAddressAndPortToUrlString(address, port));
-            assertEquals(
-                    bracketedAddressString + ':' + port,
-                    NetUtils.socketAddressToUrlString(socketAddress));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThat(NetUtils.ipAddressToUrlString(address)).isEqualTo(bracketedAddressString);
+        assertEquals(
+                bracketedAddressString + ':' + port,
+                NetUtils.ipAddressAndPortToUrlString(address, port));
+        assertEquals(
+                bracketedAddressString + ':' + port,
+                NetUtils.socketAddressToUrlString(socketAddress));
     }
 
     @Test
@@ -206,16 +182,16 @@ public class NetUtilsTest {
         Iterator<Integer> portsIter = NetUtils.getPortRangeFromString(rangeDefinition);
         Set<Integer> ports = new HashSet<>();
         while (portsIter.hasNext()) {
-            assertThat("Duplicate element", ports.add(portsIter.next())).isTrue();
+            assertThat(ports.add(portsIter.next())).isTrue();
         }
 
         assertThat(ports.size()).isEqualTo(51 + 101 + 1);
         // check first range
-        assertThat(ports, hasItems(50000, 50001, 50002, 50050));
+        assertThat(ports).contains(50000, 50001, 50002, 50050);
         // check second range and last point
-        assertThat(ports, hasItems(50100, 50101, 50110, 50200, 51234));
+        assertThat(ports).contains(50100, 50101, 50110, 50200, 51234);
         // check that only ranges are included
-        assertThat(ports, not(hasItems(50051, 50052, 1337, 50201, 49999, 50099)));
+        assertThat(ports).doesNotContain(50051, 50052, 1337, 50201, 49999, 50099);
 
         // test single port "range":
         portsIter = NetUtils.getPortRangeFromString(" 51234");
@@ -227,7 +203,7 @@ public class NetUtilsTest {
         portsIter = NetUtils.getPortRangeFromString("5,1,2,3,4");
         assertThat(portsIter.hasNext()).isTrue();
         assertThat((int) portsIter.next()).isEqualTo(5);
-        assertThat((int) portsIter.next()).isEqualTo(1);
+        assertThat((int) portsIter.next()).isOne();
         assertThat((int) portsIter.next()).isEqualTo(2);
         assertThat((int) portsIter.next()).isEqualTo(3);
         assertThat((int) portsIter.next()).isEqualTo(4);
@@ -395,7 +371,7 @@ public class NetUtilsTest {
         InetSocketAddress socketAddress = new InetSocketAddress("foo.com", 8080);
         URL expectedResult = new URL("http://foo.com:8080");
 
-        Assertions.assertThat(socketToUrl(socketAddress)).isEqualTo(expectedResult);
+        assertThat(socketToUrl(socketAddress)).isEqualTo(expectedResult);
     }
 
     @Test
@@ -403,7 +379,7 @@ public class NetUtilsTest {
         InetSocketAddress socketAddress = new InetSocketAddress("[2001:1db8::ff00:42:8329]", 8080);
         URL expectedResult = new URL("http://[2001:1db8::ff00:42:8329]:8080");
 
-        Assertions.assertThat(socketToUrl(socketAddress)).isEqualTo(expectedResult);
+        assertThat(socketToUrl(socketAddress)).isEqualTo(expectedResult);
     }
 
     @Test
@@ -411,6 +387,6 @@ public class NetUtilsTest {
         InetSocketAddress socketAddress = new InetSocketAddress("192.168.0.1", 8080);
         URL expectedResult = new URL("http://192.168.0.1:8080");
 
-        Assertions.assertThat(socketToUrl(socketAddress)).isEqualTo(expectedResult);
+        assertThat(socketToUrl(socketAddress)).isEqualTo(expectedResult);
     }
 }

@@ -25,9 +25,6 @@ import org.junit.Test;
 import java.io.InputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 /** This class contains tests for the {@link org.apache.flink.util.AbstractID} class. */
 public class AbstractIDTest {
@@ -70,16 +67,16 @@ public class AbstractIDTest {
         AbstractID id10 = new AbstractID(Long.MIN_VALUE, Long.MAX_VALUE);
 
         // test self equality
-        assertThat(id1.compareTo(CommonTestUtils.createCopySerializable(id1))).isEqualTo(0);
-        assertThat(id2.compareTo(CommonTestUtils.createCopySerializable(id2))).isEqualTo(0);
-        assertThat(id3.compareTo(CommonTestUtils.createCopySerializable(id3))).isEqualTo(0);
-        assertThat(id4.compareTo(CommonTestUtils.createCopySerializable(id4))).isEqualTo(0);
-        assertThat(id5.compareTo(CommonTestUtils.createCopySerializable(id5))).isEqualTo(0);
-        assertThat(id6.compareTo(CommonTestUtils.createCopySerializable(id6))).isEqualTo(0);
-        assertThat(id7.compareTo(CommonTestUtils.createCopySerializable(id7))).isEqualTo(0);
-        assertThat(id8.compareTo(CommonTestUtils.createCopySerializable(id8))).isEqualTo(0);
-        assertThat(id9.compareTo(CommonTestUtils.createCopySerializable(id9))).isEqualTo(0);
-        assertThat(id10.compareTo(CommonTestUtils.createCopySerializable(id10))).isEqualTo(0);
+        assertThat(id1.compareTo(CommonTestUtils.createCopySerializable(id1))).isZero();
+        assertThat(id2.compareTo(CommonTestUtils.createCopySerializable(id2))).isZero();
+        assertThat(id3.compareTo(CommonTestUtils.createCopySerializable(id3))).isZero();
+        assertThat(id4.compareTo(CommonTestUtils.createCopySerializable(id4))).isZero();
+        assertThat(id5.compareTo(CommonTestUtils.createCopySerializable(id5))).isZero();
+        assertThat(id6.compareTo(CommonTestUtils.createCopySerializable(id6))).isZero();
+        assertThat(id7.compareTo(CommonTestUtils.createCopySerializable(id7))).isZero();
+        assertThat(id8.compareTo(CommonTestUtils.createCopySerializable(id8))).isZero();
+        assertThat(id9.compareTo(CommonTestUtils.createCopySerializable(id9))).isZero();
+        assertThat(id10.compareTo(CommonTestUtils.createCopySerializable(id10))).isZero();
 
         // test order
         assertCompare(id1, id2, -1);
@@ -119,7 +116,7 @@ public class AbstractIDTest {
             final AbstractID deserializedAbstractId =
                     InstantiationUtil.deserializeObject(
                             resourceAsStream, getClass().getClassLoader());
-            assertThat(deserializedAbstractId, is(equalTo(expectedAbstractId)));
+            assertThat(deserializedAbstractId).isEqualTo(expectedAbstractId);
         }
 
         final String resourceName2 = "abstractID-with-toString-field-set";
@@ -128,7 +125,7 @@ public class AbstractIDTest {
             final AbstractID deserializedAbstractId =
                     InstantiationUtil.deserializeObject(
                             resourceAsStream, getClass().getClassLoader());
-            assertThat(deserializedAbstractId, is(equalTo(expectedAbstractId)));
+            assertThat(deserializedAbstractId).isEqualTo(expectedAbstractId);
         }
     }
 

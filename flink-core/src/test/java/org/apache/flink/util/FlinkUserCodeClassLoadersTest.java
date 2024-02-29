@@ -32,15 +32,7 @@ import java.net.URLClassLoader;
 import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-import static org.hamcrest.CoreMatchers.isA;
-import static org.hamcrest.Matchers.startsWith;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
-/** Tests for classloading and class loader utilities. */
-public class FlinkUserCodeClassLoadersTest {
-
-    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     @Rule public ExpectedException expectedException = ExpectedException.none();
 

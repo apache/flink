@@ -38,7 +38,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 /** A test validating that the initialization of local output paths is properly synchronized. */
@@ -60,17 +60,9 @@ public class InitOutputPathTest {
         lock.setAccessible(true);
         lock.set(null, new NoOpLock());
 
-        try {
-            // in the original un-synchronized state, we can force the race to occur by using
-            // the proper latch order to control the process of the concurrent threads
-            runTest(true);
-            fail("should fail with an exception");
-        } catch (FileNotFoundException e) {
-            // expected
-        } finally {
-            // reset the proper value
-            lock.set(null, new ReentrantLock(true));
-        }
+        assertThatThrownBy(() -> runTest(true)).isInstanceOf(FileNotFoundException.class);
+
+        lock.set(null, new ReentrantLock(true));
     }
 
     @Test

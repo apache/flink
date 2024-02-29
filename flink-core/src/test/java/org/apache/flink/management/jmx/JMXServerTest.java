@@ -34,6 +34,7 @@ import java.lang.management.ManagementFactory;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link JMXServer} functionality. */
 public class JMXServerTest {
@@ -70,14 +71,10 @@ public class JMXServerTest {
             JMXConnector jmxConn = JMXConnectorFactory.connect(url);
             MBeanServerConnection mbeanConnConn = jmxConn.getMBeanServerConnection();
 
-            assertThat(mbeanConnConn.getAttribute(testObjectName).isCloseTo(1, within("Foo")));
+            assertThat(mbeanConnConn.getAttribute(testObjectName, "Foo")).isOne();
             mBeanServer.unregisterMBean(testObjectName);
-            try {
-                mbeanConnConn.getAttribute(testObjectName, "Foo");
-            } catch (Exception e) {
-                // expected for unregistered objects.
-                assertThat(e instanceof InstanceNotFoundException).isTrue();
-            }
+            assertThatThrownBy(() -> mbeanConnConn.getAttribute(testObjectName, "Foo"))
+                    .isInstanceOf(InstanceNotFoundException.class);
         } finally {
             JMXService.stopInstance();
         }

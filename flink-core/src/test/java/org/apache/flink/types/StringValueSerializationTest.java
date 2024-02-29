@@ -31,7 +31,6 @@ import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 /** Test for the serialization of StringValue. */
 public class StringValueSerializationTest {
@@ -39,80 +38,56 @@ public class StringValueSerializationTest {
     private final Random rnd = new Random(2093486528937460234L);
 
     @Test
-    public void testNonNullValues() {
-        try {
-            String[] testStrings =
-                    new String[] {"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"};
+    public void testNonNullValues() throws IOException {
+        String[] testStrings =
+                new String[] {"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"};
 
-            testSerialization(testStrings);
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            fail("Exception in test: " + e.getMessage());
-        }
+        testSerialization(testStrings);
     }
 
     @Test
-    public void testLongValues() {
-        try {
-            String[] testStrings =
-                    new String[] {
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2)
-                    };
+    public void testLongValues() throws IOException {
+        String[] testStrings =
+                new String[] {
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2)
+                };
 
-            testSerialization(testStrings);
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            fail("Exception in test: " + e.getMessage());
-        }
+        testSerialization(testStrings);
     }
 
     @Test
-    public void testMixedValues() {
-        try {
-            String[] testStrings =
-                    new String[] {
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        "",
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        "",
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        ""
-                    };
+    public void testMixedValues() throws IOException {
+        String[] testStrings =
+                new String[] {
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    "",
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    "",
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    ""
+                };
 
-            testSerialization(testStrings);
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            fail("Exception in test: " + e.getMessage());
-        }
+        testSerialization(testStrings);
     }
 
     @Test
-    public void testBinaryCopyOfLongStrings() {
-        try {
-            String[] testStrings =
-                    new String[] {
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        "",
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        "",
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        ""
-                    };
+    public void testBinaryCopyOfLongStrings() throws IOException {
+        String[] testStrings =
+                new String[] {
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    "",
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    "",
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    ""
+                };
 
-            testCopy(testStrings);
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            fail("Exception in test: " + e.getMessage());
-        }
+        testCopy(testStrings);
     }
 
     public static void testSerialization(String[] values) throws IOException {
@@ -142,7 +117,7 @@ public class StringValueSerializationTest {
             num++;
         }
 
-        assertThat(values.length).isCloseTo("Wrong number of deserialized values", within(num));
+        assertThat(values).hasSize(num);
     }
 
     public static void testCopy(String[] values) throws IOException {
@@ -183,6 +158,6 @@ public class StringValueSerializationTest {
             num++;
         }
 
-        assertThat(values.length).isCloseTo("Wrong number of deserialized values", within(num));
+        assertThat(values).hasSize(num);
     }
 }

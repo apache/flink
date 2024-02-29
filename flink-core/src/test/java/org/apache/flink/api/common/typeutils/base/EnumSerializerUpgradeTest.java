@@ -34,7 +34,6 @@ import java.util.Arrays;
 import java.util.Collection;
 
 import static org.apache.flink.api.common.typeutils.base.TestEnum.EMMA;
-import static org.hamcrest.Matchers.is;
 
 /** Migration tests for {@link EnumSerializer}. */
 class EnumSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<TestEnum, TestEnum> {

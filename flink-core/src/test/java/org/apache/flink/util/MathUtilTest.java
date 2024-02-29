@@ -21,8 +21,6 @@ package org.apache.flink.util;
 import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link MathUtils}. */
@@ -30,9 +28,9 @@ public class MathUtilTest {
 
     @Test
     public void testLog2Computation() {
-        assertThat(MathUtils.log2floor(1)).isEqualTo(0);
-        assertThat(MathUtils.log2floor(2)).isEqualTo(1);
-        assertThat(MathUtils.log2floor(3)).isEqualTo(1);
+        assertThat(MathUtils.log2floor(1)).isZero();
+        assertThat(MathUtils.log2floor(2)).isOne();
+        assertThat(MathUtils.log2floor(3)).isOne();
         assertThat(MathUtils.log2floor(4)).isEqualTo(2);
         assertThat(MathUtils.log2floor(5)).isEqualTo(2);
         assertThat(MathUtils.log2floor(7)).isEqualTo(2);
@@ -53,8 +51,8 @@ public class MathUtilTest {
 
     @Test
     public void testRoundDownToPowerOf2() {
-        assertThat(MathUtils.roundDownToPowerOf2(0)).isEqualTo(0);
-        assertThat(MathUtils.roundDownToPowerOf2(1)).isEqualTo(1);
+        assertThat(MathUtils.roundDownToPowerOf2(0)).isZero();
+        assertThat(MathUtils.roundDownToPowerOf2(1)).isOne();
         assertThat(MathUtils.roundDownToPowerOf2(2)).isEqualTo(2);
         assertThat(MathUtils.roundDownToPowerOf2(3)).isEqualTo(2);
         assertThat(MathUtils.roundDownToPowerOf2(4)).isEqualTo(4);
@@ -82,8 +80,8 @@ public class MathUtilTest {
 
     @Test
     public void testRoundUpToPowerOf2() {
-        assertThat(MathUtils.roundUpToPowerOfTwo(0)).isEqualTo(0);
-        assertThat(MathUtils.roundUpToPowerOfTwo(1)).isEqualTo(1);
+        assertThat(MathUtils.roundUpToPowerOfTwo(0)).isZero();
+        assertThat(MathUtils.roundUpToPowerOfTwo(1)).isOne();
         assertThat(MathUtils.roundUpToPowerOfTwo(2)).isEqualTo(2);
         assertThat(MathUtils.roundUpToPowerOfTwo(3)).isEqualTo(4);
         assertThat(MathUtils.roundUpToPowerOfTwo(4)).isEqualTo(4);
@@ -143,13 +141,13 @@ public class MathUtilTest {
 
     @Test
     public void testDivideRoundUp() {
-        assertThat(MathUtils.divideRoundUp(0, 1), is(0));
-        assertThat(MathUtils.divideRoundUp(0, 2), is(0));
-        assertThat(MathUtils.divideRoundUp(1, 1), is(1));
-        assertThat(MathUtils.divideRoundUp(1, 2), is(1));
-        assertThat(MathUtils.divideRoundUp(2, 1), is(2));
-        assertThat(MathUtils.divideRoundUp(2, 2), is(1));
-        assertThat(MathUtils.divideRoundUp(2, 3), is(1));
+        assertThat(MathUtils.divideRoundUp(0, 1)).isZero();
+        assertThat(MathUtils.divideRoundUp(0, 2)).isZero();
+        assertThat(MathUtils.divideRoundUp(1, 1)).isOne();
+        assertThat(MathUtils.divideRoundUp(1, 2)).isOne();
+        assertThat(MathUtils.divideRoundUp(2, 1)).isEqualTo(2);
+        assertThat(MathUtils.divideRoundUp(2, 2)).isOne();
+        assertThat(MathUtils.divideRoundUp(2, 3)).isOne();
     }
 
     @Test(expected = IllegalArgumentException.class)

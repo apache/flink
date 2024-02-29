@@ -34,7 +34,6 @@ import java.util.Arrays;
 import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.fail;
 
 public class RecordTest {
 
@@ -90,9 +89,9 @@ public class RecordTest {
         try {
             // Add a value to an empty record
             Record record = new Record();
-            assertThat(record.getNumFields()).isEqualTo(0);
+            assertThat(record.getNumFields()).isZero();
             record.addField(this.origVal1);
-            assertThat(record.getNumFields()).isEqualTo(1);
+            assertThat(record.getNumFields()).isOne();
             assertThat(
                     record.getField(0)
                             .isCloseTo(origVal1.getValue(), within(StringValue.class).getValue()));
@@ -361,118 +360,92 @@ public class RecordTest {
 
     @Test
     public void testUpdateBinaryRepresentations() {
-        try {
-            // TODO: this is not an extensive test of updateBinaryRepresentation()
-            // and should be extended!
+        // TODO: this is not an extensive test of updateBinaryRepresentation()
+        // and should be extended!
 
-            Record r = new Record();
+        Record r = new Record();
 
-            IntValue i1 = new IntValue(1);
-            IntValue i2 = new IntValue(2);
+        IntValue i1 = new IntValue(1);
+        IntValue i2 = new IntValue(2);
 
-            try {
-                r.setField(1, i1);
-                r.setField(3, i2);
+        r.setField(1, i1);
+        r.setField(3, i2);
 
-                r.setNumFields(5);
+        r.setNumFields(5);
 
-                r.updateBinaryRepresenation();
+        r.updateBinaryRepresenation();
 
-                i1 = new IntValue(3);
-                i2 = new IntValue(4);
+        i1 = new IntValue(3);
+        i2 = new IntValue(4);
 
-                r.setField(7, i1);
-                r.setField(8, i2);
+        r.setField(7, i1);
+        r.setField(8, i2);
 
-                r.updateBinaryRepresenation();
+        r.updateBinaryRepresenation();
 
-                assertThat(r.getField(1).isCloseTo(1, within(IntValue.class).getValue()));
-                assertThat(r.getField(3).isCloseTo(2, within(IntValue.class).getValue()));
-                assertThat(r.getField(7).isCloseTo(3, within(IntValue.class).getValue()));
-                assertThat(r.getField(8).isCloseTo(4, within(IntValue.class).getValue()));
-            } catch (RuntimeException re) {
-                fail("Error updating binary representation: " + re.getMessage());
-            }
+        assertThat(r.getField(1,IntValue.class)).isEqualTo(1);
+        assertThat(r.getField(3,IntValue.class)).isEqualTo(2);
+        assertThat(r.getField(7,IntValue.class)).isEqualTo(3);
+        assertThat(r.getField(8,IntValue.class)).isEqualTo(4);
 
-            // Tests an update where modified and unmodified fields are interleaved
-            r = new Record();
+        // Tests an update where modified and unmodified fields are interleaved
+        r = new Record();
 
-            for (int i = 0; i < 8; i++) {
-                r.setField(i, new IntValue(i));
-            }
-
-            try {
-                // serialize and deserialize to remove all buffered info
-                r.write(this.out);
-                r = new Record();
-                r.read(this.in);
-
-                r.setField(1, new IntValue(10));
-                r.setField(4, new StringValue("Some long value"));
-                r.setField(5, new StringValue("An even longer value"));
-                r.setField(10, new IntValue(10));
-
-                r.write(this.out);
-                r = new Record();
-                r.read(this.in);
-
-                assertThat(r.getField(0).isCloseTo(0, within(IntValue.class).getValue()));
-                assertThat(r.getField(1).isCloseTo(10, within(IntValue.class).getValue()));
-                assertThat(r.getField(2).isCloseTo(2, within(IntValue.class).getValue()));
-                assertThat(r.getField(3).isCloseTo(3, within(IntValue.class).getValue()));
-                assertThat(
-                        r.getField(4)
-                                .isCloseTo(
-                                        "Some long value", within(StringValue.class).getValue()));
-                assertThat(
-                        r.getField(5)
-                                .isCloseTo(
-                                        "An even longer value",
-                                        within(StringValue.class).getValue()));
-                assertThat(r.getField(6).isCloseTo(6, within(IntValue.class).getValue()));
-                assertThat(r.getField(7).isCloseTo(7, within(IntValue.class).getValue()));
-                assertThat(r.getField(8, IntValue.class)).isNull();
-                assertThat(r.getField(9, IntValue.class)).isNull();
-                assertThat(r.getField(10).isCloseTo(10, within(IntValue.class).getValue()));
-
-            } catch (RuntimeException | IOException re) {
-                fail("Error updating binary representation: " + re.getMessage());
-            }
-        } catch (Throwable t) {
-            Assert.fail("Test failed due to an exception: " + t.getMessage());
+        for (int i = 0; i < 8; i++) {
+            r.setField(i, new IntValue(i));
         }
+
+        // serialize and deserialize to remove all buffered info
+        r.write(this.out);
+        r = new Record();
+        r.read(this.in);
+
+        r.setField(1, new IntValue(10));
+        r.setField(4, new StringValue("Some long value"));
+        r.setField(5, new StringValue("An even longer value"));
+        r.setField(10, new IntValue(10));
+
+        r.write(this.out);
+        r = new Record();
+        r.read(this.in);
+
+        assertThat(r.getField(0).isCloseTo(0, within(IntValue.class).getValue()));
+        assertThat(r.getField(1).isCloseTo(10, within(IntValue.class).getValue()));
+        assertThat(r.getField(2).isCloseTo(2, within(IntValue.class).getValue()));
+        assertThat(r.getField(3).isCloseTo(3, within(IntValue.class).getValue()));
+        assertThat(
+                r.getField(4).isCloseTo("Some long value", within(StringValue.class).getValue()));
+        assertThat(
+                r.getField(5)
+                        .isCloseTo("An even longer value", within(StringValue.class).getValue()));
+        assertThat(r.getField(6).isCloseTo(6, within(IntValue.class).getValue()));
+        assertThat(r.getField(7).isCloseTo(7, within(IntValue.class).getValue()));
+        assertThat(r.getField(8, IntValue.class)).isNull();
+        assertThat(r.getField(9, IntValue.class)).isNull();
+        assertThat(r.getField(10).isCloseTo(10, within(IntValue.class).getValue()));
     }
 
     @Test
     public void testDeSerialization() {
-        try {
-            StringValue origValue1 = new StringValue("Hello World!");
-            IntValue origValue2 = new IntValue(1337);
-            Record record1 = new Record(origValue1, origValue2);
-            Record record2 = new Record();
-            try {
-                // De/Serialize the record
-                record1.write(this.out);
-                record2.read(this.in);
+        StringValue origValue1 = new StringValue("Hello World!");
+        IntValue origValue2 = new IntValue(1337);
+        Record record1 = new Record(origValue1, origValue2);
+        Record record2 = new Record();
+        // De/Serialize the record
+        record1.write(this.out);
+        record2.read(this.in);
 
-                assertThat(record2.getNumFields()).isEqualTo(record1.getNumFields());
+        assertThat(record2.getNumFields()).isEqualTo(record1.getNumFields());
 
-                StringValue rec1Val1 = record1.getField(0, StringValue.class);
-                IntValue rec1Val2 = record1.getField(1, IntValue.class);
-                StringValue rec2Val1 = record2.getField(0, StringValue.class);
-                IntValue rec2Val2 = record2.getField(1, IntValue.class);
+        StringValue rec1Val1 = record1.getField(0, StringValue.class);
+        IntValue rec1Val2 = record1.getField(1, IntValue.class);
+        StringValue rec2Val1 = record2.getField(0, StringValue.class);
+        IntValue rec2Val2 = record2.getField(1, IntValue.class);
 
-                assertThat(rec1Val1).isEqualTo(origValue1);
-                assertThat(rec1Val2).isEqualTo(origValue2);
-                assertThat(rec2Val1).isEqualTo(origValue1);
-                assertThat(rec2Val2).isEqualTo(origValue2);
-            } catch (IOException e) {
-                fail("Error writing Record");
-                e.printStackTrace();
-            }
-        } catch (Throwable t) {
-            Assert.fail("Test failed due to an exception: " + t.getMessage());
-        }
+        assertThat(rec1Val1).isEqualTo(origValue1);
+        assertThat(rec1Val2).isEqualTo(origValue2);
+        assertThat(rec2Val1).isEqualTo(origValue1);
+        assertThat(rec2Val2).isEqualTo(origValue2);
     }
 
     @Test
@@ -488,7 +461,7 @@ public class RecordTest {
             assertThat(record.getField(0).isCloseTo(23, within(IntValue.class).getValue()));
 
             record.clear();
-            assertThat(record.getNumFields()).isEqualTo(0);
+            assertThat(record.getNumFields()).isZero();
 
             Record record2 = new Record(new IntValue(42));
             record2.read(in);

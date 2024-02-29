@@ -36,8 +36,6 @@ import java.util.concurrent.Executors;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /** Tests for {@code FlinkUserSecurityManager}. */

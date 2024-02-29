@@ -33,76 +33,69 @@ import java.util.jar.Manifest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /** Tests that validate the {@link ClassLoaderUtil}. */
 public class ClassLoaderUtilsTest {
 
     @Test
-    public void testWithURLClassLoader() {
+    public void testWithURLClassLoader() throws Exception {
         File validJar = null;
         File invalidJar = null;
 
+        // file with jar contents
+        validJar = File.createTempFile("flink-url-test", ".tmp");
+        createValidJar(validJar);
+
+        // validate that the JAR is correct and the test setup is not broken
+        JarFile jarFile = null;
         try {
-            // file with jar contents
-            validJar = File.createTempFile("flink-url-test", ".tmp");
-            createValidJar(validJar);
-
-            // validate that the JAR is correct and the test setup is not broken
-            JarFile jarFile = null;
-            try {
-                jarFile = new JarFile(validJar.getAbsolutePath());
-            } finally {
-                if (jarFile != null) {
-                    jarFile.close();
-                }
-            }
-
-            // file with some random contents
-            invalidJar = File.createTempFile("flink-url-test", ".tmp");
-            try (FileOutputStream invalidout = new FileOutputStream(invalidJar)) {
-                invalidout.write(
-                        new byte[] {
-                            -1, 1, -2, 3, -3, 4,
-                        });
-            }
-
-            // non existing file
-            File nonExisting = File.createTempFile("flink-url-test", ".tmp");
-            assertThat("Cannot create and delete temp file", nonExisting.delete()).isTrue();
-
-            // create a URL classloader with
-            // - a HTTP URL
-            // - a file URL for an existing jar file
-            // - a file URL for an existing file that is not a jar file
-            // - a file URL for a non-existing file
-
-            URL[] urls = {
-                new URL("http", "localhost", 26712, "/some/file/path"),
-                new URL("file", null, validJar.getAbsolutePath()),
-                new URL("file", null, invalidJar.getAbsolutePath()),
-                new URL("file", null, nonExisting.getAbsolutePath()),
-            };
-
-            URLClassLoader loader = new URLClassLoader(urls, getClass().getClassLoader());
-            String info = ClassLoaderUtil.getUserCodeClassLoaderInfo(loader);
-
-            assertTrue(info.indexOf("/some/file/path") > 0);
-            assertThat(info.indexOf(validJar.getAbsolutePath().isTrue() + "' (valid") > 0);
-            assertThat(info.indexOf(invalidJar.getAbsolutePath().isTrue() + "' (invalid JAR") > 0);
-            assertThat(info.indexOf(nonExisting.getAbsolutePath().isTrue() + "' (missing") > 0);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
+            jarFile = new JarFile(validJar.getAbsolutePath());
         } finally {
-            if (validJar != null) {
-                //noinspection ResultOfMethodCallIgnored
-                validJar.delete();
+            if (jarFile != null) {
+                jarFile.close();
             }
-            if (invalidJar != null) {
-                //noinspection ResultOfMethodCallIgnored
-                invalidJar.delete();
-            }
+        }
+
+        // file with some random contents
+        invalidJar = File.createTempFile("flink-url-test", ".tmp");
+        try (FileOutputStream invalidout = new FileOutputStream(invalidJar)) {
+            invalidout.write(
+                    new byte[] {
+                        -1, 1, -2, 3, -3, 4,
+                    });
+        }
+
+        // non existing file
+        File nonExisting = File.createTempFile("flink-url-test", ".tmp");
+        assertThat("Cannot create and delete temp file", nonExisting.delete()).isTrue();
+
+        // create a URL classloader with
+        // - a HTTP URL
+        // - a file URL for an existing jar file
+        // - a file URL for an existing file that is not a jar file
+        // - a file URL for a non-existing file
+
+        URL[] urls = {
+            new URL("http", "localhost", 26712, "/some/file/path"),
+            new URL("file", null, validJar.getAbsolutePath()),
+            new URL("file", null, invalidJar.getAbsolutePath()),
+            new URL("file", null, nonExisting.getAbsolutePath()),
+        };
+
+        URLClassLoader loader = new URLClassLoader(urls, getClass().getClassLoader());
+        String info = ClassLoaderUtil.getUserCodeClassLoaderInfo(loader);
+
+        assertTrue(info.indexOf("/some/file/path") > 0);
+        assertThat(info.indexOf(validJar.getAbsolutePath().isTrue() + "' (valid") > 0);
+        assertThat(info.indexOf(invalidJar.getAbsolutePath().isTrue() + "' (invalid JAR") > 0);
+        assertThat(info.indexOf(nonExisting.getAbsolutePath().isTrue() + "' (missing") > 0);
+        if (validJar != null) {
+            //noinspection ResultOfMethodCallIgnored
+            validJar.delete();
+        }
+        if (invalidJar != null) {
+            //noinspection ResultOfMethodCallIgnored
+            invalidJar.delete();
         }
     }
 
@@ -133,24 +126,14 @@ public class ClassLoaderUtilsTest {
 
     @Test
     public void testWithAppClassLoader() {
-        try {
-            String result =
-                    ClassLoaderUtil.getUserCodeClassLoaderInfo(ClassLoader.getSystemClassLoader());
-            assertThat(result.toLowerCase().contains("system classloader")).isTrue();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        String result =
+                ClassLoaderUtil.getUserCodeClassLoaderInfo(ClassLoader.getSystemClassLoader());
+        assertThat(result.toLowerCase().contains("system classloader")).isTrue();
     }
 
     @Test
     public void testInvalidClassLoaders() {
-        try {
-            // must return something when invoked with 'null'
-            assertThat(ClassLoaderUtil.getUserCodeClassLoaderInfo(null)).isNotNull();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        // must return something when invoked with 'null'
+        assertThat(ClassLoaderUtil.getUserCodeClassLoaderInfo(null)).isNotNull();
     }
 }

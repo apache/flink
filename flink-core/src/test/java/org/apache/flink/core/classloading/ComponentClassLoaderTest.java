@@ -33,19 +33,7 @@ import java.util.Enumeration;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.Is.is;
 
-/** Tests for the {@link ComponentClassLoader}. */
-public class ComponentClassLoaderTest {
-
-    private static final String NON_EXISTENT_CLASS_NAME = "foo.Bar";
-    private static final Class<?> CLASS_TO_LOAD = Class.class;
-    private static final Class<?> CLASS_RETURNED_BY_OWNER = ComponentClassLoaderTest.class;
-
-    private static final String NON_EXISTENT_RESOURCE_NAME = "foo/Bar";
-    private static String resourceToLoad;
-    private static final URL RESOURCE_RETURNED_BY_OWNER = createURL();
 
     @TempDir public static File TMP;
 

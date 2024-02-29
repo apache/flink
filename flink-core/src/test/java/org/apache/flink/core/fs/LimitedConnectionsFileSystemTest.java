@@ -32,7 +32,7 @@ import java.io.IOException;
 import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link LimitedConnectionsFileSystem}. */
 public class LimitedConnectionsFileSystemTest {
@@ -183,14 +183,14 @@ public class LimitedConnectionsFileSystemTest {
         }
 
         // try to open another thread
-        try {
-            limitedFs.create(
-                    new Path(File.createTempFile("junit", null, tempFolder).toURI()),
-                    WriteMode.OVERWRITE);
-            fail("this should have timed out");
-        } catch (IOException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                limitedFs.create(
+                                        new Path(
+                                                File.createTempFile("junit", null, tempFolder)
+                                                        .toURI()),
+                                        WriteMode.OVERWRITE))
+                .isInstanceOf(IOException.class);
 
         // clean shutdown
         for (BlockingWriterThread t : threads) {
@@ -231,12 +231,8 @@ public class LimitedConnectionsFileSystemTest {
         // try to open another thread
         File file = File.createTempFile("junit", null, tempFolder);
         createRandomContents(file, rnd);
-        try {
-            limitedFs.open(new Path(file.toURI()));
-            fail("this should have timed out");
-        } catch (IOException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> limitedFs.open(new Path(file.toURI())))
+                .isInstanceOf(IOException.class);
 
         // clean shutdown
         for (BlockingReaderThread t : threads) {
@@ -447,21 +443,22 @@ public class LimitedConnectionsFileSystemTest {
         assertThat(fs.getNumberOfOpenOutputStreams()).isZero();
         assertThat(fs.getTotalNumberOfOpenStreams()).isZero();
 
-        try {
-            fs.open(new Path(File.createTempFile("junit", null, tempFolder).toURI()));
-            fail("this is expected to fail with an exception");
-        } catch (IOException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                fs.open(
+                                        new Path(
+                                                File.createTempFile("junit", null, tempFolder)
+                                                        .toURI())))
+                .isInstanceOf(IOException.class);
 
-        try {
-            fs.create(
-                    new Path(File.createTempFile("junit", null, tempFolder).toURI()),
-                    WriteMode.NO_OVERWRITE);
-            fail("this is expected to fail with an exception");
-        } catch (IOException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                fs.create(
+                                        new Path(
+                                                File.createTempFile("junit", null, tempFolder)
+                                                        .toURI()),
+                                        WriteMode.NO_OVERWRITE))
+                .isInstanceOf(IOException.class);
 
         assertThat(fs.getNumberOfOpenInputStreams()).isZero();
         assertThat(fs.getNumberOfOpenOutputStreams()).isZero();

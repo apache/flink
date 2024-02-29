@@ -25,9 +25,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+
 
 /** Tests for the {@link FlinkUserCodeClassLoader}. */
 public class FlinkUserCodeClassLoaderTest {

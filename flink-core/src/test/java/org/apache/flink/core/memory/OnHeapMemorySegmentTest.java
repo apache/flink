@@ -58,7 +58,7 @@ public class OnHeapMemorySegmentTest extends MemorySegmentTestBase {
         ByteBuffer buf2 = seg.wrap(3, 4);
 
         assertThat(buf2).isNotSameAs(buf1);
-        assertThat(buf1.position()).isEqualTo(1);
+        assertThat(buf1.position()).isOne();
         assertThat(buf1.limit()).isEqualTo(3);
         assertThat(buf2.position()).isEqualTo(3);
         assertThat(buf2.limit()).isEqualTo(7);
@@ -85,7 +85,7 @@ public class OnHeapMemorySegmentTest extends MemorySegmentTestBase {
 
         // verify the area before the written region.
         for (int i = 0; i < offset; i++) {
-            assertThat(buffer[i]).isEqualTo(0);
+            assertThat(buffer[i]).isZero();
         }
 
         // verify the region that is written.
@@ -93,7 +93,7 @@ public class OnHeapMemorySegmentTest extends MemorySegmentTestBase {
 
         // verify the area after the written region.
         for (int i = offset + numBytes; i < buffer.length; i++) {
-            assertThat(buffer[i]).isEqualTo(0);
+            assertThat(buffer[i]).isZero();
         }
     }
 }

@@ -46,9 +46,9 @@ public class ResourceGuardTest {
     public void testAcquireReleaseClose() throws IOException {
         ResourceGuard resourceGuard = new ResourceGuard();
         ResourceGuard.Lease lease = resourceGuard.acquireResource();
-        assertThat(resourceGuard.getLeaseCount()).isEqualTo(1);
+        assertThat(resourceGuard.getLeaseCount()).isOne();
         lease.close();
-        assertThat(resourceGuard.getLeaseCount()).isEqualTo(0);
+        assertThat(resourceGuard.getLeaseCount()).isZero();
         resourceGuard.close();
         assertThat(resourceGuard.isClosed()).isTrue();
     }
@@ -137,17 +137,17 @@ public class ResourceGuardTest {
         ResourceGuard.Lease lease2 = resourceGuard.acquireResource();
         assertThat(resourceGuard.getLeaseCount()).isEqualTo(2);
         lease1.close();
-        assertThat(resourceGuard.getLeaseCount()).isEqualTo(1);
+        assertThat(resourceGuard.getLeaseCount()).isOne();
         lease1.close();
-        assertThat(resourceGuard.getLeaseCount()).isEqualTo(1);
+        assertThat(resourceGuard.getLeaseCount()).isOne();
         lease2.close();
-        assertThat(resourceGuard.getLeaseCount()).isEqualTo(0);
+        assertThat(resourceGuard.getLeaseCount()).isZero();
         ResourceGuard.Lease lease3 = resourceGuard.acquireResource();
-        assertThat(resourceGuard.getLeaseCount()).isEqualTo(1);
+        assertThat(resourceGuard.getLeaseCount()).isOne();
         lease2.close();
-        assertThat(resourceGuard.getLeaseCount()).isEqualTo(1);
+        assertThat(resourceGuard.getLeaseCount()).isOne();
         lease3.close();
-        assertThat(resourceGuard.getLeaseCount()).isEqualTo(0);
+        assertThat(resourceGuard.getLeaseCount()).isZero();
         resourceGuard.close();
     }
 }

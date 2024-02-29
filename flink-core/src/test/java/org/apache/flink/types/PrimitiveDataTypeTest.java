@@ -32,6 +32,7 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class PrimitiveDataTypeTest {
 
@@ -136,19 +137,19 @@ public class PrimitiveDataTypeTest {
         StringValue string6 = (StringValue) string0.subSequence(0, string0.length());
         StringValue string7 = (StringValue) string0.subSequence(5, 9);
         StringValue string8 = (StringValue) string0.subSequence(0, 0);
-        assertThat(string0.compareTo(string0)).isEqualTo(0);
-        assertThat(string0.compareTo(string1)).isEqualTo(0);
+        assertThat(string0.compareTo(string0)).isZero();
+        assertThat(string0.compareTo(string1)).isZero();
         assertThat(string0.compareTo(string2) > 0).isTrue();
         assertThat(string0.compareTo(string3) < 0).isTrue();
         assertThat(chars5).isEqualTo(stringThis);
-        assertThat(stringThis.compareTo(string5)).isEqualTo(0);
-        assertThat(string0.compareTo(string6)).isEqualTo(0);
-        assertThat(stringIsA.compareTo(string7)).isEqualTo(0);
+        assertThat(stringThis.compareTo(string5)).isZero();
+        assertThat(string0.compareTo(string6)).isZero();
+        assertThat(stringIsA.compareTo(string7)).isZero();
         string7.setValue("This is a test");
         assertThat(stringIsA.compareTo(string7) > 0).isTrue();
-        assertThat(string0.compareTo(string7)).isEqualTo(0);
+        assertThat(string0.compareTo(string7)).isZero();
         string7.setValue("is a");
-        assertThat(stringIsA.compareTo(string7)).isEqualTo(0);
+        assertThat(stringIsA.compareTo(string7)).isZero();
         assertThat(string0.compareTo(string7) < 0).isTrue();
         assertThat(string7.hashCode()).isEqualTo(stringIsA.hashCode());
         assertThat(4).isEqualTo(string7.length());
@@ -156,13 +157,7 @@ public class PrimitiveDataTypeTest {
         assertThat(0).isEqualTo(string8.length());
         Assert.assertEquals("", string8.getValue());
         assertThat(string7.charAt(1)).isEqualTo('s');
-        try {
-            string7.charAt(5);
-            Assert.fail(
-                    "Exception should have been thrown when accessing characters out of bounds.");
-        } catch (IndexOutOfBoundsException iOOBE) {
-            // expected
-        }
+        assertThatThrownBy(() -> string7.charAt(5)).isInstanceOf(IndexOutOfBoundsException.class);
 
         // test stream out/input
         try {
@@ -191,13 +186,8 @@ public class PrimitiveDataTypeTest {
             assertThat(string3n.toString()).isEqualTo(string3.toString());
             assertThat(0).isEqualTo(string7.compareTo(string7n));
             assertThat(string7n.toString()).isEqualTo(string7.toString());
-            try {
-                string7n.charAt(5);
-                Assert.fail(
-                        "Exception should have been thrown when accessing characters out of bounds.");
-            } catch (IndexOutOfBoundsException iOOBE) {
-                // expected
-            }
+            assertThatThrownBy(() -> string7n.charAt(5))
+                    .isInstanceOf(IndexOutOfBoundsException.class);
 
         } catch (Exception e) {
             Assert.fail();

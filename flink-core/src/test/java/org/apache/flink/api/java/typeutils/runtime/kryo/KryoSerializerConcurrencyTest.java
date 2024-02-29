@@ -34,7 +34,7 @@ import java.io.IOException;
 import java.io.Serializable;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * This tests that the {@link KryoSerializer} properly fails when accessed by two threads
@@ -115,15 +115,9 @@ class KryoSerializerConcurrencyTest {
         sync.awaitBlocker();
 
         // this should fail with an exception
-        try {
-            serializer.serialize("value", regularOut);
-            fail("should have failed with an exception");
-        } catch (IllegalStateException e) {
-            // expected
-        } finally {
-            // release the thread that serializes
-            sync.releaseBlocker();
-        }
+        assertThatThrownBy(() -> serializer.serialize("value", regularOut))
+                .isInstanceOf(IllegalStateException.class);
+        sync.releaseBlocker();
 
         // this propagates exceptions from the spawned thread
         thread.sync();

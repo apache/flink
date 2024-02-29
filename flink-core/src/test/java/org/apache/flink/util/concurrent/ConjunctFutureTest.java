@@ -37,9 +37,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link ConjunctFuture} and its sub classes. */
@@ -91,7 +88,7 @@ public class ConjunctFutureTest {
         CompletableFuture<?> resultMapped = result.thenAccept(value -> {});
 
         assertThat(result.getNumFuturesTotal()).isEqualTo(4);
-        assertThat(result.getNumFuturesCompleted()).isEqualTo(1);
+        assertThat(result.getNumFuturesCompleted()).isOne();
         assertThat(result.isDone()).isFalse();
         assertThat(resultMapped.isDone()).isFalse();
 
@@ -138,13 +135,13 @@ public class ConjunctFutureTest {
         CompletableFuture<?> resultMapped = result.thenAccept(value -> {});
 
         assertThat(result.getNumFuturesTotal()).isEqualTo(4);
-        assertThat(result.getNumFuturesCompleted()).isEqualTo(0);
+        assertThat(result.getNumFuturesCompleted()).isZero();
         assertThat(result.isDone()).isFalse();
         assertThat(resultMapped.isDone()).isFalse();
 
         future2.completeExceptionally(new IOException());
 
-        assertThat(result.getNumFuturesCompleted()).isEqualTo(0);
+        assertThat(result.getNumFuturesCompleted()).isZero();
         assertThat(result.isDone()).isTrue();
         assertThat(resultMapped.isDone()).isTrue();
 
@@ -229,19 +226,14 @@ public class ConjunctFutureTest {
         Collections.shuffle(shuffledFutures);
 
         for (Tuple2<Integer, CompletableFuture<Integer>> shuffledFuture : shuffledFutures) {
-            assertThat(result.isDone(), is(false));
+            assertThat(result.isDone()).isFalse();
             shuffledFuture.f1.complete(shuffledFuture.f0);
         }
 
-        assertThat(result.isDone(), is(true));
+        assertThat(result.isDone()).isTrue();
 
-        assertThat(
-                result.get(),
-                is(
-                        equalTo(
-                                IntStream.range(0, numberFutures)
-                                        .boxed()
-                                        .collect(Collectors.toList()))));
+        assertThat(result.get())
+                .isEqualTo(IntStream.range(0, numberFutures).boxed().collect(Collectors.toList()));
     }
 
     @Test
@@ -250,8 +242,8 @@ public class ConjunctFutureTest {
                 futureFactory.createFuture(
                         Collections.<java.util.concurrent.CompletableFuture<Object>>emptyList());
 
-        assertThat(result.getNumFuturesTotal()).isEqualTo(0);
-        assertThat(result.getNumFuturesCompleted()).isEqualTo(0);
+        assertThat(result.getNumFuturesTotal()).isZero();
+        assertThat(result.getNumFuturesCompleted()).isZero();
         assertThat(result.isDone()).isTrue();
     }
 

@@ -28,9 +28,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+
 
 /** Tests for {@link TimeUtils}. */
 public class TimeUtilsTest {
@@ -170,6 +168,6 @@ public class TimeUtilsTest {
         final Time time = Time.of(1337, TimeUnit.MICROSECONDS);
         final Duration duration = TimeUtils.toDuration(time);
 
-        assertThat(duration.toNanos(), is(equalTo(time.getUnit().toNanos(time.getSize()))));
+        assertThat(duration.toNanos()).isEqualTo(time.getUnit().toNanos(time.getSize()));
     }
 }

@@ -30,7 +30,7 @@ import org.hamcrest.Matcher;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import static org.hamcrest.CoreMatchers.is;
+
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link NullableSerializer}. */
 class NullableSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Long, Long> {

@@ -846,12 +846,11 @@ class TypeExtractorTest {
                         function, (TypeInformation) Types.STRING, "name", true);
         assertThat(ti instanceof MissingTypeInfo).isTrue();
 
-        try {
-            TypeExtractor.getMapReturnTypes(function, (TypeInformation) Types.STRING);
-            fail("Expected an exception");
-        } catch (InvalidTypesException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                TypeExtractor.getMapReturnTypes(
+                                        function, (TypeInformation) Types.STRING))
+                .isInstanceOf(InvalidTypesException.class);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -872,12 +871,11 @@ class TypeExtractorTest {
                         function, (TypeInformation) Types.STRING, "name", true);
         assertThat(ti instanceof MissingTypeInfo).isTrue();
 
-        try {
-            TypeExtractor.getMapReturnTypes(function, (TypeInformation) Types.STRING);
-            fail("Expected an exception");
-        } catch (InvalidTypesException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                TypeExtractor.getMapReturnTypes(
+                                        function, (TypeInformation) Types.STRING))
+                .isInstanceOf(InvalidTypesException.class);
     }
 
     public static class SameTypeVariable<X> extends Tuple2<X, X> {
@@ -1048,12 +1046,8 @@ class TypeExtractorTest {
                 TypeExtractor.getMapReturnTypes(function, Types.STRING, "name", true);
         assertThat(ti instanceof MissingTypeInfo).isTrue();
 
-        try {
-            TypeExtractor.getMapReturnTypes(function, Types.STRING);
-            fail("Expected an exception");
-        } catch (InvalidTypesException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> TypeExtractor.getMapReturnTypes(function, Types.STRING))
+                .isInstanceOf(InvalidTypesException.class);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -1158,12 +1152,11 @@ class TypeExtractorTest {
                         function, BasicTypeInfo.BOOLEAN_TYPE_INFO, "name", true);
         assertThat(ti instanceof MissingTypeInfo).isTrue();
 
-        try {
-            TypeExtractor.getMapReturnTypes(function, BasicTypeInfo.BOOLEAN_TYPE_INFO);
-            fail("Expected an exception");
-        } catch (InvalidTypesException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                TypeExtractor.getMapReturnTypes(
+                                        function, BasicTypeInfo.BOOLEAN_TYPE_INFO))
+                .isInstanceOf(InvalidTypesException.class);
     }
 
     public class IdentityMapper4<D> extends IdentityMapper<D> {
@@ -1411,13 +1404,13 @@ class TypeExtractorTest {
                         true);
         assertThat(ti instanceof MissingTypeInfo).isTrue();
 
-        try {
-            TypeExtractor.getMapReturnTypes(
-                    function, (TypeInformation) TypeInformation.of(new TypeHint<StringValue>() {}));
-            fail("Expected an exception");
-        } catch (InvalidTypesException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                TypeExtractor.getMapReturnTypes(
+                                        function,
+                                        (TypeInformation)
+                                                TypeInformation.of(new TypeHint<StringValue>() {})))
+                .isInstanceOf(InvalidTypesException.class);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -1707,15 +1700,14 @@ class TypeExtractorTest {
                         true);
         assertThat(ti instanceof MissingTypeInfo).isTrue();
 
-        try {
-            TypeExtractor.getFlatMapReturnTypes(
-                    new DummyFlatMapFunction<String, Integer, String, Boolean>(),
-                    TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}));
-
-            fail("Expected an exception");
-        } catch (InvalidTypesException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                TypeExtractor.getFlatMapReturnTypes(
+                                        new DummyFlatMapFunction<
+                                                String, Integer, String, Boolean>(),
+                                        TypeInformation.of(
+                                                new TypeHint<Tuple2<String, Integer>>() {})))
+                .isInstanceOf(InvalidTypesException.class);
     }
 
     public static class MyQueryableMapper<A> extends RichMapFunction<String, A>

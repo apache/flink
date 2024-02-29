@@ -26,84 +26,56 @@ import org.junit.Test;
 import java.util.ArrayList;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.*;
 
 public class JavaToValueConverterTest {
 
     @Test
     public void testJavaToValueConversion() {
-        try {
-            assertThat(JavaToValueConverter.convertBoxedJavaType(null)).isNull();
+        assertThat(JavaToValueConverter.convertBoxedJavaType(null)).isNull();
 
-            assertEquals(
-                    new StringValue("123Test"),
-                    JavaToValueConverter.convertBoxedJavaType("123Test"));
-            assertEquals(
-                    new ByteValue((byte) 44), JavaToValueConverter.convertBoxedJavaType((byte) 44));
-            assertEquals(
-                    new ShortValue((short) 10000),
-                    JavaToValueConverter.convertBoxedJavaType((short) 10000));
-            assertThat(JavaToValueConverter.convertBoxedJavaType(3567564))
-                    .isEqualTo(new IntValue(3567564));
-            assertEquals(
-                    new LongValue(767692734),
-                    JavaToValueConverter.convertBoxedJavaType(767692734L));
-            assertThat(JavaToValueConverter.convertBoxedJavaType(17.5f))
-                    .isEqualTo(new FloatValue(17.5f));
-            assertEquals(
-                    new DoubleValue(3.1415926),
-                    JavaToValueConverter.convertBoxedJavaType(3.1415926));
-            assertThat(JavaToValueConverter.convertBoxedJavaType(true))
-                    .isEqualTo(new BooleanValue(true));
-            assertThat(JavaToValueConverter.convertBoxedJavaType('@'))
-                    .isEqualTo(new CharValue('@'));
+        assertEquals(
+                new StringValue("123Test"), JavaToValueConverter.convertBoxedJavaType("123Test"));
+        assertEquals(
+                new ByteValue((byte) 44), JavaToValueConverter.convertBoxedJavaType((byte) 44));
+        assertEquals(
+                new ShortValue((short) 10000),
+                JavaToValueConverter.convertBoxedJavaType((short) 10000));
+        assertThat(JavaToValueConverter.convertBoxedJavaType(3567564))
+                .isEqualTo(new IntValue(3567564));
+        assertEquals(
+                new LongValue(767692734), JavaToValueConverter.convertBoxedJavaType(767692734L));
+        assertThat(JavaToValueConverter.convertBoxedJavaType(17.5f))
+                .isEqualTo(new FloatValue(17.5f));
+        assertEquals(
+                new DoubleValue(3.1415926), JavaToValueConverter.convertBoxedJavaType(3.1415926));
+        assertThat(JavaToValueConverter.convertBoxedJavaType(true))
+                .isEqualTo(new BooleanValue(true));
+        assertThat(JavaToValueConverter.convertBoxedJavaType('@')).isEqualTo(new CharValue('@'));
 
-            try {
-                JavaToValueConverter.convertBoxedJavaType(new ArrayList<Object>());
-                fail("Accepted invalid type.");
-            } catch (IllegalArgumentException e) {
-                // expected
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThatThrownBy(() -> JavaToValueConverter.convertBoxedJavaType(new ArrayList<>()))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     public void testValueToJavaConversion() {
-        try {
-            assertThat(JavaToValueConverter.convertValueType(null)).isNull();
+        assertThat(JavaToValueConverter.convertValueType(null)).isNull();
 
-            assertEquals(
-                    "123Test", JavaToValueConverter.convertValueType(new StringValue("123Test")));
-            assertEquals(
-                    (byte) 44, JavaToValueConverter.convertValueType(new ByteValue((byte) 44)));
-            assertEquals(
-                    (short) 10000,
-                    JavaToValueConverter.convertValueType(new ShortValue((short) 10000)));
-            assertThat(JavaToValueConverter.convertValueType(new IntValue(3567564)))
-                    .isEqualTo(3567564);
-            assertEquals(
-                    767692734L, JavaToValueConverter.convertValueType(new LongValue(767692734)));
-            assertThat(JavaToValueConverter.convertValueType(new FloatValue(17.5f)))
-                    .isEqualTo(17.5f);
-            assertEquals(
-                    3.1415926, JavaToValueConverter.convertValueType(new DoubleValue(3.1415926)));
-            assertThat(JavaToValueConverter.convertValueType(new BooleanValue(true)))
-                    .isEqualTo(true);
-            assertThat(JavaToValueConverter.convertValueType(new CharValue('@'))).isEqualTo('@');
+        assertEquals("123Test", JavaToValueConverter.convertValueType(new StringValue("123Test")));
+        assertEquals((byte) 44, JavaToValueConverter.convertValueType(new ByteValue((byte) 44)));
+        assertEquals(
+                (short) 10000,
+                JavaToValueConverter.convertValueType(new ShortValue((short) 10000)));
+        assertThat(JavaToValueConverter.convertValueType(new IntValue(3567564))).isEqualTo(3567564);
+        assertEquals(767692734L, JavaToValueConverter.convertValueType(new LongValue(767692734)));
+        assertThat(JavaToValueConverter.convertValueType(new FloatValue(17.5f))).isEqualTo(17.5f);
+        assertEquals(3.1415926, JavaToValueConverter.convertValueType(new DoubleValue(3.1415926)));
+        assertThat(JavaToValueConverter.convertValueType(new BooleanValue(true))).isEqualTo(true);
+        assertThat(JavaToValueConverter.convertValueType(new CharValue('@'))).isEqualTo('@');
 
-            try {
-                JavaToValueConverter.convertValueType(new MyValue());
-                fail("Accepted invalid type.");
-            } catch (IllegalArgumentException e) {
-                // expected
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThatThrownBy(() -> JavaToValueConverter.convertValueType(new MyValue()))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     private static final class MyValue implements Value {

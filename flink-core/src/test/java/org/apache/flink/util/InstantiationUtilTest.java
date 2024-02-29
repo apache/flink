@@ -39,11 +39,12 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.net.URLClassLoader;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 /** Tests for the {@link InstantiationUtil}. */
 public class InstantiationUtilTest {
@@ -99,13 +100,13 @@ public class InstantiationUtilTest {
     @Test
     public void testInstantiationOfStringValue() {
         StringValue stringValue = InstantiationUtil.instantiate(StringValue.class, null);
-        assertThat(stringValue).isNotNull();
+        assertThat(Optional.of(stringValue)).isNotNull();
     }
 
     @Test
     public void testInstantiationOfStringValueAndCastToValue() {
         StringValue stringValue = InstantiationUtil.instantiate(StringValue.class, Value.class);
-        assertThat(stringValue).isNotNull();
+        assertThat(Optional.of(stringValue)).isNotNull();
     }
 
     @Test
@@ -155,46 +156,31 @@ public class InstantiationUtilTest {
     }
 
     @Test
-    public void testWriteToConfigFailingSerialization() {
-        try {
-            final String key1 = "testkey1";
-            final String key2 = "testkey2";
-            final Configuration config = new Configuration();
+    public void testWriteToConfigFailingSerialization() throws IOException {
+        final String key1 = "testkey1";
+        final String key2 = "testkey2";
+        final Configuration config = new Configuration();
 
-            try {
-                InstantiationUtil.writeObjectToConfig(
-                        new TestClassWriteFails(), config, "irgnored");
-                fail("should throw an exception");
-            } catch (TestException e) {
-                // expected
-            } catch (Exception e) {
-                fail("Wrong exception type - exception not properly forwarded");
-            }
+        assertThatThrownBy(
+                        () ->
+                                InstantiationUtil.writeObjectToConfig(
+                                        new TestClassWriteFails(), config, "irgnored"))
+                .isInstanceOf(TestException.class);
 
-            InstantiationUtil.writeObjectToConfig(new TestClassReadFails(), config, key1);
-            InstantiationUtil.writeObjectToConfig(new TestClassReadFailsCNF(), config, key2);
+        InstantiationUtil.writeObjectToConfig(new TestClassReadFails(), config, key1);
+        InstantiationUtil.writeObjectToConfig(new TestClassReadFailsCNF(), config, key2);
 
-            try {
-                InstantiationUtil.readObjectFromConfig(config, key1, getClass().getClassLoader());
-                fail("should throw an exception");
-            } catch (TestException e) {
-                // expected
-            } catch (Exception e) {
-                fail("Wrong exception type - exception not properly forwarded");
-            }
+        assertThatThrownBy(
+                        () ->
+                                InstantiationUtil.readObjectFromConfig(
+                                        config, key1, getClass().getClassLoader()))
+                .isInstanceOf(TestException.class);
 
-            try {
-                InstantiationUtil.readObjectFromConfig(config, key2, getClass().getClassLoader());
-                fail("should throw an exception");
-            } catch (ClassNotFoundException e) {
-                // expected
-            } catch (Exception e) {
-                fail("Wrong exception type - exception not properly forwarded");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThatThrownBy(
+                        () ->
+                                InstantiationUtil.readObjectFromConfig(
+                                        config, key2, getClass().getClassLoader()))
+                .isInstanceOf(ClassNotFoundException.class);
     }
 
     @Test

@@ -37,7 +37,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class KryoClearedBufferTest {
 
@@ -66,13 +66,8 @@ class KryoClearedBufferTest {
 
         kryoSerializer.serialize(testRecord, target);
 
-        try {
-            kryoSerializer.serialize(testRecord, target);
-            fail("Expected an EOFException.");
-        } catch (EOFException eofException) {
-            // expected exception
-            // now the Kryo Output should have been cleared
-        }
+        assertThatThrownBy(() -> kryoSerializer.serialize(testRecord, target))
+                .isInstanceOf(EOFException.class);
 
         TestRecord actualRecord =
                 kryoSerializer.deserialize(

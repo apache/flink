@@ -21,9 +21,7 @@ package org.apache.flink.util;
 import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.sameInstance;
-import static org.junit.Assert.assertThat;
+
 
 /** Tests for the {@link ArrayUtils}. */
 public class ArrayUtilsTest {

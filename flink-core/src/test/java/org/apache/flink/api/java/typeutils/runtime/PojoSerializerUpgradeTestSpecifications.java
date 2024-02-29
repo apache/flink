@@ -33,7 +33,6 @@ import org.hamcrest.Matcher;
 import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.is;
 
 /** A collection of test specifications for the {@link PojoSerializerUpgradeTest}. */
 public class PojoSerializerUpgradeTestSpecifications {

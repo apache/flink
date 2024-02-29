@@ -184,7 +184,7 @@ public abstract class AbstractAutoCloseableRegistryTest<C extends Closeable, E e
     /** Testing stream which adds itself to a reference counter while not closed. */
     protected static final class TestStream extends FSDataInputStream {
 
-        private AtomicInteger refCount;
+        private final AtomicInteger refCount;
 
         public TestStream(AtomicInteger refCount) {
             this.refCount = refCount;

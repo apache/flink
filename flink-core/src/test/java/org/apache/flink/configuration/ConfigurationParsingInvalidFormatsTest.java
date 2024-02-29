@@ -76,7 +76,11 @@ public class ConfigurationParsingInvalidFormatsTest {
                             configuration.setString(option.key(), invalidString);
                             configuration.getOptional(option);
                         });
-        assertThat(exception.getMessage()).contains(String);
+        assertThat(exception.getMessage())
+                .contains(
+                        String.format(
+                                "Could not parse value '%s' for key '%s'",
+                                invalidString, option.key()));
     }
 
     @MethodSource("getSpecs")
@@ -91,7 +95,11 @@ public class ConfigurationParsingInvalidFormatsTest {
                             configuration.setString(option.key(), invalidString);
                             configuration.get(option);
                         });
-        assertThat(exception.getMessage()).contains(String);
+        assertThat(exception.getMessage())
+                .contains(
+                        String.format(
+                                "Could not parse value '%s' for key '%s'",
+                                invalidString, option.key()));
     }
 
     private enum TestEnum {

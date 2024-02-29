@@ -86,10 +86,10 @@ public class CollectionUtilTest {
         Assertions.assertEquals(
                 13334, CollectionUtil.computeRequiredCapacity(10000, HASH_MAP_DEFAULT_LOAD_FACTOR));
 
-        Assertions.assertThat(
+        assertThat(
                 CollectionUtil.computeRequiredCapacity(10000).isCloseTo(20000, within(0.5f)));
 
-        Assertions.assertThat(
+        assertThat(
                 CollectionUtil.computeRequiredCapacity(10000).isCloseTo(100000, within(0.1f)));
 
         Assertions.assertEquals(
@@ -116,11 +116,11 @@ public class CollectionUtilTest {
 
     @Test
     public void testIsEmptyOrAllElementsNull() {
-        Assertions.assertThat(CollectionUtil.isEmptyOrAllElementsNull(Collections.emptyList()))
+        assertThat(CollectionUtil.isEmptyOrAllElementsNull(Collections.emptyList()))
                 .isTrue();
         Assertions.assertTrue(
                 CollectionUtil.isEmptyOrAllElementsNull(Collections.singletonList(null)));
-        Assertions.assertThat(CollectionUtil.isEmptyOrAllElementsNull(Arrays.asList(null, null)))
+        assertThat(CollectionUtil.isEmptyOrAllElementsNull(Arrays.asList(null, null)))
                 .isTrue();
         Assertions.assertFalse(
                 CollectionUtil.isEmptyOrAllElementsNull(Collections.singletonList("test")));
@@ -142,10 +142,10 @@ public class CollectionUtilTest {
         list.add(null);
         Collection<B> castSuccess = CollectionUtil.checkedSubTypeCast(list, B.class);
         Iterator<B> iterator = castSuccess.iterator();
-        Assertions.assertThat(iterator.next()).isEqualTo(b);
-        Assertions.assertThat(iterator.next()).isEqualTo(c);
-        Assertions.assertThat(iterator.next()).isNull();
-        Assertions.assertThat(iterator.hasNext()).isFalse();
+        assertThat(iterator.next()).isEqualTo(b);
+        assertThat(iterator.next()).isEqualTo(c);
+        assertThat(iterator.next()).isNull();
+        assertThat(iterator.hasNext()).isFalse();
         try {
             Collection<C> castFail = CollectionUtil.checkedSubTypeCast(list, C.class);
             fail("Expected ClassCastException");

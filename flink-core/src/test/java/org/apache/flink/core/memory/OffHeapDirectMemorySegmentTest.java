@@ -25,7 +25,7 @@ import org.junit.runners.Parameterized;
 import java.nio.ByteBuffer;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link MemorySegment} in off-heap mode using direct memory. */
 @RunWith(Parameterized.class)
@@ -54,19 +54,13 @@ public class OffHeapDirectMemorySegmentTest extends MemorySegmentTestBase {
         assertThat(seg.isOffHeap()).isTrue();
         assertThat(seg.size()).isEqualTo(bufSize);
 
-        try {
-            //noinspection ResultOfMethodCallIgnored
-            seg.getArray();
-            fail("should throw an exception");
-        } catch (IllegalStateException e) {
-            // expected
-        }
+        assertThatThrownBy(seg::getArray).isInstanceOf(IllegalStateException.class);
 
         ByteBuffer buf1 = seg.wrap(1, 2);
         ByteBuffer buf2 = seg.wrap(3, 4);
 
         assertThat(buf2).isNotSameAs(buf1);
-        assertThat(buf1.position()).isEqualTo(1);
+        assertThat(buf1.position()).isOne();
         assertThat(buf1.limit()).isEqualTo(3);
         assertThat(buf2.position()).isEqualTo(3);
         assertThat(buf2.limit()).isEqualTo(7);

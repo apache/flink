@@ -54,7 +54,7 @@ public class FieldParserTest {
         byte[] singleCharDelim = "|".getBytes(ConfigConstants.DEFAULT_CHARSET);
 
         byte[] bytes1 = "a|".getBytes(ConfigConstants.DEFAULT_CHARSET);
-        assertThat(parser.nextStringEndPos(bytes1, 0, bytes1.length, singleCharDelim)).isEqualTo(1);
+        assertThat(parser.nextStringEndPos(bytes1, 0, bytes1.length, singleCharDelim)).isOne();
         assertThat(parser.nextStringEndPos(bytes1, 1, bytes1.length, singleCharDelim))
                 .isEqualTo(-1);
         assertThat(parser.getErrorState()).isEqualTo(ParseErrorState.EMPTY_COLUMN);
@@ -94,7 +94,7 @@ public class FieldParserTest {
         byte[] mBytes1 = "a|#|".getBytes(ConfigConstants.DEFAULT_CHARSET);
         parser.resetParserState();
         assertThat(parser.nextStringEndPos(mBytes1, 0, mBytes1.length, multiCharDelim))
-                .isEqualTo(1);
+                .isOne();
         assertThat(parser.nextStringEndPos(mBytes1, 1, mBytes1.length, multiCharDelim))
                 .isEqualTo(-1);
         assertThat(parser.getErrorState()).isEqualTo(ParseErrorState.EMPTY_COLUMN);

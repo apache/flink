@@ -41,13 +41,7 @@ import java.io.Serializable;
 import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.isCompatibleAsIs;
 import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.isCompatibleWithReconfiguredSerializer;
 import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.isIncompatible;
-import static org.hamcrest.MatcherAssert.assertThat;
 
-/** Tests for {@link KryoSerializerSnapshot}. */
-class KryoSerializerSnapshotTest {
-
-    private SerializerConfigImpl oldConfig;
-    private SerializerConfigImpl newConfig;
 
     @BeforeEach
     void setup() {
