@@ -31,7 +31,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Optional;
 
-
 /**
  * Tests for {@link Configuration} conversion between types. Extracted from {@link
  * ConfigurationTest}.

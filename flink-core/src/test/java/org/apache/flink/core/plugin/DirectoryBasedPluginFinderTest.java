@@ -21,7 +21,7 @@ package org.apache.flink.core.plugin;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
@@ -52,7 +52,7 @@ public class DirectoryBasedPluginFinderTest {
         PluginFinder descriptorsFactory = new DirectoryBasedPluginFinder(rootFolder.toPath());
         Collection<PluginDescriptor> actual = descriptorsFactory.findPlugins();
 
-        assertThat("empty root dir -> expected no actual", actual.isEmpty()).isTrue();
+        assertThat(actual).isEmpty();
 
         List<File> subDirs =
                 Stream.of("A", "B", "C")

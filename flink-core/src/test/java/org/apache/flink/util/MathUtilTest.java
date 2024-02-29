@@ -18,9 +18,10 @@
 
 package org.apache.flink.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link MathUtils}. */
@@ -150,18 +151,21 @@ public class MathUtilTest {
         assertThat(MathUtils.divideRoundUp(2, 3)).isOne();
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDivideRoundUpNegativeDividend() {
-        MathUtils.divideRoundUp(-1, 1);
+        assertThatThrownBy(() -> MathUtils.divideRoundUp(-1, 1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDivideRoundUpNegativeDivisor() {
-        MathUtils.divideRoundUp(1, -1);
+        assertThatThrownBy(() -> MathUtils.divideRoundUp(1, -1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDivideRoundUpZeroDivisor() {
-        MathUtils.divideRoundUp(1, 0);
+        assertThatThrownBy(() -> MathUtils.divideRoundUp(1, 0))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

@@ -18,10 +18,10 @@
 
 package org.apache.flink.util;
 
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
@@ -32,7 +32,12 @@ import java.net.URLClassLoader;
 import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
+/** Tests for classloading and class loader utilities. */
+public class FlinkUserCodeClassLoadersTest {
+
+    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     @Rule public ExpectedException expectedException = ExpectedException.none();
 
@@ -45,7 +50,7 @@ import static org.assertj.core.api.Assertions.fail;
 
     private static File userJar;
 
-    @BeforeClass
+    @BeforeAll
     public static void prepare() throws Exception {
         userJar =
                 UserClassLoaderJarTestUtils.createJarFile(
@@ -196,9 +201,8 @@ import static org.assertj.core.api.Assertions.fail;
 
         childClassLoader.close();
 
-        assertThat(
-                ClassLoaderUtil.getUserCodeClassLoaderInfo(childClassLoader),
-                startsWith("Cannot access classloader info due to an exception."));
+        assertThat(ClassLoaderUtil.getUserCodeClassLoaderInfo(childClassLoader))
+                .startsWith("Cannot access classloader info due to an exception.");
     }
 
     private static MutableURLClassLoader createParentFirstClassLoader(

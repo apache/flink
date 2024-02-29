@@ -18,14 +18,13 @@
 
 package org.apache.flink.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.time.DayOfWeek;
 import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 /** Tests for the {@link StringUtils}. */
 public class StringUtilsTest {
@@ -45,11 +44,11 @@ public class StringUtilsTest {
 
         assertThat(StringUtils.arrayAwareToString(new int[] {1, 2, 3})).isEqualTo("[1, 2, 3]");
 
-        assertEquals(
+        Assertions.assertEquals(
                 "[[4, 5, 6], null, []]",
                 StringUtils.arrayAwareToString(new byte[][] {{4, 5, 6}, null, {}}));
 
-        assertEquals(
+        Assertions.assertEquals(
                 "[[4, 5, 6], null, MONDAY]",
                 StringUtils.arrayAwareToString(
                         new Object[] {new Integer[] {4, 5, 6}, null, DayOfWeek.MONDAY}));
@@ -75,7 +74,7 @@ public class StringUtilsTest {
         String str = StringUtils.generateRandomAlphanumericString(new Random(), 256);
 
         if (!str.matches("[a-zA-Z0-9]{256}")) {
-            fail("Not alphanumeric: " + str);
+            Assertions.fail("Not alphanumeric: " + str);
         }
     }
 }

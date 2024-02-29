@@ -18,7 +18,7 @@
 
 package org.apache.flink.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -32,7 +32,6 @@ import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertTrue;
 
 /** Tests that validate the {@link ClassLoaderUtil}. */
 public class ClassLoaderUtilsTest {
@@ -67,7 +66,7 @@ public class ClassLoaderUtilsTest {
 
         // non existing file
         File nonExisting = File.createTempFile("flink-url-test", ".tmp");
-        assertThat("Cannot create and delete temp file", nonExisting.delete()).isTrue();
+        assertThat(nonExisting.delete()).isTrue();
 
         // create a URL classloader with
         // - a HTTP URL
@@ -85,18 +84,14 @@ public class ClassLoaderUtilsTest {
         URLClassLoader loader = new URLClassLoader(urls, getClass().getClassLoader());
         String info = ClassLoaderUtil.getUserCodeClassLoaderInfo(loader);
 
-        assertTrue(info.indexOf("/some/file/path") > 0);
-        assertThat(info.indexOf(validJar.getAbsolutePath().isTrue() + "' (valid") > 0);
-        assertThat(info.indexOf(invalidJar.getAbsolutePath().isTrue() + "' (invalid JAR") > 0);
-        assertThat(info.indexOf(nonExisting.getAbsolutePath().isTrue() + "' (missing") > 0);
-        if (validJar != null) {
-            //noinspection ResultOfMethodCallIgnored
-            validJar.delete();
-        }
-        if (invalidJar != null) {
-            //noinspection ResultOfMethodCallIgnored
-            invalidJar.delete();
-        }
+        assertThat(info).contains("/some/file/path");
+        assertThat(info).contains(validJar.getAbsolutePath() + "' (valid");
+        assertThat(info).contains(invalidJar.getAbsolutePath() + "' (invalid JAR");
+        assertThat(info).contains(nonExisting.getAbsolutePath() + "' (missing");
+        //noinspection ResultOfMethodCallIgnored
+        validJar.delete();
+        //noinspection ResultOfMethodCallIgnored
+        invalidJar.delete();
     }
 
     private static void createValidJar(final File jarFile) throws Exception {

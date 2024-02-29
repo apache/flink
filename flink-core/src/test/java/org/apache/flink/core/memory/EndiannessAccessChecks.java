@@ -162,13 +162,13 @@ class EndiannessAccessChecks {
                 double r = segment.getDoubleBigEndian(pos);
                 double reversed =
                         Double.longBitsToDouble(Long.reverseBytes(Double.doubleToRawLongBits(r)));
-                assertThat(reversed).isCloseTo(val, within(0.0f));
+                assertThat(reversed).isCloseTo(val, within(0.0d));
 
                 segment.putDoubleBigEndian(pos, val);
                 r = segment.getDoubleLittleEndian(pos);
                 reversed =
                         Double.longBitsToDouble(Long.reverseBytes(Double.doubleToRawLongBits(r)));
-                assertThat(reversed).isCloseTo(val, within(0.0f));
+                assertThat(reversed).isCloseTo(val, within(0.0d));
             }
         }
     }

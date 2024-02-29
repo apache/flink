@@ -19,7 +19,7 @@ package org.apache.flink.types;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -29,7 +29,6 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 
 /** Tests for {@link Row} and {@link RowUtils}. */
 public class RowTest {
@@ -451,8 +450,8 @@ public class RowTest {
         map.put("c", null);
         row.setField("h", map);
 
-        assertThat(
-                row.toString()).isEqualTo(
+        assertThat(row.toString())
+                .isEqualTo(
                         "-U{"
                                 + "a=1, "
                                 + "b=hello, "

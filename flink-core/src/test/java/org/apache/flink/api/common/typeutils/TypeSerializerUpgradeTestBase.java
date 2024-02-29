@@ -44,7 +44,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
-
 /** A test base for testing {@link TypeSerializer} upgrades. */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedElementT>

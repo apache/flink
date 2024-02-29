@@ -20,11 +20,12 @@ package org.apache.flink.util;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link CompressedSerializedValue}. */
 public class CompressedSerializedValueTest {
@@ -55,18 +56,21 @@ public class CompressedSerializedValueTest {
         assertThat(saved.getByteArray()).isEqualTo(v.getByteArray());
     }
 
-    @Test(expected = NullPointerException.class)
-    public void testNullValue() throws Exception {
-        CompressedSerializedValue.fromObject(null);
+    @Test
+    public void testNullValue() {
+        assertThatThrownBy(() -> CompressedSerializedValue.fromObject(null))
+                .isInstanceOf(NullPointerException.class);
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testFromNullBytes() {
-        CompressedSerializedValue.fromBytes(null);
+        assertThatThrownBy(() -> CompressedSerializedValue.fromBytes(null))
+                .isInstanceOf(NullPointerException.class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testFromEmptyBytes() {
-        CompressedSerializedValue.fromBytes(new byte[0]);
+        assertThatThrownBy(() -> CompressedSerializedValue.fromBytes(new byte[0]))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

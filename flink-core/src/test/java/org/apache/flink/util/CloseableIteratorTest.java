@@ -17,13 +17,14 @@
 
 package org.apache.flink.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** {@link CloseableIterator} test. */
 @SuppressWarnings("unchecked")
@@ -56,7 +57,7 @@ public class CloseableIteratorTest {
         assertThat(iterated.toArray()).isEqualTo(ELEMENTS);
     }
 
-    @Test(expected = TestException.class)
+    @Test
     public void testFlattenErrorHandling() throws Exception {
         List<String> closed = new ArrayList<>();
         CloseableIterator<String> iterator =
@@ -68,11 +69,8 @@ public class CloseableIteratorTest {
                                     throw new TestException();
                                 }),
                         CloseableIterator.ofElement(ELEMENTS[1], closed::add));
-        try {
-            iterator.close();
-        } finally {
-            assertThat(closed.toArray()).isEqualTo(ELEMENTS);
-        }
+        assertThatThrownBy(iterator::close).isInstanceOf(TestException.class);
+        assertThat(closed.toArray()).isEqualTo(ELEMENTS);
     }
 
     private static class TestException extends RuntimeException {}

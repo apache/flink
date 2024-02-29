@@ -37,7 +37,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * This class contains test for the configuration package. In particular, the serialization of
@@ -359,18 +360,14 @@ public class ConfigurationTest {
         final String invalidValueForTestEnum = "InvalidValueForTestEnum";
         configuration.setString(STRING_OPTION.key(), invalidValueForTestEnum);
 
-        try {
-            configuration.getEnum(TestEnum.class, STRING_OPTION);
-            fail("Expected exception not thrown");
-        } catch (IllegalArgumentException e) {
-            final String expectedMessage =
-                    "Value for config option "
-                            + STRING_OPTION.key()
-                            + " must be one of [VALUE1, VALUE2] (was "
-                            + invalidValueForTestEnum
-                            + ")";
-            assertThat(e.getMessage()).contains(expectedMessage);
-        }
+        assertThatThrownBy(() -> configuration.getEnum(TestEnum.class, STRING_OPTION))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(
+                        "Value for config option "
+                                + STRING_OPTION.key()
+                                + " must be one of [VALUE1, VALUE2] (was "
+                                + invalidValueForTestEnum
+                                + ")");
     }
 
     @TestTemplate

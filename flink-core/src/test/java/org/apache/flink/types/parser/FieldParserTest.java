@@ -21,7 +21,7 @@ package org.apache.flink.types.parser;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.types.parser.FieldParser.ParseErrorState;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -93,8 +93,7 @@ public class FieldParserTest {
         byte[] multiCharDelim = "|#|".getBytes(ConfigConstants.DEFAULT_CHARSET);
         byte[] mBytes1 = "a|#|".getBytes(ConfigConstants.DEFAULT_CHARSET);
         parser.resetParserState();
-        assertThat(parser.nextStringEndPos(mBytes1, 0, mBytes1.length, multiCharDelim))
-                .isOne();
+        assertThat(parser.nextStringEndPos(mBytes1, 0, mBytes1.length, multiCharDelim)).isOne();
         assertThat(parser.nextStringEndPos(mBytes1, 1, mBytes1.length, multiCharDelim))
                 .isEqualTo(-1);
         assertThat(parser.getErrorState()).isEqualTo(ParseErrorState.EMPTY_COLUMN);

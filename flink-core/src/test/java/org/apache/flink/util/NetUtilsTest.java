@@ -20,9 +20,8 @@ package org.apache.flink.util;
 
 import org.apache.flink.configuration.IllegalConfigurationException;
 
-import org.assertj.core.api.Assertions;
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -39,7 +38,7 @@ import java.util.Set;
 
 import static org.apache.flink.util.NetUtils.socketToUrl;
 import static org.assertj.core.api.Assertions.assertThat;
-
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link NetUtils}. */
 public class NetUtilsTest {
@@ -53,9 +52,10 @@ public class NetUtilsTest {
     @Test
     public void testCorrectHostnamePortWithHttpsScheme() throws Exception {
         final URL url = new URL("https", "foo.com", 8080, "/some/other/path/index.html");
-        assertEquals(
-                url,
-                NetUtils.getCorrectHostnamePort("https://foo.com:8080/some/other/path/index.html"));
+        assertThat(
+                        NetUtils.getCorrectHostnamePort(
+                                "https://foo.com:8080/some/other/path/index.html"))
+                .isEqualTo(url);
     }
 
     @Test
@@ -117,12 +117,16 @@ public class NetUtilsTest {
         }
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testAcceptWithoutTimeoutRejectsSocketWithSoTimeout() throws IOException {
-        try (final ServerSocket serverSocket = new ServerSocket(0)) {
-            serverSocket.setSoTimeout(5);
-            NetUtils.acceptWithoutTimeout(serverSocket);
-        }
+    @Test
+    public void testAcceptWithoutTimeoutRejectsSocketWithSoTimeout() {
+        assertThatThrownBy(
+                        () -> {
+                            try (final ServerSocket serverSocket = new ServerSocket(0)) {
+                                serverSocket.setSoTimeout(5);
+                                NetUtils.acceptWithoutTimeout(serverSocket);
+                            }
+                        })
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -151,9 +155,10 @@ public class NetUtilsTest {
         InetSocketAddress socketAddress = new InetSocketAddress(address, port);
 
         assertThat(NetUtils.ipAddressToUrlString(address)).isEqualTo(addressString);
-        assertEquals(
-                addressString + ':' + port, NetUtils.ipAddressAndPortToUrlString(address, port));
-        assertEquals(addressString + ':' + port, NetUtils.socketAddressToUrlString(socketAddress));
+        assertThat(NetUtils.ipAddressAndPortToUrlString(address, port))
+                .isEqualTo(addressString + ':' + port);
+        assertThat(NetUtils.socketAddressToUrlString(socketAddress))
+                .isEqualTo(addressString + ':' + port);
     }
 
     @Test
@@ -166,12 +171,10 @@ public class NetUtilsTest {
         InetSocketAddress socketAddress = new InetSocketAddress(address, port);
 
         assertThat(NetUtils.ipAddressToUrlString(address)).isEqualTo(bracketedAddressString);
-        assertEquals(
-                bracketedAddressString + ':' + port,
-                NetUtils.ipAddressAndPortToUrlString(address, port));
-        assertEquals(
-                bracketedAddressString + ':' + port,
-                NetUtils.socketAddressToUrlString(socketAddress));
+        assertThat(NetUtils.ipAddressAndPortToUrlString(address, port))
+                .isEqualTo(bracketedAddressString + ':' + port);
+        assertThat(NetUtils.socketAddressToUrlString(socketAddress))
+                .isEqualTo(bracketedAddressString + ':' + port);
     }
 
     @Test
@@ -331,30 +334,25 @@ public class NetUtilsTest {
         }
         {
             // Illegal hostnames
-            String host = "illegalhost.";
             int port = 42;
-            try {
-                NetUtils.unresolvedHostAndPortToNormalizedString(host, port);
-                fail();
-            } catch (Exception ignored) {
-            }
+            assertThatThrownBy(
+                            () ->
+                                    NetUtils.unresolvedHostAndPortToNormalizedString(
+                                            "illegalhost.", port))
+                    .isInstanceOf(IllegalConfigurationException.class);
             // Illegal hostnames
-            host = "illegalhost:fasf";
-            try {
-                NetUtils.unresolvedHostAndPortToNormalizedString(host, port);
-                fail();
-            } catch (Exception ignored) {
-            }
+            assertThatThrownBy(
+                            () ->
+                                    NetUtils.unresolvedHostAndPortToNormalizedString(
+                                            "illegalhost:fasf", port))
+                    .isInstanceOf(IllegalConfigurationException.class);
         }
         {
             // Illegal port ranges
             String host = "1.2.3.4";
             int port = -1;
-            try {
-                NetUtils.unresolvedHostAndPortToNormalizedString(host, port);
-                fail();
-            } catch (Exception ignored) {
-            }
+            assertThatThrownBy(() -> NetUtils.unresolvedHostAndPortToNormalizedString(host, port))
+                    .isInstanceOf(IllegalConfigurationException.class);
         }
         {
             // lower case conversion of hostnames

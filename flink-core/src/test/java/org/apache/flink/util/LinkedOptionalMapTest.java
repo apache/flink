@@ -20,11 +20,12 @@ package org.apache.flink.util;
 
 import org.apache.flink.util.LinkedOptionalMap.MergeResult;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test {@link LinkedOptionalMap}. */
 public class LinkedOptionalMapTest {
@@ -120,22 +121,30 @@ public class LinkedOptionalMapTest {
         assertThat(first.keyNames()).contains("a", "b", "c", "d");
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void unwrapOptionalsWithMissingValueThrows() {
-        LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
+        assertThatThrownBy(
+                        () -> {
+                            LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
 
-        map.put("a", String.class, null);
+                            map.put("a", String.class, null);
 
-        map.unwrapOptionals();
+                            map.unwrapOptionals();
+                        })
+                .isInstanceOf(IllegalStateException.class);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void unwrapOptionalsWithMissingKeyThrows() {
-        LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
+        assertThatThrownBy(
+                        () -> {
+                            LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
 
-        map.put("a", null, "blabla");
+                            map.put("a", null, "blabla");
 
-        map.unwrapOptionals();
+                            map.unwrapOptionals();
+                        })
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -200,6 +209,7 @@ public class LinkedOptionalMapTest {
         assertThat(result.missingKeys()).isEmpty();
 
         LinkedHashMap<Class<?>, String> merged = result.getMerged();
-        assertThat(merged.keySet()).containsExactly(String.class, Void.class, Boolean.class, Long.class);
+        assertThat(merged.keySet())
+                .containsExactly(String.class, Void.class, Boolean.class, Long.class);
     }
 }

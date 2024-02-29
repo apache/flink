@@ -34,6 +34,16 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 
+/** Tests for the {@link ComponentClassLoader}. */
+public class ComponentClassLoaderTest {
+
+    private static final String NON_EXISTENT_CLASS_NAME = "foo.Bar";
+    private static final Class<?> CLASS_TO_LOAD = Class.class;
+    private static final Class<?> CLASS_RETURNED_BY_OWNER = ComponentClassLoaderTest.class;
+
+    private static final String NON_EXISTENT_RESOURCE_NAME = "foo/Bar";
+    private static String resourceToLoad;
+    private static final URL RESOURCE_RETURNED_BY_OWNER = createURL();
 
     @TempDir public static File TMP;
 
@@ -147,9 +157,8 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOf
                         new URL[0], owner, new String[0], new String[0], Collections.emptyMap());
 
         assertThat(componentClassLoader.getResource(NON_EXISTENT_RESOURCE_NAME)).isNull();
-        assertThat(
-                componentClassLoader.getResources(NON_EXISTENT_RESOURCE_NAME).hasMoreElements(),
-                is(false));
+        assertThat(componentClassLoader.getResources(NON_EXISTENT_RESOURCE_NAME).hasMoreElements())
+                .isFalse();
     }
 
     @Test

@@ -31,7 +31,7 @@ import java.util.List;
 
 import static org.apache.flink.util.CollectionUtil.HASH_MAP_DEFAULT_LOAD_FACTOR;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for java collection utilities. */
 @ExtendWith(TestLoggerExtension.class)
@@ -87,41 +87,34 @@ public class CollectionUtilTest {
                 13334, CollectionUtil.computeRequiredCapacity(10000, HASH_MAP_DEFAULT_LOAD_FACTOR));
 
         assertThat(
-                CollectionUtil.computeRequiredCapacity(10000).isCloseTo(20000, within(0.5f)));
+                        CollectionUtil.computeRequiredCapacity(
+                                Integer.MAX_VALUE / 2, HASH_MAP_DEFAULT_LOAD_FACTOR))
+                .isEqualTo(1431655808);
 
         assertThat(
-                CollectionUtil.computeRequiredCapacity(10000).isCloseTo(100000, within(0.1f)));
+                        CollectionUtil.computeRequiredCapacity(
+                                1 + Integer.MAX_VALUE / 2, HASH_MAP_DEFAULT_LOAD_FACTOR))
+                .isEqualTo(Integer.MAX_VALUE);
 
-        Assertions.assertEquals(
-                1431655808,
-                CollectionUtil.computeRequiredCapacity(
-                        Integer.MAX_VALUE / 2, HASH_MAP_DEFAULT_LOAD_FACTOR));
-        Assertions.assertEquals(
-                Integer.MAX_VALUE,
-                CollectionUtil.computeRequiredCapacity(
-                        1 + Integer.MAX_VALUE / 2, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        assertThatThrownBy(
+                        () ->
+                                CollectionUtil.computeRequiredCapacity(
+                                        -1, HASH_MAP_DEFAULT_LOAD_FACTOR))
+                .isInstanceOf(IllegalArgumentException.class);
 
-        try {
-            CollectionUtil.computeRequiredCapacity(-1, HASH_MAP_DEFAULT_LOAD_FACTOR);
-            Assertions.fail();
-        } catch (IllegalArgumentException expected) {
-        }
-
-        try {
-            CollectionUtil.computeRequiredCapacity(Integer.MIN_VALUE, HASH_MAP_DEFAULT_LOAD_FACTOR);
-            Assertions.fail();
-        } catch (IllegalArgumentException expected) {
-        }
+        assertThatThrownBy(
+                        () ->
+                                CollectionUtil.computeRequiredCapacity(
+                                        Integer.MIN_VALUE, HASH_MAP_DEFAULT_LOAD_FACTOR))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     public void testIsEmptyOrAllElementsNull() {
-        assertThat(CollectionUtil.isEmptyOrAllElementsNull(Collections.emptyList()))
-                .isTrue();
+        assertThat(CollectionUtil.isEmptyOrAllElementsNull(Collections.emptyList())).isTrue();
         Assertions.assertTrue(
                 CollectionUtil.isEmptyOrAllElementsNull(Collections.singletonList(null)));
-        assertThat(CollectionUtil.isEmptyOrAllElementsNull(Arrays.asList(null, null)))
-                .isTrue();
+        assertThat(CollectionUtil.isEmptyOrAllElementsNull(Arrays.asList(null, null))).isTrue();
         Assertions.assertFalse(
                 CollectionUtil.isEmptyOrAllElementsNull(Collections.singletonList("test")));
         Assertions.assertFalse(
@@ -146,11 +139,8 @@ public class CollectionUtilTest {
         assertThat(iterator.next()).isEqualTo(c);
         assertThat(iterator.next()).isNull();
         assertThat(iterator.hasNext()).isFalse();
-        try {
-            Collection<C> castFail = CollectionUtil.checkedSubTypeCast(list, C.class);
-            fail("Expected ClassCastException");
-        } catch (ClassCastException expected) {
-        }
+        assertThatThrownBy(() -> CollectionUtil.checkedSubTypeCast(list, C.class))
+                .isInstanceOf(ClassCastException.class);
     }
 
     static class A {}

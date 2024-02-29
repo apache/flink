@@ -37,8 +37,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Random;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 
 /** Tests for the access and transfer methods of the {@link MemorySegment}. */
@@ -234,17 +235,11 @@ public abstract class MemorySegmentTestBase {
         byte[] bytes = new byte[pageSize];
         MemorySegment segment = createSegment(pageSize);
 
-        try {
-            segment.copyToUnsafe(1, bytes, 0, pageSize);
-            fail("should fail with an IndexOutOfBoundsException");
-        } catch (IndexOutOfBoundsException ignored) {
-        }
+        assertThatThrownBy(() -> segment.copyToUnsafe(1, bytes, 0, pageSize))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.copyFromUnsafe(1, bytes, 0, pageSize);
-            fail("should fail with an IndexOutOfBoundsException");
-        } catch (IndexOutOfBoundsException ignored) {
-        }
+        assertThatThrownBy(() -> segment.copyFromUnsafe(1, bytes, 0, pageSize))
+                .isInstanceOf(IndexOutOfBoundsException.class);
     }
 
     @MethodSource("executionModes")
@@ -1230,18 +1225,17 @@ public abstract class MemorySegmentTestBase {
                         });
 
         // write the segment in chunks into the stream
-        try {
-            int pos = 0;
-            while (pos < pageSize) {
-                int len = random.nextInt(segmentSize / 10);
-                len = Math.min(len, pageSize - pos);
-                seg.get(out, pos, len);
-                pos += len;
-            }
-            fail("Should fail with an IOException");
-        } catch (IOException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () -> {
+                            int pos = 0;
+                            while (pos < pageSize) {
+                                int len = random.nextInt(segmentSize / 10);
+                                len = Math.min(len, pageSize - pos);
+                                seg.get(out, pos, len);
+                                pos += len;
+                            }
+                        })
+                .isInstanceOf(IOException.class);
 
         DataInputStream in =
                 new DataInputStream(new ByteArrayInputStream(new byte[segmentSize / 2]));
@@ -1490,19 +1484,15 @@ public abstract class MemorySegmentTestBase {
                 }) {
             for (int off : validOffsets) {
                 for (int len : invalidLengths) {
-                    try {
-                        seg.put(off, bb, len);
-                        fail("should fail with an IndexOutOfBoundsException");
-                    } catch (IndexOutOfBoundsException | BufferUnderflowException ignored) {
-                    }
+                    assertThatThrownBy(() -> seg.put(off, bb, len))
+                            .isInstanceOfAny(
+                                    IndexOutOfBoundsException.class,
+                                    BufferUnderflowException.class);
 
-                    try {
-                        seg.get(off, bb, len);
-                        fail("should fail with an IndexOutOfBoundsException");
-                    } catch (IndexOutOfBoundsException | BufferOverflowException ignored) {
-                    }
+                    assertThatThrownBy(() -> seg.get(off, bb, len))
+                            .isInstanceOfAny(
+                                    IndexOutOfBoundsException.class, BufferOverflowException.class);
 
-                    // position/limit may not have changed
                     assertThat(bb.position()).isZero();
                     assertThat(bb.limit()).isEqualTo(bb.capacity());
                 }
@@ -1510,19 +1500,15 @@ public abstract class MemorySegmentTestBase {
 
             for (int off : invalidOffsets) {
                 for (int len : validLengths) {
-                    try {
-                        seg.put(off, bb, len);
-                        fail("should fail with an IndexOutOfBoundsException");
-                    } catch (IndexOutOfBoundsException | BufferUnderflowException ignored) {
-                    }
+                    assertThatThrownBy(() -> seg.put(off, bb, len))
+                            .isInstanceOfAny(
+                                    IndexOutOfBoundsException.class,
+                                    BufferUnderflowException.class);
 
-                    try {
-                        seg.get(off, bb, len);
-                        fail("should fail with an IndexOutOfBoundsException");
-                    } catch (IndexOutOfBoundsException | BufferOverflowException ignored) {
-                    }
+                    assertThatThrownBy(() -> seg.get(off, bb, len))
+                            .isInstanceOfAny(
+                                    IndexOutOfBoundsException.class, BufferOverflowException.class);
 
-                    // position/limit may not have changed
                     assertThat(bb.position()).isZero();
                     assertThat(bb.limit()).isEqualTo(bb.capacity());
                 }
@@ -1531,19 +1517,16 @@ public abstract class MemorySegmentTestBase {
             for (int off : validOffsets) {
                 for (int len : validLengths) {
                     if (off + len > pageSize) {
-                        try {
-                            seg.put(off, bb, len);
-                            fail("should fail with an IndexOutOfBoundsException");
-                        } catch (IndexOutOfBoundsException | BufferUnderflowException ignored) {
-                        }
+                        assertThatThrownBy(() -> seg.put(off, bb, len))
+                                .isInstanceOfAny(
+                                        IndexOutOfBoundsException.class,
+                                        BufferUnderflowException.class);
 
-                        try {
-                            seg.get(off, bb, len);
-                            fail("should fail with an IndexOutOfBoundsException");
-                        } catch (IndexOutOfBoundsException | BufferOverflowException ignored) {
-                        }
+                        assertThatThrownBy(() -> seg.get(off, bb, len))
+                                .isInstanceOfAny(
+                                        IndexOutOfBoundsException.class,
+                                        BufferOverflowException.class);
 
-                        // position/limit may not have changed
                         assertThat(bb.position()).isZero();
                         assertThat(bb.limit()).isEqualTo(bb.capacity());
                     }
@@ -1561,21 +1544,15 @@ public abstract class MemorySegmentTestBase {
 
         MemorySegment seg = createSegment(pageSize);
 
-        try {
-            seg.get(pageSize / 5, bb, pageSize / 10 + 2);
-            fail("should fail with an exception");
-        } catch (BufferOverflowException ignored) {
-        }
+        assertThatThrownBy(() -> seg.get(pageSize / 5, bb, pageSize / 10 + 2))
+                .isInstanceOf(BufferOverflowException.class);
 
         // position / limit should not have been modified
         assertThat(bb.position()).isZero();
         assertThat(bb.limit()).isEqualTo(bb.capacity());
 
-        try {
-            seg.put(pageSize / 5, bb, pageSize / 10 + 2);
-            fail("should fail with an exception");
-        } catch (BufferUnderflowException ignored) {
-        }
+        assertThatThrownBy(() -> seg.put(pageSize / 5, bb, pageSize / 10 + 2))
+                .isInstanceOf(BufferUnderflowException.class);
 
         // position / limit should not have been modified
         assertThat(bb.position()).isZero();
@@ -1586,21 +1563,15 @@ public abstract class MemorySegmentTestBase {
         bb.limit(limit);
         bb.position(pos);
 
-        try {
-            seg.get(20, bb, bb.capacity() / 3 + 3);
-            fail("should fail with an exception");
-        } catch (BufferOverflowException ignored) {
-        }
+        assertThatThrownBy(() -> seg.get(20, bb, bb.capacity() / 3 + 3))
+                .isInstanceOf(BufferOverflowException.class);
 
         // position / limit should not have been modified
         assertThat(bb.position()).isEqualTo(pos);
         assertThat(bb.limit()).isEqualTo(limit);
 
-        try {
-            seg.put(20, bb, bb.capacity() / 3 + 3);
-            fail("should fail with an exception");
-        } catch (BufferUnderflowException ignored) {
-        }
+        assertThatThrownBy(() -> seg.put(20, bb, bb.capacity() / 3 + 3))
+                .isInstanceOf(BufferUnderflowException.class);
 
         // position / limit should not have been modified
         assertThat(bb.position()).isEqualTo(pos);
@@ -1775,25 +1746,16 @@ public abstract class MemorySegmentTestBase {
         buf3.putInt(187, 992288337);
         assertThat(seg.getIntBigEndian(187)).isEqualTo(992288337);
 
-        try {
-            seg.wrap(-1, 20);
-            fail("should throw an exception");
-        } catch (IndexOutOfBoundsException | IllegalArgumentException ignored) {
-        }
+        assertThatThrownBy(() -> seg.wrap(-1, 20))
+                .isInstanceOfAny(IndexOutOfBoundsException.class, IllegalArgumentException.class);
 
-        try {
-            seg.wrap(10, -20);
-            fail("should throw an exception");
-        } catch (IndexOutOfBoundsException | IllegalArgumentException ignored) {
-        }
+        assertThatThrownBy(() -> seg.wrap(10, -20))
+                .isInstanceOfAny(IndexOutOfBoundsException.class, IllegalArgumentException.class);
 
-        try {
-            seg.wrap(10, 1024);
-            fail("should throw an exception");
-        } catch (IndexOutOfBoundsException | IllegalArgumentException ignored) {
-        }
+        assertThatThrownBy(() -> seg.wrap(10, 1024))
+                .isInstanceOfAny(IndexOutOfBoundsException.class, IllegalArgumentException.class);
 
-        // after freeing, no wrapping should be possible any more.
+        // after freeing, no wrapping should be possible anymore.
         seg.free();
 
         assertThatThrownBy(() -> seg.wrap(13, 47)).isInstanceOfAny(IllegalStateException.class);

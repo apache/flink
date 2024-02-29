@@ -24,8 +24,8 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.PipedInputStream;
@@ -42,7 +42,7 @@ public class PrimitiveDataTypeTest {
     private DataInputView mIn;
     private DataOutputView mOut;
 
-    @Before
+    @BeforeEach
     public void setup() throws Exception {
         in = new PipedInputStream(1000);
         out = new PipedOutputStream(in);

@@ -18,9 +18,9 @@
 
 package org.apache.flink.management.jmx;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import javax.management.InstanceNotFoundException;
 import javax.management.MBeanServer;
@@ -39,12 +39,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Test for {@link JMXServer} functionality. */
 public class JMXServerTest {
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         JMXService.startInstance("23456-23466");
     }
 
-    @After
+    @AfterEach
     public void tearDown() throws Exception {
         JMXService.stopInstance();
     }

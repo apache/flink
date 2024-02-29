@@ -30,8 +30,6 @@ import org.hamcrest.Matcher;
 import java.util.ArrayList;
 import java.util.Collection;
 
-
-
 /** A {@link TypeSerializerUpgradeTestBase} for {@link NullableSerializer}. */
 class NullableSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Long, Long> {
 

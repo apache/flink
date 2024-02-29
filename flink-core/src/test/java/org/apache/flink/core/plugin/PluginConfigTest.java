@@ -23,10 +23,10 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
 
-import org.junit.After;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -42,12 +42,12 @@ public class PluginConfigTest {
 
     private static Map<String, String> oldEnvVariables;
 
-    @BeforeClass
+    @BeforeAll
     public static void setup() {
         oldEnvVariables = System.getenv();
     }
 
-    @After
+    @AfterEach
     public void teardown() {
         if (oldEnvVariables != null) {
             CommonTestUtils.setEnv(oldEnvVariables, true);
@@ -62,7 +62,7 @@ public class PluginConfigTest {
                         ConfigConstants.ENV_FLINK_PLUGINS_DIR, pluginsDirectory.getAbsolutePath());
         CommonTestUtils.setEnv(envVariables);
 
-        assertThat(PluginConfig.getPluginsDir().get(), is(pluginsDirectory));
+        assertThat(PluginConfig.getPluginsDir().get()).isEqualTo(pluginsDirectory);
     }
 
     @Test

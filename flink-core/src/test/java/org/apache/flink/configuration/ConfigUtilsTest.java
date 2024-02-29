@@ -27,7 +27,6 @@ import java.util.List;
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.assertj.core.api.Assertions.assertThat;
 
-
 /** Tests the {@link ConfigUtils} methods. */
 class ConfigUtilsTest {
 

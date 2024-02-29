@@ -21,13 +21,13 @@ package org.apache.flink.types;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.*;
 
 public class JavaToValueConverterTest {
 
@@ -35,20 +35,20 @@ public class JavaToValueConverterTest {
     public void testJavaToValueConversion() {
         assertThat(JavaToValueConverter.convertBoxedJavaType(null)).isNull();
 
-        assertEquals(
+        Assertions.assertEquals(
                 new StringValue("123Test"), JavaToValueConverter.convertBoxedJavaType("123Test"));
-        assertEquals(
+        Assertions.assertEquals(
                 new ByteValue((byte) 44), JavaToValueConverter.convertBoxedJavaType((byte) 44));
-        assertEquals(
+        Assertions.assertEquals(
                 new ShortValue((short) 10000),
                 JavaToValueConverter.convertBoxedJavaType((short) 10000));
         assertThat(JavaToValueConverter.convertBoxedJavaType(3567564))
                 .isEqualTo(new IntValue(3567564));
-        assertEquals(
+        Assertions.assertEquals(
                 new LongValue(767692734), JavaToValueConverter.convertBoxedJavaType(767692734L));
         assertThat(JavaToValueConverter.convertBoxedJavaType(17.5f))
                 .isEqualTo(new FloatValue(17.5f));
-        assertEquals(
+        Assertions.assertEquals(
                 new DoubleValue(3.1415926), JavaToValueConverter.convertBoxedJavaType(3.1415926));
         assertThat(JavaToValueConverter.convertBoxedJavaType(true))
                 .isEqualTo(new BooleanValue(true));
@@ -62,15 +62,19 @@ public class JavaToValueConverterTest {
     public void testValueToJavaConversion() {
         assertThat(JavaToValueConverter.convertValueType(null)).isNull();
 
-        assertEquals("123Test", JavaToValueConverter.convertValueType(new StringValue("123Test")));
-        assertEquals((byte) 44, JavaToValueConverter.convertValueType(new ByteValue((byte) 44)));
-        assertEquals(
+        Assertions.assertEquals(
+                "123Test", JavaToValueConverter.convertValueType(new StringValue("123Test")));
+        Assertions.assertEquals(
+                (byte) 44, JavaToValueConverter.convertValueType(new ByteValue((byte) 44)));
+        Assertions.assertEquals(
                 (short) 10000,
                 JavaToValueConverter.convertValueType(new ShortValue((short) 10000)));
         assertThat(JavaToValueConverter.convertValueType(new IntValue(3567564))).isEqualTo(3567564);
-        assertEquals(767692734L, JavaToValueConverter.convertValueType(new LongValue(767692734)));
+        Assertions.assertEquals(
+                767692734L, JavaToValueConverter.convertValueType(new LongValue(767692734)));
         assertThat(JavaToValueConverter.convertValueType(new FloatValue(17.5f))).isEqualTo(17.5f);
-        assertEquals(3.1415926, JavaToValueConverter.convertValueType(new DoubleValue(3.1415926)));
+        Assertions.assertEquals(
+                3.1415926, JavaToValueConverter.convertValueType(new DoubleValue(3.1415926)));
         assertThat(JavaToValueConverter.convertValueType(new BooleanValue(true))).isEqualTo(true);
         assertThat(JavaToValueConverter.convertValueType(new CharValue('@'))).isEqualTo('@');
 

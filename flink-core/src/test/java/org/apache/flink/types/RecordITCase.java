@@ -24,8 +24,8 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
@@ -39,7 +39,7 @@ public class RecordITCase {
     private DataInputView in;
     private DataOutputView out;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         PipedInputStream pipedInput = new PipedInputStream(32 * 1024 * 1024);
         this.in = new DataInputViewStreamWrapper(pipedInput);

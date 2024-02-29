@@ -18,7 +18,7 @@
 
 package org.apache.flink.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.util.TernaryBoolean.FALSE;
 import static org.apache.flink.util.TernaryBoolean.TRUE;

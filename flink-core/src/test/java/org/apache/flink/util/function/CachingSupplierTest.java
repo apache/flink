@@ -22,8 +22,6 @@ import org.junit.jupiter.api.Test;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
-
-
 class CachingSupplierTest {
 
     @Test

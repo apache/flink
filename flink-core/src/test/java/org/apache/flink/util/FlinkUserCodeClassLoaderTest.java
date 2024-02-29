@@ -18,14 +18,13 @@
 
 package org.apache.flink.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.URL;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 
 /** Tests for the {@link FlinkUserCodeClassLoader}. */
 public class FlinkUserCodeClassLoaderTest {

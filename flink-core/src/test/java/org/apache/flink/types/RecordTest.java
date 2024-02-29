@@ -24,8 +24,8 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.PipedInputStream;
@@ -48,7 +48,7 @@ public class RecordTest {
     private final DoubleValue origVal2 = new DoubleValue(Math.PI);
     private final IntValue origVal3 = new IntValue(1337);
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         PipedInputStream pipeIn = new PipedInputStream(1024 * 1024);
         PipedOutputStream pipeOut = new PipedOutputStream(pipeIn);
@@ -383,10 +383,10 @@ public class RecordTest {
 
         r.updateBinaryRepresenation();
 
-        assertThat(r.getField(1,IntValue.class)).isEqualTo(1);
-        assertThat(r.getField(3,IntValue.class)).isEqualTo(2);
-        assertThat(r.getField(7,IntValue.class)).isEqualTo(3);
-        assertThat(r.getField(8,IntValue.class)).isEqualTo(4);
+        assertThat(r.getField(1, IntValue.class)).isEqualTo(1);
+        assertThat(r.getField(3, IntValue.class)).isEqualTo(2);
+        assertThat(r.getField(7, IntValue.class)).isEqualTo(3);
+        assertThat(r.getField(8, IntValue.class)).isEqualTo(4);
 
         // Tests an update where modified and unmodified fields are interleaved
         r = new Record();

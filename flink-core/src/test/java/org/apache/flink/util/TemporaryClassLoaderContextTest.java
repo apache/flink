@@ -18,8 +18,8 @@
 
 package org.apache.flink.util;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.net.URL;
 
@@ -39,7 +39,7 @@ public class TemporaryClassLoaderContextTest {
 
         try (TemporaryClassLoaderContext ignored =
                 TemporaryClassLoaderContext.of(temporaryClassLoader)) {
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     temporaryClassLoader, Thread.currentThread().getContextClassLoader());
         }
 

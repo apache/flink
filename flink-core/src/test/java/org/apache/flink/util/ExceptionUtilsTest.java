@@ -18,10 +18,9 @@
 
 package org.apache.flink.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 
 /** Tests for the utility methods in {@link ExceptionUtils}. */
 public class ExceptionUtilsTest {

@@ -20,12 +20,12 @@ package org.apache.flink.util;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link SerializedValue}. */
 public class SerializedValueTest {
@@ -56,18 +56,21 @@ public class SerializedValueTest {
         assertThat(saved.getByteArray()).isEqualTo(v.getByteArray());
     }
 
-    @Test(expected = NullPointerException.class)
-    public void testNullValue() throws Exception {
-        new SerializedValue<>(null);
+    @Test
+    public void testNullValue() {
+        assertThatThrownBy(() -> new SerializedValue<>(null))
+                .isInstanceOf(NullPointerException.class);
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testFromNullBytes() {
-        SerializedValue.fromBytes(null);
+        assertThatThrownBy(() -> SerializedValue.fromBytes(null))
+                .isInstanceOf(NullPointerException.class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testFromEmptyBytes() {
-        SerializedValue.fromBytes(new byte[0]);
+        assertThatThrownBy(() -> SerializedValue.fromBytes(new byte[0]))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

@@ -20,7 +20,7 @@ package org.apache.flink.util;
 
 import org.apache.flink.api.common.time.Time;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -28,7 +28,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 
 /** Tests for {@link TimeUtils}. */
 public class TimeUtilsTest {
@@ -149,18 +148,18 @@ public class TimeUtilsTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testParseDurationNumberOverflow() {
-        TimeUtils.parseDuration("100000000000000000000000000000000 ms");
+        assertThatThrownBy(() -> TimeUtils.parseDuration("100000000000000000000000000000000 ms"))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     public void testGetStringInMillis() {
         assertThat(TimeUtils.getStringInMillis(Duration.ofMillis(4567L))).isEqualTo("4567ms");
         assertThat(TimeUtils.getStringInMillis(Duration.ofSeconds(4567L))).isEqualTo("4567000ms");
-        assertThat(
-                TimeUtils.getStringInMillis(
-                        Duration.of(4567L).isCloseTo("4ms", within(ChronoUnit.MICROS))));
+        assertThat(TimeUtils.getStringInMillis(Duration.of(4567L, ChronoUnit.MICROS)))
+                .isEqualTo("4ms");
     }
 
     @Test

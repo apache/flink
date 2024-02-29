@@ -18,7 +18,7 @@
 
 package org.apache.flink.management.jmx;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.ServerSocket;
 
