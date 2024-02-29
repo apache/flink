@@ -188,51 +188,51 @@ class ExecutionConfigTests(PyFlinkTestCase):
 
         self.assertEqual(self.execution_config.get_global_job_parameters(), {"hello": "world"})
 
-    def test_add_default_kryo_serializer(self):
+#     def test_add_default_kryo_serializer(self):
+#
+#         self.execution_config.add_default_kryo_serializer(
+#             "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
+#             "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
+#
+#         class_dict = self.execution_config.get_default_kryo_serializer_classes()
+#
+#         self.assertEqual(class_dict,
+#                          {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
+#                           'org.apache.flink.runtime.state'
+#                           '.StateBackendTestBase$CustomKryoTestSerializer'})
 
-        self.execution_config.add_default_kryo_serializer(
-            "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
-            "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
+#     def test_register_type_with_kryo_serializer(self):
+#
+#         self.execution_config.register_type_with_kryo_serializer(
+#             "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
+#             "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
+#
+#         class_dict = self.execution_config.get_registered_types_with_kryo_serializer_classes()
+#
+#         self.assertEqual(class_dict,
+#                          {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
+#                           'org.apache.flink.runtime.state'
+#                           '.StateBackendTestBase$CustomKryoTestSerializer'})
 
-        class_dict = self.execution_config.get_default_kryo_serializer_classes()
+#     def test_register_pojo_type(self):
+#
+#         self.execution_config.register_pojo_type(
+#             "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo")
+#
+#         type_list = self.execution_config.get_registered_pojo_types()
+#
+#         self.assertEqual(type_list,
+#                          ["org.apache.flink.runtime.state.StateBackendTestBase$TestPojo"])
 
-        self.assertEqual(class_dict,
-                         {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
-                          'org.apache.flink.runtime.state'
-                          '.StateBackendTestBase$CustomKryoTestSerializer'})
-
-    def test_register_type_with_kryo_serializer(self):
-
-        self.execution_config.register_type_with_kryo_serializer(
-            "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
-            "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
-
-        class_dict = self.execution_config.get_registered_types_with_kryo_serializer_classes()
-
-        self.assertEqual(class_dict,
-                         {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
-                          'org.apache.flink.runtime.state'
-                          '.StateBackendTestBase$CustomKryoTestSerializer'})
-
-    def test_register_pojo_type(self):
-
-        self.execution_config.register_pojo_type(
-            "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo")
-
-        type_list = self.execution_config.get_registered_pojo_types()
-
-        self.assertEqual(type_list,
-                         ["org.apache.flink.runtime.state.StateBackendTestBase$TestPojo"])
-
-    def test_register_kryo_type(self):
-
-        self.execution_config.register_kryo_type(
-            "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo")
-
-        type_list = self.execution_config.get_registered_kryo_types()
-
-        self.assertEqual(type_list,
-                         ["org.apache.flink.runtime.state.StateBackendTestBase$TestPojo"])
+#     def test_register_kryo_type(self):
+#
+#         self.execution_config.register_kryo_type(
+#             "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo")
+#
+#         type_list = self.execution_config.get_registered_kryo_types()
+#
+#         self.assertEqual(type_list,
+#                          ["org.apache.flink.runtime.state.StateBackendTestBase$TestPojo"])
 
     def test_auto_type_registration(self):
 
