@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.checkpoint.filemerging;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.EntropyInjector;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -34,10 +35,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -54,6 +60,12 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
 
     /** The executor for I/O operations in this manager. */
     protected final Executor ioExecutor;
+
+    /** Guard for uploadedStates. */
+    protected final Object lock = new Object();
+
+    @GuardedBy("lock")
+    protected TreeMap<Long, Set<LogicalFile>> uploadedStates = new TreeMap<>();
 
     /** The {@link FileSystem} that this manager works on. */
     protected FileSystem fs;
@@ -245,6 +257,13 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                                             physicalFile, startPos, stateSize, subtaskKey);
                             logicalFile.advanceLastCheckpointId(checkpointId);
 
+                            // track the logical file
+                            synchronized (lock) {
+                                uploadedStates
+                                        .computeIfAbsent(checkpointId, key -> new HashSet<>())
+                                        .add(logicalFile);
+                            }
+
                             // deal with physicalFile file
                             physicalFile.incSize(stateSize);
                             returnPhysicalFileForNextReuse(subtaskKey, checkpointId, physicalFile);
@@ -287,6 +306,13 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
         // so the checkpoint directories must be not null if we reach here
         final String fileName = UUID.randomUUID().toString();
         return new Path(dirPath, fileName);
+    }
+
+    @VisibleForTesting
+    boolean isResponsibleForFile(Path filePath) {
+        Path parent = filePath.getParent();
+        return parent.equals(managedExclusiveStateDir)
+                || managedSharedStateDir.containsValue(parent);
     }
 
     /**
@@ -344,6 +370,72 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
      */
     protected abstract void returnPhysicalFileForNextReuse(
             SubtaskKey subtaskKey, long checkpointId, PhysicalFile physicalFile) throws IOException;
+
+    /**
+     * The callback which will be triggered when all subtasks discarded (aborted or subsumed).
+     *
+     * @param checkpointId the discarded checkpoint id.
+     * @throws IOException if anything goes wrong with file system.
+     */
+    protected abstract void discardCheckpoint(long checkpointId) throws IOException;
+
+    // ------------------------------------------------------------------------
+    //  Checkpoint Listener
+    // ------------------------------------------------------------------------
+
+    @Override
+    public void notifyCheckpointComplete(SubtaskKey subtaskKey, long checkpointId)
+            throws Exception {
+        // does nothing
+    }
+
+    @Override
+    public void notifyCheckpointAborted(SubtaskKey subtaskKey, long checkpointId) throws Exception {
+        synchronized (lock) {
+            Set<LogicalFile> logicalFilesForCurrentCp = uploadedStates.get(checkpointId);
+            if (logicalFilesForCurrentCp == null) {
+                return;
+            }
+            if (discardLogicalFiles(subtaskKey, checkpointId, logicalFilesForCurrentCp)) {
+                uploadedStates.remove(checkpointId);
+            }
+        }
+    }
+
+    @Override
+    public void notifyCheckpointSubsumed(SubtaskKey subtaskKey, long checkpointId)
+            throws Exception {
+        synchronized (lock) {
+            Iterator<Map.Entry<Long, Set<LogicalFile>>> uploadedStatesIterator =
+                    uploadedStates.headMap(checkpointId, true).entrySet().iterator();
+            while (uploadedStatesIterator.hasNext()) {
+                Map.Entry<Long, Set<LogicalFile>> entry = uploadedStatesIterator.next();
+                if (discardLogicalFiles(subtaskKey, entry.getKey(), entry.getValue())) {
+                    uploadedStatesIterator.remove();
+                }
+            }
+        }
+    }
+
+    private boolean discardLogicalFiles(
+            SubtaskKey subtaskKey, long checkpointId, Set<LogicalFile> logicalFiles)
+            throws Exception {
+        Iterator<LogicalFile> logicalFileIterator = logicalFiles.iterator();
+        while (logicalFileIterator.hasNext()) {
+            LogicalFile logicalFile = logicalFileIterator.next();
+            if (logicalFile.getSubtaskKey().equals(subtaskKey)
+                    && logicalFile.getLastUsedCheckpointID() <= checkpointId) {
+                logicalFile.discardWithCheckpointId(checkpointId);
+                logicalFileIterator.remove();
+            }
+        }
+
+        if (logicalFiles.isEmpty()) {
+            discardCheckpoint(checkpointId);
+            return true;
+        }
+        return false;
+    }
 
     // ------------------------------------------------------------------------
     //  file system
