@@ -18,15 +18,28 @@
 
 package org.apache.flink.connector.file.table;
 
+import org.apache.flink.api.common.serialization.BulkWriter;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.format.EncodingFormat;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.AtomicDataType;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.IntType;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -39,6 +52,48 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link FileSystemTableSink}. */
 class FileSystemTableSinkTest {
+
+    @Test
+    void testUniqueStagingDirectory(@TempDir File tmpDir) {
+        final Configuration config = new Configuration();
+        config.set(FileSystemConnectorOptions.PATH, tmpDir.getAbsolutePath());
+
+        final FileSystemTableSink testInstance =
+                new FileSystemTableSink(
+                        ObjectIdentifier.of("random-catalog", "random-database", "random-name"),
+                        new AtomicDataType(new IntType()),
+                        Collections.emptyList(),
+                        config,
+                        null,
+                        null,
+                        // dummy format to please the null check
+                        new DummyEncodingFormat(),
+                        null);
+
+        assertThat(tmpDir.listFiles()).isEmpty();
+
+        final int expectedStagingDirectories = 100;
+        for (int i = 0; i < expectedStagingDirectories; i++) {
+            assertThat(testInstance.toStagingPath()).isNotNull();
+        }
+
+        assertThat(tmpDir.listFiles()).hasSize(expectedStagingDirectories);
+    }
+
+    private static class DummyEncodingFormat
+            implements EncodingFormat<BulkWriter.Factory<RowData>> {
+
+        @Override
+        public BulkWriter.Factory<RowData> createRuntimeEncoder(
+                DynamicTableSink.Context context, DataType physicalDataType) {
+            return null;
+        }
+
+        @Override
+        public ChangelogMode getChangelogMode() {
+            return null;
+        }
+    }
 
     @Test
     void testExceptionWhenSettingParallelismWithUpdatingQuery() {

@@ -374,15 +374,15 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         };
     }
 
-    private Path toStagingPath() {
+    @VisibleForTesting
+    Path toStagingPath() {
         // Add a random UUID to prevent multiple sinks from sharing the same staging dir.
         // Please see FLINK-29114 for more details
         Path stagingDir = new Path(path, ".staging_" + getStagingPathPostfix(false));
         try {
             FileSystem fs = stagingDir.getFileSystem();
             Preconditions.checkState(
-                    fs.exists(stagingDir) || fs.mkdirs(stagingDir),
-                    "Failed to create staging dir " + stagingDir);
+                    fs.mkdirs(stagingDir), "Failed to create staging dir " + stagingDir);
             return stagingDir;
         } catch (IOException e) {
             throw new RuntimeException(e);
