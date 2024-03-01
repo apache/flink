@@ -809,7 +809,7 @@ class StateTtlConfig(object):
         def cleanup_in_rocksdb_compact_filter(
                 self,
                 query_time_after_num_entries,
-                periodic_compaction_time=Duration.of_days(30)) -> \
+                periodic_compaction_time=None) -> \
                 'StateTtlConfig.Builder':
             """
             Cleanup expired state while Rocksdb compaction is running.
@@ -833,7 +833,8 @@ class StateTtlConfig(object):
             self._strategies[
                 StateTtlConfig.CleanupStrategies.Strategies.ROCKSDB_COMPACTION_FILTER] = \
                 StateTtlConfig.CleanupStrategies.RocksdbCompactFilterCleanupStrategy(
-                    query_time_after_num_entries, periodic_compaction_time)
+                    query_time_after_num_entries,
+                    periodic_compaction_time if periodic_compaction_time else Duration.of_days(30))
             return self
 
         def disable_cleanup_in_background(self) -> 'StateTtlConfig.Builder':
@@ -925,9 +926,10 @@ class StateTtlConfig(object):
 
             def __init__(self,
                          query_time_after_num_entries: int,
-                         periodic_compaction_time=Duration.of_days(30)):
+                         periodic_compaction_time=None):
                 self._query_time_after_num_entries = query_time_after_num_entries
-                self._periodic_compaction_time = periodic_compaction_time
+                self._periodic_compaction_time = periodic_compaction_time \
+                    if periodic_compaction_time else Duration.of_days(30)
 
             def get_query_time_after_num_entries(self) -> int:
                 return self._query_time_after_num_entries
