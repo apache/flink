@@ -55,6 +55,7 @@ class OggJsonFormatFactoryTest {
                         TimestampFormat.ISO_8601,
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
+                        true,
                         true);
 
         final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
@@ -137,6 +138,7 @@ class OggJsonFormatFactoryTest {
         options.put("ogg-json.map-null-key.mode", "LITERAL");
         options.put("ogg-json.map-null-key.literal", "null");
         options.put("ogg-json.encode.decimal-as-plain-number", "true");
+        options.put("ogg-json.encode.ignore-null-fields", "true");
         return options;
     }
 }
