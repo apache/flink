@@ -26,10 +26,10 @@ import java.net.URLClassLoader;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link LambdaUtil}. */
-public class LambdaUtilTest {
+class LambdaUtilTest {
 
     @Test
-    public void testRunWithContextClassLoaderRunnable() throws Exception {
+    void testRunWithContextClassLoaderRunnable() throws Exception {
         final ClassLoader aPrioriContextClassLoader =
                 Thread.currentThread().getContextClassLoader();
 
@@ -52,7 +52,7 @@ public class LambdaUtilTest {
     }
 
     @Test
-    public void testRunWithContextClassLoaderSupplier() throws Exception {
+    void testRunWithContextClassLoaderSupplier() throws Exception {
         final ClassLoader aPrioriContextClassLoader =
                 Thread.currentThread().getContextClassLoader();
 

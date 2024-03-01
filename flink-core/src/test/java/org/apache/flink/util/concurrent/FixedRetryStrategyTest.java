@@ -26,10 +26,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link FixedRetryStrategy}. */
-public class FixedRetryStrategyTest {
+class FixedRetryStrategyTest {
 
     @Test
-    public void testGetters() {
+    void testGetters() {
         RetryStrategy retryStrategy = new FixedRetryStrategy(10, Duration.ofMillis(5L));
         assertThat(retryStrategy.getNumRemainingRetries()).isEqualTo(10);
         assertThat(retryStrategy.getRetryDelay()).isEqualTo(Duration.ofMillis(5L));
@@ -41,7 +41,7 @@ public class FixedRetryStrategyTest {
 
     /** Tests that getting a next RetryStrategy below zero remaining retries fails. */
     @Test
-    public void testRetryFailure() {
+    void testRetryFailure() {
         assertThatThrownBy(
                         () ->
                                 new FixedRetryStrategy(0, Duration.ofMillis(5L))

@@ -51,7 +51,7 @@ public class ConjunctFutureTest {
     @Parameterized.Parameter public FutureFactory futureFactory;
 
     @Test
-    public void testConjunctFutureFailsOnEmptyAndNull() {
+    void testConjunctFutureFailsOnEmptyAndNull() {
         assertThatThrownBy(() -> futureFactory.createFuture(null))
                 .isInstanceOf(NullPointerException.class);
 
@@ -66,7 +66,7 @@ public class ConjunctFutureTest {
     }
 
     @Test
-    public void testConjunctFutureCompletion() {
+    void testConjunctFutureCompletion() {
         // some futures that we combine
         java.util.concurrent.CompletableFuture<Object> future1 =
                 new java.util.concurrent.CompletableFuture<>();
@@ -116,7 +116,7 @@ public class ConjunctFutureTest {
     }
 
     @Test
-    public void testConjunctFutureFailureOnFirst() throws Exception {
+    void testConjunctFutureFailureOnFirst() throws Exception {
 
         java.util.concurrent.CompletableFuture<Object> future1 =
                 new java.util.concurrent.CompletableFuture<>();
@@ -154,7 +154,7 @@ public class ConjunctFutureTest {
     }
 
     @Test
-    public void testConjunctFutureFailureOnSuccessive() throws Exception {
+    void testConjunctFutureFailureOnSuccessive() throws Exception {
 
         java.util.concurrent.CompletableFuture<Object> future1 =
                 new java.util.concurrent.CompletableFuture<>();
@@ -196,7 +196,7 @@ public class ConjunctFutureTest {
      * the same order in which the futures were inserted.
      */
     @Test
-    public void testConjunctFutureValue() throws Exception {
+    void testConjunctFutureValue() throws Exception {
         final int numberFutures = 10;
 
         final List<CompletableFuture<Integer>> futures = new ArrayList<>(numberFutures);
@@ -224,7 +224,7 @@ public class ConjunctFutureTest {
     }
 
     @Test
-    public void testConjunctOfNone() throws Exception {
+    void testConjunctOfNone() throws Exception {
         final ConjunctFuture<?> result =
                 futureFactory.createFuture(
                         Collections.<java.util.concurrent.CompletableFuture<Object>>emptyList());

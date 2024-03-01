@@ -30,10 +30,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link TimeUtils}. */
-public class TimeUtilsTest {
+class TimeUtilsTest {
 
     @Test
-    public void testParseDurationNanos() {
+    void testParseDurationNanos() {
         assertThat(TimeUtils.parseDuration("424562ns").getNano()).isEqualTo(424562);
         assertThat(TimeUtils.parseDuration("424562nano").getNano()).isEqualTo(424562);
         assertThat(TimeUtils.parseDuration("424562nanos").getNano()).isEqualTo(424562);
@@ -43,7 +43,7 @@ public class TimeUtilsTest {
     }
 
     @Test
-    public void testParseDurationMicros() {
+    void testParseDurationMicros() {
         assertThat(TimeUtils.parseDuration("565731µs").getNano()).isEqualTo(565731 * 1000L);
         assertThat(TimeUtils.parseDuration("565731micro").getNano()).isEqualTo(565731 * 1000L);
         assertThat(TimeUtils.parseDuration("565731micros").getNano()).isEqualTo(565731 * 1000L);
@@ -55,7 +55,7 @@ public class TimeUtilsTest {
     }
 
     @Test
-    public void testParseDurationMillis() {
+    void testParseDurationMillis() {
         assertThat(TimeUtils.parseDuration("1234").toMillis()).isEqualTo(1234);
         assertThat(TimeUtils.parseDuration("1234ms").toMillis()).isEqualTo(1234);
         assertThat(TimeUtils.parseDuration("1234milli").toMillis()).isEqualTo(1234);
@@ -66,7 +66,7 @@ public class TimeUtilsTest {
     }
 
     @Test
-    public void testParseDurationSeconds() {
+    void testParseDurationSeconds() {
         assertThat(TimeUtils.parseDuration("667766s").getSeconds()).isEqualTo(667766);
         assertThat(TimeUtils.parseDuration("667766sec").getSeconds()).isEqualTo(667766);
         assertThat(TimeUtils.parseDuration("667766secs").getSeconds()).isEqualTo(667766);
@@ -76,7 +76,7 @@ public class TimeUtilsTest {
     }
 
     @Test
-    public void testParseDurationMinutes() {
+    void testParseDurationMinutes() {
         assertThat(TimeUtils.parseDuration("7657623m").toMinutes()).isEqualTo(7657623);
         assertThat(TimeUtils.parseDuration("7657623min").toMinutes()).isEqualTo(7657623);
         assertThat(TimeUtils.parseDuration("7657623minute").toMinutes()).isEqualTo(7657623);
@@ -85,7 +85,7 @@ public class TimeUtilsTest {
     }
 
     @Test
-    public void testParseDurationHours() {
+    void testParseDurationHours() {
         assertThat(TimeUtils.parseDuration("987654h").toHours()).isEqualTo(987654);
         assertThat(TimeUtils.parseDuration("987654hour").toHours()).isEqualTo(987654);
         assertThat(TimeUtils.parseDuration("987654hours").toHours()).isEqualTo(987654);
@@ -93,7 +93,7 @@ public class TimeUtilsTest {
     }
 
     @Test
-    public void testParseDurationDays() {
+    void testParseDurationDays() {
         assertThat(TimeUtils.parseDuration("987654d").toDays()).isEqualTo(987654);
         assertThat(TimeUtils.parseDuration("987654day").toDays()).isEqualTo(987654);
         assertThat(TimeUtils.parseDuration("987654days").toDays()).isEqualTo(987654);
@@ -101,7 +101,7 @@ public class TimeUtilsTest {
     }
 
     @Test
-    public void testParseDurationUpperCase() {
+    void testParseDurationUpperCase() {
         assertThat(TimeUtils.parseDuration("1 NS").toNanos()).isEqualTo(1L);
         assertThat(TimeUtils.parseDuration("1 MICRO").toNanos()).isEqualTo(1000L);
         assertThat(TimeUtils.parseDuration("1 MS").toMillis()).isEqualTo(1L);
@@ -112,13 +112,13 @@ public class TimeUtilsTest {
     }
 
     @Test
-    public void testParseDurationTrim() {
+    void testParseDurationTrim() {
         assertThat(TimeUtils.parseDuration("      155      ").toMillis()).isEqualTo(155L);
         assertThat(TimeUtils.parseDuration("      155      ms   ").toMillis()).isEqualTo(155L);
     }
 
     @Test
-    public void testParseDurationInvalid() {
+    void testParseDurationInvalid() {
         // null
         assertThatThrownBy(() -> TimeUtils.parseDuration(null))
                 .isInstanceOf(NullPointerException.class);
@@ -149,13 +149,13 @@ public class TimeUtilsTest {
     }
 
     @Test
-    public void testParseDurationNumberOverflow() {
+    void testParseDurationNumberOverflow() {
         assertThatThrownBy(() -> TimeUtils.parseDuration("100000000000000000000000000000000 ms"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testGetStringInMillis() {
+    void testGetStringInMillis() {
         assertThat(TimeUtils.getStringInMillis(Duration.ofMillis(4567L))).isEqualTo("4567ms");
         assertThat(TimeUtils.getStringInMillis(Duration.ofSeconds(4567L))).isEqualTo("4567000ms");
         assertThat(TimeUtils.getStringInMillis(Duration.of(4567L, ChronoUnit.MICROS)))
@@ -163,7 +163,7 @@ public class TimeUtilsTest {
     }
 
     @Test
-    public void testToDuration() {
+    void testToDuration() {
         final Time time = Time.of(1337, TimeUnit.MICROSECONDS);
         final Duration duration = TimeUtils.toDuration(time);
 

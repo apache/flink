@@ -25,14 +25,14 @@ import java.net.ServerSocket;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the singleton usage via {@link JMXService}. */
-public class JMXServiceTest {
+class JMXServiceTest {
 
     /** Verifies initialize with port range. */
     @Test
-    public void testJMXServiceInit() throws Exception {
+    void testJMXServiceInit() throws Exception {
         try {
             JMXService.startInstance("23456-23466");
-            assertThat(JMXService.getPort().isPresent()).isTrue();
+            assertThat(JMXService.getPort()).isPresent();
         } finally {
             JMXService.stopInstance();
         }
@@ -40,10 +40,10 @@ public class JMXServiceTest {
 
     /** Verifies initialize failure with occupied port. */
     @Test
-    public void testJMXServiceInitWithOccupiedPort() throws Exception {
+    void testJMXServiceInitWithOccupiedPort() throws Exception {
         try (ServerSocket socket = new ServerSocket(0)) {
             JMXService.startInstance(String.valueOf(socket.getLocalPort()));
-            assertThat(JMXService.getInstance().isPresent()).isFalse();
+            assertThat(JMXService.getInstance()).isNotPresent();
         }
     }
 }

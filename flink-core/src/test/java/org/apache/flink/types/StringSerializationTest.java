@@ -41,7 +41,7 @@ public class StringSerializationTest {
     private final Random rnd = new Random(2093486528937460234L);
 
     @Test
-    public void testNonNullValues() throws IOException {
+    void testNonNullValues() throws IOException {
         String[] testStrings =
                 new String[] {"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"};
 
@@ -49,7 +49,7 @@ public class StringSerializationTest {
     }
 
     @Test
-    public void testUnicodeValues() throws IOException {
+    void testUnicodeValues() throws IOException {
         String[] testStrings =
                 new String[] {
                     StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2, (char) 1, (char) 127),
@@ -68,7 +68,7 @@ public class StringSerializationTest {
     }
 
     @Test
-    public void testUnicodeSurrogatePairs() throws IOException {
+    void testUnicodeSurrogatePairs() throws IOException {
         String[] symbols =
                 new String[] {
                     "\uD800\uDF30", "\uD800\uDF31", "\uD800\uDF32", "\uD834\uDF08", "\uD834\uDF56",
@@ -88,7 +88,7 @@ public class StringSerializationTest {
     }
 
     @Test
-    public void testStringBinaryCompatibility() throws IOException {
+    void testStringBinaryCompatibility() throws IOException {
         String[] testStrings =
                 new String[] {
                     StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2, (char) 1, (char) 127),
@@ -122,7 +122,7 @@ public class StringSerializationTest {
     }
 
     @Test
-    public void testNullValues() throws IOException {
+    void testNullValues() throws IOException {
         String[] testStrings =
                 new String[] {
                     "a",
@@ -142,7 +142,7 @@ public class StringSerializationTest {
     }
 
     @Test
-    public void testLongValues() throws IOException {
+    void testLongValues() throws IOException {
         String[] testStrings =
                 new String[] {
                     StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
@@ -155,7 +155,7 @@ public class StringSerializationTest {
     }
 
     @Test
-    public void testMixedValues() throws IOException {
+    void testMixedValues() throws IOException {
         String[] testStrings =
                 new String[] {
                     StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
@@ -174,7 +174,7 @@ public class StringSerializationTest {
     }
 
     @Test
-    public void testBinaryCopyOfLongStrings() throws IOException {
+    void testBinaryCopyOfLongStrings() throws IOException {
         String[] testStrings =
                 new String[] {
                     StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),

@@ -23,10 +23,10 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link LongValueSequenceIterator}. */
-public class LongValueSequenceIteratorTest {
+class LongValueSequenceIteratorTest {
 
     @Test
-    public void testSplitRegular() {
+    void testSplitRegular() {
         testSplitting(new org.apache.flink.util.LongValueSequenceIterator(0, 10), 2);
         testSplitting(new org.apache.flink.util.LongValueSequenceIterator(100, 100000), 7);
         testSplitting(new org.apache.flink.util.LongValueSequenceIterator(-100, 0), 5);
@@ -34,7 +34,7 @@ public class LongValueSequenceIteratorTest {
     }
 
     @Test
-    public void testSplittingLargeRangesBy2() {
+    void testSplittingLargeRangesBy2() {
         testSplitting(new org.apache.flink.util.LongValueSequenceIterator(0, Long.MAX_VALUE), 2);
         testSplitting(
                 new org.apache.flink.util.LongValueSequenceIterator(-1000000000L, Long.MAX_VALUE),
@@ -45,7 +45,7 @@ public class LongValueSequenceIteratorTest {
     }
 
     @Test
-    public void testSplittingTooSmallRanges() {
+    void testSplittingTooSmallRanges() {
         testSplitting(new org.apache.flink.util.LongValueSequenceIterator(0, 0), 2);
         testSplitting(new org.apache.flink.util.LongValueSequenceIterator(-5, -5), 2);
         testSplitting(new org.apache.flink.util.LongValueSequenceIterator(-5, -4), 3);

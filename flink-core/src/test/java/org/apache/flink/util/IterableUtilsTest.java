@@ -28,12 +28,12 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link IterableUtils}. */
-public class IterableUtilsTest {
+class IterableUtilsTest {
 
     private final Iterable<Integer> testIterable = Arrays.asList(1, 8, 5, 3, 8);
 
     @Test
-    public void testToStream() {
+    void testToStream() {
         Queue<Integer> deque = new ArrayDeque<>();
         testIterable.forEach(deque::add);
 

@@ -25,10 +25,10 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class FieldParserTest {
+class FieldParserTest {
 
     @Test
-    public void testDelimiterNext() throws Exception {
+    void testDelimiterNext() throws Exception {
         byte[] bytes = "aaabc".getBytes();
         byte[] delim = "aa".getBytes();
         assertThat(FieldParser.delimiterNext(bytes, 0, delim)).isTrue();
@@ -37,7 +37,7 @@ public class FieldParserTest {
     }
 
     @Test
-    public void testEndsWithDelimiter() throws Exception {
+    void testEndsWithDelimiter() throws Exception {
         byte[] bytes = "aabc".getBytes();
         byte[] delim = "ab".getBytes();
         assertThat(FieldParser.endsWithDelimiter(bytes, 0, delim)).isFalse();
@@ -47,7 +47,7 @@ public class FieldParserTest {
     }
 
     @Test
-    public void testNextStringEndPos() throws Exception {
+    void testNextStringEndPos() throws Exception {
 
         FieldParser parser = new TestFieldParser<String>();
         // single-char delimiter

@@ -26,10 +26,10 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link RowUtils}. */
-public class RowUtilsTest {
+class RowUtilsTest {
 
     @Test
-    public void testCompareRowsUnordered() {
+    void testCompareRowsUnordered() {
         final List<Row> originalList =
                 Arrays.asList(
                         Row.of("a", 12, false),

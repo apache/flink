@@ -23,10 +23,10 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link NumberSequenceIterator}. */
-public class NumberSequenceIteratorTest {
+class NumberSequenceIteratorTest {
 
     @Test
-    public void testSplitRegular() {
+    void testSplitRegular() {
         testSplitting(new NumberSequenceIterator(0, 10), 2);
         testSplitting(new NumberSequenceIterator(100, 100000), 7);
         testSplitting(new NumberSequenceIterator(-100, 0), 5);
@@ -34,14 +34,14 @@ public class NumberSequenceIteratorTest {
     }
 
     @Test
-    public void testSplittingLargeRangesBy2() {
+    void testSplittingLargeRangesBy2() {
         testSplitting(new NumberSequenceIterator(0, Long.MAX_VALUE), 2);
         testSplitting(new NumberSequenceIterator(-1000000000L, Long.MAX_VALUE), 2);
         testSplitting(new NumberSequenceIterator(Long.MIN_VALUE, Long.MAX_VALUE), 2);
     }
 
     @Test
-    public void testSplittingTooSmallRanges() {
+    void testSplittingTooSmallRanges() {
         testSplitting(new NumberSequenceIterator(0, 0), 2);
         testSplitting(new NumberSequenceIterator(-5, -5), 2);
         testSplitting(new NumberSequenceIterator(-5, -4), 3);

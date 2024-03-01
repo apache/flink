@@ -21,7 +21,6 @@ package org.apache.flink.types;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -29,27 +28,26 @@ import java.util.ArrayList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class JavaToValueConverterTest {
+class JavaToValueConverterTest {
 
     @Test
-    public void testJavaToValueConversion() {
+    void testJavaToValueConversion() {
         assertThat(JavaToValueConverter.convertBoxedJavaType(null)).isNull();
 
-        Assertions.assertEquals(
-                new StringValue("123Test"), JavaToValueConverter.convertBoxedJavaType("123Test"));
-        Assertions.assertEquals(
-                new ByteValue((byte) 44), JavaToValueConverter.convertBoxedJavaType((byte) 44));
-        Assertions.assertEquals(
-                new ShortValue((short) 10000),
-                JavaToValueConverter.convertBoxedJavaType((short) 10000));
+        assertThat(JavaToValueConverter.convertBoxedJavaType("123Test"))
+                .isEqualTo(new StringValue("123Test"));
+        assertThat(JavaToValueConverter.convertBoxedJavaType((byte) 44))
+                .isEqualTo(new ByteValue((byte) 44));
+        assertThat(JavaToValueConverter.convertBoxedJavaType((short) 10000))
+                .isEqualTo(new ShortValue((short) 10000));
         assertThat(JavaToValueConverter.convertBoxedJavaType(3567564))
                 .isEqualTo(new IntValue(3567564));
-        Assertions.assertEquals(
-                new LongValue(767692734), JavaToValueConverter.convertBoxedJavaType(767692734L));
+        assertThat(JavaToValueConverter.convertBoxedJavaType(767692734L))
+                .isEqualTo(new LongValue(767692734));
         assertThat(JavaToValueConverter.convertBoxedJavaType(17.5f))
                 .isEqualTo(new FloatValue(17.5f));
-        Assertions.assertEquals(
-                new DoubleValue(3.1415926), JavaToValueConverter.convertBoxedJavaType(3.1415926));
+        assertThat(JavaToValueConverter.convertBoxedJavaType(3.1415926))
+                .isEqualTo(new DoubleValue(3.1415926));
         assertThat(JavaToValueConverter.convertBoxedJavaType(true))
                 .isEqualTo(new BooleanValue(true));
         assertThat(JavaToValueConverter.convertBoxedJavaType('@')).isEqualTo(new CharValue('@'));
@@ -59,22 +57,21 @@ public class JavaToValueConverterTest {
     }
 
     @Test
-    public void testValueToJavaConversion() {
+    void testValueToJavaConversion() {
         assertThat(JavaToValueConverter.convertValueType(null)).isNull();
 
-        Assertions.assertEquals(
-                "123Test", JavaToValueConverter.convertValueType(new StringValue("123Test")));
-        Assertions.assertEquals(
-                (byte) 44, JavaToValueConverter.convertValueType(new ByteValue((byte) 44)));
-        Assertions.assertEquals(
-                (short) 10000,
-                JavaToValueConverter.convertValueType(new ShortValue((short) 10000)));
+        assertThat(JavaToValueConverter.convertValueType(new StringValue("123Test")))
+                .isEqualTo("123Test");
+        assertThat(JavaToValueConverter.convertValueType(new ByteValue((byte) 44)))
+                .isEqualTo((byte) 44);
+        assertThat(JavaToValueConverter.convertValueType(new ShortValue((short) 10000)))
+                .isEqualTo((short) 10000);
         assertThat(JavaToValueConverter.convertValueType(new IntValue(3567564))).isEqualTo(3567564);
-        Assertions.assertEquals(
-                767692734L, JavaToValueConverter.convertValueType(new LongValue(767692734)));
+        assertThat(JavaToValueConverter.convertValueType(new LongValue(767692734)))
+                .isEqualTo(767692734L);
         assertThat(JavaToValueConverter.convertValueType(new FloatValue(17.5f))).isEqualTo(17.5f);
-        Assertions.assertEquals(
-                3.1415926, JavaToValueConverter.convertValueType(new DoubleValue(3.1415926)));
+        assertThat(JavaToValueConverter.convertValueType(new DoubleValue(3.1415926)))
+                .isEqualTo(3.1415926);
         assertThat(JavaToValueConverter.convertValueType(new BooleanValue(true))).isEqualTo(true);
         assertThat(JavaToValueConverter.convertValueType(new CharValue('@'))).isEqualTo('@');
 

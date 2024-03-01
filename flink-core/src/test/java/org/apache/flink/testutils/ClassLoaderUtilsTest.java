@@ -27,28 +27,28 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link ClassLoaderUtils}. */
-public class ClassLoaderUtilsTest {
+class ClassLoaderUtilsTest {
 
     @Test
-    public void testObjectFromNewClassLoaderObject() throws Exception {
+    void testObjectFromNewClassLoaderObject() throws Exception {
         testObjectFromNewClassLoaderObject(
                 ClassLoaderUtils::createSerializableObjectFromNewClassLoader);
     }
 
     @Test
-    public void testObjectFromNewClassLoaderClassLoaders() throws Exception {
+    void testObjectFromNewClassLoaderClassLoaders() throws Exception {
         testObjectFromNewClassLoaderClassLoaders(
                 ClassLoaderUtils::createSerializableObjectFromNewClassLoader);
     }
 
     @Test
-    public void testExceptionObjectFromNewClassLoaderObject() throws Exception {
+    void testExceptionObjectFromNewClassLoaderObject() throws Exception {
         testObjectFromNewClassLoaderObject(
                 ClassLoaderUtils::createExceptionObjectFromNewClassLoader);
     }
 
     @Test
-    public void testExceptionObjectFromNewClassLoaderClassLoaders() throws Exception {
+    void testExceptionObjectFromNewClassLoaderClassLoaders() throws Exception {
         testObjectFromNewClassLoaderClassLoaders(
                 ClassLoaderUtils::createExceptionObjectFromNewClassLoader);
     }

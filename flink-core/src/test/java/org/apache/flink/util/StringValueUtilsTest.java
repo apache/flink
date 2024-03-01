@@ -26,24 +26,24 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link StringValueUtils}. */
-public class StringValueUtilsTest {
+class StringValueUtilsTest {
 
     @Test
-    public void testToLowerCaseConverting() {
+    void testToLowerCaseConverting() {
         StringValue testString = new StringValue("TEST");
         StringValueUtils.toLowerCase(testString);
         assertThat((Object) testString).isEqualTo(new StringValue("test"));
     }
 
     @Test
-    public void testReplaceNonWordChars() {
+    void testReplaceNonWordChars() {
         StringValue testString = new StringValue("TEST123_@");
         StringValueUtils.replaceNonWordChars(testString, '!');
         assertThat((Object) testString).isEqualTo(new StringValue("TEST123_!"));
     }
 
     @Test
-    public void testTokenizerOnStringWithoutNexToken() {
+    void testTokenizerOnStringWithoutNexToken() {
         StringValue testString = new StringValue("test");
         StringValueUtils.WhitespaceTokenizer tokenizer = new WhitespaceTokenizer();
         tokenizer.setStringToTokenize(testString);
@@ -54,7 +54,7 @@ public class StringValueUtilsTest {
     }
 
     @Test
-    public void testTokenizerOnStringWithNexToken() {
+    void testTokenizerOnStringWithNexToken() {
         StringValue testString = new StringValue("test test");
         StringValueUtils.WhitespaceTokenizer tokenizer = new WhitespaceTokenizer();
         tokenizer.setStringToTokenize(testString);
@@ -62,7 +62,7 @@ public class StringValueUtilsTest {
     }
 
     @Test
-    public void testTokenizerOnStringOnlyWithDelimiter() {
+    void testTokenizerOnStringOnlyWithDelimiter() {
         StringValue testString = new StringValue("    ");
         StringValueUtils.WhitespaceTokenizer tokenizer = new WhitespaceTokenizer();
         tokenizer.setStringToTokenize(testString);

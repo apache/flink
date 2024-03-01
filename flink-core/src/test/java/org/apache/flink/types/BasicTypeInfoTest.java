@@ -29,7 +29,7 @@ import java.util.Date;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class BasicTypeInfoTest {
+class BasicTypeInfoTest {
 
     static Class<?>[] classes = {
         String.class,
@@ -49,7 +49,7 @@ public class BasicTypeInfoTest {
     };
 
     @Test
-    public void testBasicTypeInfoEquality() {
+    void testBasicTypeInfoEquality() {
         for (Class<?> clazz : classes) {
             BasicTypeInfo<?> tpeInfo1 = BasicTypeInfo.getInfoFor(clazz);
             BasicTypeInfo<?> tpeInfo2 = BasicTypeInfo.getInfoFor(clazz);
@@ -60,7 +60,7 @@ public class BasicTypeInfoTest {
     }
 
     @Test
-    public void testBasicTypeInfoInequality() {
+    void testBasicTypeInfoInequality() {
         for (Class<?> clazz1 : classes) {
             for (Class<?> clazz2 : classes) {
                 if (!clazz1.equals(clazz2)) {

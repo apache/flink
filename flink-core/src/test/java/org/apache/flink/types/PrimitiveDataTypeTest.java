@@ -35,7 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
-public class PrimitiveDataTypeTest {
+class PrimitiveDataTypeTest {
 
     private PipedInputStream in;
     private PipedOutputStream out;
@@ -44,7 +44,7 @@ public class PrimitiveDataTypeTest {
     private DataOutputView mOut;
 
     @BeforeEach
-    public void setup() throws Exception {
+    void setup() throws Exception {
         in = new PipedInputStream(1000);
         out = new PipedOutputStream(in);
         mIn = new DataInputViewStreamWrapper(in);
@@ -52,7 +52,7 @@ public class PrimitiveDataTypeTest {
     }
 
     @Test
-    public void testIntValue() throws IOException {
+    void testIntValue() throws IOException {
         IntValue int0 = new IntValue(10);
         // test value retrieval
         assertThat(int0.getValue()).isEqualTo(10);
@@ -83,7 +83,7 @@ public class PrimitiveDataTypeTest {
     }
 
     @Test
-    public void testDoubleValue() throws IOException {
+    void testDoubleValue() throws IOException {
         DoubleValue double0 = new DoubleValue(10.2);
         // test value retrieval
         assertThat(double0.getValue()).isCloseTo(10.2, within(0.0001));
@@ -114,7 +114,7 @@ public class PrimitiveDataTypeTest {
     }
 
     @Test
-    public void testStringValue() throws IOException {
+    void testStringValue() throws IOException {
         StringValue string0 = new StringValue("This is a test");
         StringValue stringThis = new StringValue("This");
         StringValue stringIsA = new StringValue("is a");
@@ -182,7 +182,7 @@ public class PrimitiveDataTypeTest {
     }
 
     @Test
-    public void testPactNull() throws IOException {
+    void testPactNull() throws IOException {
 
         final NullValue pn1 = new NullValue();
         final NullValue pn2 = new NullValue();

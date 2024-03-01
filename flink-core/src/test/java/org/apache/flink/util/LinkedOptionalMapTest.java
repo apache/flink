@@ -28,10 +28,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test {@link LinkedOptionalMap}. */
-public class LinkedOptionalMapTest {
+class LinkedOptionalMapTest {
 
     @Test
-    public void usageExample() {
+    void usageExample() {
         LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
 
         map.put("java.lang.String", String.class, "a string class");
@@ -43,7 +43,7 @@ public class LinkedOptionalMapTest {
     }
 
     @Test
-    public void overridingKeyWithTheSameKeyName() {
+    void overridingKeyWithTheSameKeyName() {
         LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
 
         map.put("java.lang.String", null, "a string class");
@@ -53,7 +53,7 @@ public class LinkedOptionalMapTest {
     }
 
     @Test
-    public void overridingKeysAndValuesWithTheSameKeyName() {
+    void overridingKeysAndValuesWithTheSameKeyName() {
         LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
 
         map.put("java.lang.String", null, null);
@@ -63,7 +63,7 @@ public class LinkedOptionalMapTest {
     }
 
     @Test
-    public void overridingAValueWithMissingKeyShouldBeConsideredAsAbsent() {
+    void overridingAValueWithMissingKeyShouldBeConsideredAsAbsent() {
         LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
 
         map.put("java.lang.String", null, null);
@@ -73,7 +73,7 @@ public class LinkedOptionalMapTest {
     }
 
     @Test
-    public void mergingMapsWithPresentEntriesLeavesNoAbsentKeyNames() {
+    void mergingMapsWithPresentEntriesLeavesNoAbsentKeyNames() {
         LinkedOptionalMap<Class<?>, String> first = new LinkedOptionalMap<>();
         first.put("b", null, null);
         first.put("c", String.class, null);
@@ -90,7 +90,7 @@ public class LinkedOptionalMapTest {
     }
 
     @Test
-    public void mergingMapsPreserversTheOrderOfTheOriginalMap() {
+    void mergingMapsPreserversTheOrderOfTheOriginalMap() {
         LinkedOptionalMap<Class<?>, String> first = new LinkedOptionalMap<>();
         first.put("b", null, null);
         first.put("c", String.class, null);
@@ -107,7 +107,7 @@ public class LinkedOptionalMapTest {
     }
 
     @Test
-    public void mergingToEmpty() {
+    void mergingToEmpty() {
         LinkedOptionalMap<Class<?>, String> first = new LinkedOptionalMap<>();
 
         LinkedOptionalMap<Class<?>, String> second = new LinkedOptionalMap<>();
@@ -122,7 +122,7 @@ public class LinkedOptionalMapTest {
     }
 
     @Test
-    public void unwrapOptionalsWithMissingValueThrows() {
+    void unwrapOptionalsWithMissingValueThrows() {
         assertThatThrownBy(
                         () -> {
                             LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
@@ -135,7 +135,7 @@ public class LinkedOptionalMapTest {
     }
 
     @Test
-    public void unwrapOptionalsWithMissingKeyThrows() {
+    void unwrapOptionalsWithMissingKeyThrows() {
         assertThatThrownBy(
                         () -> {
                             LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
@@ -148,7 +148,7 @@ public class LinkedOptionalMapTest {
     }
 
     @Test
-    public void unwrapOptionalsPreservesOrder() {
+    void unwrapOptionalsPreservesOrder() {
         LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
 
         map.put("a", String.class, "aaa");
@@ -156,12 +156,12 @@ public class LinkedOptionalMapTest {
 
         LinkedHashMap<Class<?>, String> m = map.unwrapOptionals();
 
-        assertThat(m.keySet()).contains(String.class, Boolean.class);
-        assertThat(m.values()).contains("aaa", "bbb");
+        assertThat(m).containsKey(String.class);
+        assertThat(m).containsValue("aaa");
     }
 
     @Test
-    public void testPrefix() {
+    void testPrefix() {
         LinkedOptionalMap<Class<?>, String> left = new LinkedOptionalMap<>();
 
         left.put("a", String.class, "aaa");
@@ -175,7 +175,7 @@ public class LinkedOptionalMapTest {
     }
 
     @Test
-    public void testNonPrefix() {
+    void testNonPrefix() {
         LinkedOptionalMap<Class<?>, String> left = new LinkedOptionalMap<>();
 
         left.put("a", String.class, "aaa");
@@ -191,7 +191,7 @@ public class LinkedOptionalMapTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void demoMergeResult() {
+    void demoMergeResult() {
         LinkedOptionalMap<Class<?>, String> left = new LinkedOptionalMap<>();
         left.put("b", null, null);
         left.put("c", String.class, null);

@@ -28,10 +28,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link ResourceGuard}. */
-public class ResourceGuardTest {
+class ResourceGuardTest {
 
     @Test
-    public void testClose() {
+    void testClose() {
         ResourceGuard resourceGuard = new ResourceGuard();
         assertThat(resourceGuard.isClosed()).isFalse();
         resourceGuard.close();
@@ -40,7 +40,7 @@ public class ResourceGuardTest {
     }
 
     @Test
-    public void testAcquireReleaseClose() throws IOException {
+    void testAcquireReleaseClose() throws IOException {
         ResourceGuard resourceGuard = new ResourceGuard();
         ResourceGuard.Lease lease = resourceGuard.acquireResource();
         assertThat(resourceGuard.getLeaseCount()).isOne();
@@ -51,7 +51,7 @@ public class ResourceGuardTest {
     }
 
     @Test
-    public void testCloseBlockIfAcquired() throws Exception {
+    void testCloseBlockIfAcquired() throws Exception {
         ResourceGuard resourceGuard = new ResourceGuard();
         ResourceGuard.Lease lease = resourceGuard.acquireResource();
         AtomicBoolean checker = new AtomicBoolean(true);
@@ -90,7 +90,7 @@ public class ResourceGuardTest {
     }
 
     @Test
-    public void testInterruptHandledCorrectly() throws Exception {
+    void testInterruptHandledCorrectly() throws Exception {
         ResourceGuard resourceGuard = new ResourceGuard();
         ResourceGuard.Lease lease = resourceGuard.acquireResource();
         AtomicBoolean checker = new AtomicBoolean(true);
@@ -128,7 +128,7 @@ public class ResourceGuardTest {
     }
 
     @Test
-    public void testLeaseCloseIsIdempotent() throws Exception {
+    void testLeaseCloseIsIdempotent() throws Exception {
         ResourceGuard resourceGuard = new ResourceGuard();
         ResourceGuard.Lease lease1 = resourceGuard.acquireResource();
         ResourceGuard.Lease lease2 = resourceGuard.acquireResource();

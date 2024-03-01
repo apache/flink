@@ -18,44 +18,43 @@
 
 package org.apache.flink.util;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.time.DayOfWeek;
 import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link StringUtils}. */
-public class StringUtilsTest {
+class StringUtilsTest {
 
     @Test
-    public void testControlCharacters() {
+    void testControlCharacters() {
         String testString = "\b \t \n \f \r default";
         String controlString = StringUtils.showControlCharacters(testString);
         assertThat(controlString).isEqualTo("\\b \\t \\n \\f \\r default");
     }
 
     @Test
-    public void testArrayAwareToString() {
+    void testArrayAwareToString() {
         assertThat(StringUtils.arrayAwareToString(null)).isEqualTo("null");
 
         assertThat(StringUtils.arrayAwareToString(DayOfWeek.MONDAY)).isEqualTo("MONDAY");
 
         assertThat(StringUtils.arrayAwareToString(new int[] {1, 2, 3})).isEqualTo("[1, 2, 3]");
 
-        Assertions.assertEquals(
-                "[[4, 5, 6], null, []]",
-                StringUtils.arrayAwareToString(new byte[][] {{4, 5, 6}, null, {}}));
+        assertThat(StringUtils.arrayAwareToString(new byte[][] {{4, 5, 6}, null, {}}))
+                .isEqualTo("[[4, 5, 6], null, []]");
 
-        Assertions.assertEquals(
-                "[[4, 5, 6], null, MONDAY]",
-                StringUtils.arrayAwareToString(
-                        new Object[] {new Integer[] {4, 5, 6}, null, DayOfWeek.MONDAY}));
+        assertThat(
+                        StringUtils.arrayAwareToString(
+                                new Object[] {new Integer[] {4, 5, 6}, null, DayOfWeek.MONDAY}))
+                .isEqualTo("[[4, 5, 6], null, MONDAY]");
     }
 
     @Test
-    public void testStringToHexArray() {
+    void testStringToHexArray() {
         String hex = "019f314a";
         byte[] hexArray = StringUtils.hexStringToByte(hex);
         byte[] expectedArray = new byte[] {1, -97, 49, 74};
@@ -63,18 +62,18 @@ public class StringUtilsTest {
     }
 
     @Test
-    public void testHexArrayToString() {
+    void testHexArrayToString() {
         byte[] byteArray = new byte[] {1, -97, 49, 74};
         String hex = StringUtils.byteToHexString(byteArray);
         assertThat(hex).isEqualTo("019f314a");
     }
 
     @Test
-    public void testGenerateAlphanumeric() {
+    void testGenerateAlphanumeric() {
         String str = StringUtils.generateRandomAlphanumericString(new Random(), 256);
 
         if (!str.matches("[a-zA-Z0-9]{256}")) {
-            Assertions.fail("Not alphanumeric: " + str);
+            fail("", "Not alphanumeric: " + str);
         }
     }
 }

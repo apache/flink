@@ -27,11 +27,11 @@ import java.io.InputStream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** This class contains tests for the {@link org.apache.flink.util.AbstractID} class. */
-public class AbstractIDTest {
+class AbstractIDTest {
 
     /** Tests the serialization/deserialization of an abstract ID. */
     @Test
-    public void testSerialization() throws Exception {
+    void testSerialization() throws Exception {
         final AbstractID origID = new AbstractID();
         final AbstractID copyID = CommonTestUtils.createCopySerializable(origID);
 
@@ -40,7 +40,7 @@ public class AbstractIDTest {
     }
 
     @Test
-    public void testConvertToBytes() throws Exception {
+    void testConvertToBytes() throws Exception {
         final AbstractID origID = new AbstractID();
 
         AbstractID copy1 = new AbstractID(origID);
@@ -53,7 +53,7 @@ public class AbstractIDTest {
     }
 
     @Test
-    public void testCompare() throws Exception {
+    void testCompare() throws Exception {
         AbstractID id1 = new AbstractID(0, 0);
         AbstractID id2 = new AbstractID(1, 0);
         AbstractID id3 = new AbstractID(0, 1);
@@ -105,7 +105,7 @@ public class AbstractIDTest {
      * abstractID-with-toString-field-set have been created with the serialized data.
      */
     @Test
-    public void testOldAbstractIDDeserialization() throws Exception {
+    void testOldAbstractIDDeserialization() throws Exception {
         final long lowerPart = 42L;
         final long upperPart = 1337L;
         final AbstractID expectedAbstractId = new AbstractID(lowerPart, upperPart);

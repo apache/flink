@@ -30,7 +30,7 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.util.Random;
 
-public class RecordITCase {
+class RecordITCase {
 
     private static final long SEED = 354144423270432543L;
     private final Random rand = new Random(RecordITCase.SEED);
@@ -39,14 +39,14 @@ public class RecordITCase {
     private DataOutputView out;
 
     @BeforeEach
-    public void setUp() throws Exception {
+    void setUp() throws Exception {
         PipedInputStream pipedInput = new PipedInputStream(32 * 1024 * 1024);
         this.in = new DataInputViewStreamWrapper(pipedInput);
         this.out = new DataOutputViewStreamWrapper(new PipedOutputStream(pipedInput));
     }
 
     @Test
-    public void massiveRandomBlackBoxTests() throws Exception {
+    void massiveRandomBlackBoxTests() throws Exception {
         // random test with records with a small number of fields
         for (int i = 0; i < 100000; i++) {
             final Value[] fields = RecordTest.createRandomValues(this.rand, 0, 32);

@@ -29,10 +29,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link UnionIterator}. */
-public class UnionIteratorTest {
+class UnionIteratorTest {
 
     @Test
-    public void testUnion() {
+    void testUnion() {
         UnionIterator<Integer> iter = new UnionIterator<>();
 
         // should succeed and be empty
@@ -54,7 +54,7 @@ public class UnionIteratorTest {
     }
 
     @Test
-    public void testTraversableOnce() {
+    void testTraversableOnce() {
         UnionIterator<Integer> iter = new UnionIterator<>();
 
         // should succeed

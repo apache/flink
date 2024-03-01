@@ -22,20 +22,19 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the utility methods in {@link ExceptionUtils}. */
-public class ExceptionUtilsTest {
+class ExceptionUtilsTest {
 
     @Test
-    public void testStringifyNullException() {
+    void testStringifyNullException() {
         assertThat(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION).isNotNull();
         assertThat(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION)
                 .isEqualTo(ExceptionUtils.stringifyException(null));
     }
 
     @Test
-    public void testJvmFatalError() {
+    void testJvmFatalError() {
         // not all errors are fatal
         assertThat(ExceptionUtils.isJvmFatalError(new Error())).isFalse();
 
@@ -48,7 +47,7 @@ public class ExceptionUtilsTest {
     }
 
     @Test
-    public void testRethrowFatalError() {
+    void testRethrowFatalError() {
         // fatal error is rethrown
         assertThatThrownBy(() -> ExceptionUtils.rethrowIfFatalError(new InternalError()))
                 .isInstanceOf(InternalError.class);
@@ -58,16 +57,16 @@ public class ExceptionUtilsTest {
     }
 
     @Test
-    public void testFindThrowableByType() {
-        assertTrue(
-                ExceptionUtils.findThrowable(
+    void testFindThrowableByType() {
+        assertThat(
+                        ExceptionUtils.findThrowable(
                                 new RuntimeException(new IllegalStateException()),
-                                IllegalStateException.class)
-                        .isPresent());
+                                IllegalStateException.class))
+                .isPresent();
     }
 
     @Test
-    public void testExceptionStripping() {
+    void testExceptionStripping() {
         final FlinkException expectedException = new FlinkException("test exception");
         final Throwable strippedException =
                 ExceptionUtils.stripException(
@@ -78,7 +77,7 @@ public class ExceptionUtilsTest {
     }
 
     @Test
-    public void testInvalidExceptionStripping() {
+    void testInvalidExceptionStripping() {
         final FlinkException expectedException =
                 new FlinkException(new RuntimeException(new FlinkException("inner exception")));
         final Throwable strippedException =
@@ -88,12 +87,12 @@ public class ExceptionUtilsTest {
     }
 
     @Test
-    public void testTryEnrichTaskExecutorErrorCanHandleNullValueWithoutCausingException() {
+    void testTryEnrichTaskExecutorErrorCanHandleNullValueWithoutCausingException() {
         ExceptionUtils.tryEnrichOutOfMemoryError(null, "", "", "");
     }
 
     @Test
-    public void testUpdateDetailMessageOfBasicThrowable() {
+    void testUpdateDetailMessageOfBasicThrowable() {
         Throwable rootThrowable = new OutOfMemoryError("old message");
         ExceptionUtils.updateDetailMessage(rootThrowable, t -> "new message");
 
@@ -101,7 +100,7 @@ public class ExceptionUtilsTest {
     }
 
     @Test
-    public void testUpdateDetailMessageOfRelevantThrowableAsCause() {
+    void testUpdateDetailMessageOfRelevantThrowableAsCause() {
         Throwable oomCause =
                 new IllegalArgumentException("another message deep down in the cause tree");
 
@@ -124,7 +123,7 @@ public class ExceptionUtilsTest {
     }
 
     @Test
-    public void testUpdateDetailMessageWithoutRelevantThrowable() {
+    void testUpdateDetailMessageWithoutRelevantThrowable() {
         Throwable originalThrowable =
                 new IllegalStateException(
                         "root message", new IllegalArgumentException("cause message"));
@@ -135,12 +134,12 @@ public class ExceptionUtilsTest {
     }
 
     @Test
-    public void testUpdateDetailMessageOfNullWithoutException() {
+    void testUpdateDetailMessageOfNullWithoutException() {
         ExceptionUtils.updateDetailMessage(null, t -> "new message");
     }
 
     @Test
-    public void testUpdateDetailMessageWithMissingPredicate() {
+    void testUpdateDetailMessageWithMissingPredicate() {
         Throwable root = new Exception("old message");
         ExceptionUtils.updateDetailMessage(root, null);
 
@@ -148,12 +147,12 @@ public class ExceptionUtilsTest {
     }
 
     @Test
-    public void testIsMetaspaceOutOfMemoryErrorCanHandleNullValue() {
+    void testIsMetaspaceOutOfMemoryErrorCanHandleNullValue() {
         assertThat(ExceptionUtils.isMetaspaceOutOfMemoryError(null)).isFalse();
     }
 
     @Test
-    public void testIsDirectOutOfMemoryErrorCanHandleNullValue() {
+    void testIsDirectOutOfMemoryErrorCanHandleNullValue() {
         assertThat(ExceptionUtils.isDirectOutOfMemoryError(null)).isFalse();
     }
 }

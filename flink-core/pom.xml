@@ -184,6 +184,7 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
@@ -233,6 +234,47 @@ under the License.
 						</goals>
 					</execution>
 				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.openrewrite.maven</groupId>
+				<artifactId>rewrite-maven-plugin</artifactId>
+				<version>5.23.2</version>
+				<configuration>
+					<activeRecipes>
+<!--						<recipe>org.openrewrite.java.testing.junit5.JUnit4to5Migration</recipe>-->
+						<recipe>org.openrewrite.java.testing.junit5.StaticImports</recipe>
+						<recipe>org.openrewrite.java.testing.junit5.CleanupAssertions</recipe>
+<!--						<recipe>org.openrewrite.java.testing.cleanup.RemoveTestPrefix</recipe>-->
+						<recipe>org.openrewrite.java.testing.cleanup.TestsShouldNotBePublic</recipe>
+<!--						<recipe>org.openrewrite.java.testing.junit5.AddParameterizedTestAnnotation</recipe>-->
+<!--						<recipe>org.openrewrite.java.testing.junit5.RemoveDuplicateTestTemplates</recipe>-->
+						<recipe>org.openrewrite.java.testing.junit5.RemoveTryCatchFailBlocks</recipe>
+						<recipe>org.openrewrite.java.testing.junit5.LifecycleNonPrivate</recipe>
+
+						<recipe>org.openrewrite.java.testing.assertj.JUnitAssertArrayEqualsToAssertThat</recipe>
+						<recipe>org.openrewrite.java.testing.assertj.JUnitAssertEqualsToAssertThat</recipe>
+						<recipe>org.openrewrite.java.testing.assertj.JUnitAssertFalseToAssertThat</recipe>
+						<recipe>org.openrewrite.java.testing.assertj.JUnitAssertNotEqualsToAssertThat</recipe>
+						<recipe>org.openrewrite.java.testing.assertj.JUnitAssertNotNullToAssertThat</recipe>
+						<recipe>org.openrewrite.java.testing.assertj.JUnitAssertNullToAssertThat</recipe>
+						<recipe>org.openrewrite.java.testing.assertj.JUnitAssertSameToAssertThat</recipe>
+						<recipe>org.openrewrite.java.testing.assertj.JUnitAssertTrueToAssertThat</recipe>
+						<recipe>org.openrewrite.java.testing.assertj.JUnitFailToAssertJFail</recipe>
+						<recipe>org.openrewrite.java.testing.assertj.JUnitAssertThrowsToAssertExceptionType</recipe>
+
+						<recipe>org.openrewrite.java.testing.hamcrest.MigrateHamcrestToAssertJ</recipe>
+						<recipe>org.openrewrite.java.testing.assertj.JUnitToAssertj</recipe>
+						<recipe>org.openrewrite.java.testing.assertj.StaticImports</recipe>
+						<recipe>org.openrewrite.java.testing.assertj.SimplifyChainedAssertJAssertions</recipe>
+					</activeRecipes>
+				</configuration>
+				<dependencies>
+					<dependency>
+						<groupId>org.openrewrite.recipe</groupId>
+						<artifactId>rewrite-testing-frameworks</artifactId>
+						<version>2.4.1</version>
+					</dependency>
+				</dependencies>
 			</plugin>
 		</plugins>
 

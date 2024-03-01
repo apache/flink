@@ -26,10 +26,10 @@ import static org.apache.flink.util.PropertiesUtil.flatten;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link PropertiesUtil}. */
-public class PropertiesUtilTest {
+class PropertiesUtilTest {
 
     @Test
-    public void testFlatten() {
+    void testFlatten() {
         // default Properties is null
         Properties prop1 = new Properties();
         prop1.put("key1", "value1");

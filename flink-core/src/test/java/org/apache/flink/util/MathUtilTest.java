@@ -24,10 +24,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link MathUtils}. */
-public class MathUtilTest {
+class MathUtilTest {
 
     @Test
-    public void testLog2Computation() {
+    void testLog2Computation() {
         assertThat(MathUtils.log2floor(1)).isZero();
         assertThat(MathUtils.log2floor(2)).isOne();
         assertThat(MathUtils.log2floor(3)).isOne();
@@ -46,7 +46,7 @@ public class MathUtilTest {
     }
 
     @Test
-    public void testRoundDownToPowerOf2() {
+    void testRoundDownToPowerOf2() {
         assertThat(MathUtils.roundDownToPowerOf2(0)).isZero();
         assertThat(MathUtils.roundDownToPowerOf2(1)).isOne();
         assertThat(MathUtils.roundDownToPowerOf2(2)).isEqualTo(2);
@@ -75,7 +75,7 @@ public class MathUtilTest {
     }
 
     @Test
-    public void testRoundUpToPowerOf2() {
+    void testRoundUpToPowerOf2() {
         assertThat(MathUtils.roundUpToPowerOfTwo(0)).isZero();
         assertThat(MathUtils.roundUpToPowerOfTwo(1)).isOne();
         assertThat(MathUtils.roundUpToPowerOfTwo(2)).isEqualTo(2);
@@ -106,7 +106,7 @@ public class MathUtilTest {
     }
 
     @Test
-    public void testPowerOfTwo() {
+    void testPowerOfTwo() {
         assertThat(MathUtils.isPowerOf2(1)).isTrue();
         assertThat(MathUtils.isPowerOf2(2)).isTrue();
         assertThat(MathUtils.isPowerOf2(4)).isTrue();
@@ -126,7 +126,7 @@ public class MathUtilTest {
     }
 
     @Test
-    public void testFlipSignBit() {
+    void testFlipSignBit() {
         assertThat(MathUtils.flipSignBit(Long.MIN_VALUE)).isEqualTo(0L);
         assertThat(MathUtils.flipSignBit(0L)).isEqualTo(Long.MIN_VALUE);
         assertThat(MathUtils.flipSignBit(Long.MAX_VALUE)).isEqualTo(-1L);
@@ -136,7 +136,7 @@ public class MathUtilTest {
     }
 
     @Test
-    public void testDivideRoundUp() {
+    void testDivideRoundUp() {
         assertThat(MathUtils.divideRoundUp(0, 1)).isZero();
         assertThat(MathUtils.divideRoundUp(0, 2)).isZero();
         assertThat(MathUtils.divideRoundUp(1, 1)).isOne();
@@ -147,19 +147,19 @@ public class MathUtilTest {
     }
 
     @Test
-    public void testDivideRoundUpNegativeDividend() {
+    void testDivideRoundUpNegativeDividend() {
         assertThatThrownBy(() -> MathUtils.divideRoundUp(-1, 1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testDivideRoundUpNegativeDivisor() {
+    void testDivideRoundUpNegativeDivisor() {
         assertThatThrownBy(() -> MathUtils.divideRoundUp(1, -1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testDivideRoundUpZeroDivisor() {
+    void testDivideRoundUpZeroDivisor() {
         assertThatThrownBy(() -> MathUtils.divideRoundUp(1, 0))
                 .isInstanceOf(IllegalArgumentException.class);
     }

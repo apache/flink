@@ -34,13 +34,13 @@ public class VarLengthStringParserTest {
     public StringValueParser parser = new StringValueParser();
 
     @Test
-    public void testGetValue() {
+    void testGetValue() {
         Value v = parser.createValue();
         assertThat(v instanceof StringValue).isTrue();
     }
 
     @Test
-    public void testParseValidUnquotedStrings() {
+    void testParseValidUnquotedStrings() {
 
         this.parser = new StringValueParser();
 
@@ -81,7 +81,7 @@ public class VarLengthStringParserTest {
     }
 
     @Test
-    public void testParseValidQuotedStrings() {
+    void testParseValidQuotedStrings() {
 
         this.parser = new StringValueParser();
         this.parser.enableQuotedStringParsing((byte) '"');
@@ -146,7 +146,7 @@ public class VarLengthStringParserTest {
     }
 
     @Test
-    public void testParseValidMixedStrings() {
+    void testParseValidMixedStrings() {
 
         this.parser = new StringValueParser();
         this.parser.enableQuotedStringParsing((byte) '@');
@@ -179,7 +179,7 @@ public class VarLengthStringParserTest {
     }
 
     @Test
-    public void testParseInvalidQuotedStrings() {
+    void testParseInvalidQuotedStrings() {
 
         this.parser = new StringValueParser();
         this.parser.enableQuotedStringParsing((byte) '"');
@@ -198,7 +198,7 @@ public class VarLengthStringParserTest {
     }
 
     @Test
-    public void testParseValidMixedStringsWithCharset() {
+    void testParseValidMixedStringsWithCharset() {
 
         Charset charset = StandardCharsets.US_ASCII;
         this.parser = new StringValueParser();

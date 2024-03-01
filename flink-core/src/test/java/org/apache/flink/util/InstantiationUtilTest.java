@@ -64,7 +64,7 @@ public class InstantiationUtilTest {
                     + "}";
 
     @Test
-    public void testResolveProxyClass() throws Exception {
+    void testResolveProxyClass() throws Exception {
         final String interfaceName = "UserDefinedInterface";
         final String proxyName = "UserProxy";
 
@@ -98,40 +98,40 @@ public class InstantiationUtilTest {
     }
 
     @Test
-    public void testInstantiationOfStringValue() {
+    void testInstantiationOfStringValue() {
         StringValue stringValue = InstantiationUtil.instantiate(StringValue.class, null);
         assertThat(Optional.of(stringValue)).isNotNull();
     }
 
     @Test
-    public void testInstantiationOfStringValueAndCastToValue() {
+    void testInstantiationOfStringValueAndCastToValue() {
         StringValue stringValue = InstantiationUtil.instantiate(StringValue.class, Value.class);
         assertThat(Optional.of(stringValue)).isNotNull();
     }
 
     @Test
-    public void testHasNullaryConstructor() {
+    void testHasNullaryConstructor() {
         assertThat(InstantiationUtil.hasPublicNullaryConstructor(StringValue.class)).isTrue();
     }
 
     @Test
-    public void testClassIsProper() {
+    void testClassIsProper() {
         assertThat(InstantiationUtil.isProperClass(StringValue.class)).isTrue();
     }
 
     @Test
-    public void testClassIsNotProper() {
+    void testClassIsNotProper() {
         assertThat(InstantiationUtil.isProperClass(Value.class)).isFalse();
     }
 
     @Test
-    public void testCheckForInstantiationOfPrivateClass() {
+    void testCheckForInstantiationOfPrivateClass() {
         assertThatThrownBy(() -> InstantiationUtil.checkForInstantiation(TestClass.class))
                 .isInstanceOf(RuntimeException.class);
     }
 
     @Test
-    public void testSerializationToByteArray() throws IOException {
+    void testSerializationToByteArray() throws IOException {
         final DoubleValue toSerialize = new DoubleValue(Math.random());
         final DoubleValueSerializer serializer = new DoubleValueSerializer();
 
@@ -145,7 +145,7 @@ public class InstantiationUtilTest {
     }
 
     @Test
-    public void testCompressionAndSerializationAlongWithDecompressionAndDeserialization()
+    void testCompressionAndSerializationAlongWithDecompressionAndDeserialization()
             throws IOException, ClassNotFoundException {
         final String value = "teststring";
 
@@ -157,7 +157,7 @@ public class InstantiationUtilTest {
     }
 
     @Test
-    public void testWriteToConfigFailingSerialization() throws IOException {
+    void testWriteToConfigFailingSerialization() throws IOException {
         final String key1 = "testkey1";
         final String key2 = "testkey2";
         final Configuration config = new Configuration();
@@ -185,7 +185,7 @@ public class InstantiationUtilTest {
     }
 
     @Test
-    public void testCopyWritable() throws Exception {
+    void testCopyWritable() throws Exception {
         WritableType original = new WritableType();
         WritableType copy = InstantiationUtil.createCopyWritable(original);
 

@@ -37,19 +37,19 @@ import static org.junit.Assert.fail;
  * Various tests with freed memory segments for {@link MemorySegment} (in both heap and off-heap
  * modes).
  */
-public class OperationsOnFreedSegmentTest {
+class OperationsOnFreedSegmentTest {
 
     private static final int PAGE_SIZE = (int) ((Math.random() * 10000) + 1000);
 
     @Test
-    public void testSingleSegmentOperationsHeapSegment() throws Exception {
+    void testSingleSegmentOperationsHeapSegment() throws Exception {
         for (MemorySegment segment : createTestSegments()) {
             testOpsOnFreedSegment(segment);
         }
     }
 
     @Test
-    public void testCompare() {
+    void testCompare() {
         MemorySegment aliveHeap = MemorySegmentFactory.wrap(new byte[PAGE_SIZE]);
         MemorySegment aliveOffHeap = MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
 
@@ -84,12 +84,12 @@ public class OperationsOnFreedSegmentTest {
     }
 
     @Test
-    public void testCopyTo() {
+    void testCopyTo() {
         testAliveVsFree(this::testCopy);
     }
 
     @Test
-    public void testSwap() {
+    void testSwap() {
         testAliveVsFree(this::testSwap);
     }
 

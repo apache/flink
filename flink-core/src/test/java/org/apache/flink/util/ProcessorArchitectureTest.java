@@ -23,16 +23,16 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link ProcessorArchitecture}. */
-public class ProcessorArchitectureTest {
+class ProcessorArchitectureTest {
 
     @Test
-    public void testArchitectureNotUnknown() {
+    void testArchitectureNotUnknown() {
         final ProcessorArchitecture arch = ProcessorArchitecture.getProcessorArchitecture();
         assertThat(arch).isNotEqualTo(ProcessorArchitecture.UNKNOWN);
     }
 
     @Test
-    public void testNamesNotNull() {
+    void testNamesNotNull() {
         final ProcessorArchitecture arch = ProcessorArchitecture.getProcessorArchitecture();
         assertThat(arch.getArchitectureName()).isNotNull();
         assertThat(arch.getAlternativeNames()).isNotNull();

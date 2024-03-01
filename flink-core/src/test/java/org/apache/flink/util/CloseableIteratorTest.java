@@ -28,12 +28,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** {@link CloseableIterator} test. */
 @SuppressWarnings("unchecked")
-public class CloseableIteratorTest {
+class CloseableIteratorTest {
 
     private static final String[] ELEMENTS = new String[] {"element-1", "element-2"};
 
     @Test
-    public void testFlattenEmpty() throws Exception {
+    void testFlattenEmpty() throws Exception {
         List<CloseableIterator<?>> iterators =
                 asList(
                         CloseableIterator.flatten(),
@@ -46,7 +46,7 @@ public class CloseableIteratorTest {
     }
 
     @Test
-    public void testFlattenIteration() {
+    void testFlattenIteration() {
         CloseableIterator<String> iterator =
                 CloseableIterator.flatten(
                         CloseableIterator.ofElement(ELEMENTS[0], unused -> {}),
@@ -58,7 +58,7 @@ public class CloseableIteratorTest {
     }
 
     @Test
-    public void testFlattenErrorHandling() throws Exception {
+    void testFlattenErrorHandling() throws Exception {
         List<String> closed = new ArrayList<>();
         CloseableIterator<String> iterator =
                 CloseableIterator.flatten(

@@ -38,7 +38,7 @@ public class StringValueSerializationTest {
     private final Random rnd = new Random(2093486528937460234L);
 
     @Test
-    public void testNonNullValues() throws IOException {
+    void testNonNullValues() throws IOException {
         String[] testStrings =
                 new String[] {"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"};
 
@@ -46,7 +46,7 @@ public class StringValueSerializationTest {
     }
 
     @Test
-    public void testLongValues() throws IOException {
+    void testLongValues() throws IOException {
         String[] testStrings =
                 new String[] {
                     StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
@@ -59,7 +59,7 @@ public class StringValueSerializationTest {
     }
 
     @Test
-    public void testMixedValues() throws IOException {
+    void testMixedValues() throws IOException {
         String[] testStrings =
                 new String[] {
                     StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
@@ -75,7 +75,7 @@ public class StringValueSerializationTest {
     }
 
     @Test
-    public void testBinaryCopyOfLongStrings() throws IOException {
+    void testBinaryCopyOfLongStrings() throws IOException {
         String[] testStrings =
                 new String[] {
                     StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),

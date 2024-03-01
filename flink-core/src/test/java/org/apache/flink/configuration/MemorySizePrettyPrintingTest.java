@@ -45,7 +45,7 @@ public class MemorySizePrettyPrintingTest {
 
     @MethodSource("parameters")
     @ParameterizedTest
-    public void testFormatting(MemorySize memorySize, String expectedString) {
+    void testFormatting(MemorySize memorySize, String expectedString) {
         initMemorySizePrettyPrintingTest(memorySize, expectedString);
         assertThat(memorySize.toString()).isEqualTo(expectedString);
     }

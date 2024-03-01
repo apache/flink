@@ -65,8 +65,7 @@ public class ConfigurationParsingInvalidFormatsTest {
 
     @MethodSource("getSpecs")
     @ParameterizedTest(name = "option: {0}, invalidString: {1}")
-    public void testInvalidStringParsingWithGetOptional(
-            ConfigOption<?> option, String invalidString) {
+    void testInvalidStringParsingWithGetOptional(ConfigOption<?> option, String invalidString) {
         Throwable exception =
                 assertThrows(
                         IllegalArgumentException.class,
@@ -85,7 +84,7 @@ public class ConfigurationParsingInvalidFormatsTest {
 
     @MethodSource("getSpecs")
     @ParameterizedTest(name = "option: {0}, invalidString: {1}")
-    public void testInvalidStringParsingWithGet(ConfigOption<?> option, String invalidString) {
+    void testInvalidStringParsingWithGet(ConfigOption<?> option, String invalidString) {
         Throwable exception =
                 assertThrows(
                         IllegalArgumentException.class,

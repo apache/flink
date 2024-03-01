@@ -28,10 +28,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link SerializedValue}. */
-public class SerializedValueTest {
+class SerializedValueTest {
 
     @Test
-    public void testSimpleValue() throws Exception {
+    void testSimpleValue() throws Exception {
         final String value = "teststring";
 
         SerializedValue<String> v = new SerializedValue<>(value);
@@ -57,19 +57,19 @@ public class SerializedValueTest {
     }
 
     @Test
-    public void testNullValue() {
+    void testNullValue() {
         assertThatThrownBy(() -> new SerializedValue<>(null))
                 .isInstanceOf(NullPointerException.class);
     }
 
     @Test
-    public void testFromNullBytes() {
+    void testFromNullBytes() {
         assertThatThrownBy(() -> SerializedValue.fromBytes(null))
                 .isInstanceOf(NullPointerException.class);
     }
 
     @Test
-    public void testFromEmptyBytes() {
+    void testFromEmptyBytes() {
         assertThatThrownBy(() -> SerializedValue.fromBytes(new byte[0]))
                 .isInstanceOf(IllegalArgumentException.class);
     }

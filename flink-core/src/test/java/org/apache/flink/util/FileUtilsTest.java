@@ -182,7 +182,7 @@ public class FileUtilsTest {
         }
 
         FileUtils.deleteDirectory(symbolicLink);
-        assertThat(fileInLinkedDirectory.exists()).isTrue();
+        assertThat(fileInLinkedDirectory).exists();
     }
 
     @Test
@@ -249,14 +249,14 @@ public class FileUtilsTest {
 
         final java.nio.file.Path rootPath = temporaryFolder.getRoot();
         final java.nio.file.Path relativePath = FileUtils.relativizePath(rootPath, absolutePath);
-        assertThat(relativePath.isAbsolute()).isFalse();
+        assertThat(relativePath).isRelative();
         assertThat(absolutePath).isEqualTo(rootPath.resolve(relativePath));
     }
 
     @Test
     void testRelativizeOfRelativePath() {
         final java.nio.file.Path path = Paths.get("foobar");
-        assertThat(path.isAbsolute()).isFalse();
+        assertThat(path).isRelative();
 
         final java.nio.file.Path relativePath =
                 FileUtils.relativizePath(temporaryFolder.getRoot(), path);
@@ -275,7 +275,7 @@ public class FileUtilsTest {
     @Test
     void testRelativePathToURL() throws MalformedURLException {
         final java.nio.file.Path relativePath = Paths.get("foobar");
-        assertThat(relativePath.isAbsolute()).isFalse();
+        assertThat(relativePath).isRelative();
 
         final URL relativeURL = FileUtils.toURL(relativePath);
         final java.nio.file.Path transformedPath = Paths.get(relativeURL.getPath());

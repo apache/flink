@@ -47,13 +47,13 @@ public class OffHeapUnsafeMemorySegmentTest extends MemorySegmentTestBase {
     }
 
     @Test
-    public void testByteBufferWrapping() {
+    void testByteBufferWrapping() {
         assertThatThrownBy(() -> createSegment(10).wrap(1, 2))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test
-    public void testCallCleanerOnFree() {
+    void testCallCleanerOnFree() {
         final CompletableFuture<Void> cleanerFuture = new CompletableFuture<>();
         MemorySegmentFactory.allocateOffHeapUnsafeMemory(
                         10, null, () -> cleanerFuture.complete(null))
@@ -62,7 +62,7 @@ public class OffHeapUnsafeMemorySegmentTest extends MemorySegmentTestBase {
     }
 
     @Test
-    public void testCallCleanerOnceOnConcurrentFree() throws InterruptedException {
+    void testCallCleanerOnceOnConcurrentFree() throws InterruptedException {
         final AtomicInteger counter = new AtomicInteger(0);
         final Runnable cleaner =
                 () -> {

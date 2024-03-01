@@ -43,30 +43,30 @@ public class PluginConfigTest {
     private static Map<String, String> oldEnvVariables;
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         oldEnvVariables = System.getenv();
     }
 
     @AfterEach
-    public void teardown() {
+    void teardown() {
         if (oldEnvVariables != null) {
             CommonTestUtils.setEnv(oldEnvVariables, true);
         }
     }
 
     @Test
-    public void getPluginsDir_existingDirectory_returnsDirectoryFile() throws IOException {
+    void getPluginsDir_existingDirectory_returnsDirectoryFile() throws IOException {
         final File pluginsDirectory = temporaryFolder.newFolder();
         final Map<String, String> envVariables =
                 ImmutableMap.of(
                         ConfigConstants.ENV_FLINK_PLUGINS_DIR, pluginsDirectory.getAbsolutePath());
         CommonTestUtils.setEnv(envVariables);
 
-        assertThat(PluginConfig.getPluginsDir().get()).isEqualTo(pluginsDirectory);
+        assertThat(PluginConfig.getPluginsDir()).contains(pluginsDirectory);
     }
 
     @Test
-    public void getPluginsDir_nonExistingDirectory_returnsEmpty() {
+    void getPluginsDir_nonExistingDirectory_returnsEmpty() {
         final Map<String, String> envVariables =
                 ImmutableMap.of(
                         ConfigConstants.ENV_FLINK_PLUGINS_DIR,
@@ -74,6 +74,6 @@ public class PluginConfigTest {
                                 .getAbsolutePath());
         CommonTestUtils.setEnv(envVariables);
 
-        assertThat(PluginConfig.getPluginsDir().isPresent()).isFalse();
+        assertThat(PluginConfig.getPluginsDir()).isNotPresent();
     }
 }

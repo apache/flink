@@ -28,9 +28,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link FlinkUserCodeClassLoader}. */
-public class FlinkUserCodeClassLoaderTest {
+class FlinkUserCodeClassLoaderTest {
     @Test
-    public void testExceptionHandling() {
+    void testExceptionHandling() {
         RuntimeException expectedException = new RuntimeException("Expected exception");
         AtomicReference<Throwable> handledException = new AtomicReference<>();
 

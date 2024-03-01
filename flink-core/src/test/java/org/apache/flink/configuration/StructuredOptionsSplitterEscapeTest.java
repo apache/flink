@@ -48,7 +48,7 @@ public class StructuredOptionsSplitterEscapeTest {
 
     @MethodSource("getEncodeSpecs")
     @ParameterizedTest(name = "{0}")
-    public void testEscapeWithSingleQuote(TestSpec testSpec) {
+    void testEscapeWithSingleQuote(TestSpec testSpec) {
         initStructuredOptionsSplitterEscapeTest(testSpec);
         String encoded =
                 StructuredOptionsSplitter.escapeWithSingleQuote(

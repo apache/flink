@@ -22,10 +22,10 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class CopyableValueTest {
+class CopyableValueTest {
 
     @Test
-    public void testCopy() {
+    void testCopy() {
         CopyableValue<?>[] value_types =
                 new CopyableValue[] {
                     new BooleanValue(true),
@@ -46,7 +46,7 @@ public class CopyableValueTest {
     }
 
     @Test
-    public void testCopyTo() {
+    void testCopyTo() {
         BooleanValue boolean_from = new BooleanValue(true);
         BooleanValue boolean_to = new BooleanValue(false);
 

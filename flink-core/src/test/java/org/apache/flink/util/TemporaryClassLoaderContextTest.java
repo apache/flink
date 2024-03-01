@@ -18,7 +18,6 @@
 
 package org.apache.flink.util;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.net.URL;
@@ -27,10 +26,10 @@ import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HAND
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link TemporaryClassLoaderContext}. */
-public class TemporaryClassLoaderContextTest {
+class TemporaryClassLoaderContextTest {
 
     @Test
-    public void testTemporaryClassLoaderContext() {
+    void testTemporaryClassLoaderContext() {
         final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
 
         final ChildFirstClassLoader temporaryClassLoader =
@@ -39,8 +38,8 @@ public class TemporaryClassLoaderContextTest {
 
         try (TemporaryClassLoaderContext ignored =
                 TemporaryClassLoaderContext.of(temporaryClassLoader)) {
-            Assertions.assertEquals(
-                    temporaryClassLoader, Thread.currentThread().getContextClassLoader());
+            assertThat(Thread.currentThread().getContextClassLoader())
+                    .isEqualTo(temporaryClassLoader);
         }
 
         assertThat(Thread.currentThread().getContextClassLoader()).isEqualTo(contextClassLoader);

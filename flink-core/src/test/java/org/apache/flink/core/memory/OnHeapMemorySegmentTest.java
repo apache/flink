@@ -45,7 +45,7 @@ public class OnHeapMemorySegmentTest extends MemorySegmentTestBase {
     }
 
     @Test
-    public void testHeapSegmentSpecifics() {
+    void testHeapSegmentSpecifics() {
         final byte[] buffer = new byte[411];
         MemorySegment seg = new MemorySegment(buffer, null);
 
@@ -65,7 +65,7 @@ public class OnHeapMemorySegmentTest extends MemorySegmentTestBase {
     }
 
     @Test
-    public void testReadOnlyByteBufferPut() {
+    void testReadOnlyByteBufferPut() {
         final byte[] buffer = new byte[100];
         MemorySegment seg = new MemorySegment(buffer, null);
 

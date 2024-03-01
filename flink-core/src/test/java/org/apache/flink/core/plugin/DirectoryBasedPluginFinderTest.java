@@ -47,7 +47,7 @@ public class DirectoryBasedPluginFinderTest {
     @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     @Test
-    public void createPluginDescriptorsForDirectory() throws Exception {
+    void createPluginDescriptorsForDirectory() throws Exception {
         File rootFolder = temporaryFolder.newFolder();
         PluginFinder descriptorsFactory = new DirectoryBasedPluginFinder(rootFolder.toPath());
         Collection<PluginDescriptor> actual = descriptorsFactory.findPlugins();

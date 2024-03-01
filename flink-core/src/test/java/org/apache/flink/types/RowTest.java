@@ -31,10 +31,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link Row} and {@link RowUtils}. */
-public class RowTest {
+class RowTest {
 
     @Test
-    public void testRowNamed() {
+    void testRowNamed() {
         final Row row = Row.withNames(RowKind.DELETE);
 
         // test getters and setters
@@ -92,7 +92,7 @@ public class RowTest {
     }
 
     @Test
-    public void testRowPositioned() {
+    void testRowPositioned() {
         final Row row = Row.withPositions(RowKind.DELETE, 3);
 
         // test getters and setters
@@ -150,7 +150,7 @@ public class RowTest {
     }
 
     @Test
-    public void testRowNamedPositioned() {
+    void testRowNamedPositioned() {
         final LinkedHashMap<String, Integer> positionByName = new LinkedHashMap<>();
         positionByName.put("a", 0);
         positionByName.put("b", 1);
@@ -214,7 +214,7 @@ public class RowTest {
     }
 
     @Test
-    public void testRowOf() {
+    void testRowOf() {
         final Row row1 = Row.of(1, "hello", null, Tuple2.of(2L, "hi"), true);
 
         final Row row2 = Row.withPositions(5);
@@ -228,7 +228,7 @@ public class RowTest {
     }
 
     @Test
-    public void testRowCopyPositioned() {
+    void testRowCopyPositioned() {
         final Row row = Row.withPositions(5);
         row.setField(0, 1);
         row.setField(1, "hello");
@@ -242,7 +242,7 @@ public class RowTest {
     }
 
     @Test
-    public void testRowCopyNamed() {
+    void testRowCopyNamed() {
         final Row row = Row.withNames();
         row.setField("a", 1);
         row.setField("b", "hello");
@@ -256,7 +256,7 @@ public class RowTest {
     }
 
     @Test
-    public void testRowProjectPositioned() {
+    void testRowProjectPositioned() {
         final Row row = Row.withPositions(5);
         row.setField(0, 1);
         row.setField(1, "hello");
@@ -275,7 +275,7 @@ public class RowTest {
     }
 
     @Test
-    public void testRowProjectNamed() {
+    void testRowProjectNamed() {
         final Row row = Row.withNames();
         row.setField("a", 1);
         row.setField("b", "hello");
@@ -294,7 +294,7 @@ public class RowTest {
     }
 
     @Test
-    public void testRowJoinPositioned() {
+    void testRowJoinPositioned() {
         Row row1 = new Row(2);
         row1.setField(0, 1);
         row1.setField(1, "hello");
@@ -318,7 +318,7 @@ public class RowTest {
     }
 
     @Test
-    public void testDeepEqualsAndHashCodePositioned() {
+    void testDeepEqualsAndHashCodePositioned() {
         final Map<String, byte[]> originalMap = new HashMap<>();
         originalMap.put("k1", new byte[] {1, 2, 3});
         originalMap.put("k2", new byte[] {3, 4, 6});
@@ -411,7 +411,7 @@ public class RowTest {
     }
 
     @Test
-    public void testDeepEqualsCodeNamed() {
+    void testDeepEqualsCodeNamed() {
         final Row named = Row.withNames(RowKind.DELETE);
         named.setField("a", 12); // "b" is missing due to sparsity
         named.setField("c", true);
@@ -435,7 +435,7 @@ public class RowTest {
     }
 
     @Test
-    public void testDeepToString() {
+    void testDeepToString() {
         final Row row = Row.withNames(RowKind.UPDATE_BEFORE);
         row.setField("a", 1);
         row.setField("b", "hello");

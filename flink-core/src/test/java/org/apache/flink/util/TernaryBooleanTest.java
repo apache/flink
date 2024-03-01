@@ -26,10 +26,10 @@ import static org.apache.flink.util.TernaryBoolean.UNDEFINED;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link TernaryBoolean} class. */
-public class TernaryBooleanTest {
+class TernaryBooleanTest {
 
     @Test
-    public void testWithDefault() {
+    void testWithDefault() {
         assertThat(TRUE.getOrDefault(true)).isTrue();
         assertThat(TRUE.getOrDefault(false)).isTrue();
 
@@ -41,7 +41,7 @@ public class TernaryBooleanTest {
     }
 
     @Test
-    public void testResolveUndefined() {
+    void testResolveUndefined() {
         assertThat(TRUE.resolveUndefined(true)).isEqualTo(TRUE);
         assertThat(TRUE.resolveUndefined(false)).isEqualTo(TRUE);
 
@@ -53,20 +53,20 @@ public class TernaryBooleanTest {
     }
 
     @Test
-    public void testToBoolean() {
+    void testToBoolean() {
         assertThat(TRUE.getAsBoolean()).isSameAs(Boolean.TRUE);
         assertThat(FALSE.getAsBoolean()).isSameAs(Boolean.FALSE);
         assertThat(UNDEFINED.getAsBoolean()).isNull();
     }
 
     @Test
-    public void testFromBoolean() {
+    void testFromBoolean() {
         assertThat(TernaryBoolean.fromBoolean(true)).isEqualTo(TRUE);
         assertThat(TernaryBoolean.fromBoolean(false)).isEqualTo(FALSE);
     }
 
     @Test
-    public void testFromBoxedBoolean() {
+    void testFromBoxedBoolean() {
         assertThat(TernaryBoolean.fromBoxedBoolean(Boolean.TRUE)).isEqualTo(TRUE);
         assertThat(TernaryBoolean.fromBoxedBoolean(Boolean.FALSE)).isEqualTo(FALSE);
         assertThat(TernaryBoolean.fromBoxedBoolean(null)).isEqualTo(UNDEFINED);

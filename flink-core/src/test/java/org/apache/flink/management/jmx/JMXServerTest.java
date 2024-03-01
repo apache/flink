@@ -37,28 +37,28 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link JMXServer} functionality. */
-public class JMXServerTest {
+class JMXServerTest {
 
     @BeforeEach
-    public void setUp() throws Exception {
+    void setUp() throws Exception {
         JMXService.startInstance("23456-23466");
     }
 
     @AfterEach
-    public void tearDown() throws Exception {
+    void tearDown() throws Exception {
         JMXService.stopInstance();
     }
 
     /** Verifies initialize, registered mBean and retrieval via attribute. */
     @Test
-    public void testJMXServiceRegisterMBean() throws Exception {
+    void testJMXServiceRegisterMBean() throws Exception {
         TestObject testObject = new TestObject();
         ObjectName testObjectName = new ObjectName("org.apache.flink.management", "key", "value");
         MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 
         try {
             Optional<JMXServer> server = JMXService.getInstance();
-            assertThat(server.isPresent()).isTrue();
+            assertThat(server).isPresent();
             mBeanServer.registerMBean(testObject, testObjectName);
 
             JMXServiceURL url =

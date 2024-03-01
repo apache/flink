@@ -25,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link WrappingProxyUtil}. */
-public class WrappingProxyUtilTest {
+class WrappingProxyUtilTest {
 
     @Test
     void testThrowsExceptionIfTooManyProxies() {

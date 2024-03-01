@@ -34,10 +34,10 @@ import java.util.jar.Manifest;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests that validate the {@link ClassLoaderUtil}. */
-public class ClassLoaderUtilsTest {
+class ClassLoaderUtilsTest {
 
     @Test
-    public void testWithURLClassLoader() throws Exception {
+    void testWithURLClassLoader() throws Exception {
         File validJar = null;
         File invalidJar = null;
 
@@ -120,14 +120,14 @@ public class ClassLoaderUtilsTest {
     }
 
     @Test
-    public void testWithAppClassLoader() {
+    void testWithAppClassLoader() {
         String result =
                 ClassLoaderUtil.getUserCodeClassLoaderInfo(ClassLoader.getSystemClassLoader());
-        assertThat(result.toLowerCase().contains("system classloader")).isTrue();
+        assertThat(result.toLowerCase()).contains("system classloader");
     }
 
     @Test
-    public void testInvalidClassLoaders() {
+    void testInvalidClassLoaders() {
         // must return something when invoked with 'null'
         assertThat(ClassLoaderUtil.getUserCodeClassLoaderInfo(null)).isNotNull();
     }

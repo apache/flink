@@ -49,7 +49,7 @@ public class RecordTest {
     private final IntValue origVal3 = new IntValue(1337);
 
     @BeforeEach
-    public void setUp() throws Exception {
+    void setUp() throws Exception {
         PipedInputStream pipeIn = new PipedInputStream(1024 * 1024);
         PipedOutputStream pipeOut = new PipedOutputStream(pipeIn);
 
@@ -58,7 +58,7 @@ public class RecordTest {
     }
 
     @Test
-    public void testEmptyRecordSerialization() throws IOException {
+    void testEmptyRecordSerialization() throws IOException {
         // test deserialize into self
         Record empty = new Record();
         empty.write(this.out);
@@ -74,7 +74,7 @@ public class RecordTest {
     }
 
     @Test
-    public void testAddField() {
+    void testAddField() {
         // Add a value to an empty record
         Record record = new Record();
         assertThat(record.getNumFields()).isZero();
@@ -155,7 +155,7 @@ public class RecordTest {
     //	}
 
     @Test
-    public void testRemoveField() {
+    void testRemoveField() {
         Record record = null;
         int oldLen = 0;
 
@@ -262,7 +262,7 @@ public class RecordTest {
     //	}
 
     @Test
-    public void testSetNullInt() {
+    void testSetNullInt() {
         Record record = this.generateFilledDenseRecord(58);
 
         record.setNull(42);
@@ -271,7 +271,7 @@ public class RecordTest {
     }
 
     @Test
-    public void testSetNullLong() {
+    void testSetNullLong() {
         Record record = this.generateFilledDenseRecord(58);
         long mask = generateRandomBitmask(58);
 
@@ -287,7 +287,7 @@ public class RecordTest {
     }
 
     @Test
-    public void testSetNullLongArray() {
+    void testSetNullLongArray() {
         Record record = this.generateFilledDenseRecord(612);
         long[] mask = {1L, 1L, 1L, 1L};
         record.setNull(mask);
@@ -331,7 +331,7 @@ public class RecordTest {
     //	}
 
     @Test
-    public void testUpdateBinaryRepresentations() throws IOException {
+    void testUpdateBinaryRepresentations() throws IOException {
         // TODO: this is not an extensive test of updateBinaryRepresentation()
         // and should be extended!
 
@@ -395,7 +395,7 @@ public class RecordTest {
     }
 
     @Test
-    public void testDeSerialization() throws IOException {
+    void testDeSerialization() throws IOException {
         StringValue origValue1 = new StringValue("Hello World!");
         IntValue origValue2 = new IntValue(1337);
         Record record1 = new Record(origValue1, origValue2);
@@ -418,7 +418,7 @@ public class RecordTest {
     }
 
     @Test
-    public void testClear() throws IOException {
+    void testClear() throws IOException {
         Record record = new Record(new IntValue(42));
 
         record.write(this.out);
@@ -461,7 +461,7 @@ public class RecordTest {
     }
 
     @Test
-    public void blackBoxTests() throws Exception {
+    void blackBoxTests() throws Exception {
         final Value[][] values =
                 new Value[][] {
                     // empty
@@ -766,7 +766,7 @@ public class RecordTest {
     }
 
     @Test
-    public void testUnionFields() {
+    void testUnionFields() {
         final Value[][] values =
                 new Value[][] {
                     {new IntValue(56), null, new IntValue(-7628761)},

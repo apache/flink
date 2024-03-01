@@ -27,10 +27,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 /** Tests for the {@link IOUtils}. */
-public class IOUtilsTest {
+class IOUtilsTest {
 
     @Test
-    public void testTryReadFullyFromLongerStream() throws IOException {
+    void testTryReadFullyFromLongerStream() throws IOException {
         ByteArrayInputStream inputStream =
                 new ByteArrayInputStream("test-data".getBytes(StandardCharsets.UTF_8));
 
@@ -42,7 +42,7 @@ public class IOUtilsTest {
     }
 
     @Test
-    public void testTryReadFullyFromShorterStream() throws IOException {
+    void testTryReadFullyFromShorterStream() throws IOException {
         ByteArrayInputStream inputStream =
                 new ByteArrayInputStream("t".getBytes(StandardCharsets.UTF_8));
 

@@ -50,17 +50,17 @@ public class FlinkSecurityManagerTest {
     SecurityManager originalSecurityManager;
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         originalSecurityManager = System.getSecurityManager();
     }
 
     @AfterEach
-    public void tearDown() {
+    void tearDown() {
         System.setSecurityManager(originalSecurityManager);
     }
 
     @Test
-    public void testThrowUserExit() {
+    void testThrowUserExit() {
         assertThatThrownBy(
                         () -> {
                             FlinkSecurityManager flinkSecurityManager =
@@ -73,7 +73,7 @@ public class FlinkSecurityManagerTest {
     }
 
     @Test
-    public void testToggleUserExit() {
+    void testToggleUserExit() {
         FlinkSecurityManager flinkSecurityManager =
                 new FlinkSecurityManager(ClusterOptions.UserSystemExitMode.THROW, false);
         flinkSecurityManager.checkExit(TEST_EXIT_CODE);
@@ -85,7 +85,7 @@ public class FlinkSecurityManagerTest {
     }
 
     @Test
-    public void testPerThreadThrowUserExit() throws Exception {
+    void testPerThreadThrowUserExit() throws Exception {
         FlinkSecurityManager flinkSecurityManager =
                 new FlinkSecurityManager(ClusterOptions.UserSystemExitMode.THROW, false);
         ExecutorService executorService = EXECUTOR_RESOURCE.getExecutor();
@@ -106,7 +106,7 @@ public class FlinkSecurityManagerTest {
     }
 
     @Test
-    public void testInheritedThrowUserExit() throws Exception {
+    void testInheritedThrowUserExit() throws Exception {
         FlinkSecurityManager flinkSecurityManager =
                 new FlinkSecurityManager(ClusterOptions.UserSystemExitMode.THROW, false);
         flinkSecurityManager.monitorUserSystemExit();
@@ -125,7 +125,7 @@ public class FlinkSecurityManagerTest {
     }
 
     @Test
-    public void testLogUserExit() {
+    void testLogUserExit() {
         // Log mode enables monitor but only logging allowing exit, hence not expecting exception.
         // NOTE - Do not specifically test warning logging.
         FlinkSecurityManager flinkSecurityManager =
@@ -135,7 +135,7 @@ public class FlinkSecurityManagerTest {
     }
 
     @Test
-    public void testDisabledConfiguration() {
+    void testDisabledConfiguration() {
         // Default case (no provided option) - allowing everything, so null security manager is
         // expected.
         Configuration configuration = new Configuration();
@@ -157,7 +157,7 @@ public class FlinkSecurityManagerTest {
     }
 
     @Test
-    public void testLogConfiguration() {
+    void testLogConfiguration() {
         // Enabled - log case (logging as warning but allowing exit)
         Configuration configuration = new Configuration();
         configuration.set(
@@ -174,7 +174,7 @@ public class FlinkSecurityManagerTest {
     }
 
     @Test
-    public void testThrowConfiguration() {
+    void testThrowConfiguration() {
         // Enabled - throw case (disallowing by throwing exception)
         Configuration configuration = new Configuration();
         configuration.set(
@@ -202,7 +202,7 @@ public class FlinkSecurityManagerTest {
     }
 
     @Test
-    public void testHaltConfiguration() {
+    void testHaltConfiguration() {
         // Halt as forceful shutdown replacing graceful system exit
         Configuration configuration = new Configuration();
         configuration.set(ClusterOptions.HALT_ON_FATAL_ERROR, true);
@@ -212,7 +212,7 @@ public class FlinkSecurityManagerTest {
     }
 
     @Test
-    public void testInvalidConfiguration() {
+    void testInvalidConfiguration() {
         assertThatThrownBy(
                         () -> {
                             Configuration configuration = new Configuration();
@@ -223,7 +223,7 @@ public class FlinkSecurityManagerTest {
     }
 
     @Test
-    public void testExistingSecurityManagerRespected() {
+    void testExistingSecurityManagerRespected() {
         // Don't set the following security manager directly to system, which makes test hang.
         SecurityManager originalSecurityManager =
                 new SecurityManager() {
@@ -246,7 +246,7 @@ public class FlinkSecurityManagerTest {
     }
 
     @Test
-    public void testRegistrationNotAllowedByExistingSecurityManager() {
+    void testRegistrationNotAllowedByExistingSecurityManager() {
         Configuration configuration = new Configuration();
         configuration.set(
                 ClusterOptions.INTERCEPT_USER_SYSTEM_EXIT, ClusterOptions.UserSystemExitMode.THROW);
@@ -279,7 +279,7 @@ public class FlinkSecurityManagerTest {
     }
 
     @Test
-    public void testMultiSecurityManagersWithSetFirstAndMonitored() {
+    void testMultiSecurityManagersWithSetFirstAndMonitored() {
         Configuration configuration = new Configuration();
 
         configuration.set(
@@ -298,7 +298,7 @@ public class FlinkSecurityManagerTest {
     }
 
     @Test
-    public void testMultiSecurityManagersWithSetLastAndMonitored() {
+    void testMultiSecurityManagersWithSetLastAndMonitored() {
         Configuration configuration = new Configuration();
 
         configuration.set(
@@ -320,7 +320,7 @@ public class FlinkSecurityManagerTest {
     }
 
     @Test
-    public void testMultiSecurityManagersWithSetFirstAndUnmonitored() {
+    void testMultiSecurityManagersWithSetFirstAndUnmonitored() {
         Configuration configuration = new Configuration();
 
         configuration.set(
@@ -337,7 +337,7 @@ public class FlinkSecurityManagerTest {
     }
 
     @Test
-    public void testMultiSecurityManagersWithSetLastAndUnmonitored() {
+    void testMultiSecurityManagersWithSetLastAndUnmonitored() {
         Configuration configuration = new Configuration();
 
         configuration.set(

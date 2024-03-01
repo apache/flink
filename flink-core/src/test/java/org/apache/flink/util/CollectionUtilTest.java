@@ -18,7 +18,6 @@
 
 package org.apache.flink.util;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -35,10 +34,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for java collection utilities. */
 @ExtendWith(TestLoggerExtension.class)
-public class CollectionUtilTest {
+class CollectionUtilTest {
 
     @Test
-    public void testPartition() {
+    void testPartition() {
         List<Integer> list = Arrays.asList(1, 2, 3, 4);
         Collection<List<Integer>> partitioned = CollectionUtil.partition(list, 4);
 
@@ -49,42 +48,42 @@ public class CollectionUtilTest {
     }
 
     @Test
-    public void testOfNullableWithNull() {
+    void testOfNullableWithNull() {
         assertThat(CollectionUtil.ofNullable(null)).isEmpty();
     }
 
     @Test
-    public void testFromNullableWithObject() {
+    void testFromNullableWithObject() {
         final Object element = new Object();
         assertThat(CollectionUtil.ofNullable(element)).singleElement().isEqualTo(element);
     }
 
     @Test
-    public void testComputeCapacity() {
-        Assertions.assertEquals(
-                1, CollectionUtil.computeRequiredCapacity(0, HASH_MAP_DEFAULT_LOAD_FACTOR));
-        Assertions.assertEquals(
-                2, CollectionUtil.computeRequiredCapacity(1, HASH_MAP_DEFAULT_LOAD_FACTOR));
-        Assertions.assertEquals(
-                3, CollectionUtil.computeRequiredCapacity(2, HASH_MAP_DEFAULT_LOAD_FACTOR));
-        Assertions.assertEquals(
-                4, CollectionUtil.computeRequiredCapacity(3, HASH_MAP_DEFAULT_LOAD_FACTOR));
-        Assertions.assertEquals(
-                6, CollectionUtil.computeRequiredCapacity(4, HASH_MAP_DEFAULT_LOAD_FACTOR));
-        Assertions.assertEquals(
-                7, CollectionUtil.computeRequiredCapacity(5, HASH_MAP_DEFAULT_LOAD_FACTOR));
-        Assertions.assertEquals(
-                8, CollectionUtil.computeRequiredCapacity(6, HASH_MAP_DEFAULT_LOAD_FACTOR));
-        Assertions.assertEquals(
-                10, CollectionUtil.computeRequiredCapacity(7, HASH_MAP_DEFAULT_LOAD_FACTOR));
-        Assertions.assertEquals(
-                11, CollectionUtil.computeRequiredCapacity(8, HASH_MAP_DEFAULT_LOAD_FACTOR));
-        Assertions.assertEquals(
-                134, CollectionUtil.computeRequiredCapacity(100, HASH_MAP_DEFAULT_LOAD_FACTOR));
-        Assertions.assertEquals(
-                1334, CollectionUtil.computeRequiredCapacity(1000, HASH_MAP_DEFAULT_LOAD_FACTOR));
-        Assertions.assertEquals(
-                13334, CollectionUtil.computeRequiredCapacity(10000, HASH_MAP_DEFAULT_LOAD_FACTOR));
+    void testComputeCapacity() {
+        assertThat(CollectionUtil.computeRequiredCapacity(0, HASH_MAP_DEFAULT_LOAD_FACTOR))
+                .isEqualTo(1);
+        assertThat(CollectionUtil.computeRequiredCapacity(1, HASH_MAP_DEFAULT_LOAD_FACTOR))
+                .isEqualTo(2);
+        assertThat(CollectionUtil.computeRequiredCapacity(2, HASH_MAP_DEFAULT_LOAD_FACTOR))
+                .isEqualTo(3);
+        assertThat(CollectionUtil.computeRequiredCapacity(3, HASH_MAP_DEFAULT_LOAD_FACTOR))
+                .isEqualTo(4);
+        assertThat(CollectionUtil.computeRequiredCapacity(4, HASH_MAP_DEFAULT_LOAD_FACTOR))
+                .isEqualTo(6);
+        assertThat(CollectionUtil.computeRequiredCapacity(5, HASH_MAP_DEFAULT_LOAD_FACTOR))
+                .isEqualTo(7);
+        assertThat(CollectionUtil.computeRequiredCapacity(6, HASH_MAP_DEFAULT_LOAD_FACTOR))
+                .isEqualTo(8);
+        assertThat(CollectionUtil.computeRequiredCapacity(7, HASH_MAP_DEFAULT_LOAD_FACTOR))
+                .isEqualTo(10);
+        assertThat(CollectionUtil.computeRequiredCapacity(8, HASH_MAP_DEFAULT_LOAD_FACTOR))
+                .isEqualTo(11);
+        assertThat(CollectionUtil.computeRequiredCapacity(100, HASH_MAP_DEFAULT_LOAD_FACTOR))
+                .isEqualTo(134);
+        assertThat(CollectionUtil.computeRequiredCapacity(1000, HASH_MAP_DEFAULT_LOAD_FACTOR))
+                .isEqualTo(1334);
+        assertThat(CollectionUtil.computeRequiredCapacity(10000, HASH_MAP_DEFAULT_LOAD_FACTOR))
+                .isEqualTo(13334);
 
         assertThat(
                         CollectionUtil.computeRequiredCapacity(
@@ -110,23 +109,21 @@ public class CollectionUtilTest {
     }
 
     @Test
-    public void testIsEmptyOrAllElementsNull() {
+    void testIsEmptyOrAllElementsNull() {
         assertThat(CollectionUtil.isEmptyOrAllElementsNull(Collections.emptyList())).isTrue();
-        Assertions.assertTrue(
-                CollectionUtil.isEmptyOrAllElementsNull(Collections.singletonList(null)));
+        assertThat(CollectionUtil.isEmptyOrAllElementsNull(Collections.singletonList(null)))
+                .isTrue();
         assertThat(CollectionUtil.isEmptyOrAllElementsNull(Arrays.asList(null, null))).isTrue();
-        Assertions.assertFalse(
-                CollectionUtil.isEmptyOrAllElementsNull(Collections.singletonList("test")));
-        Assertions.assertFalse(
-                CollectionUtil.isEmptyOrAllElementsNull(Arrays.asList(null, "test")));
-        Assertions.assertFalse(
-                CollectionUtil.isEmptyOrAllElementsNull(Arrays.asList("test", null)));
-        Assertions.assertFalse(
-                CollectionUtil.isEmptyOrAllElementsNull(Arrays.asList(null, "test", null)));
+        assertThat(CollectionUtil.isEmptyOrAllElementsNull(Collections.singletonList("test")))
+                .isFalse();
+        assertThat(CollectionUtil.isEmptyOrAllElementsNull(Arrays.asList(null, "test"))).isFalse();
+        assertThat(CollectionUtil.isEmptyOrAllElementsNull(Arrays.asList("test", null))).isFalse();
+        assertThat(CollectionUtil.isEmptyOrAllElementsNull(Arrays.asList(null, "test", null)))
+                .isFalse();
     }
 
     @Test
-    public void testCheckedSubTypeCast() {
+    void testCheckedSubTypeCast() {
         List<A> list = new ArrayList<>();
         B b = new B();
         C c = new C();

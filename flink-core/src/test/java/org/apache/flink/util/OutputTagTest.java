@@ -25,28 +25,28 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link OutputTag}. */
-public class OutputTagTest {
+class OutputTagTest {
 
     @Test
-    public void testNullRejected() {
+    void testNullRejected() {
         assertThatThrownBy(() -> new OutputTag<Integer>(null))
                 .isInstanceOf(NullPointerException.class);
     }
 
     @Test
-    public void testNullRejectedWithTypeInfo() {
+    void testNullRejectedWithTypeInfo() {
         assertThatThrownBy(() -> new OutputTag<>(null, BasicTypeInfo.INT_TYPE_INFO))
                 .isInstanceOf(NullPointerException.class);
     }
 
     @Test
-    public void testEmptyStringRejected() {
+    void testEmptyStringRejected() {
         assertThatThrownBy(() -> new OutputTag<Integer>(""))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testEmptyStringRejectedWithTypeInfo() {
+    void testEmptyStringRejectedWithTypeInfo() {
         assertThatThrownBy(() -> new OutputTag<>("", BasicTypeInfo.INT_TYPE_INFO))
                 .isInstanceOf(IllegalArgumentException.class);
     }
