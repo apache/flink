@@ -21,6 +21,8 @@ package org.apache.flink.util;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the utility methods in {@link ExceptionUtils}. */
 public class ExceptionUtilsTest {
@@ -28,8 +30,8 @@ public class ExceptionUtilsTest {
     @Test
     public void testStringifyNullException() {
         assertThat(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION).isNotNull();
-        assertEquals(
-                ExceptionUtils.STRINGIFIED_NULL_EXCEPTION, ExceptionUtils.stringifyException(null));
+        assertThat(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION)
+                .isEqualTo(ExceptionUtils.stringifyException(null));
     }
 
     @Test
@@ -48,11 +50,8 @@ public class ExceptionUtilsTest {
     @Test
     public void testRethrowFatalError() {
         // fatal error is rethrown
-        try {
-            ExceptionUtils.rethrowIfFatalError(new InternalError());
-            fail();
-        } catch (InternalError ignored) {
-        }
+        assertThatThrownBy(() -> ExceptionUtils.rethrowIfFatalError(new InternalError()))
+                .isInstanceOf(InternalError.class);
 
         // non-fatal error is not rethrown
         ExceptionUtils.rethrowIfFatalError(new NoClassDefFoundError());
@@ -75,7 +74,7 @@ public class ExceptionUtilsTest {
                         new RuntimeException(new RuntimeException(expectedException)),
                         RuntimeException.class);
 
-        assertThat(strippedException, is(equalTo(expectedException)));
+        assertThat(strippedException).isEqualTo(expectedException);
     }
 
     @Test
@@ -85,7 +84,7 @@ public class ExceptionUtilsTest {
         final Throwable strippedException =
                 ExceptionUtils.stripException(expectedException, RuntimeException.class);
 
-        assertThat(strippedException, is(equalTo(expectedException)));
+        assertThat(strippedException).isEqualTo(expectedException);
     }
 
     @Test
@@ -98,7 +97,7 @@ public class ExceptionUtilsTest {
         Throwable rootThrowable = new OutOfMemoryError("old message");
         ExceptionUtils.updateDetailMessage(rootThrowable, t -> "new message");
 
-        assertThat(rootThrowable.getMessage(), is("new message"));
+        assertThat(rootThrowable.getMessage()).isEqualTo("new message");
     }
 
     @Test
@@ -116,12 +115,12 @@ public class ExceptionUtilsTest {
                 rootThrowable,
                 t -> t.getClass().equals(OutOfMemoryError.class) ? "new message" : null);
 
-        assertThat(rootThrowable.getCause(), sameInstance(oom));
-        assertThat(rootThrowable.getCause().getMessage(), is("new message"));
-        assertThat(rootThrowable.getCause().getStackTrace(), is(oom.getStackTrace()));
-        assertThat(rootThrowable.getCause().getSuppressed(), is(oom.getSuppressed()));
+        assertThat(rootThrowable.getCause()).isSameAs(oom);
+        assertThat(rootThrowable.getCause().getMessage()).isEqualTo("new message");
+        assertThat(rootThrowable.getCause().getStackTrace()).isEqualTo(oom.getStackTrace());
+        assertThat(rootThrowable.getCause().getSuppressed()).isEqualTo(oom.getSuppressed());
 
-        assertThat(rootThrowable.getCause().getCause(), sameInstance(oomCause));
+        assertThat(rootThrowable.getCause().getCause()).isSameAs(oomCause);
     }
 
     @Test
@@ -131,8 +130,8 @@ public class ExceptionUtilsTest {
                         "root message", new IllegalArgumentException("cause message"));
         ExceptionUtils.updateDetailMessage(originalThrowable, t -> null);
 
-        assertThat(originalThrowable.getMessage(), is("root message"));
-        assertThat(originalThrowable.getCause().getMessage(), is("cause message"));
+        assertThat(originalThrowable.getMessage()).isEqualTo("root message");
+        assertThat(originalThrowable.getCause().getMessage()).isEqualTo("cause message");
     }
 
     @Test
@@ -145,7 +144,7 @@ public class ExceptionUtilsTest {
         Throwable root = new Exception("old message");
         ExceptionUtils.updateDetailMessage(root, null);
 
-        assertThat(root.getMessage(), is("old message"));
+        assertThat(root.getMessage()).isEqualTo("old message");
     }
 
     @Test

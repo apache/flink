@@ -45,11 +45,11 @@ public class ComponentClassLoaderTest {
     private static String resourceToLoad;
     private static final URL RESOURCE_RETURNED_BY_OWNER = createURL();
 
-    @TempDir public static File TMP;
+    @TempDir public static File tmp;
 
     @BeforeAll
     static void setup() throws IOException {
-        resourceToLoad = File.createTempFile("tmpfile", null, TMP).getName();
+        resourceToLoad = File.createTempFile("tmpfile", null, tmp).getName();
     }
 
     // ----------------------------------------------------------------------------------------------
@@ -184,7 +184,7 @@ public class ComponentClassLoaderTest {
 
         final ComponentClassLoader componentClassLoader =
                 new ComponentClassLoader(
-                        new URL[] {TMP.toURI().toURL()},
+                        new URL[] {tmp.toURI().toURL()},
                         owner,
                         new String[] {resourceToLoad},
                         new String[0],
@@ -201,7 +201,7 @@ public class ComponentClassLoaderTest {
 
         final ComponentClassLoader componentClassLoader =
                 new ComponentClassLoader(
-                        new URL[] {TMP.toURI().toURL()},
+                        new URL[] {tmp.toURI().toURL()},
                         owner,
                         new String[0],
                         new String[] {resourceToLoad},

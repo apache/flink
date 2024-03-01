@@ -32,6 +32,7 @@ import java.net.URLClassLoader;
 import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
+import static org.hamcrest.core.Is.is;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for classloading and class loader utilities. */
@@ -239,7 +240,7 @@ public class FlinkUserCodeClassLoadersTest {
         childClassLoader.close();
 
         // after closing, no loaded class should be reachable anymore
-        expectedException.expect(isA(IllegalStateException.class));
+        expectedException.expect(is(IllegalStateException.class));
         childClassLoader.loadClass(className);
     }
 

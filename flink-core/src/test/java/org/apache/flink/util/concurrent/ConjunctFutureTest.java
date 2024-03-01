@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link ConjunctFuture} and its sub classes. */
 @RunWith(Parameterized.class)
@@ -51,23 +51,22 @@ public class ConjunctFutureTest {
     @Parameterized.Parameter public FutureFactory futureFactory;
 
     @Test
-    public void testConjunctFutureFailsOnEmptyAndNull() throws Exception {
-        try {
-            futureFactory.createFuture(null);
-            fail();
-        } catch (NullPointerException ignored) {
-        }
+    public void testConjunctFutureFailsOnEmptyAndNull() {
+        assertThatThrownBy(() -> futureFactory.createFuture(null))
+                .isInstanceOf(NullPointerException.class);
 
-        try {
-            futureFactory.createFuture(
-                    Arrays.asList(new CompletableFuture<>(), null, new CompletableFuture<>()));
-            fail();
-        } catch (NullPointerException ignored) {
-        }
+        assertThatThrownBy(
+                        () ->
+                                futureFactory.createFuture(
+                                        Arrays.asList(
+                                                new CompletableFuture<>(),
+                                                null,
+                                                new CompletableFuture<>())))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
-    public void testConjunctFutureCompletion() throws Exception {
+    public void testConjunctFutureCompletion() {
         // some futures that we combine
         java.util.concurrent.CompletableFuture<Object> future1 =
                 new java.util.concurrent.CompletableFuture<>();
@@ -145,19 +144,13 @@ public class ConjunctFutureTest {
         assertThat(result.isDone()).isTrue();
         assertThat(resultMapped.isDone()).isTrue();
 
-        try {
-            result.get();
-            fail();
-        } catch (ExecutionException e) {
-            assertThat(e.getCause() instanceof IOException).isTrue();
-        }
+        assertThatThrownBy(result::get)
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(IOException.class);
 
-        try {
-            resultMapped.get();
-            fail();
-        } catch (ExecutionException e) {
-            assertThat(e.getCause() instanceof IOException).isTrue();
-        }
+        assertThatThrownBy(resultMapped::get)
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(IOException.class);
     }
 
     @Test
@@ -189,19 +182,13 @@ public class ConjunctFutureTest {
         assertThat(result.isDone()).isTrue();
         assertThat(resultMapped.isDone()).isTrue();
 
-        try {
-            result.get();
-            fail();
-        } catch (ExecutionException e) {
-            assertThat(e.getCause() instanceof IOException).isTrue();
-        }
+        assertThatThrownBy(result::get)
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(IOException.class);
 
-        try {
-            resultMapped.get();
-            fail();
-        } catch (ExecutionException e) {
-            assertThat(e.getCause() instanceof IOException).isTrue();
-        }
+        assertThatThrownBy(resultMapped::get)
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(IOException.class);
     }
 
     /**

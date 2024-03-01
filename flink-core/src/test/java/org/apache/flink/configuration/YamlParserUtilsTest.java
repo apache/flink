@@ -60,7 +60,7 @@ class YamlParserUtilsTest {
         Map<String, Object> yamlData = YamlParserUtils.loadYamlFile(confFile);
         assertThat(yamlData).isNotNull();
         assertThat(yamlData).containsEntry("key1", "value1");
-        assertThat(((Map<?, ?>) yamlData.get("key2"))).containsEntry("subKey1", "value2");
+        assertThat(((Map<?, ?>) yamlData.get("key2")).get("subKey1")).isEqualTo("value2");
         assertThat(yamlData).containsEntry("key3", Arrays.asList("a", "b", "c"));
 
         Map<String, String> map = new HashMap<>();

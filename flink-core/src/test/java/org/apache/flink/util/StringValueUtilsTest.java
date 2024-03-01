@@ -32,14 +32,14 @@ public class StringValueUtilsTest {
     public void testToLowerCaseConverting() {
         StringValue testString = new StringValue("TEST");
         StringValueUtils.toLowerCase(testString);
-        assertThat(testString).isEqualTo(new StringValue("test"));
+        assertThat((Object) testString).isEqualTo(new StringValue("test"));
     }
 
     @Test
     public void testReplaceNonWordChars() {
         StringValue testString = new StringValue("TEST123_@");
         StringValueUtils.replaceNonWordChars(testString, '!');
-        assertThat(testString).isEqualTo(new StringValue("TEST123_!"));
+        assertThat((Object) testString).isEqualTo(new StringValue("TEST123_!"));
     }
 
     @Test

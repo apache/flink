@@ -111,13 +111,13 @@ public class StringSerializationTest {
             assertThat(newBytes).isEqualTo(oldBytes);
             // old impl should read bytes from new one
             String oldString = deserializeBytes(newBytes, StringSerializationTest::oldReadString);
-            assertThat(testString).isEqualTo(oldString);
+            assertThat((Object) testString).isEqualTo(oldString);
             // new impl should read bytes from old one
             String newString = deserializeBytes(oldBytes, StringSerializationTest::newReadString);
-            assertThat(testString).isEqualTo(newString);
+            assertThat((Object) testString).isEqualTo(newString);
             // it should roundtrip over new impl
             String roundtrip = deserializeBytes(newBytes, StringSerializationTest::newReadString);
-            assertThat(testString).isEqualTo(roundtrip);
+            assertThat((Object) testString).isEqualTo(roundtrip);
         }
     }
 

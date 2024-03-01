@@ -37,6 +37,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import static org.hamcrest.Matchers.is;
+
 /** A {@link TypeSerializerUpgradeTestBase} for {@link RowSerializer}. */
 @VisibleForTesting
 public class RowSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Row, Row> {

@@ -71,7 +71,7 @@ public class JMXServerTest {
             JMXConnector jmxConn = JMXConnectorFactory.connect(url);
             MBeanServerConnection mbeanConnConn = jmxConn.getMBeanServerConnection();
 
-            assertThat(mbeanConnConn.getAttribute(testObjectName, "Foo")).isOne();
+            assertThat((int) mbeanConnConn.getAttribute(testObjectName, "Foo")).isOne();
             mBeanServer.unregisterMBean(testObjectName);
             assertThatThrownBy(() -> mbeanConnConn.getAttribute(testObjectName, "Foo"))
                     .isInstanceOf(InstanceNotFoundException.class);

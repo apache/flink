@@ -58,74 +58,58 @@ public class RecordTest {
     }
 
     @Test
-    public void testEmptyRecordSerialization() {
-        try {
-            // test deserialize into self
-            Record empty = new Record();
-            empty.write(this.out);
-            empty.read(in);
-            assertThat(0)
-                    .isCloseTo(
-                            "Deserialized Empty record is not another empty record.",
-                            within(empty.getNumFields()));
+    public void testEmptyRecordSerialization() throws IOException {
+        // test deserialize into self
+        Record empty = new Record();
+        empty.write(this.out);
+        empty.read(in);
+        assertThat(empty.getNumFields()).isZero();
 
-            // test deserialize into new
-            empty = new Record();
-            empty.write(this.out);
-            empty = new Record();
-            empty.read(this.in);
-            assertThat(0)
-                    .isCloseTo(
-                            "Deserialized Empty record is not another empty record.",
-                            within(empty.getNumFields()));
-
-        } catch (Throwable t) {
-            Assert.fail("Test failed due to an exception: " + t.getMessage());
-        }
+        // test deserialize into new
+        empty = new Record();
+        empty.write(this.out);
+        empty = new Record();
+        empty.read(this.in);
+        assertThat(empty.getNumFields()).isZero();
     }
 
     @Test
     public void testAddField() {
-        try {
-            // Add a value to an empty record
-            Record record = new Record();
-            assertThat(record.getNumFields()).isZero();
-            record.addField(this.origVal1);
-            assertThat(record.getNumFields()).isOne();
-            assertThat(
-                    record.getField(0)
-                            .isCloseTo(origVal1.getValue(), within(StringValue.class).getValue()));
+        // Add a value to an empty record
+        Record record = new Record();
+        assertThat(record.getNumFields()).isZero();
+        record.addField(this.origVal1);
+        assertThat(record.getNumFields()).isOne();
+        assertThat(record.getField(0, StringValue.class).getValue())
+                .as("The value of the first field has changed")
+                .isEqualTo(origVal1.getValue());
 
-            // Add 100 random integers to the record
-            record = new Record();
-            for (int i = 0; i < 100; i++) {
-                IntValue orig = new IntValue(this.rand.nextInt());
-                record.addField(orig);
-                IntValue rec = record.getField(i, IntValue.class);
+        // Add 100 random integers to the record
+        record = new Record();
+        for (int i = 0; i < 100; i++) {
+            IntValue orig = new IntValue(this.rand.nextInt());
+            record.addField(orig);
+            IntValue rec = record.getField(i, IntValue.class);
 
-                assertThat(i + 1).isEqualTo(record.getNumFields());
-                assertThat(rec.getValue()).isEqualTo(orig.getValue());
-            }
-
-            // Add 3 values of different type to the record
-            record = new Record(this.origVal1, this.origVal2);
-            record.addField(this.origVal3);
-
-            assertThat(record.getNumFields()).isEqualTo(3);
-
-            StringValue recVal1 = record.getField(0, StringValue.class);
-            DoubleValue recVal2 = record.getField(1, DoubleValue.class);
-            IntValue recVal3 = record.getField(2, IntValue.class);
-
-            assertThat(recVal1)
-                    .isCloseTo("The value of the first field has changed", within(this.origVal1));
-            assertThat(recVal2)
-                    .isCloseTo("The value of the second field changed", within(this.origVal2));
-            assertThat(recVal3)
-                    .isCloseTo("The value of the third field has changed", within(this.origVal3));
-        } catch (Throwable t) {
-            Assert.fail("Test failed due to an exception: " + t.getMessage());
+            assertThat(i + 1).isEqualTo(record.getNumFields());
+            assertThat(rec.getValue()).isEqualTo(orig.getValue());
         }
+
+        // Add 3 values of different type to the record
+        record = new Record(this.origVal1, this.origVal2);
+        record.addField(this.origVal3);
+
+        assertThat(record.getNumFields()).isEqualTo(3);
+
+        StringValue recVal1 = record.getField(0, StringValue.class);
+        DoubleValue recVal2 = record.getField(1, DoubleValue.class);
+        IntValue recVal3 = record.getField(2, IntValue.class);
+
+        assertThat((Object) recVal1)
+                .as("The value of the first field has changed")
+                .isEqualTo(this.origVal1);
+        assertThat(recVal2).as("The value of the second field changed").isEqualTo(this.origVal2);
+        assertThat(recVal3).as("The value of the third field has changed").isEqualTo(this.origVal3);
     }
 
     //	@Test
@@ -279,63 +263,51 @@ public class RecordTest {
 
     @Test
     public void testSetNullInt() {
-        try {
-            Record record = this.generateFilledDenseRecord(58);
+        Record record = this.generateFilledDenseRecord(58);
 
-            record.setNull(42);
-            assertThat(record.getNumFields()).isEqualTo(58);
-            assertThat(record.getField(42, IntValue.class)).isNull();
-        } catch (Throwable t) {
-            Assert.fail("Test failed due to an exception: " + t.getMessage());
-        }
+        record.setNull(42);
+        assertThat(record.getNumFields()).isEqualTo(58);
+        assertThat(record.getField(42, IntValue.class)).isNull();
     }
 
     @Test
     public void testSetNullLong() {
-        try {
-            Record record = this.generateFilledDenseRecord(58);
-            long mask = generateRandomBitmask(58);
+        Record record = this.generateFilledDenseRecord(58);
+        long mask = generateRandomBitmask(58);
 
-            record.setNull(mask);
+        record.setNull(mask);
 
-            for (int i = 0; i < 58; i++) {
-                if (((1L << i) & mask) != 0) {
-                    assertThat(record.getField(i, IntValue.class)).isNull();
-                }
+        for (int i = 0; i < 58; i++) {
+            if (((1L << i) & mask) != 0) {
+                assertThat(record.getField(i, IntValue.class)).isNull();
             }
-
-            assertThat(record.getNumFields()).isEqualTo(58);
-        } catch (Throwable t) {
-            Assert.fail("Test failed due to an exception: " + t.getMessage());
         }
+
+        assertThat(record.getNumFields()).isEqualTo(58);
     }
 
     @Test
     public void testSetNullLongArray() {
-        try {
-            Record record = this.generateFilledDenseRecord(612);
-            long[] mask = {1L, 1L, 1L, 1L};
-            record.setNull(mask);
+        Record record = this.generateFilledDenseRecord(612);
+        long[] mask = {1L, 1L, 1L, 1L};
+        record.setNull(mask);
 
-            assertThat(record.getField(0, IntValue.class)).isNull();
-            assertThat(record.getField(64, IntValue.class)).isNull();
-            assertThat(record.getField(128, IntValue.class)).isNull();
-            assertThat(record.getField(192, IntValue.class)).isNull();
+        assertThat(record.getField(0, IntValue.class)).isNull();
+        assertThat(record.getField(64, IntValue.class)).isNull();
+        assertThat(record.getField(128, IntValue.class)).isNull();
+        assertThat(record.getField(192, IntValue.class)).isNull();
 
-            mask = new long[10];
-            for (int i = 0; i < mask.length; i++) {
-                int offset = i * Long.SIZE;
-                int numFields =
-                        ((offset + Long.SIZE) < record.getNumFields())
-                                ? Long.SIZE
-                                : record.getNumFields() - offset;
-                mask[i] = this.generateRandomBitmask(numFields);
-            }
-
-            record.setNull(mask);
-        } catch (Throwable t) {
-            Assert.fail("Test failed due to an exception: " + t.getMessage());
+        mask = new long[10];
+        for (int i = 0; i < mask.length; i++) {
+            int offset = i * Long.SIZE;
+            int numFields =
+                    ((offset + Long.SIZE) < record.getNumFields())
+                            ? Long.SIZE
+                            : record.getNumFields() - offset;
+            mask[i] = this.generateRandomBitmask(numFields);
         }
+
+        record.setNull(mask);
     }
 
     //	@Test
@@ -359,7 +331,7 @@ public class RecordTest {
     //	}
 
     @Test
-    public void testUpdateBinaryRepresentations() {
+    public void testUpdateBinaryRepresentations() throws IOException {
         // TODO: this is not an extensive test of updateBinaryRepresentation()
         // and should be extended!
 
@@ -383,10 +355,10 @@ public class RecordTest {
 
         r.updateBinaryRepresenation();
 
-        assertThat(r.getField(1, IntValue.class)).isEqualTo(1);
-        assertThat(r.getField(3, IntValue.class)).isEqualTo(2);
-        assertThat(r.getField(7, IntValue.class)).isEqualTo(3);
-        assertThat(r.getField(8, IntValue.class)).isEqualTo(4);
+        assertThat(r.getField(1, IntValue.class).getValue()).isEqualTo(1);
+        assertThat(r.getField(3, IntValue.class).getValue()).isEqualTo(2);
+        assertThat(r.getField(7, IntValue.class).getValue()).isEqualTo(3);
+        assertThat(r.getField(8, IntValue.class).getValue()).isEqualTo(4);
 
         // Tests an update where modified and unmodified fields are interleaved
         r = new Record();
@@ -409,24 +381,21 @@ public class RecordTest {
         r = new Record();
         r.read(this.in);
 
-        assertThat(r.getField(0).isCloseTo(0, within(IntValue.class).getValue()));
-        assertThat(r.getField(1).isCloseTo(10, within(IntValue.class).getValue()));
-        assertThat(r.getField(2).isCloseTo(2, within(IntValue.class).getValue()));
-        assertThat(r.getField(3).isCloseTo(3, within(IntValue.class).getValue()));
-        assertThat(
-                r.getField(4).isCloseTo("Some long value", within(StringValue.class).getValue()));
-        assertThat(
-                r.getField(5)
-                        .isCloseTo("An even longer value", within(StringValue.class).getValue()));
-        assertThat(r.getField(6).isCloseTo(6, within(IntValue.class).getValue()));
-        assertThat(r.getField(7).isCloseTo(7, within(IntValue.class).getValue()));
+        assertThat(r.getField(0, IntValue.class).getValue()).isEqualTo(0);
+        assertThat(r.getField(1, IntValue.class).getValue()).isEqualTo(10);
+        assertThat(r.getField(2, IntValue.class).getValue()).isEqualTo(2);
+        assertThat(r.getField(3, IntValue.class).getValue()).isEqualTo(3);
+        assertThat(r.getField(4, StringValue.class).getValue()).isEqualTo("Some long value");
+        assertThat(r.getField(5, StringValue.class).getValue()).isEqualTo("An even longer value");
+        assertThat(r.getField(6, IntValue.class).getValue()).isEqualTo(6);
+        assertThat(r.getField(7, IntValue.class).getValue()).isEqualTo(7);
         assertThat(r.getField(8, IntValue.class)).isNull();
         assertThat(r.getField(9, IntValue.class)).isNull();
-        assertThat(r.getField(10).isCloseTo(10, within(IntValue.class).getValue()));
+        assertThat(r.getField(10, IntValue.class).getValue()).isEqualTo(10);
     }
 
     @Test
-    public void testDeSerialization() {
+    public void testDeSerialization() throws IOException {
         StringValue origValue1 = new StringValue("Hello World!");
         IntValue origValue2 = new IntValue(1337);
         Record record1 = new Record(origValue1, origValue2);
@@ -442,35 +411,31 @@ public class RecordTest {
         StringValue rec2Val1 = record2.getField(0, StringValue.class);
         IntValue rec2Val2 = record2.getField(1, IntValue.class);
 
-        assertThat(rec1Val1).isEqualTo(origValue1);
+        assertThat((Object) rec1Val1).isEqualTo(origValue1);
         assertThat(rec1Val2).isEqualTo(origValue2);
-        assertThat(rec2Val1).isEqualTo(origValue1);
+        assertThat((Object) rec2Val1).isEqualTo(origValue1);
         assertThat(rec2Val2).isEqualTo(origValue2);
     }
 
     @Test
     public void testClear() throws IOException {
-        try {
-            Record record = new Record(new IntValue(42));
+        Record record = new Record(new IntValue(42));
 
-            record.write(this.out);
-            assertThat(record.getField(0).isCloseTo(42, within(IntValue.class).getValue()));
+        record.write(this.out);
+        assertThat(record.getField(0, IntValue.class).getValue()).isEqualTo(42);
 
-            record.setField(0, new IntValue(23));
-            record.write(this.out);
-            assertThat(record.getField(0).isCloseTo(23, within(IntValue.class).getValue()));
+        record.setField(0, new IntValue(23));
+        record.write(this.out);
+        assertThat(record.getField(0, IntValue.class).getValue()).isEqualTo(23);
 
-            record.clear();
-            assertThat(record.getNumFields()).isZero();
+        record.clear();
+        assertThat(record.getNumFields()).isZero();
 
-            Record record2 = new Record(new IntValue(42));
-            record2.read(in);
-            assertThat(record2.getField(0).isCloseTo(42, within(IntValue.class).getValue()));
-            record2.read(in);
-            assertThat(record2.getField(0).isCloseTo(23, within(IntValue.class).getValue()));
-        } catch (Throwable t) {
-            Assert.fail("Test failed due to an exception: " + t.getMessage());
-        }
+        Record record2 = new Record(new IntValue(42));
+        record2.read(in);
+        assertThat(record2.getField(0, IntValue.class).getValue()).isEqualTo(42);
+        record2.read(in);
+        assertThat(record2.getField(0, IntValue.class).getValue()).isEqualTo(23);
     }
 
     private Record generateFilledDenseRecord(int numFields) {
@@ -496,87 +461,83 @@ public class RecordTest {
     }
 
     @Test
-    public void blackBoxTests() {
-        try {
-            final Value[][] values =
-                    new Value[][] {
-                        // empty
-                        {},
-                        // exactly 8 fields
-                        {
-                            new IntValue(55),
-                            new StringValue("Hi there!"),
-                            new LongValue(457354357357135L),
-                            new IntValue(345),
-                            new IntValue(-468),
-                            new StringValue("This is the message and the message is this!"),
-                            new LongValue(0L),
-                            new IntValue(465)
-                        },
-                        // exactly 16 fields
-                        {
-                            new IntValue(55),
-                            new StringValue("Hi there!"),
-                            new LongValue(457354357357135L),
-                            new IntValue(345),
-                            new IntValue(-468),
-                            new StringValue("This is the message and the message is this!"),
-                            new LongValue(0L),
-                            new IntValue(465),
-                            new IntValue(55),
-                            new StringValue("Hi there!"),
-                            new LongValue(457354357357135L),
-                            new IntValue(345),
-                            new IntValue(-468),
-                            new StringValue("This is the message and the message is this!"),
-                            new LongValue(0L),
-                            new IntValue(465)
-                        },
-                        // exactly 8 nulls
-                        {null, null, null, null, null, null, null, null},
-                        // exactly 16 nulls
-                        {
-                            null, null, null, null, null, null, null, null, null, null, null, null,
-                            null, null, null, null
-                        },
-                        // arbitrary example
-                        {
-                            new IntValue(56),
-                            null,
-                            new IntValue(-7628761),
-                            new StringValue("A test string")
-                        },
-                        // a very long field
-                        {
-                            new StringValue(createRandomString(this.rand, 15)),
-                            new StringValue(createRandomString(this.rand, 1015)),
-                            new StringValue(createRandomString(this.rand, 32))
-                        },
-                        // two very long fields
-                        {
-                            new StringValue(createRandomString(this.rand, 1265)),
-                            null,
-                            new StringValue(createRandomString(this.rand, 855))
-                        }
-                    };
+    public void blackBoxTests() throws Exception {
+        final Value[][] values =
+                new Value[][] {
+                    // empty
+                    {},
+                    // exactly 8 fields
+                    {
+                        new IntValue(55),
+                        new StringValue("Hi there!"),
+                        new LongValue(457354357357135L),
+                        new IntValue(345),
+                        new IntValue(-468),
+                        new StringValue("This is the message and the message is this!"),
+                        new LongValue(0L),
+                        new IntValue(465)
+                    },
+                    // exactly 16 fields
+                    {
+                        new IntValue(55),
+                        new StringValue("Hi there!"),
+                        new LongValue(457354357357135L),
+                        new IntValue(345),
+                        new IntValue(-468),
+                        new StringValue("This is the message and the message is this!"),
+                        new LongValue(0L),
+                        new IntValue(465),
+                        new IntValue(55),
+                        new StringValue("Hi there!"),
+                        new LongValue(457354357357135L),
+                        new IntValue(345),
+                        new IntValue(-468),
+                        new StringValue("This is the message and the message is this!"),
+                        new LongValue(0L),
+                        new IntValue(465)
+                    },
+                    // exactly 8 nulls
+                    {null, null, null, null, null, null, null, null},
+                    // exactly 16 nulls
+                    {
+                        null, null, null, null, null, null, null, null, null, null, null, null,
+                        null, null, null, null
+                    },
+                    // arbitrary example
+                    {
+                        new IntValue(56),
+                        null,
+                        new IntValue(-7628761),
+                        new StringValue("A test string")
+                    },
+                    // a very long field
+                    {
+                        new StringValue(createRandomString(this.rand, 15)),
+                        new StringValue(createRandomString(this.rand, 1015)),
+                        new StringValue(createRandomString(this.rand, 32))
+                    },
+                    // two very long fields
+                    {
+                        new StringValue(createRandomString(this.rand, 1265)),
+                        null,
+                        new StringValue(createRandomString(this.rand, 855))
+                    }
+                };
 
-            for (Value[] value : values) {
-                blackboxTestRecordWithValues(value, this.rand, this.in, this.out);
-            }
+        for (Value[] value : values) {
+            blackboxTestRecordWithValues(value, this.rand, this.in, this.out);
+        }
 
-            // random test with records with a small number of fields
-            for (int i = 0; i < 10000; i++) {
-                final Value[] fields = createRandomValues(this.rand, 0, 32);
-                blackboxTestRecordWithValues(fields, this.rand, this.in, this.out);
-            }
+        // random test with records with a small number of fields
+        for (int i = 0; i < 10000; i++) {
+            final Value[] fields = createRandomValues(this.rand, 0, 32);
+            blackboxTestRecordWithValues(fields, this.rand, this.in, this.out);
+        }
 
-            // random tests with records with a moderately large number of fields
-            for (int i = 0; i < 1000; i++) {
-                final Value[] fields = createRandomValues(this.rand, 20, 150);
-                blackboxTestRecordWithValues(fields, this.rand, this.in, this.out);
-            }
-        } catch (Throwable t) {
-            Assert.fail("Test failed due to an exception: " + t.getMessage());
+        // random tests with records with a moderately large number of fields
+        for (int i = 0; i < 1000; i++) {
+            final Value[] fields = createRandomValues(this.rand, 20, 150);
+            blackboxTestRecordWithValues(fields, this.rand, this.in, this.out);
         }
     }
 
@@ -806,44 +767,32 @@ public class RecordTest {
 
     @Test
     public void testUnionFields() {
-        try {
-            final Value[][] values =
-                    new Value[][] {
-                        {new IntValue(56), null, new IntValue(-7628761)},
-                        {null, new StringValue("Hello Test!"), null},
-                        {null, null, null, null, null, null, null, null},
-                        {
-                            null, null, null, null, null, null, null, null, null, null, null, null,
-                            null, null, null, null
-                        },
-                        {
-                            new IntValue(56),
-                            new IntValue(56),
-                            new IntValue(56),
-                            new IntValue(56),
-                            null,
-                            null,
-                            null
-                        },
-                        {
-                            null,
-                            null,
-                            null,
-                            null,
-                            new IntValue(56),
-                            new IntValue(56),
-                            new IntValue(56)
-                        },
-                        {new IntValue(43), new IntValue(42), new IntValue(41)},
-                        {new IntValue(-463), new IntValue(-464), new IntValue(-465)}
-                    };
+        final Value[][] values =
+                new Value[][] {
+                    {new IntValue(56), null, new IntValue(-7628761)},
+                    {null, new StringValue("Hello Test!"), null},
+                    {null, null, null, null, null, null, null, null},
+                    {
+                        null, null, null, null, null, null, null, null, null, null, null, null,
+                        null, null, null, null
+                    },
+                    {
+                        new IntValue(56),
+                        new IntValue(56),
+                        new IntValue(56),
+                        new IntValue(56),
+                        null,
+                        null,
+                        null
+                    },
+                    {null, null, null, null, new IntValue(56), new IntValue(56), new IntValue(56)},
+                    {new IntValue(43), new IntValue(42), new IntValue(41)},
+                    {new IntValue(-463), new IntValue(-464), new IntValue(-465)}
+                };
 
-            for (int i = 0; i < values.length - 1; i += 2) {
-                testUnionFieldsForValues(values[i], values[i + 1], this.rand);
-                testUnionFieldsForValues(values[i + 1], values[i], this.rand);
-            }
-        } catch (Throwable t) {
-            Assert.fail("Test failed due to an exception: " + t.getMessage());
+        for (int i = 0; i < values.length - 1; i += 2) {
+            testUnionFieldsForValues(values[i], values[i + 1], this.rand);
+            testUnionFieldsForValues(values[i + 1], values[i], this.rand);
         }
     }
 

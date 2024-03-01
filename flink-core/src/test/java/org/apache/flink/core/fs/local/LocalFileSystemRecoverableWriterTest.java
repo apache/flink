@@ -30,11 +30,11 @@ import java.io.IOException;
 /** Tests for the {@link LocalRecoverableWriter}. */
 public class LocalFileSystemRecoverableWriterTest extends AbstractRecoverableWriterTest {
 
-    @TempDir public static File TEMP_FOLDER;
+    @TempDir public static File tempFolder;
 
     @Override
     public Path getBasePath() throws Exception {
-        return new Path(newFolder(TEMP_FOLDER, "junit").toURI());
+        return new Path(newFolder(tempFolder, "junit").toURI());
     }
 
     @Override

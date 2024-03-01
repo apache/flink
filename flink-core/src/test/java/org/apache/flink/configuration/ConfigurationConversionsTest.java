@@ -21,9 +21,12 @@ package org.apache.flink.configuration;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import javax.annotation.Nullable;
 
@@ -31,10 +34,16 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Optional;
 
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.startsWith;
+import static org.hamcrest.Matchers.closeTo;
+import static org.junit.Assert.assertThat;
+
 /**
  * Tests for {@link Configuration} conversion between types. Extracted from {@link
  * ConfigurationTest}.
  */
+@RunWith(Parameterized.class)
 public class ConfigurationConversionsTest {
 
     private static final byte[] EMPTY_BYTES = new byte[0];
@@ -43,8 +52,8 @@ public class ConfigurationConversionsTest {
 
     private Configuration pc;
 
-    @BeforeEach
-    void init() {
+    @Before
+    public void init() {
         pc = new Configuration();
 
         pc.setInteger("int", 5);
@@ -60,6 +69,9 @@ public class ConfigurationConversionsTest {
         pc.setBoolean("boolean", true);
     }
 
+    @Rule public ExpectedException thrown = ExpectedException.none();
+
+    @Parameterized.Parameters
     public static Collection<TestSpec> getSpecs() {
         return Arrays.asList(
                 // from integer
@@ -349,12 +361,10 @@ public class ConfigurationConversionsTest {
                                 "Configuration cannot evaluate object of class class java.lang.Boolean as a class name"));
     }
 
-    public TestSpec<?> testSpec;
+    @Parameterized.Parameter public TestSpec<?> testSpec;
 
-    @MethodSource("getSpecs")
-    @ParameterizedTest
-    public void testConversions(TestSpec<?> testSpec) throws Exception {
-        initConfigurationConversionsTest(testSpec);
+    @Test
+    public void testConversions() throws Exception {
         testSpec.getExpectedException()
                 .ifPresent(
                         exception -> {
@@ -453,9 +463,5 @@ public class ConfigurationConversionsTest {
         void assertConfiguration(Configuration conf) throws Exception {
             assertThat(configurationAccessor.access(conf), matcher);
         }
-    }
-
-    public void initConfigurationConversionsTest(TestSpec<?> testSpec) {
-        this.testSpec = testSpec;
     }
 }

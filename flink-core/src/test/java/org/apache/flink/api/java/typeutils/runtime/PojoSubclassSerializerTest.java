@@ -68,7 +68,7 @@ class PojoSubclassSerializerTest
 
     @Override
     @Test
-    void testInstantiate() {
+    public void testInstantiate() {
         // don't do anything, since the PojoSerializer with subclass will return null
     }
 

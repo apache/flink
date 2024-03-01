@@ -29,22 +29,28 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import org.junit.jupiter.api.Test;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /** Tests related to configuration snapshotting and reconfiguring for the {@link KryoSerializer}. */
-class KryoSerializerCompatibilityTest {
+public class KryoSerializerCompatibilityTest {
+
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
     /** Verifies that reconfiguration result is INCOMPATIBLE if data type has changed. */
     @Test
-    void testMigrationStrategyWithDifferentKryoType() throws Exception {
+    public void testMigrationStrategyWithDifferentKryoType() throws Exception {
         KryoSerializer<TestClassA> kryoSerializerForA =
                 new KryoSerializer<>(TestClassA.class, new SerializerConfigImpl());
 
@@ -74,79 +80,76 @@ class KryoSerializerCompatibilityTest {
                 kryoSerializerForB
                         .snapshotConfiguration()
                         .resolveSchemaCompatibility(kryoSerializerConfigSnapshot);
-        assertThat(compatResult.isIncompatible()).isTrue();
+        assertTrue(compatResult.isIncompatible());
     }
 
     @Test
-    void testMigrationOfTypeWithAvroType() throws Exception {
-        Throwable exception =
-                assertThrows(
-                        Exception.class,
-                        () -> {
+    public void testMigrationOfTypeWithAvroType() throws Exception {
 
-                            /*
-                            When Avro sees the schema "{"type" : "array", "items" : "boolean"}" it will create a field
-                            of type List<Integer> but the actual type will be GenericData.Array<Integer>. The
-                            KryoSerializer registers a special Serializer for this type that simply deserializes
-                            as ArrayList because Kryo cannot handle GenericData.Array well. Before Flink 1.4 Avro
-                            was always in the classpath but after 1.4 it's only present if the flink-avro jar is
-                            included. This test verifies that we can still deserialize data written pre-1.4.
-                            */
-                            class FakeAvroClass {
-                                public final List<Integer> array;
+        /*
+        When Avro sees the schema "{"type" : "array", "items" : "boolean"}" it will create a field
+        of type List<Integer> but the actual type will be GenericData.Array<Integer>. The
+        KryoSerializer registers a special Serializer for this type that simply deserializes
+        as ArrayList because Kryo cannot handle GenericData.Array well. Before Flink 1.4 Avro
+        was always in the classpath but after 1.4 it's only present if the flink-avro jar is
+        included. This test verifies that we can still deserialize data written pre-1.4.
+        */
+        class FakeAvroClass {
+            public List<Integer> array;
 
-                                FakeAvroClass(List<Integer> array) {
-                                    this.array = array;
-                                }
-                            }
+            FakeAvroClass(List<Integer> array) {
+                this.array = array;
+            }
+        }
 
-                            /*
-                            // This has to be executed on a pre-1.4 branch to generate the binary blob
-                            {
-                                ExecutionConfig executionConfig = new ExecutionConfig();
-                                KryoSerializer<FakeAvroClass> kryoSerializer =
-                                    new KryoSerializer<>(FakeAvroClass.class, executionConfig);
-                                  try (
-                                    FileOutputStream f = new FileOutputStream(
-                                        "src/test/resources/type-with-avro-serialized-using-kryo");
-                                    DataOutputViewStreamWrapper outputView = new DataOutputViewStreamWrapper(f)) {
-                                        GenericData.Array<Integer> array =
-                                        new GenericData.Array<>(10, Schema.createArray(Schema.create(Schema.Type.INT)));
-                                      array.add(10);
-                                    array.add(20);
-                                    array.add(30);
-                                      FakeAvroClass myTestClass = new FakeAvroClass(array);
-                                      kryoSerializer.serialize(myTestClass, outputView);
-                                }
-                            }
-                            */
+        /*
+        // This has to be executed on a pre-1.4 branch to generate the binary blob
+        {
+        	ExecutionConfig executionConfig = new ExecutionConfig();
+        	KryoSerializer<FakeAvroClass> kryoSerializer =
+        		new KryoSerializer<>(FakeAvroClass.class, executionConfig);
 
-                            {
-                                SerializerConfigImpl serializerConfigImpl =
-                                        new SerializerConfigImpl();
-                                KryoSerializer<FakeAvroClass> kryoSerializer =
-                                        new KryoSerializer<>(
-                                                FakeAvroClass.class, serializerConfigImpl);
+        	try (
+        		FileOutputStream f = new FileOutputStream(
+        			"src/test/resources/type-with-avro-serialized-using-kryo");
+        		DataOutputViewStreamWrapper outputView = new DataOutputViewStreamWrapper(f)) {
 
-                                try (FileInputStream f =
-                                                new FileInputStream(
-                                                        "src/test/resources/type-with-avro-serialized-using-kryo");
-                                        DataInputViewStreamWrapper inputView =
-                                                new DataInputViewStreamWrapper(f)) {
 
-                                    thrown.expectMessage("Could not find required Avro dependency");
-                                    kryoSerializer.deserialize(inputView);
-                                }
-                            }
-                        });
-        assertThat(exception.getMessage()).contains("Could not find required Avro dependency");
+        		GenericData.Array<Integer> array =
+        			new GenericData.Array<>(10, Schema.createArray(Schema.create(Schema.Type.INT)));
+
+        		array.add(10);
+        		array.add(20);
+        		array.add(30);
+
+        		FakeAvroClass myTestClass = new FakeAvroClass(array);
+
+        		kryoSerializer.serialize(myTestClass, outputView);
+        	}
+        }
+        */
+
+        {
+            SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
+            KryoSerializer<FakeAvroClass> kryoSerializer =
+                    new KryoSerializer<>(FakeAvroClass.class, serializerConfigImpl);
+
+            try (FileInputStream f =
+                            new FileInputStream(
+                                    "src/test/resources/type-with-avro-serialized-using-kryo");
+                    DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(f)) {
+
+                thrown.expectMessage("Could not find required Avro dependency");
+                kryoSerializer.deserialize(inputView);
+            }
+        }
     }
 
     @Test
-    void testMigrationWithTypeDevoidOfAvroTypes() throws Exception {
+    public void testMigrationWithTypeDevoidOfAvroTypes() throws Exception {
 
         class FakeClass {
-            public final List<Integer> array;
+            public List<Integer> array;
 
             FakeClass(List<Integer> array) {
                 this.array = array;
@@ -191,9 +194,9 @@ class KryoSerializerCompatibilityTest {
 
                 FakeClass myTestClass = kryoSerializer.deserialize(inputView);
 
-                assertThat(myTestClass.array.get(0)).isEqualTo(10);
-                assertThat(myTestClass.array.get(1)).isEqualTo(20);
-                assertThat(myTestClass.array.get(2)).isEqualTo(30);
+                assertThat(myTestClass.array.get(0), is(10));
+                assertThat(myTestClass.array.get(1), is(20));
+                assertThat(myTestClass.array.get(2), is(30));
             }
         }
     }
@@ -203,7 +206,7 @@ class KryoSerializerCompatibilityTest {
      * preceding KryoSerializer.
      */
     @Test
-    void testMigrationStrategyForDifferentRegistrationOrder() throws Exception {
+    public void testMigrationStrategyForDifferentRegistrationOrder() throws Exception {
 
         SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
         serializerConfigImpl.registerKryoType(TestClassA.class);
@@ -248,15 +251,15 @@ class KryoSerializerCompatibilityTest {
                 kryoSerializer
                         .snapshotConfiguration()
                         .resolveSchemaCompatibility(kryoSerializerConfigSnapshot);
-        assertThat(compatResult.isCompatibleWithReconfiguredSerializer()).isTrue();
+        assertTrue(compatResult.isCompatibleWithReconfiguredSerializer());
 
         kryoSerializer = (KryoSerializer<TestClass>) compatResult.getReconfiguredSerializer();
-        assertThat(kryoSerializer.getKryo().getRegistration(TestClass.class).getId())
-                .isEqualTo(testClassId);
-        assertThat(kryoSerializer.getKryo().getRegistration(TestClassA.class).getId())
-                .isEqualTo(testClassAId);
-        assertThat(kryoSerializer.getKryo().getRegistration(TestClassB.class).getId())
-                .isEqualTo(testClassBId);
+        assertEquals(
+                testClassId, kryoSerializer.getKryo().getRegistration(TestClass.class).getId());
+        assertEquals(
+                testClassAId, kryoSerializer.getKryo().getRegistration(TestClassA.class).getId());
+        assertEquals(
+                testClassBId, kryoSerializer.getKryo().getRegistration(TestClassB.class).getId());
     }
 
     private static class TestClass {}

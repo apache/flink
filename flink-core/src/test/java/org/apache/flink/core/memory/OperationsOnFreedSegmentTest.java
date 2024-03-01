@@ -138,56 +138,118 @@ public class OperationsOnFreedSegmentTest {
 
         // --------- bytes -----------
 
-        assertThatThrownBy(() -> segment.get(0)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
-        assertThatThrownBy(() -> segment.get(-1)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class, IndexOutOfBoundsException.class);
-        assertThatThrownBy(() -> segment.get(1)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
-        assertThatThrownBy(() -> segment.get(segment.size())).isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
-        assertThatThrownBy(() -> segment.get(-segment.size())).isInstanceOfAny(IllegalStateException.class, NullPointerException.class, IndexOutOfBoundsException.class);
-        assertThatThrownBy(() -> segment.get(Integer.MAX_VALUE)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
-        assertThatThrownBy(() -> segment.get(Integer.MIN_VALUE)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
+        assertThatThrownBy(() -> segment.get(0))
+                .isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
+        assertThatThrownBy(() -> segment.get(-1))
+                .isInstanceOfAny(
+                        IllegalStateException.class,
+                        NullPointerException.class,
+                        IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.get(1))
+                .isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
+        assertThatThrownBy(() -> segment.get(segment.size()))
+                .isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
+        assertThatThrownBy(() -> segment.get(-segment.size()))
+                .isInstanceOfAny(
+                        IllegalStateException.class,
+                        NullPointerException.class,
+                        IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.get(Integer.MAX_VALUE))
+                .isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
+        assertThatThrownBy(() -> segment.get(Integer.MIN_VALUE))
+                .isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
 
-        assertThatThrownBy(() -> segment.put(0, (byte) 0)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
-        assertThatThrownBy(() -> segment.put(-1, (byte) 0)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class, IndexOutOfBoundsException.class);
-        assertThatThrownBy(() -> segment.put(1, (byte) 0)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
-        assertThatThrownBy(() -> segment.put(segment.size(), (byte) 0)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
-        assertThatThrownBy(() -> segment.put(-segment.size(), (byte) 0)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class, IndexOutOfBoundsException.class);
-        assertThatThrownBy(() -> segment.put(Integer.MAX_VALUE, (byte) 0)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
-        assertThatThrownBy(() -> segment.put(Integer.MIN_VALUE, (byte) 0)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
+        assertThatThrownBy(() -> segment.put(0, (byte) 0))
+                .isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
+        assertThatThrownBy(() -> segment.put(-1, (byte) 0))
+                .isInstanceOfAny(
+                        IllegalStateException.class,
+                        NullPointerException.class,
+                        IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(1, (byte) 0))
+                .isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
+        assertThatThrownBy(() -> segment.put(segment.size(), (byte) 0))
+                .isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
+        assertThatThrownBy(() -> segment.put(-segment.size(), (byte) 0))
+                .isInstanceOfAny(
+                        IllegalStateException.class,
+                        NullPointerException.class,
+                        IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(Integer.MAX_VALUE, (byte) 0))
+                .isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
+        assertThatThrownBy(() -> segment.put(Integer.MIN_VALUE, (byte) 0))
+                .isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
 
         // --------- booleans -----------
-        assertThatThrownBy(() -> segment.getBoolean(0)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
-        assertThatThrownBy(() -> segment.getBoolean(-1)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class, IndexOutOfBoundsException.class);
-        assertThatThrownBy(() -> segment.getBoolean(1)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
-        assertThatThrownBy(() -> segment.getBoolean(segment.size())).isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
-        assertThatThrownBy(() -> segment.getBoolean(-segment.size())).isInstanceOfAny(IllegalStateException.class, NullPointerException.class, IndexOutOfBoundsException.class);
-        assertThatThrownBy(() -> segment.getBoolean(Integer.MAX_VALUE)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
-        assertThatThrownBy(() -> segment.getBoolean(Integer.MIN_VALUE)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
+        assertThatThrownBy(() -> segment.getBoolean(0))
+                .isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
+        assertThatThrownBy(() -> segment.getBoolean(-1))
+                .isInstanceOfAny(
+                        IllegalStateException.class,
+                        NullPointerException.class,
+                        IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.getBoolean(1))
+                .isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
+        assertThatThrownBy(() -> segment.getBoolean(segment.size()))
+                .isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
+        assertThatThrownBy(() -> segment.getBoolean(-segment.size()))
+                .isInstanceOfAny(
+                        IllegalStateException.class,
+                        NullPointerException.class,
+                        IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.getBoolean(Integer.MAX_VALUE))
+                .isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
+        assertThatThrownBy(() -> segment.getBoolean(Integer.MIN_VALUE))
+                .isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
 
-        assertThatThrownBy(() -> segment.putBoolean(0, true)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
-        assertThatThrownBy(() -> segment.putBoolean(-1, true)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class, IndexOutOfBoundsException.class);
-        assertThatThrownBy(() -> segment.putBoolean(1, true)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
-        assertThatThrownBy(() -> segment.putBoolean(segment.size(), true)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
-        assertThatThrownBy(() -> segment.putBoolean(-segment.size(), true)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class, IndexOutOfBoundsException.class);
-        assertThatThrownBy(() -> segment.putBoolean(Integer.MAX_VALUE, true)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
-        assertThatThrownBy(() -> segment.putBoolean(Integer.MIN_VALUE, true)).isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
+        assertThatThrownBy(() -> segment.putBoolean(0, true))
+                .isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
+        assertThatThrownBy(() -> segment.putBoolean(-1, true))
+                .isInstanceOfAny(
+                        IllegalStateException.class,
+                        NullPointerException.class,
+                        IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.putBoolean(1, true))
+                .isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
+        assertThatThrownBy(() -> segment.putBoolean(segment.size(), true))
+                .isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
+        assertThatThrownBy(() -> segment.putBoolean(-segment.size(), true))
+                .isInstanceOfAny(
+                        IllegalStateException.class,
+                        NullPointerException.class,
+                        IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.putBoolean(Integer.MAX_VALUE, true))
+                .isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
+        assertThatThrownBy(() -> segment.putBoolean(Integer.MIN_VALUE, true))
+                .isInstanceOfAny(IllegalStateException.class, NullPointerException.class);
 
         // --------- char -----------
 
         assertThatThrownBy(() -> segment.getChar(0)).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> segment.getChar(-1)).isInstanceOfAny(IllegalStateException.class, IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.getChar(-1))
+                .isInstanceOfAny(IllegalStateException.class, IndexOutOfBoundsException.class);
         assertThatThrownBy(() -> segment.getChar(1)).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> segment.getChar(segment.size())).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> segment.getChar(-segment.size())).isInstanceOfAny(IllegalStateException.class, IndexOutOfBoundsException.class);
-        assertThatThrownBy(() -> segment.getChar(Integer.MAX_VALUE)).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> segment.getChar(Integer.MIN_VALUE)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> segment.getChar(segment.size()))
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> segment.getChar(-segment.size()))
+                .isInstanceOfAny(IllegalStateException.class, IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.getChar(Integer.MAX_VALUE))
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> segment.getChar(Integer.MIN_VALUE))
+                .isInstanceOf(IllegalStateException.class);
 
         assertThatThrownBy(() -> segment.putChar(0, 'a')).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> segment.putChar(-1, 'a')).isInstanceOfAny(IllegalStateException.class, IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.putChar(-1, 'a'))
+                .isInstanceOfAny(IllegalStateException.class, IndexOutOfBoundsException.class);
         assertThatThrownBy(() -> segment.putChar(1, 'a')).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> segment.putChar(segment.size(), 'a')).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> segment.putChar(-segment.size(), 'a')).isInstanceOfAny(IllegalStateException.class, IndexOutOfBoundsException.class);
-        assertThatThrownBy(() -> segment.putChar(Integer.MAX_VALUE, 'a')).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> segment.putChar(Integer.MIN_VALUE, 'a')).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> segment.putChar(segment.size(), 'a'))
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> segment.putChar(-segment.size(), 'a'))
+                .isInstanceOfAny(IllegalStateException.class, IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.putChar(Integer.MAX_VALUE, 'a'))
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> segment.putChar(Integer.MIN_VALUE, 'a'))
+                .isInstanceOf(IllegalStateException.class);
 
         // --------- short -----------
 

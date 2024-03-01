@@ -44,8 +44,7 @@ class Tuple2Test {
                 .isThrownBy(
                         () -> {
                             Tuple2<String, Integer> tuple = new Tuple2<>("Test case", null);
-
-                            assertThat(tuple.getFieldNotNull(0)).isEqualTo("Test case");
+                            assertThat((String) tuple.getFieldNotNull(0)).isEqualTo("Test case");
                             tuple.getFieldNotNull(1);
                         });
     }

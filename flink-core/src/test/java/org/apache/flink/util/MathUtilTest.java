@@ -22,7 +22,6 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.fail;
 
 /** Tests for the {@link MathUtils}. */
 public class MathUtilTest {
@@ -43,11 +42,7 @@ public class MathUtilTest {
         assertThat(MathUtils.log2floor(Integer.MAX_VALUE)).isEqualTo(30);
         assertThat(MathUtils.log2floor(-1)).isEqualTo(31);
 
-        try {
-            MathUtils.log2floor(0);
-            fail();
-        } catch (ArithmeticException ignored) {
-        }
+        assertThatThrownBy(() -> MathUtils.log2floor(0)).isInstanceOf(ArithmeticException.class);
     }
 
     @Test

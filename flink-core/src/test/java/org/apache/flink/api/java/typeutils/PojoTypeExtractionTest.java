@@ -54,7 +54,7 @@ import static org.assertj.core.api.Assertions.fail;
  * public (or for every private field, there has to be a public getter/setter) everything else is a
  * generic type (that can't be used for field selection)
  */
-class PojoTypeExtractionTest {
+public class PojoTypeExtractionTest {
 
     /** Simple test type that implements the {@link Value} interface. */
     public static class MyValue implements Value {

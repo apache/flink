@@ -18,8 +18,11 @@
 
 package org.apache.flink.configuration;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import javax.annotation.Nullable;
 
@@ -32,8 +35,12 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link StructuredOptionsSplitter}. */
+@RunWith(Parameterized.class)
 public class StructuredOptionsSplitterTest {
 
+    @Rule public ExpectedException thrown = ExpectedException.none();
+
+    @Parameterized.Parameters(name = "{0}")
     public static Collection<TestSpec> getSpecs() {
         return Arrays.asList(
 
@@ -86,12 +93,10 @@ public class StructuredOptionsSplitterTest {
                 TestSpec.split("' A    ;B'    ;'   C'", ';').expect(" A    ;B", "   C"));
     }
 
-    public TestSpec testSpec;
+    @Parameterized.Parameter public TestSpec testSpec;
 
-    @MethodSource("getSpecs")
-    @ParameterizedTest(name = "{0}")
-    public void testParse(TestSpec testSpec) {
-        initStructuredOptionsSplitterTest(testSpec);
+    @Test
+    public void testParse() {
         testSpec.getExpectedException()
                 .ifPresent(
                         exception -> {
@@ -160,9 +165,5 @@ public class StructuredOptionsSplitterTest {
                                                     .collect(
                                                             Collectors.joining("], [", "[", "]"))));
         }
-    }
-
-    public void initStructuredOptionsSplitterTest(TestSpec testSpec) {
-        this.testSpec = testSpec;
     }
 }

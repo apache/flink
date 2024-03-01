@@ -23,7 +23,6 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -47,27 +46,23 @@ public class RecordITCase {
     }
 
     @Test
-    public void massiveRandomBlackBoxTests() {
-        try {
-            // random test with records with a small number of fields
-            for (int i = 0; i < 100000; i++) {
-                final Value[] fields = RecordTest.createRandomValues(this.rand, 0, 32);
-                RecordTest.blackboxTestRecordWithValues(fields, this.rand, this.in, this.out);
-            }
+    public void massiveRandomBlackBoxTests() throws Exception {
+        // random test with records with a small number of fields
+        for (int i = 0; i < 100000; i++) {
+            final Value[] fields = RecordTest.createRandomValues(this.rand, 0, 32);
+            RecordTest.blackboxTestRecordWithValues(fields, this.rand, this.in, this.out);
+        }
 
-            // random tests with records with a moderately large number of fields
-            for (int i = 0; i < 2000; i++) {
-                final Value[] fields = RecordTest.createRandomValues(this.rand, 20, 200);
-                RecordTest.blackboxTestRecordWithValues(fields, this.rand, this.in, this.out);
-            }
+        // random tests with records with a moderately large number of fields
+        for (int i = 0; i < 2000; i++) {
+            final Value[] fields = RecordTest.createRandomValues(this.rand, 20, 200);
+            RecordTest.blackboxTestRecordWithValues(fields, this.rand, this.in, this.out);
+        }
 
-            // random tests with records with very many fields
-            for (int i = 0; i < 200; i++) {
-                final Value[] fields = RecordTest.createRandomValues(this.rand, 500, 2000);
-                RecordTest.blackboxTestRecordWithValues(fields, this.rand, this.in, this.out);
-            }
-        } catch (Throwable t) {
-            Assert.fail("Test failed due to an exception: " + t.getMessage());
+        // random tests with records with very many fields
+        for (int i = 0; i < 200; i++) {
+            final Value[] fields = RecordTest.createRandomValues(this.rand, 500, 2000);
+            RecordTest.blackboxTestRecordWithValues(fields, this.rand, this.in, this.out);
         }
     }
 }

@@ -33,6 +33,7 @@ import java.io.PipedOutputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 
 public class PrimitiveDataTypeTest {
 
@@ -51,7 +52,7 @@ public class PrimitiveDataTypeTest {
     }
 
     @Test
-    public void testIntValue() {
+    public void testIntValue() throws IOException {
         IntValue int0 = new IntValue(10);
         // test value retrieval
         assertThat(int0.getValue()).isEqualTo(10);
@@ -64,29 +65,25 @@ public class PrimitiveDataTypeTest {
         assertThat(1).isEqualTo(int0.compareTo(int2));
         assertThat(-1).isEqualTo(int0.compareTo(int3));
         // test stream output and retrieval
-        try {
-            int0.write(mOut);
-            int2.write(mOut);
-            int3.write(mOut);
-            IntValue int1n = new IntValue();
-            IntValue int2n = new IntValue();
-            IntValue int3n = new IntValue();
-            int1n.read(mIn);
-            int2n.read(mIn);
-            int3n.read(mIn);
-            assertThat(0).isEqualTo(int0.compareTo(int1n));
-            assertThat(int1n.getValue()).isEqualTo(int0.getValue());
-            assertThat(0).isEqualTo(int2.compareTo(int2n));
-            assertThat(int2n.getValue()).isEqualTo(int2.getValue());
-            assertThat(0).isEqualTo(int3.compareTo(int3n));
-            assertThat(int3n.getValue()).isEqualTo(int3.getValue());
-        } catch (Exception e) {
-            Assert.fail(e.getMessage());
-        }
+        int0.write(mOut);
+        int2.write(mOut);
+        int3.write(mOut);
+        IntValue int1n = new IntValue();
+        IntValue int2n = new IntValue();
+        IntValue int3n = new IntValue();
+        int1n.read(mIn);
+        int2n.read(mIn);
+        int3n.read(mIn);
+        assertThat(0).isEqualTo(int0.compareTo(int1n));
+        assertThat(int1n.getValue()).isEqualTo(int0.getValue());
+        assertThat(0).isEqualTo(int2.compareTo(int2n));
+        assertThat(int2n.getValue()).isEqualTo(int2.getValue());
+        assertThat(0).isEqualTo(int3.compareTo(int3n));
+        assertThat(int3n.getValue()).isEqualTo(int3.getValue());
     }
 
     @Test
-    public void testDoubleValue() {
+    public void testDoubleValue() throws IOException {
         DoubleValue double0 = new DoubleValue(10.2);
         // test value retrieval
         assertThat(double0.getValue()).isCloseTo(10.2, within(0.0001));
@@ -99,29 +96,25 @@ public class PrimitiveDataTypeTest {
         assertThat(1).isEqualTo(double0.compareTo(double2));
         assertThat(-1).isEqualTo(double0.compareTo(double3));
         // test stream output and retrieval
-        try {
-            double0.write(mOut);
-            double2.write(mOut);
-            double3.write(mOut);
-            DoubleValue double1n = new DoubleValue();
-            DoubleValue double2n = new DoubleValue();
-            DoubleValue double3n = new DoubleValue();
-            double1n.read(mIn);
-            double2n.read(mIn);
-            double3n.read(mIn);
-            assertThat(0).isEqualTo(double0.compareTo(double1n));
-            assertThat(double1n.getValue()).isCloseTo(double0.getValue(), within(0.0001));
-            assertThat(0).isEqualTo(double2.compareTo(double2n));
-            assertThat(double2n.getValue()).isCloseTo(double2.getValue(), within(0.0001));
-            assertThat(0).isEqualTo(double3.compareTo(double3n));
-            assertThat(double3n.getValue()).isCloseTo(double3.getValue(), within(0.0001));
-        } catch (Exception e) {
-            Assert.fail();
-        }
+        double0.write(mOut);
+        double2.write(mOut);
+        double3.write(mOut);
+        DoubleValue double1n = new DoubleValue();
+        DoubleValue double2n = new DoubleValue();
+        DoubleValue double3n = new DoubleValue();
+        double1n.read(mIn);
+        double2n.read(mIn);
+        double3n.read(mIn);
+        assertThat(0).isEqualTo(double0.compareTo(double1n));
+        assertThat(double1n.getValue()).isCloseTo(double0.getValue(), within(0.0001));
+        assertThat(0).isEqualTo(double2.compareTo(double2n));
+        assertThat(double2n.getValue()).isCloseTo(double2.getValue(), within(0.0001));
+        assertThat(0).isEqualTo(double3.compareTo(double3n));
+        assertThat(double3n.getValue()).isCloseTo(double3.getValue(), within(0.0001));
     }
 
     @Test
-    public void testStringValue() {
+    public void testStringValue() throws IOException {
         StringValue string0 = new StringValue("This is a test");
         StringValue stringThis = new StringValue("This");
         StringValue stringIsA = new StringValue("is a");
@@ -160,72 +153,62 @@ public class PrimitiveDataTypeTest {
         assertThatThrownBy(() -> string7.charAt(5)).isInstanceOf(IndexOutOfBoundsException.class);
 
         // test stream out/input
-        try {
-            string0.write(mOut);
-            string4.write(mOut);
-            string2.write(mOut);
-            string3.write(mOut);
-            string7.write(mOut);
-            StringValue string1n = new StringValue();
-            StringValue string2n = new StringValue();
-            StringValue string3n = new StringValue();
-            StringValue string4n = new StringValue();
-            StringValue string7n = new StringValue();
-            string1n.read(mIn);
-            string4n.read(mIn);
-            string2n.read(mIn);
-            string3n.read(mIn);
-            string7n.read(mIn);
-            assertThat(0).isEqualTo(string0.compareTo(string1n));
-            assertThat(string1n.toString()).isEqualTo(string0.toString());
-            assertThat(0).isEqualTo(string4.compareTo(string4n));
-            assertThat(string4n.toString()).isEqualTo(string4.toString());
-            assertThat(0).isEqualTo(string2.compareTo(string2n));
-            assertThat(string2n.toString()).isEqualTo(string2.toString());
-            assertThat(0).isEqualTo(string3.compareTo(string3n));
-            assertThat(string3n.toString()).isEqualTo(string3.toString());
-            assertThat(0).isEqualTo(string7.compareTo(string7n));
-            assertThat(string7n.toString()).isEqualTo(string7.toString());
-            assertThatThrownBy(() -> string7n.charAt(5))
-                    .isInstanceOf(IndexOutOfBoundsException.class);
-
-        } catch (Exception e) {
-            Assert.fail();
-        }
+        string0.write(mOut);
+        string4.write(mOut);
+        string2.write(mOut);
+        string3.write(mOut);
+        string7.write(mOut);
+        StringValue string1n = new StringValue();
+        StringValue string2n = new StringValue();
+        StringValue string3n = new StringValue();
+        StringValue string4n = new StringValue();
+        StringValue string7n = new StringValue();
+        string1n.read(mIn);
+        string4n.read(mIn);
+        string2n.read(mIn);
+        string3n.read(mIn);
+        string7n.read(mIn);
+        assertThat(0).isEqualTo(string0.compareTo(string1n));
+        assertThat(string1n.toString()).isEqualTo(string0.toString());
+        assertThat(0).isEqualTo(string4.compareTo(string4n));
+        assertThat(string4n.toString()).isEqualTo(string4.toString());
+        assertThat(0).isEqualTo(string2.compareTo(string2n));
+        assertThat(string2n.toString()).isEqualTo(string2.toString());
+        assertThat(0).isEqualTo(string3.compareTo(string3n));
+        assertThat(string3n.toString()).isEqualTo(string3.toString());
+        assertThat(0).isEqualTo(string7.compareTo(string7n));
+        assertThat(string7n.toString()).isEqualTo(string7.toString());
+        assertThatThrownBy(() -> string7n.charAt(5)).isInstanceOf(IndexOutOfBoundsException.class);
     }
 
     @Test
-    public void testPactNull() {
+    public void testPactNull() throws IOException {
 
         final NullValue pn1 = new NullValue();
         final NullValue pn2 = new NullValue();
 
-        assertThat(pn1).isCloseTo("PactNull not equal to other PactNulls.", within(pn2));
-        assertThat(pn2).isCloseTo("PactNull not equal to other PactNulls.", within(pn1));
+        assertThat(pn1).isEqualTo(pn2);
+        assertThat(pn2).isEqualTo(pn1);
 
-        assertThat(null).as(pn1).isNotEqualTo("PactNull equal to other null.");
+        assertThat(pn1).isNotNull();
 
         // test serialization
         final NullValue pn = new NullValue();
         final int numWrites = 13;
 
-        try {
-            // write it multiple times
-            for (int i = 0; i < numWrites; i++) {
-                pn.write(mOut);
-            }
-
-            // read it multiple times
-            for (int i = 0; i < numWrites; i++) {
-                pn.read(mIn);
-            }
-
-            Assert.assertEquals(
-                    "Reading PactNull does not consume the same data as was written.",
-                    0,
-                    in.available());
-        } catch (IOException ioex) {
-            Assert.fail("An exception occurred in the testcase: " + ioex.getMessage());
+        // write it multiple times
+        for (int i = 0; i < numWrites; i++) {
+            pn.write(mOut);
         }
+
+        // read it multiple times
+        for (int i = 0; i < numWrites; i++) {
+            pn.read(mIn);
+        }
+
+        Assert.assertEquals(
+                "Reading PactNull does not consume the same data as was written.",
+                0,
+                in.available());
     }
 }

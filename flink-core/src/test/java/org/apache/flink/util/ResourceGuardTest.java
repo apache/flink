@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link ResourceGuard}. */
 public class ResourceGuardTest {
@@ -35,11 +36,7 @@ public class ResourceGuardTest {
         assertThat(resourceGuard.isClosed()).isFalse();
         resourceGuard.close();
         assertThat(resourceGuard.isClosed()).isTrue();
-        try {
-            resourceGuard.acquireResource();
-            Assert.fail();
-        } catch (IOException ignore) {
-        }
+        assertThatThrownBy(resourceGuard::acquireResource).isInstanceOf(IOException.class);
     }
 
     @Test

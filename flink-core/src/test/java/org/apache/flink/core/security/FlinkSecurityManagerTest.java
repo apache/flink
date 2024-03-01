@@ -96,11 +96,8 @@ public class FlinkSecurityManagerTest {
                         () -> flinkSecurityManager.checkExit(TEST_EXIT_CODE), executorService);
         future.get();
         flinkSecurityManager.monitorUserSystemExit();
-        try {
-            flinkSecurityManager.checkExit(TEST_EXIT_CODE);
-            fail();
-        } catch (UserSystemExitException ignored) {
-        }
+        assertThatThrownBy(() -> flinkSecurityManager.checkExit(TEST_EXIT_CODE))
+                .isInstanceOf(UserSystemExitException.class);
         // This threaded exit should be allowed as thread is not spawned while monitor is enabled.
         future =
                 CompletableFuture.runAsync(
@@ -113,22 +110,14 @@ public class FlinkSecurityManagerTest {
         FlinkSecurityManager flinkSecurityManager =
                 new FlinkSecurityManager(ClusterOptions.UserSystemExitMode.THROW, false);
         flinkSecurityManager.monitorUserSystemExit();
-        try {
-            flinkSecurityManager.checkExit(TEST_EXIT_CODE);
-            fail();
-        } catch (UserSystemExitException ignored) {
-        }
+        assertThatThrownBy(() -> flinkSecurityManager.checkExit(TEST_EXIT_CODE))
+                .isInstanceOf(UserSystemExitException.class);
         CheckedThread thread =
                 new CheckedThread() {
                     @Override
                     public void go() {
-                        try {
-                            flinkSecurityManager.checkExit(TEST_EXIT_CODE);
-                            fail();
-                        } catch (UserSystemExitException ignored) {
-                        } catch (Throwable t) {
-                            fail();
-                        }
+                        assertThatThrownBy(() -> flinkSecurityManager.checkExit(TEST_EXIT_CODE))
+                                .isInstanceOf(UserSystemExitException.class);
                     }
                 };
         thread.start();
@@ -196,11 +185,9 @@ public class FlinkSecurityManagerTest {
         assertThat(flinkSecurityManager.userSystemExitMonitored()).isFalse();
         flinkSecurityManager.monitorUserSystemExit();
         assertThat(flinkSecurityManager.userSystemExitMonitored()).isTrue();
-        try {
-            flinkSecurityManager.checkExit(TEST_EXIT_CODE);
-            fail();
-        } catch (UserSystemExitException ignored) {
-        }
+        FlinkSecurityManager finalFlinkSecurityManager = flinkSecurityManager;
+        assertThatThrownBy(() -> finalFlinkSecurityManager.checkExit(TEST_EXIT_CODE))
+                .isInstanceOf(UserSystemExitException.class);
         flinkSecurityManager.unmonitorUserSystemExit();
         assertThat(flinkSecurityManager.userSystemExitMonitored()).isFalse();
 

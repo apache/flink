@@ -29,6 +29,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.hamcrest.Matcher;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.core.Is.is;
 
 public class PrimitiveArraySerializerUpgradeTestSpecifications {
     // ----------------------------------------------------------------------------------------------

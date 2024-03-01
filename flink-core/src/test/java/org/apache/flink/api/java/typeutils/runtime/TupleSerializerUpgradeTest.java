@@ -32,6 +32,8 @@ import org.hamcrest.Matcher;
 import java.util.ArrayList;
 import java.util.Collection;
 
+import static org.hamcrest.core.Is.is;
+
 /** {@link TupleSerializer} upgrade test. */
 class TupleSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<

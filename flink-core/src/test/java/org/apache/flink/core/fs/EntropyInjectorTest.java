@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.fail;
 /** Tests for the {@link EntropyInjector}. */
 public class EntropyInjectorTest {
 
-    @TempDir public static File TMP_FOLDER;
+    @TempDir public static File tmpFolder;
 
     @Test
     void testEmptyPath() throws Exception {
@@ -98,7 +98,7 @@ public class EntropyInjectorTest {
 
     @Test
     void testCreateEntropyAwarePlainFs() throws Exception {
-        File folder = newFolder(TMP_FOLDER, "junit");
+        File folder = newFolder(tmpFolder, "junit");
         Path path = new Path(Path.fromLocalFile(folder), "_entropy_/file");
 
         OutputStreamAndPath out =
@@ -113,7 +113,7 @@ public class EntropyInjectorTest {
 
     @Test
     void testCreateEntropyAwareEntropyFs() throws Exception {
-        File folder = newFolder(TMP_FOLDER, "junit");
+        File folder = newFolder(tmpFolder, "junit");
         Path path = new Path(Path.fromLocalFile(folder), "_entropy_/file");
         Path pathWithEntropy = new Path(Path.fromLocalFile(folder), "test-entropy/file");
 
@@ -133,7 +133,7 @@ public class EntropyInjectorTest {
         final String entropyKey = "__ekey__";
         final String entropyValue = "abc";
 
-        final File folder = newFolder(TMP_FOLDER, "junit");
+        final File folder = newFolder(tmpFolder, "junit");
 
         final Path path = new Path(Path.fromLocalFile(folder), entropyKey + "/path/");
         final Path pathWithEntropy = new Path(Path.fromLocalFile(folder), entropyValue + "/path/");
@@ -169,7 +169,7 @@ public class EntropyInjectorTest {
         final String entropyKey = "__ekey__";
         final String entropyValue = "abc";
 
-        final File folder = newFolder(TMP_FOLDER, "junit");
+        final File folder = newFolder(tmpFolder, "junit");
 
         final Path path = new Path(Path.fromLocalFile(folder), entropyKey + "/path/");
         final Path pathWithEntropy = new Path(Path.fromLocalFile(folder), entropyValue + "/path/");
@@ -195,7 +195,7 @@ public class EntropyInjectorTest {
         final String entropyKey = "__ekey__";
         final String entropyValue = "abc";
 
-        final File folder = newFolder(TMP_FOLDER, "junit");
+        final File folder = newFolder(tmpFolder, "junit");
 
         final Path path = new Path(Path.fromLocalFile(folder), entropyKey + "/path/");
         final Path pathWithEntropy = new Path(Path.fromLocalFile(folder), entropyValue + "/path/");
@@ -214,7 +214,7 @@ public class EntropyInjectorTest {
     void testIsEntropyFs() throws Exception {
         final String entropyKey = "_test_";
         final FileSystem efs = new TestEntropyInjectingFs(entropyKey, "ignored");
-        final File folder = newFolder(TMP_FOLDER, "junit");
+        final File folder = newFolder(tmpFolder, "junit");
         final Path path = new Path(Path.fromLocalFile(folder), entropyKey + "/path/");
         assertThat(EntropyInjector.isEntropyInjecting(efs, path)).isTrue();
     }
@@ -223,7 +223,7 @@ public class EntropyInjectorTest {
     void testIsEntropyFsWithNullEntropyKey() throws Exception {
         final FileSystem efs = new TestEntropyInjectingFs(null, "ignored");
 
-        final File folder = newFolder(TMP_FOLDER, "junit");
+        final File folder = newFolder(tmpFolder, "junit");
         assertThat(EntropyInjector.isEntropyInjecting(efs, Path.fromLocalFile(folder))).isFalse();
     }
 
@@ -231,7 +231,7 @@ public class EntropyInjectorTest {
     void testIsEntropyFsPathDoesNotIncludeEntropyKey() throws Exception {
         final String entropyKey = "_test_";
         final FileSystem efs = new TestEntropyInjectingFs(entropyKey, "ignored");
-        final File folder = newFolder(TMP_FOLDER, "junit");
+        final File folder = newFolder(tmpFolder, "junit");
         final Path path = new Path(Path.fromLocalFile(folder), "path"); // no entropy key
         assertThat(EntropyInjector.isEntropyInjecting(efs, path)).isFalse();
     }

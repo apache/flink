@@ -26,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link MemorySegment} in off-heap mode using unsafe memory. */
 @RunWith(Parameterized.class)
@@ -45,10 +46,10 @@ public class OffHeapUnsafeMemorySegmentTest extends MemorySegmentTestBase {
         return MemorySegmentFactory.allocateOffHeapUnsafeMemory(size, owner, () -> {});
     }
 
-    @Override
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testByteBufferWrapping() {
-        createSegment(10).wrap(1, 2);
+        assertThatThrownBy(() -> createSegment(10).wrap(1, 2))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test

@@ -34,6 +34,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Objects;
 
+import static org.hamcrest.core.Is.is;
+
 /** State migration test for {@link RowSerializer}. */
 class ValueSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<

@@ -69,7 +69,7 @@ class ConfigUtilsTest {
         assertThat(configurationUnderTest.keySet()).isEmpty();
 
         final Object recovered = configurationUnderTest.get(TEST_OPTION);
-        assertThat(recovered, is(nullValue()));
+        assertThat(recovered).isNull();
 
         final List<Integer> recoveredList =
                 ConfigUtils.decodeListFromConfig(
@@ -86,7 +86,7 @@ class ConfigUtilsTest {
         assertThat(configurationUnderTest.keySet()).isEmpty();
 
         final Object recovered = configurationUnderTest.get(TEST_OPTION);
-        assertThat(recovered, is(nullValue()));
+        assertThat(recovered).isNull();
 
         final List<Integer> recoveredList =
                 ConfigUtils.decodeListFromConfig(

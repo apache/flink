@@ -105,6 +105,6 @@ public class CopyableValueTest {
         StringValue string_to = new StringValue("618970019642690137449562111");
 
         string_from.copyTo(string_to);
-        assertThat(string_to).isEqualTo(string_from);
+        assertThat((Object) string_to).isEqualTo(string_from);
     }
 }

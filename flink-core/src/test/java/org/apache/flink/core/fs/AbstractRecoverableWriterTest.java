@@ -31,11 +31,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.fail;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 
 /**
  * A base test-suite for the {@link RecoverableWriter}. This should be subclassed to test each
@@ -305,56 +304,46 @@ public abstract class AbstractRecoverableWriterTest {
 
     @Test
     public void testExceptionWritingAfterCloseForCommit() throws Exception {
-        assertThatExceptionOfType(IOException.class)
-                .isThrownBy(
-                        () -> {
-                            final Path testDir = getBasePathForTest();
+        final Path testDir = getBasePathForTest();
 
-                            final RecoverableWriter writer = getNewFileSystemWriter();
-                            final Path path = new Path(testDir, "part-0");
+        final RecoverableWriter writer = getNewFileSystemWriter();
+        final Path path = new Path(testDir, "part-0");
 
-                            RecoverableFsDataOutputStream stream = null;
-                            try {
-                                stream = writer.open(path);
-                                stream.write(testData1.getBytes(StandardCharsets.UTF_8));
+        AtomicReference<RecoverableFsDataOutputStream> stream = null;
 
-                                stream.closeForCommit().getRecoverable();
-                                stream.write(testData2.getBytes(StandardCharsets.UTF_8));
-                                fail();
-                            } finally {
-                                IOUtils.closeQuietly(stream);
-                            }
-                        });
+        stream.set(writer.open(path));
+        stream.get().write(testData1.getBytes(StandardCharsets.UTF_8));
+        stream.get().closeForCommit().getRecoverable();
+
+        assertThatThrownBy(() -> stream.get().write(testData2.getBytes(StandardCharsets.UTF_8)))
+                .isInstanceOf(IOException.class);
+
+        IOUtils.closeQuietly(stream.get());
     }
 
     @Test
     public void testResumeAfterCommit() throws Exception {
-        assertThatExceptionOfType(IOException.class)
-                .isThrownBy(
-                        () -> {
-                            final Path testDir = getBasePathForTest();
+        final Path testDir = getBasePathForTest();
 
-                            final RecoverableWriter writer = getNewFileSystemWriter();
-                            final Path path = new Path(testDir, "part-0");
+        final RecoverableWriter writer = getNewFileSystemWriter();
+        final Path path = new Path(testDir, "part-0");
 
-                            RecoverableWriter.ResumeRecoverable recoverable;
-                            RecoverableFsDataOutputStream stream = null;
-                            try {
-                                stream = writer.open(path);
-                                stream.write(testData1.getBytes(StandardCharsets.UTF_8));
+        RecoverableWriter.ResumeRecoverable recoverable;
+        RecoverableFsDataOutputStream stream = null;
+        try {
+            stream = writer.open(path);
+            stream.write(testData1.getBytes(StandardCharsets.UTF_8));
 
-                                recoverable = stream.persist();
-                                stream.write(testData2.getBytes(StandardCharsets.UTF_8));
+            recoverable = stream.persist();
+            stream.write(testData2.getBytes(StandardCharsets.UTF_8));
 
-                                stream.closeForCommit().commit();
-                            } finally {
-                                IOUtils.closeQuietly(stream);
-                            }
+            stream.closeForCommit().commit();
+        } finally {
+            IOUtils.closeQuietly(stream);
+        }
 
-                            // this should throw an exception as the file is already committed
-                            writer.recover(recoverable);
-                            fail();
-                        });
+        // this should throw an exception as the file is already committed
+        assertThatThrownBy(() -> writer.recover(recoverable)).isInstanceOf(IOException.class);
     }
 
     @Test
