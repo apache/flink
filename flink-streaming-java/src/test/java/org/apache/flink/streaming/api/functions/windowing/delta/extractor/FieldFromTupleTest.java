@@ -44,18 +44,18 @@ import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.java.tuple.Tuple9;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link FieldFromTuple}. */
-public class FieldFromTupleTest {
+class FieldFromTupleTest {
 
     private String[] testStrings;
 
-    @Before
-    public void init() {
+    @BeforeEach
+    void init() {
         testStrings = new String[Tuple.MAX_ARITY];
         for (int i = 0; i < Tuple.MAX_ARITY; i++) {
             testStrings[i] = Integer.toString(i);
@@ -63,7 +63,7 @@ public class FieldFromTupleTest {
     }
 
     @Test
-    public void testSingleFieldExtraction() throws InstantiationException, IllegalAccessException {
+    void testSingleFieldExtraction() throws InstantiationException, IllegalAccessException {
         // extract single fields
         for (int i = 0; i < Tuple.MAX_ARITY; i++) {
             Tuple current = (Tuple) CLASSES[i].newInstance();
@@ -71,7 +71,8 @@ public class FieldFromTupleTest {
                 current.setField(testStrings[j], j);
             }
             for (int j = 0; j < i; j++) {
-                assertEquals(testStrings[j], new FieldFromTuple<String>(j).extract(current));
+                assertThat(new FieldFromTuple<String>(j).extract(current))
+                        .isEqualTo(testStrings[j]);
             }
         }
     }

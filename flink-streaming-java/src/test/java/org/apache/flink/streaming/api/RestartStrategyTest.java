@@ -22,20 +22,20 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link RestartStrategies}. */
-public class RestartStrategyTest extends TestLogger {
+class RestartStrategyTest {
 
     /**
      * Tests that in a streaming use case where checkpointing is enabled, there is no default
      * strategy set on the client side.
      */
     @Test
-    public void testFallbackStrategyOnClientSideWhenCheckpointingEnabled() throws Exception {
+    void testFallbackStrategyOnClientSideWhenCheckpointingEnabled() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(500);
 
@@ -49,9 +49,9 @@ public class RestartStrategyTest extends TestLogger {
                         .deserializeValue(getClass().getClassLoader())
                         .getRestartStrategy();
 
-        Assert.assertNotNull(restartStrategy);
-        Assert.assertTrue(
-                restartStrategy instanceof RestartStrategies.FallbackRestartStrategyConfiguration);
+        assertThat(restartStrategy)
+                .isNotNull()
+                .isInstanceOf(RestartStrategies.FallbackRestartStrategyConfiguration.class);
     }
 
     /**
@@ -59,8 +59,7 @@ public class RestartStrategyTest extends TestLogger {
      * execution retries is set to 0, restarting is deactivated.
      */
     @Test
-    public void testNoRestartingWhenCheckpointingAndExplicitExecutionRetriesZero()
-            throws Exception {
+    void testNoRestartingWhenCheckpointingAndExplicitExecutionRetriesZero() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(500);
         env.setNumberOfExecutionRetries(0);
@@ -75,9 +74,9 @@ public class RestartStrategyTest extends TestLogger {
                         .deserializeValue(getClass().getClassLoader())
                         .getRestartStrategy();
 
-        Assert.assertNotNull(restartStrategy);
-        Assert.assertTrue(
-                restartStrategy instanceof RestartStrategies.NoRestartStrategyConfiguration);
+        assertThat(restartStrategy)
+                .isNotNull()
+                .isInstanceOf(RestartStrategies.NoRestartStrategyConfiguration.class);
     }
 
     /**
@@ -85,8 +84,7 @@ public class RestartStrategyTest extends TestLogger {
      * execution retries is set to 42 and the delay to 1337, fixed delay restarting is used.
      */
     @Test
-    public void testFixedRestartingWhenCheckpointingAndExplicitExecutionRetriesNonZero()
-            throws Exception {
+    void testFixedRestartingWhenCheckpointingAndExplicitExecutionRetriesNonZero() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(500);
         env.setNumberOfExecutionRetries(42);
@@ -102,18 +100,23 @@ public class RestartStrategyTest extends TestLogger {
                         .deserializeValue(getClass().getClassLoader())
                         .getRestartStrategy();
 
-        Assert.assertNotNull(restartStrategy);
-        Assert.assertTrue(
-                restartStrategy
-                        instanceof RestartStrategies.FixedDelayRestartStrategyConfiguration);
-        Assert.assertEquals(
-                42,
-                ((RestartStrategies.FixedDelayRestartStrategyConfiguration) restartStrategy)
-                        .getRestartAttempts());
-        Assert.assertEquals(
-                1337,
-                ((RestartStrategies.FixedDelayRestartStrategyConfiguration) restartStrategy)
-                        .getDurationBetweenAttempts()
-                        .toMillis());
+        assertThat(restartStrategy)
+                .isNotNull()
+                .isInstanceOfSatisfying(
+                        RestartStrategies.FixedDelayRestartStrategyConfiguration.class,
+                        strategy ->
+                                assertThat(strategy)
+                                        .satisfies(
+                                                fixedDelayRestartStrategy -> {
+                                                    assertThat(
+                                                                    fixedDelayRestartStrategy
+                                                                            .getRestartAttempts())
+                                                            .isEqualTo(42);
+                                                    assertThat(
+                                                                    fixedDelayRestartStrategy
+                                                                            .getDurationBetweenAttempts()
+                                                                            .toMillis())
+                                                            .isEqualTo(1337);
+                                                }));
     }
 }

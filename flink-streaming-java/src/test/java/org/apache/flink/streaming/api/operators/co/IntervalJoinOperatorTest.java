@@ -32,6 +32,8 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OutputTag;
@@ -39,11 +41,8 @@ import org.apache.flink.util.OutputTag;
 import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -51,14 +50,17 @@ import java.util.List;
 import java.util.Queue;
 import java.util.stream.Collectors;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** Tests for {@link IntervalJoinOperator}. Those tests cover correctness and cleaning of state */
-@RunWith(Parameterized.class)
-public class IntervalJoinOperatorTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class IntervalJoinOperatorTest {
 
     private final boolean lhsFasterThanRhs;
 
     @Parameters(name = "lhs faster than rhs: {0}")
-    public static Collection<Object[]> data() {
+    private static Collection<Object[]> data() {
         return Arrays.asList(new Object[][] {{true}, {false}});
     }
 
@@ -66,8 +68,8 @@ public class IntervalJoinOperatorTest {
         this.lhsFasterThanRhs = lhsFasterThanRhs;
     }
 
-    @Test
-    public void testImplementationMirrorsCorrectly() throws Exception {
+    @TestTemplate
+    void testImplementationMirrorsCorrectly() throws Exception {
 
         long lowerBound = 1;
         long upperBound = 3;
@@ -98,8 +100,8 @@ public class IntervalJoinOperatorTest {
                 .close();
     }
 
-    @Test // lhs - 2 <= rhs <= rhs + 2
-    public void testNegativeInclusiveAndNegativeInclusive() throws Exception {
+    @TestTemplate // lhs - 2 <= rhs <= rhs + 2
+    void testNegativeInclusiveAndNegativeInclusive() throws Exception {
 
         setupHarness(-2, true, -1, true)
                 .processElementsAndWatermarks(1, 4)
@@ -113,8 +115,8 @@ public class IntervalJoinOperatorTest {
                 .close();
     }
 
-    @Test // lhs - 1 <= rhs <= rhs + 1
-    public void testNegativeInclusiveAndPositiveInclusive() throws Exception {
+    @TestTemplate // lhs - 1 <= rhs <= rhs + 1
+    void testNegativeInclusiveAndPositiveInclusive() throws Exception {
 
         setupHarness(-1, true, 1, true)
                 .processElementsAndWatermarks(1, 4)
@@ -133,8 +135,8 @@ public class IntervalJoinOperatorTest {
                 .close();
     }
 
-    @Test // lhs + 1 <= rhs <= lhs + 2
-    public void testPositiveInclusiveAndPositiveInclusive() throws Exception {
+    @TestTemplate // lhs + 1 <= rhs <= lhs + 2
+    void testPositiveInclusiveAndPositiveInclusive() throws Exception {
 
         setupHarness(1, true, 2, true)
                 .processElementsAndWatermarks(1, 4)
@@ -148,8 +150,8 @@ public class IntervalJoinOperatorTest {
                 .close();
     }
 
-    @Test
-    public void testNegativeExclusiveAndNegativeExlusive() throws Exception {
+    @TestTemplate
+    void testNegativeExclusiveAndNegativeExlusive() throws Exception {
 
         setupHarness(-3, false, -1, false)
                 .processElementsAndWatermarks(1, 4)
@@ -158,8 +160,8 @@ public class IntervalJoinOperatorTest {
                 .close();
     }
 
-    @Test
-    public void testNegativeExclusiveAndPositiveExlusive() throws Exception {
+    @TestTemplate
+    void testNegativeExclusiveAndPositiveExlusive() throws Exception {
 
         setupHarness(-1, false, 1, false)
                 .processElementsAndWatermarks(1, 4)
@@ -172,8 +174,8 @@ public class IntervalJoinOperatorTest {
                 .close();
     }
 
-    @Test
-    public void testPositiveExclusiveAndPositiveExlusive() throws Exception {
+    @TestTemplate
+    void testPositiveExclusiveAndPositiveExlusive() throws Exception {
 
         setupHarness(1, false, 3, false)
                 .processElementsAndWatermarks(1, 4)
@@ -182,8 +184,8 @@ public class IntervalJoinOperatorTest {
                 .close();
     }
 
-    @Test
-    public void testStateCleanupNegativeInclusiveNegativeInclusive() throws Exception {
+    @TestTemplate
+    void testStateCleanupNegativeInclusiveNegativeInclusive() throws Exception {
 
         setupHarness(-1, true, 0, true)
                 .processElement1(1)
@@ -212,8 +214,8 @@ public class IntervalJoinOperatorTest {
                 .close();
     }
 
-    @Test
-    public void testStateCleanupNegativePositiveNegativeExlusive() throws Exception {
+    @TestTemplate
+    void testStateCleanupNegativePositiveNegativeExlusive() throws Exception {
         setupHarness(-2, false, 1, false)
                 .processElement1(1)
                 .processElement1(2)
@@ -241,8 +243,8 @@ public class IntervalJoinOperatorTest {
                 .close();
     }
 
-    @Test
-    public void testStateCleanupPositiveInclusivePositiveInclusive() throws Exception {
+    @TestTemplate
+    void testStateCleanupPositiveInclusivePositiveInclusive() throws Exception {
         setupHarness(0, true, 1, true)
                 .processElement1(1)
                 .processElement1(2)
@@ -270,8 +272,8 @@ public class IntervalJoinOperatorTest {
                 .close();
     }
 
-    @Test
-    public void testStateCleanupPositiveExlusivePositiveExclusive() throws Exception {
+    @TestTemplate
+    void testStateCleanupPositiveExlusivePositiveExclusive() throws Exception {
         setupHarness(-1, false, 2, false)
                 .processElement1(1)
                 .processElement1(2)
@@ -299,8 +301,8 @@ public class IntervalJoinOperatorTest {
                 .close();
     }
 
-    @Test
-    public void testRestoreFromSnapshot() throws Exception {
+    @TestTemplate
+    void testRestoreFromSnapshot() throws Exception {
 
         // config
         int lowerBound = -1;
@@ -382,8 +384,8 @@ public class IntervalJoinOperatorTest {
         }
     }
 
-    @Test
-    public void testContextCorrectLeftTimestamp() throws Exception {
+    @TestTemplate
+    void testContextCorrectLeftTimestamp() throws Exception {
 
         IntervalJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> op =
                 new IntervalJoinOperator<>(
@@ -403,7 +405,7 @@ public class IntervalJoinOperatorTest {
                                     Context ctx,
                                     Collector<Tuple2<TestElem, TestElem>> out)
                                     throws Exception {
-                                Assert.assertEquals(left.ts, ctx.getLeftTimestamp());
+                                assertThat(ctx.getLeftTimestamp()).isEqualTo(left.ts);
                             }
                         });
 
@@ -421,8 +423,8 @@ public class IntervalJoinOperatorTest {
         }
     }
 
-    @Test
-    public void testReturnsCorrectTimestamp() throws Exception {
+    @TestTemplate
+    void testReturnsCorrectTimestamp() throws Exception {
         IntervalJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> op =
                 new IntervalJoinOperator<>(
                         -1,
@@ -444,8 +446,8 @@ public class IntervalJoinOperatorTest {
                                     Context ctx,
                                     Collector<Tuple2<TestElem, TestElem>> out)
                                     throws Exception {
-                                Assert.assertEquals(
-                                        Math.max(left.ts, right.ts), ctx.getTimestamp());
+                                assertThat(ctx.getTimestamp())
+                                        .isEqualTo(Math.max(left.ts, right.ts));
                             }
                         });
 
@@ -463,8 +465,8 @@ public class IntervalJoinOperatorTest {
         }
     }
 
-    @Test
-    public void testContextCorrectRightTimestamp() throws Exception {
+    @TestTemplate
+    void testContextCorrectRightTimestamp() throws Exception {
 
         IntervalJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> op =
                 new IntervalJoinOperator<>(
@@ -484,7 +486,7 @@ public class IntervalJoinOperatorTest {
                                     Context ctx,
                                     Collector<Tuple2<TestElem, TestElem>> out)
                                     throws Exception {
-                                Assert.assertEquals(right.ts, ctx.getRightTimestamp());
+                                assertThat(ctx.getRightTimestamp()).isEqualTo(right.ts);
                             }
                         });
 
@@ -502,31 +504,40 @@ public class IntervalJoinOperatorTest {
         }
     }
 
-    @Test(expected = FlinkException.class)
-    public void testFailsWithNoTimestampsLeft() throws Exception {
-        TestHarness newTestHarness = createTestHarness(0L, true, 0L, true);
-
-        newTestHarness.setup();
-        newTestHarness.open();
-
-        // note that the StreamRecord has no timestamp in constructor
-        newTestHarness.processElement1(new StreamRecord<>(new TestElem(0, "lhs")));
-    }
-
-    @Test(expected = FlinkException.class)
-    public void testFailsWithNoTimestampsRight() throws Exception {
+    @TestTemplate
+    void testFailsWithNoTimestampsLeft() throws Exception {
         try (TestHarness newTestHarness = createTestHarness(0L, true, 0L, true)) {
 
             newTestHarness.setup();
             newTestHarness.open();
 
             // note that the StreamRecord has no timestamp in constructor
-            newTestHarness.processElement2(new StreamRecord<>(new TestElem(0, "rhs")));
+            assertThatThrownBy(
+                            () ->
+                                    newTestHarness.processElement1(
+                                            new StreamRecord<>(new TestElem(0, "lhs"))))
+                    .isInstanceOf(FlinkException.class);
         }
     }
 
-    @Test
-    public void testDiscardsLateData() throws Exception {
+    @TestTemplate // (expected = FlinkException.class)
+    void testFailsWithNoTimestampsRight() throws Exception {
+        try (TestHarness newTestHarness = createTestHarness(0L, true, 0L, true)) {
+
+            newTestHarness.setup();
+            newTestHarness.open();
+
+            // note that the StreamRecord has no timestamp in constructor
+            assertThatThrownBy(
+                            () ->
+                                    newTestHarness.processElement2(
+                                            new StreamRecord<>(new TestElem(0, "rhs"))))
+                    .isInstanceOf(FlinkException.class);
+        }
+    }
+
+    @TestTemplate
+    void testDiscardsLateData() throws Exception {
         setupHarness(-1, true, 1, true)
                 .processElement1(1)
                 .processElement2(1)
@@ -559,8 +570,8 @@ public class IntervalJoinOperatorTest {
                 .close();
     }
 
-    @Test
-    public void testLateData() throws Exception {
+    @TestTemplate
+    void testLateData() throws Exception {
         OutputTag<TestElem> leftLateTag = new OutputTag<TestElem>("left_late") {};
         OutputTag<TestElem> rightLateTag = new OutputTag<TestElem>("right_late") {};
         setupHarness(-1, true, 1, true, leftLateTag, rightLateTag)
@@ -588,8 +599,7 @@ public class IntervalJoinOperatorTest {
     }
 
     private void assertEmpty(MapState<Long, ?> state) throws Exception {
-        boolean stateIsEmpty = Iterables.size(state.keys()) == 0;
-        Assert.assertTrue("state not empty", stateIsEmpty);
+        assertThat(state.keys()).isEmpty();
     }
 
     private void assertContainsOnly(MapState<Long, ?> state, long... ts) throws Exception {
@@ -599,7 +609,7 @@ public class IntervalJoinOperatorTest {
                             + Arrays.toString(ts)
                             + "\n Actual:   "
                             + state.keys();
-            Assert.assertTrue(message, state.contains(t));
+            assertThat(state.contains(t)).as(message).isTrue();
         }
 
         String message =
@@ -607,7 +617,7 @@ public class IntervalJoinOperatorTest {
                         + Arrays.toString(ts)
                         + "\n Actual:   "
                         + state.keys();
-        Assert.assertEquals(message, ts.length, Iterables.size(state.keys()));
+        assertThat(state.keys()).as(message).hasSize(ts.length);
     }
 
     private <T1, T2> void assertOutput(
@@ -621,11 +631,12 @@ public class IntervalJoinOperatorTest {
 
         int expectedSize = Iterables.size(expectedOutput);
 
-        Assert.assertEquals(
-                "Expected and actual size of stream records different", expectedSize, actualSize);
+        assertThat(actualSize)
+                .as("Expected and actual size of stream records different")
+                .isEqualTo(expectedSize);
 
         for (StreamRecord<T1> record : expectedOutput) {
-            Assert.assertTrue(actualOutput.contains(record));
+            assertThat(actualOutput.contains(record)).isTrue();
         }
     }
 

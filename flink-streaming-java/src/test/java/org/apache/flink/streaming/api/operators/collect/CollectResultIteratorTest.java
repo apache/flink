@@ -30,13 +30,10 @@ import org.apache.flink.streaming.api.operators.collect.utils.TestCheckpointedCo
 import org.apache.flink.streaming.api.operators.collect.utils.TestJobClient;
 import org.apache.flink.streaming.api.operators.collect.utils.TestUncheckpointedCoordinationRequestHandler;
 import org.apache.flink.util.OptionalFailure;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -44,8 +41,11 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests for {@link CollectResultIterator}. */
-public class CollectResultIteratorTest extends TestLogger {
+class CollectResultIteratorTest {
 
     private final TypeSerializer<Integer> serializer = IntSerializer.INSTANCE;
 
@@ -54,7 +54,7 @@ public class CollectResultIteratorTest extends TestLogger {
     private static final String ACCUMULATOR_NAME = "accumulatorName";
 
     @Test
-    public void testUncheckpointedIterator() throws Exception {
+    void testUncheckpointedIterator() throws Exception {
         Random random = new Random();
 
         // run this random test multiple times
@@ -82,7 +82,7 @@ public class CollectResultIteratorTest extends TestLogger {
             // this is an at least once iterator, so we expect each value to at least appear
             Set<Integer> actualSet = new HashSet<>(actual);
             for (int expectedValue : expected) {
-                Assert.assertTrue(actualSet.contains(expectedValue));
+                assertThat(actualSet).contains(expectedValue);
             }
 
             iterator.close();
@@ -90,7 +90,7 @@ public class CollectResultIteratorTest extends TestLogger {
     }
 
     @Test
-    public void testCheckpointedIterator() throws Exception {
+    void testCheckpointedIterator() throws Exception {
         // run this random test multiple times
         for (int testCount = 200; testCount > 0; testCount--) {
             List<Integer> expected = new ArrayList<>();
@@ -109,19 +109,16 @@ public class CollectResultIteratorTest extends TestLogger {
             while (iterator.hasNext()) {
                 actual.add(iterator.next());
             }
-            Assert.assertEquals(expected.size(), actual.size());
-
-            Collections.sort(expected);
-            Collections.sort(actual);
-            Assert.assertArrayEquals(
-                    expected.toArray(new Integer[0]), actual.toArray(new Integer[0]));
+            assertThat(actual)
+                    .hasSameSizeAs(expected)
+                    .containsExactlyInAnyOrderElementsOf(expected);
 
             iterator.close();
         }
     }
 
     @Test
-    public void testEarlyClose() throws Exception {
+    void testEarlyClose() throws Exception {
         List<Integer> expected = new ArrayList<>();
         for (int i = 0; i < 200; i++) {
             expected.add(i);
@@ -136,13 +133,15 @@ public class CollectResultIteratorTest extends TestLogger {
         JobClient jobClient = tuple2.f1;
 
         for (int i = 0; i < 100; i++) {
-            Assert.assertTrue(iterator.hasNext());
-            Assert.assertNotNull(iterator.next());
+            assertThat(iterator).hasNext();
+            assertThat(iterator.next()).isNotNull();
         }
-        Assert.assertTrue(iterator.hasNext());
+        assertThat(iterator).hasNext();
         iterator.close();
 
-        Assert.assertEquals(JobStatus.CANCELED, jobClient.getJobStatus().get());
+        assertThatFuture(jobClient.getJobStatus())
+                .eventuallySucceeds()
+                .isEqualTo(JobStatus.CANCELED);
     }
 
     private Tuple2<CollectResultIterator<Integer>, JobClient> createIteratorAndJobClient(

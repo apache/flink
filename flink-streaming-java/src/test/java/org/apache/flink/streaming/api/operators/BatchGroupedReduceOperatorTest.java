@@ -24,25 +24,18 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayDeque;
 
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.empty;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests {@link BatchGroupedReduceOperator}. */
-public class BatchGroupedReduceOperatorTest extends TestLogger {
-
-    @Rule public ExpectedException expectedException = ExpectedException.none();
+class BatchGroupedReduceOperatorTest {
 
     @Test
-    public void noIncrementalResults() throws Exception {
+    void noIncrementalResults() throws Exception {
         KeyedOneInputStreamOperatorTestHarness<String, String, String> testHarness =
                 createTestHarness();
 
@@ -51,11 +44,11 @@ public class BatchGroupedReduceOperatorTest extends TestLogger {
         testHarness.processElement(new StreamRecord<>("ciao"));
         testHarness.processElement(new StreamRecord<>("ciao"));
 
-        assertThat(testHarness.getOutput(), empty());
+        assertThat(testHarness.getOutput()).isEmpty();
     }
 
     @Test
-    public void resultsOnMaxWatermark() throws Exception {
+    void resultsOnMaxWatermark() throws Exception {
         KeyedOneInputStreamOperatorTestHarness<String, String, String> testHarness =
                 createTestHarness();
 
@@ -72,11 +65,11 @@ public class BatchGroupedReduceOperatorTest extends TestLogger {
         expectedOutput.add(new StreamRecord<>("ciaociaociao", Long.MAX_VALUE));
         expectedOutput.add(new Watermark(Long.MAX_VALUE));
 
-        assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
+        assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
     }
 
     @Test
-    public void resultForSingleInput() throws Exception {
+    void resultForSingleInput() throws Exception {
         KeyedOneInputStreamOperatorTestHarness<String, String, String> testHarness =
                 createTestHarness();
 
@@ -90,7 +83,7 @@ public class BatchGroupedReduceOperatorTest extends TestLogger {
         expectedOutput.add(new StreamRecord<>("ciao", Long.MAX_VALUE));
         expectedOutput.add(new Watermark(Long.MAX_VALUE));
 
-        assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
+        assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
     }
 
     private KeyedOneInputStreamOperatorTestHarness<String, String, String> createTestHarness()

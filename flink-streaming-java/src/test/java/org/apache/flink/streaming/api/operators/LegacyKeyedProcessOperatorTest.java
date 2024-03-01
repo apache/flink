@@ -32,24 +32,20 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests {@link LegacyKeyedProcessOperator}. */
 @Deprecated
-public class LegacyKeyedProcessOperatorTest extends TestLogger {
-
-    @Rule public ExpectedException expectedException = ExpectedException.none();
+class LegacyKeyedProcessOperatorTest {
 
     @Test
-    public void testTimestampAndWatermarkQuerying() throws Exception {
+    void testTimestampAndWatermarkQuerying() throws Exception {
 
         LegacyKeyedProcessOperator<Integer, Integer, String> operator =
                 new LegacyKeyedProcessOperator<>(
@@ -82,7 +78,7 @@ public class LegacyKeyedProcessOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testTimestampAndProcessingTimeQuerying() throws Exception {
+    void testTimestampAndProcessingTimeQuerying() throws Exception {
 
         LegacyKeyedProcessOperator<Integer, Integer, String> operator =
                 new LegacyKeyedProcessOperator<>(
@@ -113,7 +109,7 @@ public class LegacyKeyedProcessOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testEventTimeTimers() throws Exception {
+    void testEventTimeTimers() throws Exception {
 
         LegacyKeyedProcessOperator<Integer, Integer, Integer> operator =
                 new LegacyKeyedProcessOperator<>(
@@ -146,7 +142,7 @@ public class LegacyKeyedProcessOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testProcessingTimeTimers() throws Exception {
+    void testProcessingTimeTimers() throws Exception {
 
         LegacyKeyedProcessOperator<Integer, Integer, Integer> operator =
                 new LegacyKeyedProcessOperator<>(
@@ -176,7 +172,7 @@ public class LegacyKeyedProcessOperatorTest extends TestLogger {
 
     /** Verifies that we don't have leakage between different keys. */
     @Test
-    public void testEventTimeTimerWithState() throws Exception {
+    void testEventTimeTimerWithState() throws Exception {
 
         LegacyKeyedProcessOperator<Integer, Integer, String> operator =
                 new LegacyKeyedProcessOperator<>(
@@ -217,7 +213,7 @@ public class LegacyKeyedProcessOperatorTest extends TestLogger {
 
     /** Verifies that we don't have leakage between different keys. */
     @Test
-    public void testProcessingTimeTimerWithState() throws Exception {
+    void testProcessingTimeTimerWithState() throws Exception {
 
         LegacyKeyedProcessOperator<Integer, Integer, String> operator =
                 new LegacyKeyedProcessOperator<>(
@@ -253,7 +249,7 @@ public class LegacyKeyedProcessOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testSnapshotAndRestore() throws Exception {
+    void testSnapshotAndRestore() throws Exception {
 
         LegacyKeyedProcessOperator<Integer, Integer, String> operator =
                 new LegacyKeyedProcessOperator<>(new BothTriggeringFlatMapFunction());
@@ -298,7 +294,7 @@ public class LegacyKeyedProcessOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testNullOutputTagRefusal() throws Exception {
+    void testNullOutputTagRefusal() throws Exception {
         LegacyKeyedProcessOperator<Integer, Integer, String> operator =
                 new LegacyKeyedProcessOperator<>(new NullOutputTagEmittingProcessFunction());
 
@@ -311,8 +307,8 @@ public class LegacyKeyedProcessOperatorTest extends TestLogger {
 
         testHarness.setProcessingTime(17);
         try {
-            expectedException.expect(IllegalArgumentException.class);
-            testHarness.processElement(new StreamRecord<>(5));
+            assertThatThrownBy(() -> testHarness.processElement(new StreamRecord<>(5)))
+                    .isInstanceOf(IllegalArgumentException.class);
         } finally {
             testHarness.close();
         }
@@ -320,7 +316,7 @@ public class LegacyKeyedProcessOperatorTest extends TestLogger {
 
     /** This also verifies that the timestamps ouf side-emitted records is correct. */
     @Test
-    public void testSideOutput() throws Exception {
+    void testSideOutput() throws Exception {
         LegacyKeyedProcessOperator<Integer, Integer, String> operator =
                 new LegacyKeyedProcessOperator<>(new SideOutputProcessFunction());
 
@@ -457,7 +453,7 @@ public class LegacyKeyedProcessOperatorTest extends TestLogger {
         @Override
         public void onTimer(long timestamp, OnTimerContext ctx, Collector<Integer> out)
                 throws Exception {
-            assertEquals(this.timeDomain, ctx.timeDomain());
+            assertThat(ctx.timeDomain()).isEqualTo(timeDomain);
             out.collect(1777);
         }
     }
@@ -494,7 +490,7 @@ public class LegacyKeyedProcessOperatorTest extends TestLogger {
         @Override
         public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out)
                 throws Exception {
-            assertEquals(this.timeDomain, ctx.timeDomain());
+            assertThat(ctx.timeDomain()).isEqualTo(timeDomain);
             out.collect("STATE:" + getRuntimeContext().getState(state).value());
         }
     }

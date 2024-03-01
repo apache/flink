@@ -24,22 +24,23 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Unit test for {@link CoGroupedStreams}. */
-public class CoGroupedStreamsTest {
+class CoGroupedStreamsTest {
     private DataStream<String> dataStream1;
     private DataStream<String> dataStream2;
     private KeySelector<String, String> keySelector;
     private TumblingEventTimeWindows tsAssigner;
     private CoGroupFunction<String, String, String> coGroupFunction;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         dataStream1 = env.fromData("a1", "a2", "a3");
         dataStream2 = env.fromData("a1", "a2");
@@ -50,7 +51,7 @@ public class CoGroupedStreamsTest {
     }
 
     @Test
-    public void testDelegateToCoGrouped() {
+    void testDelegateToCoGrouped() {
         Duration lateness = Duration.ofMillis(42L);
 
         CoGroupedStreams.WithWindow<String, String, String, TimeWindow> withLateness =
@@ -63,12 +64,12 @@ public class CoGroupedStreamsTest {
 
         withLateness.apply(coGroupFunction, BasicTypeInfo.STRING_TYPE_INFO);
 
-        Assert.assertEquals(
-                lateness.toMillis(), withLateness.getWindowedStream().getAllowedLateness());
+        assertThat(withLateness.getWindowedStream().getAllowedLateness())
+                .isEqualTo(lateness.toMillis());
     }
 
     @Test
-    public void testSetAllowedLateness() {
+    void testSetAllowedLateness() {
         Duration lateness = Duration.ofMillis(42L);
 
         CoGroupedStreams.WithWindow<String, String, String, TimeWindow> withLateness =
@@ -79,6 +80,6 @@ public class CoGroupedStreamsTest {
                         .window(tsAssigner)
                         .allowedLateness(lateness);
 
-        Assert.assertEquals(lateness, withLateness.getAllowedLatenessDuration().orElse(null));
+        assertThat(withLateness.getAllowedLatenessDuration()).hasValue(lateness);
     }
 }

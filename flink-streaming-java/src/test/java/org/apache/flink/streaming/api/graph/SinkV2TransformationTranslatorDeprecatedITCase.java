@@ -25,12 +25,12 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.runtime.operators.sink.deprecated.TestSinkV2;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link org.apache.flink.streaming.api.transformations.SinkTransformation}.
@@ -41,8 +41,8 @@ import static org.junit.Assert.assertEquals;
  * org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink}.
  */
 @Deprecated
-@RunWith(Parameterized.class)
-public class SinkV2TransformationTranslatorDeprecatedITCase
+@ExtendWith(ParameterizedTestExtension.class)
+class SinkV2TransformationTranslatorDeprecatedITCase
         extends SinkTransformationTranslatorITCaseBase<Sink<Integer>> {
 
     @Override
@@ -60,8 +60,8 @@ public class SinkV2TransformationTranslatorDeprecatedITCase
         return stream.sinkTo(sink);
     }
 
-    @Test
-    public void testSettingOperatorUidHash() {
+    @TestTemplate
+    void testSettingOperatorUidHash() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStreamSource<Integer> src = env.fromElements(1, 2);
         final String writerHash = "f6b178ce445dc3ffaa06bad27a51fead";
@@ -75,25 +75,24 @@ public class SinkV2TransformationTranslatorDeprecatedITCase
 
         final StreamGraph streamGraph = env.getStreamGraph();
 
-        assertEquals(findWriter(streamGraph).getUserHash(), writerHash);
-        assertEquals(findCommitter(streamGraph).getUserHash(), committerHash);
+        assertThat(findWriter(streamGraph).getUserHash()).isEqualTo(writerHash);
+        assertThat(findCommitter(streamGraph).getUserHash()).isEqualTo(committerHash);
     }
 
     /**
      * When ever you need to change something in this test case please think about possible state
      * upgrade problems introduced by your changes.
      */
-    @Test
-    public void testSettingOperatorUids() {
+    @TestTemplate
+    void testSettingOperatorUids() {
         final String sinkUid = "f6b178ce445dc3ffaa06bad27a51fead";
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStreamSource<Integer> src = env.fromElements(1, 2);
         src.sinkTo(sinkWithCommitter()).name(NAME).uid(sinkUid);
 
         final StreamGraph streamGraph = env.getStreamGraph();
-        assertEquals(findWriter(streamGraph).getTransformationUID(), sinkUid);
-        assertEquals(
-                findCommitter(streamGraph).getTransformationUID(),
-                String.format("Sink Committer: %s", sinkUid));
+        assertThat(findWriter(streamGraph).getTransformationUID()).isEqualTo(sinkUid);
+        assertThat(findCommitter(streamGraph).getTransformationUID())
+                .isEqualTo(String.format("Sink Committer: %s", sinkUid));
     }
 }

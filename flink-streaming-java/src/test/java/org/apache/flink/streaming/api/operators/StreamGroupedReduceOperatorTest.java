@@ -30,10 +30,11 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link StreamGroupedReduceOperator}. These test that:
@@ -44,10 +45,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *   <li>Watermarks are correctly forwarded
  * </ul>
  */
-public class StreamGroupedReduceOperatorTest {
+class StreamGroupedReduceOperatorTest {
 
     @Test
-    public void testGroupedReduce() throws Exception {
+    void testGroupedReduce() throws Exception {
 
         KeySelector<Integer, Integer> keySelector = new IntegerKeySelector();
 
@@ -82,7 +83,7 @@ public class StreamGroupedReduceOperatorTest {
     }
 
     @Test
-    public void testOpenClose() throws Exception {
+    void testOpenClose() throws Exception {
 
         KeySelector<Integer, Integer> keySelector = new IntegerKeySelector();
 
@@ -102,9 +103,10 @@ public class StreamGroupedReduceOperatorTest {
 
         testHarness.close();
 
-        Assert.assertTrue(
-                "RichFunction methods where not called.", TestOpenCloseReduceFunction.closeCalled);
-        Assert.assertTrue("Output contains no elements.", testHarness.getOutput().size() > 0);
+        assertThat(TestOpenCloseReduceFunction.openCalled)
+                .as("RichFunction methods where not called.")
+                .isTrue();
+        assertThat(testHarness.getOutput()).as("Output contains no elements.").isNotEmpty();
     }
 
     // This must only be used in one test, otherwise the static fields will be changed
@@ -118,26 +120,20 @@ public class StreamGroupedReduceOperatorTest {
         @Override
         public void open(OpenContext openContext) throws Exception {
             super.open(openContext);
-            if (closeCalled) {
-                Assert.fail("Close called before open.");
-            }
+            assertThat(closeCalled).as("Close called before open.").isFalse();
             openCalled = true;
         }
 
         @Override
         public void close() throws Exception {
             super.close();
-            if (!openCalled) {
-                Assert.fail("Open was not called before close.");
-            }
+            assertThat(openCalled).as("Open was not called before close.").isTrue();
             closeCalled = true;
         }
 
         @Override
         public Integer reduce(Integer in1, Integer in2) throws Exception {
-            if (!openCalled) {
-                Assert.fail("Open was not called before run.");
-            }
+            assertThat(openCalled).as("Open was not called before run.").isTrue();
             return in1 + in2;
         }
     }
