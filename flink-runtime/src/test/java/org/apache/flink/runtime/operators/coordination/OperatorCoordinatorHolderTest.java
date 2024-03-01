@@ -18,21 +18,36 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureManager;
+import org.apache.flink.runtime.checkpoint.CheckpointPlanCalculatorContext;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
+import org.apache.flink.runtime.checkpoint.DefaultCheckpointPlanCalculator;
+import org.apache.flink.runtime.checkpoint.NoOpFailJobCall;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.EventReceivingTasks.EventWithSubtask;
 import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
+import org.apache.commons.collections.iterators.IteratorChain;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -42,6 +57,7 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
@@ -528,7 +544,37 @@ class OperatorCoordinatorHolderTest {
                                 new Configuration()),
                         UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
-        holder.lazyInitialize(globalFailureHandler, mainThreadExecutor, null);
+        JobID jobId = new JobID();
+        holder.lazyInitialize(
+                globalFailureHandler,
+                mainThreadExecutor,
+                new CheckpointCoordinator(
+                        jobId,
+                        CheckpointCoordinatorConfiguration.builder().build(),
+                        Collections.emptyList(),
+                        new StandaloneCheckpointIDCounter(),
+                        new StandaloneCompletedCheckpointStore(10),
+                        new MemoryStateBackend(),
+                        mainThreadExecutor,
+                        new CheckpointsCleaner(),
+                        mainThreadExecutor,
+                        new CheckpointFailureManager(0, NoOpFailJobCall.INSTANCE),
+                        new DefaultCheckpointPlanCalculator(
+                                jobId,
+                                new CheckpointPlanCalculatorContext() {
+                                    @Override
+                                    public ScheduledExecutor getMainExecutor() {
+                                        return null;
+                                    }
+
+                                    @Override
+                                    public boolean hasFinishedTasks() {
+                                        return false;
+                                    }
+                                },
+                                IteratorChain::new,
+                                false),
+                        new CheckpointStatsTracker(1, new UnregisteredMetricsGroup(), jobId)));
         holder.start();
 
         return holder;

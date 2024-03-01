@@ -110,9 +110,9 @@ public class OperatorCoordinatorHolder
 
     /**
      * A map that manages subtask gateways. It is used to control the opening/closing of each
-     * gateway during checkpoint. This map should only be read or modified when concurrent execution
-     * attempt is disabled. Note that concurrent execution attempt is currently guaranteed to be
-     * disabled when checkpoint is enabled.
+     * gateway during checkpoints. This map should only be read or modified in Streaming mode. Given
+     * that the CheckpointCoordinator is guaranteed to be non-null in Streaming mode, construction
+     * of this map can be skipped if the CheckpointCoordinator is null.
      */
     private final Map<Integer, SubtaskGatewayImpl> subtaskGatewayMap;
 
@@ -437,9 +437,8 @@ public class OperatorCoordinatorHolder
         final SubtaskGatewayImpl gateway =
                 new SubtaskGatewayImpl(sta, mainThreadExecutor, unconfirmedEvents);
 
-        // When concurrent execution attempts is supported, the checkpoint must have been disabled.
-        // Thus, we don't need to maintain subtaskGatewayMap
-        if (!context.isConcurrentExecutionAttemptsSupported()) {
+        // We don't need to maintain subtaskGatewayMap when checkpoint coordinator is null.
+        if (context.getCheckpointCoordinator() != null) {
             subtaskGatewayMap.put(gateway.getSubtask(), gateway);
         }
 
