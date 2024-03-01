@@ -108,7 +108,7 @@ public class ThriftObjectConversions {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final RowDataToJsonConverters TO_JSON_CONVERTERS =
             new RowDataToJsonConverters(
-                    TimestampFormat.SQL, JsonFormatOptions.MapNullKeyMode.LITERAL, "null");
+                    TimestampFormat.SQL, JsonFormatOptions.MapNullKeyMode.LITERAL, "null", false);
     private static final Map<String, TableKind> TABLE_TYPE_MAPPINGS = buildTableTypeMapping();
 
     // --------------------------------------------------------------------------------------------

@@ -176,7 +176,8 @@ class JsonFormatFactoryTest {
                         TimestampFormat.ISO_8601,
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
-                        true);
+                        true,
+                        false);
 
         SerializationSchema<RowData> actualSer =
                 createTableSink(options)

@@ -81,7 +81,8 @@ class DebeziumJsonFormatFactoryTest {
                         TimestampFormat.ISO_8601,
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
-                        true);
+                        true,
+                        false);
 
         final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
         assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;

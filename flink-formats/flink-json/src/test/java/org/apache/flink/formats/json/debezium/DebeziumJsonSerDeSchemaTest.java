@@ -249,7 +249,8 @@ class DebeziumJsonSerDeSchemaTest {
                         TimestampFormat.SQL,
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
-                        true);
+                        true,
+                        false);
 
         open(serializationSchema);
         actual = new ArrayList<>();

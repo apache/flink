@@ -69,7 +69,8 @@ class MaxwellJsonFormatFactoryTest {
                         TimestampFormat.ISO_8601,
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
-                        true);
+                        true,
+                        false);
 
         final Map<String, String> options = getAllOptions();
 
