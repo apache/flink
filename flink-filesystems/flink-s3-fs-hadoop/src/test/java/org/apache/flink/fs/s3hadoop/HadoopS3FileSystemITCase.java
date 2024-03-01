@@ -21,10 +21,12 @@ package org.apache.flink.fs.s3hadoop;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.fs.s3.common.MinioTestContainer;
 import org.apache.flink.runtime.fs.hdfs.AbstractHadoopFileSystemITTest;
 import org.apache.flink.testutils.s3.S3TestCredentials;
 
 import org.junit.BeforeClass;
+import org.testcontainers.junit.jupiter.Container;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -41,18 +43,24 @@ import static org.junit.Assert.assertFalse;
  */
 public class HadoopS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
 
+    @Container
+    private static final MinioTestContainer MINIO = new MinioTestContainer().withReuse(true);
+
     @BeforeClass
     public static void setup() throws IOException {
         // check whether credentials exist
-        S3TestCredentials.assumeCredentialsAvailable();
+//        S3TestCredentials.assumeCredentialsAvailable();
 
         // initialize configuration with valid credentials
         final Configuration conf = new Configuration();
-        conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
-        conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
-        FileSystem.initialize(conf);
+        MINIO.setS3ConfigOptions(conf);
+        MINIO.initializeFileSystem(conf);
+//        conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+//        conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
+//        FileSystem.initialize(conf);
 
-        basePath = new Path(S3TestCredentials.getTestBucketUri() + "tests-" + UUID.randomUUID());
+//        basePath = new Path(S3TestCredentials.getTestBucketUri() + "tests-" + UUID.randomUUID());
+        basePath = new Path(MINIO.getS3UriForDefaultBucket() + "tests-" + UUID.randomUUID());
         fs = basePath.getFileSystem();
         consistencyToleranceNS = 30_000_000_000L; // 30 seconds
 

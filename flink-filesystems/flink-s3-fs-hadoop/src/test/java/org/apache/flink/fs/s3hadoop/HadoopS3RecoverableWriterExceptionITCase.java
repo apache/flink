@@ -23,10 +23,12 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.fs.s3.common.FlinkS3FileSystem;
+import org.apache.flink.fs.s3.common.MinioTestContainer;
 import org.apache.flink.runtime.fs.hdfs.AbstractHadoopRecoverableWriterExceptionITCase;
 import org.apache.flink.testutils.s3.S3TestCredentials;
 
 import org.junit.BeforeClass;
+import org.testcontainers.junit.jupiter.Container;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -46,17 +48,22 @@ public class HadoopS3RecoverableWriterExceptionITCase
     private static final long PART_UPLOAD_MIN_SIZE_VALUE = 7L << 20;
     private static final int MAX_CONCURRENT_UPLOADS_VALUE = 2;
 
+    @Container
+    private static final MinioTestContainer MINIO = new MinioTestContainer().withReuse(true);
+
     @BeforeClass
     public static void checkCredentialsAndSetup() throws IOException {
         // check whether credentials exist
-        S3TestCredentials.assumeCredentialsAvailable();
+//        S3TestCredentials.assumeCredentialsAvailable();
 
-        basePath = new Path(S3TestCredentials.getTestBucketUri() + "tests-" + UUID.randomUUID());
+//        basePath = new Path(S3TestCredentials.getTestBucketUri() + "tests-" + UUID.randomUUID());
+        basePath = new Path(MINIO.getS3UriForDefaultBucket() + "tests-" + UUID.randomUUID());
 
         // initialize configuration with valid credentials
         final Configuration conf = new Configuration();
-        conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
-        conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
+        MINIO.setS3ConfigOptions(conf);
+//        conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+//        conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
 
         conf.set(PART_UPLOAD_MIN_SIZE, PART_UPLOAD_MIN_SIZE_VALUE);
         conf.set(MAX_CONCURRENT_UPLOADS, MAX_CONCURRENT_UPLOADS_VALUE);
@@ -64,7 +71,8 @@ public class HadoopS3RecoverableWriterExceptionITCase
         final String defaultTmpDir = TEMP_FOLDER.getRoot().getAbsolutePath() + "s3_tmp_dir";
         conf.set(CoreOptions.TMP_DIRS, defaultTmpDir);
 
-        FileSystem.initialize(conf);
+//        FileSystem.initialize(conf);
+        MINIO.initializeFileSystem(conf);
 
         skipped = false;
     }
