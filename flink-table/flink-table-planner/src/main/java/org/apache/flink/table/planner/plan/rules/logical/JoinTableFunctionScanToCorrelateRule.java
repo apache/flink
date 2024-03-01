@@ -25,7 +25,10 @@ import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
 import org.immutables.value.Value;
 
-/** Rule that rewrites Join on TableFunctionScan to Correlate. */
+/**
+ * Rule that rewrites {@link org.apache.calcite.rel.core.Join} on {@link
+ * org.apache.calcite.rel.core.TableFunctionScan} to {@link org.apache.calcite.rel.core.Correlate}.
+ */
 @Value.Enclosing
 public class JoinTableFunctionScanToCorrelateRule
         extends RelRule<JoinTableFunctionScanToCorrelateRule.Config> {

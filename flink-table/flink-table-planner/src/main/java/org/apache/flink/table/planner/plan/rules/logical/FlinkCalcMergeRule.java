@@ -30,18 +30,21 @@ import org.apache.calcite.rex.RexProgram;
 import org.immutables.value.Value;
 
 /**
- * This rule is copied from Calcite's [[org.apache.calcite.rel.rules.CalcMergeRule]].
+ * This rule is copied from Calcite's {@link org.apache.calcite.rel.rules.CalcMergeRule}.
  *
  * <p>Modification: - Condition in the merged program will be simplified if it exists. - If the two
- * [[Calc]] can merge into one, each non-deterministic [[RexNode]] of bottom [[Calc]] should appear
- * at most once in the project list and filter list of top [[Calc]].
+ * {@link org.apache.calcite.rel.core.Calc} can merge into one, each non-deterministic {@link
+ * org.apache.calcite.rex.RexNode} of bottom {@link org.apache.calcite.rel.core.Calc} should appear
+ * at most once in the project list and filter list of top {@link org.apache.calcite.rel.core.Calc}.
  */
 
 /**
- * Planner rule that merges a [[Calc]] onto a [[Calc]].
+ * Planner rule that merges a {@link org.apache.calcite.rel.core.Calc} onto a {@link
+ * org.apache.calcite.rel.core.Calc}.
  *
- * <p>The resulting [[Calc]] has the same project list as the upper [[Calc]], but expressed in terms
- * of the lower [[Calc]]'s inputs.
+ * <p>The resulting {@link org.apache.calcite.rel.core.Calc} has the same project list as the upper
+ * {@link org.apache.calcite.rel.core.Calc}, but expressed in terms of the lower {@link
+ * org.apache.calcite.rel.core.Calc}'s inputs.
  */
 @Value.Enclosing
 public class FlinkCalcMergeRule extends RelRule<FlinkCalcMergeRule.FlinkCalcMergeRuleConfig> {
