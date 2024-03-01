@@ -23,6 +23,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitsAssignment;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,6 +34,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+
+import static org.apache.flink.runtime.operators.coordination.OperatorCoordinator.NO_CHECKPOINT;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A class that is responsible for tracking the past split assignments made by {@link
@@ -63,6 +67,33 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
         // Include the uncheckpointed assignments to the snapshot.
         assignmentsByCheckpointId.put(checkpointId, uncheckpointedAssignments);
         uncheckpointedAssignments = new HashMap<>();
+    }
+
+    /**
+     * Take a snapshot of the split assignments.
+     *
+     * @param checkpointId the id of the ongoing checkpoint
+     */
+    public byte[] snapshotState(
+            long checkpointId, SimpleVersionedSerializer<SplitT> splitSerializer) throws Exception {
+        checkState(checkpointId == NO_CHECKPOINT);
+        return SourceCoordinatorSerdeUtils.writeAssignments(
+                uncheckpointedAssignments, splitSerializer);
+    }
+
+    /**
+     * Restore the state of the SplitAssignmentTracker.
+     *
+     * @param splitSerializer The serializer of the splits.
+     * @param assignmentData The state of the SplitAssignmentTracker.
+     * @throws Exception when the state deserialization fails.
+     */
+    public void restoreState(
+            SimpleVersionedSerializer<SplitT> splitSerializer, byte[] assignmentData)
+            throws Exception {
+        // Read the split assignments by checkpoint id.
+        uncheckpointedAssignments =
+                SourceCoordinatorSerdeUtils.readAssignments(assignmentData, splitSerializer);
     }
 
     /**

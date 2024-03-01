@@ -234,6 +234,16 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
      */
     void executionAttemptReady(int subtask, int attemptNumber, SubtaskGateway gateway);
 
+    /**
+     * Whether the operator coordinator supports taking snapshot in no-checkpoint/batch scenarios.
+     * If it returns true, it's {@link OperatorCoordinator#checkpointCoordinator} and {@link
+     * OperatorCoordinator#resetToCheckpoint} methods need to accept {@link
+     * OperatorCoordinator#NO_CHECKPOINT} as the value of checkpoint id. Otherwise, returns false.
+     */
+    default boolean supportsBatchSnapshot() {
+        return false;
+    }
+
     // ------------------------------------------------------------------------
     // ------------------------------------------------------------------------
 

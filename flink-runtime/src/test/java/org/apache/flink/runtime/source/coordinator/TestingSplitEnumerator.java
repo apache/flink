@@ -27,6 +27,7 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.api.connector.source.SupportsBatchSnapshot;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
@@ -55,7 +56,7 @@ import java.util.concurrent.ExecutionException;
  * assertions.
  */
 public class TestingSplitEnumerator<SplitT extends SourceSplit>
-        implements SplitEnumerator<SplitT, Set<SplitT>> {
+        implements SplitEnumerator<SplitT, Set<SplitT>>, SupportsBatchSnapshot {
 
     private final SplitEnumeratorContext<SplitT> context;
 

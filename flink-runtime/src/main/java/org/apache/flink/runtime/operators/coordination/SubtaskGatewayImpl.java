@@ -185,11 +185,6 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
         if (checkpointId > latestAttemptedCheckpointId) {
             currentMarkedCheckpointIds.add(checkpointId);
             latestAttemptedCheckpointId = checkpointId;
-        } else {
-            throw new IllegalStateException(
-                    String.format(
-                            "Regressing checkpoint IDs. Previous checkpointId = %d, new checkpointId = %d",
-                            latestAttemptedCheckpointId, checkpointId));
         }
     }
 

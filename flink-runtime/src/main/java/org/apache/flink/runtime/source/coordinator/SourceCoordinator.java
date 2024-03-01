@@ -29,6 +29,7 @@ import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SupportsBatchSnapshot;
 import org.apache.flink.api.connector.source.SupportsHandleExecutionAttemptSourceEvent;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -376,6 +377,11 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
     }
 
     @Override
+    public boolean supportsBatchSnapshot() {
+        return enumerator instanceof SupportsBatchSnapshot;
+    }
+
+    @Override
     public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
         runInEventLoop(
                 () -> {
@@ -384,8 +390,29 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                             operatorName,
                             checkpointId);
                     try {
-                        context.onCheckpoint(checkpointId);
-                        result.complete(toBytes(checkpointId));
+                        if (checkpointId == NO_CHECKPOINT) {
+                            checkState(supportsBatchSnapshot());
+                            try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                                    DataOutputStream out = new DataOutputViewStreamWrapper(baos)) {
+                                // assignments
+                                byte[] assignmentData =
+                                        context.getAssignmentTracker()
+                                                .snapshotState(
+                                                        checkpointId, source.getSplitSerializer());
+                                out.writeInt(assignmentData.length);
+                                out.write(assignmentData);
+
+                                // enumerator
+                                byte[] enumeratorData = toBytes(checkpointId);
+                                out.writeInt(enumeratorData.length);
+                                out.write(enumeratorData);
+                                out.flush();
+                                result.complete(baos.toByteArray());
+                            }
+                        } else {
+                            context.onCheckpoint(checkpointId);
+                            result.complete(toBytes(checkpointId));
+                        }
                     } catch (Throwable e) {
                         ExceptionUtils.rethrowIfFatalErrorOrOOM(e);
                         result.completeExceptionally(
@@ -446,10 +473,33 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
         final ClassLoader userCodeClassLoader =
                 context.getCoordinatorContext().getUserCodeClassloader();
-        try (TemporaryClassLoaderContext ignored =
-                TemporaryClassLoaderContext.of(userCodeClassLoader)) {
-            final EnumChkT enumeratorCheckpoint = deserializeCheckpoint(checkpointData);
-            enumerator = source.restoreEnumerator(context, enumeratorCheckpoint);
+
+        if (checkpointId == NO_CHECKPOINT) {
+            try (TemporaryClassLoaderContext ignored =
+                    TemporaryClassLoaderContext.of(userCodeClassLoader)) {
+                try (ByteArrayInputStream bais = new ByteArrayInputStream(checkpointData);
+                        DataInputStream in = new DataInputViewStreamWrapper(bais)) {
+                    int assignmentDataLength = in.readInt();
+                    byte[] assignmentData =
+                            SourceCoordinatorSerdeUtils.readBytes(in, assignmentDataLength);
+
+                    int enumeratorDataLength = in.readInt();
+                    byte[] enumeratorData =
+                            SourceCoordinatorSerdeUtils.readBytes(in, enumeratorDataLength);
+
+                    final EnumChkT enumeratorCheckpoint = deserializeCheckpoint(enumeratorData);
+                    enumerator = source.restoreEnumerator(context, enumeratorCheckpoint);
+
+                    context.getAssignmentTracker()
+                            .restoreState(source.getSplitSerializer(), assignmentData);
+                }
+            }
+        } else {
+            try (TemporaryClassLoaderContext ignored =
+                    TemporaryClassLoaderContext.of(userCodeClassLoader)) {
+                final EnumChkT enumeratorCheckpoint = deserializeCheckpoint(checkpointData);
+                enumerator = source.restoreEnumerator(context, enumeratorCheckpoint);
+            }
         }
     }
 
