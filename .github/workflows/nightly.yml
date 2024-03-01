@@ -94,3 +94,51 @@ jobs:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
       s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
+
+  build_python_wheels:
+    name: "Build Python Wheels on ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            os_name: linux
+            python-version: 3.9
+          - os: macos-latest
+            os_name: macos
+            python-version: 3.9
+    steps:
+      - name: "Checkout the repository"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: "Install python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: "Stringify workflow name"
+        uses: "./.github/actions/stringify"
+        id: stringify_workflow
+        with:
+          value: ${{ github.workflow }}
+      - name: "Build python wheels for ${{ matrix.os_name }}"
+        if: matrix.os_name == 'linux'
+        run: |
+          cd flink-python
+          bash dev/build-wheels.sh
+      - name: "Build python wheels for ${{ matrix.os }}"
+        if: matrix.os_name == 'macos'
+        run: |
+          cd flink-python
+          python -m pip install --upgrade pip
+          pip install cibuildwheel==2.8.0
+          cibuildwheel --platform macos --output-dir dist .
+      - name: "Tar python artifact"
+        run: tar -czvf python-wheel-${{ matrix.os_name }}.tar.gz -C flink-python/dist .
+      - name: "Upload python artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel_${{ matrix.os_name }}_${{ steps.stringify_workflow.outputs.stringified_value }}-${{ github.run_number }}
+          path: python-wheel-${{ matrix.os_name }}.tar.gz
