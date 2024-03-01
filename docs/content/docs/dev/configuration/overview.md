@@ -187,6 +187,7 @@ jar {
 
 shadowJar {
     configurations = [project.configurations.flinkShadowJar]
+    mergeServiceFiles()
 }
 ```
 
