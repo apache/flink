@@ -19,6 +19,7 @@ limitations under the License.
 package org.apache.flink.runtime.source.coordinator;
 
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
+import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 
 import org.junit.jupiter.api.Test;
 
@@ -45,6 +46,27 @@ class SplitAssignmentTrackerTest {
         verifyAssignment(
                 Arrays.asList("1", "2", "7", "8"), tracker.uncheckpointedAssignments().get(1));
         verifyAssignment(Arrays.asList("3", "4", "5"), tracker.uncheckpointedAssignments().get(2));
+    }
+
+    @Test
+    void testSnapshotStateAndRestoreState() throws Exception {
+        SplitAssignmentTracker<MockSourceSplit> tracker = new SplitAssignmentTracker<>();
+        tracker.recordSplitAssignment(getSplitsAssignment(3, 0));
+        tracker.recordSplitAssignment(getSplitsAssignment(2, 6));
+
+        byte[] snapshotState = tracker.snapshotState(new MockSourceSplitSerializer());
+
+        SplitAssignmentTracker<MockSourceSplit> trackerToRestore = new SplitAssignmentTracker<>();
+        assertThat(trackerToRestore.uncheckpointedAssignments()).isEmpty();
+        trackerToRestore.restoreState(new MockSourceSplitSerializer(), snapshotState);
+
+        verifyAssignment(
+                Arrays.asList("0", "6"), trackerToRestore.uncheckpointedAssignments().get(0));
+        verifyAssignment(
+                Arrays.asList("1", "2", "7", "8"),
+                trackerToRestore.uncheckpointedAssignments().get(1));
+        verifyAssignment(
+                Arrays.asList("3", "4", "5"), trackerToRestore.uncheckpointedAssignments().get(2));
     }
 
     @Test

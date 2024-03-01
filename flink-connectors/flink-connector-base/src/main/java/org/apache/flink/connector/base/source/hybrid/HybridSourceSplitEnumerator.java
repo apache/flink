@@ -25,6 +25,7 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
+import org.apache.flink.api.connector.source.SupportsBatchSnapshot;
 import org.apache.flink.api.connector.source.SupportsIntermediateNoMoreSplits;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
@@ -66,7 +67,8 @@ import java.util.function.BiConsumer;
  * returned splits were processed, delegation to the current underlying enumerator resumes.
  */
 public class HybridSourceSplitEnumerator
-        implements SplitEnumerator<HybridSourceSplit, HybridSourceEnumeratorState> {
+        implements SplitEnumerator<HybridSourceSplit, HybridSourceEnumeratorState>,
+                SupportsBatchSnapshot {
     private static final Logger LOG = LoggerFactory.getLogger(HybridSourceSplitEnumerator.class);
 
     private final SplitEnumeratorContext<HybridSourceSplit> context;
