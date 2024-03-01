@@ -543,7 +543,7 @@ public class ConfigurationTest {
         ConfigOption<Map<String, String>> secret =
                 ConfigOptions.key("secret").mapType().noDefaultValue();
 
-        Assertions.assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
+        assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
 
         final Configuration cfg = new Configuration(standardYaml);
         cfg.setString(secret.key(), "secret_value");
