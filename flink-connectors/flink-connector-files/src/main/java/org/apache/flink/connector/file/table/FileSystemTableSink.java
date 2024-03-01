@@ -19,7 +19,6 @@
 package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
@@ -34,6 +33,7 @@ import org.apache.flink.connector.file.table.stream.PartitionCommitInfo;
 import org.apache.flink.connector.file.table.stream.StreamingSink;
 import org.apache.flink.connector.file.table.stream.compact.CompactBulkReader;
 import org.apache.flink.connector.file.table.stream.compact.CompactReader;
+import org.apache.flink.connector.file.table.utils.PathUtils;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -185,7 +185,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                 .setMetaStoreFactory(new EmptyMetaStoreFactory(path))
                 .setOverwrite(overwrite)
                 .setStaticPartitions(staticPartitions)
-                .setTempPath(toStagingPath())
+                .setTempPath(PathUtils.getStagingPath(path))
                 .setOutputFileConfig(
                         OutputFileConfig.builder()
                                 .withPartPrefix("part-" + UUID.randomUUID())
@@ -372,26 +372,6 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                         "Compaction reader not support DataStructure converter.");
             }
         };
-    }
-
-    @VisibleForTesting
-    Path toStagingPath() {
-        // Add a random UUID to prevent multiple sinks from sharing the same staging dir.
-        // Please see FLINK-29114 for more details
-        Path stagingDir = new Path(path, ".staging_" + getStagingPathPostfix(false));
-        try {
-            FileSystem fs = stagingDir.getFileSystem();
-            Preconditions.checkState(
-                    fs.mkdirs(stagingDir), "Failed to create staging dir " + stagingDir);
-            return stagingDir;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @VisibleForTesting
-    static String getStagingPathPostfix(boolean constant) {
-        return constant ? "" : System.currentTimeMillis() + "_" + UUID.randomUUID();
     }
 
     @SuppressWarnings("unchecked")
