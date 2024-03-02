@@ -110,6 +110,34 @@ class FlinkConfMountDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
+    void testConfigMapAdditionalResource() throws IOException {
+        final String additionalFileName1 = "job1.properties";
+        final String additionalFileName2 = "job2.properties";
+        this.flinkConfig.set(
+                KubernetesConfigOptions.FLINK_CONFIGMAP_ADDITIONAL_RESOURCES,
+                Arrays.asList(additionalFileName1, additionalFileName2));
+        KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOG4J_NAME);
+        KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOGBACK_NAME);
+        KubernetesTestUtils.createTemporyFile(
+                "job1.property:value", flinkConfDir, additionalFileName1);
+        KubernetesTestUtils.createTemporyFile(
+                "job2.property:value", flinkConfDir, additionalFileName2);
+
+        final List<HasMetadata> additionalResources =
+                flinkConfMountDecorator.buildAccompanyingKubernetesResources();
+        assertThat(additionalResources).hasSize(1);
+
+        final ConfigMap resultConfigMap = (ConfigMap) additionalResources.get(0);
+
+        Map<String, String> resultDatas = resultConfigMap.getData();
+        assertThat(resultDatas.get(CONFIG_FILE_LOGBACK_NAME)).isEqualTo("some data");
+        assertThat(resultDatas.get(CONFIG_FILE_LOG4J_NAME)).isEqualTo("some data");
+        assertThat(resultDatas.get(additionalFileName1)).isEqualTo("job1.property:value");
+        assertThat(resultDatas.get(additionalFileName2)).isEqualTo("job2.property:value");
+        this.flinkConfig.removeConfig(KubernetesConfigOptions.FLINK_CONFIGMAP_ADDITIONAL_RESOURCES);
+    }
+
+    @Test
     void testDecoratedFlinkPodWithoutLog4jAndLogback() {
         final FlinkPod resultFlinkPod = flinkConfMountDecorator.decorateFlinkPod(baseFlinkPod);
 
