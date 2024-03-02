@@ -202,6 +202,22 @@ Unify the representation of TaskManager location in REST API and Web UI. The `ho
 deprecated in favor of the newly introduced `endpoint` field that includes both the host and port
 information to distinguish multiple TaskManagers on the same host.
 
+#### Supports profiling JobManager/TaskManager with Async-profiler on Flink Web
+
+##### [FLINK-33325](https://issues.apache.org/jira/browse/FLINK-33325)
+
+In Flink 1.19, we support triggering profiling at the JobManager/TaskManager level, allowing users to
+create a profiling instance with arbitrary intervals and event modes (supported by [async-profiler](https://github.com/async-profiler/async-profiler)).
+Users can easily submit profiles and export results in the Flink Web UI.
+
+For example,
+- First, users should identify the candidate TaskManager/JobManager with performance bottleneck for profiling and switch to the corresponding TaskManager/JobManager page (profiler tab).
+- The user simply clicks on the `Create Profiling Instance` button to submit a profiling instance with specified period and mode. (The description of the profiling mode will be displayed when hovering over the corresponding mode.)
+- Once the profiling instance is complete, the user can easily download the interactive HTML file by clicking on the link.
+
+**More Information**
+- [Documents](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/ops/debugging/profiler/)
+- [FLIP-375: Built-in cross-platform powerful java profiler](https://cwiki.apache.org/confluence/x/64lEE)
 
 ### SDK
 
