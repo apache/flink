@@ -520,7 +520,7 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
 
   @TestTemplate
   def testCumulateWithNegativeParam(): Unit = {
-    val sql =
+    var sql =
       """
         |SELECT
         |   a,
@@ -538,6 +538,26 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
 
     assertThatThrownBy(() => util.verifyExplain(sql))
       .hasMessageContaining("Cumulate Window parameters must satisfy step > 0")
+      .isInstanceOf[IllegalArgumentException]
+
+    sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '-1' HOUR))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Cumulate Window parameters must satisfy size > 0")
       .isInstanceOf[IllegalArgumentException]
   }
 
@@ -646,7 +666,7 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
 
   @TestTemplate
   def testHopWithNegativeParam(): Unit = {
-    val sql =
+    var sql =
       """
         |SELECT
         |   a,
@@ -664,6 +684,25 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
 
     assertThatThrownBy(() => util.verifyExplain(sql))
       .hasMessageContaining("Hop Window parameters must satisfy slide > 0")
+      .isInstanceOf[IllegalArgumentException]
+
+    sql = """
+            |SELECT
+            |   a,
+            |   window_start,
+            |   window_end,
+            |   count(*),
+            |   sum(d),
+            |   max(d) filter (where b > 1000),
+            |   weightedAvg(b, e) AS wAvg,
+            |   count(distinct c) AS uv
+            |FROM TABLE(
+            |   HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '-10' MINUTE))
+            |GROUP BY a, window_start, window_end
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Hop Window parameters must satisfy size > 0")
       .isInstanceOf[IllegalArgumentException]
   }
 
