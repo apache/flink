@@ -126,6 +126,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
 
     private final boolean asyncCompactAfterRescale;
 
+    private final boolean useDeleteFilesInRange;
+
     public RocksDBIncrementalRestoreOperation(
             String operatorIdentifier,
             KeyGroupRange keyGroupRange,
@@ -148,7 +150,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
             Long writeBufferManagerCapacity,
             double overlapFractionThreshold,
             boolean useIngestDbRestoreMode,
-            boolean asyncCompactAfterRescale) {
+            boolean asyncCompactAfterRescale,
+            boolean useDeleteFilesInRange) {
         this.rocksHandle =
                 new RocksDBHandle(
                         kvStateInformation,
@@ -178,6 +181,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         //        this.asyncCompactAfterRescale = asyncCompactAfterRescale;
         this.useIngestDbRestoreMode = false;
         this.asyncCompactAfterRescale = false;
+        this.useDeleteFilesInRange = useDeleteFilesInRange;
     }
 
     /**
@@ -371,7 +375,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                         this.rocksHandle.getColumnFamilyHandles(),
                         keyGroupRange,
                         stateHandleKeyGroupRange,
-                        keyGroupPrefixBytes);
+                        keyGroupPrefixBytes,
+                        useDeleteFilesInRange);
             } catch (RocksDBException e) {
                 String errMsg = "Failed to clip DB after initialization.";
                 logger.error(errMsg, e);

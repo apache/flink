@@ -486,7 +486,7 @@ public class StreamGraph implements Pipeline {
             @Nullable String slotSharingGroup,
             @Nullable String coLocationGroup,
             Class<? extends TaskInvokable> vertexClass,
-            StreamOperatorFactory<?> operatorFactory,
+            @Nullable StreamOperatorFactory<?> operatorFactory,
             String operatorName) {
 
         if (streamNodes.containsKey(vertexID)) {
@@ -891,14 +891,6 @@ public class StreamGraph implements Pipeline {
 
     public Collection<StreamNode> getStreamNodes() {
         return streamNodes.values();
-    }
-
-    public Set<Tuple2<Integer, StreamOperatorFactory<?>>> getAllOperatorFactory() {
-        Set<Tuple2<Integer, StreamOperatorFactory<?>>> operatorSet = new HashSet<>();
-        for (StreamNode vertex : streamNodes.values()) {
-            operatorSet.add(new Tuple2<>(vertex.getId(), vertex.getOperatorFactory()));
-        }
-        return operatorSet;
     }
 
     public String getBrokerID(Integer vertexID) {

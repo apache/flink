@@ -60,7 +60,7 @@ public class EmbeddedCompletedCheckpointStore extends AbstractCompleteCheckpoint
         this(
                 maxRetainedCheckpoints,
                 Collections.emptyList(),
-                /* Using the default restore mode in tests to detect any breaking changes early. */
+                /* Using the default claim mode in tests to detect any breaking changes early. */
                 RestoreMode.DEFAULT);
     }
 

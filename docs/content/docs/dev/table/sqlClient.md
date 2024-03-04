@@ -611,7 +611,7 @@ SET 'yarn.application.queue' = 'root';
 SET 'parallelism.default' = '100';
 
 -- restore from the specific savepoint path
-SET 'execution.savepoint.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
+SET 'execution.state-recovery.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
 
 INSERT INTO pageviews_enriched
 SELECT *
@@ -800,7 +800,7 @@ Flink SQL> INSERT INTO MyTableSink SELECT * FROM MyTableSource;
 Flink supports to start the job with specified savepoint. In SQL Client, it's allowed to use `SET` command to specify the path of the savepoint.
 
 ```sql
-Flink SQL> SET 'execution.savepoint.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
+Flink SQL> SET 'execution.state-recovery.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
 [INFO] Session property has been set.
 
 -- all the following DML statements will be restroed from the specified savepoint path
@@ -812,7 +812,7 @@ When the path to savepoint is specified, Flink will try to restore the state fro
 Because the specified savepoint path will affect all the following DML statements, you can use `RESET` command to reset this config option, i.e. disable restoring from savepoint.
 
 ```sql
-Flink SQL> RESET execution.savepoint.path;
+Flink SQL> RESET execution.state-recovery.path;
 [INFO] Session property has been reset.
 ```
 

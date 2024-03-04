@@ -19,7 +19,7 @@
 package org.apache.flink.client.testjar;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 
@@ -33,7 +33,7 @@ public class ForbidConfigurationJob {
 
     public static void main(String[] args) throws Exception {
         final Configuration config = new Configuration();
-        config.set(SavepointConfigOptions.SAVEPOINT_PATH, SAVEPOINT_PATH);
+        config.set(StateRecoveryOptions.SAVEPOINT_PATH, SAVEPOINT_PATH);
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(config);
 

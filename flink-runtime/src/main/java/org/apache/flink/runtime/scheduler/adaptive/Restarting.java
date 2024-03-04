@@ -80,6 +80,11 @@ class Restarting extends StateWithExecutionGraph {
     }
 
     @Override
+    public void suspend(Throwable cause) {
+        suspend(cause, JobStatus.SUSPENDED);
+    }
+
+    @Override
     public void cancel() {
         context.goToCanceling(
                 getExecutionGraph(),

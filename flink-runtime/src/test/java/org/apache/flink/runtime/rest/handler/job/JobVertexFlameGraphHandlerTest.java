@@ -30,6 +30,7 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionHistory;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
@@ -103,6 +104,7 @@ class JobVertexFlameGraphHandlerTest {
                         "test",
                         2,
                         2,
+                        new SlotSharingGroup(),
                         ResourceProfile.UNKNOWN,
                         new StringifiedAccumulatorResult[0]);
 
@@ -139,6 +141,7 @@ class JobVertexFlameGraphHandlerTest {
                         "test",
                         2,
                         2,
+                        new SlotSharingGroup(),
                         ResourceProfile.UNKNOWN,
                         new StringifiedAccumulatorResult[0]);
 

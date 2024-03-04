@@ -29,9 +29,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.CachedDataStream;
@@ -747,7 +747,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
     @Test
     public void testSettingSavepointRestoreSettings() {
         Configuration config = new Configuration();
-        config.set(SavepointConfigOptions.SAVEPOINT_PATH, "/tmp/savepoint");
+        config.set(StateRecoveryOptions.SAVEPOINT_PATH, "/tmp/savepoint");
 
         final StreamGraph streamGraph =
                 new StreamGraphGenerator(
@@ -767,7 +767,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
     @Test
     public void testSettingSavepointRestoreSettingsSetterOverrides() {
         Configuration config = new Configuration();
-        config.set(SavepointConfigOptions.SAVEPOINT_PATH, "/tmp/savepoint");
+        config.set(StateRecoveryOptions.SAVEPOINT_PATH, "/tmp/savepoint");
 
         StreamGraphGenerator generator =
                 new StreamGraphGenerator(

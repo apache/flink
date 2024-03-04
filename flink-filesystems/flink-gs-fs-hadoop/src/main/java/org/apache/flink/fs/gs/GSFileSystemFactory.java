@@ -78,8 +78,6 @@ public class GSFileSystemFactory implements FileSystemFactory {
 
     @Override
     public void configure(Configuration flinkConfig) {
-        LOGGER.info("Configuring GSFileSystemFactory with Flink configuration {}", flinkConfig);
-
         Preconditions.checkNotNull(flinkConfig);
 
         ConfigUtils.ConfigContext configContext = new RuntimeConfigContext();

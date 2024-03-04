@@ -74,22 +74,22 @@ reset 'table.resources.download-dir';
 
 # list the configured configuration
 set;
-+--------------------------------------------+-----------+
-|                                        key |     value |
-+--------------------------------------------+-----------+
-|                         execution.attached |      true |
-|           execution.savepoint-restore-mode |  NO_CLAIM |
-| execution.savepoint.ignore-unclaimed-state |     false |
-|        execution.shutdown-on-attached-exit |     false |
-|                           execution.target |    remote |
-|                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
-|                        pipeline.classpaths |        [] |
-|                              pipeline.jars |        [] |
-|                                  rest.port |     $VAR_REST_PORT |
-|         sql-client.display.print-time-cost |     false |
-|           sql-client.execution.result-mode |   tableau |
-|           table.exec.legacy-cast-behaviour |  DISABLED |
-+--------------------------------------------+-----------+
++-------------------------------------------------+-----------+
+|                                             key |     value |
++-------------------------------------------------+-----------+
+|                              execution.attached |      true |
+|             execution.shutdown-on-attached-exit |     false |
+|             execution.state-recovery.claim-mode |  NO_CLAIM |
+| execution.state-recovery.ignore-unclaimed-state |     false |
+|                                execution.target |    remote |
+|                          jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
+|                             pipeline.classpaths |        [] |
+|                                   pipeline.jars |        [] |
+|                                       rest.port |     $VAR_REST_PORT |
+|              sql-client.display.print-time-cost |     false |
+|                sql-client.execution.result-mode |   tableau |
+|                table.exec.legacy-cast-behaviour |  DISABLED |
++-------------------------------------------------+-----------+
 12 rows in set
 !ok
 
@@ -99,19 +99,19 @@ reset;
 !info
 
 set;
-+--------------------------------------------+-----------+
-|                                        key |     value |
-+--------------------------------------------+-----------+
-|                         execution.attached |      true |
-|           execution.savepoint-restore-mode |  NO_CLAIM |
-| execution.savepoint.ignore-unclaimed-state |     false |
-|        execution.shutdown-on-attached-exit |     false |
-|                           execution.target |    remote |
-|                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
-|                        pipeline.classpaths |        [] |
-|                              pipeline.jars |        [] |
-|                                  rest.port |     $VAR_REST_PORT |
-+--------------------------------------------+-----------+
++-------------------------------------------------+-----------+
+|                                             key |     value |
++-------------------------------------------------+-----------+
+|                              execution.attached |      true |
+|             execution.shutdown-on-attached-exit |     false |
+|             execution.state-recovery.claim-mode |  NO_CLAIM |
+| execution.state-recovery.ignore-unclaimed-state |     false |
+|                                execution.target |    remote |
+|                          jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
+|                             pipeline.classpaths |        [] |
+|                                   pipeline.jars |        [] |
+|                                       rest.port |     $VAR_REST_PORT |
++-------------------------------------------------+-----------+
 9 rows in set
 !ok
 
@@ -140,20 +140,20 @@ set 'sql-client.verbose' = 'true';
 !info
 
 set;
-+--------------------------------------------+-----------+
-|                                        key |     value |
-+--------------------------------------------+-----------+
-|                         execution.attached |      true |
-|           execution.savepoint-restore-mode |  NO_CLAIM |
-| execution.savepoint.ignore-unclaimed-state |     false |
-|        execution.shutdown-on-attached-exit |     false |
-|                           execution.target |    remote |
-|                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
-|                        pipeline.classpaths |        [] |
-|                              pipeline.jars |        [] |
-|                                  rest.port |     $VAR_REST_PORT |
-|                         sql-client.verbose |      true |
-+--------------------------------------------+-----------+
++-------------------------------------------------+-----------+
+|                                             key |     value |
++-------------------------------------------------+-----------+
+|                              execution.attached |      true |
+|             execution.shutdown-on-attached-exit |     false |
+|             execution.state-recovery.claim-mode |  NO_CLAIM |
+| execution.state-recovery.ignore-unclaimed-state |     false |
+|                                execution.target |    remote |
+|                          jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
+|                             pipeline.classpaths |        [] |
+|                                   pipeline.jars |        [] |
+|                                       rest.port |     $VAR_REST_PORT |
+|                              sql-client.verbose |      true |
++-------------------------------------------------+-----------+
 10 rows in set
 !ok
 
@@ -166,20 +166,20 @@ reset 'execution.attached';
 !info
 
 set;
-+--------------------------------------------+-----------+
-|                                        key |     value |
-+--------------------------------------------+-----------+
-|                         execution.attached |      true |
-|           execution.savepoint-restore-mode |  NO_CLAIM |
-| execution.savepoint.ignore-unclaimed-state |     false |
-|        execution.shutdown-on-attached-exit |     false |
-|                           execution.target |    remote |
-|                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
-|                        pipeline.classpaths |        [] |
-|                              pipeline.jars |        [] |
-|                                  rest.port |     $VAR_REST_PORT |
-|                         sql-client.verbose |      true |
-+--------------------------------------------+-----------+
++-------------------------------------------------+-----------+
+|                                             key |     value |
++-------------------------------------------------+-----------+
+|                              execution.attached |      true |
+|             execution.shutdown-on-attached-exit |     false |
+|             execution.state-recovery.claim-mode |  NO_CLAIM |
+| execution.state-recovery.ignore-unclaimed-state |     false |
+|                                execution.target |    remote |
+|                          jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
+|                             pipeline.classpaths |        [] |
+|                                   pipeline.jars |        [] |
+|                                       rest.port |     $VAR_REST_PORT |
+|                              sql-client.verbose |      true |
++-------------------------------------------------+-----------+
 10 rows in set
 !ok
 
@@ -198,20 +198,20 @@ SHOW JARS;
 !ok
 
 set;
-+--------------------------------------------+-----------+
-|                                        key |     value |
-+--------------------------------------------+-----------+
-|                         execution.attached |      true |
-|           execution.savepoint-restore-mode |  NO_CLAIM |
-| execution.savepoint.ignore-unclaimed-state |     false |
-|        execution.shutdown-on-attached-exit |     false |
-|                           execution.target |    remote |
-|                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
-|                        pipeline.classpaths |        [] |
-|                              pipeline.jars |        [] |
-|                                  rest.port |     $VAR_REST_PORT |
-|                         sql-client.verbose |      true |
-+--------------------------------------------+-----------+
++-------------------------------------------------+-----------+
+|                                             key |     value |
++-------------------------------------------------+-----------+
+|                              execution.attached |      true |
+|             execution.shutdown-on-attached-exit |     false |
+|             execution.state-recovery.claim-mode |  NO_CLAIM |
+| execution.state-recovery.ignore-unclaimed-state |     false |
+|                                execution.target |    remote |
+|                          jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
+|                             pipeline.classpaths |        [] |
+|                                   pipeline.jars |        [] |
+|                                       rest.port |     $VAR_REST_PORT |
+|                              sql-client.verbose |      true |
++-------------------------------------------------+-----------+
 10 rows in set
 !ok
 

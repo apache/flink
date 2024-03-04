@@ -37,6 +37,12 @@
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-end-to-end-tests-common</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-jdbc-driver-bundle</artifactId>
 			<version>${project.version}</version>
 		</dependency>
