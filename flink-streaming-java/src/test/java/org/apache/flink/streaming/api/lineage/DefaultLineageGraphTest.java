@@ -22,8 +22,8 @@ import org.apache.flink.api.connector.source.Boundedness;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -62,8 +62,8 @@ class DefaultLineageGraphTest {
         }
 
         @Override
-        public Map<String, String> config() {
-            return new HashMap<>();
+        public List<LineageDataset> datasets() {
+            return new ArrayList<>();
         }
     }
 

@@ -37,14 +37,14 @@ public class DefaultLineageGraph implements LineageGraph {
     private DefaultLineageGraph(List<LineageEdge> lineageEdges) {
         this.lineageEdges = lineageEdges;
 
-        Set<SourceLineageVertex> srcs = new HashSet<>();
-        Set<LineageVertex> targets = new HashSet<>();
+        Set<SourceLineageVertex> deduplicatedSources = new HashSet<>();
+        Set<LineageVertex> deduplicatedSinks = new HashSet<>();
         for (LineageEdge lineageEdge : lineageEdges) {
-            srcs.add(lineageEdge.source());
-            targets.add(lineageEdge.sink());
+            deduplicatedSources.add(lineageEdge.source());
+            deduplicatedSinks.add(lineageEdge.sink());
         }
-        this.sources = new ArrayList<>(srcs);
-        this.sinks = new ArrayList<>(targets);
+        this.sources = new ArrayList<>(deduplicatedSources);
+        this.sinks = new ArrayList<>(deduplicatedSinks);
     }
 
     @Override

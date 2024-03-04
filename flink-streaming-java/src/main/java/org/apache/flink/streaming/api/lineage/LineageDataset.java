@@ -21,14 +21,17 @@ package org.apache.flink.streaming.api.lineage;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-import java.util.List;
+import java.util.Map;
 
-/**
- * Lineage vertex represents the connectors in lineage graph, including source {@link
- * SourceLineageVertex} and sink.
- */
+/** Lineage dataset represents the source or sink in the job. */
 @PublicEvolving
-public interface LineageVertex {
-    /* List of input (for source) or output (for sink) datasets interacted with by the connector */
-    List<LineageDataset> datasets();
+public interface LineageDataset {
+    /* Name for this particular dataset. */
+    String name();
+
+    /* Unique name for this dataset's storage, for example, url for jdbc connector and location for lakehouse connector. */
+    String namespace();
+
+    /* Facets for the lineage vertex to describe the particular information of dataset, such as schema and config. */
+    Map<String, LineageDatasetFacet> facets();
 }
