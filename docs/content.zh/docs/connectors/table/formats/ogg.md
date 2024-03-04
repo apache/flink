@@ -247,6 +247,13 @@ Format Options
       <td>String</td>
       <td>当 <code>'ogg-json.map-null-key.mode'</code> 是 LITERAL 的时候，指定字符串常量替换 Map 中的空 key 值。</td>
     </tr>
+    <tr>
+      <td><h5>ogg-json.encode.ignore-null-fields</h5></td>
+      <td>选填</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>仅序列化非Null的列，默认情况下，会序列化所有列无论是否为Null。</td>
+    </tr>
     </tbody>
 </table>
 
