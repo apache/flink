@@ -19,16 +19,16 @@
 package org.apache.flink.streaming.util.retryable;
 
 import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link AsyncRetryStrategies}. */
-public class AsyncRetryStrategiesTest extends TestLogger {
+class AsyncRetryStrategiesTest {
 
     @Test
-    public void testExponentialBackoffDelayRetryStrategy() {
+    void testExponentialBackoffDelayRetryStrategy() {
         int maxAttempts = 10;
         long initialDelay = 100L;
         long maxRetryDelay = 2000L;
@@ -39,16 +39,16 @@ public class AsyncRetryStrategiesTest extends TestLogger {
                                 maxAttempts, initialDelay, maxRetryDelay, multiplier)
                         .build();
 
-        Assert.assertTrue(exponentialBackoffDelayRetryStrategy.canRetry(maxAttempts));
-        Assert.assertFalse(exponentialBackoffDelayRetryStrategy.canRetry(maxAttempts + 1));
+        assertThat(exponentialBackoffDelayRetryStrategy.canRetry(maxAttempts)).isTrue();
+        assertThat(exponentialBackoffDelayRetryStrategy.canRetry(maxAttempts + 1)).isFalse();
 
         // test if this strategy can be reused.
         for (int j = 1; j <= 5; j++) {
             long currentDelay = initialDelay;
 
             for (int i = 1; i <= maxAttempts; i++) {
-                Assert.assertEquals(
-                        currentDelay, exponentialBackoffDelayRetryStrategy.getBackoffTimeMillis(i));
+                assertThat(exponentialBackoffDelayRetryStrategy.getBackoffTimeMillis(i))
+                        .isEqualTo(currentDelay);
                 currentDelay = Math.min((long) (currentDelay * multiplier), maxRetryDelay);
             }
         }
