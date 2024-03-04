@@ -36,14 +36,11 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.CoreMatchers.containsString;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
@@ -52,26 +49,24 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link AbstractStreamOperatorTestHarness}. */
-public class AbstractStreamOperatorTestHarnessTest extends TestLogger {
-    @Rule public ExpectedException expectedException = ExpectedException.none();
+class AbstractStreamOperatorTestHarnessTest {
 
     @Test
-    public void testInitializeAfterOpenning() throws Throwable {
-        expectedException.expect(IllegalStateException.class);
-        expectedException.expectMessage(
-                containsString("TestHarness has already been initialized."));
-
+    void testInitializeAfterOpenning() throws Throwable {
         AbstractStreamOperatorTestHarness<Integer> result;
         result =
                 new AbstractStreamOperatorTestHarness<>(
                         new AbstractStreamOperator<Integer>() {}, 1, 1, 0);
         result.setup();
         result.open();
-        result.initializeState(OperatorSubtaskState.builder().build());
+
+        assertThatThrownBy(() -> result.initializeState(OperatorSubtaskState.builder().build()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("TestHarness has already been initialized.");
     }
 
     @Test
-    public void testSetTtlTimeProvider() throws Exception {
+    void testSetTtlTimeProvider() throws Exception {
         AbstractStreamOperator<Integer> operator = new AbstractStreamOperator<Integer>() {};
         try (AbstractStreamOperatorTestHarness<Integer> result =
                 new AbstractStreamOperatorTestHarness<>(operator, 1, 1, 0)) {
@@ -97,14 +92,14 @@ public class AbstractStreamOperatorTestHarnessTest extends TestLogger {
             keyedStateBackend.setCurrentKey(1);
             result.setStateTtlProcessingTime(0L);
             state.update(expectedValue);
-            Assert.assertEquals(expectedValue, (int) state.value());
+            assertThat(state.value()).isEqualTo(expectedValue);
             result.setStateTtlProcessingTime(timeToLive.toMilliseconds() + 1);
-            Assert.assertNull(state.value());
+            assertThat(state.value()).isNull();
         }
     }
 
     @Test
-    public void testSideOutputTypeInformation() throws Throwable {
+    void testSideOutputTypeInformation() throws Throwable {
         final int probe = 12;
         final TypeSerializer<Integer> typeSerializer = spy(TypeSerializer.class);
 
