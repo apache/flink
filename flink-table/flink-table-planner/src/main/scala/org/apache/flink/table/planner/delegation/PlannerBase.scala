@@ -367,8 +367,7 @@ abstract class PlannerBase(
    * @return
    *   The [[Transformation]] DAG that corresponds to the node DAG.
    */
-  @VisibleForTesting
-  def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]]
+  protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]]
 
   def addExtraTransformation(transformation: Transformation[_]): Unit = {
     if (!extraTransformations.contains(transformation)) {

@@ -779,7 +779,7 @@ class TableScanTest extends TableTestBase {
   @Test
   def testSetParallelismForSource(): Unit = {
     val config = TableConfig.getDefault
-    config.set(ExecutionConfigOptions.TABLE_EXEC_SIMPLIFY_OPERATOR_NAME_ENABLED, Boolean.box(false))
+    config.set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(10))
     val util = streamTestUtil(config)
 
     util.addTable("""
@@ -809,8 +809,12 @@ class TableScanTest extends TableTestBase {
                     |  'enable-projection-push-down' = 'false'
                     |)
       """.stripMargin)
-    util.verifyTransformation(
-      "SELECT * FROM src LEFT JOIN changelog_src " +
-        "on src.id = changelog_src.id WHERE src.c > 1")
+    val query =
+      """
+        |SELECT *
+        |FROM src LEFT JOIN changelog_src
+        |ON src.id = changelog_src.id WHERE src.c > 1
+        |""".stripMargin
+    util.verifyExplain(query, ExplainDetail.JSON_EXECUTION_PLAN)
   }
 }

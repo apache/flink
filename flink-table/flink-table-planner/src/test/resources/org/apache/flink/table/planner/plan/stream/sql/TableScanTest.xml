@@ -729,20 +729,25 @@ Calc(select=[ts, a, b], where=[>(a, 1)], changelogMode=[I,UB,UA,D])
   </TestCase>
 
   <TestCase name="testSetParallelismForSource">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM src LEFT JOIN changelog_src on src.id = changelog_src.id WHERE src.c > 1]]>
-    </Resource>
-	<Resource name="ast">
-      <![CDATA[
+  <Resource name="explain">
+	  <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(id=[$0], b=[$1], c=[$2], id0=[$3], a=[$4])
 +- LogicalFilter(condition=[>($2, 1)])
    +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, src]])
       +- LogicalTableScan(table=[[default_catalog, default_database, changelog_src]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+
+== Optimized Physical Plan ==
+Join(joinType=[LeftOuterJoin], where=[=(id, id0)], select=[id, b, c, id0, a], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+:- Exchange(distribution=[hash[id]])
+:  +- Calc(select=[id, b, c], where=[>(c, 1)])
+:     +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[id, b, c])
++- Exchange(distribution=[hash[id]])
+   +- ChangelogNormalize(key=[id])
+      +- Exchange(distribution=[hash[id]])
+         +- TableSourceScan(table=[[default_catalog, default_database, changelog_src]], fields=[id, a])
+
+== Optimized Execution Plan ==
 Join(joinType=[LeftOuterJoin], where=[(id = id0)], select=[id, b, c, id0, a], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
 :- Exchange(distribution=[hash[id]])
 :  +- Calc(select=[id, b, c], where=[(c > 1)])
@@ -751,22 +756,60 @@ Join(joinType=[LeftOuterJoin], where=[(id = id0)], select=[id, b, c, id0, a], le
    +- ChangelogNormalize(key=[id])
       +- Exchange(distribution=[hash[id]])
          +- TableSourceScan(table=[[default_catalog, default_database, changelog_src]], fields=[id, a])
-]]>
-	</Resource>
-	<Resource name="transformation">
-      <![CDATA[
-TwoInputTransformation{name='Join(joinType=[LeftOuterJoin], where=[(id = id0)], select=[id, b, c, id0, a], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])', outputType=ROW<`id` INT, `b` STRING, `c` INT, `id0` INT, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
-	+- PartitionTransformation{name='Exchange(distribution=[hash[id]])', outputType=ROW<`id` INT, `b` STRING, `c` INT>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
-		+- OneInputTransformation{name='Calc(select=[id, b, c], where=[(c > 1)])', outputType=ROW<`id` INT, `b` STRING, `c` INT>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
-			+- SourceTransformationWrapper{name='ChangeToDefaultParallel', outputType=ROW<`id` INT, `b` STRING, `c` INT>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
-				+- LegacySourceTransformation{name='TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[id, b, c])', outputType=ROW<`id` INT, `b` STRING, `c` INT>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=3}
-	+- PartitionTransformation{name='Exchange(distribution=[hash[id]])', outputType=ROW<`id` INT NOT NULL, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
-		+- OneInputTransformation{name='ChangelogNormalize(key=[id])', outputType=ROW<`id` INT NOT NULL, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
-			+- PartitionTransformation{name='Exchange(distribution=[hash[id]])', outputType=ROW<`id` INT NOT NULL, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
-				+- PartitionTransformation{name='Partitioner', outputType=ROW<`id` INT NOT NULL, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
-					+- SourceTransformationWrapper{name='ChangeToDefaultParallel', outputType=ROW<`id` INT NOT NULL, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=-1}
-						+- LegacySourceTransformation{name='TableSourceScan(table=[[default_catalog, default_database, changelog_src]], fields=[id, a])', outputType=ROW<`id` INT NOT NULL, `a` STRING>(org.apache.flink.table.data.RowData, org.apache.flink.table.runtime.typeutils.RowDataSerializer), parallelism=5}
-]]>
-	</Resource>
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: src[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[id, b, c])",
+    "parallelism" : 3
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[id, b, c], where=[(c > 1)])",
+    "parallelism" : 10,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "REBALANCE",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Source: changelog_src[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, changelog_src]], fields=[id, a])",
+    "parallelism" : 5
+  }, {
+    "id" : ,
+    "type" : "ChangelogNormalize[]",
+    "pact" : "Operator",
+    "contents" : "[]:ChangelogNormalize(key=[id])",
+    "parallelism" : 10,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Join[]",
+    "pact" : "Operator",
+    "contents" : "[]:Join(joinType=[LeftOuterJoin], where=[(id = id0)], select=[id, b, c, id0, a], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])",
+    "parallelism" : 10,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    }, {
+      "id" : ,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+  </Resource>
   </TestCase>
 </Root>
