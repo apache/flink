@@ -28,10 +28,10 @@ import java.util.Collections;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link RecordAttributesCombiner}. */
-public class RecordAttributesCombinerTest {
+class RecordAttributesCombinerTest {
 
     @Test
-    public void testCombineRecordAttributes() throws Exception {
+    void testCombineRecordAttributes() throws Exception {
         final RecordAttributesCombiner combiner = new RecordAttributesCombiner(3);
         CollectingDataOutput<Object> collectingDataOutput = new CollectingDataOutput<>();
         final RecordAttributes backlogRecordAttribute =
@@ -60,8 +60,7 @@ public class RecordAttributesCombinerTest {
     }
 
     @Test
-    public void testCombinerOnlyOutputNonBacklogWhenAllInputChannelAreNonBacklog()
-            throws Exception {
+    void testCombinerOnlyOutputNonBacklogWhenAllInputChannelAreNonBacklog() throws Exception {
         final RecordAttributesCombiner combiner = new RecordAttributesCombiner(2);
         CollectingDataOutput<Object> collectingDataOutput = new CollectingDataOutput<>();
 

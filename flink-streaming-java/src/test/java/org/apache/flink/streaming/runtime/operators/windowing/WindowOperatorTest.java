@@ -69,13 +69,11 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava31.com.google.common.base.Joiner;
 import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -85,16 +83,14 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link WindowOperator}. */
 @SuppressWarnings("serial")
-public class WindowOperatorTest extends TestLogger {
+class WindowOperatorTest {
 
     private static final TypeInformation<Tuple2<String, Integer>> STRING_INT_TUPLE =
             TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {});
@@ -213,7 +209,7 @@ public class WindowOperatorTest extends TestLogger {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testSlidingEventTimeWindowsReduce() throws Exception {
+    void testSlidingEventTimeWindowsReduce() throws Exception {
         closeCalled.set(0);
 
         final int windowSize = 3;
@@ -252,7 +248,7 @@ public class WindowOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testSlidingEventTimeWindowsApply() throws Exception {
+    void testSlidingEventTimeWindowsApply() throws Exception {
         closeCalled.set(0);
 
         final int windowSize = 3;
@@ -288,7 +284,7 @@ public class WindowOperatorTest extends TestLogger {
         testSlidingEventTimeWindows(operator);
 
         // we close once in the rest...
-        Assert.assertEquals("Close was not called.", 2, closeCalled.get());
+        assertThat(closeCalled).as("Close was not called.").hasValue(2);
     }
 
     private void testTumblingEventTimeWindows(
@@ -396,7 +392,7 @@ public class WindowOperatorTest extends TestLogger {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testTumblingEventTimeWindowsReduce() throws Exception {
+    void testTumblingEventTimeWindowsReduce() throws Exception {
         closeCalled.set(0);
 
         final int windowSize = 3;
@@ -433,7 +429,7 @@ public class WindowOperatorTest extends TestLogger {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testTumblingEventTimeWindowsApply() throws Exception {
+    void testTumblingEventTimeWindowsApply() throws Exception {
         closeCalled.set(0);
 
         final int windowSize = 3;
@@ -466,12 +462,12 @@ public class WindowOperatorTest extends TestLogger {
         testTumblingEventTimeWindows(operator);
 
         // we close once in the rest...
-        Assert.assertEquals("Close was not called.", 2, closeCalled.get());
+        assertThat(closeCalled).as("Close was not called.").hasValue(2);
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testSessionWindows() throws Exception {
+    void testSessionWindows() throws Exception {
         closeCalled.set(0);
 
         final int sessionSize = 3;
@@ -564,7 +560,7 @@ public class WindowOperatorTest extends TestLogger {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testSessionWindowsWithProcessFunction() throws Exception {
+    void testSessionWindowsWithProcessFunction() throws Exception {
         closeCalled.set(0);
 
         final int sessionSize = 3;
@@ -658,7 +654,7 @@ public class WindowOperatorTest extends TestLogger {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testReduceSessionWindows() throws Exception {
+    void testReduceSessionWindows() throws Exception {
         closeCalled.set(0);
 
         final int sessionSize = 3;
@@ -745,7 +741,7 @@ public class WindowOperatorTest extends TestLogger {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testReduceSessionWindowsWithProcessFunction() throws Exception {
+    void testReduceSessionWindowsWithProcessFunction() throws Exception {
         closeCalled.set(0);
 
         final int sessionSize = 3;
@@ -832,7 +828,7 @@ public class WindowOperatorTest extends TestLogger {
 
     /** This tests whether merging works correctly with the CountTrigger. */
     @Test
-    public void testSessionWindowsWithCountTrigger() throws Exception {
+    void testSessionWindowsWithCountTrigger() throws Exception {
         closeCalled.set(0);
 
         final int sessionSize = 3;
@@ -923,7 +919,7 @@ public class WindowOperatorTest extends TestLogger {
 
     /** This tests whether merging works correctly with the ContinuousEventTimeTrigger. */
     @Test
-    public void testSessionWindowsWithContinuousEventTimeTrigger() throws Exception {
+    void testSessionWindowsWithContinuousEventTimeTrigger() throws Exception {
         closeCalled.set(0);
 
         final int sessionSize = 3;
@@ -1019,7 +1015,7 @@ public class WindowOperatorTest extends TestLogger {
      */
     @Test
     @SuppressWarnings("unchecked")
-    public void testPointSessions() throws Exception {
+    void testPointSessions() throws Exception {
         closeCalled.set(0);
 
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
@@ -1097,7 +1093,7 @@ public class WindowOperatorTest extends TestLogger {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testContinuousWatermarkTrigger() throws Exception {
+    void testContinuousWatermarkTrigger() throws Exception {
         closeCalled.set(0);
 
         final int windowSize = 3;
@@ -1222,7 +1218,7 @@ public class WindowOperatorTest extends TestLogger {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testCountTrigger() throws Exception {
+    void testCountTrigger() throws Exception {
         closeCalled.set(0);
 
         final int windowSize = 4;
@@ -1336,7 +1332,7 @@ public class WindowOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testEndOfStreamTrigger() throws Exception {
+    void testEndOfStreamTrigger() throws Exception {
         ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ReducingStateDescriptor<>(
                         "window-contents",
@@ -1402,7 +1398,7 @@ public class WindowOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testProcessingTimeTumblingWindows() throws Throwable {
+    void testProcessingTimeTumblingWindows() throws Throwable {
         final int windowSize = 3;
 
         ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc =
@@ -1479,7 +1475,7 @@ public class WindowOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testProcessingTimeSlidingWindows() throws Throwable {
+    void testProcessingTimeSlidingWindows() throws Throwable {
         final int windowSize = 3;
         final int windowSlide = 1;
 
@@ -1580,7 +1576,7 @@ public class WindowOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testProcessingTimeSessionWindows() throws Throwable {
+    void testProcessingTimeSessionWindows() throws Throwable {
         final int windowGap = 3;
 
         ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc =
@@ -1654,12 +1650,12 @@ public class WindowOperatorTest extends TestLogger {
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator());
 
-        assertEquals(expectedOutput.size(), testHarness.getOutput().size());
+        assertThat(testHarness.getOutput()).hasSameSizeAs(expectedOutput);
         for (Object elem : testHarness.getOutput()) {
             if (elem instanceof StreamRecord) {
                 StreamRecord<Tuple2<String, Integer>> el =
                         (StreamRecord<Tuple2<String, Integer>>) elem;
-                assertTrue(expectedOutput.contains(el));
+                assertThat(expectedOutput).contains(el);
             }
         }
         testHarness.close();
@@ -1667,7 +1663,7 @@ public class WindowOperatorTest extends TestLogger {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testDynamicEventTimeSessionWindows() throws Exception {
+    void testDynamicEventTimeSessionWindows() throws Exception {
         closeCalled.set(0);
 
         SessionWindowTimeGapExtractor<Tuple2<String, Integer>> extractor =
@@ -1767,7 +1763,7 @@ public class WindowOperatorTest extends TestLogger {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testDynamicProcessingTimeSessionWindows() throws Exception {
+    void testDynamicProcessingTimeSessionWindows() throws Exception {
         closeCalled.set(0);
 
         SessionWindowTimeGapExtractor<Tuple2<String, Integer>> extractor =
@@ -1869,7 +1865,7 @@ public class WindowOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testLateness() throws Exception {
+    void testLateness() throws Exception {
         final int windowSize = 2;
         final long lateness = 500;
 
@@ -1952,7 +1948,7 @@ public class WindowOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testCleanupTimeOverflow() throws Exception {
+    void testCleanupTimeOverflow() throws Exception {
         final int windowSize = 1000;
         final long lateness = 2000;
 
@@ -2009,10 +2005,10 @@ public class WindowOperatorTest extends TestLogger {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), timestamp));
 
         // the garbage collection timer would wrap-around
-        Assert.assertTrue(window.maxTimestamp() + lateness < window.maxTimestamp());
+        assertThat(window.maxTimestamp() + lateness).isLessThan(window.maxTimestamp());
 
         // and it would prematurely fire with watermark (Long.MAX_VALUE - 1500)
-        Assert.assertTrue(window.maxTimestamp() + lateness < Long.MAX_VALUE - 1500);
+        assertThat(window.maxTimestamp() + lateness).isLessThan(Long.MAX_VALUE - 1500);
 
         // if we don't correctly prevent wrap-around in the garbage collection
         // timers this watermark will clean our window state for the just-added
@@ -2020,8 +2016,7 @@ public class WindowOperatorTest extends TestLogger {
         testHarness.processWatermark(new Watermark(Long.MAX_VALUE - 1500));
 
         // this watermark is before the end timestamp of our only window
-        Assert.assertTrue(Long.MAX_VALUE - 1500 < window.maxTimestamp());
-        Assert.assertTrue(window.maxTimestamp() < Long.MAX_VALUE);
+        assertThat(window.maxTimestamp()).isBetween(Long.MAX_VALUE - 1500, Long.MAX_VALUE);
 
         // push in a watermark that will trigger computation of our window
         testHarness.processWatermark(new Watermark(window.maxTimestamp()));
@@ -2039,7 +2034,7 @@ public class WindowOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testSideOutputDueToLatenessTumbling() throws Exception {
+    void testSideOutputDueToLatenessTumbling() throws Exception {
         final int windowSize = 2;
         final long lateness = 0;
 
@@ -2120,7 +2115,7 @@ public class WindowOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testSideOutputDueToLatenessSliding() throws Exception {
+    void testSideOutputDueToLatenessSliding() throws Exception {
         final int windowSize = 3;
         final int windowSlide = 1;
         final long lateness = 0;
@@ -2219,7 +2214,7 @@ public class WindowOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testSideOutputDueToLatenessSessionZeroLatenessPurgingTrigger() throws Exception {
+    void testSideOutputDueToLatenessSessionZeroLatenessPurgingTrigger() throws Exception {
         final int gapSize = 3;
         final long lateness = 0;
 
@@ -2325,7 +2320,7 @@ public class WindowOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testSideOutputDueToLatenessSessionZeroLateness() throws Exception {
+    void testSideOutputDueToLatenessSessionZeroLateness() throws Exception {
         final int gapSize = 3;
         final long lateness = 0;
 
@@ -2424,7 +2419,7 @@ public class WindowOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testDropDueToLatenessSessionWithLatenessPurgingTrigger() throws Exception {
+    void testDropDueToLatenessSessionWithLatenessPurgingTrigger() throws Exception {
 
         // this has the same output as testSideOutputDueToLatenessSessionZeroLateness() because
         // the allowed lateness is too small to make a difference
@@ -2520,7 +2515,7 @@ public class WindowOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testNotSideOutputDueToLatenessSessionWithLateness() throws Exception {
+    void testNotSideOutputDueToLatenessSessionWithLateness() throws Exception {
         // same as testSideOutputDueToLatenessSessionWithLateness() but with an accumulating
         // trigger, i.e.
         // one that does not return FIRE_AND_PURGE when firing but just FIRE. The expected
@@ -2614,7 +2609,7 @@ public class WindowOperatorTest extends TestLogger {
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
-        assertEquals(null, sideActual);
+        assertThat(sideActual).isNull();
 
         testHarness.processWatermark(new Watermark(20000));
 
@@ -2629,14 +2624,13 @@ public class WindowOperatorTest extends TestLogger {
         sideActual = testHarness.getSideOutput(lateOutputTag);
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
-        assertEquals(null, sideActual);
+        assertThat(sideActual).isNull();
 
         testHarness.close();
     }
 
     @Test
-    public void testNotSideOutputDueToLatenessSessionWithHugeLatenessPurgingTrigger()
-            throws Exception {
+    void testNotSideOutputDueToLatenessSessionWithHugeLatenessPurgingTrigger() throws Exception {
 
         final int gapSize = 3;
         final long lateness = 10000;
@@ -2717,7 +2711,7 @@ public class WindowOperatorTest extends TestLogger {
                 testHarness.getSideOutput(lateOutputTag);
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
-        assertEquals(null, sideActual);
+        assertThat(sideActual).isNull();
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 14500));
         testHarness.processWatermark(new Watermark(20000));
@@ -2733,13 +2727,13 @@ public class WindowOperatorTest extends TestLogger {
         sideActual = testHarness.getSideOutput(lateOutputTag);
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
-        assertEquals(null, sideActual);
+        assertThat(sideActual).isNull();
 
         testHarness.close();
     }
 
     @Test
-    public void testNotSideOutputDueToLatenessSessionWithHugeLateness() throws Exception {
+    void testNotSideOutputDueToLatenessSessionWithHugeLateness() throws Exception {
         final int gapSize = 3;
         final long lateness = 10000;
 
@@ -2821,7 +2815,7 @@ public class WindowOperatorTest extends TestLogger {
                 testHarness.getSideOutput(lateOutputTag);
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
-        assertEquals(null, sideActual);
+        assertThat(sideActual).isNull();
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 14500));
         testHarness.processWatermark(new Watermark(20000));
@@ -2837,13 +2831,13 @@ public class WindowOperatorTest extends TestLogger {
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
-        assertEquals(null, sideActual);
+        assertThat(sideActual).isNull();
 
         testHarness.close();
     }
 
     @Test
-    public void testCleanupTimerWithEmptyListStateForTumblingWindows2() throws Exception {
+    void testCleanupTimerWithEmptyListStateForTumblingWindows2() throws Exception {
         final int windowSize = 2;
         final long lateness = 100;
 
@@ -2915,7 +2909,7 @@ public class WindowOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testCleanupTimerWithEmptyListStateForTumblingWindows() throws Exception {
+    void testCleanupTimerWithEmptyListStateForTumblingWindows() throws Exception {
         final int windowSize = 2;
         final long lateness = 1;
 
@@ -2972,7 +2966,7 @@ public class WindowOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testCleanupTimerWithEmptyReduceStateForTumblingWindows() throws Exception {
+    void testCleanupTimerWithEmptyReduceStateForTumblingWindows() throws Exception {
         final int windowSize = 2;
         final long lateness = 1;
 
@@ -3032,7 +3026,7 @@ public class WindowOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testCleanupTimerWithEmptyListStateForSessionWindows() throws Exception {
+    void testCleanupTimerWithEmptyListStateForSessionWindows() throws Exception {
         final int gapSize = 3;
         final long lateness = 10;
 
@@ -3083,7 +3077,7 @@ public class WindowOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testCleanupTimerWithEmptyReduceStateForSessionWindows() throws Exception {
+    void testCleanupTimerWithEmptyReduceStateForSessionWindows() throws Exception {
 
         final int gapSize = 3;
         final long lateness = 10;
@@ -3195,9 +3189,8 @@ public class WindowOperatorTest extends TestLogger {
                 Collector<Tuple2<String, Integer>> out)
                 throws Exception {
 
-            if (!openCalled) {
-                fail("Open was not called");
-            }
+            assertThat(openCalled).as("Open was not called").isTrue();
+
             int sum = 0;
 
             for (Tuple2<String, Integer> t : input) {

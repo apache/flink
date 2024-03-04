@@ -47,7 +47,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * A {@link Sink TestSink} for all the sink related tests. Use only for tests where {@link
@@ -312,7 +312,7 @@ public class TestSink<T> implements Sink<T, String, String, String> {
         @Override
         public List<String> commit(List<String> committables) {
             if (committedData == null) {
-                assertNotNull(queueSupplier);
+                assertThat(queueSupplier).isNotNull();
                 committedData = queueSupplier.get();
             }
             committedData.addAll(committables);

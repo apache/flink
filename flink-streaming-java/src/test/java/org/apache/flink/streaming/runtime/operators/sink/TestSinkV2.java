@@ -57,7 +57,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** A {@link Sink} for all the sink related tests. */
 public class TestSinkV2<InputT> implements Sink<InputT> {
@@ -426,7 +426,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         @Override
         public void commit(Collection<CommitRequest<String>> committables) {
             if (committedData == null) {
-                assertNotNull(queueSupplier);
+                assertThat(queueSupplier).isNotNull();
                 committedData = queueSupplier.get();
             }
             committedData.addAll(committables);

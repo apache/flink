@@ -18,26 +18,23 @@
 
 package org.apache.flink.streaming.runtime.streamrecord;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link StreamRecord}. */
-public class StreamRecordTest {
+class StreamRecordTest {
 
     @Test
-    public void testWithNoTimestamp() {
+    void testWithNoTimestamp() {
         StreamRecord<String> record = new StreamRecord<>("test");
 
-        assertTrue(record.isRecord());
-        assertFalse(record.isWatermark());
+        assertThat(record.isRecord()).isTrue();
+        assertThat(record.isWatermark()).isFalse();
 
-        assertFalse(record.hasTimestamp());
-        assertEquals("test", record.getValue());
+        assertThat(record.hasTimestamp()).isFalse();
+        assertThat(record.getValue()).isEqualTo("test");
 
         //		try {
         //			record.getTimestamp();
@@ -46,118 +43,117 @@ public class StreamRecordTest {
         //			assertTrue(e.getMessage().contains("timestamp"));
         //		}
         // for now, the "no timestamp case" returns Long.MIN_VALUE
-        assertEquals(Long.MIN_VALUE, record.getTimestamp());
+        assertThat(record.getTimestamp()).isEqualTo(Long.MIN_VALUE);
 
-        assertNotNull(record.toString());
-        assertTrue(record.hashCode() == new StreamRecord<>("test").hashCode());
-        assertTrue(record.equals(new StreamRecord<>("test")));
+        assertThat(record.toString()).isNotNull();
+        assertThat(record)
+                .hasSameHashCodeAs(new StreamRecord<>("test"))
+                .isEqualTo(new StreamRecord<>("test"))
+                .isEqualTo(record.asRecord());
 
-        assertEquals(record, record.asRecord());
-
-        try {
-            record.asWatermark();
-            fail("should throw an exception");
-        } catch (Exception e) {
-            // expected
-        }
+        assertThatThrownBy(record::asWatermark)
+                .isInstanceOf(ClassCastException.class)
+                .hasMessageContaining(
+                        "cannot be cast to org.apache.flink.streaming.api.watermark.Watermark");
     }
 
     @Test
-    public void testWithTimestamp() {
+    void testWithTimestamp() {
         StreamRecord<String> record = new StreamRecord<>("foo", 42);
 
-        assertTrue(record.isRecord());
-        assertFalse(record.isWatermark());
+        assertThat(record.isRecord()).isTrue();
+        assertThat(record.isWatermark()).isFalse();
 
-        assertTrue(record.hasTimestamp());
-        assertEquals(42L, record.getTimestamp());
+        assertThat(record.hasTimestamp()).isTrue();
+        assertThat(record.getTimestamp()).isEqualTo(42L);
 
-        assertEquals("foo", record.getValue());
+        assertThat(record.getValue()).isEqualTo("foo");
 
-        assertNotNull(record.toString());
+        assertThat(record.toString()).isNotNull();
 
-        assertTrue(record.hashCode() == new StreamRecord<>("foo", 42).hashCode());
-        assertTrue(record.hashCode() != new StreamRecord<>("foo").hashCode());
+        assertThat(record)
+                .hasSameHashCodeAs(new StreamRecord<>("foo", 42))
+                .doesNotHaveSameHashCodeAs(new StreamRecord<>("foo"));
 
-        assertTrue(record.equals(new StreamRecord<>("foo", 42)));
-        assertFalse(record.equals(new StreamRecord<>("foo")));
+        assertThat(record)
+                .isEqualTo(new StreamRecord<>("foo", 42))
+                .isNotEqualTo(new StreamRecord<>("foo"))
+                .isEqualTo(record.asRecord());
 
-        assertEquals(record, record.asRecord());
-
-        try {
-            record.asWatermark();
-            fail("should throw an exception");
-        } catch (Exception e) {
-            // expected
-        }
+        assertThatThrownBy(record::asWatermark)
+                .isInstanceOf(ClassCastException.class)
+                .hasMessageContaining(
+                        "cannot be cast to org.apache.flink.streaming.api.watermark.Watermark");
     }
 
     @Test
-    public void testAllowedTimestampRange() {
-        assertEquals(0L, new StreamRecord<>("test", 0).getTimestamp());
-        assertEquals(-1L, new StreamRecord<>("test", -1).getTimestamp());
-        assertEquals(1L, new StreamRecord<>("test", 1).getTimestamp());
-        assertEquals(Long.MIN_VALUE, new StreamRecord<>("test", Long.MIN_VALUE).getTimestamp());
-        assertEquals(Long.MAX_VALUE, new StreamRecord<>("test", Long.MAX_VALUE).getTimestamp());
+    void testAllowedTimestampRange() {
+        assertThat(new StreamRecord<>("test", 0).getTimestamp()).isZero();
+        assertThat(new StreamRecord<>("test", -1).getTimestamp()).isEqualTo(-1L);
+        assertThat(new StreamRecord<>("test", 1).getTimestamp()).isOne();
+        assertThat(new StreamRecord<>("test", Long.MIN_VALUE).getTimestamp())
+                .isEqualTo(Long.MIN_VALUE);
+        assertThat(new StreamRecord<>("test", Long.MAX_VALUE).getTimestamp())
+                .isEqualTo(Long.MAX_VALUE);
     }
 
     @Test
-    public void testReplacePreservesTimestamp() {
+    void testReplacePreservesTimestamp() {
         StreamRecord<String> recNoTimestamp = new StreamRecord<>("o sole mio");
         StreamRecord<Integer> newRecNoTimestamp = recNoTimestamp.replace(17);
-        assertFalse(newRecNoTimestamp.hasTimestamp());
+        assertThat(newRecNoTimestamp.hasTimestamp()).isFalse();
 
         StreamRecord<String> recWithTimestamp = new StreamRecord<>("la dolce vita", 99);
         StreamRecord<Integer> newRecWithTimestamp = recWithTimestamp.replace(17);
 
-        assertTrue(newRecWithTimestamp.hasTimestamp());
-        assertEquals(99L, newRecWithTimestamp.getTimestamp());
+        assertThat(newRecWithTimestamp.hasTimestamp()).isTrue();
+        assertThat(newRecWithTimestamp.getTimestamp()).isEqualTo(99L);
     }
 
     @Test
-    public void testReplaceWithTimestampOverridesTimestamp() {
+    void testReplaceWithTimestampOverridesTimestamp() {
         StreamRecord<String> record = new StreamRecord<>("la divina comedia");
-        assertFalse(record.hasTimestamp());
+        assertThat(record.hasTimestamp()).isFalse();
 
         StreamRecord<Double> newRecord = record.replace(3.14, 123);
-        assertTrue(newRecord.hasTimestamp());
-        assertEquals(123L, newRecord.getTimestamp());
+        assertThat(newRecord.hasTimestamp()).isTrue();
+        assertThat(newRecord.getTimestamp()).isEqualTo(123L);
     }
 
     @Test
-    public void testCopy() {
-        StreamRecord<String> recNoTimestamp = new StreamRecord<String>("test");
+    void testCopy() {
+        StreamRecord<String> recNoTimestamp = new StreamRecord<>("test");
         StreamRecord<String> recNoTimestampCopy = recNoTimestamp.copy("test");
-        assertEquals(recNoTimestamp, recNoTimestampCopy);
+        assertThat(recNoTimestampCopy).isEqualTo(recNoTimestamp);
 
-        StreamRecord<String> recWithTimestamp = new StreamRecord<String>("test", 99);
+        StreamRecord<String> recWithTimestamp = new StreamRecord<>("test", 99);
         StreamRecord<String> recWithTimestampCopy = recWithTimestamp.copy("test");
-        assertEquals(recWithTimestamp, recWithTimestampCopy);
+        assertThat(recWithTimestampCopy).isEqualTo(recWithTimestamp);
     }
 
     @Test
-    public void testCopyTo() {
-        StreamRecord<String> recNoTimestamp = new StreamRecord<String>("test");
+    void testCopyTo() {
+        StreamRecord<String> recNoTimestamp = new StreamRecord<>("test");
         StreamRecord<String> recNoTimestampCopy = new StreamRecord<>(null);
         recNoTimestamp.copyTo("test", recNoTimestampCopy);
-        assertEquals(recNoTimestamp, recNoTimestampCopy);
+        assertThat(recNoTimestampCopy).isEqualTo(recNoTimestamp);
 
-        StreamRecord<String> recWithTimestamp = new StreamRecord<String>("test", 99);
+        StreamRecord<String> recWithTimestamp = new StreamRecord<>("test", 99);
         StreamRecord<String> recWithTimestampCopy = new StreamRecord<>(null);
         recWithTimestamp.copyTo("test", recWithTimestampCopy);
-        assertEquals(recWithTimestamp, recWithTimestampCopy);
+        assertThat(recWithTimestampCopy).isEqualTo(recWithTimestamp);
     }
 
     @Test
-    public void testSetAndEraseTimestamps() {
-        StreamRecord<String> rec = new StreamRecord<String>("hello");
-        assertFalse(rec.hasTimestamp());
+    void testSetAndEraseTimestamps() {
+        StreamRecord<String> rec = new StreamRecord<>("hello");
+        assertThat(rec.hasTimestamp()).isFalse();
 
         rec.setTimestamp(13456L);
-        assertTrue(rec.hasTimestamp());
-        assertEquals(13456L, rec.getTimestamp());
+        assertThat(rec.hasTimestamp()).isTrue();
+        assertThat(rec.getTimestamp()).isEqualTo(13456L);
 
         rec.eraseTimestamp();
-        assertFalse(rec.hasTimestamp());
+        assertThat(rec.hasTimestamp()).isFalse();
     }
 }

@@ -39,23 +39,23 @@ import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator
 import org.apache.flink.streaming.util.MockStreamTask;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for the behaviors of the {@link
  * org.apache.flink.streaming.runtime.io.checkpointing.InputProcessorUtil}.
  */
-public class InputProcessorUtilTest {
+class InputProcessorUtilTest {
 
     @Test
-    public void testCreateCheckpointedMultipleInputGate() throws Exception {
+    void testCreateCheckpointedMultipleInputGate() throws Exception {
         try (CloseableRegistry registry = new CloseableRegistry()) {
             MockEnvironment environment = new MockEnvironmentBuilder().build();
             MockStreamTask streamTask = new MockStreamTaskBuilder(environment).build();
@@ -112,7 +112,7 @@ public class InputProcessorUtilTest {
                             false);
                 }
             }
-            assertTrue(barrierHandler.getAllBarriersReceivedFuture(1).isDone());
+            assertThat(barrierHandler.getAllBarriersReceivedFuture(1)).isDone();
         }
     }
 
