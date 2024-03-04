@@ -78,7 +78,7 @@ class StreamPlanner(
 
   override protected def getExecNodeGraphProcessors: Seq[ExecNodeGraphProcessor] = Seq()
 
-  override def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]] = {
+  override protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]] = {
     beforeTranslation()
     val planner = createDummyPlanner()
     val transformations = execGraph.getRootNodes.map {
