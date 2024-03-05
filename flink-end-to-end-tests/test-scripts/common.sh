@@ -743,7 +743,7 @@ function wait_oper_metric_num_in_records {
     OPERATOR=$1
     MAX_NUM_RECORDS="${2:-200}"
     JOB_NAME="${3:-General purpose test job}"
-    NUM_METRICS=$(get_num_metric_samples ${OPERATOR} '${JOB_NAME}')
+    NUM_METRICS=$(get_num_metric_samples ${OPERATOR} "${JOB_NAME}")
     OLD_NUM_METRICS=${4:-${NUM_METRICS}}
     local timeout="${5:-600}"
     local i=0
