@@ -118,7 +118,8 @@ public class CompletedCheckpointStatsSummaryTest {
                 persistedData,
                 unalignedCheckpoint,
                 latest,
-                null);
+                null,
+                -1L);
     }
 
     /** Simply test that quantiles can be computed and fields are not permuted. */
@@ -145,7 +146,8 @@ public class CompletedCheckpointStatsSummaryTest {
                         persistedData,
                         unalignedCheckpoint,
                         new SubtaskStateStats(0, lastAck),
-                        ""));
+                        "",
+                        -1L));
         CompletedCheckpointStatsSummarySnapshot snapshot = summary.createSnapshot();
         assertThat(snapshot.getStateSizeStats().getQuantile(1)).isCloseTo(stateSize, offset(0d));
         assertThat(snapshot.getProcessedDataStats().getQuantile(1))

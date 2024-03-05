@@ -35,6 +35,8 @@ import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.FutureUtils.ConjunctFuture;
 
@@ -340,17 +342,27 @@ public class PendingCheckpoint implements Checkpoint {
                     finalizedLocation = out.closeAndFinalizeCheckpoint();
                 }
 
+                Clock clock = SystemClock.getInstance();
+
+                CompletedCheckpointStats completedCheckpointStats =
+                        toCompletedCheckpointStats(finalizedLocation, clock);
+
+                long completionTimestamp =
+                        completedCheckpointStats != null
+                                ? completedCheckpointStats.getCompletedTimestamp()
+                                : clock.absoluteTimeMillis();
+
                 CompletedCheckpoint completed =
                         new CompletedCheckpoint(
                                 jobId,
                                 checkpointId,
                                 checkpointTimestamp,
-                                System.currentTimeMillis(),
+                                completionTimestamp,
                                 operatorStates,
                                 masterStates,
                                 props,
                                 finalizedLocation,
-                                toCompletedCheckpointStats(finalizedLocation));
+                                completedCheckpointStats);
 
                 // mark this pending checkpoint as disposed, but do NOT drop the state
                 dispose(false, checkpointsCleaner, postCleanup, executor);
@@ -366,10 +378,10 @@ public class PendingCheckpoint implements Checkpoint {
 
     @Nullable
     private CompletedCheckpointStats toCompletedCheckpointStats(
-            CompletedCheckpointStorageLocation finalizedLocation) {
+            CompletedCheckpointStorageLocation finalizedLocation, Clock clock) {
         return pendingCheckpointStats != null
                 ? pendingCheckpointStats.toCompletedCheckpointStats(
-                        finalizedLocation.getExternalPointer())
+                        finalizedLocation.getExternalPointer(), clock)
                 : null;
     }
 

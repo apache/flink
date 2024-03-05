@@ -56,6 +56,9 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
     /** The external pointer of the checkpoint. */
     private final String externalPointer;
 
+    /** Timestamp of when the checkpoint was completed. */
+    private final long completedTimestamp;
+
     /** Flag indicating whether the checkpoint was discarded. */
     private volatile boolean discarded;
 
@@ -71,7 +74,8 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
             long persistedData,
             boolean unalignedCheckpoint,
             SubtaskStateStats latestAcknowledgedSubtask,
-            String externalPointer) {
+            String externalPointer,
+            long completedTimestamp) {
         this(
                 checkpointId,
                 triggerTimestamp,
@@ -85,7 +89,8 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
                 persistedData,
                 unalignedCheckpoint,
                 latestAcknowledgedSubtask,
-                externalPointer);
+                externalPointer,
+                completedTimestamp);
     }
 
     /**
@@ -105,6 +110,7 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
      * @param unalignedCheckpoint Whether the checkpoint is unaligned.
      * @param latestAcknowledgedSubtask The latest acknowledged subtask stats.
      * @param externalPointer Optional external path if persisted externally.
+     * @param completedTimestamp Timestamp of when the checkpoint was completed.
      */
     CompletedCheckpointStats(
             long checkpointId,
@@ -119,7 +125,8 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
             long persistedData,
             boolean unalignedCheckpoint,
             SubtaskStateStats latestAcknowledgedSubtask,
-            String externalPointer) {
+            String externalPointer,
+            long completedTimestamp) {
 
         super(checkpointId, triggerTimestamp, props, totalSubtaskCount, taskStats);
         checkArgument(
@@ -133,6 +140,7 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
         this.unalignedCheckpoint = unalignedCheckpoint;
         this.latestAcknowledgedSubtask = checkNotNull(latestAcknowledgedSubtask);
         this.externalPointer = externalPointer;
+        this.completedTimestamp = completedTimestamp;
     }
 
     @Override
@@ -174,6 +182,10 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
     @Nullable
     public SubtaskStateStats getLatestAcknowledgedSubtaskStats() {
         return latestAcknowledgedSubtask;
+    }
+
+    public long getCompletedTimestamp() {
+        return completedTimestamp;
     }
 
     // ------------------------------------------------------------------------

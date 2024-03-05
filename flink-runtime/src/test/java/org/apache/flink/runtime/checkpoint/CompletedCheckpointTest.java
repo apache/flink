@@ -370,7 +370,8 @@ public class CompletedCheckpointTest {
                         1,
                         true,
                         mock(SubtaskStateStats.class),
-                        null);
+                        null,
+                        System.currentTimeMillis());
         CompletedCheckpoint completed =
                 new CompletedCheckpoint(
                         new JobID(),
@@ -412,7 +413,8 @@ public class CompletedCheckpointTest {
                         true,
                         new SubtaskStateStats(
                                 123, 213123, 123123, 123123, 0, 0, 0, 0, 0, 0, false, true),
-                        null);
+                        null,
+                        -1L);
 
         CompletedCheckpointStats copy = CommonTestUtils.createCopySerializable(completed);
 

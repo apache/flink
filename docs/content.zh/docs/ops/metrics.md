@@ -1297,7 +1297,7 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
   </thead>
   <tbody>
     <tr>
-      <th rowspan="10"><strong>Job (only available on JobManager)</strong></th>
+      <th rowspan="11"><strong>Job (only available on JobManager)</strong></th>
       <td>lastCheckpointDuration</td>
       <td>The time it took to complete the last checkpoint (in milliseconds).</td>
       <td>Gauge</td>
@@ -1310,6 +1310,11 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
     <tr>
       <td>lastCompletedCheckpointId</td>
       <td>The identifier of the last completed checkpoint.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastCompletedCheckpointTimeSinceMillis</td>
+      <td>The time that has passed since the last completed checkpoint in milliseconds. If no checkpoint has been completed, this measures the time since the start of the job. After restore and before another checkpoint completes, this measures the time from the completion timestamp of the restored checkpoint.</td>
       <td>Gauge</td>
     </tr>
     <tr>

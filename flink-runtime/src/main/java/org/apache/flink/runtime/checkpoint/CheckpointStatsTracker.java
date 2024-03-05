@@ -29,6 +29,9 @@ import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatistics;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.traces.Span;
 import org.apache.flink.traces.SpanBuilder;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -86,6 +89,8 @@ public class CheckpointStatsTracker {
     /** History of checkpoints. */
     private final CheckpointStatsHistory history;
 
+    private final Clock clock;
+
     private final JobID jobID;
     private final MetricGroup metricGroup;
     private int totalNumberOfSubTasks;
@@ -106,6 +111,12 @@ public class CheckpointStatsTracker {
     @Nullable private volatile CompletedCheckpointStats latestCompletedCheckpoint;
 
     /**
+     * Timestamp when this object was created that serves as a proxy starting point for the
+     * LATEST_COMPLETED_CHECKPOINT_TIME_SINCE_MILLIS metric before any checkpoint is completed.
+     */
+    private final long checkpointTrackingStartTimestamp;
+
+    /**
      * Creates a new checkpoint stats tracker.
      *
      * @param numRememberedCheckpoints Maximum number of checkpoints to remember, including in
@@ -115,14 +126,29 @@ public class CheckpointStatsTracker {
      */
     public CheckpointStatsTracker(
             int numRememberedCheckpoints, MetricGroup metricGroup, JobID jobID) {
-        this(numRememberedCheckpoints, metricGroup, jobID, Integer.MAX_VALUE);
+        this(numRememberedCheckpoints, metricGroup, jobID, SystemClock.getInstance());
+    }
+
+    /**
+     * Creates a new checkpoint stats tracker.
+     *
+     * @param numRememberedCheckpoints Maximum number of checkpoints to remember, including in
+     *     progress ones.
+     * @param metricGroup Metric group for exposed metrics
+     * @param jobID ID of the job being checkpointed
+     * @param clock the clock to use for generating timestamps
+     */
+    CheckpointStatsTracker(
+            int numRememberedCheckpoints, MetricGroup metricGroup, JobID jobID, Clock clock) {
+        this(numRememberedCheckpoints, metricGroup, jobID, Integer.MAX_VALUE, clock);
     }
 
     CheckpointStatsTracker(
             int numRememberedCheckpoints,
             MetricGroup metricGroup,
             JobID jobID,
-            int totalNumberOfSubTasks) {
+            int totalNumberOfSubTasks,
+            Clock clock) {
         checkArgument(numRememberedCheckpoints >= 0, "Negative number of remembered checkpoints");
         this.history = new CheckpointStatsHistory(numRememberedCheckpoints);
         this.jobID = jobID;
@@ -136,6 +162,10 @@ public class CheckpointStatsTracker {
                         summary.createSnapshot(),
                         history.createSnapshot(),
                         null);
+
+        this.clock = Preconditions.checkNotNull(clock);
+        // Init to measure the time since the job started as metric for the first checkpoint
+        this.checkpointTrackingStartTimestamp = clock.absoluteTimeMillis();
 
         // Register the metrics
         registerMetrics(metricGroup);
@@ -359,7 +389,7 @@ public class CheckpointStatsTracker {
                                 attemptId.getJobVertexId(),
                                 new SubtaskStateStats(
                                         attemptId.getSubtaskIndex(),
-                                        System.currentTimeMillis(),
+                                        clock.absoluteTimeMillis(),
                                         metrics.getBytesPersistedOfThisCheckpoint(),
                                         metrics.getTotalBytesPersisted(),
                                         metrics.getSyncDurationMillis(),
@@ -476,6 +506,10 @@ public class CheckpointStatsTracker {
     @VisibleForTesting
     static final String LATEST_COMPLETED_CHECKPOINT_ID_METRIC = "lastCompletedCheckpointId";
 
+    @VisibleForTesting
+    static final String LATEST_COMPLETED_CHECKPOINT_TIME_SINCE_MILLIS =
+            "lastCompletedCheckpointTimeSinceMillis";
+
     /**
      * Register the exposed metrics.
      *
@@ -510,6 +544,9 @@ public class CheckpointStatsTracker {
                 new LatestCompletedCheckpointExternalPathGauge());
         metricGroup.gauge(
                 LATEST_COMPLETED_CHECKPOINT_ID_METRIC, new LatestCompletedCheckpointIdGauge());
+        metricGroup.gauge(
+                LATEST_COMPLETED_CHECKPOINT_TIME_SINCE_MILLIS,
+                new LatestCompletedCheckpointTimeSinceMillisGauge());
     }
 
     private class CheckpointsCounter implements Gauge<Long> {
@@ -630,6 +667,20 @@ public class CheckpointStatsTracker {
             } else {
                 return -1L;
             }
+        }
+    }
+
+    private class LatestCompletedCheckpointTimeSinceMillisGauge implements Gauge<Long> {
+        @Override
+        public Long getValue() {
+            CompletedCheckpointStats completed = latestCompletedCheckpoint;
+            final long startTime;
+            if (completed != null) {
+                startTime = completed.getCompletedTimestamp();
+            } else {
+                startTime = checkpointTrackingStartTimestamp;
+            }
+            return clock.absoluteTimeMillis() - startTime;
         }
     }
 }

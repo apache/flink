@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -146,7 +147,8 @@ public class PendingCheckpointStatsTest {
         // Report completed
         String externalPath = "asdjkasdjkasd";
 
-        callback.reportCompletedCheckpoint(pending.toCompletedCheckpointStats(externalPath));
+        callback.reportCompletedCheckpoint(
+                pending.toCompletedCheckpointStats(externalPath, SystemClock.getInstance()));
 
         ArgumentCaptor<CompletedCheckpointStats> args =
                 ArgumentCaptor.forClass(CompletedCheckpointStats.class);

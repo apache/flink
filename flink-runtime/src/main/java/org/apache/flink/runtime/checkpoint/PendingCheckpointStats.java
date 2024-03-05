@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.util.clock.Clock;
 
 import javax.annotation.Nullable;
 
@@ -221,7 +222,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
         }
     }
 
-    CompletedCheckpointStats toCompletedCheckpointStats(String externalPointer) {
+    CompletedCheckpointStats toCompletedCheckpointStats(String externalPointer, Clock clock) {
         return new CompletedCheckpointStats(
                 checkpointId,
                 triggerTimestamp,
@@ -235,7 +236,8 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
                 currentPersistedData,
                 unalignedCheckpoint,
                 latestAcknowledgedSubtask,
-                externalPointer);
+                externalPointer,
+                clock.absoluteTimeMillis());
     }
 
     /**
