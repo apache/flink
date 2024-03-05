@@ -50,6 +50,47 @@ public class WithinCheckpointFileMergingSnapshotManager extends FileMergingSnaps
         writablePhysicalFilePool = new HashMap<>();
     }
 
+    // ------------------------------------------------------------------------
+    //  CheckpointListener
+    // ------------------------------------------------------------------------
+
+    @Override
+    public void notifyCheckpointComplete(SubtaskKey subtaskKey, long checkpointId)
+            throws Exception {
+        super.notifyCheckpointComplete(subtaskKey, checkpointId);
+        removeAndCloseFiles(subtaskKey, checkpointId);
+    }
+
+    @Override
+    public void notifyCheckpointAborted(SubtaskKey subtaskKey, long checkpointId) throws Exception {
+        super.notifyCheckpointAborted(subtaskKey, checkpointId);
+        removeAndCloseFiles(subtaskKey, checkpointId);
+    }
+
+    /**
+     * Remove files that belongs to specific subtask and checkpoint from the reuse pool. And close
+     * these files. TODO: Refactor this in FLINK-32076.
+     */
+    private void removeAndCloseFiles(SubtaskKey subtaskKey, long checkpointId) throws Exception {
+        Tuple3<Long, SubtaskKey, CheckpointedStateScope> fileKey =
+                Tuple3.of(checkpointId, subtaskKey, CheckpointedStateScope.SHARED);
+        PhysicalFile file;
+        synchronized (writablePhysicalFilePool) {
+            file = writablePhysicalFilePool.remove(fileKey);
+        }
+        if (file != null) {
+            file.close();
+        }
+
+        fileKey = Tuple3.of(checkpointId, DUMMY_SUBTASK_KEY, CheckpointedStateScope.EXCLUSIVE);
+        synchronized (writablePhysicalFilePool) {
+            file = writablePhysicalFilePool.remove(fileKey);
+        }
+        if (file != null) {
+            file.close();
+        }
+    }
+
     @Override
     @Nonnull
     protected PhysicalFile getOrCreatePhysicalFileForCheckpoint(
@@ -97,5 +138,10 @@ public class WithinCheckpointFileMergingSnapshotManager extends FileMergingSnaps
         if (current != null && current != physicalFile) {
             physicalFile.close();
         }
+    }
+
+    @Override
+    protected void discardCheckpoint(long checkpointId) throws IOException {
+        // TODO: Discard the whole file pool for checkpoint id (When there is one after FLINK-32076)
     }
 }
