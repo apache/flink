@@ -2929,15 +2929,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         cachedTransformations.get(datasetId).setCached(false);
     }
 
-    @Internal
-    public Integer computePathNum() throws  Exception {
-        if (!configuration.get(PathTrackerOptions.ENABLE)){
-            throw new Exception("Path Tracker is disabled when trying to compute data paths");
-        }
-
-        return PathAnalyzer.computePathNum(getStreamGraph(false));
-    }
-
     protected Set<AbstractID> listCompletedClusterDatasets() {
         try {
             final PipelineExecutor executor = getPipelineExecutor();

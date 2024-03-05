@@ -1,65 +1,110 @@
 package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
+import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamNode;
-import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
-import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
-import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
-import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
-import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
-import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
-import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+
 
 import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.Executors;
 
 
 public class PathAnalyzer {
 
 
-    public static Integer computePathNum(StreamGraph streamGraph) throws  Exception{
+    public static Integer computePathNum(StreamExecutionEnvironment env) throws  Exception{
+        StreamGraph streamGraph = env.getStreamGraph(false);
+        verifyStreamGraph(streamGraph);
 
+        JobGraph jobGraph = env.getStreamGraph(false).getJobGraph();
+
+        ExecutionGraph eg =
+                TestingDefaultExecutionGraphBuilder.newBuilder()
+                        .setVertexParallelismStore(
+                                SchedulerBase.computeVertexParallelismStore(jobGraph))
+                        .build(Executors.newSingleThreadScheduledExecutor());
+        List<JobVertex> jobVertices = jobGraph.getVerticesSortedTopologicallyFromSources();
+
+        try {
+            eg.attachJobGraph(
+                    jobVertices,
+                    UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
+        } catch (JobException e) {
+            throw new Exception("Building ExecutionGraph failed: " + e.getMessage());
+        }
+
+
+        JobVertex sourceVertex = jobVertices.get(0);
+        ExecutionJobVertex srcExecutionJobVertex = eg.getJobVertex(sourceVertex.getID());
+        assert srcExecutionJobVertex != null;
+        ExecutionVertex[] srcExecutionVertices = srcExecutionJobVertex.getTaskVertices();
+
+        ExecutionVertex srcExecutionVertex = srcExecutionVertices[0];
+        return dfs(srcExecutionVertex);
+    }
+
+    private static int dfs(ExecutionVertex v){
+        // reached sink vertex
+        if (v.getProducedPartitions().isEmpty()) {
+            return 1;
+        }
+
+        int pathNum = 0;
+        for (IntermediateResultPartitionID pid: v.getProducedPartitions().keySet()){
+            List<ConsumerVertexGroup> vertexGroups = v.getExecutionGraphAccessor().getEdgeManager().getConsumerVertexGroupsForPartition(pid);
+            for (ConsumerVertexGroup group: vertexGroups){
+                for (ExecutionVertexID vertexID: group){
+                    ExecutionVertex vertex = v.getExecutionGraphAccessor().getExecutionVertexOrThrow(vertexID);
+                    pathNum += dfs(vertex);
+                }
+            }
+        }
+
+        return pathNum;
+    }
+
+
+    // verify that the stream graph has one source parallel instance and does not diverge
+    private static void verifyStreamGraph(StreamGraph streamGraph) throws Exception {
         Collection<Integer> sourceNodeIds = streamGraph.getSourceIDs();
         if (sourceNodeIds.isEmpty()){
             throw new Exception("Stream graph contains no source");
         }
-
-        if (sourceNodeIds.size() > 1){
-            throw new Exception("Stream graph contains more than one source");
+        StreamNode curNode = streamGraph.getStreamNode((Integer) sourceNodeIds.toArray()[0]);
+        if (sourceNodeIds.size() > 1 || curNode.getParallelism() > 1){
+            throw new Exception("Stream graph contains more than one source instance");
         }
 
-        StreamNode curNode = streamGraph.getStreamNode((Integer) sourceNodeIds.toArray()[0]);
-        int pathNum = 1;
+        Collection<Integer> sinkIDs = streamGraph.getSinkIDs();
+        if (sinkIDs.isEmpty()){
+            throw new Exception("Stream graph contains no sink");
+        }
+        StreamNode sinkNode = streamGraph.getStreamNode((Integer) sinkIDs.toArray()[0]);
+        if (sinkIDs.size() > 1 || sinkNode.getParallelism() > 1){
+            throw new Exception("Stream graph contains more than one sink instance");
+        }
+
+
+
         while (!curNode.getOutEdges().isEmpty()){
             if (curNode.getOutEdges().size() > 1){
                 throw new Exception(String.format("Stream topology diverges at %s", curNode.getOperatorName()));
             }
-
             StreamEdge edge = curNode.getOutEdges().get(0);
-            StreamPartitioner<?> partitioner =  edge.getPartitioner();
-            StreamNode nextNode = streamGraph.getStreamNode(edge.getTargetId());
+            curNode = streamGraph.getStreamNode(edge.getTargetId());
 
-
-            if (partitioner instanceof ForwardPartitioner) {
-                System.out.println("Forward partition. Path num does not change");
-            } else if (partitioner instanceof BroadcastPartitioner ||
-                    partitioner instanceof RebalancePartitioner ||
-                    partitioner instanceof ShufflePartitioner ||
-                    partitioner instanceof KeyGroupStreamPartitioner
-            ) {
-                System.out.println(partitioner.getClass().getName());
-
-                pathNum *= nextNode.getParallelism();
-            } else if (partitioner instanceof RescalePartitioner) {
-                System.out.println("TODO: implement rescale partitioner path num computation");
-            } else {
-                throw new Exception(String.format("Unknown partitioner: %s", partitioner.getClass().getName()));
-            }
-            curNode = nextNode;
         }
-
-        return pathNum;
     }
 }

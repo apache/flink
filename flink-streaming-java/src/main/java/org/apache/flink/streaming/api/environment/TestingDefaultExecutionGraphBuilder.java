@@ -1,19 +1,7 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+* Ported from the unit test utility of flink-runtime
+* @ org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
+* We should remove this once we find a better way to generate execution graph
  */
 
 package org.apache.flink.streaming.api.environment;
@@ -96,65 +84,20 @@ public class TestingDefaultExecutionGraphBuilder {
 
     private TestingDefaultExecutionGraphBuilder() {}
 
-    public TestingDefaultExecutionGraphBuilder setJobMasterConfig(Configuration jobMasterConfig) {
-        this.jobMasterConfig = jobMasterConfig;
-        return this;
-    }
+
 
     public TestingDefaultExecutionGraphBuilder setJobGraph(JobGraph jobGraph) {
         this.jobGraph = jobGraph;
         return this;
     }
 
-    public TestingDefaultExecutionGraphBuilder setRpcTimeout(Time rpcTimeout) {
-        this.rpcTimeout = rpcTimeout;
-        return this;
-    }
+
 
     public TestingDefaultExecutionGraphBuilder setUserClassLoader(ClassLoader userClassLoader) {
         this.userClassLoader = userClassLoader;
         return this;
     }
 
-    public TestingDefaultExecutionGraphBuilder setBlobWriter(BlobWriter blobWriter) {
-        this.blobWriter = blobWriter;
-        return this;
-    }
-
-    public TestingDefaultExecutionGraphBuilder setShuffleMaster(ShuffleMaster<?> shuffleMaster) {
-        this.shuffleMaster = shuffleMaster;
-        return this;
-    }
-
-    public TestingDefaultExecutionGraphBuilder setPartitionTracker(
-            JobMasterPartitionTracker partitionTracker) {
-        this.partitionTracker = partitionTracker;
-        return this;
-    }
-
-    public TestingDefaultExecutionGraphBuilder setCompletedCheckpointStore(
-            CompletedCheckpointStore completedCheckpointStore) {
-        this.completedCheckpointStore = completedCheckpointStore;
-        return this;
-    }
-
-    public TestingDefaultExecutionGraphBuilder setCheckpointIdCounter(
-            CheckpointIDCounter checkpointIdCounter) {
-        this.checkpointIdCounter = checkpointIdCounter;
-        return this;
-    }
-
-    public TestingDefaultExecutionGraphBuilder setExecutionDeploymentListener(
-            ExecutionDeploymentListener executionDeploymentListener) {
-        this.executionDeploymentListener = executionDeploymentListener;
-        return this;
-    }
-
-    public TestingDefaultExecutionGraphBuilder setExecutionStateUpdateListener(
-            ExecutionStateUpdateListener executionStateUpdateListener) {
-        this.executionStateUpdateListener = executionStateUpdateListener;
-        return this;
-    }
 
     public TestingDefaultExecutionGraphBuilder setVertexParallelismStore(
             VertexParallelismStore store) {
@@ -162,23 +105,6 @@ public class TestingDefaultExecutionGraphBuilder {
         return this;
     }
 
-    public TestingDefaultExecutionGraphBuilder setExecutionJobVertexFactory(
-            ExecutionJobVertex.Factory executionJobVertexFactory) {
-        this.executionJobVertexFactory = executionJobVertexFactory;
-        return this;
-    }
-
-    public TestingDefaultExecutionGraphBuilder setMarkPartitionFinishedStrategy(
-            MarkPartitionFinishedStrategy markPartitionFinishedStrategy) {
-        this.markPartitionFinishedStrategy = markPartitionFinishedStrategy;
-        return this;
-    }
-
-    public TestingDefaultExecutionGraphBuilder setNonFinishedHybridPartitionShouldBeUnknown(
-            boolean nonFinishedHybridPartitionShouldBeUnknown) {
-        this.nonFinishedHybridPartitionShouldBeUnknown = nonFinishedHybridPartitionShouldBeUnknown;
-        return this;
-    }
 
     private DefaultExecutionGraph build(
             boolean isDynamicGraph, ScheduledExecutorService executorService)
@@ -218,8 +144,5 @@ public class TestingDefaultExecutionGraphBuilder {
         return build(false, executorService);
     }
 
-    public DefaultExecutionGraph buildDynamicGraph(ScheduledExecutorService executorService)
-            throws JobException, JobExecutionException {
-        return build(true, executorService);
-    }
+
 }
