@@ -35,6 +35,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Map;
 import java.util.Random;
 
 import static org.apache.flink.formats.avro.utils.AvroTestUtils.writeRecord;
@@ -67,6 +68,13 @@ class RegistryAvroDeserializationSchemaTest {
                                     public void writeSchema(Schema schema, OutputStream out)
                                             throws IOException {
                                         // do nothing
+                                    }
+
+                                    @Override
+                                    public Schema readSchemaWithHeaders(
+                                            InputStream in, Map<String, Object> headers)
+                                            throws IOException {
+                                        return readSchema(in);
                                     }
                                 });
 
@@ -105,6 +113,13 @@ class RegistryAvroDeserializationSchemaTest {
                                     public void writeSchema(Schema schema, OutputStream out)
                                             throws IOException {
                                         // Do nothing
+                                    }
+
+                                    @Override
+                                    public Schema readSchemaWithHeaders(
+                                            InputStream in, Map<String, Object> headers)
+                                            throws IOException {
+                                        return readSchema(in);
                                     }
                                 },
                         encoding);

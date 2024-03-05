@@ -26,6 +26,7 @@ import org.apache.flink.util.UserCodeClassLoader;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Map;
 
 /**
  * The deserialization schema describes how to turn the byte messages delivered by certain data
@@ -93,6 +94,29 @@ public interface DeserializationSchema<T> extends Serializable, ResultTypeQuerya
      * @return True, if the element signals end of stream, false otherwise.
      */
     boolean isEndOfStream(T nextElement);
+
+    /**
+     * Deserializes the byte message with headers.
+     *
+     * @param message The message, as a byte array.
+     * @param headers headers map of headers that can be used for deserialization. Override this
+     *     method to make use of the headers,
+     * @return The deserialized message as an object (null if the message cannot be deserialized).
+     */
+    @PublicEvolving
+    default T deserializeWithHeaders(byte[] message, Map<String, Object> headers)
+            throws IOException {
+        return deserialize(message);
+    }
+
+    @PublicEvolving
+    default void deserializeWithHeaders(
+            byte[] message, Map<String, Object> headers, Collector<T> out) throws IOException {
+        T deserialize = deserializeWithHeaders(message, headers);
+        if (deserialize != null) {
+            out.collect(deserialize);
+        }
+    }
 
     /**
      * A contextual information provided for {@link #open(InitializationContext)} method. It can be

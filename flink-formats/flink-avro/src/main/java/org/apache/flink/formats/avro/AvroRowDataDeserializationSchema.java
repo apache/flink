@@ -30,6 +30,7 @@ import org.apache.avro.generic.GenericRecord;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -50,7 +51,7 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
     private static final long serialVersionUID = 1L;
 
     /** Nested schema to deserialize the inputs into avro {@link GenericRecord}. * */
-    private final DeserializationSchema<GenericRecord> nestedSchema;
+    private final AvroDeserializationSchema<GenericRecord> nestedSchema;
 
     /** Type information describing the result type. */
     private final TypeInformation<RowData> typeInfo;
@@ -109,7 +110,7 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
     }
 
     /**
-     * Creates a Avro deserialization schema for the given logical type.
+     * Creates an Avro deserialization schema for the given logical type.
      *
      * @param nestedSchema Deserialization schema to deserialize as {@link GenericRecord}
      * @param runtimeConverter Converter that transforms a {@link GenericRecord} into {@link
@@ -118,7 +119,7 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
      *     AvroRowDataDeserializationSchema#getProducedType()}
      */
     public AvroRowDataDeserializationSchema(
-            DeserializationSchema<GenericRecord> nestedSchema,
+            AvroDeserializationSchema<GenericRecord> nestedSchema,
             AvroToRowDataConverters.AvroToRowDataConverter runtimeConverter,
             TypeInformation<RowData> typeInfo) {
         this.nestedSchema = nestedSchema;
@@ -169,5 +170,26 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
     @Override
     public int hashCode() {
         return Objects.hash(nestedSchema, typeInfo);
+    }
+
+    /**
+     * Deserializes the byte message.
+     *
+     * @param message The message, as a byte array.
+     * @param headers headers
+     * @return The deserialized message as an object (null if the message cannot be deserialized).
+     */
+    @Override
+    public org.apache.flink.table.data.RowData deserializeWithHeaders(
+            byte[] message, Map<String, Object> headers) throws IOException {
+        if (message == null) {
+            return null;
+        }
+        try {
+            GenericRecord deserialize = nestedSchema.deserializeWithHeaders(message, headers);
+            return (RowData) runtimeConverter.convert(deserialize);
+        } catch (Exception e) {
+            throw new IOException("Failed to deserialize Avro record.", e);
+        }
     }
 }
