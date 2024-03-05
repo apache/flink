@@ -177,7 +177,7 @@ class JsonFormatFactoryTest {
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         true,
-                        false);
+                        true);
 
         SerializationSchema<RowData> actualSer =
                 createTableSink(options)
@@ -228,6 +228,7 @@ class JsonFormatFactoryTest {
         options.put("json.map-null-key.mode", "LITERAL");
         options.put("json.map-null-key.literal", "null");
         options.put("json.encode.decimal-as-plain-number", "true");
+        options.put("json.encode.ignore-null-fields", "true");
         return options;
     }
 }
