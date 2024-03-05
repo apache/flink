@@ -46,7 +46,7 @@ class DefaultLineageGraphTest {
                         .build();
         assertThat(lineageGraph.sources()).containsExactlyInAnyOrder(source1, source2, source3);
         assertThat(lineageGraph.sinks()).containsExactlyInAnyOrder(sink1, sink2);
-        assertThat(lineageGraph.relations().size()).isEqualTo(4);
+        assertThat(lineageGraph.relations()).hasSize(4);
     }
 
     /** Testing sink lineage vertex. */
