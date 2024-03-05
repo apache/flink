@@ -45,6 +45,7 @@ import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.connector.source.abilities.SupportsStatisticReport;
@@ -89,7 +90,8 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                 SupportsPartitionPushDown,
                 SupportsFilterPushDown,
                 SupportsReadingMetadata,
-                SupportsStatisticReport {
+                SupportsStatisticReport,
+                SupportsPartitioning<Path> {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileSystemTableSource.class);
 
@@ -103,6 +105,8 @@ public class FileSystemTableSource extends AbstractFileSystemTable
     private int[][] projectFields;
     private List<String> metadataKeys;
     private DataType producedDataType;
+
+    private boolean forcePartitionedRead = false;
 
     public FileSystemTableSource(
             ObjectIdentifier tableIdentifier,
@@ -283,7 +287,12 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                                                 : () ->
                                                         new NonSplittingRecursiveAllDirEnumerator(
                                                                 regex)));
-
+        if (forcePartitionedRead) {
+            Optional<List<Path>> maybeSourcePartitions = sourcePartitions();
+            if (maybeSourcePartitions.isPresent() && !maybeSourcePartitions.get().isEmpty()) {
+                fileSourceBuilder.withPartitionedAssigner(maybeSourcePartitions.get());
+            }
+        }
         return SourceProvider.of(fileSourceBuilder.build());
     }
 
@@ -479,6 +488,41 @@ public class FileSystemTableSource extends AbstractFileSystemTable
     public Map<String, DataType> listReadableMetadata() {
         return Arrays.stream(ReadableFileInfo.values())
                 .collect(Collectors.toMap(ReadableFileInfo::getKey, ReadableFileInfo::getDataType));
+    }
+
+    @Override
+    public Optional<List<Path>> sourcePartitions() {
+        if (!this.tableOptions.get(FileSystemConnectorOptions.PARTITIONED_READ)) {
+            return Optional.empty();
+        }
+        Optional<List<Map<String, String>>> maybeListPartitions = listPartitions();
+        if (!(maybeListPartitions.isPresent())) {
+            return Optional.empty();
+        }
+        List<Map<String, String>> listPartitions = maybeListPartitions.get();
+        if (listPartitions.isEmpty()) {
+            return Optional.empty();
+        }
+
+        List<Path> res = new ArrayList<>();
+
+        for (Map<String, String> partition : listPartitions) {
+            StringBuilder partitionPath = new StringBuilder();
+            for (Map.Entry<String, String> entry : partition.entrySet()) {
+                partitionPath.append(String.format("%s=%s/", entry.getKey(), entry.getValue()));
+            }
+            if (partitionPath.length() > 0) {
+                Path newPath = new Path(path, partitionPath.toString());
+                res.add(newPath);
+            }
+        }
+
+        return !res.isEmpty() ? Optional.of(res) : Optional.empty();
+    }
+
+    @Override
+    public void applyPartitionedRead() {
+        this.forcePartitionedRead = true;
     }
 
     interface FileInfoAccessor extends Serializable {

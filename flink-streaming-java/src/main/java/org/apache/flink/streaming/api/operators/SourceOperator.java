@@ -281,7 +281,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                     @Override
                     public void sendSplitRequest() {
                         operatorEventGateway.sendEventToCoordinator(
-                                new RequestSplitEvent(getLocalHostName()));
+                                new RequestSplitEvent(
+                                        String.format("%s:%s", getLocalHostName(), this)));
                     }
 
                     @Override

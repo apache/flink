@@ -20,6 +20,7 @@ package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
@@ -38,6 +39,13 @@ public class FileSystemConnectorOptions {
 
     public static final ConfigOption<String> PATH =
             key("path").stringType().noDefaultValue().withDescription("The path of a directory");
+
+    public static final ConfigOption<Boolean> PARTITIONED_READ =
+            ConfigOptions.key("partitioned-read")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "The configuration option for forcing the source to read input in a partitioned manner.");
 
     public static final ConfigOption<String> PARTITION_DEFAULT_NAME =
             key("partition.default-name")

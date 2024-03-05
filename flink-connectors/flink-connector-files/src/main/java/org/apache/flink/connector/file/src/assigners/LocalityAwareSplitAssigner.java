@@ -124,6 +124,12 @@ public class LocalityAwareSplitAssigner implements FileSplitAssigner {
     }
 
     @Override
+    public Optional<FileSourceSplit> getNext(
+            @Nullable String hostname, int subtaskID, int registeredTasks) {
+        return getNext(hostname);
+    }
+
+    @Override
     public void addSplits(Collection<FileSourceSplit> splits) {
         for (FileSourceSplit split : splits) {
             SplitWithInfo sc = new SplitWithInfo(split);

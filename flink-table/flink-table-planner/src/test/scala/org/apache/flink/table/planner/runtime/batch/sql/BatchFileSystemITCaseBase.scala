@@ -20,9 +20,10 @@ package org.apache.flink.table.planner.runtime.batch.sql
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.planner.runtime.FileSystemITCaseBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.types.Row
 
-import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 
 /** Batch [[FileSystemITCaseBase]]. */
 abstract class BatchFileSystemITCaseBase extends BatchTestBase with FileSystemITCaseBase {
@@ -56,4 +57,42 @@ abstract class BatchFileSystemITCaseBase extends BatchTestBase with FileSystemIT
           e)
     }
   }
+
+  @TestTemplate
+  def batchPartitionedReadOptimizationTest(): Unit = {
+    tableEnv
+      .executeSql(
+        "insert into partitionedTable " +
+          "partition(a='1', b='1') select x, y from originalT where a=1 and b=1")
+      .await()
+
+    tableEnv
+      .executeSql(
+        "insert into partitionedTable " +
+          "partition(a='1', b='2') select x, y from originalT where a=1 and b=2")
+      .await()
+
+    tableEnv
+      .executeSql(
+        "insert into partitionedTable " +
+          "partition(a='2', b='1') select x, y from originalT where a=2 and b=1")
+      .await()
+
+    tableEnv
+      .executeSql(
+        "insert into partitionedTable " +
+          "partition(a='2', b='2') select x, y from originalT where a=2 and b=2")
+      .await()
+
+    check(
+      "select a,b, sum(c) from partitionedTable group by a,b",
+      Seq(
+        row(1, 1, 10),
+        row(1, 2, 15),
+        row(2, 1, 10),
+        row(2, 2, 3)
+      )
+    )
+  }
+
 }

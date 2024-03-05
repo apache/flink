@@ -18,10 +18,13 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.connector.source.ScanTableSource
+import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
+import org.apache.flink.table.planner.plan.abilities.source.{PartitioningSpec, SourceAbilityContext, SourceAbilitySpec}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalTableSourceScan
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
+import org.apache.flink.table.planner.plan.utils.ScanUtil
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext
 
 import org.apache.calcite.plan.RelOptRuleCall
@@ -48,14 +51,34 @@ class BatchPhysicalTableSourceScanRule(config: Config) extends ConverterRule(con
     }
   }
 
+  private def applyPartitioning(scan: TableScan) = {
+    val oldTableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable])
+    val newTableSource = oldTableSourceTable.tableSource.copy
+    val partitioningSpec = new PartitioningSpec()
+    partitioningSpec.apply(newTableSource, SourceAbilityContext.from(scan))
+    val myArray: Array[SourceAbilitySpec] = Array(partitioningSpec)
+
+    oldTableSourceTable.copy(newTableSource, oldTableSourceTable.getRowType, myArray)
+  }
+
   def convert(rel: RelNode): RelNode = {
     val scan = rel.asInstanceOf[FlinkLogicalTableSourceScan]
-    val newTrait = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
+    var newTrait = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
+    val partitionKeys = ScanUtil.getPartitionKeys(scan.relOptTable)
+    var scanTableSource = scan.getTable.asInstanceOf[TableSourceTable]
+
+    if (partitionKeys.nonEmpty) {
+      val partitionIdxs: Array[Int] = partitionKeys.get
+      val newDistribution = FlinkRelDistribution.hash(partitionIdxs, requireStrict = true)
+      newTrait = newTrait.replace(newDistribution)
+      scanTableSource = applyPartitioning(scan)
+    }
+
     new BatchPhysicalTableSourceScan(
       rel.getCluster,
       newTrait,
       scan.getHints,
-      scan.getTable.asInstanceOf[TableSourceTable]
+      scanTableSource
     )
   }
 }
