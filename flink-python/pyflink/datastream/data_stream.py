@@ -140,7 +140,7 @@ class DataStream(object):
         """
         Sets the parallelism for this operator.
 
-        :param parallelism: THe parallelism for this operator.
+        :param parallelism: The parallelism for this operator.
         :return: The operator with set parallelism.
         """
         self._j_data_stream.setParallelism(parallelism)
