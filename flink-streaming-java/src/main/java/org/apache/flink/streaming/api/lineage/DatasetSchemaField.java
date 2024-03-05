@@ -19,7 +19,10 @@
 
 package org.apache.flink.streaming.api.lineage;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /** Field for schema in dataset. */
+@PublicEvolving
 public interface DatasetSchemaField<T> {
     /** The name of the field. */
     String name();
