@@ -149,7 +149,7 @@ Format Options
     <tr>
       <td><h5>json.encode.ignore-null-fields</h5></td>
       <td>optional</td>
-      <td>no</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
       <td>Encode only non-null fields. By default, all fields will be included.</td>
