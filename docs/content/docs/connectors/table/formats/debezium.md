@@ -450,7 +450,7 @@ Use format `debezium-avro-confluent` to interpret Debezium Avro messages and for
       <td>optional</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>Encode only non-null fields. By default, all fields will be written.</td>
+      <td>Encode only non-null fields. By default, all fields will be included.</td>
     </tr>
     </tbody>
 </table>

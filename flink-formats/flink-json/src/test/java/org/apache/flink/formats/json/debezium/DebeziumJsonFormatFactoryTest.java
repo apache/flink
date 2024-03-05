@@ -82,7 +82,7 @@ class DebeziumJsonFormatFactoryTest {
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         true,
-                        false);
+                        true);
 
         final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
         assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
@@ -201,6 +201,7 @@ class DebeziumJsonFormatFactoryTest {
         options.put("debezium-json.map-null-key.mode", "LITERAL");
         options.put("debezium-json.map-null-key.literal", "null");
         options.put("debezium-json.encode.decimal-as-plain-number", "true");
+        options.put("debezium-json.encode.ignore-null-fields", "true");
         return options;
     }
 }

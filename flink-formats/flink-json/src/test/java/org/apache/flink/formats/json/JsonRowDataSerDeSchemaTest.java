@@ -636,7 +636,7 @@ public class JsonRowDataSerDeSchemaTest {
     }
 
     @TestTemplate
-    public void testSerDeMultiRowsWithNullValuesIgnored() throws Exception {
+    void testSerDeMultiRowsWithNullValuesIgnored() throws Exception {
         String[] jsons =
                 new String[] {
                     "{\"ops\":null,\"ids\":null,\"metrics\":{\"k1\":10.01,\"k2\":null}}",

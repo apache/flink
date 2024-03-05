@@ -429,7 +429,7 @@ Flink 提供了 `debezium-avro-confluent` 和 `debezium-json` 两种 format 来�
       <td>选填</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>仅序列化非Null的列，默认情况下，会序列化所有列无论是否为Null。</td>
+      <td>仅序列化非 Null 的列，默认情况下，会序列化所有列无论是否为 Null。</td>
     </tr>
     </tbody>
 </table>

@@ -70,7 +70,7 @@ class MaxwellJsonFormatFactoryTest {
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         true,
-                        false);
+                        true);
 
         final Map<String, String> options = getAllOptions();
 
@@ -166,6 +166,7 @@ class MaxwellJsonFormatFactoryTest {
         options.put("maxwell-json.map-null-key.mode", "LITERAL");
         options.put("maxwell-json.map-null-key.literal", "null");
         options.put("maxwell-json.encode.decimal-as-plain-number", "true");
+        options.put("maxwell-json.encode.ignore-null-fields", "true");
         return options;
     }
 }
