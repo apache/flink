@@ -23,6 +23,7 @@ package org.apache.flink.streaming.api.lineage;
 public interface DatasetSchemaField<T> {
     /** The name of the field. */
     String name();
+
     /** The type of the field. */
     T type();
 }
