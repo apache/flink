@@ -1460,6 +1460,18 @@ public class DataStream<T> {
     }
 
     /**
+     * Collect records from each partition into a separate full window. The window emission will be
+     * triggered at the end of inputs. For this non-keyed data stream(each record has no key), a
+     * partition contains all records of a subtask.
+     *
+     * @return The full windowed data stream on partition.
+     */
+    @PublicEvolving
+    public PartitionWindowedStream<T> fullWindowPartition() {
+        return new NonKeyedPartitionWindowedStream<>(environment, this);
+    }
+
+    /**
      * This class acts as an accessor to elements collected via {@link #collectAsync(Collector)}.
      *
      * @param <T> the element type
