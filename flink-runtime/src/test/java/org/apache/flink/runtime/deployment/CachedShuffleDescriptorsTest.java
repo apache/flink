@@ -20,7 +20,7 @@ package org.apache.flink.runtime.deployment;
 
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffloaded;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.NonOffloadedRaw;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.NonOffloaded;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -39,10 +39,12 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.util.CompressedSerializedValue;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -88,7 +90,7 @@ class CachedShuffleDescriptorsTest {
         assertThat(cachedShuffleDescriptors.getAllSerializedShuffleDescriptorGroups()).hasSize(1);
         MaybeOffloaded<ShuffleDescriptorGroup> maybeOffloadedShuffleDescriptor =
                 cachedShuffleDescriptors.getAllSerializedShuffleDescriptorGroups().get(0);
-        assertNonOffloadedRawShuffleDescriptorAndIndexEquals(
+        assertNonOffloadedShuffleDescriptorAndIndexEquals(
                 maybeOffloadedShuffleDescriptor,
                 Collections.singletonList(shuffleDescriptor),
                 Collections.singletonList(0));
@@ -142,22 +144,26 @@ class CachedShuffleDescriptorsTest {
                         intermediateResultPartition2,
                         TaskDeploymentDescriptorFactory.PartitionLocationConstraint.MUST_BE_KNOWN,
                         false);
-        assertNonOffloadedRawShuffleDescriptorAndIndexEquals(
+        assertNonOffloadedShuffleDescriptorAndIndexEquals(
                 maybeOffloaded,
                 Arrays.asList(expectedShuffleDescriptor1, expectedShuffleDescriptor2),
                 Arrays.asList(0, 1));
     }
 
-    private void assertNonOffloadedRawShuffleDescriptorAndIndexEquals(
+    private void assertNonOffloadedShuffleDescriptorAndIndexEquals(
             MaybeOffloaded<ShuffleDescriptorGroup> maybeOffloaded,
             List<ShuffleDescriptor> expectedDescriptors,
-            List<Integer> expectedIndices) {
+            List<Integer> expectedIndices)
+            throws Exception {
         assertThat(expectedDescriptors).hasSameSizeAs(expectedIndices);
-        assertThat(maybeOffloaded).isInstanceOf(NonOffloadedRaw.class);
-        NonOffloadedRaw<ShuffleDescriptorGroup> nonOffloadedRaw =
-                (NonOffloadedRaw<ShuffleDescriptorGroup>) maybeOffloaded;
+        assertThat(maybeOffloaded).isInstanceOf(NonOffloaded.class);
+        NonOffloaded<ShuffleDescriptorGroup> nonOffloaded =
+                (NonOffloaded<ShuffleDescriptorGroup>) maybeOffloaded;
         ShuffleDescriptorAndIndex[] shuffleDescriptorAndIndices =
-                nonOffloadedRaw.value.getShuffleDescriptors();
+                nonOffloaded
+                        .serializedValue
+                        .deserializeValue(getClass().getClassLoader())
+                        .getShuffleDescriptors();
         assertThat(shuffleDescriptorAndIndices).hasSameSizeAs(expectedDescriptors);
         for (int i = 0; i < shuffleDescriptorAndIndices.length; i++) {
             assertThat(shuffleDescriptorAndIndices[i].getIndex()).isEqualTo(expectedIndices.get(i));
@@ -212,9 +218,9 @@ class CachedShuffleDescriptorsTest {
             implements TaskDeploymentDescriptorFactory.ShuffleDescriptorSerializer {
 
         @Override
-        public MaybeOffloaded<ShuffleDescriptorGroup> trySerializeAndOffloadShuffleDescriptor(
-                ShuffleDescriptorGroup shuffleDescriptorGroup, int numConsumer) {
-            return new NonOffloadedRaw<>(shuffleDescriptorGroup);
+        public MaybeOffloaded<ShuffleDescriptorGroup> serializeAndTryOffloadShuffleDescriptor(
+                ShuffleDescriptorGroup shuffleDescriptorGroup, int numConsumer) throws IOException {
+            return new NonOffloaded<>(CompressedSerializedValue.fromObject(shuffleDescriptorGroup));
         }
     }
 }
