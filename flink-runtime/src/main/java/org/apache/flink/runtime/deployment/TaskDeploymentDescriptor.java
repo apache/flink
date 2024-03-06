@@ -81,25 +81,6 @@ public final class TaskDeploymentDescriptor implements Serializable {
     }
 
     /**
-     * The raw value that is not offloaded to the {@link org.apache.flink.runtime.blob.BlobServer}.
-     *
-     * @param <T> type of the raw value
-     */
-    public static class NonOffloadedRaw<T> extends MaybeOffloaded<T> {
-        private static final long serialVersionUID = 1L;
-
-        /** The raw value. */
-        public T value;
-
-        @SuppressWarnings("unused")
-        public NonOffloadedRaw() {}
-
-        public NonOffloadedRaw(T value) {
-            this.value = Preconditions.checkNotNull(value);
-        }
-    }
-
-    /**
      * Reference to a serialized value that was offloaded to the {@link
      * org.apache.flink.runtime.blob.BlobServer}.
      *
