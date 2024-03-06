@@ -33,6 +33,9 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.utility.Base58;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Locale;
 
@@ -140,5 +143,16 @@ public class MinioTestContainer extends GenericContainer<MinioTestContainer> {
      */
     public String getS3UriForDefaultBucket() {
         return "s3://" + getDefaultBucketName();
+    }
+
+    public void writeCredentialsFile(File credentialsFile) throws IOException {
+        try (FileWriter writer = new FileWriter(credentialsFile)) {
+            writer.write(
+                    String.format(
+                            "[default]\n"
+                                    + "aws_access_key_id = %s\n"
+                                    + "aws_secret_access_key = %s\n",
+                            accessKey, secretKey));
+        }
     }
 }
