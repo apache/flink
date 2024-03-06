@@ -18,6 +18,7 @@
 package org.apache.flink.python.util;
 
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.util.CompressionUtils;
 
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;

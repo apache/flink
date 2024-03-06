@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.python.util;
+package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.util.IOUtils;
-import org.apache.flink.util.OperatingSystem;
 
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
