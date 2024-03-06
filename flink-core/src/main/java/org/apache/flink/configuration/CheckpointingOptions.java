@@ -78,15 +78,15 @@ public class CheckpointingOptions {
      * <p>Recognized shortcut names are 'jobmanager' and 'filesystem'.
      *
      * <p>{@link #CHECKPOINT_STORAGE} and {@link #CHECKPOINTS_DIRECTORY} are usually combined to
-     * configure the checkpoint location. By default, checkpoint data and meta data will be stored
-     * in the JobManager's memory directly.
+     * configure the checkpoint location. By default, the checkpoint meta data and actual program
+     * state will be stored in the JobManager's memory directly.
      * <li>When {@link #CHECKPOINT_STORAGE} is set to 'jobmanager', if {@link
      *     #CHECKPOINTS_DIRECTORY} is configured, the meta data of checkpoints will be persisted to
      *     the path specified by {@link #CHECKPOINTS_DIRECTORY}. Otherwise, the meta data will be
      *     stored in the JobManager's memory.
      * <li>When {@link #CHECKPOINT_STORAGE} is set to 'filesystem', a valid path must be configured
-     *     to {@link #CHECKPOINTS_DIRECTORY}, and the checkpoint data and meta data will both be
-     *     persisted to the path.
+     *     to {@link #CHECKPOINTS_DIRECTORY}, and the checkpoint meta data and actual program state
+     *     will both be persisted to the path.
      */
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 2)
     public static final ConfigOption<String> CHECKPOINT_STORAGE =
@@ -113,12 +113,12 @@ public class CheckpointingOptions {
                                     .linebreak()
                                     .text(
                                             "'state.checkpoint-storage' and 'state.checkpoints.dir' are usually combined to configure the checkpoint location."
-                                                    + " By default, checkpoint data and meta data will be stored in the JobManager's memory directly."
+                                                    + " By default,  the checkpoint meta data and actual program state will be stored in the JobManager's memory directly."
                                                     + " When 'state.checkpoint-storage' is set to 'jobmanager', if 'state.checkpoints.dir' is configured,"
                                                     + " the meta data of checkpoints will be persisted to the path specified by 'state.checkpoints.dir'."
                                                     + " Otherwise, the meta data will be stored in the JobManager's memory."
                                                     + " When 'state.checkpoint-storage' is set to 'filesystem', a valid path must be configured to 'state.checkpoints.dir',"
-                                                    + " and the checkpoint data and meta data will both be persisted to the path.")
+                                                    + " and the checkpoint meta data and actual program state will both be persisted to the path.")
                                     .build());
 
     /** The maximum number of completed checkpoints to retain. */
