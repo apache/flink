@@ -71,6 +71,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
+import org.apache.flink.util.CompressedSerializedValue;
 
 import org.apache.flink.shaded.guava31.com.google.common.io.Closer;
 
@@ -1312,8 +1313,9 @@ class SingleInputGateTest extends InputGateTestBase {
                         subpartitionIndexRange,
                         channelDescs.length,
                         Collections.singletonList(
-                                new TaskDeploymentDescriptor.NonOffloadedRaw<>(
-                                        new ShuffleDescriptorGroup(channelDescs))));
+                                new TaskDeploymentDescriptor.NonOffloaded<>(
+                                        CompressedSerializedValue.fromObject(
+                                                new ShuffleDescriptorGroup(channelDescs)))));
 
         final TaskMetricGroup taskMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
