@@ -79,7 +79,12 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
 
       // Deactivated until Scala API has new windowing API
       "org.apache.flink.streaming.api.datastream.DataStream.timeWindowAll",
-      "org.apache.flink.streaming.api.datastream.DataStream.windowAll"
+      "org.apache.flink.streaming.api.datastream.DataStream.windowAll",
+
+      // The following newly added DataStream APIs should be ignored because all Scala APIs
+      // have been deprecated since Flink 1.18.
+      "org.apache.flink.streaming.api.datastream.DataStream.fullWindowPartition",
+      "org.apache.flink.streaming.api.datastream.KeyedStream.fullWindowPartition"
     )
     val excludedPatterns = Seq(
       // We don't have project on tuples in the Scala API

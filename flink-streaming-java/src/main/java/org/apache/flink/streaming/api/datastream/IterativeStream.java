@@ -126,6 +126,12 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T> {
         return new ConnectedIterativeStreams<>(originalInput, feedbackType, maxWaitTime);
     }
 
+    @Override
+    public PartitionWindowedStream<T> fullWindowPartition() {
+        throw new UnsupportedOperationException(
+                "The fullWindowPartition is not supported because the IterativeStream has been deprecated since Flink 1.19.");
+    }
+
     /**
      * The {@link ConnectedIterativeStreams} represent a start of an iterative part of a streaming
      * program, where the original input of the iteration and the feedback of the iteration are
@@ -151,6 +157,11 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T> {
     public static class ConnectedIterativeStreams<I, F> extends ConnectedStreams<I, F> {
 
         private CoFeedbackTransformation<F> coFeedbackTransformation;
+        private UnsupportedOperationException groupingException =
+                new UnsupportedOperationException(
+                        "Cannot change the input partitioning of an"
+                                + "iteration head directly. Apply the partitioning on the input and"
+                                + "feedback streams instead.");
 
         public ConnectedIterativeStreams(
                 DataStream<I> input, TypeInformation<F> feedbackType, long waitTime) {
@@ -188,12 +199,6 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T> {
 
             return feedbackStream;
         }
-
-        private UnsupportedOperationException groupingException =
-                new UnsupportedOperationException(
-                        "Cannot change the input partitioning of an"
-                                + "iteration head directly. Apply the partitioning on the input and"
-                                + "feedback streams instead.");
 
         @Override
         public ConnectedStreams<I, F> keyBy(int[] keyPositions1, int[] keyPositions2) {

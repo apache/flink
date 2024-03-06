@@ -1072,6 +1072,19 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
     }
 
     /**
+     * Collect records from each partition into a separate full window. The window emission will be
+     * triggered at the end of inputs. For this keyed data stream(each record has a key), a
+     * partition only contains all records with the same key.
+     *
+     * @return The full windowed data stream on partition.
+     */
+    @PublicEvolving
+    @Override
+    public PartitionWindowedStream<T> fullWindowPartition() {
+        return new KeyedPartitionWindowedStream<>(environment, this);
+    }
+
+    /**
      * Publishes the keyed stream as queryable ValueState instance.
      *
      * @param queryableStateName Name under which to the publish the queryable state instance
