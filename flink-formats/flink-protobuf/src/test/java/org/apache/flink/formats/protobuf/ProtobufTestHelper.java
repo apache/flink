@@ -77,15 +77,39 @@ public class ProtobufTestHelper {
                 row,
                 messageClass,
                 new PbFormatConfig(messageClass.getName(), false, false, ""),
-                enumAsInt);
+                enumAsInt,
+                0);
+    }
+
+    public static byte[] rowToPbBytes(
+            RowData row, Class messageClass, boolean enumAsInt, int recursiveFieldMaxDepth)
+            throws Exception {
+        return rowToPbBytes(
+                row,
+                messageClass,
+                new PbFormatConfig(messageClass.getName(), false, false, ""),
+                enumAsInt,
+                recursiveFieldMaxDepth);
     }
 
     public static byte[] rowToPbBytes(
             RowData row, Class messageClass, PbFormatConfig formatConfig, boolean enumAsInt)
             throws Exception {
+        return rowToPbBytes(row, messageClass, formatConfig, enumAsInt, 0);
+    }
+
+    public static byte[] rowToPbBytes(
+            RowData row,
+            Class messageClass,
+            PbFormatConfig formatConfig,
+            boolean enumAsInt,
+            int recursiveFieldMaxDepth)
+            throws Exception {
         RowType rowType =
                 PbToRowTypeUtil.generateRowType(
-                        PbFormatUtils.getDescriptor(messageClass.getName()), enumAsInt);
+                        PbFormatUtils.getDescriptor(messageClass.getName()),
+                        enumAsInt,
+                        recursiveFieldMaxDepth);
         row = validateRow(row, rowType);
         PbRowDataSerializationSchema serializationSchema =
                 new PbRowDataSerializationSchema(rowType, formatConfig);
@@ -95,7 +119,7 @@ public class ProtobufTestHelper {
     }
 
     public static RowData pbBytesToRow(Class messageClass, byte[] bytes) throws Exception {
-        return pbBytesToRow(messageClass, bytes, false);
+        return pbBytesToRow(messageClass, bytes, false, 0);
     }
 
     public static RowData pbBytesToRow(Class messageClass, byte[] bytes, boolean enumAsInt)
@@ -104,15 +128,39 @@ public class ProtobufTestHelper {
                 messageClass,
                 bytes,
                 new PbFormatConfig(messageClass.getName(), false, false, ""),
-                enumAsInt);
+                enumAsInt,
+                0);
+    }
+
+    public static RowData pbBytesToRow(
+            Class messageClass, byte[] bytes, boolean enumAsInt, int recursiveFieldMaxDepth)
+            throws Exception {
+        return pbBytesToRow(
+                messageClass,
+                bytes,
+                new PbFormatConfig(messageClass.getName(), false, false, ""),
+                enumAsInt,
+                recursiveFieldMaxDepth);
     }
 
     public static RowData pbBytesToRow(
             Class messageClass, byte[] bytes, PbFormatConfig formatConfig, boolean enumAsInt)
             throws Exception {
+        return pbBytesToRow(messageClass, bytes, formatConfig, enumAsInt, 0);
+    }
+
+    public static RowData pbBytesToRow(
+            Class messageClass,
+            byte[] bytes,
+            PbFormatConfig formatConfig,
+            boolean enumAsInt,
+            int recursiveFieldMaxDepth)
+            throws Exception {
         RowType rowType =
                 PbToRowTypeUtil.generateRowType(
-                        PbFormatUtils.getDescriptor(messageClass.getName()), enumAsInt);
+                        PbFormatUtils.getDescriptor(messageClass.getName()),
+                        enumAsInt,
+                        recursiveFieldMaxDepth);
         PbRowDataDeserializationSchema deserializationSchema =
                 new PbRowDataDeserializationSchema(
                         rowType, InternalTypeInfo.of(rowType), formatConfig);
