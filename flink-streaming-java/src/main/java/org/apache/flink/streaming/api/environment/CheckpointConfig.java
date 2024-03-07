@@ -544,10 +544,40 @@ public class CheckpointConfig implements java.io.Serializable {
      * CheckpointingOptions#CHECKPOINTS_DIRECTORY}.
      *
      * @param cleanupMode Externalized checkpoint clean-up behaviour.
+     * @deprecated Use {@link #setExternalizedCheckpointCleanupRetention} instead.
      */
+    @Deprecated
     @PublicEvolving
     public void setExternalizedCheckpointCleanup(ExternalizedCheckpointCleanup cleanupMode) {
         configuration.set(ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT, cleanupMode);
+    }
+
+    /**
+     * Sets the mode for externalized checkpoint clean-up. Externalized checkpoints will be enabled
+     * automatically unless the mode is set to {@link
+     * org.apache.flink.configuration.ExternalizedCheckpointCleanup#NO_EXTERNALIZED_CHECKPOINTS}.
+     *
+     * <p>Externalized checkpoints write their meta data out to persistent storage and are
+     * <strong>not</strong> automatically cleaned up when the owning job fails or is suspended
+     * (terminating with job status {@link JobStatus#FAILED} or {@link JobStatus#SUSPENDED}). In
+     * this case, you have to manually clean up the checkpoint state, both the meta data and actual
+     * program state.
+     *
+     * <p>The {@link ExternalizedCheckpointCleanup} mode defines how an externalized checkpoint
+     * should be cleaned up on job cancellation. If you choose to retain externalized checkpoints on
+     * cancellation you have to handle checkpoint clean-up manually when you cancel the job as well
+     * (terminating with job status {@link JobStatus#CANCELED}).
+     *
+     * <p>The target directory for externalized checkpoints is configured via {@link
+     * CheckpointingOptions#CHECKPOINTS_DIRECTORY}.
+     *
+     * @param cleanupMode Externalized checkpoint clean-up behaviour.
+     */
+    @PublicEvolving
+    public void setExternalizedCheckpointCleanupRetention(
+            org.apache.flink.configuration.ExternalizedCheckpointCleanup cleanupMode) {
+        configuration.set(
+                ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT_RETENTION, cleanupMode);
     }
 
     /**
@@ -752,10 +782,24 @@ public class CheckpointConfig implements java.io.Serializable {
      *
      * @return The cleanup behaviour for externalized checkpoints or <code>null</code> if none is
      *     configured.
+     * @deprecated Use {@link #getExternalizedCheckpointCleanupRetention} instead.
      */
+    @Deprecated
     @PublicEvolving
     public ExternalizedCheckpointCleanup getExternalizedCheckpointCleanup() {
         return configuration.get(ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT);
+    }
+
+    /**
+     * Returns the cleanup behaviour for externalized checkpoints.
+     *
+     * @return The cleanup behaviour for externalized checkpoints or <code>null</code> if none is
+     *     configured.
+     */
+    @PublicEvolving
+    public org.apache.flink.configuration.ExternalizedCheckpointCleanup
+            getExternalizedCheckpointCleanupRetention() {
+        return configuration.get(ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT_RETENTION);
     }
 
     /**
@@ -930,7 +974,13 @@ public class CheckpointConfig implements java.io.Serializable {
         return configuration.get(StateRecoveryOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA);
     }
 
-    /** Cleanup behaviour for externalized checkpoints when the job is cancelled. */
+    /**
+     * Cleanup behaviour for externalized checkpoints when the job is cancelled.
+     *
+     * @deprecated This class has been moved to {@link
+     *     org.apache.flink.configuration.ExternalizedCheckpointCleanup}.
+     */
+    @Deprecated
     @PublicEvolving
     public enum ExternalizedCheckpointCleanup implements DescribedEnum {
 
@@ -1021,6 +1071,9 @@ public class CheckpointConfig implements java.io.Serializable {
         configuration
                 .getOptional(ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT)
                 .ifPresent(this::setExternalizedCheckpointCleanup);
+        configuration
+                .getOptional(ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT_RETENTION)
+                .ifPresent(this::setExternalizedCheckpointCleanupRetention);
         configuration
                 .getOptional(ExecutionCheckpointingOptions.ENABLE_UNALIGNED)
                 .ifPresent(this::enableUnalignedCheckpoints);
