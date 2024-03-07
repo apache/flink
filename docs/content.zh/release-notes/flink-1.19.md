@@ -51,7 +51,7 @@ instead to get a clear state file ownership when restoring.
 
 Now when disposing of no longer needed checkpoints, every state handle/state file will be disposed
 in parallel by the ioExecutor, vastly improving the disposing speed of a single checkpoint (for
-large checkpoints the disposal time can be improved from 10 minutes to < 1 minute) . The old
+large checkpoints, the disposal time can be improved from 10 minutes to < 1 minute) . The old
 behavior can be restored by setting `state.checkpoint.cleaner.parallel-mode` to false.
 
 #### Support using larger checkpointing interval when source is processing backlog
@@ -59,8 +59,8 @@ behavior can be restored by setting `state.checkpoint.cleaner.parallel-mode` to 
 ##### [FLINK-32514](https://issues.apache.org/jira/browse/FLINK-32514)
 
 `ProcessingBacklog` is introduced to demonstrate whether a record should be processed with low latency
-or high throughput. `ProcessingBacklog` can be set by source operators, and can be used to change the
-checkpoint internal of a job during runtime.
+or high throughput. `ProcessingBacklog` can be set by source operators and can be used to change the
+checkpoint interval of a job during runtime.
 
 #### Allow triggering Checkpoints through command line client
 
@@ -92,6 +92,7 @@ Configuring serialization behavior through hard codes is deprecated, because you
 codes when upgrading the job version. You should configure this via options
 `pipeline.serialization-config`, `pipeline.force-avro`, `pipeline.force-kryo`, and `pipeline.generic-types`.
 Registration of instance-level serializers is deprecated, using class-level serializers instead.
+For more information and code examples, please refer to [link](https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink).
 
 #### Migrate string configuration key to ConfigOption
 
@@ -99,8 +100,7 @@ Registration of instance-level serializers is deprecated, using class-level seri
 
 We have deprecated all setXxx and getXxx methods except `getString(String key, String defaultValue)`
 and `setString(String key, String value)`, such as: `setInteger`, `setLong`, `getInteger` and `getLong` etc.
-We strongly recommend users and developers use get and set methods directly.
-In addition, we recommend users to use ConfigOption instead of string as key.
+We strongly recommend that users and developers use the ConfigOption-based get and set methods directly.
 
 #### Support System out and err to be redirected to LOG or discarded
 
@@ -119,10 +119,10 @@ avoid unlimited disk usage.
 Starting with Flink 1.19, Flink has officially introduced full support for the standard YAML 1.2
 syntax ([FLIP-366](https://cwiki.apache.org/confluence/display/FLINK/FLIP-366%3A+Support+standard+YAML+for+FLINK+configuration?src=contextnavpagetreemode)). The default configuration file has been changed to `config.yaml` and placed in the
 `conf/` directory. Users should directly modify this file to configure Flink.
-If users want to use the legacy configuration file `flink-conf.yaml`, users just need to copy this
-file into the `conf/` directory. Once the legacy configuration file `flink-conf.yaml` is detected,
-Flink will prioritize using it as the configuration file.And in the upcoming Flink 2.0, the
-`flink-conf.yaml` configuration file will no longer work.
+If users want to use the legacy configuration file `flink-conf.yaml`, they need to copy this file
+into the `conf/` directory. Once the legacy configuration file `flink-conf.yaml` is detected, Flink
+will prioritize using it as the configuration file. In the upcoming Flink 2.0, the `flink-conf.yaml`
+configuration file will no longer work.
 More details could be found at [flink-configuration-file](https://nightlies.apache.org/flink/flink-docs-master/docs/deployment/config/#flink-configuration-file).
 
 #### Add config options for administrator JVM options
@@ -136,7 +136,7 @@ platform-wide JVM tuning.
 
 ##### [FLINK-34007](https://issues.apache.org/jira/browse/FLINK-34007)
 
-Fixes a bug where the leader election wasn't able to pick up leadership again after renewing the
+Fixed a bug where the leader election wasn't able to pick up leadership again after renewing the
 lease token caused a leadership loss. This required `fabric8io:kubernetes-client` to be upgraded
 from v6.6.2 to v6.9.0.
 
@@ -151,11 +151,11 @@ parallelism to source vertices.
 Source connectors need to implement the inference interface to enable dynamic parallelism inference.
 Currently, the FileSource connector has already been developed with this functionality in place.
 Additionally, the configuration `execution.batch.adaptive.auto-parallelism.default-source-parallelism`
-will be used as the upper bound of source parallelism inference. And now it will not default to 1.
-Instead, if it is not set, the upper bound of allowed parallelism set via
-`execution.batch.adaptive.auto-parallelism.max-parallelism` will be used. If that configuration is
-also not set, the default parallelism set via `parallelism.default` or `StreamExecutionEnvironment#setParallelism()`
-will be used instead.
+will be used as the upper bound of source parallelism inference. And now it will be set to 1 by default.
+If it is not set, the upper bound of allowed parallelism set via
+`execution.batch.adaptive.auto-parallelism.max-parallelism` will be used instead. If that
+configuration is also not set, the default parallelism set via `parallelism.default` or
+`StreamExecutionEnvironment#setParallelism()` will be used instead.
 
 #### Improve the exponential-delay restart-strategy
 
