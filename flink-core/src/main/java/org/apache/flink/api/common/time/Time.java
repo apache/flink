@@ -32,9 +32,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * The definition of a time interval. Similar to a simpler version of {@link java.time.Duration}.
  *
- * <p>Note: This class will fully replace org.apache.flink.streaming.api.windowing.time.Time in
- * Flink 2.0
- *
  * @deprecated Use {@link Duration}
  */
 @Deprecated
