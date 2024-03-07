@@ -24,6 +24,7 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.ExternalizedCheckpointCleanup;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
@@ -108,6 +109,8 @@ public class ExecutionCheckpointingOptions {
                                     + "originating from the sync phase on the Task Managers are always forcing failover of an affected task. Other types of "
                                     + "checkpoint failures (such as checkpoint being subsumed) are being ignored.");
 
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated.")
     public static final ConfigOption<CheckpointConfig.ExternalizedCheckpointCleanup>
             EXTERNALIZED_CHECKPOINT =
                     ConfigOptions.key("execution.checkpointing.externalized-checkpoint-retention")
@@ -115,6 +118,37 @@ public class ExecutionCheckpointingOptions {
                             .defaultValue(
                                     CheckpointConfig.ExternalizedCheckpointCleanup
                                             .NO_EXTERNALIZED_CHECKPOINTS)
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "Externalized checkpoints write their meta data out to persistent storage and are not "
+                                                            + "automatically cleaned up when the owning job fails or is suspended (terminating with job "
+                                                            + "status %s or %s). In this case, you have to manually clean up the checkpoint state, both the "
+                                                            + "meta data and actual program state.",
+                                                    TextElement.code("JobStatus#FAILED"),
+                                                    TextElement.code("JobStatus#SUSPENDED"))
+                                            .linebreak()
+                                            .linebreak()
+                                            .text(
+                                                    "The mode defines how an externalized checkpoint should be cleaned up on job cancellation. If "
+                                                            + "you choose to retain externalized checkpoints on cancellation you have to handle checkpoint "
+                                                            + "clean up manually when you cancel the job as well (terminating with job status %s).",
+                                                    TextElement.code("JobStatus#CANCELED"))
+                                            .linebreak()
+                                            .linebreak()
+                                            .text(
+                                                    "The target directory for externalized checkpoints is configured via %s.",
+                                                    TextElement.code(
+                                                            CheckpointingOptions
+                                                                    .CHECKPOINTS_DIRECTORY
+                                                                    .key()))
+                                            .build());
+
+    public static final ConfigOption<ExternalizedCheckpointCleanup>
+            EXTERNALIZED_CHECKPOINT_RETENTION =
+                    ConfigOptions.key("execution.checkpointing.externalized-checkpoint-retention")
+                            .enumType(ExternalizedCheckpointCleanup.class)
+                            .defaultValue(ExternalizedCheckpointCleanup.NO_EXTERNALIZED_CHECKPOINTS)
                             .withDescription(
                                     Description.builder()
                                             .text(
