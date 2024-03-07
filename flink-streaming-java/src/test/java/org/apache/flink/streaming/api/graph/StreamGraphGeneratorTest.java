@@ -238,7 +238,7 @@ class StreamGraphGeneratorTest {
     }
 
     @Test
-    public void testOutputTypeConfigurationWithUdfStreamOperator() throws Exception {
+    void testOutputTypeConfigurationWithUdfStreamOperator() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         OutputTypeConfigurableFunction<Integer> function = new OutputTypeConfigurableFunction<>();
@@ -261,7 +261,7 @@ class StreamGraphGeneratorTest {
      * output type. In this test case the output type must be BasicTypeInfo.INT_TYPE_INFO.
      */
     @Test
-    public void testOutputTypeConfigurationWithOneInputTransformation() throws Exception {
+    void testOutputTypeConfigurationWithOneInputTransformation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Integer> source = env.fromData(1, 10);
@@ -284,7 +284,7 @@ class StreamGraphGeneratorTest {
     }
 
     @Test
-    public void testOutputTypeConfigurationWithTwoInputTransformation() throws Exception {
+    void testOutputTypeConfigurationWithTwoInputTransformation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Integer> source1 = env.fromData(1, 10);
@@ -310,7 +310,7 @@ class StreamGraphGeneratorTest {
     }
 
     @Test
-    public void testMultipleInputTransformation() throws Exception {
+    void testMultipleInputTransformation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Integer> source1 = env.fromData(1, 10);

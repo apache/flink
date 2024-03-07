@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.util.NetUtils;
 
+import org.apache.commons.io.IOUtils;
 import org.junit.AssumptionViolatedException;
 import org.junit.jupiter.api.Test;
 
@@ -124,8 +125,10 @@ class SocketClientSinkTest {
 
     @Test
     void testSocketSinkNoRetry() throws Exception {
-        try (ServerSocket server = new ServerSocket(0)) {
-            final int port = server.getLocalPort();
+        final ServerSocket server = new ServerSocket(0);
+        final int port = server.getLocalPort();
+
+        try {
             CheckedThread serverRunner =
                     new CheckedThread("Test server runner") {
 
@@ -162,6 +165,8 @@ class SocketClientSinkTest {
                     .hasMessageContaining(EXCEPTION_MESSGAE);
 
             assertThat(simpleSink.getCurrentNumberOfRetries()).isZero();
+        } finally {
+            IOUtils.closeQuietly(server);
         }
     }
 

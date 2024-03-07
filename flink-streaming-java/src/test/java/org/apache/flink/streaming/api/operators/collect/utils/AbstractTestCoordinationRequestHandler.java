@@ -62,8 +62,7 @@ public abstract class AbstractTestCoordinationRequestHandler<T>
     protected final Random random;
     protected boolean closed;
 
-    public AbstractTestCoordinationRequestHandler(
-            TypeSerializer<T> serializer, String accumulatorName) {
+    AbstractTestCoordinationRequestHandler(TypeSerializer<T> serializer, String accumulatorName) {
         this.serializer = serializer;
         this.accumulatorName = accumulatorName;
 

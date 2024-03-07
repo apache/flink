@@ -72,7 +72,7 @@ class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
     }
 
     @Test
-    public void testIdleWatermarkHandling() throws Exception {
+    void testIdleWatermarkHandling() throws Exception {
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
         KeySelector<Long, Integer> dummyKeySelector = l -> 0;
         try (KeyedMultiInputStreamOperatorTestHarness<Integer, Long> testHarness =

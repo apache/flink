@@ -64,7 +64,7 @@ class TwoPhaseCommitSinkFunctionTest {
 
     @RegisterExtension
     private LoggerAuditingExtension testLoggerResource =
-            new LoggerAuditingExtension(TwoPhaseCommitSinkFunction.class, Level.INFO);
+            new LoggerAuditingExtension(TwoPhaseCommitSinkFunction.class, Level.WARN);
 
     @BeforeEach
     void setUp() throws Exception {
@@ -113,7 +113,7 @@ class TwoPhaseCommitSinkFunctionTest {
     }
 
     @Test
-    public void testNoTransactionAfterSinkFunctionFinish() throws Exception {
+    void testNoTransactionAfterSinkFunctionFinish() throws Exception {
         harness.open();
         harness.processElement("42", 0);
         harness.snapshot(0, 1);

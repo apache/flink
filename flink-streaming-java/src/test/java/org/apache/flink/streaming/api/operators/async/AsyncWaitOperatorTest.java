@@ -105,7 +105,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *   <li>Snapshot state and restore state
  * </ul>
  */
-@Timeout(100)
+@Timeout(value = 100, unit = TimeUnit.SECONDS)
 class AsyncWaitOperatorTest {
     private static final long TIMEOUT = 1000L;
 
@@ -1047,7 +1047,7 @@ class AsyncWaitOperatorTest {
      * <p>See FLINK-7949
      */
     @Test
-    @Timeout(10)
+    @Timeout(value = 10000, unit = TimeUnit.MILLISECONDS)
     void testRestartWithFullQueue() throws Exception {
         final int capacity = 10;
 

@@ -2120,7 +2120,7 @@ class StreamingJobGraphGeneratorTest {
     }
 
     @Test
-    public void testCoordinatedSerializationException() {
+    void testCoordinatedSerializationException() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         DataStreamSource<Integer> source = env.fromData(1, 2, 3);
         env.addOperator(

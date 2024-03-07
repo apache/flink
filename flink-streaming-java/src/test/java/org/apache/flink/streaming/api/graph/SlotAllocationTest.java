@@ -39,41 +39,35 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SuppressWarnings("serial")
 class SlotAllocationTest {
 
+    private static final FilterFunction<Long> DUMMY_FILTER = value -> false;
+
     @Test
     void testTwoPipelines() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        FilterFunction<Long> dummyFilter =
-                new FilterFunction<Long>() {
-                    @Override
-                    public boolean filter(Long value) {
-                        return false;
-                    }
-                };
-
         env.fromSequence(1, 10)
-                .filter(dummyFilter)
+                .filter(DUMMY_FILTER)
                 .slotSharingGroup("isolated")
-                .filter(dummyFilter)
+                .filter(DUMMY_FILTER)
                 .slotSharingGroup("default")
                 .disableChaining()
-                .filter(dummyFilter)
+                .filter(DUMMY_FILTER)
                 .slotSharingGroup("group 1")
-                .filter(dummyFilter)
+                .filter(DUMMY_FILTER)
                 .startNewChain()
                 .print()
                 .disableChaining();
 
         // verify that a second pipeline does not inherit the groups from the first pipeline
         env.fromSequence(1, 10)
-                .filter(dummyFilter)
+                .filter(DUMMY_FILTER)
                 .slotSharingGroup("isolated-2")
-                .filter(dummyFilter)
+                .filter(DUMMY_FILTER)
                 .slotSharingGroup("default")
                 .disableChaining()
-                .filter(dummyFilter)
+                .filter(DUMMY_FILTER)
                 .slotSharingGroup("group 2")
-                .filter(dummyFilter)
+                .filter(DUMMY_FILTER)
                 .startNewChain()
                 .print()
                 .disableChaining();
@@ -108,19 +102,17 @@ class SlotAllocationTest {
     void testUnion() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        FilterFunction<Long> dummyFilter = value -> false;
-
         DataStream<Long> src1 = env.fromSequence(1, 10);
         DataStream<Long> src2 = env.fromSequence(1, 10).slotSharingGroup("src-1");
 
         // this should not inherit group "src-1"
-        src1.union(src2).filter(dummyFilter);
+        src1.union(src2).filter(DUMMY_FILTER);
 
         DataStream<Long> src3 = env.fromSequence(1, 10).slotSharingGroup("group-1");
         DataStream<Long> src4 = env.fromSequence(1, 10).slotSharingGroup("group-1");
 
         // this should inherit "group-1" now
-        src3.union(src4).filter(dummyFilter);
+        src3.union(src4).filter(DUMMY_FILTER);
 
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
@@ -147,13 +139,11 @@ class SlotAllocationTest {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        FilterFunction<Long> dummyFilter = value -> false;
-
         DataStream<Long> src1 = env.fromSequence(1, 10).slotSharingGroup("group-1");
         DataStream<Long> src2 = env.fromSequence(1, 10).slotSharingGroup("group-1");
 
         // this should not inherit group but be in "default"
-        src1.union(src2).filter(dummyFilter).slotSharingGroup("default");
+        src1.union(src2).filter(DUMMY_FILTER).slotSharingGroup("default");
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
         List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();

@@ -67,7 +67,7 @@ public class OrderedStreamElementQueueTest {
                         new Watermark(2L),
                         new StreamRecord<>(13, 3L));
         assertThat(popCompleted(queue)).isEqualTo(expected);
-        assertThat(queue.size()).isEqualTo(0L);
+        assertThat(queue.size()).isZero();
         assertThat(queue.isEmpty()).isTrue();
     }
 }
