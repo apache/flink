@@ -401,7 +401,8 @@ public class FineGrainedSlotManager implements SlotManager {
         }
     }
 
-    private void declareNeededResourcesWithDelay() {
+    @VisibleForTesting
+    void declareNeededResourcesWithDelay() {
         Preconditions.checkState(resourceAllocator.isSupported());
 
         if (declareNeededResourceDelay.toMillis() <= 0) {

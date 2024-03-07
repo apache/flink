@@ -155,7 +155,7 @@ abstract class FineGrainedSlotManagerTestBase {
         private SlotManagerMetricGroup slotManagerMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredSlotManagerMetricGroup();
         private BlockedTaskManagerChecker blockedTaskManagerChecker = resourceID -> false;
-        private ComponentMainThreadExecutor mainThreadExecutor =
+        ComponentMainThreadExecutor mainThreadExecutor =
                 MAIN_THREAD_EXECUTOR_EXTENSION
                         .getComponentMainThreadTestExecutor()
                         .getMainThreadExecutor();
