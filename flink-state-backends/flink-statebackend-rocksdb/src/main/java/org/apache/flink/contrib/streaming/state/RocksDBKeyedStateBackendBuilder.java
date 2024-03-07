@@ -330,7 +330,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
         RocksDBWriteBatchWrapper writeBatchWrapper = null;
         ColumnFamilyHandle defaultColumnFamilyHandle = null;
         RocksDBNativeMetricMonitor nativeMetricMonitor = null;
-        CloseableRegistry cancelStreamRegistryForBackend = new CloseableRegistry();
+        CloseableRegistry cancelRegistryForBackend = new CloseableRegistry();
         LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation =
                 new LinkedHashMap<>();
         LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates =
@@ -375,6 +375,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                                 keyGroupPrefixBytes,
                                 rocksDBResourceGuard,
                                 cancelStreamRegistry,
+                                cancelRegistryForBackend,
                                 kvStateInformation,
                                 registeredPQStates,
                                 ttlCompactFiltersManager);
@@ -435,7 +436,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             // Do clean up
             List<ColumnFamilyOptions> columnFamilyOptions =
                     new ArrayList<>(kvStateInformation.values().size());
-            IOUtils.closeQuietly(cancelStreamRegistryForBackend);
+            IOUtils.closeQuietly(cancelRegistryForBackend);
             IOUtils.closeQuietly(writeBatchWrapper);
             IOUtils.closeQuietly(rocksDBResourceGuard);
             RocksDBOperationUtils.addColumnFamilyOptionsToCloseLater(
@@ -487,7 +488,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 kvStateInformation,
                 registeredPQStates,
                 keyGroupPrefixBytes,
-                cancelStreamRegistryForBackend,
+                cancelRegistryForBackend,
                 this.keyGroupCompressionDecorator,
                 rocksDBResourceGuard,
                 checkpointStrategy,
@@ -506,7 +507,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
     private RocksDBRestoreOperation getRocksDBRestoreOperation(
             int keyGroupPrefixBytes,
             ResourceGuard rocksDBResourceGuard,
-            CloseableRegistry cancelStreamRegistry,
+            CloseableRegistry cancelStreamRegistryForRestore,
+            CloseableRegistry cancelRegistryForBackend,
             LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation,
             LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
@@ -530,7 +532,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                     keyGroupPrefixBytes,
                     numberOfTransferingThreads,
                     rocksDBResourceGuard,
-                    cancelStreamRegistry,
+                    cancelStreamRegistryForRestore,
+                    cancelRegistryForBackend,
                     userCodeClassLoader,
                     kvStateInformation,
                     keySerializerProvider,
