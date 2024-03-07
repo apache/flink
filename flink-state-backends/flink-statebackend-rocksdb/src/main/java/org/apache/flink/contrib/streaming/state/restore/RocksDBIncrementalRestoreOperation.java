@@ -113,7 +113,19 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
     private final SortedMap<Long, Collection<HandleAndLocalPath>> restoredSstFiles;
     private final RocksDBHandle rocksHandle;
     private final Collection<IncrementalKeyedStateHandle> restoreStateHandles;
-    private final CloseableRegistry cancelStreamRegistry;
+
+    /**
+     * This registry will be closed after restore and should only contain Closeables that are closed
+     * by the end of the restore operation.
+     */
+    private final CloseableRegistry cancelStreamRegistryForRestore;
+
+    /**
+     * This registry will only be closed when the created backend is closed and should be used for
+     * all Closeables that are closed at some later point after restore.
+     */
+    private final CloseableRegistry cancelRegistryForBackend;
+
     private final KeyGroupRange keyGroupRange;
     private final File instanceBasePath;
     private final int numberOfTransferringThreads;
@@ -144,7 +156,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
             int keyGroupPrefixBytes,
             int numberOfTransferringThreads,
             ResourceGuard dbResourceGuard,
-            CloseableRegistry cancelStreamRegistry,
+            CloseableRegistry cancelStreamRegistryForRestore,
+            CloseableRegistry cancelRegistryForBackend,
             ClassLoader userCodeClassLoader,
             Map<String, RocksDbKvStateInfo> kvStateInformation,
             StateSerializerProvider<K> keySerializerProvider,
@@ -183,7 +196,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         this.customInitializationMetrics = customInitializationMetrics;
         this.restoreStateHandles = restoreStateHandles;
         this.dbResourceGuard = dbResourceGuard;
-        this.cancelStreamRegistry = cancelStreamRegistry;
+        this.cancelStreamRegistryForRestore = cancelStreamRegistryForRestore;
+        this.cancelRegistryForBackend = cancelRegistryForBackend;
         this.keyGroupRange = keyGroupRange;
         this.instanceBasePath = instanceBasePath;
         this.numberOfTransferringThreads = numberOfTransferringThreads;
@@ -279,7 +293,9 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                                 keyGroupPrefixBytes,
                                 keyGroupRange,
                                 dbResourceGuard,
-                                cancelStreamRegistry);
+                                // This task will be owned by the backend's lifecycle because it
+                                // continues to exist after restore is completed.
+                                cancelRegistryForBackend);
                 runAndReportDuration(asyncRangeCompactionTask, RESTORE_ASYNC_COMPACTION_DURATION);
                 logger.info(
                         "Completed async compaction after restore for backend {} in operator {} after {} ms.",
@@ -742,7 +758,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                         RocksDBStateDataTransferHelper.forThreadNumIfSpecified(
                                 numberOfTransferringThreads, ioExecutor))) {
             rocksDBStateDownloader.transferAllStateDataToDirectory(
-                    downloadSpecs, cancelStreamRegistry);
+                    downloadSpecs, cancelStreamRegistryForRestore);
             logger.info(
                     "Finished downloading remote state to local directory in operator {} for target key-group range {}.",
                     operatorIdentifier,
@@ -999,11 +1015,11 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
 
         try {
             inputStream = metaStateHandle.openInputStream();
-            cancelStreamRegistry.registerCloseable(inputStream);
+            cancelStreamRegistryForRestore.registerCloseable(inputStream);
             DataInputView in = new DataInputViewStreamWrapper(inputStream);
             return readMetaData(in);
         } finally {
-            if (cancelStreamRegistry.unregisterCloseable(inputStream)) {
+            if (cancelStreamRegistryForRestore.unregisterCloseable(inputStream)) {
                 inputStream.close();
             }
         }
