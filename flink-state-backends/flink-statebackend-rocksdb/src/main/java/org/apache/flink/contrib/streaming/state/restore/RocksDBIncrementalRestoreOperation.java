@@ -473,7 +473,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         final Path exportCfBasePath = absolutInstanceBasePath.resolve("export-cfs");
         Files.createDirectories(exportCfBasePath);
 
-        final Map<RegisteredStateMetaInfoBase, List<ExportImportFilesMetaData>>
+        final Map<RegisteredStateMetaInfoBase.Key, List<ExportImportFilesMetaData>>
                 exportedColumnFamilyMetaData = new HashMap<>(localKeyedStateHandles.size());
 
         final List<IncrementalLocalKeyedStateHandle> notImportableHandles =
@@ -526,7 +526,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
     private KeyGroupRange exportColumnFamiliesWithSstDataInKeyGroupsRange(
             Path exportCfBasePath,
             List<IncrementalLocalKeyedStateHandle> localKeyedStateHandles,
-            Map<RegisteredStateMetaInfoBase, List<ExportImportFilesMetaData>>
+            Map<RegisteredStateMetaInfoBase.Key, List<ExportImportFilesMetaData>>
                     exportedColumnFamiliesOut,
             List<IncrementalLocalKeyedStateHandle> skipped)
             throws Exception {
@@ -664,7 +664,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
      * @throws Exception on import error.
      */
     private void initBaseDBFromColumnFamilyImports(
-            Map<RegisteredStateMetaInfoBase, List<ExportImportFilesMetaData>>
+            Map<RegisteredStateMetaInfoBase.Key, List<ExportImportFilesMetaData>>
                     exportedColumnFamilyMetaData,
             KeyGroupRange exportKeyGroupRange)
             throws Exception {
@@ -675,10 +675,10 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 keyGroupRange.prettyPrintInterval(),
                 operatorIdentifier);
         rocksHandle.openDB();
-        for (Map.Entry<RegisteredStateMetaInfoBase, List<ExportImportFilesMetaData>> entry :
+        for (Map.Entry<RegisteredStateMetaInfoBase.Key, List<ExportImportFilesMetaData>> entry :
                 exportedColumnFamilyMetaData.entrySet()) {
             rocksHandle.registerStateColumnFamilyHandleWithImport(
-                    entry.getKey(), entry.getValue(), cancelStreamRegistry);
+                    entry.getKey(), entry.getValue(), cancelStreamRegistryForRestore);
         }
 
         // Use Range delete to clip the temp db to the target range of the backend
@@ -737,7 +737,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 createColumnFamilyDescriptors(stateMetaInfoSnapshots, true),
                 stateMetaInfoSnapshots,
                 restoreSourcePath,
-                cancelStreamRegistry);
+                cancelStreamRegistryForRestore);
     }
 
     /**
@@ -793,7 +793,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         try (RocksDBWriteBatchWrapper writeBatchWrapper =
                         new RocksDBWriteBatchWrapper(this.rocksHandle.getDb(), writeBatchSize);
                 Closeable ignored =
-                        cancelStreamRegistry.registerCloseableTemporarily(
+                        cancelStreamRegistryForRestore.registerCloseableTemporarily(
                                 asCloseable(writeBatchWrapper))) {
             for (IncrementalLocalKeyedStateHandle handleToCopy : toImport) {
                 try (RestoredDBInstance restoredDBInstance =
@@ -849,7 +849,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                     this.rocksHandle.getOrRegisterStateColumnFamilyHandle(
                                     null,
                                     tmpRestoreDBInfo.stateMetaInfoSnapshots.get(descIdx),
-                                    cancelStreamRegistry)
+                                    cancelStreamRegistryForRestore)
                             .columnFamilyHandle;
 
             try (RocksIteratorWrapper iterator =

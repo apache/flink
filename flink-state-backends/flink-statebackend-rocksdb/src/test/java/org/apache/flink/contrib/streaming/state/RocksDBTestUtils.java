@@ -69,7 +69,7 @@ public final class RocksDBTestUtils {
         return builderForTestDefaults(
                 instanceBasePath,
                 keySerializer,
-                EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP,
+                EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
                 numKeyGroups,
                 keyGroupRange,
                 stateHandles);

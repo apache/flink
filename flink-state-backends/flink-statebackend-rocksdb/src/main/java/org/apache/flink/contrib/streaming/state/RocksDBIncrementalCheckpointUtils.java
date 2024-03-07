@@ -406,7 +406,7 @@ public class RocksDBIncrementalCheckpointUtils {
             List<ColumnFamilyHandle> columnFamilyHandles,
             List<RegisteredStateMetaInfoBase> registeredStateMetaInfoBases,
             Path exportBasePath,
-            Map<RegisteredStateMetaInfoBase, List<ExportImportFilesMetaData>> resultOutput)
+            Map<RegisteredStateMetaInfoBase.Key, List<ExportImportFilesMetaData>> resultOutput)
             throws RocksDBException {
 
         Preconditions.checkArgument(
@@ -415,7 +415,8 @@ public class RocksDBIncrementalCheckpointUtils {
 
         try (final Checkpoint checkpoint = Checkpoint.create(db)) {
             for (int i = 0; i < columnFamilyHandles.size(); i++) {
-                RegisteredStateMetaInfoBase stateMetaInfo = registeredStateMetaInfoBases.get(i);
+                RegisteredStateMetaInfoBase.Key stateMetaInfoAsKey =
+                        registeredStateMetaInfoBases.get(i).asMapKey();
 
                 Path subPath = exportBasePath.resolve(UUID.randomUUID().toString());
                 ExportImportFilesMetaData exportedColumnFamilyMetaData =
@@ -428,7 +429,7 @@ public class RocksDBIncrementalCheckpointUtils {
 
                 if (exportedSstFiles != null && exportedSstFiles.length > 0) {
                     resultOutput
-                            .computeIfAbsent(stateMetaInfo, (key) -> new ArrayList<>())
+                            .computeIfAbsent(stateMetaInfoAsKey, (key) -> new ArrayList<>())
                             .add(exportedColumnFamilyMetaData);
                 } else {
                     // Close unused empty export result

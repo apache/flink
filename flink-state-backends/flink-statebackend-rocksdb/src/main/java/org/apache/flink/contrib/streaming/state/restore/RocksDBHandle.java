@@ -198,13 +198,16 @@ class RocksDBHandle implements AutoCloseable {
     /**
      * Registers a new column family and imports data from the given export.
      *
-     * @param stateMetaInfo info about the state to create.
+     * @param stateMetaInfoKey info about the state to create.
      * @param cfMetaDataList the data to import.
      */
     void registerStateColumnFamilyHandleWithImport(
-            RegisteredStateMetaInfoBase stateMetaInfo,
+            RegisteredStateMetaInfoBase.Key stateMetaInfoKey,
             List<ExportImportFilesMetaData> cfMetaDataList,
             ICloseableRegistry cancelStreamRegistryForRestore) {
+
+        RegisteredStateMetaInfoBase stateMetaInfo =
+                stateMetaInfoKey.getRegisteredStateMetaInfoBase();
 
         Preconditions.checkState(!kvStateInformation.containsKey(stateMetaInfo.getName()));
 
