@@ -22,9 +22,10 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.runtime.operators.sink.deprecated.TestSinkV2;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Unit test for {@link DataStreamSink}.
@@ -33,21 +34,27 @@ import static org.junit.Assert.assertTrue;
  * org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink}.
  */
 @Deprecated
-public class DataStreamSinkDeprecatedTest {
+class DataStreamSinkDeprecatedTest {
 
     @Test
-    public void testGettingTransformationWithNewSinkAPI() {
+    void testGettingTransformationWithNewSinkAPI() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final Transformation<?> transformation =
                 env.fromData(1, 2)
                         .sinkTo(TestSinkV2.<Integer>newBuilder().build())
                         .getTransformation();
-        assertTrue(transformation instanceof SinkTransformation);
+        assertThat(transformation).isInstanceOf(SinkTransformation.class);
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void throwExceptionWhenSetUidWithNewSinkAPI() {
+    @Test
+    void throwExceptionWhenSetUidWithNewSinkAPI() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.fromData(1, 2).sinkTo(TestSinkV2.<Integer>newBuilder().build()).setUidHash("Test");
+
+        assertThatThrownBy(
+                        () ->
+                                env.fromData(1, 2)
+                                        .sinkTo(TestSinkV2.<Integer>newBuilder().build())
+                                        .setUidHash("Test"))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 }

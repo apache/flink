@@ -31,22 +31,20 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.CommitterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.TestSink;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link org.apache.flink.streaming.api.transformations.SinkTransformation}.
  *
  * <p>ATTENTION: This test is extremely brittle. Do NOT remove, add or re-order test cases.
  */
-@RunWith(Parameterized.class)
-public class SinkV1TransformationTranslatorITCase
+@ExtendWith(ParameterizedTestExtension.class)
+class SinkV1TransformationTranslatorITCase
         extends SinkTransformationTranslatorITCaseBase<Sink<Integer, ?, ?, ?>> {
 
     @Override
@@ -64,8 +62,8 @@ public class SinkV1TransformationTranslatorITCase
         return stream.sinkTo(sink);
     }
 
-    @Test
-    public void generateWriterCommitterGlobalCommitterTopology() {
+    @TestTemplate
+    void generateWriterCommitterGlobalCommitterTopology() {
 
         final StreamGraph streamGraph =
                 buildGraph(
@@ -90,9 +88,10 @@ public class SinkV1TransformationTranslatorITCase
         StreamNode lastNode;
         if (runtimeExecutionMode == RuntimeExecutionMode.STREAMING) {
             // in streaming writer and committer are merged into one operator
-            assertThat(streamGraph.getStreamNodes().size(), equalTo(4));
+
+            assertThat(streamGraph.getStreamNodes()).hasSize(4);
         } else {
-            assertThat(streamGraph.getStreamNodes().size(), equalTo(4));
+            assertThat(streamGraph.getStreamNodes()).hasSize(4);
             validateTopology(
                     writerNode,
                     SimpleVersionedSerializerTypeSerializerProxy.class,
@@ -118,8 +117,8 @@ public class SinkV1TransformationTranslatorITCase
      * a Global Committer. The SinkV1Adapter translates these topologies into a Sink Writer, an only
      * forwarding committer and the Global Committer.
      */
-    @Test
-    public void generateWriterGlobalCommitterTopology() {
+    @TestTemplate
+    void generateWriterGlobalCommitterTopology() {
         final StreamGraph streamGraph =
                 buildGraph(
                         TestSink.newBuilder()
@@ -162,8 +161,8 @@ public class SinkV1TransformationTranslatorITCase
                 1);
     }
 
-    @Test
-    public void testSettingOperatorUidHash() {
+    @TestTemplate
+    void testSettingOperatorUidHash() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStreamSource<Integer> src = env.fromData(1, 2);
         final String writerHash = "f6b178ce445dc3ffaa06bad27a51fead";
@@ -185,17 +184,17 @@ public class SinkV1TransformationTranslatorITCase
 
         final StreamGraph streamGraph = env.getStreamGraph();
 
-        assertEquals(findWriter(streamGraph).getUserHash(), writerHash);
-        assertEquals(findCommitter(streamGraph).getUserHash(), committerHash);
-        assertEquals(findGlobalCommitter(streamGraph).getUserHash(), globalCommitterHash);
+        assertThat(findWriter(streamGraph).getUserHash()).isEqualTo(writerHash);
+        assertThat(findCommitter(streamGraph).getUserHash()).isEqualTo(committerHash);
+        assertThat(findGlobalCommitter(streamGraph).getUserHash()).isEqualTo(globalCommitterHash);
     }
 
     /**
      * When ever you need to change something in this test case please think about possible state
      * upgrade problems introduced by your changes.
      */
-    @Test
-    public void testSettingOperatorUids() {
+    @TestTemplate
+    void testSettingOperatorUids() {
         final String sinkUid = "f6b178ce445dc3ffaa06bad27a51fead";
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStreamSource<Integer> src = env.fromData(1, 2);
@@ -204,12 +203,10 @@ public class SinkV1TransformationTranslatorITCase
                 .uid(sinkUid);
 
         final StreamGraph streamGraph = env.getStreamGraph();
-        assertEquals(findWriter(streamGraph).getTransformationUID(), sinkUid);
-        assertEquals(
-                findCommitter(streamGraph).getTransformationUID(),
-                String.format("Sink Committer: %s", sinkUid));
-        assertEquals(
-                findGlobalCommitter(streamGraph).getTransformationUID(),
-                String.format("Sink %s Global Committer", sinkUid));
+        assertThat(findWriter(streamGraph).getTransformationUID()).isEqualTo(sinkUid);
+        assertThat(findCommitter(streamGraph).getTransformationUID())
+                .isEqualTo(String.format("Sink Committer: %s", sinkUid));
+        assertThat(findGlobalCommitter(streamGraph).getTransformationUID())
+                .isEqualTo(String.format("Sink %s Global Committer", sinkUid));
     }
 }

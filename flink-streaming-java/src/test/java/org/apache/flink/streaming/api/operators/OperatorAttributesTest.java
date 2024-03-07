@@ -25,13 +25,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for {@link OperatorAttributes} and {@link OperatorAttributesBuilder}. */
 class OperatorAttributesTest {
     @Test
-    public void testDefaultValues() {
+    void testDefaultValues() {
         OperatorAttributes attributes = new OperatorAttributesBuilder().build();
         assertThat(attributes.isOutputOnlyAfterEndOfStream()).isFalse();
     }
 
     @Test
-    public void testSetAndGet() {
+    void testSetAndGet() {
         OperatorAttributes attributes =
                 new OperatorAttributesBuilder().setOutputOnlyAfterEndOfStream(true).build();
         assertThat(attributes.isOutputOnlyAfterEndOfStream()).isTrue();

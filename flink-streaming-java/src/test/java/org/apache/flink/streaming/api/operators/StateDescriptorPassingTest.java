@@ -42,11 +42,11 @@ import org.apache.flink.util.Collector;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Various tests around the proper passing of state descriptors to the operators and their
@@ -55,10 +55,10 @@ import static org.junit.Assert.assertTrue;
  * <p>The tests use an arbitrary generic type to validate the behavior.
  */
 @SuppressWarnings("serial")
-public class StateDescriptorPassingTest {
+class StateDescriptorPassingTest {
 
     @Test
-    public void testReduceWindowState() {
+    void testReduceWindowState() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
 
@@ -91,7 +91,7 @@ public class StateDescriptorPassingTest {
     }
 
     @Test
-    public void testApplyWindowState() {
+    void testApplyWindowState() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
 
@@ -125,7 +125,7 @@ public class StateDescriptorPassingTest {
     }
 
     @Test
-    public void testProcessWindowState() {
+    void testProcessWindowState() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
 
@@ -159,7 +159,7 @@ public class StateDescriptorPassingTest {
     }
 
     @Test
-    public void testProcessAllWindowState() {
+    void testProcessAllWindowState() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
 
@@ -186,7 +186,7 @@ public class StateDescriptorPassingTest {
     }
 
     @Test
-    public void testReduceWindowAllState() {
+    void testReduceWindowAllState() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
 
@@ -213,7 +213,7 @@ public class StateDescriptorPassingTest {
     }
 
     @Test
-    public void testApplyWindowAllState() {
+    void testApplyWindowAllState() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
 
@@ -252,13 +252,13 @@ public class StateDescriptorPassingTest {
         // this would be the first statement to fail if state descriptors were not properly
         // initialized
         TypeSerializer<?> serializer = descr.getSerializer();
-        assertTrue(serializer instanceof KryoSerializer);
+        assertThat(serializer).isInstanceOf(KryoSerializer.class);
 
         Kryo kryo = ((KryoSerializer<?>) serializer).getKryo();
 
-        assertTrue(
-                "serializer registration was not properly passed on",
-                kryo.getSerializer(File.class) instanceof JavaSerializer);
+        assertThat(kryo.getSerializer(File.class))
+                .as("serializer registration was not properly passed on")
+                .isInstanceOf(JavaSerializer.class);
     }
 
     private void validateListStateDescriptorConfigured(SingleOutputStreamOperator<?> result) {
@@ -267,22 +267,22 @@ public class StateDescriptorPassingTest {
         WindowOperator<?, ?, ?, ?, ?> op = (WindowOperator<?, ?, ?, ?, ?>) transform.getOperator();
         StateDescriptor<?, ?> descr = op.getStateDescriptor();
 
-        assertTrue(descr instanceof ListStateDescriptor);
+        assertThat(descr).isInstanceOf(ListStateDescriptor.class);
 
         ListStateDescriptor<?> listDescr = (ListStateDescriptor<?>) descr;
 
         // this would be the first statement to fail if state descriptors were not properly
         // initialized
         TypeSerializer<?> serializer = listDescr.getSerializer();
-        assertTrue(serializer instanceof ListSerializer);
+        assertThat(serializer).isInstanceOf(ListSerializer.class);
 
         TypeSerializer<?> elementSerializer = listDescr.getElementSerializer();
-        assertTrue(elementSerializer instanceof KryoSerializer);
+        assertThat(elementSerializer).isInstanceOf(KryoSerializer.class);
 
         Kryo kryo = ((KryoSerializer<?>) elementSerializer).getKryo();
 
-        assertTrue(
-                "serializer registration was not properly passed on",
-                kryo.getSerializer(File.class) instanceof JavaSerializer);
+        assertThat(kryo.getSerializer(File.class))
+                .as("serializer registration was not properly passed on")
+                .isInstanceOf(JavaSerializer.class);
     }
 }

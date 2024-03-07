@@ -30,7 +30,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -42,10 +42,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *   <li>Watermarks are correctly forwarded
  * </ul>
  */
-public class StreamProjectTest {
+class StreamProjectTest {
 
     @Test
-    public void testProject() throws Exception {
+    void testProject() throws Exception {
 
         TypeInformation<Tuple5<Integer, String, Integer, String, Integer>> inType =
                 TypeExtractor.getForObject(

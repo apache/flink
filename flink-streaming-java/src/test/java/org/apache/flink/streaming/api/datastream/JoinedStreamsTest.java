@@ -24,22 +24,23 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Unit test for {@link JoinedStreams}. */
-public class JoinedStreamsTest {
+class JoinedStreamsTest {
     private DataStream<String> dataStream1;
     private DataStream<String> dataStream2;
     private KeySelector<String, String> keySelector;
     private TumblingEventTimeWindows tsAssigner;
     private JoinFunction<String, String, String> joinFunction;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         dataStream1 = env.fromData("a1", "a2", "a3");
         dataStream2 = env.fromData("a1", "a2");
@@ -49,7 +50,7 @@ public class JoinedStreamsTest {
     }
 
     @Test
-    public void testDelegateToCoGrouped() {
+    void testDelegateToCoGrouped() {
         Duration lateness = Duration.ofMillis(42L);
 
         JoinedStreams.WithWindow<String, String, String, TimeWindow> withLateness =
@@ -62,16 +63,12 @@ public class JoinedStreamsTest {
 
         withLateness.apply(joinFunction, BasicTypeInfo.STRING_TYPE_INFO);
 
-        Assert.assertEquals(
-                lateness,
-                withLateness
-                        .getCoGroupedWindowedStream()
-                        .getAllowedLatenessDuration()
-                        .orElse(null));
+        assertThat(withLateness.getCoGroupedWindowedStream().getAllowedLatenessDuration())
+                .hasValue(lateness);
     }
 
     @Test
-    public void testSetAllowedLateness() {
+    void testSetAllowedLateness() {
         Duration lateness = Duration.ofMillis(42L);
 
         JoinedStreams.WithWindow<String, String, String, TimeWindow> withLateness =
@@ -82,6 +79,6 @@ public class JoinedStreamsTest {
                         .window(tsAssigner)
                         .allowedLateness(lateness);
 
-        Assert.assertEquals(lateness, withLateness.getAllowedLatenessDuration().orElse(null));
+        assertThat(withLateness.getAllowedLatenessDuration()).hasValue(lateness);
     }
 }

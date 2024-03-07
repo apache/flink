@@ -66,7 +66,7 @@ import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.CollectorOutput;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -76,19 +76,17 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link StreamingRuntimeContext}. */
-public class StreamingRuntimeContextTest {
+class StreamingRuntimeContextTest {
 
     @Test
-    public void testValueStateInstantiation() throws Exception {
+    void testValueStateInstantiation() throws Exception {
 
         final ExecutionConfig config = new ExecutionConfig();
         config.getSerializerConfig().registerKryoType(Path.class);
@@ -103,13 +101,13 @@ public class StreamingRuntimeContextTest {
         TypeSerializer<?> serializer = descrIntercepted.getSerializer();
 
         // check that the Path class is really registered, i.e., the execution config was applied
-        assertTrue(serializer instanceof KryoSerializer);
-        assertTrue(
-                ((KryoSerializer<?>) serializer).getKryo().getRegistration(Path.class).getId() > 0);
+        assertThat(serializer).isInstanceOf(KryoSerializer.class);
+        assertThat(((KryoSerializer<?>) serializer).getKryo().getRegistration(Path.class).getId())
+                .isPositive();
     }
 
     @Test
-    public void testReducingStateInstantiation() throws Exception {
+    void testReducingStateInstantiation() throws Exception {
 
         final ExecutionConfig config = new ExecutionConfig();
         config.getSerializerConfig().registerKryoType(Path.class);
@@ -130,13 +128,13 @@ public class StreamingRuntimeContextTest {
         TypeSerializer<?> serializer = descrIntercepted.getSerializer();
 
         // check that the Path class is really registered, i.e., the execution config was applied
-        assertTrue(serializer instanceof KryoSerializer);
-        assertTrue(
-                ((KryoSerializer<?>) serializer).getKryo().getRegistration(Path.class).getId() > 0);
+        assertThat(serializer).isInstanceOf(KryoSerializer.class);
+        assertThat(((KryoSerializer<?>) serializer).getKryo().getRegistration(Path.class).getId())
+                .isPositive();
     }
 
     @Test
-    public void testAggregatingStateInstantiation() throws Exception {
+    void testAggregatingStateInstantiation() throws Exception {
         final ExecutionConfig config = new ExecutionConfig();
         config.getSerializerConfig().registerKryoType(Path.class);
 
@@ -158,13 +156,13 @@ public class StreamingRuntimeContextTest {
         TypeSerializer<?> serializer = descrIntercepted.getSerializer();
 
         // check that the Path class is really registered, i.e., the execution config was applied
-        assertTrue(serializer instanceof KryoSerializer);
-        assertTrue(
-                ((KryoSerializer<?>) serializer).getKryo().getRegistration(Path.class).getId() > 0);
+        assertThat(serializer).isInstanceOf(KryoSerializer.class);
+        assertThat(((KryoSerializer<?>) serializer).getKryo().getRegistration(Path.class).getId())
+                .isPositive();
     }
 
     @Test
-    public void testListStateInstantiation() throws Exception {
+    void testListStateInstantiation() throws Exception {
 
         final ExecutionConfig config = new ExecutionConfig();
         config.getSerializerConfig().registerKryoType(Path.class);
@@ -180,32 +178,32 @@ public class StreamingRuntimeContextTest {
         TypeSerializer<?> serializer = descrIntercepted.getSerializer();
 
         // check that the Path class is really registered, i.e., the execution config was applied
-        assertTrue(serializer instanceof ListSerializer);
+        assertThat(serializer).isInstanceOf(ListSerializer.class);
 
         TypeSerializer<?> elementSerializer = descrIntercepted.getElementSerializer();
-        assertTrue(elementSerializer instanceof KryoSerializer);
-        assertTrue(
-                ((KryoSerializer<?>) elementSerializer)
+        assertThat(elementSerializer).isInstanceOf(KryoSerializer.class);
+        assertThat(
+                        ((KryoSerializer<?>) elementSerializer)
                                 .getKryo()
                                 .getRegistration(Path.class)
-                                .getId()
-                        > 0);
+                                .getId())
+                .isPositive();
     }
 
     @Test
-    public void testListStateReturnsEmptyListByDefault() throws Exception {
+    void testListStateReturnsEmptyListByDefault() throws Exception {
         StreamingRuntimeContext context = createRuntimeContext();
 
         ListStateDescriptor<String> descr = new ListStateDescriptor<>("name", String.class);
         ListState<String> state = context.getListState(descr);
 
         Iterable<String> value = state.get();
-        assertNotNull(value);
-        assertFalse(value.iterator().hasNext());
+        assertThat(value).isNotNull();
+        assertThat(value.iterator()).isExhausted();
     }
 
     @Test
-    public void testMapStateInstantiation() throws Exception {
+    void testMapStateInstantiation() throws Exception {
 
         final ExecutionConfig config = new ExecutionConfig();
         config.getSerializerConfig().registerKryoType(Path.class);
@@ -224,14 +222,17 @@ public class StreamingRuntimeContextTest {
         TypeSerializer<?> valueSerializer = descrIntercepted.getValueSerializer();
 
         // check that the Path class is really registered, i.e., the execution config was applied
-        assertTrue(valueSerializer instanceof KryoSerializer);
-        assertTrue(
-                ((KryoSerializer<?>) valueSerializer).getKryo().getRegistration(Path.class).getId()
-                        > 0);
+        assertThat(valueSerializer).isInstanceOf(KryoSerializer.class);
+        assertThat(
+                        ((KryoSerializer<?>) valueSerializer)
+                                .getKryo()
+                                .getRegistration(Path.class)
+                                .getId())
+                .isPositive();
     }
 
     @Test
-    public void testMapStateReturnsEmptyMapByDefault() throws Exception {
+    void testMapStateReturnsEmptyMapByDefault() throws Exception {
 
         StreamingRuntimeContext context = createMapOperatorRuntimeContext();
 
@@ -240,8 +241,8 @@ public class StreamingRuntimeContextTest {
         MapState<Integer, String> state = context.getMapState(descr);
 
         Iterable<Map.Entry<Integer, String>> value = state.entries();
-        assertNotNull(value);
-        assertFalse(value.iterator().hasNext());
+        assertThat(value).isNotNull();
+        assertThat(value.iterator()).isExhausted();
     }
 
     // ------------------------------------------------------------------------

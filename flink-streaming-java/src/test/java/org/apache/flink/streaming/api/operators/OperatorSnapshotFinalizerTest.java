@@ -29,9 +29,8 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateObject;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -42,16 +41,14 @@ import java.util.function.Function;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.deepDummyCopy;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.apache.flink.runtime.state.SnapshotResult.withLocalState;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link OperatorSnapshotFinalizer}. */
-public class OperatorSnapshotFinalizerTest extends TestLogger {
+class OperatorSnapshotFinalizerTest {
 
     /** Test that the runnable futures are executed and the result is correctly extracted. */
     @Test
-    public void testRunAndExtract() throws Exception {
+    void testRunAndExtract() throws Exception {
 
         Random random = new Random(0x42);
 
@@ -91,13 +88,13 @@ public class OperatorSnapshotFinalizerTest extends TestLogger {
                         new PseudoNotDoneFuture<>(resultSubpartition));
 
         for (Future<?> f : snapshotFutures.getAllFutures()) {
-            assertFalse(f.isDone());
+            assertThat(f).isNotDone();
         }
 
         OperatorSnapshotFinalizer finalizer = new OperatorSnapshotFinalizer(snapshotFutures);
 
         for (Future<?> f : snapshotFutures.getAllFutures()) {
-            assertTrue(f.isDone());
+            assertThat(f).isDone();
         }
 
         Map<SnapshotResult<?>, Function<OperatorSubtaskState, ? extends StateObject>> map =
@@ -111,15 +108,13 @@ public class OperatorSnapshotFinalizerTest extends TestLogger {
 
         for (Map.Entry<SnapshotResult<?>, Function<OperatorSubtaskState, ? extends StateObject>> e :
                 map.entrySet()) {
-            assertEquals(
-                    e.getKey().getJobManagerOwnedSnapshot(),
-                    e.getValue().apply(finalizer.getJobManagerOwnedState()));
+            assertThat(e.getValue().apply(finalizer.getJobManagerOwnedState()))
+                    .isEqualTo(e.getKey().getJobManagerOwnedSnapshot());
         }
         for (Map.Entry<SnapshotResult<?>, Function<OperatorSubtaskState, ? extends StateObject>> e :
                 map.entrySet()) {
-            assertEquals(
-                    e.getKey().getTaskLocalSnapshot(),
-                    e.getValue().apply(finalizer.getTaskLocalState()));
+            assertThat(e.getValue().apply(finalizer.getTaskLocalState()))
+                    .isEqualTo(e.getKey().getTaskLocalSnapshot());
         }
     }
 
@@ -131,10 +126,10 @@ public class OperatorSnapshotFinalizerTest extends TestLogger {
 
     private void checkResult(Object expected, StateObjectCollection<?> actual) {
         if (expected == null) {
-            assertTrue(actual == null || actual.isEmpty());
+            assertThat(actual == null || actual.isEmpty()).isTrue();
         } else {
-            assertEquals(1, actual.size());
-            assertEquals(expected, actual.iterator().next());
+            assertThat(actual).hasSize(1);
+            assertThat(actual.iterator().next()).isEqualTo(expected);
         }
     }
 

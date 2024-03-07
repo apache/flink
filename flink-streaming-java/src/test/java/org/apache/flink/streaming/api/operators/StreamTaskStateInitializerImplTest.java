@@ -57,13 +57,10 @@ import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.clock.SystemClock;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Closeable;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.OptionalLong;
 import java.util.Random;
 import java.util.stream.Stream;
 
@@ -72,16 +69,16 @@ import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNew
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.state.OperatorStateHandle.Mode.SPLIT_DISTRIBUTE;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 /** Test for {@link StreamTaskStateInitializerImpl}. */
-public class StreamTaskStateInitializerImplTest {
+class StreamTaskStateInitializerImplTest {
 
     @Test
-    public void testNoRestore() throws Exception {
+    void testNoRestore() throws Exception {
 
         MemoryStateBackend stateBackend = spy(new MemoryStateBackend(1024));
 
@@ -122,12 +119,14 @@ public class StreamTaskStateInitializerImplTest {
         CloseableIterable<StatePartitionStreamProvider> operatorStateInputs =
                 stateContext.rawOperatorStateInputs();
 
-        Assert.assertFalse("Expected the context to NOT be restored", stateContext.isRestored());
-        Assert.assertNotNull(operatorStateBackend);
-        Assert.assertNotNull(keyedStateBackend);
-        Assert.assertNotNull(timeServiceManager);
-        Assert.assertNotNull(keyedStateInputs);
-        Assert.assertNotNull(operatorStateInputs);
+        assertThat(stateContext.isRestored())
+                .as("Expected the context to NOT be restored")
+                .isFalse();
+        assertThat(operatorStateBackend).isNotNull();
+        assertThat(keyedStateBackend).isNotNull();
+        assertThat(timeServiceManager).isNotNull();
+        assertThat(keyedStateInputs).isNotNull();
+        assertThat(operatorStateInputs).isNotNull();
 
         checkCloseablesRegistered(
                 closeableRegistry,
@@ -136,13 +135,13 @@ public class StreamTaskStateInitializerImplTest {
                 keyedStateInputs,
                 operatorStateInputs);
 
-        Assert.assertFalse(keyedStateInputs.iterator().hasNext());
-        Assert.assertFalse(operatorStateInputs.iterator().hasNext());
+        assertThat(keyedStateInputs.iterator()).isExhausted();
+        assertThat(operatorStateInputs.iterator()).isExhausted();
     }
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testWithRestore() throws Exception {
+    void testWithRestore() throws Exception {
 
         StateBackend mockingBackend =
                 spy(
@@ -233,28 +232,28 @@ public class StreamTaskStateInitializerImplTest {
         CloseableIterable<StatePartitionStreamProvider> operatorStateInputs =
                 stateContext.rawOperatorStateInputs();
 
-        assertTrue("Expected the context to be restored", stateContext.isRestored());
-        Assert.assertEquals(OptionalLong.of(42L), stateContext.getRestoredCheckpointId());
+        assertThat(stateContext.isRestored()).as("Expected the context to be restored").isTrue();
+        assertThat(stateContext.getRestoredCheckpointId()).hasValue(42L);
 
-        Assert.assertNotNull(operatorStateBackend);
-        Assert.assertNotNull(keyedStateBackend);
+        assertThat(operatorStateBackend).isNotNull();
+        assertThat(keyedStateBackend).isNotNull();
         // this is deactivated on purpose so that it does not attempt to consume the raw keyed
         // state.
-        Assert.assertNull(timeServiceManager);
-        Assert.assertNotNull(keyedStateInputs);
-        Assert.assertNotNull(operatorStateInputs);
+        assertThat(timeServiceManager).isNull();
+        assertThat(keyedStateInputs).isNotNull();
+        assertThat(operatorStateInputs).isNotNull();
 
         int count = 0;
         for (KeyGroupStatePartitionStreamProvider keyedStateInput : keyedStateInputs) {
             ++count;
         }
-        Assert.assertEquals(1, count);
+        assertThat(count).isOne();
 
         count = 0;
         for (StatePartitionStreamProvider operatorStateInput : operatorStateInputs) {
             ++count;
         }
-        Assert.assertEquals(3, count);
+        assertThat(count).isEqualTo(3);
 
         long expectedSumLocalMemory =
                 Stream.of(
@@ -274,22 +273,18 @@ public class StreamTaskStateInitializerImplTest {
                         .sum();
 
         SubTaskInitializationMetrics metrics = metricsBuilder.build();
-        Assert.assertEquals(
-                new HashMap<String, Long>() {
-                    {
-                        put(
-                                MetricNames.RESTORED_STATE_SIZE
-                                        + "."
-                                        + StateObject.StateObjectLocation.LOCAL_MEMORY.name(),
-                                expectedSumLocalMemory);
-                        put(
-                                MetricNames.RESTORED_STATE_SIZE
-                                        + "."
-                                        + StateObject.StateObjectLocation.UNKNOWN.name(),
-                                expectedSumUnknown);
-                    }
-                },
-                metrics.getDurationMetrics());
+        assertThat(metrics.getDurationMetrics())
+                .hasSize(2)
+                .containsEntry(
+                        MetricNames.RESTORED_STATE_SIZE
+                                + "."
+                                + StateObject.StateObjectLocation.LOCAL_MEMORY.name(),
+                        expectedSumLocalMemory)
+                .containsEntry(
+                        MetricNames.RESTORED_STATE_SIZE
+                                + "."
+                                + StateObject.StateObjectLocation.UNKNOWN.name(),
+                        expectedSumUnknown);
 
         checkCloseablesRegistered(
                 closeableRegistry,
@@ -302,7 +297,7 @@ public class StreamTaskStateInitializerImplTest {
     private static void checkCloseablesRegistered(
             CloseableRegistry closeableRegistry, Closeable... closeables) {
         for (Closeable closeable : closeables) {
-            assertTrue(closeableRegistry.unregisterCloseable(closeable));
+            assertThat(closeableRegistry.unregisterCloseable(closeable)).isTrue();
         }
     }
 

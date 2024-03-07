@@ -34,11 +34,9 @@ import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingFSDataInputStream;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionWithException;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -48,6 +46,8 @@ import java.util.List;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -55,7 +55,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link BackendRestorerProcedure}. */
-public class BackendRestorerProcedureTest extends TestLogger {
+class BackendRestorerProcedureTest {
 
     private final FunctionWithException<
                     Collection<OperatorStateHandle>, OperatorStateBackend, Exception>
@@ -74,7 +74,7 @@ public class BackendRestorerProcedureTest extends TestLogger {
      * attempts if there are more options.
      */
     @Test
-    public void testRestoreProcedureOrderAndFailure() throws Exception {
+    void testRestoreProcedureOrderAndFailure() throws Exception {
 
         CloseableRegistry closeableRegistry = new CloseableRegistry();
         CheckpointStreamFactory checkpointStreamFactory = new MemCheckpointStreamFactory(1024);
@@ -124,7 +124,7 @@ public class BackendRestorerProcedureTest extends TestLogger {
         OperatorStateBackend restoredBackend =
                 restorerProcedure.createAndRestore(
                         sortedRestoreOptions, StateObject.StateObjectSizeStatsCollector.create());
-        Assert.assertNotNull(restoredBackend);
+        assertThat(restoredBackend).isNotNull();
 
         try {
             verify(firstFailHandle).openInputStream();
@@ -134,11 +134,11 @@ public class BackendRestorerProcedureTest extends TestLogger {
             ListState<Integer> listState = restoredBackend.getListState(stateDescriptor);
 
             Iterator<Integer> stateIterator = listState.get().iterator();
-            Assert.assertEquals(0, (int) stateIterator.next());
-            Assert.assertEquals(1, (int) stateIterator.next());
-            Assert.assertEquals(2, (int) stateIterator.next());
-            Assert.assertEquals(3, (int) stateIterator.next());
-            Assert.assertFalse(stateIterator.hasNext());
+            assertThat(stateIterator.next()).isZero();
+            assertThat(stateIterator.next()).isOne();
+            assertThat(stateIterator.next()).isEqualTo(2);
+            assertThat(stateIterator.next()).isEqualTo(3);
+            assertThat(stateIterator).isExhausted();
 
         } finally {
             restoredBackend.close();
@@ -148,7 +148,7 @@ public class BackendRestorerProcedureTest extends TestLogger {
 
     /** Tests if there is an exception if all restore attempts are exhausted and failed. */
     @Test
-    public void testExceptionThrownIfAllRestoresFailed() throws Exception {
+    void testExceptionThrownIfAllRestoresFailed() throws Exception {
 
         CloseableRegistry closeableRegistry = new CloseableRegistry();
 
@@ -166,12 +166,12 @@ public class BackendRestorerProcedureTest extends TestLogger {
                 new BackendRestorerProcedure<>(
                         backendSupplier, closeableRegistry, "test op state backend");
 
-        try {
-            restorerProcedure.createAndRestore(
-                    sortedRestoreOptions, StateObject.StateObjectSizeStatsCollector.create());
-            Assert.fail();
-        } catch (Exception ignore) {
-        }
+        assertThatThrownBy(
+                        () ->
+                                restorerProcedure.createAndRestore(
+                                        sortedRestoreOptions,
+                                        StateObject.StateObjectSizeStatsCollector.create()))
+                .isInstanceOf(FlinkException.class);
 
         verify(firstFailHandle).openInputStream();
         verify(secondFailHandle).openInputStream();
@@ -180,7 +180,7 @@ public class BackendRestorerProcedureTest extends TestLogger {
 
     /** Test that the restore can be stopped via the provided closeable registry. */
     @Test
-    public void testCanBeCanceledViaRegistry() throws Exception {
+    void testCanBeCanceledViaRegistry() throws Exception {
         CloseableRegistry closeableRegistry = new CloseableRegistry();
         OneShotLatch waitForBlock = new OneShotLatch();
         OneShotLatch unblock = new OneShotLatch();
@@ -217,6 +217,6 @@ public class BackendRestorerProcedureTest extends TestLogger {
         restoreThread.join();
 
         Exception exception = exceptionReference.get();
-        Assert.assertTrue(exception instanceof FlinkException);
+        assertThat(exception).isInstanceOf(FlinkException.class);
     }
 }
