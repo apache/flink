@@ -37,7 +37,6 @@ import org.apache.flink.connector.file.table.stream.PartitionCommitInfo;
 import org.apache.flink.connector.file.table.stream.StreamingSink;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CoordinatorInput;
 import org.apache.flink.connector.file.table.stream.compact.CompactReader;
-import org.apache.flink.connector.file.table.utils.PathUtils;
 import org.apache.flink.connectors.hive.read.HiveCompactReaderFactory;
 import org.apache.flink.connectors.hive.util.HiveConfUtils;
 import org.apache.flink.connectors.hive.util.JobConfUtils;
@@ -86,6 +85,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
@@ -451,7 +451,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         catalogTable.getOptions().forEach(conf::setString);
         HadoopFileSystemFactory fsFactory = fsFactory();
         org.apache.flink.core.fs.Path tmpPath =
-                PathUtils.getStagingPath(new org.apache.flink.core.fs.Path(stagingParentDir));
+                new org.apache.flink.core.fs.Path(toStagingDir(stagingParentDir, jobConf));
 
         PartitionCommitPolicyFactory partitionCommitPolicyFactory =
                 new PartitionCommitPolicyFactory(
@@ -607,8 +607,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         builder.setOverwrite(overwrite);
         builder.setIsToLocal(isToLocal);
         builder.setStaticPartitions(staticPartitionSpec);
-        builder.setTempPath(
-                PathUtils.getStagingPath(new org.apache.flink.core.fs.Path(stagingParentDir)));
+        builder.setPath(new org.apache.flink.core.fs.Path(stagingParentDir));
         builder.setOutputFileConfig(fileNaming);
         builder.setIdentifier(identifier);
         builder.setPartitionCommitPolicyFactory(
@@ -785,6 +784,21 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         } else {
             return false;
         }
+    }
+
+    // get a staging dir
+    private String toStagingDir(String stagingParentDir, Configuration conf) throws IOException {
+        if (!stagingParentDir.endsWith(Path.SEPARATOR)) {
+            stagingParentDir += Path.SEPARATOR;
+        }
+        // TODO: may append something more meaningful than a timestamp, like query ID
+        stagingParentDir += ".staging_" + System.currentTimeMillis();
+        Path path = new Path(stagingParentDir);
+        FileSystem fs = path.getFileSystem(conf);
+        Preconditions.checkState(
+                fs.exists(path) || fs.mkdirs(path), "Failed to create staging dir " + path);
+        fs.deleteOnExit(path);
+        return stagingParentDir;
     }
 
     private List<String> getPartitionKeys() {

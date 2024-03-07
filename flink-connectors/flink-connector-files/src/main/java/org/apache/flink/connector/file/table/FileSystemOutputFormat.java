@@ -19,6 +19,7 @@
 package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
 import org.apache.flink.api.common.io.FinalizeOnMaster;
 import org.apache.flink.api.common.io.OutputFormat;
@@ -28,12 +29,14 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -56,7 +59,7 @@ public class FileSystemOutputFormat<T>
     private final TableMetaStoreFactory msFactory;
     private final boolean overwrite;
     private final boolean isToLocal;
-    private final Path tmpPath;
+    private final Path stagingPath;
     private final String[] partitionColumns;
     private final boolean dynamicGrouped;
     private final LinkedHashMap<String, String> staticPartitions;
@@ -74,7 +77,7 @@ public class FileSystemOutputFormat<T>
             TableMetaStoreFactory msFactory,
             boolean overwrite,
             boolean isToLocal,
-            Path tmpPath,
+            Path path,
             String[] partitionColumns,
             boolean dynamicGrouped,
             LinkedHashMap<String, String> staticPartitions,
@@ -87,7 +90,7 @@ public class FileSystemOutputFormat<T>
         this.msFactory = msFactory;
         this.overwrite = overwrite;
         this.isToLocal = isToLocal;
-        this.tmpPath = tmpPath;
+        this.stagingPath = toStagingPath(path);
         this.partitionColumns = partitionColumns;
         this.dynamicGrouped = dynamicGrouped;
         this.staticPartitions = staticPartitions;
@@ -108,7 +111,7 @@ public class FileSystemOutputFormat<T>
                                 Thread.currentThread().getContextClassLoader(),
                                 () -> {
                                     try {
-                                        return fsFactory.create(tmpPath.toUri());
+                                        return fsFactory.create(stagingPath.toUri());
                                     } catch (IOException e) {
                                         throw new RuntimeException(e);
                                     }
@@ -120,7 +123,7 @@ public class FileSystemOutputFormat<T>
                             fsFactory,
                             msFactory,
                             overwrite,
-                            tmpPath,
+                            stagingPath,
                             partitionColumns.length,
                             isToLocal,
                             identifier,
@@ -141,7 +144,7 @@ public class FileSystemOutputFormat<T>
             throw new TableException("Exception in finalizeGlobal", e);
         } finally {
             try {
-                fsFactory.create(tmpPath.toUri()).delete(tmpPath, true);
+                fsFactory.create(stagingPath.toUri()).delete(stagingPath, true);
             } catch (IOException ignore) {
             }
         }
@@ -158,7 +161,7 @@ public class FileSystemOutputFormat<T>
             PartitionTempFileManager fileManager =
                     new PartitionTempFileManager(
                             fsFactory,
-                            tmpPath,
+                            stagingPath,
                             context.getTaskNumber(),
                             context.getAttemptNumber(),
                             outputFileConfig);
@@ -197,13 +200,37 @@ public class FileSystemOutputFormat<T>
         }
     }
 
+    private Path toStagingPath(Path path) {
+        // Add a random UUID to prevent multiple sinks from sharing the same staging dir.
+        // Please see FLINK-29114 for more details
+        Path stagingDir =
+                new Path(
+                        path,
+                        String.format(
+                                ".staging_%d_%s", System.currentTimeMillis(), UUID.randomUUID()));
+        try {
+            FileSystem fs = stagingDir.getFileSystem();
+            Preconditions.checkState(
+                    !fs.exists(stagingDir), "Staging dir %s already exists", stagingDir);
+            fs.mkdirs(stagingDir);
+            return stagingDir;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @VisibleForTesting
+    Path getStagingPath() {
+        return stagingPath;
+    }
+
     /** Builder to build {@link FileSystemOutputFormat}. */
     public static class Builder<T> {
 
         private String[] partitionColumns;
         private OutputFormatFactory<T> formatFactory;
         private TableMetaStoreFactory metaStoreFactory;
-        private Path tmpPath;
+        private Path path;
 
         private LinkedHashMap<String, String> staticPartitions = new LinkedHashMap<>();
         private boolean dynamicGrouped = false;
@@ -258,8 +285,8 @@ public class FileSystemOutputFormat<T>
             return this;
         }
 
-        public Builder<T> setTempPath(Path tmpPath) {
-            this.tmpPath = tmpPath;
+        public Builder<T> setPath(Path path) {
+            this.path = path;
             return this;
         }
 
@@ -288,7 +315,7 @@ public class FileSystemOutputFormat<T>
             checkNotNull(partitionColumns, "partitionColumns should not be null");
             checkNotNull(formatFactory, "formatFactory should not be null");
             checkNotNull(metaStoreFactory, "metaStoreFactory should not be null");
-            checkNotNull(tmpPath, "tmpPath should not be null");
+            checkNotNull(path, "outputPath should not be null");
             checkNotNull(computer, "partitionComputer should not be null");
 
             return new FileSystemOutputFormat<>(
@@ -296,7 +323,7 @@ public class FileSystemOutputFormat<T>
                     metaStoreFactory,
                     overwrite,
                     isToLocal,
-                    tmpPath,
+                    path,
                     partitionColumns,
                     dynamicGrouped,
                     staticPartitions,

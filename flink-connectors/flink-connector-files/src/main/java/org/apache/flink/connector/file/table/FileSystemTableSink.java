@@ -33,7 +33,6 @@ import org.apache.flink.connector.file.table.stream.PartitionCommitInfo;
 import org.apache.flink.connector.file.table.stream.StreamingSink;
 import org.apache.flink.connector.file.table.stream.compact.CompactBulkReader;
 import org.apache.flink.connector.file.table.stream.compact.CompactReader;
-import org.apache.flink.connector.file.table.utils.PathUtils;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -185,7 +184,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                 .setMetaStoreFactory(new EmptyMetaStoreFactory(path))
                 .setOverwrite(overwrite)
                 .setStaticPartitions(staticPartitions)
-                .setTempPath(PathUtils.getStagingPath(path))
+                .setPath(path)
                 .setOutputFileConfig(
                         OutputFileConfig.builder()
                                 .withPartPrefix("part-" + UUID.randomUUID())
