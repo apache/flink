@@ -39,6 +39,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -347,47 +348,111 @@ public class FutureUtils {
             final Deadline deadline,
             final Predicate<T> acceptancePredicate,
             final ScheduledExecutor scheduledExecutor) {
+        handleOperation(
+                resultFuture,
+                operation,
+                value -> {
+                    if (acceptancePredicate.test(value)) {
+                        resultFuture.complete(value);
+                    } else if (deadline.hasTimeLeft()) {
+                        final ScheduledFuture<?> scheduledFuture =
+                                scheduledExecutor.schedule(
+                                        () ->
+                                                retrySuccessfulOperationWithDelay(
+                                                        resultFuture,
+                                                        operation,
+                                                        retryDelay,
+                                                        deadline,
+                                                        acceptancePredicate,
+                                                        scheduledExecutor),
+                                        retryDelay.toMillis(),
+                                        TimeUnit.MILLISECONDS);
 
+                        resultFuture.whenComplete(
+                                (innerT, innerThrowable) -> scheduledFuture.cancel(false));
+                    } else {
+                        resultFuture.completeExceptionally(
+                                new RetryException(
+                                        "Could not satisfy the predicate within the allowed time."));
+                    }
+                },
+                scheduledExecutor);
+    }
+
+    /**
+     * Retries an operation that completed successfully until a failure appears or the operation is
+     * cancelled.
+     *
+     * @param operation to retry. The retry loop will get cancelled if this operation throws a
+     *     {@link CancellationException}.
+     * @param retryDelay The delay between the completion of a run and triggering the next
+     *     iteration.
+     * @param scheduledExecutor The executor being used.
+     * @return A future that can be used to cancel the operation.
+     */
+    public static CompletableFuture<Void> retrySuccessfulOperationWithDelay(
+            final RunnableWithException operation,
+            final Duration retryDelay,
+            final ScheduledExecutor scheduledExecutor) {
+        final CompletableFuture<Void> loopFuture = new CompletableFuture<>();
+        retrySuccessfulOperationWithDelay(loopFuture, operation, retryDelay, scheduledExecutor);
+        return loopFuture;
+    }
+
+    private static void retrySuccessfulOperationWithDelay(
+            final CompletableFuture<Void> resultFuture,
+            final RunnableWithException operation,
+            final Duration retryDelay,
+            final ScheduledExecutor scheduledExecutor) {
+        handleOperation(
+                resultFuture,
+                () -> FutureUtils.runAsync(operation, scheduledExecutor),
+                value -> {
+                    final Future<?> scheduledFuture =
+                            scheduledExecutor.schedule(
+                                    () ->
+                                            retrySuccessfulOperationWithDelay(
+                                                    resultFuture,
+                                                    operation,
+                                                    retryDelay,
+                                                    scheduledExecutor),
+                                    retryDelay.toMillis(),
+                                    TimeUnit.MILLISECONDS);
+
+                    resultFuture.whenComplete(
+                            (ignoredIntermediateResult, ignoredIntermediateError) ->
+                                    scheduledFuture.cancel(false));
+                },
+                scheduledExecutor);
+    }
+
+    private static <T> void handleOperation(
+            CompletableFuture<?> resultFuture,
+            Supplier<CompletableFuture<T>> operation,
+            Consumer<T> successfulCompletion,
+            Executor executor) {
         if (!resultFuture.isDone()) {
             final CompletableFuture<T> operationResultFuture = operation.get();
 
-            operationResultFuture.whenComplete(
-                    (t, throwable) -> {
+            operationResultFuture.whenCompleteAsync(
+                    (value, throwable) -> {
                         if (throwable != null) {
-                            if (throwable instanceof CancellationException) {
+                            final Throwable preprocessedException =
+                                    ExceptionUtils.stripCompletionException(
+                                            ExceptionUtils.stripExecutionException(throwable));
+                            if (preprocessedException instanceof CancellationException) {
                                 resultFuture.completeExceptionally(
                                         new RetryException(
-                                                "Operation future was cancelled.", throwable));
+                                                "Operation future was cancelled.",
+                                                preprocessedException));
                             } else {
-                                resultFuture.completeExceptionally(throwable);
+                                resultFuture.completeExceptionally(preprocessedException);
                             }
                         } else {
-                            if (acceptancePredicate.test(t)) {
-                                resultFuture.complete(t);
-                            } else if (deadline.hasTimeLeft()) {
-                                final ScheduledFuture<?> scheduledFuture =
-                                        scheduledExecutor.schedule(
-                                                (Runnable)
-                                                        () ->
-                                                                retrySuccessfulOperationWithDelay(
-                                                                        resultFuture,
-                                                                        operation,
-                                                                        retryDelay,
-                                                                        deadline,
-                                                                        acceptancePredicate,
-                                                                        scheduledExecutor),
-                                                retryDelay.toMillis(),
-                                                TimeUnit.MILLISECONDS);
-
-                                resultFuture.whenComplete(
-                                        (innerT, innerThrowable) -> scheduledFuture.cancel(false));
-                            } else {
-                                resultFuture.completeExceptionally(
-                                        new RetryException(
-                                                "Could not satisfy the predicate within the allowed time."));
-                            }
+                            successfulCompletion.accept(value);
                         }
-                    });
+                    },
+                    executor);
 
             resultFuture.whenComplete((t, throwable) -> operationResultFuture.cancel(false));
         }
