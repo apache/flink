@@ -220,7 +220,7 @@ public class ChangelogRescalingITCase extends TestLogger {
         conf.set(CHECKPOINT_STORAGE, "filesystem");
         conf.set(CHECKPOINTS_DIRECTORY, cpDir.toURI().toString());
         conf.set(STATE_BACKEND, "hashmap");
-        conf.set(LOCAL_RECOVERY, false); // not supported by changelog
+        conf.set(LOCAL_RECOVERY, true);
         // tune changelog
         conf.set(PREEMPTIVE_PERSIST_THRESHOLD, MemorySize.ofMebiBytes(10));
         conf.set(PERIODIC_MATERIALIZATION_INTERVAL, Duration.ofMinutes(3));

@@ -125,39 +125,33 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
         }
 
         // randomize ITTests for enabling state change log
-        if (isConfigurationSupportedByChangelog(miniCluster.getConfiguration())) {
-            if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_ON)) {
-                if (!conf.contains(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)) {
-                    conf.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true);
-                    miniCluster.overrideRestoreModeForChangelogStateBackend();
-                }
-            } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_RAND)) {
-                boolean enabled =
-                        randomize(conf, StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true, false);
-                if (enabled) {
-                    // More situations about enabling periodic materialization should be tested
-                    randomize(
-                            conf,
-                            StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED,
-                            true,
-                            true,
-                            true,
-                            false);
-                    randomize(
-                            conf,
-                            StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL,
-                            Duration.ofMillis(100),
-                            Duration.ofMillis(500),
-                            Duration.ofSeconds(1),
-                            Duration.ofSeconds(5));
-                    miniCluster.overrideRestoreModeForChangelogStateBackend();
-                }
+        if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_ON)) {
+            if (!conf.contains(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)) {
+                conf.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true);
+                miniCluster.overrideRestoreModeForChangelogStateBackend();
+            }
+        } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_RAND)) {
+            boolean enabled =
+                    randomize(conf, StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true, false);
+            if (enabled) {
+                // More situations about enabling periodic materialization should be tested
+                randomize(
+                        conf,
+                        StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED,
+                        true,
+                        true,
+                        true,
+                        false);
+                randomize(
+                        conf,
+                        StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL,
+                        Duration.ofMillis(100),
+                        Duration.ofMillis(500),
+                        Duration.ofSeconds(1),
+                        Duration.ofSeconds(5));
+                miniCluster.overrideRestoreModeForChangelogStateBackend();
             }
         }
-    }
-
-    private static boolean isConfigurationSupportedByChangelog(Configuration configuration) {
-        return !configuration.get(LOCAL_RECOVERY);
     }
 
     /**
