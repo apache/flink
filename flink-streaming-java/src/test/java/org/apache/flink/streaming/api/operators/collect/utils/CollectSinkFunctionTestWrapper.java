@@ -36,11 +36,11 @@ import org.apache.flink.streaming.api.operators.collect.CollectSinkFunction;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorCoordinator;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 
-import org.junit.Assert;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * A wrapper class for creating, checkpointing and closing {@link
@@ -166,7 +166,7 @@ public class CollectSinkFunctionTestWrapper<IN> {
         List<byte[]> serializedResults =
                 SerializedListAccumulator.deserializeList(
                         accLocalValue, BytePrimitiveArraySerializer.INSTANCE);
-        Assert.assertEquals(1, serializedResults.size());
+        assertThat(serializedResults).hasSize(1);
         byte[] serializedResult = serializedResults.get(0);
         return CollectSinkFunction.deserializeAccumulatorResult(serializedResult);
     }

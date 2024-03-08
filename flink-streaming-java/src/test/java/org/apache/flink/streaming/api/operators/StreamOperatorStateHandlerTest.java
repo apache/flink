@@ -47,29 +47,24 @@ import org.apache.flink.streaming.api.operators.StreamOperatorStateHandler.Check
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 
-import static junit.framework.TestCase.assertTrue;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.not;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.empty;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link StreamOperatorStateHandlerTest}. */
-public class StreamOperatorStateHandlerTest {
+class StreamOperatorStateHandlerTest {
     /**
      * Tests that a failing snapshot method call to the keyed state backend will trigger the closing
      * of the StateSnapshotContextSynchronousImpl and the cancellation of the
      * OperatorSnapshotResult. The latter is supposed to also cancel all assigned futures.
      */
     @Test
-    public void testFailingBackendSnapshotMethod() throws Exception {
+    void testFailingBackendSnapshotMethod() throws Exception {
         final long checkpointId = 42L;
         final long timestamp = 1L;
 
@@ -149,55 +144,53 @@ public class StreamOperatorStateHandlerTest {
             stateHandler.setCurrentKey("44");
             stateHandler.initializeOperatorState(checkpointedStreamOperator);
 
+            assertThat(stateContext.operatorStateBackend().getRegisteredStateNames()).isNotEmpty();
             assertThat(
-                    stateContext.operatorStateBackend().getRegisteredStateNames(),
-                    is(not(empty())));
-            assertThat(
-                    ((AbstractKeyedStateBackend<?>) stateContext.keyedStateBackend())
-                            .numKeyValueStatesByName(),
-                    equalTo(1));
+                            ((AbstractKeyedStateBackend<?>) stateContext.keyedStateBackend())
+                                    .numKeyValueStatesByName())
+                    .isOne();
 
-            try {
-                stateHandler.snapshotState(
-                        checkpointedStreamOperator,
-                        Optional.of(stateContext.internalTimerServiceManager()),
-                        "42",
-                        42,
-                        42,
-                        CheckpointOptions.forCheckpointWithDefaultLocation(),
-                        new MemCheckpointStreamFactory(1024),
-                        operatorSnapshotResult,
-                        context,
-                        false);
-                fail("Exception expected.");
-            } catch (CheckpointException e) {
-                // We can not check for ExpectedTestException class directly,
-                // as CheckpointException is wrapping the cause with SerializedThrowable
-                if (!ExceptionUtils.findThrowableWithMessage(e, ExpectedTestException.MESSAGE)
-                        .isPresent()) {
-                    throw e;
-                }
-            }
+            assertThatThrownBy(
+                            () ->
+                                    stateHandler.snapshotState(
+                                            checkpointedStreamOperator,
+                                            Optional.of(stateContext.internalTimerServiceManager()),
+                                            "42",
+                                            42,
+                                            42,
+                                            CheckpointOptions.forCheckpointWithDefaultLocation(),
+                                            new MemCheckpointStreamFactory(1024),
+                                            operatorSnapshotResult,
+                                            context,
+                                            false))
+                    .isInstanceOfSatisfying(
+                            CheckpointException.class,
+                            // We can not check for ExpectedTestException class directly,
+                            // as CheckpointException is wrapping the cause with SerializedThrowable
+                            e ->
+                                    assertThat(
+                                                    ExceptionUtils.findThrowableWithMessage(
+                                                            e, ExpectedTestException.MESSAGE))
+                                            .isPresent());
 
-            assertTrue(keyedStateManagedFuture.isCancelled());
-            assertTrue(keyedStateRawFuture.isCancelled());
-            assertTrue(context.getKeyedStateStreamFuture().isCancelled());
-            assertTrue(operatorStateManagedFuture.isCancelled());
-            assertTrue(operatorStateRawFuture.isCancelled());
-            assertTrue(context.getOperatorStateStreamFuture().isCancelled());
-            assertTrue(inputChannelStateFuture.isCancelled());
-            assertTrue(resultSubpartitionStateFuture.isCancelled());
+            assertThat(keyedStateManagedFuture).isCancelled();
+            assertThat(keyedStateRawFuture).isCancelled();
+            assertThat(context.getKeyedStateStreamFuture()).isCancelled();
+            assertThat(operatorStateManagedFuture).isCancelled();
+            assertThat(operatorStateRawFuture).isCancelled();
+            assertThat(context.getOperatorStateStreamFuture()).isCancelled();
+            assertThat(inputChannelStateFuture).isCancelled();
+            assertThat(resultSubpartitionStateFuture).isCancelled();
 
             stateHandler.dispose();
 
+            assertThat(stateContext.operatorStateBackend().getRegisteredBroadcastStateNames())
+                    .isEmpty();
+            assertThat(stateContext.operatorStateBackend().getRegisteredStateNames()).isEmpty();
             assertThat(
-                    stateContext.operatorStateBackend().getRegisteredBroadcastStateNames(),
-                    is(empty()));
-            assertThat(stateContext.operatorStateBackend().getRegisteredStateNames(), is(empty()));
-            assertThat(
-                    ((AbstractKeyedStateBackend<?>) stateContext.keyedStateBackend())
-                            .numKeyValueStatesByName(),
-                    equalTo(0));
+                            ((AbstractKeyedStateBackend<?>) stateContext.keyedStateBackend())
+                                    .numKeyValueStatesByName())
+                    .isZero();
         }
     }
 

@@ -58,6 +58,8 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
 
         testClipDBWithKeyGroupRangeHelper(new KeyGroupRange(0, 1), new KeyGroupRange(2, 4), 1);
 
+        testClipDBWithKeyGroupRangeHelper(new KeyGroupRange(4, 5), new KeyGroupRange(2, 7), 1);
+
         testClipDBWithKeyGroupRangeHelper(
                 new KeyGroupRange(Byte.MAX_VALUE - 15, Byte.MAX_VALUE),
                 new KeyGroupRange(Byte.MAX_VALUE - 10, Byte.MAX_VALUE),
@@ -179,7 +181,8 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
                     Collections.singletonList(columnFamilyHandle),
                     targetGroupRange,
                     currentGroupRange,
-                    keyGroupPrefixBytes);
+                    keyGroupPrefixBytes,
+                    true);
 
             for (int i = currentGroupRangeStart; i <= currentGroupRangeEnd; ++i) {
                 for (int j = 0; j < 100; ++j) {

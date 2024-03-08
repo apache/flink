@@ -154,8 +154,7 @@ public class TableDescriptor {
                         .map(EncodingUtils::escapeIdentifier)
                         .collect(Collectors.joining(", "));
 
-        final String distributedBy =
-                distribution == null ? "" : distribution.asSerializableString();
+        final String distributedBy = distribution == null ? "" : distribution.toString();
 
         final String partitionedBy =
                 !partitionKeys.isEmpty()

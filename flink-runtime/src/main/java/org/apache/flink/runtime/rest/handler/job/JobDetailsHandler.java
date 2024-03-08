@@ -230,6 +230,7 @@ public class JobDetailsHandler
 
         return new JobDetailsInfo.JobVertexDetailsInfo(
                 ejv.getJobVertexId(),
+                ejv.getSlotSharingGroup().getSlotSharingGroupId(),
                 ejv.getName(),
                 ejv.getMaxParallelism(),
                 ejv.getParallelism(),

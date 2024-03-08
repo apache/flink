@@ -94,9 +94,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     private volatile Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>>
             requestTaskManagerFileUploadByTypeFunction;
 
-    private volatile Function<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>>
-            requestTaskManagerFileUploadByNameFunction;
-
     private volatile Function<
                     Tuple3<ResourceID, String, FileType>, CompletableFuture<TransientBlobKey>>
             requestTaskManagerFileUploadByNameAndTypeFunction;
@@ -190,13 +187,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
                     requestTaskManagerFileUploadByTypeFunction) {
         this.requestTaskManagerFileUploadByTypeFunction =
                 requestTaskManagerFileUploadByTypeFunction;
-    }
-
-    public void setRequestTaskManagerFileUploadByNameFunction(
-            Function<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>>
-                    requestTaskManagerFileUploadByNameFunction) {
-        this.requestTaskManagerFileUploadByNameFunction =
-                requestTaskManagerFileUploadByNameFunction;
     }
 
     public void setRequestTaskManagerFileUploadByNameAndTypeFunction(
@@ -453,19 +443,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
         if (function != null) {
             return function.apply(Tuple2.of(taskManagerId, fileType));
-        } else {
-            return CompletableFuture.completedFuture(new TransientBlobKey());
-        }
-    }
-
-    @Override
-    public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByName(
-            ResourceID taskManagerId, String fileName, Time timeout) {
-        final Function<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>> function =
-                requestTaskManagerFileUploadByNameFunction;
-
-        if (function != null) {
-            return function.apply(Tuple2.of(taskManagerId, fileName));
         } else {
             return CompletableFuture.completedFuture(new TransientBlobKey());
         }

@@ -29,11 +29,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
-import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -87,9 +87,9 @@ class JarRunHandlerParameterTest
             new Configuration()
                     .set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 120000L)
                     .set(CoreOptions.DEFAULT_PARALLELISM, 57)
-                    .set(SavepointConfigOptions.SAVEPOINT_PATH, "/foo/bar/test")
-                    .set(SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE, false)
-                    .set(SavepointConfigOptions.RESTORE_MODE, RESTORE_MODE)
+                    .set(StateRecoveryOptions.SAVEPOINT_PATH, "/foo/bar/test")
+                    .set(StateRecoveryOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE, false)
+                    .set(StateRecoveryOptions.RESTORE_MODE, RESTORE_MODE)
                     .set(
                             PipelineOptions.PARALLELISM_OVERRIDES,
                             new HashMap<String, String>() {
@@ -336,13 +336,13 @@ class JarRunHandlerParameterTest
         final SavepointRestoreSettings savepointRestoreSettings =
                 jobGraph.getSavepointRestoreSettings();
         assertThat(savepointRestoreSettings.getRestoreMode())
-                .isEqualTo(FLINK_CONFIGURATION.get(SavepointConfigOptions.RESTORE_MODE));
+                .isEqualTo(FLINK_CONFIGURATION.get(StateRecoveryOptions.RESTORE_MODE));
         assertThat(savepointRestoreSettings.getRestorePath())
-                .isEqualTo(FLINK_CONFIGURATION.get(SavepointConfigOptions.SAVEPOINT_PATH));
+                .isEqualTo(FLINK_CONFIGURATION.get(StateRecoveryOptions.SAVEPOINT_PATH));
         assertThat(savepointRestoreSettings.allowNonRestoredState())
                 .isEqualTo(
                         FLINK_CONFIGURATION.get(
-                                SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE));
+                                StateRecoveryOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE));
     }
 
     private void validateSavepointJarRunMessageParameters(

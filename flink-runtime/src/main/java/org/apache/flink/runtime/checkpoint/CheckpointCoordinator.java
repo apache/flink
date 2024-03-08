@@ -1907,7 +1907,7 @@ public class CheckpointCoordinator {
                 checkpointProperties = CheckpointProperties.forUnclaimedSnapshot();
                 break;
             default:
-                throw new IllegalArgumentException("Unknown snapshot restore mode");
+                throw new IllegalArgumentException("Unknown snapshot claim mode");
         }
 
         // Load the savepoint as a checkpoint into the system
@@ -2039,8 +2039,13 @@ public class CheckpointCoordinator {
                     isPeriodicCheckpointingConfigured(),
                     "Can not start checkpoint scheduler, if no periodic checkpointing is configured");
 
-            // make sure all prior timers are cancelled
-            stopCheckpointScheduler();
+            if (isPeriodicCheckpointingStarted()) {
+                // cancel previously scheduled checkpoints and spare savepoints.
+                // TODO: Introduce a more general solution to the race condition
+                //  between different checkpoint scheduling triggers.
+                //  https://issues.apache.org/jira/browse/FLINK-34519
+                stopCheckpointScheduler();
+            }
 
             periodicScheduling = true;
             scheduleTriggerWithDelay(clock.relativeTimeMillis(), getRandomInitDelay());
@@ -2133,14 +2138,15 @@ public class CheckpointCoordinator {
     //  job status listener that schedules / cancels periodic checkpoints
     // ------------------------------------------------------------------------
 
-    public JobStatusListener createActivatorDeactivator() {
+    public JobStatusListener createActivatorDeactivator(boolean allTasksOutputNonBlocking) {
         synchronized (lock) {
             if (shutdown) {
                 throw new IllegalArgumentException("Checkpoint coordinator is shut down");
             }
 
             if (jobStatusListener == null) {
-                jobStatusListener = new CheckpointCoordinatorDeActivator(this);
+                jobStatusListener =
+                        new CheckpointCoordinatorDeActivator(this, allTasksOutputNonBlocking);
             }
 
             return jobStatusListener;

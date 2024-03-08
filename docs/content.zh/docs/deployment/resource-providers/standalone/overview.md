@@ -116,12 +116,12 @@ cd flink-*
 
 Flink 目录必须放在所有 worker 节点的相同目录下。你可以使用共享的 NFS 目录，或将 Flink 目录复制到每个 worker 节点上。
 
-请参考 [配置参数页面]({{< ref "docs/deployment/config.zh" >}}) 获取更多细节以及额外的配置项。
+请参考 [配置参数页面]({{< ref "docs/deployment/config" >}}) 获取更多细节以及额外的配置项。
 
 特别地，
 
 * 每个 JobManager 的可用内存值（`jobmanager.memory.process.size`），
-* 每个 TaskManager 的可用内存值 （`taskmanager.memory.process.size`，并检查 [内存调优指南]({{< ref "docs/deployment/memory/mem_tuning.zh" >}}#configure-memory-for-standalone-deployment)），
+* 每个 TaskManager 的可用内存值 （`taskmanager.memory.process.size`，并检查 [内存调优指南]({{< ref "docs/deployment/memory/mem_tuning" >}}#configure-memory-for-standalone-deployment)），
 * 每台机器的可用 CPU 数（`taskmanager.numberOfTaskSlots`），
 * 集群中所有 CPU 数（`parallelism.default`）和
 * 临时目录（`io.tmp.dirs`）
@@ -172,7 +172,7 @@ bin/taskmanager.sh start|start-foreground|stop|stop-all
 
 ## High-Availability with Standalone
 
-In order to enable HA for a standalone cluster, you have to use the [ZooKeeper HA services]({{< ref "docs/deployment/ha/zookeeper_ha.zh" >}}).
+In order to enable HA for a standalone cluster, you have to use the [ZooKeeper HA services]({{< ref "docs/deployment/ha/zookeeper_ha" >}}).
 
 Additionally, you have to configure your cluster to start multiple JobManagers.
 
@@ -188,7 +188,7 @@ In order to start an HA-cluster configure the *masters* file in `conf/masters`:
   jobManagerAddressX:webUIPortX
   </pre>
 
-By default, the job manager will pick a *random port* for inter process communication. You can change this via the [high-availability.jobmanager.port]({{< ref "docs/deployment/config.zh" >}}#high-availability-jobmanager-port) key. This key accepts single ports (e.g. `50010`), ranges (`50000-50025`), or a combination of both (`50010,50011,50020-50025,50050-50075`).
+By default, the job manager will pick a *random port* for inter process communication. You can change this via the [high-availability.jobmanager.port]({{< ref "docs/deployment/config" >}}#high-availability-jobmanager-port) key. This key accepts single ports (e.g. `50010`), ranges (`50000-50025`), or a combination of both (`50010,50011,50020-50025,50050-50075`).
 
 ### Example: Standalone Cluster with 2 JobManagers
 

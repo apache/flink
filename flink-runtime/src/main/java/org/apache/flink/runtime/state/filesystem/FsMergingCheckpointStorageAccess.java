@@ -24,7 +24,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager.SubtaskKey;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 
@@ -60,10 +59,7 @@ public class FsMergingCheckpointStorageAccess extends FsCheckpointStorageAccess 
                 fileSizeThreshold,
                 writeBufferSize);
         this.fileMergingSnapshotManager = fileMergingSnapshotManager;
-        this.subtaskKey =
-                new SubtaskKey(
-                        OperatorID.fromJobVertexID(environment.getJobVertexId()),
-                        environment.getTaskInfo());
+        this.subtaskKey = SubtaskKey.of(environment);
     }
 
     @Override

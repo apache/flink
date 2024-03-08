@@ -25,9 +25,9 @@ import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.StateRecoveryOptions;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
-import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -138,7 +138,7 @@ public class JarRunHandler
                         requestBody.getAllowNonRestoredState(),
                         () -> getQueryParameter(request, AllowNonRestoredStateQueryParameter.class),
                         effectiveConfiguration.get(
-                                SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE),
+                                StateRecoveryOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE),
                         log);
         final String savepointPath =
                 fromRequestBodyOrQueryParameter(
@@ -147,14 +147,17 @@ public class JarRunHandler
                                 emptyToNull(
                                         getQueryParameter(
                                                 request, SavepointPathQueryParameter.class)),
-                        effectiveConfiguration.get(SavepointConfigOptions.SAVEPOINT_PATH),
+                        effectiveConfiguration.get(StateRecoveryOptions.SAVEPOINT_PATH),
                         log);
         final RestoreMode restoreMode =
                 Optional.ofNullable(requestBody.getRestoreMode())
                         .orElseGet(
                                 () ->
                                         effectiveConfiguration.get(
-                                                SavepointConfigOptions.RESTORE_MODE));
+                                                StateRecoveryOptions.RESTORE_MODE));
+        if (requestBody.isDeprecatedRestoreModeHasValue()) {
+            log.warn("The option 'restoreMode' is deprecated, please use 'claimMode' instead.");
+        }
         if (restoreMode.equals(RestoreMode.LEGACY)) {
             log.warn(
                     "The {} restore mode is deprecated, please use {} or {} mode instead.",

@@ -80,7 +80,7 @@ When deploying Flink, there are often multiple options available for each buildi
             </td>
             <td>
                 <ul id="jmimpls">
-                    <li><a href="{{< ref "docs/deployment/resource-providers/standalone/" >}}">Standalone</a> (this is the barebone mode that requires just JVMs to be launched. Deployment with <a href="{{< ref "docs/deployment/resource-providers/standalone/docker" >}}">Docker, Docker Swarm / Compose</a>, <a href="{{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}">non-native Kubernetes</a> and other models is possible through manual setup in this mode)
+                    <li><a href="{{< ref "docs/deployment/resource-providers/standalone" >}}">Standalone</a> (this is the barebone mode that requires just JVMs to be launched. Deployment with <a href="{{< ref "docs/deployment/resource-providers/standalone/docker" >}}">Docker, Docker Swarm / Compose</a>, <a href="{{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}">non-native Kubernetes</a> and other models is possible through manual setup in this mode)
                     </li>
                     <li><a href="{{< ref "docs/deployment/resource-providers/native_kubernetes" >}}">Kubernetes</a></li>
                     <li><a href="{{< ref "docs/deployment/resource-providers/yarn" >}}">YARN</a></li>

@@ -20,6 +20,7 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.apache.flink.shaded.guava31.com.google.common.primitives.UnsignedBytes;
@@ -28,19 +29,27 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.LiveFileMetaData;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /** Utils for RocksDB Incremental Checkpoint. */
 public class RocksDBIncrementalCheckpointUtils {
+
+    private static final Logger logger =
+            LoggerFactory.getLogger(RocksDBIncrementalCheckpointUtils.class);
 
     /**
      * Evaluates state handle's "score" regarding the target range when choosing the best state
@@ -110,56 +119,94 @@ public class RocksDBIncrementalCheckpointUtils {
      * @param targetKeyGroupRange the target key group range.
      * @param currentKeyGroupRange the key group range of the db instance.
      * @param keyGroupPrefixBytes Number of bytes required to prefix the key groups.
+     * @param useDeleteFilesInRange whether to call db.deleteFilesInRanges for the deleted ranges.
      */
     public static void clipDBWithKeyGroupRange(
             @Nonnull RocksDB db,
             @Nonnull List<ColumnFamilyHandle> columnFamilyHandles,
             @Nonnull KeyGroupRange targetKeyGroupRange,
             @Nonnull KeyGroupRange currentKeyGroupRange,
-            @Nonnegative int keyGroupPrefixBytes)
+            @Nonnegative int keyGroupPrefixBytes,
+            boolean useDeleteFilesInRange)
             throws RocksDBException {
 
-        final byte[] beginKeyGroupBytes = new byte[keyGroupPrefixBytes];
-        final byte[] endKeyGroupBytes = new byte[keyGroupPrefixBytes];
+        List<byte[]> deleteFilesRanges = new ArrayList<>(4);
 
         if (currentKeyGroupRange.getStartKeyGroup() < targetKeyGroupRange.getStartKeyGroup()) {
-            CompositeKeySerializationUtils.serializeKeyGroup(
-                    currentKeyGroupRange.getStartKeyGroup(), beginKeyGroupBytes);
-            CompositeKeySerializationUtils.serializeKeyGroup(
-                    targetKeyGroupRange.getStartKeyGroup(), endKeyGroupBytes);
-            deleteRange(db, columnFamilyHandles, beginKeyGroupBytes, endKeyGroupBytes);
+            prepareRangeDeletes(
+                    keyGroupPrefixBytes,
+                    currentKeyGroupRange.getStartKeyGroup(),
+                    targetKeyGroupRange.getStartKeyGroup(),
+                    deleteFilesRanges);
         }
 
         if (currentKeyGroupRange.getEndKeyGroup() > targetKeyGroupRange.getEndKeyGroup()) {
-            CompositeKeySerializationUtils.serializeKeyGroup(
-                    targetKeyGroupRange.getEndKeyGroup() + 1, beginKeyGroupBytes);
-            CompositeKeySerializationUtils.serializeKeyGroup(
-                    currentKeyGroupRange.getEndKeyGroup() + 1, endKeyGroupBytes);
-            deleteRange(db, columnFamilyHandles, beginKeyGroupBytes, endKeyGroupBytes);
+            prepareRangeDeletes(
+                    keyGroupPrefixBytes,
+                    targetKeyGroupRange.getEndKeyGroup() + 1,
+                    currentKeyGroupRange.getEndKeyGroup() + 1,
+                    deleteFilesRanges);
         }
+
+        logger.info(
+                "Performing range delete for backend with target key-groups range {} with boundaries set {} - deleteFilesInRanges = {}.",
+                targetKeyGroupRange.prettyPrintInterval(),
+                deleteFilesRanges.stream().map(Arrays::toString).collect(Collectors.toList()),
+                useDeleteFilesInRange);
+
+        deleteRangeData(db, columnFamilyHandles, deleteFilesRanges, useDeleteFilesInRange);
+    }
+
+    private static void prepareRangeDeletes(
+            int keyGroupPrefixBytes,
+            int beginKeyGroup,
+            int endKeyGroup,
+            List<byte[]> deleteFilesRangesOut) {
+        byte[] beginKeyGroupBytes = new byte[keyGroupPrefixBytes];
+        byte[] endKeyGroupBytes = new byte[keyGroupPrefixBytes];
+        CompositeKeySerializationUtils.serializeKeyGroup(beginKeyGroup, beginKeyGroupBytes);
+        CompositeKeySerializationUtils.serializeKeyGroup(endKeyGroup, endKeyGroupBytes);
+        deleteFilesRangesOut.add(beginKeyGroupBytes);
+        deleteFilesRangesOut.add(endKeyGroupBytes);
     }
 
     /**
-     * Delete the record falls into [beginKeyBytes, endKeyBytes) of the db.
+     * Delete the record that falls into the given deleteRanges of the db.
      *
      * @param db the target need to be clipped.
      * @param columnFamilyHandles the column family need to be clipped.
-     * @param beginKeyBytes the begin key bytes
-     * @param endKeyBytes the end key bytes
+     * @param deleteRanges - pairs of deleted ranges (from1, to1, from2, to2, ...). For each pair
+     *     [from, to), the startKey ('from') is inclusive, the endKey ('to') is exclusive.
+     * @param useDeleteFilesInRange whether to use deleteFilesInRange to clean up redundant files.
      */
-    private static void deleteRange(
+    private static void deleteRangeData(
             RocksDB db,
             List<ColumnFamilyHandle> columnFamilyHandles,
-            byte[] beginKeyBytes,
-            byte[] endKeyBytes)
+            List<byte[]> deleteRanges,
+            boolean useDeleteFilesInRange)
             throws RocksDBException {
 
+        if (deleteRanges.isEmpty()) {
+            // nothing to do.
+            return;
+        }
+
+        Preconditions.checkArgument(deleteRanges.size() % 2 == 0);
         for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
-            // Using RocksDB's deleteRange will take advantage of delete
-            // tombstones, which mark the range as deleted.
-            //
-            // https://github.com/ververica/frocksdb/blob/FRocksDB-6.20.3/include/rocksdb/db.h#L363-L377
-            db.deleteRange(columnFamilyHandle, beginKeyBytes, endKeyBytes);
+            // First delete the files in ranges
+            if (useDeleteFilesInRange) {
+                db.deleteFilesInRanges(columnFamilyHandle, deleteRanges, false);
+            }
+
+            // Then put range limiting tombstones in place.
+            for (int i = 0; i < deleteRanges.size() / 2; i++) {
+                // Using RocksDB's deleteRange will take advantage of delete
+                // tombstones, which mark the range as deleted.
+                //
+                // https://github.com/ververica/frocksdb/blob/FRocksDB-6.20.3/include/rocksdb/db.h#L363-L377
+                db.deleteRange(
+                        columnFamilyHandle, deleteRanges.get(i * 2), deleteRanges.get(i * 2 + 1));
+            }
         }
     }
 

@@ -22,7 +22,6 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.streaming.api.operators.collect.utils.CollectSinkFunctionTestWrapper;
 import org.apache.flink.streaming.api.operators.collect.utils.CollectTestUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,20 +37,20 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link CollectSinkFunction}. */
-public class CollectSinkFunctionTest extends TestLogger {
+class CollectSinkFunctionTest {
 
     private static final TypeSerializer<Integer> serializer = IntSerializer.INSTANCE;
 
     private CollectSinkFunctionTestWrapper<Integer> functionWrapper;
 
     @BeforeEach
-    public void before() throws Exception {
+    void before() throws Exception {
         // max bytes per batch = 3 * sizeof(int)
         functionWrapper = new CollectSinkFunctionTestWrapper<>(serializer, 12);
     }
 
     @AfterEach
-    public void after() throws Exception {
+    void after() throws Exception {
         functionWrapper.closeWrapper();
     }
 

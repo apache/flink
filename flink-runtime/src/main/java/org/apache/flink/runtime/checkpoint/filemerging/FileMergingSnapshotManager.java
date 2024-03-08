@@ -21,6 +21,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.TaskStateManager;
@@ -34,8 +35,6 @@ import java.io.Closeable;
  * checkpoint files with merging checkpoint files enabled. It manages the files for ONE single task
  * in TM, including all subtasks of this single task that is running in this TM. There is one
  * FileMergingSnapshotManager for each job per task manager.
- *
- * <p>TODO (FLINK-32075): leverage checkpoint notification to delete logical files.
  */
 public interface FileMergingSnapshotManager extends Closeable {
 
@@ -119,6 +118,34 @@ public interface FileMergingSnapshotManager extends Closeable {
     Path getManagedDir(SubtaskKey subtaskKey, CheckpointedStateScope scope);
 
     /**
+     * Notifies the manager that the checkpoint with the given {@code checkpointId} completed and
+     * was committed.
+     *
+     * @param subtaskKey the subtask key identifying the subtask.
+     * @param checkpointId The ID of the checkpoint that has been completed.
+     * @throws Exception thrown if anything goes wrong with the listener.
+     */
+    void notifyCheckpointComplete(SubtaskKey subtaskKey, long checkpointId) throws Exception;
+
+    /**
+     * This method is called as a notification once a distributed checkpoint has been aborted.
+     *
+     * @param subtaskKey the subtask key identifying the subtask.
+     * @param checkpointId The ID of the checkpoint that has been completed.
+     * @throws Exception thrown if anything goes wrong with the listener.
+     */
+    void notifyCheckpointAborted(SubtaskKey subtaskKey, long checkpointId) throws Exception;
+
+    /**
+     * This method is called as a notification once a distributed checkpoint has been subsumed.
+     *
+     * @param subtaskKey the subtask key identifying the subtask.
+     * @param checkpointId The ID of the checkpoint that has been completed.
+     * @throws Exception thrown if anything goes wrong with the listener.
+     */
+    void notifyCheckpointSubsumed(SubtaskKey subtaskKey, long checkpointId) throws Exception;
+
+    /**
      * A key identifies a subtask. A subtask can be identified by the operator id, subtask index and
      * the parallelism. Note that this key should be consistent across job attempts.
      */
@@ -149,6 +176,12 @@ public interface FileMergingSnapshotManager extends Closeable {
             hash = 31 * hash + subtaskIndex;
             hash = 31 * hash + parallelism;
             this.hashCode = hash;
+        }
+
+        public static SubtaskKey of(Environment environment) {
+            return new SubtaskKey(
+                    OperatorID.fromJobVertexID(environment.getJobVertexId()),
+                    environment.getTaskInfo());
         }
 
         /**

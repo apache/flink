@@ -90,7 +90,7 @@ class EnumSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<TestEnum, 
         @SuppressWarnings("unchecked")
         @Override
         public TypeSerializer<TestEnum> createPriorSerializer() {
-            return new EnumSerializer(TestEnum.class);
+            return new EnumSerializer<>(TestEnum.class);
         }
 
         @Override
@@ -108,7 +108,7 @@ class EnumSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<TestEnum, 
         @SuppressWarnings("unchecked")
         @Override
         public TypeSerializer<TestEnum> createUpgradedSerializer() {
-            return new EnumSerializer(TestEnum.class);
+            return new EnumSerializer<>(TestEnum.class);
         }
 
         @Override
@@ -143,7 +143,7 @@ class EnumSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<TestEnum, 
         @SuppressWarnings("unchecked")
         @Override
         public TypeSerializer<EnumBefore> createPriorSerializer() {
-            return new EnumSerializer(EnumBefore.class);
+            return new EnumSerializer<>(EnumBefore.class);
         }
 
         @Override
@@ -172,7 +172,7 @@ class EnumSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<TestEnum, 
         @SuppressWarnings("unchecked")
         @Override
         public TypeSerializer<EnumAfter> createUpgradedSerializer() {
-            return new EnumSerializer(EnumAfter.class);
+            return new EnumSerializer<>(EnumAfter.class);
         }
 
         @Override

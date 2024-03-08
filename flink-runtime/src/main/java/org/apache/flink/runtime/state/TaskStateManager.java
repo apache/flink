@@ -116,5 +116,6 @@ public interface TaskStateManager extends CheckpointListener, AutoCloseable {
     StateChangelogStorageView<?> getStateChangelogStorageView(
             Configuration configuration, ChangelogStateHandle changelogStateHandle);
 
+    @Nullable
     FileMergingSnapshotManager getFileMergingSnapshotManager();
 }

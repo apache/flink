@@ -128,6 +128,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphUtils.isAnyOutputBlocking;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -890,6 +891,14 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
             final SavepointFormatType formatType) {
         mainThreadExecutor.assertRunningInMainThread();
 
+        if (isAnyOutputBlocking(executionGraph)) {
+            // TODO: Introduce a more general solution to mark times when
+            //  checkpoints are disabled, as well as the detailed reason.
+            //  https://issues.apache.org/jira/browse/FLINK-34519
+            return FutureUtils.completedExceptionally(
+                    new CheckpointException(CheckpointFailureReason.BLOCKING_OUTPUT_EXIST));
+        }
+
         final CheckpointCoordinator checkpointCoordinator =
                 executionGraph.getCheckpointCoordinator();
         StopWithSavepointTerminationManager.checkSavepointActionPreconditions(
@@ -1014,6 +1023,11 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
             final boolean terminate,
             final SavepointFormatType formatType) {
         mainThreadExecutor.assertRunningInMainThread();
+
+        if (isAnyOutputBlocking(executionGraph)) {
+            return FutureUtils.completedExceptionally(
+                    new CheckpointException(CheckpointFailureReason.BLOCKING_OUTPUT_EXIST));
+        }
 
         final CheckpointCoordinator checkpointCoordinator =
                 executionGraph.getCheckpointCoordinator();

@@ -68,7 +68,10 @@ public class ResultInfoSerializer extends StdSerializer<ResultInfo> {
 
     private static final RowDataToJsonConverters TO_JSON_CONVERTERS =
             new RowDataToJsonConverters(
-                    TimestampFormat.ISO_8601, JsonFormatOptions.MapNullKeyMode.LITERAL, "null");
+                    TimestampFormat.ISO_8601,
+                    JsonFormatOptions.MapNullKeyMode.LITERAL,
+                    "null",
+                    false);
 
     @Override
     public void serialize(

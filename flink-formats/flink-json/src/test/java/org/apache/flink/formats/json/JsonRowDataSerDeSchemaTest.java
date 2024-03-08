@@ -216,7 +216,8 @@ public class JsonRowDataSerDeSchemaTest {
                         TimestampFormat.ISO_8601,
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
-                        true);
+                        true,
+                        false);
         open(serializationSchema);
 
         byte[] actualBytes = serializationSchema.serialize(rowData);
@@ -300,7 +301,8 @@ public class JsonRowDataSerDeSchemaTest {
                         TimestampFormat.ISO_8601,
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
-                        true);
+                        true,
+                        false);
         open(serializationSchema);
 
         // the first row
@@ -381,7 +383,8 @@ public class JsonRowDataSerDeSchemaTest {
                         TimestampFormat.ISO_8601,
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
-                        true);
+                        true,
+                        false);
         open(serializationSchema);
 
         for (int i = 0; i < jsons.length; i++) {
@@ -496,7 +499,8 @@ public class JsonRowDataSerDeSchemaTest {
                         TimestampFormat.SQL,
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
-                        true);
+                        true,
+                        false);
         open(serializationSchema);
 
         ObjectNode root = OBJECT_MAPPER.createObjectNode();
@@ -538,7 +542,8 @@ public class JsonRowDataSerDeSchemaTest {
                         TimestampFormat.SQL,
                         JsonFormatOptions.MapNullKeyMode.FAIL,
                         "null",
-                        true);
+                        true,
+                        false);
         open(serializationSchema1);
         // expect message for serializationSchema1
         String errorMessage1 =
@@ -551,7 +556,8 @@ public class JsonRowDataSerDeSchemaTest {
                         TimestampFormat.SQL,
                         JsonFormatOptions.MapNullKeyMode.DROP,
                         "null",
-                        true);
+                        true,
+                        false);
         open(serializationSchema2);
         // expect result for serializationSchema2
         String expectResult2 = "{\"nestedMap\":{\"no-null key\":{\"no-null key\":1}}}";
@@ -562,7 +568,8 @@ public class JsonRowDataSerDeSchemaTest {
                         TimestampFormat.SQL,
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "nullKey",
-                        true);
+                        true,
+                        false);
         open(serializationSchema3);
         // expect result for serializationSchema3
         String expectResult3 =
@@ -601,7 +608,8 @@ public class JsonRowDataSerDeSchemaTest {
                         TimestampFormat.ISO_8601,
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
-                        true);
+                        true,
+                        false);
         plainDecimalSerializer.open(new DummyInitializationContext());
         JsonRowDataSerializationSchema scientificDecimalSerializer =
                 new JsonRowDataSerializationSchema(
@@ -609,6 +617,7 @@ public class JsonRowDataSerDeSchemaTest {
                         TimestampFormat.ISO_8601,
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
+                        false,
                         false);
         scientificDecimalSerializer.open(new DummyInitializationContext());
 
@@ -624,6 +633,62 @@ public class JsonRowDataSerDeSchemaTest {
 
         String scientificDecimalResult = new String(scientificDecimalSerializer.serialize(rowData));
         assertThat(scientificDecimalResult).isEqualTo(scientificDecimalJson);
+    }
+
+    @TestTemplate
+    void testSerDeMultiRowsWithNullValuesIgnored() throws Exception {
+        String[] jsons =
+                new String[] {
+                    "{\"ops\":null,\"ids\":null,\"metrics\":{\"k1\":10.01,\"k2\":null}}",
+                    "{\"ops\":{\"id\":\"281708d0-4092-4c21-9233-931950b6eccf\", \"svt\":\"2020-02-24T12:58:09.209+0800\"}, "
+                            + "\"ids\":[1, 2, 3]}",
+                    "{\"ops\":{\"id\":null, \"svt\":\"2020-02-24T12:58:09.209+0800\"}, "
+                            + "\"ids\":[1, 2, null]}",
+                    "{\"ops\":{},\"ids\":[],\"metrics\":{}}",
+                };
+
+        String[] expected =
+                new String[] {
+                    "{\"metrics\":{\"k1\":10.01,\"k2\":null}}",
+                    "{\"ops\":{\"id\":\"281708d0-4092-4c21-9233-931950b6eccf\",\"svt\":\"2020-02-24T12:58:09.209+0800\"},"
+                            + "\"ids\":[1,2,3]}",
+                    "{\"ops\":{\"svt\":\"2020-02-24T12:58:09.209+0800\"},\"ids\":[1,2,null]}",
+                    "{\"ops\":{},\"ids\":[],\"metrics\":{}}",
+                };
+
+        RowType rowType =
+                (RowType)
+                        ROW(
+                                        FIELD(
+                                                "ops",
+                                                ROW(FIELD("id", STRING()), FIELD("svt", STRING()))),
+                                        FIELD("ids", ARRAY(INT())),
+                                        FIELD("metrics", MAP(STRING(), DOUBLE())))
+                                .getLogicalType();
+
+        JsonRowDataDeserializationSchema deserializationSchema =
+                new JsonRowDataDeserializationSchema(
+                        rowType,
+                        InternalTypeInfo.of(rowType),
+                        false,
+                        true,
+                        TimestampFormat.ISO_8601);
+        open(deserializationSchema);
+        JsonRowDataSerializationSchema serializationSchema =
+                new JsonRowDataSerializationSchema(
+                        rowType,
+                        TimestampFormat.ISO_8601,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
+                        "null",
+                        false,
+                        true);
+        open(serializationSchema);
+        for (int i = 0; i < jsons.length; i++) {
+            String json = jsons[i];
+            RowData row = deserializationSchema.deserialize(json.getBytes());
+            String result = new String(serializationSchema.serialize(row));
+            assertThat(result).isEqualTo(expected[i]);
+        }
     }
 
     @TestTemplate
@@ -648,7 +713,8 @@ public class JsonRowDataSerDeSchemaTest {
                         TimestampFormat.SQL,
                         JsonFormatOptions.MapNullKeyMode.FAIL,
                         "null",
-                        true);
+                        true,
+                        false);
         open(serializationSchema);
         String errorMessage = "Fail to serialize at field: f1.";
 

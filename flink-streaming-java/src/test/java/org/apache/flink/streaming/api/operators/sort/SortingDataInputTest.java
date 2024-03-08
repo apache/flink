@@ -29,12 +29,11 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link SortingDataInput}.
@@ -42,9 +41,9 @@ import static org.junit.Assert.assertThat;
  * <p>These are rather simple unit tests. See also {@link LargeSortingDataInputITCase} for more
  * thorough tests.
  */
-public class SortingDataInputTest {
+class SortingDataInputTest {
     @Test
-    public void simpleFixedLengthKeySorting() throws Exception {
+    void simpleFixedLengthKeySorting() throws Exception {
         CollectingDataOutput<Integer> collectingDataOutput = new CollectingDataOutput<>();
         CollectionDataInput<Integer> input =
                 new CollectionDataInput<>(
@@ -75,20 +74,18 @@ public class SortingDataInputTest {
             inputStatus = sortingDataInput.emitNext(collectingDataOutput);
         } while (inputStatus != DataInputStatus.END_OF_INPUT);
 
-        assertThat(
-                collectingDataOutput.events,
-                equalTo(
-                        Arrays.asList(
-                                new StreamRecord<>(1, 1),
-                                new StreamRecord<>(1, 2),
-                                new StreamRecord<>(1, 3),
-                                new StreamRecord<>(2, 1),
-                                new StreamRecord<>(2, 2),
-                                new StreamRecord<>(2, 3))));
+        assertThat(collectingDataOutput.events)
+                .containsExactly(
+                        new StreamRecord<>(1, 1),
+                        new StreamRecord<>(1, 2),
+                        new StreamRecord<>(1, 3),
+                        new StreamRecord<>(2, 1),
+                        new StreamRecord<>(2, 2),
+                        new StreamRecord<>(2, 3));
     }
 
     @Test
-    public void watermarkPropagation() throws Exception {
+    void watermarkPropagation() throws Exception {
         CollectingDataOutput<Integer> collectingDataOutput = new CollectingDataOutput<>();
         CollectionDataInput<Integer> input =
                 new CollectionDataInput<>(
@@ -125,21 +122,19 @@ public class SortingDataInputTest {
             inputStatus = sortingDataInput.emitNext(collectingDataOutput);
         } while (inputStatus != DataInputStatus.END_OF_INPUT);
 
-        assertThat(
-                collectingDataOutput.events,
-                equalTo(
-                        Arrays.asList(
-                                new StreamRecord<>(1, 1),
-                                new StreamRecord<>(1, 2),
-                                new StreamRecord<>(1, 3),
-                                new StreamRecord<>(2, 1),
-                                new StreamRecord<>(2, 2),
-                                new StreamRecord<>(2, 3),
-                                new Watermark(6))));
+        assertThat(collectingDataOutput.events)
+                .containsExactly(
+                        new StreamRecord<>(1, 1),
+                        new StreamRecord<>(1, 2),
+                        new StreamRecord<>(1, 3),
+                        new StreamRecord<>(2, 1),
+                        new StreamRecord<>(2, 2),
+                        new StreamRecord<>(2, 3),
+                        new Watermark(6));
     }
 
     @Test
-    public void simpleVariableLengthKeySorting() throws Exception {
+    void simpleVariableLengthKeySorting() throws Exception {
         CollectingDataOutput<Integer> collectingDataOutput = new CollectingDataOutput<>();
         CollectionDataInput<Integer> input =
                 new CollectionDataInput<>(
@@ -170,15 +165,13 @@ public class SortingDataInputTest {
             inputStatus = sortingDataInput.emitNext(collectingDataOutput);
         } while (inputStatus != DataInputStatus.END_OF_INPUT);
 
-        assertThat(
-                collectingDataOutput.events,
-                equalTo(
-                        Arrays.asList(
-                                new StreamRecord<>(1, 1),
-                                new StreamRecord<>(1, 2),
-                                new StreamRecord<>(1, 3),
-                                new StreamRecord<>(2, 1),
-                                new StreamRecord<>(2, 2),
-                                new StreamRecord<>(2, 3))));
+        assertThat(collectingDataOutput.events)
+                .containsExactly(
+                        new StreamRecord<>(1, 1),
+                        new StreamRecord<>(1, 2),
+                        new StreamRecord<>(1, 3),
+                        new StreamRecord<>(2, 1),
+                        new StreamRecord<>(2, 2),
+                        new StreamRecord<>(2, 3));
     }
 }

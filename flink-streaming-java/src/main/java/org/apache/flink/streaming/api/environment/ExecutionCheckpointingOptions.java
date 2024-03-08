@@ -24,6 +24,7 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 import org.apache.flink.streaming.api.CheckpointingMode;
@@ -250,6 +251,10 @@ public class ExecutionCheckpointingOptions {
                                             "Forces unaligned checkpoints, particularly allowing them for iterative jobs.")
                                     .build());
 
+    /**
+     * @deprecated Use {@link StateRecoveryOptions#CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA} instead.
+     */
+    @Deprecated @Documentation.ExcludeFromDocumentation
     public static final ConfigOption<Long> CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA =
             ConfigOptions.key("execution.checkpointing.recover-without-channel-state.checkpoint-id")
                     .longType()
@@ -298,8 +303,10 @@ public class ExecutionCheckpointingOptions {
      * Access to this option is officially only supported via {@link
      * CheckpointConfig#enableApproximateLocalRecovery(boolean)}, but there is no good reason behind
      * this.
+     *
+     * @deprecated Use {@link StateRecoveryOptions#APPROXIMATE_LOCAL_RECOVERY} instead.
      */
-    @Internal @Documentation.ExcludeFromDocumentation
+    @Internal @Deprecated @Documentation.ExcludeFromDocumentation
     public static final ConfigOption<Boolean> APPROXIMATE_LOCAL_RECOVERY =
             key("execution.checkpointing.approximate-local-recovery")
                     .booleanType()

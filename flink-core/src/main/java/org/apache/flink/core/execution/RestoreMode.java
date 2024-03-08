@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobgraph;
+package org.apache.flink.core.execution;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
@@ -25,7 +25,11 @@ import org.apache.flink.configuration.description.InlineElement;
 
 import static org.apache.flink.configuration.description.TextElement.text;
 
-/** Defines how Flink should restore from a given savepoint or retained checkpoint. */
+/**
+ * Defines state files ownership when Flink restore from a given savepoint or retained checkpoint.
+ * TODO: Rename 'RestoreMode' to 'RecoveryClaimMode' in Flink 2.0. Any related variable names should
+ * be adjusted accordingly.
+ */
 @PublicEvolving
 public enum RestoreMode implements DescribedEnum {
     CLAIM(

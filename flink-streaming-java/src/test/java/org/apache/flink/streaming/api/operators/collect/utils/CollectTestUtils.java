@@ -23,13 +23,12 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.api.operators.collect.CollectCoordinationResponse;
 
-import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Utilities for testing collecting mechanism. */
 public class CollectTestUtils {
@@ -56,14 +55,10 @@ public class CollectTestUtils {
             List<T> expected,
             TypeSerializer<T> serializer)
             throws IOException {
-        Assert.assertEquals(version, response.getVersion());
-        Assert.assertEquals(lastCheckpointedOffset, response.getLastCheckpointedOffset());
+        assertThat(response.getVersion()).isEqualTo(version);
+        assertThat(response.getLastCheckpointedOffset()).isEqualTo(lastCheckpointedOffset);
         List<T> results = response.getResults(serializer);
-        assertResultsEqual(expected, results);
-    }
-
-    public static <T> void assertResultsEqual(List<T> expected, List<T> actual) {
-        Assert.assertThat(actual, CoreMatchers.is(expected));
+        assertThat(results).isEqualTo(expected);
     }
 
     public static <T> void assertAccumulatorResult(
@@ -78,9 +73,9 @@ public class CollectTestUtils {
         CollectCoordinationResponse response = accResults.f1;
         List<T> actualResults = response.getResults(serializer);
 
-        Assert.assertEquals(expectedOffset, offset);
-        Assert.assertEquals(expectedVersion, response.getVersion());
-        Assert.assertEquals(expectedLastCheckpointedOffset, response.getLastCheckpointedOffset());
-        assertResultsEqual(expectedResults, actualResults);
+        assertThat(offset).isEqualTo(expectedOffset);
+        assertThat(response.getVersion()).isEqualTo(expectedVersion);
+        assertThat(response.getLastCheckpointedOffset()).isEqualTo(expectedLastCheckpointedOffset);
+        assertThat(actualResults).isEqualTo(expectedResults);
     }
 }

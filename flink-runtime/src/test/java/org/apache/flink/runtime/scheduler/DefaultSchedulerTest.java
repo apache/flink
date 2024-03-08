@@ -26,12 +26,15 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.JobStatusHook;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.failure.TestingFailureEnricher;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.core.testutils.ScheduledTask;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
@@ -123,6 +126,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -134,6 +138,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.createSlotOffersForResourceRequirements;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.acknowledgePendingCheckpoint;
@@ -1799,6 +1804,61 @@ public class DefaultSchedulerTest {
     @Test
     void testJobStatusHookWithJobFinished() throws Exception {
         commonJobStatusHookTest(ExecutionState.FINISHED, JobStatus.FINISHED);
+    }
+
+    @Test
+    void testStartCheckpointOnlyAfterVertexWithBlockingEdgeFinished() {
+        final JobVertex source = new JobVertex("source");
+        source.setInvokableClass(NoOpInvokable.class);
+        final JobVertex map = new JobVertex("map");
+        map.setInvokableClass(NoOpInvokable.class);
+        final JobVertex sink = new JobVertex("sink");
+        sink.setInvokableClass(NoOpInvokable.class);
+
+        sink.connectNewDataSetAsInput(
+                map, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        map.connectNewDataSetAsInput(
+                source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(source, map, sink);
+        enableCheckpointing(jobGraph, null, null, Long.MAX_VALUE - 1, true);
+
+        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+        final CheckpointCoordinator checkpointCoordinator = scheduler.getCheckpointCoordinator();
+        assertThat(checkpointCoordinator.isPeriodicCheckpointingStarted()).isFalse();
+
+        final Iterator<ArchivedExecutionVertex> iterator =
+                scheduler
+                        .requestJob()
+                        .getArchivedExecutionGraph()
+                        .getAllExecutionVertices()
+                        .iterator();
+        final ExecutionAttemptID sourceAttemptId =
+                iterator.next().getCurrentExecutionAttempt().getAttemptId();
+        final ExecutionAttemptID mapAttemptId =
+                iterator.next().getCurrentExecutionAttempt().getAttemptId();
+        final ExecutionAttemptID sinkAttemptId =
+                iterator.next().getCurrentExecutionAttempt().getAttemptId();
+        assertThat(iterator).isExhausted();
+
+        transitionToRunning(scheduler, sourceAttemptId);
+        transitionToRunning(scheduler, mapAttemptId);
+        assertThat(checkpointCoordinator.isPeriodicCheckpointingStarted()).isFalse();
+        assertThatFuture(scheduler.triggerSavepoint("", false, SavepointFormatType.DEFAULT))
+                .eventuallyFailsWith(ExecutionException.class)
+                .withCauseInstanceOf(CheckpointException.class)
+                .withMessageContaining(CheckpointFailureReason.BLOCKING_OUTPUT_EXIST.message());
+        assertThatFuture(scheduler.stopWithSavepoint("", false, SavepointFormatType.DEFAULT))
+                .eventuallyFailsWith(ExecutionException.class)
+                .withCauseInstanceOf(CheckpointException.class)
+                .withMessageContaining(CheckpointFailureReason.BLOCKING_OUTPUT_EXIST.message());
+
+        scheduler.updateTaskExecutionState(
+                new TaskExecutionState(sourceAttemptId, ExecutionState.FINISHED));
+        scheduler.updateTaskExecutionState(
+                new TaskExecutionState(mapAttemptId, ExecutionState.FINISHED));
+        transitionToRunning(scheduler, sinkAttemptId);
+        assertThat(checkpointCoordinator.isPeriodicCheckpointingStarted()).isTrue();
     }
 
     private void commonJobStatusHookTest(

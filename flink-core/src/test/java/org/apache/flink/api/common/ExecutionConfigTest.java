@@ -36,7 +36,6 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -52,8 +51,8 @@ public class ExecutionConfigTest {
     @Test
     void testDoubleTypeRegistration() {
         ExecutionConfig config = new ExecutionConfig();
-        List<Class<?>> types = Arrays.<Class<?>>asList(Double.class, Integer.class, Double.class);
-        List<Class<?>> expectedTypes = Arrays.<Class<?>>asList(Double.class, Integer.class);
+        List<Class<?>> types = Arrays.asList(Double.class, Integer.class, Double.class);
+        List<Class<?>> expectedTypes = Arrays.asList(Double.class, Integer.class);
 
         for (Class<?> tpe : types) {
             config.getSerializerConfig().registerKryoType(tpe);
@@ -65,7 +64,7 @@ public class ExecutionConfigTest {
             assertThat(tpe).isEqualTo(expectedTypes.get(counter++));
         }
 
-        assertThat(expectedTypes.size()).isEqualTo(counter);
+        assertThat(expectedTypes).hasSize(counter);
     }
 
     @Test
@@ -88,11 +87,11 @@ public class ExecutionConfigTest {
     @Test
     void testDisableGenericTypes() {
         SerializerConfigImpl conf = new SerializerConfigImpl();
-        TypeInformation<Object> typeInfo = new GenericTypeInfo<Object>(Object.class);
+        TypeInformation<Object> typeInfo = new GenericTypeInfo<>(Object.class);
 
         // by default, generic types are supported
         TypeSerializer<Object> serializer = typeInfo.createSerializer(conf);
-        assertThat(serializer instanceof KryoSerializer).isTrue();
+        assertThat(serializer).isInstanceOf(KryoSerializer.class);
 
         // expect an exception when generic types are disabled
         conf.setGenericTypes(false);
@@ -103,7 +102,7 @@ public class ExecutionConfigTest {
     }
 
     @Test
-    void testExecutionConfigSerialization() throws IOException, ClassNotFoundException {
+    void testExecutionConfigSerialization() throws Exception {
         final Random r = new Random();
 
         final int parallelism = 1 + r.nextInt(10);
@@ -249,7 +248,7 @@ public class ExecutionConfigTest {
     }
 
     @Test
-    public void testLoadingSchedulerTypeFromConfiguration() {
+    void testLoadingSchedulerTypeFromConfiguration() {
         testLoadingSchedulerTypeFromConfiguration(JobManagerOptions.SchedulerType.AdaptiveBatch);
         testLoadingSchedulerTypeFromConfiguration(JobManagerOptions.SchedulerType.Default);
         testLoadingSchedulerTypeFromConfiguration(JobManagerOptions.SchedulerType.Adaptive);
@@ -264,7 +263,7 @@ public class ExecutionConfigTest {
         configFromConfiguration.configure(
                 configuration, Thread.currentThread().getContextClassLoader());
 
-        assertThat(configFromConfiguration.getSchedulerType().get()).isEqualTo(schedulerType);
+        assertThat(configFromConfiguration.getSchedulerType()).contains(schedulerType);
     }
 
     @Test

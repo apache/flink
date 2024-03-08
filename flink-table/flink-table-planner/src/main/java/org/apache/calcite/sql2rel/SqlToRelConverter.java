@@ -18,7 +18,7 @@ package org.apache.calcite.sql2rel;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.planner.calcite.FlinkOperatorBinding;
+import org.apache.flink.table.planner.calcite.FlinkSqlCallBinding;
 import org.apache.flink.table.planner.calcite.TimestampSchemaVersion;
 import org.apache.flink.table.planner.hint.ClearQueryHintsWithInvalidPropagationShuttle;
 import org.apache.flink.table.planner.hint.FlinkHints;
@@ -235,14 +235,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Added in FLINK-29081, FLINK-28682, FLINK-33395: Lines 654 ~ 671
- *   <li>Added in Flink-24024: Lines 1435 ~ 1445, Lines 1459 ~ 1501
- *   <li>Added in FLINK-28682: Lines 2323 ~ 2340
- *   <li>Added in FLINK-28682: Lines 2377 ~ 2405
- *   <li>Added in FLINK-32474: Lines 2875 ~ 2887
- *   <li>Added in FLINK-32474: Lines 2987 ~ 3021
- *   <li>Added in FLINK-20873: Lines 5519 ~ 5528
- *   <li>Added in FLINK-34057, FLINK-34058: Lines 6090 ~ 6116
+ *   <li>Added in FLINK-29081, FLINK-28682, FLINK-33395: Lines 655 ~ 673
+ *   <li>Added in Flink-24024: Lines 1437 ~ 1447, Lines 1461 ~ 1503
+ *   <li>Added in FLINK-28682: Lines 2325 ~ 2342
+ *   <li>Added in FLINK-28682: Lines 2379 ~ 2407
+ *   <li>Added in FLINK-32474: Lines 2877 ~ 2889
+ *   <li>Added in FLINK-32474: Lines 2989 ~ 3023
+ *   <li>Added in FLINK-20873: Lines 5521 ~ 5530
+ *   <li>Added in FLINK-34312: Lines 5641 ~ 5644
+ *   <li>Added in FLINK-34057, FLINK-34058, FLINK-34312: Lines 6093 ~ 6111
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
@@ -5637,8 +5638,10 @@ public class SqlToRelConverter {
                             () -> "agg.lookupAggregates for call " + call);
                 }
             }
+            // ----- FLINK MODIFICATION BEGIN -----
             return exprConverter.convertCall(
-                    this, new SqlCallBinding(validator(), scope, call).permutedCall());
+                    this, new FlinkSqlCallBinding(validator(), scope, call).permutedCall());
+            // ----- FLINK MODIFICATION END -----
         }
 
         @Override
@@ -6088,11 +6091,9 @@ public class SqlToRelConverter {
                 // switch out of agg mode
                 bb.agg = null;
                 // ----- FLINK MODIFICATION BEGIN -----
-                SqlCallBinding sqlCallBinding =
-                        new SqlCallBinding(validator(), aggregatingSelectScope, call);
-                List<SqlNode> sqlNodes = sqlCallBinding.operands();
-                FlinkOperatorBinding flinkOperatorBinding =
-                        new FlinkOperatorBinding(sqlCallBinding);
+                FlinkSqlCallBinding binding =
+                        new FlinkSqlCallBinding(validator(), aggregatingSelectScope, call);
+                List<SqlNode> sqlNodes = binding.operands();
                 for (int i = 0; i < sqlNodes.size(); i++) {
                     SqlNode operand = sqlNodes.get(i);
                     // special case for COUNT(*):  delete the *
@@ -6105,12 +6106,6 @@ public class SqlToRelConverter {
                         }
                     }
                     RexNode convertedExpr = bb.convertExpression(operand);
-                    if (convertedExpr.getKind() == SqlKind.DEFAULT) {
-                        RelDataType relDataType = flinkOperatorBinding.getOperandType(i);
-                        convertedExpr =
-                                ((RexCall) convertedExpr)
-                                        .clone(relDataType, ((RexCall) convertedExpr).operands);
-                    }
                     args.add(lookupOrCreateGroupExpr(convertedExpr));
                 }
                 // ----- FLINK MODIFICATION END -----

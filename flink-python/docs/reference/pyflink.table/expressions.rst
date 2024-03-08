@@ -241,6 +241,7 @@ advanced type helper functions
     Expression.map_entries
     Expression.map_keys
     Expression.map_values
+    Expression.array_except
 
 
 time definition functions

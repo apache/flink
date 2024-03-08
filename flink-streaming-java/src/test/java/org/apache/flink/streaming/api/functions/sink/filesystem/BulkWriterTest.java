@@ -23,13 +23,11 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -37,14 +35,16 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-/** Tests for the {@link StreamingFileSink} with {@link BulkWriter}. */
-public class BulkWriterTest extends TestLogger {
+import static org.assertj.core.api.Assertions.assertThat;
 
-    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+/** Tests for the {@link StreamingFileSink} with {@link BulkWriter}. */
+public class BulkWriterTest {
+
+    @TempDir private static java.nio.file.Path tempFolder;
 
     @Test
-    public void testCustomBulkWriter() throws Exception {
-        final File outDir = TEMP_FOLDER.newFolder();
+    void testCustomBulkWriter() throws Exception {
+        final File outDir = TempDirUtils.newFolder(tempFolder);
 
         // we set the max bucket size to small so that we can know when it rolls
         try (OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness =
@@ -62,8 +62,8 @@ public class BulkWriterTest extends TestLogger {
     }
 
     @Test
-    public void testCustomBulkWriterWithBucketAssigner() throws Exception {
-        final File outDir = TEMP_FOLDER.newFolder();
+    void testCustomBulkWriterWithBucketAssigner() throws Exception {
+        final File outDir = TempDirUtils.newFolder(tempFolder);
 
         // we set the max bucket size to small so that we can know when it rolls
         try (OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness =
@@ -86,8 +86,8 @@ public class BulkWriterTest extends TestLogger {
     }
 
     @Test
-    public void testCustomBulkWriterWithPartConfig() throws Exception {
-        final File outDir = TEMP_FOLDER.newFolder();
+    void testCustomBulkWriterWithPartConfig() throws Exception {
+        final File outDir = TempDirUtils.newFolder(tempFolder);
 
         // we set the max bucket size to small so that we can know when it rolls
         try (OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness =
@@ -142,15 +142,15 @@ public class BulkWriterTest extends TestLogger {
         for (Map.Entry<File, String> fileContents : contents.entrySet()) {
             if (fileContents.getKey().getName().contains(partFileName1)) {
                 fileCounter++;
-                Assert.assertEquals("test1@1\n", fileContents.getValue());
+                assertThat(fileContents.getValue()).isEqualTo("test1@1\n");
             } else if (fileContents.getKey().getName().contains(partFileName2)) {
                 fileCounter++;
-                Assert.assertEquals("test1@2\ntest1@3\n", fileContents.getValue());
+                assertThat(fileContents.getValue()).isEqualTo("test1@2\ntest1@3\n");
             }
             // check bucket name
-            Assert.assertEquals("test1", fileContents.getKey().getParentFile().getName());
+            assertThat(fileContents.getKey().getParentFile().getName()).isEqualTo("test1");
         }
-        Assert.assertEquals(2L, fileCounter);
+        assertThat(fileCounter).isEqualTo(2L);
 
         // we acknowledge the latest checkpoint, so everything should be published.
         testHarness.notifyOfCompletedCheckpoint(2L);
@@ -190,19 +190,19 @@ public class BulkWriterTest extends TestLogger {
         for (Map.Entry<File, String> fileContents : contents.entrySet()) {
             if (fileContents.getKey().getName().contains(partFileName1)) {
                 fileCounter++;
-                Assert.assertEquals("test1@1\n", fileContents.getValue());
-                Assert.assertEquals("1", fileContents.getKey().getParentFile().getName());
+                assertThat(fileContents.getValue()).isEqualTo("test1@1\n");
+                assertThat(fileContents.getKey().getParentFile().getName()).isEqualTo("1");
             } else if (fileContents.getKey().getName().contains(partFileName2)) {
                 fileCounter++;
-                Assert.assertEquals("test1@2\n", fileContents.getValue());
-                Assert.assertEquals("2", fileContents.getKey().getParentFile().getName());
+                assertThat(fileContents.getValue()).isEqualTo("test1@2\n");
+                assertThat(fileContents.getKey().getParentFile().getName()).isEqualTo("2");
             } else if (fileContents.getKey().getName().contains(partFileName3)) {
                 fileCounter++;
-                Assert.assertEquals("test1@3\n", fileContents.getValue());
-                Assert.assertEquals("3", fileContents.getKey().getParentFile().getName());
+                assertThat(fileContents.getValue()).isEqualTo("test1@3\n");
+                assertThat(fileContents.getKey().getParentFile().getName()).isEqualTo("3");
             }
         }
-        Assert.assertEquals(3L, fileCounter);
+        assertThat(fileCounter).isEqualTo(3L);
 
         // we acknowledge the latest checkpoint, so everything should be published.
         testHarness.notifyOfCompletedCheckpoint(2L);

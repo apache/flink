@@ -116,7 +116,7 @@ public class TableDistribution {
         return Optional.ofNullable(bucketCount);
     }
 
-    public String asSerializableString() {
+    private String asSerializableString() {
         if (getBucketKeys().isEmpty()
                 && getBucketCount().isPresent()
                 && getBucketCount().get() != 0) {
@@ -141,5 +141,10 @@ public class TableDistribution {
         }
         sb.append("\n");
         return sb.toString();
+    }
+
+    @Override
+    public String toString() {
+        return asSerializableString();
     }
 }

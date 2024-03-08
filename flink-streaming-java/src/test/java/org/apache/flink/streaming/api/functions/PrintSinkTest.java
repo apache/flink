@@ -46,7 +46,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.util.OptionalLong;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link PrintSink}. */
 class PrintSinkTest {
@@ -84,8 +84,8 @@ class PrintSinkTest {
         try (SinkWriter<String> writer = printSink.createWriter(new MockInitContext(1))) {
             writer.write("hello world!", new MockContext());
 
-            assertEquals("Print to System.out", printSink.toString());
-            assertEquals("hello world!" + line, arrayOutputStream.toString());
+            assertThat(printSink).hasToString("Print to System.out");
+            assertThat(arrayOutputStream).hasToString("hello world!" + line);
         }
     }
 
@@ -96,8 +96,8 @@ class PrintSinkTest {
         try (SinkWriter<String> writer = printSink.createWriter(new MockInitContext(1))) {
             writer.write("hello world!", new MockContext());
 
-            assertEquals("Print to System.err", printSink.toString());
-            assertEquals("hello world!" + line, arrayErrorStream.toString());
+            assertThat(printSink).hasToString("Print to System.err");
+            assertThat(arrayErrorStream).hasToString("hello world!" + line);
         }
     }
 
@@ -108,8 +108,8 @@ class PrintSinkTest {
         try (SinkWriter<String> writer = printSink.createWriter(new MockInitContext(1))) {
             writer.write("hello world!", new MockContext());
 
-            assertEquals("Print to System.err", printSink.toString());
-            assertEquals("mySink> hello world!" + line, arrayErrorStream.toString());
+            assertThat(printSink).hasToString("Print to System.err");
+            assertThat(arrayErrorStream).hasToString("mySink> hello world!" + line);
         }
     }
 
@@ -120,8 +120,8 @@ class PrintSinkTest {
         try (SinkWriter<String> writer = printSink.createWriter(new MockInitContext(2))) {
             writer.write("hello world!", new MockContext());
 
-            assertEquals("Print to System.out", printSink.toString());
-            assertEquals("1> hello world!" + line, arrayOutputStream.toString());
+            assertThat(printSink).hasToString("Print to System.out");
+            assertThat(arrayOutputStream).hasToString("1> hello world!" + line);
         }
     }
 
@@ -132,8 +132,8 @@ class PrintSinkTest {
         try (SinkWriter<String> writer = printSink.createWriter(new MockInitContext(2))) {
             writer.write("hello world!", new MockContext());
 
-            assertEquals("Print to System.out", printSink.toString());
-            assertEquals("mySink:1> hello world!" + line, arrayOutputStream.toString());
+            assertThat(printSink).hasToString("Print to System.out");
+            assertThat(arrayOutputStream).hasToString("mySink:1> hello world!" + line);
         }
     }
 
@@ -144,8 +144,8 @@ class PrintSinkTest {
         try (SinkWriter<String> writer = printSink.createWriter(new MockInitContext(1))) {
             writer.write("hello world!", new MockContext());
 
-            assertEquals("Print to System.out", printSink.toString());
-            assertEquals("mySink> hello world!" + line, arrayOutputStream.toString());
+            assertThat(printSink).hasToString("Print to System.out");
+            assertThat(arrayOutputStream).hasToString("mySink> hello world!" + line);
         }
     }
 

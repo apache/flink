@@ -699,7 +699,7 @@ public class StreamTaskTest {
                     .hasMessage(
                             "Configured state backend (OnlyIncrementalStateBackend) does not"
                                     + " support enforcing a full snapshot. If you are restoring in"
-                                    + " NO_CLAIM mode, please consider choosing CLAIM restore mode.");
+                                    + " NO_CLAIM mode, please consider choosing CLAIM mode.");
         }
     }
 

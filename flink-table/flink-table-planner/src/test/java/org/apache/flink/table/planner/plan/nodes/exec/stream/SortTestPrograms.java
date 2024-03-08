@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.planner.utils.InternalConfigOptions;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -25,7 +26,8 @@ import org.apache.flink.types.Row;
 
 /**
  * {@link TableTestProgram} definitions for testing {@link
- * org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSortLimit}.
+ * org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSortLimit} and {@link
+ * org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSort}.
  */
 public class SortTestPrograms {
 
@@ -122,5 +124,49 @@ public class SortTestPrograms {
                                     .consumedAfterRestore("-D[4, b, 8]", "+I[6, c, 10]")
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT * from source_t ORDER BY a DESC LIMIT 3")
+                    .build();
+
+    static final TableTestProgram SORT_ASC =
+            TableTestProgram.of("sort-asc", "validates sort node by sorting integers in asc mode")
+                    .setupConfig(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("a INT", "b VARCHAR", "c INT")
+                                    .producedValues(DATA)
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a INT", "b VARCHAR", "c BIGINT")
+                                    .consumedValues(
+                                            "+I[1, a, 5]",
+                                            "+I[2, a, 6]",
+                                            "+I[3, b, 7]",
+                                            "+I[4, b, 8]",
+                                            "+I[5, c, 9]",
+                                            "+I[6, c, 10]")
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT * from source_t ORDER BY a")
+                    .build();
+
+    static final TableTestProgram SORT_DESC =
+            TableTestProgram.of("sort-desc", "validates sort node by sorting integers in desc mode")
+                    .setupConfig(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("a INT", "b VARCHAR", "c INT")
+                                    .producedValues(DATA)
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a INT", "b VARCHAR", "c BIGINT")
+                                    .consumedValues(
+                                            "+I[6, c, 10]",
+                                            "+I[5, c, 9]",
+                                            "+I[4, b, 8]",
+                                            "+I[3, b, 7]",
+                                            "+I[2, a, 6]",
+                                            "+I[1, a, 5]")
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT * from source_t ORDER BY a DESC")
                     .build();
 }

@@ -36,19 +36,19 @@ import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link AggregationFunction}. */
-public class AggregationFunctionTest {
+class AggregationFunctionTest {
 
     @Test
-    public void groupSumIntegerTest() throws Exception {
+    void groupSumIntegerTest() throws Exception {
 
         // preparing expected outputs
         List<Tuple2<Integer, Integer>> expectedGroupSumList = new ArrayList<>();
@@ -124,13 +124,13 @@ public class AggregationFunctionTest {
                         keySelector,
                         keyType);
 
-        assertEquals(expectedGroupSumList, groupedSumList);
-        assertEquals(expectedGroupMinList, groupedMinList);
-        assertEquals(expectedGroupMaxList, groupedMaxList);
+        assertThat(groupedSumList).isEqualTo(expectedGroupSumList);
+        assertThat(groupedMinList).isEqualTo(expectedGroupMinList);
+        assertThat(groupedMaxList).isEqualTo(expectedGroupMaxList);
     }
 
     @Test
-    public void pojoGroupSumIntegerTest() throws Exception {
+    void pojoGroupSumIntegerTest() throws Exception {
 
         // preparing expected outputs
         List<MyPojo> expectedGroupSumList = new ArrayList<>();
@@ -204,13 +204,13 @@ public class AggregationFunctionTest {
                         keySelector,
                         keyType);
 
-        assertEquals(expectedGroupSumList, groupedSumList);
-        assertEquals(expectedGroupMinList, groupedMinList);
-        assertEquals(expectedGroupMaxList, groupedMaxList);
+        assertThat(groupedSumList).isEqualTo(expectedGroupSumList);
+        assertThat(groupedMinList).isEqualTo(expectedGroupMinList);
+        assertThat(groupedMaxList).isEqualTo(expectedGroupMaxList);
     }
 
     @Test
-    public void minMaxByTest() throws Exception {
+    void minMaxByTest() throws Exception {
         // Tuples are grouped on field 0, aggregated on field 1
 
         // preparing expected outputs
@@ -283,49 +283,49 @@ public class AggregationFunctionTest {
         ReduceFunction<Tuple3<Integer, Integer, Integer>> minByFunctionLast =
                 new ComparableAggregator<>(1, typeInfo, AggregationType.MINBY, false, config);
 
-        assertEquals(
-                maxByFirstExpected,
-                MockContext.createAndExecuteForKeyedStream(
-                        new StreamGroupedReduceOperator<>(
-                                maxByFunctionFirst,
-                                typeInfo.createSerializer(config.getSerializerConfig())),
-                        getInputByList(),
-                        keySelector,
-                        keyType));
+        assertThat(
+                        MockContext.createAndExecuteForKeyedStream(
+                                new StreamGroupedReduceOperator<>(
+                                        maxByFunctionFirst,
+                                        typeInfo.createSerializer(config.getSerializerConfig())),
+                                getInputByList(),
+                                keySelector,
+                                keyType))
+                .isEqualTo(maxByFirstExpected);
 
-        assertEquals(
-                maxByLastExpected,
-                MockContext.createAndExecuteForKeyedStream(
-                        new StreamGroupedReduceOperator<>(
-                                maxByFunctionLast,
-                                typeInfo.createSerializer(config.getSerializerConfig())),
-                        getInputByList(),
-                        keySelector,
-                        keyType));
+        assertThat(
+                        MockContext.createAndExecuteForKeyedStream(
+                                new StreamGroupedReduceOperator<>(
+                                        maxByFunctionLast,
+                                        typeInfo.createSerializer(config.getSerializerConfig())),
+                                getInputByList(),
+                                keySelector,
+                                keyType))
+                .isEqualTo(maxByLastExpected);
 
-        assertEquals(
-                minByLastExpected,
-                MockContext.createAndExecuteForKeyedStream(
-                        new StreamGroupedReduceOperator<>(
-                                minByFunctionLast,
-                                typeInfo.createSerializer(config.getSerializerConfig())),
-                        getInputByList(),
-                        keySelector,
-                        keyType));
+        assertThat(
+                        MockContext.createAndExecuteForKeyedStream(
+                                new StreamGroupedReduceOperator<>(
+                                        minByFunctionLast,
+                                        typeInfo.createSerializer(config.getSerializerConfig())),
+                                getInputByList(),
+                                keySelector,
+                                keyType))
+                .isEqualTo(minByLastExpected);
 
-        assertEquals(
-                minByFirstExpected,
-                MockContext.createAndExecuteForKeyedStream(
-                        new StreamGroupedReduceOperator<>(
-                                minByFunctionFirst,
-                                typeInfo.createSerializer(config.getSerializerConfig())),
-                        getInputByList(),
-                        keySelector,
-                        keyType));
+        assertThat(
+                        MockContext.createAndExecuteForKeyedStream(
+                                new StreamGroupedReduceOperator<>(
+                                        minByFunctionFirst,
+                                        typeInfo.createSerializer(config.getSerializerConfig())),
+                                getInputByList(),
+                                keySelector,
+                                keyType))
+                .isEqualTo(minByFirstExpected);
     }
 
     @Test
-    public void pojoMinMaxByTest() throws Exception {
+    void pojoMinMaxByTest() throws Exception {
         // Pojos are grouped on field 0, aggregated on field 1
 
         // preparing expected outputs
@@ -397,45 +397,45 @@ public class AggregationFunctionTest {
         ReduceFunction<MyPojo3> minByFunctionLast =
                 new ComparableAggregator<>("f1", typeInfo, AggregationType.MINBY, false, config);
 
-        assertEquals(
-                maxByFirstExpected,
-                MockContext.createAndExecuteForKeyedStream(
-                        new StreamGroupedReduceOperator<>(
-                                maxByFunctionFirst,
-                                typeInfo.createSerializer(config.getSerializerConfig())),
-                        getInputByPojoList(),
-                        keySelector,
-                        keyType));
+        assertThat(
+                        MockContext.createAndExecuteForKeyedStream(
+                                new StreamGroupedReduceOperator<>(
+                                        maxByFunctionFirst,
+                                        typeInfo.createSerializer(config.getSerializerConfig())),
+                                getInputByPojoList(),
+                                keySelector,
+                                keyType))
+                .isEqualTo(maxByFirstExpected);
 
-        assertEquals(
-                maxByLastExpected,
-                MockContext.createAndExecuteForKeyedStream(
-                        new StreamGroupedReduceOperator<>(
-                                maxByFunctionLast,
-                                typeInfo.createSerializer(config.getSerializerConfig())),
-                        getInputByPojoList(),
-                        keySelector,
-                        keyType));
+        assertThat(
+                        MockContext.createAndExecuteForKeyedStream(
+                                new StreamGroupedReduceOperator<>(
+                                        maxByFunctionLast,
+                                        typeInfo.createSerializer(config.getSerializerConfig())),
+                                getInputByPojoList(),
+                                keySelector,
+                                keyType))
+                .isEqualTo(maxByLastExpected);
 
-        assertEquals(
-                minByLastExpected,
-                MockContext.createAndExecuteForKeyedStream(
-                        new StreamGroupedReduceOperator<>(
-                                minByFunctionLast,
-                                typeInfo.createSerializer(config.getSerializerConfig())),
-                        getInputByPojoList(),
-                        keySelector,
-                        keyType));
+        assertThat(
+                        MockContext.createAndExecuteForKeyedStream(
+                                new StreamGroupedReduceOperator<>(
+                                        minByFunctionLast,
+                                        typeInfo.createSerializer(config.getSerializerConfig())),
+                                getInputByPojoList(),
+                                keySelector,
+                                keyType))
+                .isEqualTo(minByLastExpected);
 
-        assertEquals(
-                minByFirstExpected,
-                MockContext.createAndExecuteForKeyedStream(
-                        new StreamGroupedReduceOperator<>(
-                                minByFunctionFirst,
-                                typeInfo.createSerializer(config.getSerializerConfig())),
-                        getInputByPojoList(),
-                        keySelector,
-                        keyType));
+        assertThat(
+                        MockContext.createAndExecuteForKeyedStream(
+                                new StreamGroupedReduceOperator<>(
+                                        minByFunctionFirst,
+                                        typeInfo.createSerializer(config.getSerializerConfig())),
+                                getInputByPojoList(),
+                                keySelector,
+                                keyType))
+                .isEqualTo(minByFirstExpected);
     }
 
     // *************************************************************************

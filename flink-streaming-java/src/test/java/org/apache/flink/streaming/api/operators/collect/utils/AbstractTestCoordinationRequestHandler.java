@@ -29,8 +29,6 @@ import org.apache.flink.streaming.api.operators.collect.CollectCoordinationRespo
 import org.apache.flink.streaming.api.operators.collect.CollectSinkFunction;
 import org.apache.flink.util.OptionalFailure;
 
-import org.junit.Assert;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,6 +40,8 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** A {@link CoordinationRequestHandler} to test fetching SELECT query results. */
 public abstract class AbstractTestCoordinationRequestHandler<T>
@@ -62,8 +62,7 @@ public abstract class AbstractTestCoordinationRequestHandler<T>
     protected final Random random;
     protected boolean closed;
 
-    public AbstractTestCoordinationRequestHandler(
-            TypeSerializer<T> serializer, String accumulatorName) {
+    AbstractTestCoordinationRequestHandler(TypeSerializer<T> serializer, String accumulatorName) {
         this.serializer = serializer;
         this.accumulatorName = accumulatorName;
 
@@ -85,11 +84,11 @@ public abstract class AbstractTestCoordinationRequestHandler<T>
             throw new RuntimeException("Handler closed");
         }
 
-        Assert.assertTrue(request instanceof CollectCoordinationRequest);
+        assertThat(request).isInstanceOf(CollectCoordinationRequest.class);
         CollectCoordinationRequest collectRequest = (CollectCoordinationRequest) request;
 
         updateBufferedResults();
-        Assert.assertTrue(offset <= collectRequest.getOffset());
+        assertThat(offset).isLessThanOrEqualTo(collectRequest.getOffset());
 
         List<T> subList = Collections.emptyList();
         if (collectRequest.getVersion().equals(version)) {

@@ -34,18 +34,17 @@ import org.apache.flink.streaming.util.KeyedMultiInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.empty;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the facilities provided by {@link AbstractStreamOperatorV2}. */
-public class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
+class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
     @Override
     protected KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
             createTestHarness(int maxParalelism, int numSubtasks, int subtaskIndex)
@@ -73,7 +72,7 @@ public class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
     }
 
     @Test
-    public void testIdleWatermarkHandling() throws Exception {
+    void testIdleWatermarkHandling() throws Exception {
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
         KeySelector<Long, Integer> dummyKeySelector = l -> 0;
         try (KeyedMultiInputStreamOperatorTestHarness<Integer, Long> testHarness =
@@ -88,7 +87,7 @@ public class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
             testHarness.processElement(0, new StreamRecord<>(3L, 3L));
             testHarness.processElement(0, new StreamRecord<>(4L, 4L));
             testHarness.processWatermark(0, new Watermark(1L));
-            assertThat(testHarness.getOutput(), empty());
+            assertThat(testHarness.getOutput()).isEmpty();
 
             testHarness.processWatermarkStatus(1, WatermarkStatus.IDLE);
             TestHarnessUtil.assertOutputEquals(
@@ -114,7 +113,7 @@ public class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
     }
 
     @Test
-    public void testIdlenessForwarding() throws Exception {
+    void testIdlenessForwarding() throws Exception {
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
         try (KeyedMultiInputStreamOperatorTestHarness<Integer, Long> testHarness =
                 new KeyedMultiInputStreamOperatorTestHarness<>(
@@ -134,7 +133,7 @@ public class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
     }
 
     @Test
-    public void testRecordAttributesForwarding() throws Exception {
+    void testRecordAttributesForwarding() throws Exception {
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
         try (KeyedMultiInputStreamOperatorTestHarness<Integer, Long> testHarness =
                 new KeyedMultiInputStreamOperatorTestHarness<>(

@@ -28,7 +28,10 @@ import java.util.List;
 public class IncrementalGroupAggregateRestoreTest extends RestoreTestBase {
 
     public IncrementalGroupAggregateRestoreTest() {
-        super(StreamExecIncrementalGroupAggregate.class);
+        super(
+                StreamExecIncrementalGroupAggregate.class,
+                Arrays.asList(
+                        StreamExecLocalGroupAggregate.class, StreamExecGlobalGroupAggregate.class));
     }
 
     @Override

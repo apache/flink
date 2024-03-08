@@ -14,28 +14,21 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
-package org.apache.flink.api.common.eventtime;
+package org.apache.flink.streaming.api.lineage;
 
-import org.hamcrest.FeatureMatcher;
-import org.hamcrest.Matcher;
+import org.apache.flink.annotation.PublicEvolving;
 
-import static org.hamcrest.CoreMatchers.equalTo;
+import java.util.List;
 
-/** Matchers for {@link Watermark}. */
-public class WatermarkMatchers {
-
-    /** Creates a matcher that matches when the examined watermark has the given timestamp. */
-    public static Matcher<Watermark> watermark(long timestamp) {
-        return new FeatureMatcher<Watermark, Long>(
-                equalTo(timestamp), "a watermark with value", "value of watermark") {
-            @Override
-            protected Long featureValueOf(Watermark actual) {
-                return actual.getTimestamp();
-            }
-        };
-    }
-
-    private WatermarkMatchers() {}
+/**
+ * Lineage vertex represents the connectors in lineage graph, including source {@link
+ * SourceLineageVertex} and sink.
+ */
+@PublicEvolving
+public interface LineageVertex {
+    /* List of input (for source) or output (for sink) datasets interacted with by the connector */
+    List<LineageDataset> datasets();
 }

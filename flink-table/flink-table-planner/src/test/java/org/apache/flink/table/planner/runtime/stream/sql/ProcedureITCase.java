@@ -19,14 +19,18 @@
 package org.apache.flink.table.planner.runtime.stream.sql;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.planner.factories.TestProcedureCatalogFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
@@ -88,7 +92,7 @@ class ProcedureITCase extends StreamingTestBase {
                         tEnv().executeSql("show procedures in `system`").collect());
         assertThat(rows.toString())
                 .isEqualTo(
-                        "[+I[generate_n], +I[generate_user], +I[get_year], +I[named_args], +I[named_args_optional], +I[named_args_overload], +I[sum_n]]");
+                        "[+I[generate_n], +I[generate_user], +I[get_env_conf], +I[get_year], +I[named_args], +I[named_args_optional], +I[named_args_overload], +I[sum_n]]");
 
         // show procedure with like
         rows =
@@ -116,7 +120,7 @@ class ProcedureITCase extends StreamingTestBase {
                                 .collect());
         assertThat(rows.toString())
                 .isEqualTo(
-                        "[+I[get_year], +I[named_args], +I[named_args_optional], +I[named_args_overload], +I[sum_n]]");
+                        "[+I[get_env_conf], +I[get_year], +I[named_args], +I[named_args_optional], +I[named_args_overload], +I[sum_n]]");
 
         // show procedure with not ilike
         rows =
@@ -125,7 +129,7 @@ class ProcedureITCase extends StreamingTestBase {
                                 .collect());
         assertThat(rows.toString())
                 .isEqualTo(
-                        "[+I[get_year], +I[named_args], +I[named_args_optional], +I[named_args_overload], +I[sum_n]]");
+                        "[+I[get_env_conf], +I[get_year], +I[named_args], +I[named_args_optional], +I[named_args_overload], +I[sum_n]]");
     }
 
     @Test
@@ -208,6 +212,34 @@ class ProcedureITCase extends StreamingTestBase {
                 tableResult,
                 Collections.singletonList(Row.of("null, 19")),
                 ResolvedSchema.of(Column.physical("result", DataTypes.STRING())));
+    }
+
+    @Test
+    void testEnvironmentConf() throws DatabaseAlreadyExistException {
+        // root conf should work
+        Configuration configuration = new Configuration();
+        configuration.setString("key1", "value1");
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+        tableEnv.getConfig().set("key2", "value2");
+
+        TestProcedureCatalogFactory.CatalogWithBuiltInProcedure procedureCatalog =
+                new TestProcedureCatalogFactory.CatalogWithBuiltInProcedure("procedure_catalog");
+        procedureCatalog.createDatabase(
+                "system", new CatalogDatabaseImpl(Collections.emptyMap(), null), true);
+        tableEnv.registerCatalog("test_p", procedureCatalog);
+        tableEnv.useCatalog("test_p");
+        TableResult tableResult = tableEnv.executeSql("call `system`.get_env_conf()");
+        List<Row> environmentConf = CollectionUtil.iteratorToList(tableResult.collect());
+        assertThat(environmentConf.contains(Row.of("key1", "value1"))).isTrue();
+        assertThat(environmentConf.contains(Row.of("key2", "value2"))).isTrue();
+
+        // table conf should overwrite root conf
+        tableEnv.getConfig().set("key1", "value11");
+        tableResult = tableEnv.executeSql("call `system`.get_env_conf()");
+        environmentConf = CollectionUtil.iteratorToList(tableResult.collect());
+        assertThat(environmentConf.contains(Row.of("key1", "value11"))).isTrue();
     }
 
     private void verifyTableResult(

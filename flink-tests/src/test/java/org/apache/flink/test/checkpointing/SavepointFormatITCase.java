@@ -31,11 +31,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
@@ -88,17 +88,13 @@ public class SavepointFormatITCase extends TestLogger {
             new LoggerAuditingExtension(SavepointFormatITCase.class, Level.INFO);
 
     private static List<Arguments> parameters() {
-        // iterate through all valid combinations of backends, isIncremental, isChangelogEnabled
+        // iterate through all combinations of backends, isIncremental, isChangelogEnabled
         List<Arguments> result = new LinkedList<>();
         for (BiFunction<Boolean, Boolean, StateBackendConfig> builder :
                 StateBackendConfig.builders) {
             for (boolean incremental : new boolean[] {true, false}) {
                 for (boolean changelog : new boolean[] {true, false}) {
                     for (SavepointFormatType formatType : SavepointFormatType.values()) {
-                        if (changelog && formatType == SavepointFormatType.NATIVE) {
-                            // not supported
-                            continue;
-                        }
                         result.add(Arguments.of(formatType, builder.apply(incremental, changelog)));
                     }
                 }

@@ -19,6 +19,7 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -106,6 +107,11 @@ public abstract class AbstractChangelogStateBackend
     @Override
     public StateBackend getDelegatedStateBackend() {
         return delegatedStateBackend;
+    }
+
+    @Override
+    public boolean supportsSavepointFormat(SavepointFormatType formatType) {
+        return delegatedStateBackend.supportsSavepointFormat(formatType);
     }
 
     protected abstract <K> CheckpointableKeyedStateBackend<K> restore(

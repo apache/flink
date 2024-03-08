@@ -44,28 +44,21 @@ public class TwoInputTransformationTranslator<IN1, IN2, OUT>
             final TwoInputTransformation<IN1, IN2, OUT> transformation, final Context context) {
         Collection<Integer> ids = translateInternal(transformation, context);
 
-        StreamConfig.InputRequirement input1Requirement =
-                transformation.getStateKeySelector1() != null
-                        ? StreamConfig.InputRequirement.SORTED
-                        : StreamConfig.InputRequirement.PASS_THROUGH;
+        maybeApplyBatchExecutionSettings(transformation, context);
 
-        StreamConfig.InputRequirement input2Requirement =
-                transformation.getStateKeySelector2() != null
-                        ? StreamConfig.InputRequirement.SORTED
-                        : StreamConfig.InputRequirement.PASS_THROUGH;
-
-        if (input1Requirement == StreamConfig.InputRequirement.SORTED
-                || input2Requirement == StreamConfig.InputRequirement.SORTED) {
-            BatchExecutionUtils.applyBatchExecutionSettings(
-                    transformation.getId(), context, input1Requirement, input2Requirement);
-        }
         return ids;
     }
 
     @Override
     protected Collection<Integer> translateForStreamingInternal(
             final TwoInputTransformation<IN1, IN2, OUT> transformation, final Context context) {
-        return translateInternal(transformation, context);
+        Collection<Integer> ids = translateInternal(transformation, context);
+
+        if (transformation.isOutputOnlyAfterEndOfStream()) {
+            maybeApplyBatchExecutionSettings(transformation, context);
+        }
+
+        return ids;
     }
 
     private Collection<Integer> translateInternal(
@@ -82,5 +75,24 @@ public class TwoInputTransformationTranslator<IN1, IN2, OUT>
                 transformation.getStateKeySelector1(),
                 transformation.getStateKeySelector2(),
                 context);
+    }
+
+    private void maybeApplyBatchExecutionSettings(
+            final TwoInputTransformation<IN1, IN2, OUT> transformation, final Context context) {
+        StreamConfig.InputRequirement input1Requirement =
+                transformation.getStateKeySelector1() != null
+                        ? StreamConfig.InputRequirement.SORTED
+                        : StreamConfig.InputRequirement.PASS_THROUGH;
+
+        StreamConfig.InputRequirement input2Requirement =
+                transformation.getStateKeySelector2() != null
+                        ? StreamConfig.InputRequirement.SORTED
+                        : StreamConfig.InputRequirement.PASS_THROUGH;
+
+        if (input1Requirement == StreamConfig.InputRequirement.SORTED
+                || input2Requirement == StreamConfig.InputRequirement.SORTED) {
+            BatchExecutionUtils.applyBatchExecutionSettings(
+                    transformation.getId(), context, input1Requirement, input2Requirement);
+        }
     }
 }

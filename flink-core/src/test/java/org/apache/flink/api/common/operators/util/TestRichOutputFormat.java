@@ -26,7 +26,7 @@ import java.util.List;
 
 /** Same as the non rich test output format, except it provide access to runtime context. */
 public class TestRichOutputFormat extends RichOutputFormat<String> {
-    public List<String> output = new LinkedList<String>();
+    public final List<String> output = new LinkedList<>();
 
     @Override
     public void configure(Configuration parameters) {}
@@ -42,7 +42,6 @@ public class TestRichOutputFormat extends RichOutputFormat<String> {
         output.add(
                 record
                         + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()
-                        + ""
                         + getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
     }
 

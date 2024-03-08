@@ -41,39 +41,28 @@ import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Tests for {@link BatchExecutionInternalTimeServiceManager} and {@link
  * BatchExecutionInternalTimeService}.
  */
-public class BatchExecutionInternalTimeServiceTest extends TestLogger {
+class BatchExecutionInternalTimeServiceTest {
     public static final IntSerializer KEY_SERIALIZER = new IntSerializer();
 
-    @Rule public ExpectedException expectedException = ExpectedException.none();
-
     @Test
-    public void testBatchExecutionManagerCanBeInstantiatedWithBatchStateBackend() throws Exception {
-        expectedException.expect(IllegalStateException.class);
-        expectedException.expectMessage(
-                "Batch execution specific time service can work only with BatchExecutionKeyedStateBackend");
-
+    void testBatchExecutionManagerCanBeInstantiatedWithBatchStateBackend() throws Exception {
         MockEnvironment mockEnvironment = MockEnvironment.builder().build();
         AbstractStateBackend abstractStateBackend = new MemoryStateBackend();
         JobID jobID = new JobID();
@@ -94,47 +83,59 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
                                 new UnregisteredMetricsGroup(),
                                 Collections.emptyList(),
                                 cancelStreamRegistry));
-        BatchExecutionInternalTimeServiceManager.create(
-                stateBackend,
-                this.getClass().getClassLoader(),
-                new DummyKeyContext(),
-                new TestProcessingTimeService(),
-                Collections.emptyList(),
-                StreamTaskCancellationContext.alwaysRunning());
+
+        assertThatThrownBy(
+                        () ->
+                                BatchExecutionInternalTimeServiceManager.create(
+                                        stateBackend,
+                                        this.getClass().getClassLoader(),
+                                        new DummyKeyContext(),
+                                        new TestProcessingTimeService(),
+                                        Collections.emptyList(),
+                                        StreamTaskCancellationContext.alwaysRunning()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(
+                        "Batch execution specific time service can work only with BatchExecutionKeyedStateBackend");
     }
 
     @Test
-    public void testForEachEventTimeTimerUnsupported() {
-        expectedException.expect(UnsupportedOperationException.class);
-        expectedException.expectMessage(
-                "The BatchExecutionInternalTimeService should not be used in State Processor API");
-
+    void testForEachEventTimeTimerUnsupported() {
         BatchExecutionInternalTimeService<Object, Object> timeService =
                 new BatchExecutionInternalTimeService<>(
                         new TestProcessingTimeService(),
                         LambdaTrigger.eventTimeTrigger(timer -> {}));
 
-        timeService.forEachEventTimeTimer(
-                (o, aLong) -> fail("The forEachEventTimeTimer() should not be supported"));
+        assertThatThrownBy(
+                        () ->
+                                timeService.forEachEventTimeTimer(
+                                        (o, aLong) ->
+                                                fail(
+                                                        "The forEachEventTimeTimer() should not be supported")))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining(
+                        "The BatchExecutionInternalTimeService should not be used in State Processor API");
     }
 
     @Test
-    public void testForEachProcessingTimeTimerUnsupported() {
-        expectedException.expect(UnsupportedOperationException.class);
-        expectedException.expectMessage(
-                "The BatchExecutionInternalTimeService should not be used in State Processor API");
-
+    void testForEachProcessingTimeTimerUnsupported() {
         BatchExecutionInternalTimeService<Object, Object> timeService =
                 new BatchExecutionInternalTimeService<>(
                         new TestProcessingTimeService(),
                         LambdaTrigger.eventTimeTrigger(timer -> {}));
 
-        timeService.forEachEventTimeTimer(
-                (o, aLong) -> fail("The forEachProcessingTimeTimer() should not be supported"));
+        assertThatThrownBy(
+                        () ->
+                                timeService.forEachEventTimeTimer(
+                                        (o, aLong) ->
+                                                fail(
+                                                        "The forEachProcessingTimeTimer() should not be supported")))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining(
+                        "The BatchExecutionInternalTimeService should not be used in State Processor API");
     }
 
     @Test
-    public void testFiringEventTimeTimers() throws Exception {
+    void testFiringEventTimeTimers() throws Exception {
         BatchExecutionKeyedStateBackend<Integer> keyedStatedBackend =
                 new BatchExecutionKeyedStateBackend<>(
                         KEY_SERIALIZER, new KeyGroupRange(0, 1), new ExecutionConfig());
@@ -166,11 +167,11 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
         // changing the current key fires all timers
         keyedStatedBackend.setCurrentKey(2);
 
-        assertThat(timers, equalTo(Collections.singletonList(150L)));
+        assertThat(timers).containsExactly(150L);
     }
 
     @Test
-    public void testSettingSameKeyDoesNotFireTimers() {
+    void testSettingSameKeyDoesNotFireTimers() {
         BatchExecutionKeyedStateBackend<Integer> keyedStatedBackend =
                 new BatchExecutionKeyedStateBackend<>(
                         KEY_SERIALIZER, new KeyGroupRange(0, 1), new ExecutionConfig());
@@ -195,11 +196,11 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
         timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, 123);
         keyedStatedBackend.setCurrentKey(1);
 
-        assertThat(timers, equalTo(Collections.emptyList()));
+        assertThat(timers).isEmpty();
     }
 
     @Test
-    public void testCurrentWatermark() throws Exception {
+    void testCurrentWatermark() throws Exception {
         BatchExecutionKeyedStateBackend<Integer> keyedStatedBackend =
                 new BatchExecutionKeyedStateBackend<>(
                         KEY_SERIALIZER, new KeyGroupRange(0, 1), new ExecutionConfig());
@@ -216,7 +217,7 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
         TriggerWithTimerServiceAccess<Integer, VoidNamespace> eventTimeTrigger =
                 TriggerWithTimerServiceAccess.eventTimeTrigger(
                         (timer, timerService) -> {
-                            assertThat(timerService.currentWatermark(), equalTo(Long.MAX_VALUE));
+                            assertThat(timerService.currentWatermark()).isEqualTo(Long.MAX_VALUE);
                             timers.add(timer.getTimestamp());
                         });
         InternalTimerService<VoidNamespace> timerService =
@@ -224,28 +225,28 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
                         "test", KEY_SERIALIZER, new VoidNamespaceSerializer(), eventTimeTrigger);
         eventTimeTrigger.setTimerService(timerService);
 
-        assertThat(timerService.currentWatermark(), equalTo(Long.MIN_VALUE));
+        assertThat(timerService.currentWatermark()).isEqualTo(Long.MIN_VALUE);
         keyedStatedBackend.setCurrentKey(1);
         timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, 123);
-        assertThat(timerService.currentWatermark(), equalTo(Long.MIN_VALUE));
+        assertThat(timerService.currentWatermark()).isEqualTo(Long.MIN_VALUE);
 
         // advancing the watermark to a value different than Long.MAX_VALUE should have no effect
         timeServiceManager.advanceWatermark(new Watermark(1000));
-        assertThat(timerService.currentWatermark(), equalTo(Long.MIN_VALUE));
+        assertThat(timerService.currentWatermark()).isEqualTo(Long.MIN_VALUE);
 
         // changing the current key fires all timers
         keyedStatedBackend.setCurrentKey(2);
-        assertThat(timerService.currentWatermark(), equalTo(Long.MIN_VALUE));
+        assertThat(timerService.currentWatermark()).isEqualTo(Long.MIN_VALUE);
         timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, 124);
 
         // advancing the watermark to Long.MAX_VALUE should fire remaining key
         timeServiceManager.advanceWatermark(Watermark.MAX_WATERMARK);
 
-        assertThat(timers, equalTo(Arrays.asList(123L, 124L)));
+        assertThat(timers).containsExactly(123L, 124L);
     }
 
     @Test
-    public void testProcessingTimeTimers() {
+    void testProcessingTimeTimers() {
         BatchExecutionKeyedStateBackend<Integer> keyedStatedBackend =
                 new BatchExecutionKeyedStateBackend<>(
                         KEY_SERIALIZER, new KeyGroupRange(0, 1), new ExecutionConfig());
@@ -272,15 +273,15 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
         timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, 150);
 
         // we should never register physical timers
-        assertThat(processingTimeService.getNumActiveTimers(), equalTo(0));
+        assertThat(processingTimeService.getNumActiveTimers()).isZero();
         // changing the current key fires all timers
         keyedStatedBackend.setCurrentKey(2);
 
-        assertThat(timers, equalTo(Collections.singletonList(150L)));
+        assertThat(timers).containsExactly(150L);
     }
 
     @Test
-    public void testIgnoringEventTimeTimersFromWithinCallback() {
+    void testIgnoringEventTimeTimersFromWithinCallback() {
         BatchExecutionKeyedStateBackend<Integer> keyedStatedBackend =
                 new BatchExecutionKeyedStateBackend<>(
                         KEY_SERIALIZER, new KeyGroupRange(0, 1), new ExecutionConfig());
@@ -311,16 +312,16 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
         timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, 150);
 
         // we should never register physical timers
-        assertThat(processingTimeService.getNumActiveTimers(), equalTo(0));
+        assertThat(processingTimeService.getNumActiveTimers()).isZero();
         // changing the current key fires all timers
         keyedStatedBackend.setCurrentKey(2);
 
         // We check that the timer from the callback is ignored
-        assertThat(timers, equalTo(Collections.singletonList(150L)));
+        assertThat(timers).containsExactly(150L);
     }
 
     @Test
-    public void testIgnoringProcessingTimeTimersFromWithinCallback() {
+    void testIgnoringProcessingTimeTimersFromWithinCallback() {
         BatchExecutionKeyedStateBackend<Integer> keyedStatedBackend =
                 new BatchExecutionKeyedStateBackend<>(
                         KEY_SERIALIZER, new KeyGroupRange(0, 1), new ExecutionConfig());
@@ -351,12 +352,12 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
         timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, 150);
 
         // we should never register physical timers
-        assertThat(processingTimeService.getNumActiveTimers(), equalTo(0));
+        assertThat(processingTimeService.getNumActiveTimers()).isZero();
         // changing the current key fires all timers
         keyedStatedBackend.setCurrentKey(2);
 
         // We check that the timer from the callback is ignored
-        assertThat(timers, equalTo(Collections.singletonList(150L)));
+        assertThat(timers).containsExactly(150L);
     }
 
     private static class TriggerWithTimerServiceAccess<K, N> implements Triggerable<K, N> {
@@ -378,14 +379,13 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
             return new TriggerWithTimerServiceAccess<>(
                     eventTimeHandler,
                     (timer, timeService) ->
-                            Assert.fail("We did not expect processing timer to be triggered."));
+                            fail("We did not expect processing timer to be triggered."));
         }
 
         public static <K, N> TriggerWithTimerServiceAccess<K, N> processingTimeTrigger(
                 BiConsumer<InternalTimer<K, N>, InternalTimerService<N>> processingTimeHandler) {
             return new TriggerWithTimerServiceAccess<>(
-                    (timer, timeService) ->
-                            Assert.fail("We did not expect event timer to be triggered."),
+                    (timer, timeService) -> fail("We did not expect event timer to be triggered."),
                     processingTimeHandler);
         }
 
@@ -413,13 +413,13 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
                 Consumer<InternalTimer<K, N>> eventTimeHandler) {
             return new LambdaTrigger<>(
                     eventTimeHandler,
-                    timer -> Assert.fail("We did not expect processing timer to be triggered."));
+                    timer -> fail("We did not expect processing timer to be triggered."));
         }
 
         public static <K, N> LambdaTrigger<K, N> processingTimeTrigger(
                 Consumer<InternalTimer<K, N>> processingTimeHandler) {
             return new LambdaTrigger<>(
-                    timer -> Assert.fail("We did not expect event timer to be triggered."),
+                    timer -> fail("We did not expect event timer to be triggered."),
                     processingTimeHandler);
         }
 
