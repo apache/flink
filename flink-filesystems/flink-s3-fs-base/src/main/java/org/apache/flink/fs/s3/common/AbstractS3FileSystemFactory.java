@@ -45,12 +45,14 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
             ConfigOptions.key("s3.access-key")
                     .stringType()
                     .noDefaultValue()
+                    .withFallbackKeys("s3.access.key")
                     .withDescription("This optionally defines S3 access key.");
 
     public static final ConfigOption<String> SECRET_KEY =
             ConfigOptions.key("s3.secret-key")
                     .stringType()
                     .noDefaultValue()
+                    .withFallbackKeys("s3.secret.key")
                     .withDescription("This optionally defines S3 secret key.");
 
     public static final ConfigOption<String> ENDPOINT =
