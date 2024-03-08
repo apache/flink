@@ -209,7 +209,9 @@ class RocksDBHandle implements AutoCloseable {
         RegisteredStateMetaInfoBase stateMetaInfo =
                 stateMetaInfoKey.getRegisteredStateMetaInfoBase();
 
-        Preconditions.checkState(!kvStateInformation.containsKey(stateMetaInfo.getName()));
+        Preconditions.checkState(
+                !kvStateInformation.containsKey(stateMetaInfo.getName()),
+                "Error: stateMetaInfo.name is not unique:" + stateMetaInfo.getName());
 
         RocksDbKvStateInfo stateInfo =
                 RocksDBOperationUtils.createStateInfo(
