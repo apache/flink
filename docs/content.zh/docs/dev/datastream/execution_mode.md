@@ -49,7 +49,7 @@ Apache Flink 对流处理和批处理采取统一的处理方式，这意味着�
 
 ## 配置批执行模式
 
-执行模式可以通过 `execute.runtime-mode` 设置来配置。有三种可选的值：
+执行模式可以通过 `execution.runtime-mode` 设置来配置。有三种可选的值：
 
  - `STREAMING`: 经典 DataStream 执行模式（默认)
  - `BATCH`: 在 DataStream API 上进行批量式执行
