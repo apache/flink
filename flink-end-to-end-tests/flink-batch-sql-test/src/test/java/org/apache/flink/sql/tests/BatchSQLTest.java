@@ -23,8 +23,9 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.io.IteratorInputFormat;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
@@ -34,33 +35,63 @@ import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.sinks.CsvTableSink;
 import org.apache.flink.table.sources.InputFormatTableSource;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.TestLoggerExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.UUID;
 
-/**
- * End-to-end test for batch SQL queries.
- *
- * <p>The sources are generated and bounded. The result is always constant.
- *
- * <p>Parameters: -outputPath output file path for CsvTableSink; -sqlStatement SQL statement that
- * will be executed as executeSql
- */
-public class BatchSQLTestProgram {
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-    public static void main(String[] args) throws Exception {
-        ParameterTool params = ParameterTool.fromArgs(args);
-        String outputPath = params.getRequired("outputPath");
-        String sqlStatement = params.getRequired("sqlStatement");
-        String shuffleType = params.getRequired("shuffleType");
+@ExtendWith(TestLoggerExtension.class)
+class BatchSQLTest {
+    private static final Logger LOG = LoggerFactory.getLogger(BatchSQLTest.class);
+
+    private static final Path sqlPath =
+            ResourceTestUtils.getResource("resources/sql-job-query.sql");
+
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(2)
+                            .setNumberSlotsPerTaskManager(1)
+                            .build());
+
+    @ParameterizedTest
+    @EnumSource(
+            value = BatchShuffleMode.class,
+            names = {
+                "ALL_EXCHANGES_BLOCKING",
+                "ALL_EXCHANGES_HYBRID_FULL",
+                "ALL_EXCHANGES_HYBRID_SELECTIVE"
+            })
+    public void testBatchSQL(BatchShuffleMode shuffleMode, @TempDir Path tmpDir) throws Exception {
+        final Path resultFile = tmpDir.resolve(String.format("result-%s", UUID.randomUUID()));
+        LOG.info("Results for this test will be stored at: {}", resultFile);
+
+        String sqlStatement = new String(Files.readAllBytes(sqlPath));
+
         TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
-        BatchShuffleMode shuffleMode = checkAndGetShuffleMode(shuffleType);
         tEnv.getConfig().set(ExecutionOptions.BATCH_SHUFFLE_MODE, shuffleMode);
+
         ((TableEnvironmentInternal) tEnv)
                 .registerTableSourceInternal("table1", new GeneratorTableSource(10, 100, 60, 0));
         ((TableEnvironmentInternal) tEnv)
@@ -68,32 +99,30 @@ public class BatchSQLTestProgram {
         ((TableEnvironmentInternal) tEnv)
                 .registerTableSinkInternal(
                         "sinkTable",
-                        new CsvTableSink(outputPath)
+                        new CsvTableSink(resultFile.toString())
                                 .configure(
                                         new String[] {"f0", "f1"},
                                         new TypeInformation[] {Types.INT, Types.SQL_TIMESTAMP}));
 
+        LOG.info("Submitting job");
         TableResult result = tEnv.executeSql(sqlStatement);
-        // wait job finish
-        result.getJobClient().get().getJobExecutionResult().get();
-    }
 
-    private static BatchShuffleMode checkAndGetShuffleMode(String shuffleType) {
-        BatchShuffleMode shuffleMode;
-        switch (shuffleType.toLowerCase()) {
-            case "blocking":
-                shuffleMode = BatchShuffleMode.ALL_EXCHANGES_BLOCKING;
-                break;
-            case "hybrid_full":
-                shuffleMode = BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL;
-                break;
-            case "hybrid_selective":
-                shuffleMode = BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE;
-                break;
-            default:
-                throw new IllegalArgumentException("unsupported shuffle type : " + shuffleType);
-        }
-        return shuffleMode;
+        // Wait for the job to finish.
+        JobClient jobClient =
+                result.getJobClient()
+                        .orElseThrow(() -> new IllegalStateException("Job client is not present"));
+        jobClient.getJobExecutionResult().get();
+
+        final String expected =
+                "1980,1970-01-01 00:00:00.0\n"
+                        + "1980,1970-01-01 00:00:20.0\n"
+                        + "1980,1970-01-01 00:00:40.0\n";
+
+        LOG.info("Job finished");
+        String actual = new String(Files.readAllBytes(resultFile));
+        LOG.info("Actual result is: '{}'", actual);
+
+        assertEquals(expected, actual);
     }
 
     /** TableSource for generated data. */
