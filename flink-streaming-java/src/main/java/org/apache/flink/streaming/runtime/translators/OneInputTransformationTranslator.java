@@ -22,6 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.sortpartition.KeyedSortPartitionOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 
 import java.util.Collection;
@@ -78,6 +81,15 @@ public final class OneInputTransformationTranslator<IN, OUT>
             final OneInputTransformation<IN, OUT> transformation, final Context context) {
         KeySelector<IN, ?> keySelector = transformation.getStateKeySelector();
         if (keySelector != null) {
+            // KeyedSortPartitionOperator doesn't need sorted input because it sorts data
+            // internally.
+            StreamOperatorFactory<OUT> operatorFactory = transformation.getOperatorFactory();
+            if (operatorFactory instanceof SimpleOperatorFactory
+                    && operatorFactory.getStreamOperatorClass(
+                                    Thread.currentThread().getContextClassLoader())
+                            == KeyedSortPartitionOperator.class) {
+                return;
+            }
             BatchExecutionUtils.applyBatchExecutionSettings(
                     transformation.getId(), context, StreamConfig.InputRequirement.SORTED);
         }
