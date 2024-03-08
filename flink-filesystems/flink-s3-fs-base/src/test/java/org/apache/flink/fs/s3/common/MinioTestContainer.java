@@ -39,8 +39,6 @@ import java.util.Locale;
 /** {@code MinioTestContainer} provides a {@code Minio} test instance. */
 public class MinioTestContainer extends GenericContainer<MinioTestContainer> {
 
-    private static final String FLINK_CONFIG_S3_ENDPOINT = "s3.endpoint";
-
     private static final int DEFAULT_PORT = 9000;
 
     private static final String MINIO_ACCESS_KEY = "MINIO_ROOT_USER";
@@ -113,16 +111,16 @@ public class MinioTestContainer extends GenericContainer<MinioTestContainer> {
      * relevant parameter to access the {@code Minio} instance.
      */
     public void setS3ConfigOptions(Configuration config) {
-        config.setString(FLINK_CONFIG_S3_ENDPOINT, getHttpEndpoint());
+        config.set(AbstractS3FileSystemFactory.ENDPOINT, getHttpEndpoint());
         config.setString("s3.path.style.access", "true");
-        config.setString("s3.access.key", accessKey);
-        config.setString("s3.secret.key", secretKey);
+        config.set(AbstractS3FileSystemFactory.ACCESS_KEY, accessKey);
+        config.set(AbstractS3FileSystemFactory.SECRET_KEY, secretKey);
     }
 
     public void initializeFileSystem(Configuration config) {
         Preconditions.checkArgument(
-                config.containsKey(FLINK_CONFIG_S3_ENDPOINT),
-                FLINK_CONFIG_S3_ENDPOINT
+                config.containsKey(AbstractS3FileSystemFactory.ENDPOINT.key()),
+                AbstractS3FileSystemFactory.ENDPOINT.key()
                         + " needs to be specified before initializing the FileSystems.");
         FileSystem.initialize(config, null);
     }
