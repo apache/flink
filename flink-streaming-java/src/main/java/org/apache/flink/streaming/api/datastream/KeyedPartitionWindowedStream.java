@@ -19,7 +19,16 @@
 package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.MapPartitionFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
+import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
+import org.apache.flink.util.Collector;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * {@link KeyedPartitionWindowedStream} represents a data stream that collects all records with the
@@ -36,5 +45,31 @@ public class KeyedPartitionWindowedStream<T, KEY> implements PartitionWindowedSt
             StreamExecutionEnvironment environment, KeyedStream<T, KEY> input) {
         this.environment = environment;
         this.input = input;
+    }
+
+    @Override
+    public <R> SingleOutputStreamOperator<R> mapPartition(
+            MapPartitionFunction<T, R> mapPartitionFunction) {
+        checkNotNull(mapPartitionFunction, "The map partition function must not be null.");
+        mapPartitionFunction = environment.clean(mapPartitionFunction);
+        String opName = "MapPartition";
+        TypeInformation<R> resultType =
+                TypeExtractor.getMapPartitionReturnTypes(
+                        mapPartitionFunction, input.getType(), opName, true);
+        MapPartitionFunction<T, R> function = mapPartitionFunction;
+        return input.window(GlobalWindows.createWithEndOfStreamTrigger())
+                .apply(
+                        new WindowFunction<T, R, KEY, GlobalWindow>() {
+                            @Override
+                            public void apply(
+                                    KEY key,
+                                    GlobalWindow window,
+                                    Iterable<T> input,
+                                    Collector<R> out)
+                                    throws Exception {
+                                function.mapPartition(input, out);
+                            }
+                        },
+                        resultType);
     }
 }
