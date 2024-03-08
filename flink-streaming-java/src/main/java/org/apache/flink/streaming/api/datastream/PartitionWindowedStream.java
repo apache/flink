@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 
 /**
  * {@link PartitionWindowedStream} represents a data stream that collects all records of each
@@ -40,4 +41,12 @@ public interface PartitionWindowedStream<T> {
      * @return The data stream with map partition result.
      */
     <R> SingleOutputStreamOperator<R> mapPartition(MapPartitionFunction<T, R> mapPartitionFunction);
+
+    /**
+     * Applies a reduce transformation on the records of the window.
+     *
+     * @param reduceFunction The reduce function.
+     * @return The data stream with final reduced result.
+     */
+    SingleOutputStreamOperator<T> reduce(ReduceFunction<T> reduceFunction);
 }

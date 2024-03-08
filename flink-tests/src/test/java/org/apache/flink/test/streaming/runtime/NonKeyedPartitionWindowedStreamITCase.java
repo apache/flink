@@ -18,7 +18,9 @@
 
 package org.apache.flink.test.streaming.runtime;
 
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.NonKeyedPartitionWindowedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -67,6 +69,33 @@ public class NonKeyedPartitionWindowedStreamITCase {
                         .executeAndCollect();
         String expectedResult = createExpectedString(EVENT_NUMBER / parallelism);
         expectInAnyOrder(resultIterator, expectedResult, expectedResult);
+    }
+
+    @Test
+    public void testReduce() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<Integer> source = env.fromData(1, 1, 1, 1, 998, 998);
+        CloseableIterator<String> resultIterator =
+                source.map(v -> v)
+                        .setParallelism(2)
+                        .fullWindowPartition()
+                        .reduce(
+                                new ReduceFunction<Integer>() {
+                                    @Override
+                                    public Integer reduce(Integer value1, Integer value2)
+                                            throws Exception {
+                                        return value1 + value2;
+                                    }
+                                })
+                        .map(
+                                new MapFunction<Integer, String>() {
+                                    @Override
+                                    public String map(Integer value) throws Exception {
+                                        return String.valueOf(value);
+                                    }
+                                })
+                        .executeAndCollect();
+        expectInAnyOrder(resultIterator, "1000", "1000");
     }
 
     private void expectInAnyOrder(CloseableIterator<String> resultIterator, String... expected) {
