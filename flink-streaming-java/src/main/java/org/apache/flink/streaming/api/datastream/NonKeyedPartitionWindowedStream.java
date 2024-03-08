@@ -19,14 +19,18 @@
 package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.MapPartitionOperator;
+import org.apache.flink.streaming.api.operators.PartitionAggregateOperator;
 import org.apache.flink.streaming.api.operators.PartitionReduceOperator;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * {@link NonKeyedPartitionWindowedStream} represents a data stream that collects all records of
@@ -73,6 +77,20 @@ public class NonKeyedPartitionWindowedStream<T> implements PartitionWindowedStre
                         opName,
                         input.getTransformation().getOutputType(),
                         new PartitionReduceOperator<>(reduceFunction))
+                .setParallelism(input.getParallelism());
+    }
+
+    @Override
+    public <ACC, R> SingleOutputStreamOperator<R> aggregate(
+            AggregateFunction<T, ACC, R> aggregateFunction) {
+        checkNotNull(aggregateFunction, "The aggregate function must not be null.");
+        aggregateFunction = environment.clean(aggregateFunction);
+        String opName = "PartitionAggregate";
+        TypeInformation<R> resultType =
+                TypeExtractor.getAggregateFunctionReturnType(
+                        aggregateFunction, input.getType(), opName, true);
+        return input.setConnectionType(new ForwardPartitioner<>())
+                .transform(opName, resultType, new PartitionAggregateOperator<>(aggregateFunction))
                 .setParallelism(input.getParallelism());
     }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.streaming.runtime;
 
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -98,6 +99,43 @@ public class NonKeyedPartitionWindowedStreamITCase {
         expectInAnyOrder(resultIterator, "1000", "1000");
     }
 
+    @Test
+    public void testAggregate() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<Integer> source = env.fromData(1, 1, 2, 2, 3, 3);
+        CloseableIterator<String> resultIterator =
+                source.map(v -> v)
+                        .setParallelism(2)
+                        .fullWindowPartition()
+                        .aggregate(
+                                new AggregateFunction<Integer, TestAccumulator, String>() {
+                                    @Override
+                                    public TestAccumulator createAccumulator() {
+                                        return new TestAccumulator();
+                                    }
+
+                                    @Override
+                                    public TestAccumulator add(
+                                            Integer value, TestAccumulator accumulator) {
+                                        accumulator.addTestField(value);
+                                        return accumulator;
+                                    }
+
+                                    @Override
+                                    public String getResult(TestAccumulator accumulator) {
+                                        return accumulator.getTestField();
+                                    }
+
+                                    @Override
+                                    public TestAccumulator merge(
+                                            TestAccumulator a, TestAccumulator b) {
+                                        throw new RuntimeException();
+                                    }
+                                })
+                        .executeAndCollect();
+        expectInAnyOrder(resultIterator, "94", "94");
+    }
+
     private void expectInAnyOrder(CloseableIterator<String> resultIterator, String... expected) {
         List<String> listExpected = Lists.newArrayList(expected);
         List<String> testResults = Lists.newArrayList(resultIterator);
@@ -120,5 +158,18 @@ public class NonKeyedPartitionWindowedStreamITCase {
             stringBuilder.append(TEST_EVENT);
         }
         return stringBuilder.toString();
+    }
+
+    /** The test accumulator. */
+    private static class TestAccumulator {
+        private Integer testField = 100;
+
+        public void addTestField(Integer number) {
+            testField = testField - number;
+        }
+
+        public String getTestField() {
+            return String.valueOf(testField);
+        }
     }
 }

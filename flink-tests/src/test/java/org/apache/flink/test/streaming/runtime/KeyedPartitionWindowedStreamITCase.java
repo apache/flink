@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.streaming.runtime;
 
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -146,6 +147,69 @@ public class KeyedPartitionWindowedStreamITCase {
         expectInAnyOrder(resultIterator, "key11000", "key21000", "key31000");
     }
 
+    @Test
+    public void testAggregate() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<Tuple2<String, Integer>> source =
+                env.fromData(
+                        Tuple2.of("Key1", 1),
+                        Tuple2.of("Key1", 2),
+                        Tuple2.of("Key2", 2),
+                        Tuple2.of("Key2", 1),
+                        Tuple2.of("Key3", 1),
+                        Tuple2.of("Key3", 1),
+                        Tuple2.of("Key3", 1));
+        CloseableIterator<String> resultIterator =
+                source.map(
+                                new MapFunction<
+                                        Tuple2<String, Integer>, Tuple2<String, Integer>>() {
+                                    @Override
+                                    public Tuple2<String, Integer> map(
+                                            Tuple2<String, Integer> value) throws Exception {
+                                        return value;
+                                    }
+                                })
+                        .setParallelism(2)
+                        .keyBy(
+                                new KeySelector<Tuple2<String, Integer>, String>() {
+                                    @Override
+                                    public String getKey(Tuple2<String, Integer> value)
+                                            throws Exception {
+                                        return value.f0;
+                                    }
+                                })
+                        .fullWindowPartition()
+                        .aggregate(
+                                new AggregateFunction<
+                                        Tuple2<String, Integer>, TestAccumulator, String>() {
+                                    @Override
+                                    public TestAccumulator createAccumulator() {
+                                        return new TestAccumulator();
+                                    }
+
+                                    @Override
+                                    public TestAccumulator add(
+                                            Tuple2<String, Integer> value,
+                                            TestAccumulator accumulator) {
+                                        accumulator.addTestField(value.f1);
+                                        return accumulator;
+                                    }
+
+                                    @Override
+                                    public String getResult(TestAccumulator accumulator) {
+                                        return accumulator.getTestField();
+                                    }
+
+                                    @Override
+                                    public TestAccumulator merge(
+                                            TestAccumulator a, TestAccumulator b) {
+                                        throw new RuntimeException();
+                                    }
+                                })
+                        .executeAndCollect();
+        expectInAnyOrder(resultIterator, "97", "97", "97");
+    }
+
     private Collection<Tuple2<String, String>> createSource() {
         List<Tuple2<String, String>> source = new ArrayList<>();
         for (int index = 0; index < EVENT_NUMBER; ++index) {
@@ -170,5 +234,18 @@ public class KeyedPartitionWindowedStreamITCase {
         Collections.sort(listExpected);
         Collections.sort(testResults);
         assertEquals(listExpected, testResults);
+    }
+
+    /** The test accumulator. */
+    private static class TestAccumulator {
+        private Integer testField = 100;
+
+        public void addTestField(Integer number) {
+            testField = testField - number;
+        }
+
+        public String getTestField() {
+            return String.valueOf(testField);
+        }
     }
 }
