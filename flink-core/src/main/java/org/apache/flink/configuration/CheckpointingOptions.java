@@ -76,6 +76,17 @@ public class CheckpointingOptions {
      * CheckpointStorageFactory#createFromConfig(ReadableConfig, ClassLoader)} method is called.
      *
      * <p>Recognized shortcut names are 'jobmanager' and 'filesystem'.
+     *
+     * <p>{@link #CHECKPOINT_STORAGE} and {@link #CHECKPOINTS_DIRECTORY} are usually combined to
+     * configure the checkpoint location. By default, the checkpoint meta data and actual program
+     * state will be stored in the JobManager's memory directly.
+     * <li>When {@link #CHECKPOINT_STORAGE} is set to 'jobmanager', if {@link
+     *     #CHECKPOINTS_DIRECTORY} is configured, the meta data of checkpoints will be persisted to
+     *     the path specified by {@link #CHECKPOINTS_DIRECTORY}. Otherwise, the meta data will be
+     *     stored in the JobManager's memory.
+     * <li>When {@link #CHECKPOINT_STORAGE} is set to 'filesystem', a valid path must be configured
+     *     to {@link #CHECKPOINTS_DIRECTORY}, and the checkpoint meta data and actual program state
+     *     will both be persisted to the path.
      */
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 2)
     public static final ConfigOption<String> CHECKPOINT_STORAGE =
@@ -99,6 +110,15 @@ public class CheckpointingOptions {
                                     .linebreak()
                                     .text(
                                             "Recognized shortcut names are 'jobmanager' and 'filesystem'.")
+                                    .linebreak()
+                                    .text(
+                                            "'state.checkpoint-storage' and 'state.checkpoints.dir' are usually combined to configure the checkpoint location."
+                                                    + " By default,  the checkpoint meta data and actual program state will be stored in the JobManager's memory directly."
+                                                    + " When 'state.checkpoint-storage' is set to 'jobmanager', if 'state.checkpoints.dir' is configured,"
+                                                    + " the meta data of checkpoints will be persisted to the path specified by 'state.checkpoints.dir'."
+                                                    + " Otherwise, the meta data will be stored in the JobManager's memory."
+                                                    + " When 'state.checkpoint-storage' is set to 'filesystem', a valid path must be configured to 'state.checkpoints.dir',"
+                                                    + " and the checkpoint meta data and actual program state will both be persisted to the path.")
                                     .build());
 
     /** The maximum number of completed checkpoints to retain. */
@@ -215,7 +235,8 @@ public class CheckpointingOptions {
     /**
      * The default directory used for storing the data files and meta data of checkpoints in a Flink
      * supported filesystem. The storage path must be accessible from all participating
-     * processes/nodes(i.e. all TaskManagers and JobManagers).
+     * processes/nodes(i.e. all TaskManagers and JobManagers). If {@link #CHECKPOINT_STORAGE} is set
+     * to 'jobmanager', only the meta data of checkpoints will be stored in this directory.
      */
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 2)
     public static final ConfigOption<String> CHECKPOINTS_DIRECTORY =
@@ -226,7 +247,9 @@ public class CheckpointingOptions {
                     .withDescription(
                             "The default directory used for storing the data files and meta data of checkpoints "
                                     + "in a Flink supported filesystem. The storage path must be accessible from all participating processes/nodes"
-                                    + "(i.e. all TaskManagers and JobManagers).");
+                                    + "(i.e. all TaskManagers and JobManagers). If the '"
+                                    + CHECKPOINT_STORAGE.key()
+                                    + "' is set to 'jobmanager', only the meta data of checkpoints will be stored in this directory.");
 
     /**
      * Whether to create sub-directories named by job id to store the data files and meta data of
