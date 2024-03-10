@@ -484,7 +484,7 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
         }
 
         @Override
-        public List<Transformation<?>> getTransitivePredecessors() {
+        protected List<Transformation<?>> getTransitivePredecessorsInternal() {
             return Collections.emptyList();
         }
 

@@ -1051,7 +1051,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
         }
 
         @Override
-        public List<Transformation<?>> getTransitivePredecessors() {
+        protected List<Transformation<?>> getTransitivePredecessorsInternal() {
             return Collections.emptyList();
         }
 
