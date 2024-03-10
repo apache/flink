@@ -92,7 +92,7 @@ public class LegacySourceTransformation<T> extends PhysicalTransformation<T>
     }
 
     @Override
-    public List<Transformation<?>> getTransitivePredecessors() {
+    protected List<Transformation<?>> getTransitivePredecessorsInternal() {
         return Collections.singletonList(this);
     }
 

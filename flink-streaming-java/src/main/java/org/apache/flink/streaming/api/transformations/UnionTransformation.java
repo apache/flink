@@ -25,6 +25,7 @@ import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * This transformation represents a union of several input {@link Transformation Transformations}.
@@ -63,12 +64,13 @@ public class UnionTransformation<T> extends Transformation<T> {
     }
 
     @Override
-    public List<Transformation<?>> getTransitivePredecessors() {
-        List<Transformation<?>> result = Lists.newArrayList();
-        result.add(this);
-        for (Transformation<T> input : inputs) {
-            result.addAll(input.getTransitivePredecessors());
-        }
-        return result;
+    protected List<Transformation<?>> getTransitivePredecessorsInternal() {
+        List<Transformation<?>> predecessors =
+                inputs.stream()
+                        .flatMap(input -> input.getTransitivePredecessors().stream())
+                        .distinct()
+                        .collect(Collectors.toList());
+        predecessors.add(this);
+        return predecessors;
     }
 }
