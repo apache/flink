@@ -24,6 +24,7 @@ import org.apache.flink.table.types.logical.VarCharType;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.table.data.StringData.fromString;
@@ -44,12 +45,13 @@ final class ModeAggFunctionTest
                         fromString("1"),
                         fromString("2"),
                         fromString("2"),
-                        fromString("1")));
+                        fromString("1")),
+                Collections.singletonList(null));
     }
 
     @Override
     protected List<StringData> getExpectedResults() {
-        return Arrays.asList(fromString("1"), fromString("4"), null, fromString("2"));
+        return Arrays.asList(fromString("1"), fromString("4"), null, fromString("2"), null);
     }
 
     @Override
