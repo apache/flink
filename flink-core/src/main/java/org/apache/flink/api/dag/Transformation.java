@@ -19,6 +19,7 @@
 package org.apache.flink.api.dag;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -161,6 +162,13 @@ public abstract class Transformation<T> {
     private final Map<ManagedMemoryUseCase, Integer> managedMemoryOperatorScopeUseCaseWeights =
             new HashMap<>();
 
+    /**
+     * This map is a cache that stores transitive predecessors and used in {@code
+     * getTransitivePredecessors()}.
+     */
+    private final Map<Transformation<T>, List<Transformation<?>>> predecessorsCache =
+            new HashMap<>();
+
     /** Slot scope use cases that this transformation needs managed memory for. */
     private final Set<ManagedMemoryUseCase> managedMemorySlotScopeUseCases = new HashSet<>();
 
@@ -228,6 +236,12 @@ public abstract class Transformation<T> {
     /** Returns the name of this {@code Transformation}. */
     public String getName() {
         return name;
+    }
+
+    /** Returns the predecessorsCache of this {@code Transformation}. */
+    @VisibleForTesting
+    Map<Transformation<T>, List<Transformation<?>>> getPredecessorsCache() {
+        return predecessorsCache;
     }
 
     /** Changes the description of this {@code Transformation}. */
@@ -578,7 +592,19 @@ public abstract class Transformation<T> {
      *
      * @return The list of transitive predecessors.
      */
-    public abstract List<Transformation<?>> getTransitivePredecessors();
+    protected abstract List<Transformation<?>> getTransitivePredecessorsInternal();
+
+    /**
+     * Returns all transitive predecessor {@code Transformation}s of this {@code Transformation}.
+     * This is, for example, used when determining whether a feedback edge of an iteration actually
+     * has the iteration head as a predecessor. This method is just a wrapper on top of {@code
+     * getTransitivePredecessorsInternal} method with public access. It uses caching internally.
+     *
+     * @return The list of transitive predecessors.
+     */
+    public final List<Transformation<?>> getTransitivePredecessors() {
+        return predecessorsCache.computeIfAbsent(this, key -> getTransitivePredecessorsInternal());
+    }
 
     /**
      * Returns the {@link Transformation transformations} that are the immediate predecessors of the
