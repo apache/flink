@@ -504,6 +504,15 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
+     * Returns the most frequent value in a group of values. If there are multiple values that
+     * appear the same number of times, one of them will be returned. NULL values are ignored. If
+     * there is no non-null value, the function returns NULL.
+     */
+    public OutType mode() {
+        return toApiSpecificExpression(unresolvedCall(MODE, toExpr()));
+    }
+
+    /**
      * Concatenates the values of string expressions and places separator(,) values between them.
      * The separator is not added at the end of string.
      */
@@ -549,15 +558,6 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Returns array aggregate of a given expression. */
     public OutType arrayAgg() {
         return toApiSpecificExpression(unresolvedCall(ARRAY_AGG, toExpr()));
-    }
-
-    /**
-     * Returns the most frequent value in a group of values. If there are multiple values that
-     * appear the same number of times, one of them will be returned. NULL values are ignored. If
-     * there is no non-null value, the function returns NULL.
-     */
-    public OutType modeAgg() {
-        return toApiSpecificExpression(unresolvedCall(MODE, toExpr()));
     }
 
     /**
