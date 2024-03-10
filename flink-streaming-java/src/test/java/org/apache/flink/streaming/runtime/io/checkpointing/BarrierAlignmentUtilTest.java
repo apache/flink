@@ -65,7 +65,7 @@ public class BarrierAlignmentUtilTest {
 
         Throwable t =
                 assertThrows(
-                        "BarrierAlignmentUtil.DelayableTimer should not hidden exception",
+                        "BarrierAlignmentUtil.DelayableTimer should not hide exception",
                         Exception.class,
                         () -> mailboxProcessor.runMailboxStep());
 
