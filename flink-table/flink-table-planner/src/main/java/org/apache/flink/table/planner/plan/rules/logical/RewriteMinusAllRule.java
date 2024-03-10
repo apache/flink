@@ -37,15 +37,15 @@ import static org.apache.calcite.sql.type.SqlTypeName.BIGINT;
 import static org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.GREATER_THAN;
 
 /**
- * Replaces logical [[Minus]] operator using a combination of union all, aggregate and table
+ * Replaces logical {@link Minus} operator using a combination of union all, aggregate and table
  * function.
  *
- * <p>Original Query : {{{ SELECT c1 FROM ut1 EXCEPT ALL SELECT c1 FROM ut2 }}}
+ * <p>Original Query : {@code SELECT c1 FROM ut1 EXCEPT ALL SELECT c1 FROM ut2 }
  *
- * <p>Rewritten Query: {{{ SELECT c1 FROM ( SELECT c1, sum_val FROM ( SELECT c1, sum(vcol_marker) AS
- * sum_val FROM ( SELECT c1, 1L as vcol_marker FROM ut1 UNION ALL SELECT c1, -1L as vcol_marker FROM
- * ut2 ) AS union_all GROUP BY union_all.c1 ) WHERE sum_val > 0 ) LATERAL
- * TABLE(replicate_row(sum_val, c1)) AS T(c1) }}}
+ * <p>Rewritten Query: {@code SELECT c1 FROM ( SELECT c1, sum_val FROM ( SELECT c1, sum(vcol_marker)
+ * AS sum_val FROM ( SELECT c1, 1L as vcol_marker FROM ut1 UNION ALL SELECT c1, -1L as vcol_marker
+ * FROM ut2 ) AS union_all GROUP BY union_all.c1 ) WHERE sum_val > 0 ) LATERAL
+ * TABLE(replicate_row(sum_val, c1)) AS T(c1) }
  *
  * <p>Only handle the case of input size 2.
  */
@@ -57,11 +57,13 @@ public class RewriteMinusAllRule extends RelRule<RewriteMinusAllRule.RewriteMinu
         super(config);
     }
 
+    @Override
     public boolean matches(RelOptRuleCall call) {
         Minus minus = call.rel(0);
         return minus.all && minus.getInputs().size() == 2;
     }
 
+    @Override
     public void onMatch(RelOptRuleCall call) {
         Minus minus = call.rel(0);
         RelNode left = minus.getInput(0);
