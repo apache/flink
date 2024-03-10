@@ -91,8 +91,7 @@ public class ProtoRegistrySerializationSchema implements SerializationSchema<Row
     }
 
     private static ByteBuffer writeMessageIndexes() {
-        // Not sure what the message indexes are, it is some Confluent Schema Registry Protobuf
-        // magic. Until we figure out what that is, let's skip it and write empty indices
+        //write empty message indices for now
         ByteBuffer buffer = ByteBuffer.allocate(ByteUtils.sizeOfVarint(0));
         ByteUtils.writeVarint(0, buffer);
         return buffer;

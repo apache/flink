@@ -44,7 +44,9 @@ public class RegistryClientConfigFactory {
         final int schemaId = formatOptions.get(RegistryFormatOptions.SCHEMA_ID);
         final int cacheSize = formatOptions.get(RegistryFormatOptions.SCHEMA_CACHE_SIZE);
         final Map<String, Object> schemaClientProperties =
-                getSchemaRegistryClientProperties(formatOptions);
+                new HashMap<>();
+        formatOptions.getOptional(RegistryFormatOptions.PROPERTIES)
+                .ifPresent(schemaClientProperties::putAll);
 
         return new DefaultSchemaRegistryConfig(
                 schemaRegistryURL, cacheSize, schemaId, schemaClientProperties);
@@ -55,8 +57,6 @@ public class RegistryClientConfigFactory {
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(RegistryFormatOptions.URL);
         options.add(RegistryFormatOptions.SCHEMA_ID);
-        options.add(RegistryFormatOptions.LOGICAL_CLUSTER_ID);
-        options.add(RegistryFormatOptions.CREDENTIALS_SOURCE);
         return options;
     }
 
@@ -74,28 +74,8 @@ public class RegistryClientConfigFactory {
                         RegistryFormatOptions.URL,
                         RegistryFormatOptions.SCHEMA_ID,
                         RegistryFormatOptions.SCHEMA_CACHE_SIZE,
-                        RegistryFormatOptions.LOGICAL_CLUSTER_ID,
-                        RegistryFormatOptions.BASIC_AUTH_USER_INFO,
-                        RegistryFormatOptions.CREDENTIALS_SOURCE)
+                        RegistryFormatOptions.BASIC_AUTH_USER_INFO)
                 .collect(Collectors.toSet());
-    }
-
-    private static Map<String, Object> getSchemaRegistryClientProperties(
-            ReadableConfig formatOptions) {
-        final Map<String, Object> properties = new HashMap<>();
-        switch (formatOptions.get(RegistryFormatOptions.CREDENTIALS_SOURCE)) {
-            case KEYS:
-                properties.put("basic.auth.credentials.source", "USER_INFO");
-                properties.put(
-                        "basic.auth.user.info",
-                        formatOptions.get(RegistryFormatOptions.BASIC_AUTH_USER_INFO));
-                break;
-            case DPAT:
-                properties.put("bearer.auth.credentials.source", "OAUTHBEARER_DPAT");
-                break;
-        }
-
-        return properties;
     }
 
     /** Default implementation of {@link SchemaRegistryConfig}. */

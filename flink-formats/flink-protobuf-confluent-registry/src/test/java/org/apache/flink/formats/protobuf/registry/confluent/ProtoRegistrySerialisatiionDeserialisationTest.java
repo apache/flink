@@ -20,7 +20,9 @@ package org.apache.flink.formats.protobuf.registry.confluent;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.formats.protobuf.registry.confluent.utils.FlinkToProtoSchemaConverter;
 import org.apache.flink.formats.protobuf.registry.confluent.utils.MockInitializationContext;
+import org.apache.flink.formats.protobuf.registry.confluent.utils.ProtoToFlinkSchemaConverter;
 import org.apache.flink.formats.protobuf.registry.confluent.utils.TestSchemaRegistryConfig;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericRowData;

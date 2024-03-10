@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.protobuf.registry.confluent;
+package org.apache.flink.formats.protobuf.registry.confluent.utils;
 
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;

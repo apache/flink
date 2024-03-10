@@ -19,6 +19,7 @@
 package org.apache.flink.formats.protobuf.registry.confluent;
 
 import org.apache.flink.formats.protobuf.registry.confluent.ProtoToRowDataConverters.ProtoToRowDataConverter;
+import org.apache.flink.formats.protobuf.registry.confluent.utils.ProtoToFlinkSchemaConverter;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;

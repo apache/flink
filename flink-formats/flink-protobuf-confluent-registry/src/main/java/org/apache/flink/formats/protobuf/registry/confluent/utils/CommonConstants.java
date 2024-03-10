@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.protobuf.registry.confluent;
+package org.apache.flink.formats.protobuf.registry.confluent.utils;
 
 /**
  * Common constants used for converting Protobuf schema. Those are Confluent Schema Registry
