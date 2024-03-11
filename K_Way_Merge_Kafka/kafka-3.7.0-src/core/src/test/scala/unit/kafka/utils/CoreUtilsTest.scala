@@ -1,0 +1,170 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package kafka.utils
+
+import java.util.{Arrays, Base64, UUID}
+import java.util.concurrent.{ConcurrentHashMap, Executors, TimeUnit}
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.locks.ReentrantLock
+import java.nio.ByteBuffer
+import java.util.regex.Pattern
+import org.junit.jupiter.api.Assertions._
+import kafka.utils.CoreUtils.inLock
+import org.apache.kafka.common.KafkaException
+import org.junit.jupiter.api.Test
+import org.apache.kafka.common.utils.Utils
+import org.slf4j.event.Level
+
+import scala.jdk.CollectionConverters._
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutorService, Future}
+
+class CoreUtilsTest extends Logging {
+
+  val clusterIdPattern = Pattern.compile("[a-zA-Z0-9_\\-]+")
+
+  @Test
+  def testSwallow(): Unit = {
+    CoreUtils.swallow(throw new KafkaException("test"), this, Level.INFO)
+  }
+
+  @Test
+  def testReadBytes(): Unit = {
+    for(testCase <- List("", "a", "abcd")) {
+      val bytes = testCase.getBytes
+      assertTrue(Arrays.equals(bytes, Utils.readBytes(ByteBuffer.wrap(bytes))))
+    }
+  }
+
+  @Test
+  def testAbs(): Unit = {
+    assertEquals(0, Utils.abs(Integer.MIN_VALUE))
+    assertEquals(1, Utils.abs(-1))
+    assertEquals(0, Utils.abs(0))
+    assertEquals(1, Utils.abs(1))
+    assertEquals(Integer.MAX_VALUE, Utils.abs(Integer.MAX_VALUE))
+  }
+
+  @Test
+  def testCsvList(): Unit = {
+    val emptyString:String = ""
+    val nullString:String = null
+    val emptyList = CoreUtils.parseCsvList(emptyString)
+    val emptyListFromNullString = CoreUtils.parseCsvList(nullString)
+    val emptyStringList = Seq.empty[String]
+    assertTrue(emptyList!=null)
+    assertTrue(emptyListFromNullString!=null)
+    assertTrue(emptyStringList.equals(emptyListFromNullString))
+    assertTrue(emptyStringList.equals(emptyList))
+  }
+
+  @Test
+  def testCsvMap(): Unit = {
+    val emptyString: String = ""
+    val emptyMap = CoreUtils.parseCsvMap(emptyString)
+    val emptyStringMap = Map.empty[String, String]
+    assertTrue(emptyMap != null)
+    assertTrue(emptyStringMap.equals(emptyStringMap))
+
+    val kvPairsIpV6: String = "a:b:c:v,a:b:c:v"
+    val ipv6Map = CoreUtils.parseCsvMap(kvPairsIpV6)
+    for (m <- ipv6Map) {
+      assertTrue(m._1.equals("a:b:c"))
+      assertTrue(m._2.equals("v"))
+    }
+
+    val singleEntry:String = "key:value"
+    val singleMap = CoreUtils.parseCsvMap(singleEntry)
+    val value = singleMap.getOrElse("key", 0)
+    assertTrue(value.equals("value"))
+
+    val kvPairsIpV4: String = "192.168.2.1/30:allow, 192.168.2.1/30:allow"
+    val ipv4Map = CoreUtils.parseCsvMap(kvPairsIpV4)
+    for (m <- ipv4Map) {
+      assertTrue(m._1.equals("192.168.2.1/30"))
+      assertTrue(m._2.equals("allow"))
+    }
+
+    val kvPairsSpaces: String = "key:value      , key:   value"
+    val spaceMap = CoreUtils.parseCsvMap(kvPairsSpaces)
+    for (m <- spaceMap) {
+      assertTrue(m._1.equals("key"))
+      assertTrue(m._2.equals("value"))
+    }
+  }
+
+  @Test
+  def testInLock(): Unit = {
+    val lock = new ReentrantLock()
+    val result = inLock(lock) {
+      assertTrue(lock.isHeldByCurrentThread, "Should be in lock")
+      1 + 1
+    }
+    assertEquals(2, result)
+    assertFalse(lock.isLocked, "Should be unlocked")
+  }
+
+  @Test
+  def testUrlSafeBase64EncodeUUID(): Unit = {
+
+    // Test a UUID that has no + or / characters in base64 encoding [a149b4a3-06e1-4b49-a8cb-8a9c4a59fa46 ->(base64)-> oUm0owbhS0moy4qcSln6Rg==]
+    val clusterId1 = Base64.getUrlEncoder.withoutPadding.encodeToString(CoreUtils.getBytesFromUuid(UUID.fromString(
+      "a149b4a3-06e1-4b49-a8cb-8a9c4a59fa46")))
+    assertEquals(clusterId1, "oUm0owbhS0moy4qcSln6Rg")
+    assertEquals(clusterId1.length, 22)
+    assertTrue(clusterIdPattern.matcher(clusterId1).matches())
+
+    // Test a UUID that has + or / characters in base64 encoding [d418ec02-277e-4853-81e6-afe30259daec ->(base64)-> 1BjsAid+SFOB5q/jAlna7A==]
+    val clusterId2 = Base64.getUrlEncoder.withoutPadding.encodeToString(CoreUtils.getBytesFromUuid(UUID.fromString(
+      "d418ec02-277e-4853-81e6-afe30259daec")))
+    assertEquals(clusterId2, "1BjsAid-SFOB5q_jAlna7A")
+    assertEquals(clusterId2.length, 22)
+    assertTrue(clusterIdPattern.matcher(clusterId2).matches())
+  }
+
+  @Test
+  def testGenerateUuidAsBase64(): Unit = {
+    val clusterId = CoreUtils.generateUuidAsBase64()
+    assertEquals(clusterId.length, 22)
+    assertTrue(clusterIdPattern.matcher(clusterId).matches())
+  }
+
+  @Test
+  def testAtomicGetOrUpdate(): Unit = {
+    val count = 1000
+    val nThreads = 5
+    val createdCount = new AtomicInteger
+    val map = new ConcurrentHashMap[Int, AtomicInteger]().asScala
+    implicit val executionContext: ExecutionContextExecutorService = ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(nThreads))
+    try {
+      Await.result(Future.traverse(1 to count) { _ =>
+        Future {
+          CoreUtils.atomicGetOrUpdate(map, 0, {
+            createdCount.incrementAndGet
+            new AtomicInteger
+          }).incrementAndGet()
+        }
+      }, Duration(1, TimeUnit.MINUTES))
+      assertEquals(count, map(0).get)
+      val created = createdCount.get
+      assertTrue(created > 0 && created <= nThreads, s"Too many creations $created")
+    } finally {
+      executionContext.shutdownNow()
+    }
+  }
+}
