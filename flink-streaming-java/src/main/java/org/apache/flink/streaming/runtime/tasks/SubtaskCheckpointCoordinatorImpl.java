@@ -870,7 +870,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
         long delay = System.currentTimeMillis() - checkpointMetaData.getReceiveTimestamp();
         if (delay >= CHECKPOINT_EXECUTION_DELAY_LOG_THRESHOLD_MS) {
             LOG.warn(
-                    "Time from receiving all checkpoint barriers/RPC for checkpoint id {} to executing it exceeded threshold: {}ms",
+                    "Time from receiving all checkpoint barriers/RPC for checkpoint {} to executing it exceeded threshold: {}ms",
                     checkpointMetaData.getCheckpointId(),
                     delay);
         }
