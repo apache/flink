@@ -23,11 +23,11 @@ import org.apache.flink.table.types.inference.ArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-/** An {@link InputTypeStrategy} that expects that all arguments have a common array type. */
+/** An {@link InputTypeStrategy} that expects that all arguments have a common map type. */
 @Internal
-public final class CommonArrayInputTypeStrategy extends CommonCollectionInputTypeStrategy {
+public final class CommonMapInputTypeStrategy extends CommonCollectionInputTypeStrategy {
 
-    public CommonArrayInputTypeStrategy(ArgumentCount argumentCount) {
-        super(argumentCount, "All arguments requires to be a ARRAY type", LogicalTypeRoot.ARRAY);
+    public CommonMapInputTypeStrategy(ArgumentCount argumentCount) {
+        super(argumentCount, "All arguments requires to be a MAP type", LogicalTypeRoot.MAP);
     }
 }
