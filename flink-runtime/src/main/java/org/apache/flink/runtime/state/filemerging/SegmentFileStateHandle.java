@@ -35,8 +35,6 @@ import java.util.Optional;
  * {@link FileStateHandle} for state that was written to a file segment. A {@link
  * SegmentFileStateHandle} represents a {@link LogicalFile}, which has already been written to a
  * segment in a physical file.
- *
- * <p>TODO (FLINK-32079): serialization and deserialization of {@link SegmentFileStateHandle}.
  */
 public class SegmentFileStateHandle implements StreamStateHandle {
 
@@ -133,7 +131,7 @@ public class SegmentFileStateHandle implements StreamStateHandle {
             return true;
         }
 
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof SegmentFileStateHandle)) {
             return false;
         }
 

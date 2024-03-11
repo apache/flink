@@ -116,6 +116,14 @@ public class FileMergingOperatorStreamStateHandle extends OperatorStreamStateHan
         return getDelegateStateHandle().getStateSize();
     }
 
+    public DirectoryStreamStateHandle getSharedDirHandle() {
+        return sharedDirHandle;
+    }
+
+    public DirectoryStreamStateHandle getTaskOwnedDirHandle() {
+        return taskOwnedDirHandle;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
