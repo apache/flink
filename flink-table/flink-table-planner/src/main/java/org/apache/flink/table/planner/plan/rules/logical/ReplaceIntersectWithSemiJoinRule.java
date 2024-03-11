@@ -21,7 +21,9 @@ package org.apache.flink.table.planner.plan.rules.logical;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.Intersect;
+import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rex.RexNode;
@@ -34,8 +36,8 @@ import java.util.List;
 import static org.apache.flink.table.planner.plan.utils.SetOpRewriteUtil.generateEqualsCondition;
 
 /**
- * Planner rule that replaces distinct {@link org.apache.calcite.rel.core.Intersect} with a distinct
- * {@link org.apache.calcite.rel.core.Aggregate} on a SEMI {@link org.apache.calcite.rel.core.Join}.
+ * Planner rule that replaces distinct {@link Intersect} with a distinct {@link Aggregate} on a SEMI
+ * {@link Join}.
  *
  * <p>Only handle the case of input size 2.
  */
