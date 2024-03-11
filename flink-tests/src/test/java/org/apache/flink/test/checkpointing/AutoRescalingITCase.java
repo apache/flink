@@ -37,6 +37,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.StateBackendOptions;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -163,6 +164,8 @@ public class AutoRescalingITCase extends TestLogger {
             config.set(StateBackendOptions.STATE_BACKEND, currentBackend);
             config.set(RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE, useIngestDB);
             config.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
+            // todo: local rescaling is not supported by changelog.
+            config.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, false);
             config.set(CheckpointingOptions.LOCAL_RECOVERY, true);
             config.set(
                     CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
