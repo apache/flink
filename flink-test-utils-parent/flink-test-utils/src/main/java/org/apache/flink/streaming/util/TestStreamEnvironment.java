@@ -35,7 +35,6 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 
-import static org.apache.flink.configuration.CheckpointingOptions.LOCAL_RECOVERY;
 import static org.apache.flink.runtime.testutils.PseudoRandomValueSelector.randomize;
 
 /** A {@link StreamExecutionEnvironment} that executes its jobs on {@link MiniCluster}. */
