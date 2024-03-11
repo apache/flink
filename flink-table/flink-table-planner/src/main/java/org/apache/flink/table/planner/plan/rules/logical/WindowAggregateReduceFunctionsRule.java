@@ -35,8 +35,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Rule to convert complex aggregation functions into simpler ones. Have a look at
- * [[AggregateReduceFunctionsRule]] for details.
+ * Rule to convert complex aggregation functions into simpler ones. Have a look at {@link
+ * AggregateReduceFunctionsRule} for details.
  */
 public class WindowAggregateReduceFunctionsRule extends AggregateReduceFunctionsRule {
     private static final RelBuilderFactory LOGICAL_BUILDER_WITHOUT_AGG_INPUT_PRUNE =
@@ -51,6 +51,7 @@ public class WindowAggregateReduceFunctionsRule extends AggregateReduceFunctions
                             .withRelBuilderFactory(LOGICAL_BUILDER_WITHOUT_AGG_INPUT_PRUNE)
                             .withOperandSupplier(
                                     b -> b.operand(LogicalWindowAggregate.class).anyInputs())
+                            .withDescription("WindowAggregateReduceFunctionsRule")
                             .as(Config.class));
 
     protected WindowAggregateReduceFunctionsRule(Config config) {
