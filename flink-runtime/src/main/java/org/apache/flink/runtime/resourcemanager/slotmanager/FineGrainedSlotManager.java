@@ -297,6 +297,8 @@ public class FineGrainedSlotManager implements SlotManager {
         resourceTracker.notifyResourceRequirements(jobId, Collections.emptyList());
         if (resourceAllocator.isSupported()) {
             taskManagerTracker.clearPendingAllocationsOfJob(jobId);
+
+            // the return value is ignored because we want to declare needed resources in any case
             checkResourcesNeedReconcile();
             declareNeededResourcesWithDelay();
         }
@@ -617,6 +619,9 @@ public class FineGrainedSlotManager implements SlotManager {
                         if (resourceAllocator.isSupported()
                                 && !taskManagerTracker.getPendingTaskManagers().isEmpty()) {
                             taskManagerTracker.replaceAllPendingAllocations(Collections.emptyMap());
+
+                            // the return value is ignored because we want to declare needed
+                            // resources in any case
                             checkResourcesNeedReconcile();
                             declareNeededResourcesWithDelay();
                         }
@@ -816,7 +821,6 @@ public class FineGrainedSlotManager implements SlotManager {
 
     private void checkClusterReconciliation() {
         if (checkResourcesNeedReconcile()) {
-            // only declare on needed.
             declareNeededResourcesWithDelay();
         }
     }
