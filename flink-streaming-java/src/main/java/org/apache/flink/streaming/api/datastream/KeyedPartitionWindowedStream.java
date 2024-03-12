@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -71,5 +72,12 @@ public class KeyedPartitionWindowedStream<T, KEY> implements PartitionWindowedSt
                             }
                         },
                         resultType);
+    }
+
+    @Override
+    public SingleOutputStreamOperator<T> reduce(ReduceFunction<T> reduceFunction) {
+        checkNotNull(reduceFunction, "The reduce function must not be null.");
+        reduceFunction = environment.clean(reduceFunction);
+        return input.window(GlobalWindows.createWithEndOfStreamTrigger()).reduce(reduceFunction);
     }
 }

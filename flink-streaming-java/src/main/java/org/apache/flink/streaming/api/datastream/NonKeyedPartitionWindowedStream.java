@@ -20,10 +20,14 @@ package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.MapPartitionOperator;
+import org.apache.flink.streaming.api.operators.PartitionReduceOperator;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * {@link NonKeyedPartitionWindowedStream} represents a data stream that collects all records of
@@ -54,6 +58,18 @@ public class NonKeyedPartitionWindowedStream<T> implements PartitionWindowedStre
                 TypeExtractor.getMapPartitionReturnTypes(
                         mapPartitionFunction, input.getType(), opName, true);
         return input.transform(opName, resultType, new MapPartitionOperator<>(mapPartitionFunction))
+                .setParallelism(input.getParallelism());
+    }
+
+    @Override
+    public SingleOutputStreamOperator<T> reduce(ReduceFunction<T> reduceFunction) {
+        checkNotNull(reduceFunction, "The reduce function must not be null.");
+        reduceFunction = environment.clean(reduceFunction);
+        String opName = "PartitionReduce";
+        return input.transform(
+                        opName,
+                        input.getTransformation().getOutputType(),
+                        new PartitionReduceOperator<>(reduceFunction))
                 .setParallelism(input.getParallelism());
     }
 }
