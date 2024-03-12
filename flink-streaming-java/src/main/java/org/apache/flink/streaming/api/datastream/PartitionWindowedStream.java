@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 
@@ -49,4 +50,15 @@ public interface PartitionWindowedStream<T> {
      * @return The data stream with final reduced result.
      */
     SingleOutputStreamOperator<T> reduce(ReduceFunction<T> reduceFunction);
+
+    /**
+     * Applies an aggregate transformation on the records of the window.
+     *
+     * @param aggregateFunction The aggregate function.
+     * @param <ACC> The type of accumulator in aggregate function.
+     * @param <R> The type of aggregate function result.
+     * @return The data stream with final aggregated result.
+     */
+    <ACC, R> SingleOutputStreamOperator<R> aggregate(
+            AggregateFunction<T, ACC, R> aggregateFunction);
 }
