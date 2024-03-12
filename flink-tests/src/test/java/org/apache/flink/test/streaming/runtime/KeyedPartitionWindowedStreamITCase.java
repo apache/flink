@@ -20,6 +20,7 @@ package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -90,6 +91,59 @@ class KeyedPartitionWindowedStreamITCase {
                 createExpectedString(1),
                 createExpectedString(2),
                 createExpectedString(3));
+    }
+
+    @Test
+    void testReduce() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<Tuple2<String, Integer>> source =
+                env.fromData(
+                        Tuple2.of("key1", 1),
+                        Tuple2.of("key1", 999),
+                        Tuple2.of("key2", 2),
+                        Tuple2.of("key2", 998),
+                        Tuple2.of("key3", 3),
+                        Tuple2.of("key3", 997));
+        CloseableIterator<String> resultIterator =
+                source.map(
+                                new MapFunction<
+                                        Tuple2<String, Integer>, Tuple2<String, Integer>>() {
+                                    @Override
+                                    public Tuple2<String, Integer> map(
+                                            Tuple2<String, Integer> value) throws Exception {
+                                        return value;
+                                    }
+                                })
+                        .setParallelism(2)
+                        .keyBy(
+                                new KeySelector<Tuple2<String, Integer>, String>() {
+                                    @Override
+                                    public String getKey(Tuple2<String, Integer> value)
+                                            throws Exception {
+                                        return value.f0;
+                                    }
+                                })
+                        .fullWindowPartition()
+                        .reduce(
+                                new ReduceFunction<Tuple2<String, Integer>>() {
+                                    @Override
+                                    public Tuple2<String, Integer> reduce(
+                                            Tuple2<String, Integer> value1,
+                                            Tuple2<String, Integer> value2)
+                                            throws Exception {
+                                        return Tuple2.of(value1.f0, value1.f1 + value2.f1);
+                                    }
+                                })
+                        .map(
+                                new MapFunction<Tuple2<String, Integer>, String>() {
+                                    @Override
+                                    public String map(Tuple2<String, Integer> value)
+                                            throws Exception {
+                                        return value.f0 + value.f1;
+                                    }
+                                })
+                        .executeAndCollect();
+        expectInAnyOrder(resultIterator, "key11000", "key21000", "key31000");
     }
 
     private Collection<Tuple2<String, String>> createSource() {
