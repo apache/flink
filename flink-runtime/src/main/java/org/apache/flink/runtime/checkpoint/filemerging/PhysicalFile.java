@@ -45,6 +45,15 @@ public class PhysicalFile {
         void perform(Path filePath) throws IOException;
     }
 
+    /** Functional interface to create the physical file. */
+    @FunctionalInterface
+    public interface PhysicalFileCreator {
+        /** Create the file. */
+        PhysicalFile perform(
+                FileMergingSnapshotManager.SubtaskKey subtaskKey, CheckpointedStateScope scope)
+                throws IOException;
+    }
+
     /**
      * Output stream to the file, which keeps open for writing. It can be null if the file is
      * closed.

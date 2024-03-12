@@ -138,39 +138,59 @@ public class FileMergingSnapshotManagerTest {
                     .isEqualTo(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.SHARED));
             assertThat(file5).isEqualTo(file1);
 
-            // Secondly, we try private state
+            // a physical file whose size is bigger than maxPhysicalFileSize cannot be reused
+            file5.incSize(fmsm.maxPhysicalFileSize);
+            fmsm.returnPhysicalFileForNextReuse(subtaskKey1, 0, file5);
             PhysicalFile file6 =
                     fmsm.getOrCreatePhysicalFileForCheckpoint(
-                            subtaskKey1, 0, CheckpointedStateScope.EXCLUSIVE);
+                            subtaskKey1, 0, CheckpointedStateScope.SHARED);
             assertThat(file6.getFilePath().getParent())
-                    .isEqualTo(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.EXCLUSIVE));
+                    .isEqualTo(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.SHARED));
+            assertThat(file6).isNotEqualTo(file5);
 
-            // allocate another
+            // Secondly, we try private state
             PhysicalFile file7 =
                     fmsm.getOrCreatePhysicalFileForCheckpoint(
                             subtaskKey1, 0, CheckpointedStateScope.EXCLUSIVE);
             assertThat(file7.getFilePath().getParent())
                     .isEqualTo(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.EXCLUSIVE));
-            assertThat(file7).isNotEqualTo(file6);
 
-            // return for reuse
-            fmsm.returnPhysicalFileForNextReuse(subtaskKey1, 0, file6);
-
-            // allocate for another checkpoint
+            // allocate another
             PhysicalFile file8 =
                     fmsm.getOrCreatePhysicalFileForCheckpoint(
-                            subtaskKey1, 1, CheckpointedStateScope.EXCLUSIVE);
+                            subtaskKey1, 0, CheckpointedStateScope.EXCLUSIVE);
             assertThat(file8.getFilePath().getParent())
                     .isEqualTo(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.EXCLUSIVE));
             assertThat(file8).isNotEqualTo(file6);
 
-            // allocate for this checkpoint but another subtask
+            // return for reuse
+            fmsm.returnPhysicalFileForNextReuse(subtaskKey1, 0, file7);
+
+            // allocate for another checkpoint
             PhysicalFile file9 =
                     fmsm.getOrCreatePhysicalFileForCheckpoint(
-                            subtaskKey2, 0, CheckpointedStateScope.EXCLUSIVE);
+                            subtaskKey1, 1, CheckpointedStateScope.EXCLUSIVE);
             assertThat(file9.getFilePath().getParent())
+                    .isEqualTo(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.EXCLUSIVE));
+            assertThat(file9).isNotEqualTo(file7);
+
+            // allocate for this checkpoint but another subtask
+            PhysicalFile file10 =
+                    fmsm.getOrCreatePhysicalFileForCheckpoint(
+                            subtaskKey2, 0, CheckpointedStateScope.EXCLUSIVE);
+            assertThat(file10.getFilePath().getParent())
                     .isEqualTo(fmsm.getManagedDir(subtaskKey2, CheckpointedStateScope.EXCLUSIVE));
-            assertThat(file9).isEqualTo(file6);
+            assertThat(file10).isEqualTo(file7);
+
+            // a physical file whose size is bigger than maxPhysicalFileSize cannot be reused
+            file10.incSize(fmsm.maxPhysicalFileSize);
+            fmsm.returnPhysicalFileForNextReuse(subtaskKey1, 0, file10);
+            PhysicalFile file11 =
+                    fmsm.getOrCreatePhysicalFileForCheckpoint(
+                            subtaskKey1, 0, CheckpointedStateScope.SHARED);
+            assertThat(file11.getFilePath().getParent())
+                    .isEqualTo(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.SHARED));
+            assertThat(file11).isNotEqualTo(file10);
 
             assertThat(fmsm.getManagedDir(subtaskKey2, CheckpointedStateScope.EXCLUSIVE))
                     .isEqualTo(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.EXCLUSIVE));

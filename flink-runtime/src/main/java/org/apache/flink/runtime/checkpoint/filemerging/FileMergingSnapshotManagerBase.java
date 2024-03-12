@@ -91,6 +91,12 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
      */
     protected boolean shouldSyncAfterClosingLogicalFile;
 
+    /** Max size for a physical file. */
+    protected long maxPhysicalFileSize;
+
+    /** Type of physical file pool. */
+    protected PhysicalFilePool.Type filePoolType;
+
     protected PhysicalFileDeleter physicalFileDeleter = this::deletePhysicalFile;
 
     /**
@@ -105,8 +111,11 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
      */
     protected Path managedExclusiveStateDir;
 
-    public FileMergingSnapshotManagerBase(String id, Executor ioExecutor) {
+    public FileMergingSnapshotManagerBase(
+            String id, long maxFileSize, PhysicalFilePool.Type filePoolType, Executor ioExecutor) {
         this.id = id;
+        this.maxPhysicalFileSize = maxFileSize;
+        this.filePoolType = filePoolType;
         this.ioExecutor = ioExecutor;
     }
 
@@ -330,6 +339,22 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                         LOG.warn("Fail to delete file: {}", filePath);
                     }
                 });
+    }
+
+    /**
+     * Create physical pool by filePoolType.
+     *
+     * @return physical file pool.
+     */
+    protected final PhysicalFilePool createPhysicalPool() {
+        switch (filePoolType) {
+            case NON_BLOCKING:
+                return new NonBlockingPhysicalFilePool(
+                        maxPhysicalFileSize, this::createPhysicalFile);
+            default:
+                throw new UnsupportedOperationException(
+                        "Unsupported type of physical file pool: " + filePoolType);
+        }
     }
 
     // ------------------------------------------------------------------------
