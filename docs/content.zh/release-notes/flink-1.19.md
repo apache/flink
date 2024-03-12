@@ -36,6 +36,14 @@ planning to upgrade your Flink version to 1.19.
 
 ##### [FLINK-33030](https://issues.apache.org/jira/browse/FLINK-33030)
 
+### Build System
+
+#### Support Java 21
+
+##### [FLINK-33163](https://issues.apache.org/jira/browse/FLINK-33163)
+Apache Flink was made ready to compile and run with Java 21. This feature is still in beta mode.
+Issues should be reported in Flink's bug tracker.
+
 ## Checkpoints
 
 #### Deprecate RestoreMode#LEGACY
@@ -51,7 +59,7 @@ instead to get a clear state file ownership when restoring.
 
 Now when disposing of no longer needed checkpoints, every state handle/state file will be disposed
 in parallel by the ioExecutor, vastly improving the disposing speed of a single checkpoint (for
-large checkpoints, the disposal time can be improved from 10 minutes to < 1 minute) . The old
+large checkpoints, the disposal time can be improved from 10 minutes to < 1 minute). The old
 behavior can be restored by setting `state.checkpoint.cleaner.parallel-mode` to false.
 
 #### Support using larger checkpointing interval when source is processing backlog
