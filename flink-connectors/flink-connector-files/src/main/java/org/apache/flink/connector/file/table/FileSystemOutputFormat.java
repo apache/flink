@@ -77,7 +77,7 @@ public class FileSystemOutputFormat<T>
             TableMetaStoreFactory msFactory,
             boolean overwrite,
             boolean isToLocal,
-            Path path,
+            Path stagingPath,
             String[] partitionColumns,
             boolean dynamicGrouped,
             LinkedHashMap<String, String> staticPartitions,
@@ -90,7 +90,7 @@ public class FileSystemOutputFormat<T>
         this.msFactory = msFactory;
         this.overwrite = overwrite;
         this.isToLocal = isToLocal;
-        this.stagingPath = toStagingPath(path);
+        this.stagingPath = stagingPath;
         this.partitionColumns = partitionColumns;
         this.dynamicGrouped = dynamicGrouped;
         this.staticPartitions = staticPartitions;
@@ -100,10 +100,10 @@ public class FileSystemOutputFormat<T>
         this.identifier = identifier;
         this.partitionCommitPolicyFactory = partitionCommitPolicyFactory;
 
-        createStagingDirector(this.stagingPath);
+        createStagingDirectory(this.stagingPath);
     }
 
-    private static void createStagingDirector(Path stagingPath) {
+    private static void createStagingDirectory(Path stagingPath) {
         try {
             final FileSystem stagingFileSystem = stagingPath.getFileSystem();
             Preconditions.checkState(
@@ -216,25 +216,6 @@ public class FileSystemOutputFormat<T>
         }
     }
 
-    private Path toStagingPath(Path path) {
-        // Add a random UUID to prevent multiple sinks from sharing the same staging dir.
-        // Please see FLINK-29114 for more details
-        Path stagingDir =
-                new Path(
-                        path,
-                        String.format(
-                                ".staging_%d_%s", System.currentTimeMillis(), UUID.randomUUID()));
-        try {
-            FileSystem fs = stagingDir.getFileSystem();
-            Preconditions.checkState(
-                    !fs.exists(stagingDir), "Staging dir %s already exists", stagingDir);
-            fs.mkdirs(stagingDir);
-            return stagingDir;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     @VisibleForTesting
     Path getStagingPath() {
         return stagingPath;
@@ -246,7 +227,7 @@ public class FileSystemOutputFormat<T>
         private String[] partitionColumns;
         private OutputFormatFactory<T> formatFactory;
         private TableMetaStoreFactory metaStoreFactory;
-        private Path path;
+        private Path stagingPath;
 
         private LinkedHashMap<String, String> staticPartitions = new LinkedHashMap<>();
         private boolean dynamicGrouped = false;
@@ -301,13 +282,14 @@ public class FileSystemOutputFormat<T>
             return this;
         }
 
-        public Builder<T> setPath(Path path) {
-            return this.setStagingPath(toStagingPath(path));
+        public Builder<T> setPath(Path parentPath) {
+            this.stagingPath = toStagingPath(parentPath);
+            return this;
         }
 
         @VisibleForTesting
-        Builder<T> setStagingPath(Path path) {
-            this.path = path;
+        Builder<T> setStagingPath(Path stagingPath) {
+            this.stagingPath = stagingPath;
             return this;
         }
 
@@ -342,7 +324,7 @@ public class FileSystemOutputFormat<T>
             checkNotNull(partitionColumns, "partitionColumns should not be null");
             checkNotNull(formatFactory, "formatFactory should not be null");
             checkNotNull(metaStoreFactory, "metaStoreFactory should not be null");
-            checkNotNull(path, "outputPath should not be null");
+            checkNotNull(stagingPath, "stagingPath should not be null");
             checkNotNull(computer, "partitionComputer should not be null");
 
             return new FileSystemOutputFormat<>(
@@ -350,7 +332,7 @@ public class FileSystemOutputFormat<T>
                     metaStoreFactory,
                     overwrite,
                     isToLocal,
-                    path,
+                    stagingPath,
                     partitionColumns,
                     dynamicGrouped,
                     staticPartitions,

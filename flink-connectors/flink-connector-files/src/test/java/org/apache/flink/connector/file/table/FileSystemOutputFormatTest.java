@@ -28,6 +28,8 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowUtils;
 
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
+
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,7 +47,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -68,7 +69,9 @@ class FileSystemOutputFormatTest {
                             new StreamRecord<>(Row.of("a3", 3, "p1"), 1L));
 
     private static final Supplier<List<String>> DEFAULT_OUTPUT_SUPPLIER =
-            () -> Collections.singletonList("a1,1,p1\n" + "a2,2,p1\n" + "a2,2,p2\n" + "a3,3,p1\n");
+            () ->
+                    Collections.singletonList(
+                            createFileContent("a1,1,p1", "a2,2,p1", "a2,2,p2", "a3,3,p1"));
 
     private static Map<File, String> getFileContentByPath(java.nio.file.Path directory)
             throws IOException {
@@ -85,9 +88,13 @@ class FileSystemOutputFormatTest {
         return contents;
     }
 
-    private static Map<File, String> getStagingFileContent(
-            AtomicReference<FileSystemOutputFormat<Row>> ref) throws IOException {
-        return getFileContentByPath(Paths.get(ref.get().getStagingPath().getPath()));
+    private static String createFileContent(String... rows) {
+        return Arrays.stream(rows).collect(Collectors.joining("\n", "", "\n"));
+    }
+
+    private static Map<File, String> getStagingFileContent(FileSystemOutputFormat<Row> outputFormat)
+            throws IOException {
+        return getFileContentByPath(Paths.get(outputFormat.getStagingPath().getPath()));
     }
 
     @BeforeEach
@@ -103,8 +110,7 @@ class FileSystemOutputFormatTest {
     @Test
     void testClosingWithoutInput() throws Exception {
         try (OneInputStreamOperatorTestHarness<Row, Object> testHarness =
-                createTestHarness(
-                        false, false, false, new LinkedHashMap<>(), new AtomicReference<>())) {
+                createTestHarness(createSinkFormat(false, false, false, new LinkedHashMap<>()))) {
             testHarness.setup();
             testHarness.open();
         }
@@ -150,8 +156,8 @@ class FileSystemOutputFormatTest {
                                 new StreamRecord<>(Row.of("a2", 2), 1L),
                                 new StreamRecord<>(Row.of("a3", 3), 1L)),
                 () ->
-                        Collections.singletonList(
-                                "c=p1:" + "a1,1\n" + "a2,2\n" + "a2,2\n" + "a3,3\n"));
+                        Collections.singletonMap(
+                                "c=p1", createFileContent("a1,1", "a2,2", "a2,2", "a3,3")));
     }
 
     @Test
@@ -162,7 +168,12 @@ class FileSystemOutputFormatTest {
                 false,
                 new LinkedHashMap<>(),
                 DEFAULT_INPUT_SUPPLIER,
-                () -> Arrays.asList("c=p1:" + "a1,1\n" + "a2,2\n" + "a3,3\n", "c=p2:" + "a2,2\n"));
+                () ->
+                        ImmutableMap.of(
+                                "c=p1",
+                                createFileContent("a1,1", "a2,2", "a3,3"),
+                                "c=p2",
+                                createFileContent("a2,2")));
     }
 
     @Test
@@ -178,7 +189,12 @@ class FileSystemOutputFormatTest {
                                 new StreamRecord<>(Row.of("a2", 2, "p1"), 1L),
                                 new StreamRecord<>(Row.of("a3", 3, "p1"), 1L),
                                 new StreamRecord<>(Row.of("a2", 2, "p2"), 1L)),
-                () -> Arrays.asList("c=p1:" + "a1,1\n" + "a2,2\n" + "a3,3\n", "c=p2:" + "a2,2\n"));
+                () ->
+                        ImmutableMap.of(
+                                "c=p1",
+                                createFileContent("a1,1", "a2,2", "a3,3"),
+                                "c=p2",
+                                createFileContent("a2,2")));
     }
 
     @Test
@@ -204,42 +220,47 @@ class FileSystemOutputFormatTest {
                 .isInstanceOf(IllegalStateException.class);
     }
 
+    @SuppressWarnings("unchecked")
     private void checkWriteAndCommit(
             boolean override,
             boolean partitioned,
             boolean dynamicGrouped,
             LinkedHashMap<String, String> staticPartitions,
             Supplier<List<StreamRecord<Row>>> inputSupplier,
-            Supplier<List<String>> outputSupplier)
+            Supplier<?> outputSupplier)
             throws Exception {
-        List<String> expectedOutput = outputSupplier.get();
-        int expectedFileNum = expectedOutput.size();
-        AtomicReference<FileSystemOutputFormat<Row>> ref = new AtomicReference<>();
+        Object expectedOutput = outputSupplier.get();
+        int expectedFileNum =
+                (partitioned)
+                        ? ((Map<String, String>) expectedOutput).size()
+                        : ((List<String>) expectedOutput).size();
+        FileSystemOutputFormat<Row> outputFormat =
+                createSinkFormat(override, partitioned, dynamicGrouped, staticPartitions);
         try (OneInputStreamOperatorTestHarness<Row, Object> testHarness =
-                createTestHarness(override, partitioned, dynamicGrouped, staticPartitions, ref)) {
+                createTestHarness(outputFormat)) {
             testHarness.setup();
             testHarness.open();
             for (StreamRecord<Row> record : inputSupplier.get()) {
                 testHarness.processElement(record);
             }
-            assertThat(getStagingFileContent(ref)).hasSize(expectedFileNum);
+            assertThat(getStagingFileContent(outputFormat)).hasSize(expectedFileNum);
         }
 
-        ref.get().finalizeGlobal(finalizationContext);
-        assertThat(Paths.get(ref.get().getStagingPath().getPath())).doesNotExist();
+        outputFormat.finalizeGlobal(finalizationContext);
+        assertThat(Paths.get(outputFormat.getStagingPath().getPath())).doesNotExist();
 
         Map<File, String> fileToContent = getFileContentByPath(outputPath);
         assertThat(fileToContent).hasSize(expectedFileNum);
         if (partitioned) {
-            assertPartitionedOutput(expectedOutput, fileToContent);
+            assertPartitionedOutput((Map<String, String>) expectedOutput, fileToContent);
         } else {
-            assertThat(fileToContent.values()).containsExactlyInAnyOrderElementsOf(expectedOutput);
+            assertThat(fileToContent.values())
+                    .containsExactlyInAnyOrderElementsOf((List<String>) expectedOutput);
         }
     }
 
     private void assertPartitionedOutput(
-            List<String> expectedOutput, Map<File, String> fileToContent) {
-        final String delimiter = ":";
+            Map<String, String> expectedOutput, Map<File, String> fileToContent) {
         Map<String, String> partitionToContent =
                 fileToContent.entrySet().stream()
                         .collect(
@@ -247,12 +268,7 @@ class FileSystemOutputFormatTest {
                                         e -> e.getKey().getParentFile().getName(),
                                         Map.Entry::getValue));
 
-        Map<String, String> expectedPartitionContent =
-                expectedOutput.stream()
-                        .map(r -> r.split(delimiter))
-                        .collect(Collectors.toMap(splits -> splits[0], splits -> splits[1]));
-
-        assertThat(partitionToContent).containsExactlyInAnyOrderEntriesOf(expectedPartitionContent);
+        assertThat(partitionToContent).containsExactlyInAnyOrderEntriesOf(expectedOutput);
     }
 
     private FileSystemOutputFormat<Row> createSinkFormat(
@@ -278,18 +294,9 @@ class FileSystemOutputFormatTest {
     }
 
     private OneInputStreamOperatorTestHarness<Row, Object> createTestHarness(
-            boolean override,
-            boolean partition,
-            boolean dynamicGrouped,
-            LinkedHashMap<String, String> staticPartitions,
-            AtomicReference<FileSystemOutputFormat<Row>> sinkRef)
-            throws Exception {
-        FileSystemOutputFormat<Row> sink =
-                createSinkFormat(override, partition, dynamicGrouped, staticPartitions);
-        sinkRef.set(sink);
-
+            FileSystemOutputFormat<Row> outputFormat) throws Exception {
         return new OneInputStreamOperatorTestHarness<>(
-                new StreamSink<>(new OutputFormatSinkFunction<>(sink)),
+                new StreamSink<>(new OutputFormatSinkFunction<>(outputFormat)),
                 // test parallelism
                 3,
                 3,
