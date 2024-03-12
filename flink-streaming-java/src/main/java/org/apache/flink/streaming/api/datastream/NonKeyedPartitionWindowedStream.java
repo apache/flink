@@ -22,13 +22,19 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.MapPartitionOperator;
 import org.apache.flink.streaming.api.operators.PartitionAggregateOperator;
 import org.apache.flink.streaming.api.operators.PartitionReduceOperator;
+import org.apache.flink.streaming.api.operators.sortpartition.SortPartitionOperator;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -87,5 +93,75 @@ public class NonKeyedPartitionWindowedStream<T> implements PartitionWindowedStre
         return input.transform(
                         opName, resultType, new PartitionAggregateOperator<>(aggregateFunction))
                 .setParallelism(input.getParallelism());
+    }
+
+    @Override
+    public SingleOutputStreamOperator<T> sortPartition(int field, Order order) {
+        checkNotNull(order, "The order must not be null.");
+        checkArgument(field > 0, "The field mustn't be less than zero.");
+        SortPartitionOperator<T> operator =
+                new SortPartitionOperator<>(input.getType(), field, order);
+        final String opName = "SortPartition";
+        SingleOutputStreamOperator<T> result =
+                input.transform(opName, input.getType(), operator)
+                        .setParallelism(input.getParallelism());
+        int managedMemoryWeight =
+                Math.max(
+                        1,
+                        environment
+                                .getConfiguration()
+                                .get(ExecutionOptions.SORT_PARTITION_MEMORY)
+                                .getMebiBytes());
+        result.getTransformation()
+                .declareManagedMemoryUseCaseAtOperatorScope(
+                        ManagedMemoryUseCase.OPERATOR, managedMemoryWeight);
+        return result;
+    }
+
+    @Override
+    public SingleOutputStreamOperator<T> sortPartition(String field, Order order) {
+        checkNotNull(field, "The field must not be null.");
+        checkNotNull(order, "The order must not be null.");
+        SortPartitionOperator<T> operator =
+                new SortPartitionOperator<>(input.getType(), field, order);
+        final String opName = "SortPartition";
+        SingleOutputStreamOperator<T> result =
+                input.transform(opName, input.getType(), operator)
+                        .setParallelism(input.getParallelism());
+        int managedMemoryWeight =
+                Math.max(
+                        1,
+                        environment
+                                .getConfiguration()
+                                .get(ExecutionOptions.SORT_PARTITION_MEMORY)
+                                .getMebiBytes());
+        result.getTransformation()
+                .declareManagedMemoryUseCaseAtOperatorScope(
+                        ManagedMemoryUseCase.OPERATOR, managedMemoryWeight);
+        return result;
+    }
+
+    @Override
+    public <K> SingleOutputStreamOperator<T> sortPartition(
+            KeySelector<T, K> keySelector, Order order) {
+        checkNotNull(keySelector, "The field must not be null.");
+        checkNotNull(order, "The order must not be null.");
+        SortPartitionOperator<T> operator =
+                new SortPartitionOperator<>(input.getType(), environment.clean(keySelector), order);
+        final String opName = "SortPartition";
+        SingleOutputStreamOperator<T> result =
+                input.transform(opName, input.getType(), operator)
+                        .setParallelism(input.getParallelism());
+        int managedMemoryWeight =
+                Math.max(
+                        1,
+                        environment
+                                .getConfiguration()
+                                .get(ExecutionOptions.SORT_PARTITION_MEMORY)
+                                .getMebiBytes());
+        result.getTransformation()
+                .declareManagedMemoryUseCaseAtOperatorScope(
+                        ManagedMemoryUseCase.OPERATOR, managedMemoryWeight);
+        return result;
     }
 }
