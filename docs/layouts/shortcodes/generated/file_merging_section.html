@@ -1,0 +1,48 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>state.checkpoints.file-merging.across-checkpoint-boundary</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Only relevant if <code class="highlighter-rouge">state.checkpoints.file-merging.enabled</code> is enabled.<br />Whether to allow merging data of multiple checkpoints into one physical file.If this option is set to false, only merge files within checkpoint boundaries will be merged.Otherwise, it is possible for the logical files of different checkpoints to share the same physical file.</td>
+        </tr>
+        <tr>
+            <td><h5>state.checkpoints.file-merging.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to enable merging multiple checkpoint files into one, which will greatly reduce the number of small checkpoint files.</td>
+        </tr>
+        <tr>
+            <td><h5>state.checkpoints.file-merging.max-file-size</h5></td>
+            <td style="word-wrap: break-word;">32 mb</td>
+            <td>MemorySize</td>
+            <td>Max size of a physical file for merged checkpoints.</td>
+        </tr>
+        <tr>
+            <td><h5>state.checkpoints.file-merging.max-space-amplification</h5></td>
+            <td style="word-wrap: break-word;">0.75</td>
+            <td>Float</td>
+            <td>A threshold that triggers a compaction (re-uploading) of one physical file.If the amount of invalid data in a physical file exceeds the threshold, a new physical file will be created and uploaded.</td>
+        </tr>
+        <tr>
+            <td><h5>state.checkpoints.file-merging.max-subtasks-per-file</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>The upper limit of the file pool size based on the number of subtasks within each TM (only for merging private state at Task Manager level).</td>
+        </tr>
+        <tr>
+            <td><h5>state.checkpoints.file-merging.pool-size</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>The upper limit of the file pool size for concurrent file merging, non-negative.The caller's thread will be used to merge files synchronously when set to 0,otherwise the threads in thread pool will be used to merge file asynchronously.</td>
+        </tr>
+    </tbody>
+</table>

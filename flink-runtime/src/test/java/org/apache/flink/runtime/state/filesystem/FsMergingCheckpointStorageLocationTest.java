@@ -220,7 +220,7 @@ public class FsMergingCheckpointStorageLocationTest {
 
     private FileMergingSnapshotManager createFileMergingSnapshotManager(long maxFileSize) {
         FileMergingSnapshotManager mgr =
-                new FileMergingSnapshotManagerBuilder(SNAPSHOT_MGR_ID).build();
+                new FileMergingSnapshotManagerBuilder(SNAPSHOT_MGR_ID).build(false);
 
         mgr.initFileSystem(
                 getSharedInstance(),

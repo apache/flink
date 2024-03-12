@@ -406,7 +406,7 @@ public class FileMergingSnapshotManagerTest {
             fs.mkdirs(sharedStateDir);
             fs.mkdirs(taskOwnedStateDir);
         }
-        FileMergingSnapshotManager fmsm = new FileMergingSnapshotManagerBuilder(tmId).build();
+        FileMergingSnapshotManager fmsm = new FileMergingSnapshotManagerBuilder(tmId).build(false);
         fmsm.initFileSystem(
                 LocalFileSystem.getSharedInstance(),
                 checkpointBaseDir,

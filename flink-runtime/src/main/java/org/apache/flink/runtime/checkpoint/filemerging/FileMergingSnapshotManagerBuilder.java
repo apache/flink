@@ -55,7 +55,11 @@ public class FileMergingSnapshotManagerBuilder {
      *
      * @return the created manager.
      */
-    public FileMergingSnapshotManager build() {
+    public FileMergingSnapshotManager build(boolean acrossCheckpoint) {
+        if (acrossCheckpoint) {
+            throw new UnsupportedOperationException(
+                    "FileMergingSnapshotManager does not support merging across checkpoint currently.");
+        }
         return new WithinCheckpointFileMergingSnapshotManager(
                 id, ioExecutor == null ? Runnable::run : ioExecutor);
     }

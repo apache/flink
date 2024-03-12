@@ -17,6 +17,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManagerBuilder;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -30,6 +31,9 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_ACROSS_BOUNDARY;
+import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_ENABLED;
 
 /**
  * There is one {@link FileMergingSnapshotManager} for each job per task manager. This class holds
@@ -66,19 +70,34 @@ public class TaskExecutorFileMergingManager {
      * org.apache.flink.runtime.taskexecutor.TaskExecutor#submitTask}.
      */
     public @Nullable FileMergingSnapshotManager fileMergingSnapshotManagerForJob(
-            @Nonnull JobID jobId) {
+            @Nonnull JobID jobId,
+            Configuration clusterConfiguration,
+            Configuration jobConfiguration) {
+        boolean mergingEnabled =
+                jobConfiguration
+                        .getOptional(FILE_MERGING_ENABLED)
+                        .orElse(clusterConfiguration.getBoolean(FILE_MERGING_ENABLED));
         synchronized (lock) {
             if (closed) {
                 throw new IllegalStateException(
                         "TaskExecutorFileMergingManager is already closed and cannot "
                                 + "register a new FileMergingSnapshotManager.");
             }
+            if (!mergingEnabled) {
+                return null;
+            }
             FileMergingSnapshotManager fileMergingSnapshotManager =
                     fileMergingSnapshotManagerByJobId.get(jobId);
             if (fileMergingSnapshotManager == null) {
-                // TODO FLINK-32440: choose different FileMergingSnapshotManager by configuration
+                boolean acrossCheckpoint =
+                        jobConfiguration
+                                .getOptional(FILE_MERGING_ACROSS_BOUNDARY)
+                                .orElse(
+                                        clusterConfiguration.getBoolean(
+                                                FILE_MERGING_ACROSS_BOUNDARY));
                 fileMergingSnapshotManager =
-                        new FileMergingSnapshotManagerBuilder(jobId.toString()).build();
+                        new FileMergingSnapshotManagerBuilder(jobId.toString())
+                                .build(acrossCheckpoint);
                 fileMergingSnapshotManagerByJobId.put(jobId, fileMergingSnapshotManager);
                 LOG.info("Registered new file merging snapshot manager for job {}.", jobId);
             }
