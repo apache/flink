@@ -76,7 +76,7 @@ checkpoint is triggered if the job is configured to take incremental ones period
 
 ## Runtime & Coordination
 
-#### Migrate TypeserializeSnapshotr#resolveSchemaCompatibility
+#### Migrate TypeSerializerSnapshot#resolveSchemaCompatibility
 
 ##### [FLINK-30613](https://issues.apache.org/jira/browse/FLINK-30613)
 
