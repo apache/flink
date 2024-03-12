@@ -99,6 +99,22 @@ public class FileSystemOutputFormat<T>
         this.outputFileConfig = outputFileConfig;
         this.identifier = identifier;
         this.partitionCommitPolicyFactory = partitionCommitPolicyFactory;
+
+        createStagingDirector(this.stagingPath);
+    }
+
+    private static void createStagingDirector(Path stagingPath) {
+        try {
+            final FileSystem stagingFileSystem = stagingPath.getFileSystem();
+            Preconditions.checkState(
+                    !stagingFileSystem.exists(stagingPath),
+                    "Staging dir %s already exists",
+                    stagingFileSystem);
+            stagingFileSystem.mkdirs(stagingPath);
+        } catch (IOException e) {
+            throw new RuntimeException(
+                    "An IO error occurred while accessing the staging FileSystem.", e);
+        }
     }
 
     @Override
@@ -286,8 +302,19 @@ public class FileSystemOutputFormat<T>
         }
 
         public Builder<T> setPath(Path path) {
+            return this.setStagingPath(toStagingPath(path));
+        }
+
+        @VisibleForTesting
+        Builder<T> setStagingPath(Path path) {
             this.path = path;
             return this;
+        }
+
+        private Path toStagingPath(Path parentPath) {
+            return new Path(
+                    parentPath,
+                    String.format(".staging_%d_%s", System.currentTimeMillis(), UUID.randomUUID()));
         }
 
         public Builder<T> setPartitionComputer(PartitionComputer<T> computer) {

@@ -50,7 +50,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link FileSystemOutputFormat}. */
 class FileSystemOutputFormatTest {
@@ -182,12 +182,26 @@ class FileSystemOutputFormatTest {
     }
 
     @Test
-    void testGetUniqueStagingDirectory() {
-        final int expectedStagingDirectories = 100;
-        for (int i = 0; i < expectedStagingDirectories; i++) {
-            assertDoesNotThrow(() -> createSinkFormat(false, false, false, new LinkedHashMap<>()));
-        }
-        assertThat(outputPath.toFile().listFiles()).hasSize(expectedStagingDirectories);
+    void testGetUniqueStagingDirectory() throws IOException {
+        final Path alreadyExistingStagingDir = new Path(outputPath.toFile().getAbsolutePath());
+        assertThat(alreadyExistingStagingDir.getFileSystem().exists(alreadyExistingStagingDir))
+                .as("The staging folder should already exist.")
+                .isTrue();
+
+        final FileSystemOutputFormat.Builder<Row> builder =
+                new FileSystemOutputFormat.Builder<Row>()
+                        .setPartitionColumns(new String[0])
+                        .setFormatFactory(TextOutputFormat::new)
+                        .setMetaStoreFactory(
+                                new FileSystemCommitterTest.TestMetaStoreFactory(
+                                        new Path(outputPath.toFile().getAbsolutePath())))
+                        .setPartitionComputer(
+                                new RowPartitionComputer("default", new String[0], new String[0]))
+                        .setStagingPath(alreadyExistingStagingDir);
+
+        assertThatThrownBy(builder::build)
+                .as("Reusing a folder should cause an error.")
+                .isInstanceOf(IllegalStateException.class);
     }
 
     private void checkWriteAndCommit(
