@@ -351,6 +351,8 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
             case NON_BLOCKING:
                 return new NonBlockingPhysicalFilePool(
                         maxPhysicalFileSize, this::createPhysicalFile);
+            case BLOCKING:
+                return new BlockingPhysicalFilePool(maxPhysicalFileSize, this::createPhysicalFile);
             default:
                 throw new UnsupportedOperationException(
                         "Unsupported type of physical file pool: " + filePoolType);
