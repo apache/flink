@@ -410,7 +410,59 @@ public class FileMergingSnapshotManagerTest {
         }
     }
 
+    @Test
+    public void testConcurrentFileReusingWithBlockingPool() throws Exception {
+        try (FileMergingSnapshotManagerBase fmsm =
+                (FileMergingSnapshotManagerBase)
+                        createFileMergingSnapshotManager(
+                                checkpointBaseDir, 32, PhysicalFilePool.Type.BLOCKING)) {
+            fmsm.registerSubtaskForSharedStates(subtaskKey1);
+
+            // test reusing a physical file
+            PhysicalFile file1 =
+                    fmsm.getOrCreatePhysicalFileForCheckpoint(
+                            subtaskKey1, 0, CheckpointedStateScope.SHARED);
+            fmsm.returnPhysicalFileForNextReuse(subtaskKey1, 0, file1);
+            PhysicalFile file2 =
+                    fmsm.getOrCreatePhysicalFileForCheckpoint(
+                            subtaskKey1, 0, CheckpointedStateScope.SHARED);
+            assertThat(file2).isEqualTo(file1);
+
+            // a physical file whose size is bigger than maxPhysicalFileSize cannot be reused
+            file2.incSize(fmsm.maxPhysicalFileSize);
+            fmsm.returnPhysicalFileForNextReuse(subtaskKey1, 0, file2);
+            PhysicalFile file3 =
+                    fmsm.getOrCreatePhysicalFileForCheckpoint(
+                            subtaskKey1, 0, CheckpointedStateScope.SHARED);
+            assertThat(file3).isNotEqualTo(file2);
+
+            // test for exclusive scope
+            PhysicalFile file4 =
+                    fmsm.getOrCreatePhysicalFileForCheckpoint(
+                            subtaskKey1, 0, CheckpointedStateScope.EXCLUSIVE);
+            fmsm.returnPhysicalFileForNextReuse(subtaskKey1, 0, file4);
+            PhysicalFile file5 =
+                    fmsm.getOrCreatePhysicalFileForCheckpoint(
+                            subtaskKey1, 0, CheckpointedStateScope.EXCLUSIVE);
+            assertThat(file5).isEqualTo(file4);
+
+            file5.incSize(fmsm.maxPhysicalFileSize);
+            fmsm.returnPhysicalFileForNextReuse(subtaskKey1, 0, file5);
+            PhysicalFile file6 =
+                    fmsm.getOrCreatePhysicalFileForCheckpoint(
+                            subtaskKey1, 0, CheckpointedStateScope.EXCLUSIVE);
+            assertThat(file6).isNotEqualTo(file5);
+        }
+    }
+
     private FileMergingSnapshotManager createFileMergingSnapshotManager(Path checkpointBaseDir)
+            throws IOException {
+        return createFileMergingSnapshotManager(
+                checkpointBaseDir, 32 * 1024 * 1024, PhysicalFilePool.Type.NON_BLOCKING);
+    }
+
+    private FileMergingSnapshotManager createFileMergingSnapshotManager(
+            Path checkpointBaseDir, long maxFileSize, PhysicalFilePool.Type filePoolType)
             throws IOException {
         FileSystem fs = LocalFileSystem.getSharedInstance();
         Path sharedStateDir =
@@ -426,7 +478,11 @@ public class FileMergingSnapshotManagerTest {
             fs.mkdirs(sharedStateDir);
             fs.mkdirs(taskOwnedStateDir);
         }
-        FileMergingSnapshotManager fmsm = new FileMergingSnapshotManagerBuilder(tmId).build();
+        FileMergingSnapshotManager fmsm =
+                new FileMergingSnapshotManagerBuilder(tmId)
+                        .setMaxFileSize(maxFileSize)
+                        .setFilePoolType(filePoolType)
+                        .build();
         fmsm.initFileSystem(
                 LocalFileSystem.getSharedInstance(),
                 checkpointBaseDir,
