@@ -22,6 +22,9 @@ import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.operators.Order;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.NonKeyedPartitionWindowedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -136,6 +139,159 @@ class NonKeyedPartitionWindowedStreamITCase {
         expectInAnyOrder(resultIterator, "94", "94");
     }
 
+    @Test
+    void testSortPartitionOfTupleElementsAscending() throws Exception {
+        expectInAnyOrder(sortPartitionOfTupleElementsInOrder(Order.ASCENDING), "013", "013");
+    }
+
+    @Test
+    void testSortPartitionOfTupleElementsDescending() throws Exception {
+        expectInAnyOrder(sortPartitionOfTupleElementsInOrder(Order.DESCENDING), "310", "310");
+    }
+
+    @Test
+    void testSortPartitionOfPojoElementsAscending() throws Exception {
+        expectInAnyOrder(sortPartitionOfPojoElementsInOrder(Order.ASCENDING), "013", "013");
+    }
+
+    @Test
+    void testSortPartitionOfPojoElementsDescending() throws Exception {
+        expectInAnyOrder(sortPartitionOfPojoElementsInOrder(Order.DESCENDING), "310", "310");
+    }
+
+    @Test
+    void testSortPartitionByKeySelectorAscending() throws Exception {
+        expectInAnyOrder(sortPartitionByKeySelectorInOrder(Order.ASCENDING), "013", "013");
+    }
+
+    @Test
+    void testSortPartitionByKeySelectorDescending() throws Exception {
+        expectInAnyOrder(sortPartitionByKeySelectorInOrder(Order.DESCENDING), "310", "310");
+    }
+
+    private CloseableIterator<String> sortPartitionOfTupleElementsInOrder(Order order)
+            throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<Tuple2<String, Integer>> source =
+                env.fromData(
+                        Tuple2.of("Test", 0),
+                        Tuple2.of("Test", 0),
+                        Tuple2.of("Test", 3),
+                        Tuple2.of("Test", 3),
+                        Tuple2.of("Test", 1),
+                        Tuple2.of("Test", 1));
+        return source.rebalance()
+                .map(
+                        new MapFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>() {
+                            @Override
+                            public Tuple2<String, Integer> map(Tuple2<String, Integer> value)
+                                    throws Exception {
+                                return value;
+                            }
+                        })
+                .setParallelism(2)
+                .fullWindowPartition()
+                .sortPartition(1, order)
+                .fullWindowPartition()
+                .mapPartition(
+                        new MapPartitionFunction<Tuple2<String, Integer>, String>() {
+                            @Override
+                            public void mapPartition(
+                                    Iterable<Tuple2<String, Integer>> values,
+                                    Collector<String> out) {
+                                StringBuilder sb = new StringBuilder();
+                                for (Tuple2<String, Integer> value : values) {
+                                    sb.append(value.f1);
+                                }
+                                out.collect(sb.toString());
+                            }
+                        })
+                .executeAndCollect();
+    }
+
+    private CloseableIterator<String> sortPartitionOfPojoElementsInOrder(Order order)
+            throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<TestPojo> source =
+                env.fromData(
+                        new TestPojo(0),
+                        new TestPojo(0),
+                        new TestPojo(3),
+                        new TestPojo(3),
+                        new TestPojo(1),
+                        new TestPojo(1));
+        return source.rebalance()
+                .map(
+                        new MapFunction<TestPojo, TestPojo>() {
+                            @Override
+                            public TestPojo map(TestPojo value) throws Exception {
+                                return value;
+                            }
+                        })
+                .setParallelism(2)
+                .fullWindowPartition()
+                .sortPartition("value", order)
+                .fullWindowPartition()
+                .mapPartition(
+                        new MapPartitionFunction<TestPojo, String>() {
+                            @Override
+                            public void mapPartition(
+                                    Iterable<TestPojo> values, Collector<String> out) {
+                                StringBuilder sb = new StringBuilder();
+                                for (TestPojo value : values) {
+                                    sb.append(value.getValue());
+                                }
+                                out.collect(sb.toString());
+                            }
+                        })
+                .executeAndCollect();
+    }
+
+    private CloseableIterator<String> sortPartitionByKeySelectorInOrder(Order order)
+            throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<TestPojo> source =
+                env.fromData(
+                        new TestPojo("KEY", 0),
+                        new TestPojo("KEY", 0),
+                        new TestPojo("KEY", 3),
+                        new TestPojo("KEY", 3),
+                        new TestPojo("KEY", 1),
+                        new TestPojo("KEY", 1));
+        return source.rebalance()
+                .map(
+                        new MapFunction<TestPojo, TestPojo>() {
+                            @Override
+                            public TestPojo map(TestPojo value) throws Exception {
+                                return value;
+                            }
+                        })
+                .setParallelism(2)
+                .fullWindowPartition()
+                .sortPartition(
+                        new KeySelector<TestPojo, Integer>() {
+                            @Override
+                            public Integer getKey(TestPojo value) throws Exception {
+                                return value.getValue();
+                            }
+                        },
+                        order)
+                .fullWindowPartition()
+                .mapPartition(
+                        new MapPartitionFunction<TestPojo, String>() {
+                            @Override
+                            public void mapPartition(
+                                    Iterable<TestPojo> values, Collector<String> out) {
+                                StringBuilder sb = new StringBuilder();
+                                for (TestPojo value : values) {
+                                    sb.append(value.getValue());
+                                }
+                                out.collect(sb.toString());
+                            }
+                        })
+                .executeAndCollect();
+    }
+
     private void expectInAnyOrder(CloseableIterator<String> resultIterator, String... expected) {
         List<String> listExpected = Lists.newArrayList(expected);
         List<String> testResults = Lists.newArrayList(resultIterator);
@@ -170,6 +326,41 @@ class NonKeyedPartitionWindowedStreamITCase {
 
         public String getTestField() {
             return String.valueOf(testField);
+        }
+    }
+
+    /** The test pojo. */
+    public static class TestPojo {
+
+        public String key;
+
+        public Integer value;
+
+        public TestPojo() {}
+
+        public TestPojo(Integer value) {
+            this.value = value;
+        }
+
+        public TestPojo(String key, Integer value) {
+            this.key = key;
+            this.value = value;
+        }
+
+        public Integer getValue() {
+            return value;
+        }
+
+        public void setValue(Integer value) {
+            this.value = value;
+        }
+
+        public String getKey() {
+            return key;
+        }
+
+        public void setKey(String key) {
+            this.key = key;
         }
     }
 }

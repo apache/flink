@@ -261,7 +261,10 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         DecimalDataSerializer.class.getName(),
                         SharedBufferNode.SharedBufferNodeSerializer.class.getName(),
                         NFA.NFASerializer.class.getName(),
-                        AvroSerializer.class.getName());
+                        AvroSerializer.class.getName(),
+                        // KeyAndValueSerializer shouldn't be used to serialize data to state and
+                        // doesn't need to ensure upgrade compatibility.
+                        "org.apache.flink.streaming.api.operators.sortpartition.KeyAndValueSerializer");
 
         // check if a test exists for each type serializer
         for (Class<? extends TypeSerializer> typeSerializer : typeSerializers) {
