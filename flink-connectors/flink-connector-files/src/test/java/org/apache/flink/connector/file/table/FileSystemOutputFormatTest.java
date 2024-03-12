@@ -39,7 +39,6 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -47,6 +46,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -57,6 +57,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class FileSystemOutputFormatTest {
 
     @TempDir private java.nio.file.Path outputPath;
+
+    @TempDir private java.nio.file.Path stagingBaseDir;
+
+    private java.nio.file.Path stagingPath;
 
     private final TestingFinalizationContext finalizationContext = new TestingFinalizationContext();
 
@@ -92,14 +96,10 @@ class FileSystemOutputFormatTest {
         return Arrays.stream(rows).collect(Collectors.joining("\n", "", "\n"));
     }
 
-    private static Map<File, String> getStagingFileContent(FileSystemOutputFormat<Row> outputFormat)
-            throws IOException {
-        return getFileContentByPath(Paths.get(outputFormat.getStagingPath().getPath()));
-    }
-
     @BeforeEach
     void before() {
         RowUtils.USE_LEGACY_TO_STRING = true;
+        stagingPath = stagingBaseDir.resolve(UUID.randomUUID().toString());
     }
 
     @AfterEach
@@ -243,32 +243,28 @@ class FileSystemOutputFormatTest {
             for (StreamRecord<Row> record : inputSupplier.get()) {
                 testHarness.processElement(record);
             }
-            assertThat(getStagingFileContent(outputFormat)).hasSize(expectedFileNum);
+            assertThat(getFileContentByPath(stagingPath)).hasSize(expectedFileNum);
         }
 
         outputFormat.finalizeGlobal(finalizationContext);
-        assertThat(Paths.get(outputFormat.getStagingPath().getPath())).doesNotExist();
+        assertThat(stagingPath).doesNotExist();
 
         Map<File, String> fileToContent = getFileContentByPath(outputPath);
         assertThat(fileToContent).hasSize(expectedFileNum);
         if (partitioned) {
-            assertPartitionedOutput((Map<String, String>) expectedOutput, fileToContent);
+            Map<String, String> partitionToContent =
+                    fileToContent.entrySet().stream()
+                            .collect(
+                                    Collectors.toMap(
+                                            e -> e.getKey().getParentFile().getName(),
+                                            Map.Entry::getValue));
+
+            assertThat(partitionToContent)
+                    .containsExactlyInAnyOrderEntriesOf((Map<String, String>) expectedOutput);
         } else {
             assertThat(fileToContent.values())
                     .containsExactlyInAnyOrderElementsOf((List<String>) expectedOutput);
         }
-    }
-
-    private void assertPartitionedOutput(
-            Map<String, String> expectedOutput, Map<File, String> fileToContent) {
-        Map<String, String> partitionToContent =
-                fileToContent.entrySet().stream()
-                        .collect(
-                                Collectors.toMap(
-                                        e -> e.getKey().getParentFile().getName(),
-                                        Map.Entry::getValue));
-
-        assertThat(partitionToContent).containsExactlyInAnyOrderEntriesOf(expectedOutput);
     }
 
     private FileSystemOutputFormat<Row> createSinkFormat(
@@ -282,7 +278,7 @@ class FileSystemOutputFormatTest {
         TableMetaStoreFactory msFactory = new FileSystemCommitterTest.TestMetaStoreFactory(path);
         return new FileSystemOutputFormat.Builder<Row>()
                 .setMetaStoreFactory(msFactory)
-                .setPath(path)
+                .setStagingPath(new Path(stagingPath.toString()))
                 .setOverwrite(override)
                 .setPartitionColumns(partitionColumns)
                 .setPartitionComputer(

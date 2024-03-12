@@ -109,7 +109,7 @@ public class FileSystemOutputFormat<T>
             Preconditions.checkState(
                     !stagingFileSystem.exists(stagingPath),
                     "Staging dir %s already exists",
-                    stagingFileSystem);
+                    stagingPath);
             stagingFileSystem.mkdirs(stagingPath);
         } catch (IOException e) {
             throw new RuntimeException(
@@ -214,11 +214,6 @@ public class FileSystemOutputFormat<T>
         } catch (Exception e) {
             throw new TableException("Exception in close", e);
         }
-    }
-
-    @VisibleForTesting
-    Path getStagingPath() {
-        return stagingPath;
     }
 
     /** Builder to build {@link FileSystemOutputFormat}. */
