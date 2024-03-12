@@ -46,7 +46,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -59,8 +58,6 @@ class FileSystemOutputFormatTest {
     @TempDir private java.nio.file.Path outputPath;
 
     @TempDir private java.nio.file.Path stagingBaseDir;
-
-    private java.nio.file.Path stagingPath;
 
     private final TestingFinalizationContext finalizationContext = new TestingFinalizationContext();
 
@@ -99,7 +96,6 @@ class FileSystemOutputFormatTest {
     @BeforeEach
     void before() {
         RowUtils.USE_LEGACY_TO_STRING = true;
-        stagingPath = stagingBaseDir.resolve(UUID.randomUUID().toString());
     }
 
     @AfterEach
@@ -243,11 +239,11 @@ class FileSystemOutputFormatTest {
             for (StreamRecord<Row> record : inputSupplier.get()) {
                 testHarness.processElement(record);
             }
-            assertThat(getFileContentByPath(stagingPath)).hasSize(expectedFileNum);
+            assertThat(getFileContentByPath(stagingBaseDir)).hasSize(expectedFileNum);
         }
 
         outputFormat.finalizeGlobal(finalizationContext);
-        assertThat(stagingPath).doesNotExist();
+        assertThat(stagingBaseDir).isEmptyDirectory();
 
         Map<File, String> fileToContent = getFileContentByPath(outputPath);
         assertThat(fileToContent).hasSize(expectedFileNum);
@@ -278,7 +274,7 @@ class FileSystemOutputFormatTest {
         TableMetaStoreFactory msFactory = new FileSystemCommitterTest.TestMetaStoreFactory(path);
         return new FileSystemOutputFormat.Builder<Row>()
                 .setMetaStoreFactory(msFactory)
-                .setStagingPath(new Path(stagingPath.toString()))
+                .setPath(new Path(stagingBaseDir.toString()))
                 .setOverwrite(override)
                 .setPartitionColumns(partitionColumns)
                 .setPartitionComputer(
