@@ -70,8 +70,8 @@ import org.rocksdb.InfoLogLevel;
 import org.rocksdb.util.SizeUnit;
 
 import java.io.File;
-import java.util.Arrays;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
