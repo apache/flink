@@ -17,6 +17,8 @@
 
 package org.apache.flink.runtime.checkpoint.filemerging;
 
+import org.apache.flink.util.Preconditions;
+
 import javax.annotation.Nullable;
 
 import java.util.concurrent.Executor;
@@ -27,6 +29,12 @@ public class FileMergingSnapshotManagerBuilder {
     /** The id for identifying a {@link FileMergingSnapshotManager}. */
     private final String id;
 
+    /** Max size for a file. TODO: Make it configurable. */
+    private long maxFileSize = 32 * 1024 * 1024;
+
+    /** Type of physical file pool. TODO: Make it configurable. */
+    private PhysicalFilePool.Type filePoolType = PhysicalFilePool.Type.NON_BLOCKING;
+
     @Nullable private Executor ioExecutor = null;
 
     /**
@@ -36,6 +44,19 @@ public class FileMergingSnapshotManagerBuilder {
      */
     public FileMergingSnapshotManagerBuilder(String id) {
         this.id = id;
+    }
+
+    /** Set the max file size. */
+    public FileMergingSnapshotManagerBuilder setMaxFileSize(long maxFileSize) {
+        Preconditions.checkArgument(maxFileSize > 0);
+        this.maxFileSize = maxFileSize;
+        return this;
+    }
+
+    /** Set the type of physical file pool. */
+    public FileMergingSnapshotManagerBuilder setFilePoolType(PhysicalFilePool.Type filePoolType) {
+        this.filePoolType = filePoolType;
+        return this;
     }
 
     /**
@@ -57,6 +78,6 @@ public class FileMergingSnapshotManagerBuilder {
      */
     public FileMergingSnapshotManager build() {
         return new WithinCheckpointFileMergingSnapshotManager(
-                id, ioExecutor == null ? Runnable::run : ioExecutor);
+                id, maxFileSize, filePoolType, ioExecutor == null ? Runnable::run : ioExecutor);
     }
 }
