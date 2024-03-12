@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.functions.MapPartitionFunction;
 
 /**
  * {@link PartitionWindowedStream} represents a data stream that collects all records of each
@@ -29,4 +30,14 @@ import org.apache.flink.annotation.PublicEvolving;
  * @param <T> The type of the elements in this stream.
  */
 @PublicEvolving
-public interface PartitionWindowedStream<T> {}
+public interface PartitionWindowedStream<T> {
+
+    /**
+     * Process the records of the window by {@link MapPartitionFunction}.
+     *
+     * @param mapPartitionFunction The map partition function.
+     * @param <R> The type of map partition result.
+     * @return The data stream with map partition result.
+     */
+    <R> SingleOutputStreamOperator<R> mapPartition(MapPartitionFunction<T, R> mapPartitionFunction);
+}
