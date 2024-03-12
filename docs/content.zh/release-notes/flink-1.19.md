@@ -36,7 +36,7 @@ planning to upgrade your Flink version to 1.19.
 
 ##### [FLINK-33030](https://issues.apache.org/jira/browse/FLINK-33030)
 
-### Build System
+## Build System
 
 #### Support Java 21
 
