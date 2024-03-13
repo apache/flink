@@ -45,6 +45,7 @@ import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
+import org.apache.flink.runtime.shuffle.ShuffleMetrics;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.util.Preconditions;
 
@@ -196,6 +197,12 @@ public class NettyShuffleEnvironment
     @Override
     public Collection<ResultPartitionID> getPartitionsOccupyingLocalResources() {
         return resultPartitionManager.getUnreleasedPartitions();
+    }
+
+    @Override
+    public Optional<ShuffleMetrics> getMetricsIfPartitionOccupyingLocalResource(
+            ResultPartitionID partitionId) {
+        return resultPartitionManager.getMetricsOfPartition(partitionId);
     }
 
     // --------------------------------------------------------------------------------------------
