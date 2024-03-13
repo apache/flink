@@ -39,13 +39,19 @@ jobs:
       - name: Set branch environment variable
         run: |
           currentBranch=$(git branch --show-current)
+          stable_release_branch=$(git branch | grep "release-" | sort -nr | head -1)
 
           echo "flink_branch=${currentBranch}" >> ${GITHUB_ENV}
 
           if [ "${currentBranch}" = "master" ]; then
-            echo "flink_alias=release-1.19" >> ${GITHUB_ENV}
-          elif [ "${currentBranch}" = "release-1.18" ]; then
-            echo "flink_alias=stable" >> ${GITHUB_ENV}
+            master_major_version="$(./mvnw -q help:evaluate -DforceStdout -Dexpression=project.version | cut -d'-' -f1)"
+            master_docs_alias="release-${master_major_version}"
+            echo "[INFO] Sets ${master_docs_alias} for master docs."
+            echo "flink_alias=${master_docs_alias}" >> ${GITHUB_ENV}
+          elif [ "${current_branch}" = "${stable_release_branch}" ]; then
+            stable_docs_alias="stable"
+            echo "[INFO] Sets ${stable_docs_alias} for ${stable_release_branch} docs."
+            echo "flink_alias=${stable_docs_alias}" >> ${GITHUB_ENV}
           fi
       - name: Build documentation
         run: |
