@@ -46,6 +46,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
@@ -55,6 +56,7 @@ import org.apache.flink.util.SerializedValue;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 /** {@link JobMaster} rpc gateway interface. */
@@ -300,6 +302,11 @@ public interface JobMasterGateway
      */
     CompletableFuture<?> stopTrackingAndReleasePartitions(
             Collection<ResultPartitionID> partitionIds);
+
+    default CompletableFuture<Collection<PartitionWithMetrics>>
+            getAllPartitionWithMetricsOnTaskManagers() {
+        return CompletableFuture.completedFuture(Collections.emptyList());
+    }
 
     /**
      * Read current {@link JobResourceRequirements job resource requirements}.

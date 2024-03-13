@@ -42,6 +42,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.ProfilingInfo;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
+import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
 import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.Preconditions;
@@ -79,6 +80,9 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
                     Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId>,
                     CompletableFuture<Acknowledge>>
             requestSlotFunction;
+
+    private final Function<JobID, CompletableFuture<Collection<PartitionWithMetrics>>>
+            requestPartitionWithMetricsFunction;
 
     private final BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>>
             freeSlotFunction;
@@ -140,6 +144,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
                                     ResourceManagerId>,
                             CompletableFuture<Acknowledge>>
                     requestSlotFunction,
+            Function<JobID, CompletableFuture<Collection<PartitionWithMetrics>>>
+                    requestPartitionWithMetricsFunction,
             BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction,
             Consumer<JobID> freeInactiveSlotsConsumer,
             Function<ResourceID, CompletableFuture<Void>> heartbeatResourceManagerFunction,
@@ -175,6 +181,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
                 Preconditions.checkNotNull(disconnectJobManagerConsumer);
         this.submitTaskConsumer = Preconditions.checkNotNull(submitTaskConsumer);
         this.requestSlotFunction = Preconditions.checkNotNull(requestSlotFunction);
+        this.requestPartitionWithMetricsFunction =
+                Preconditions.checkNotNull(requestPartitionWithMetricsFunction);
         this.freeSlotFunction = Preconditions.checkNotNull(freeSlotFunction);
         this.freeInactiveSlotsConsumer = Preconditions.checkNotNull(freeInactiveSlotsConsumer);
         this.heartbeatResourceManagerFunction = heartbeatResourceManagerFunction;
@@ -209,6 +217,12 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
                         resourceProfile,
                         targetAddress,
                         resourceManagerId));
+    }
+
+    @Override
+    public CompletableFuture<Collection<PartitionWithMetrics>> getPartitionWithMetrics(
+            JobID jobId) {
+        return requestPartitionWithMetricsFunction.apply(jobId);
     }
 
     @Override

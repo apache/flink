@@ -38,6 +38,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.messages.ProfilingInfo;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
+import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.QuadFunction;
@@ -45,6 +46,7 @@ import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriFunction;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
@@ -129,6 +131,9 @@ public class TestingTaskExecutorGatewayBuilder {
                     Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId>,
                     CompletableFuture<Acknowledge>>
             requestSlotFunction = NOOP_REQUEST_SLOT_FUNCTION;
+    private Function<JobID, CompletableFuture<Collection<PartitionWithMetrics>>>
+            requestPartitionWithMetricsFunction =
+                    ignored -> CompletableFuture.completedFuture(Collections.emptyList());
     private BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction =
             NOOP_FREE_SLOT_FUNCTION;
     private Consumer<JobID> freeInactiveSlotsConsumer = NOOP_FREE_INACTIVE_SLOTS_CONSUMER;
@@ -214,6 +219,13 @@ public class TestingTaskExecutorGatewayBuilder {
                             CompletableFuture<Acknowledge>>
                     requestSlotFunction) {
         this.requestSlotFunction = requestSlotFunction;
+        return this;
+    }
+
+    public TestingTaskExecutorGatewayBuilder setRequestPartitionWithMetricsFunction(
+            Function<JobID, CompletableFuture<Collection<PartitionWithMetrics>>>
+                    requestPartitionWithMetricsFunction) {
+        this.requestPartitionWithMetricsFunction = requestPartitionWithMetricsFunction;
         return this;
     }
 
@@ -325,6 +337,7 @@ public class TestingTaskExecutorGatewayBuilder {
                 disconnectJobManagerConsumer,
                 submitTaskConsumer,
                 requestSlotFunction,
+                requestPartitionWithMetricsFunction,
                 freeSlotFunction,
                 freeInactiveSlotsConsumer,
                 heartbeatResourceManagerFunction,

@@ -154,6 +154,29 @@ class TaskExecutorPartitionTrackerImplTest {
     }
 
     @Test
+    void testGetTrackedPartitionsFor() {
+        final TestingShuffleEnvironment testingShuffleEnvironment = new TestingShuffleEnvironment();
+
+        final JobID jobId = new JobID();
+        final ResultPartitionID resultPartitionId = new ResultPartitionID();
+
+        final TaskExecutorPartitionTracker partitionTracker =
+                new TaskExecutorPartitionTrackerImpl(testingShuffleEnvironment);
+        TaskExecutorPartitionInfo partitionInfo =
+                new TaskExecutorPartitionInfo(
+                        new TestingShuffleDescriptor(resultPartitionId),
+                        new IntermediateDataSetID(),
+                        1);
+
+        partitionTracker.startTrackingPartition(jobId, partitionInfo);
+        Collection<TaskExecutorPartitionInfo> partitions =
+                partitionTracker.getTrackedPartitionsFor(jobId);
+
+        assertThat(partitions).hasSize(1);
+        assertThat(partitions.iterator().next()).isEqualTo(partitionInfo);
+    }
+
+    @Test
     void promoteJobPartitions() throws Exception {
         final TestingShuffleEnvironment testingShuffleEnvironment = new TestingShuffleEnvironment();
         final CompletableFuture<Collection<ResultPartitionID>> shuffleReleaseFuture =
