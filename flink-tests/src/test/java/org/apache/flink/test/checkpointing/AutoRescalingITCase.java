@@ -41,6 +41,7 @@ import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -50,7 +51,6 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -578,7 +578,7 @@ public class AutoRescalingITCase extends TestLogger {
 
     private static void configureCheckpointing(CheckpointConfig config) {
         config.setCheckpointInterval(100);
-        config.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+        config.setConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
         config.enableUnalignedCheckpoints(true);
     }
 

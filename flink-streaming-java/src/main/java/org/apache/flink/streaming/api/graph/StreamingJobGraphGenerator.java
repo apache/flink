@@ -31,6 +31,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.StateChangelogOptions;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
@@ -63,7 +64,6 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.config.memory.ManagedMemoryUtils;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.WithMasterCheckpointHook;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
@@ -1394,7 +1394,7 @@ public class StreamingJobGraphGenerator {
     }
 
     private CheckpointingMode getCheckpointingMode(CheckpointConfig checkpointConfig) {
-        CheckpointingMode checkpointingMode = checkpointConfig.getCheckpointingMode();
+        CheckpointingMode checkpointingMode = checkpointConfig.getConsistencyMode();
 
         checkArgument(
                 checkpointingMode == CheckpointingMode.EXACTLY_ONCE

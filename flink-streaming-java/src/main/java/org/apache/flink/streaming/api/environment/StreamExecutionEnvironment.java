@@ -66,6 +66,7 @@ import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.connector.datagen.functions.FromElementsGeneratorFunction;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.core.execution.CacheSupportedPipelineExecutor;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.JobClient;
@@ -78,7 +79,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.scheduler.ClusterDatasetCorruptedException;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -518,9 +518,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * the configured state backend.
      *
      * <p>NOTE: Checkpointing iterative streaming dataflows is not properly supported at the moment.
-     * For that reason, iterative jobs will not be started if used with enabled checkpointing. To
-     * override this mechanism, use the {@link #enableCheckpointing(long, CheckpointingMode,
-     * boolean)} method.
+     * For that reason, iterative jobs will not be started if used with enabled checkpointing.
      *
      * @param interval Time interval between state checkpoints in milliseconds.
      */
@@ -535,20 +533,43 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * restarted from the latest completed checkpoint.
      *
      * <p>The job draws checkpoints periodically, in the given interval. The system uses the given
+     * {@link org.apache.flink.streaming.api.CheckpointingMode} for the checkpointing ("exactly
+     * once" vs "at least once"). The state will be stored in the configured state backend.
+     *
+     * <p>NOTE: Checkpointing iterative streaming dataflows is not properly supported at the moment.
+     * For that reason, iterative jobs will not be started if used with enabled checkpointing.
+     *
+     * @param interval Time interval between state checkpoints in milliseconds.
+     * @param mode The checkpointing mode, selecting between "exactly once" and "at least once"
+     *     guaranteed.
+     * @deprecated use {@link #enableCheckpointing(long, CheckpointingMode)} instead.
+     */
+    @Deprecated
+    public StreamExecutionEnvironment enableCheckpointing(
+            long interval, org.apache.flink.streaming.api.CheckpointingMode mode) {
+        checkpointCfg.setCheckpointingMode(mode);
+        checkpointCfg.setCheckpointInterval(interval);
+        return this;
+    }
+
+    /**
+     * Enables checkpointing for the streaming job. The distributed state of the streaming dataflow
+     * will be periodically snapshotted. In case of a failure, the streaming dataflow will be
+     * restarted from the latest completed checkpoint.
+     *
+     * <p>The job draws checkpoints periodically, in the given interval. The system uses the given
      * {@link CheckpointingMode} for the checkpointing ("exactly once" vs "at least once"). The
      * state will be stored in the configured state backend.
      *
      * <p>NOTE: Checkpointing iterative streaming dataflows is not properly supported at the moment.
-     * For that reason, iterative jobs will not be started if used with enabled checkpointing. To
-     * override this mechanism, use the {@link #enableCheckpointing(long, CheckpointingMode,
-     * boolean)} method.
+     * For that reason, iterative jobs will not be started if used with enabled checkpointing.
      *
      * @param interval Time interval between state checkpoints in milliseconds.
      * @param mode The checkpointing mode, selecting between "exactly once" and "at least once"
      *     guaranteed.
      */
     public StreamExecutionEnvironment enableCheckpointing(long interval, CheckpointingMode mode) {
-        checkpointCfg.setCheckpointingMode(mode);
+        checkpointCfg.setConsistencyMode(mode);
         checkpointCfg.setCheckpointInterval(interval);
         return this;
     }
@@ -575,7 +596,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     @SuppressWarnings("deprecation")
     @PublicEvolving
     public StreamExecutionEnvironment enableCheckpointing(
-            long interval, CheckpointingMode mode, boolean force) {
+            long interval, org.apache.flink.streaming.api.CheckpointingMode mode, boolean force) {
         checkpointCfg.setCheckpointingMode(mode);
         checkpointCfg.setCheckpointInterval(interval);
         checkpointCfg.setForceCheckpointing(force);
@@ -592,9 +613,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * in the configured state backend.
      *
      * <p>NOTE: Checkpointing iterative streaming dataflows is not properly supported at the moment.
-     * For that reason, iterative jobs will not be started if used with enabled checkpointing. To
-     * override this mechanism, use the {@link #enableCheckpointing(long, CheckpointingMode,
-     * boolean)} method.
+     * For that reason, iterative jobs will not be started if used with enabled checkpointing.
      *
      * @deprecated Use {@link #enableCheckpointing(long)} instead.
      */
@@ -646,9 +665,22 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * <p>Shorthand for {@code getCheckpointConfig().getCheckpointingMode()}.
      *
      * @return The checkpoint mode
+     * @deprecated Use {@link #getCheckpointingConsistencyMode()} instead.
      */
-    public CheckpointingMode getCheckpointingMode() {
+    @Deprecated
+    public org.apache.flink.streaming.api.CheckpointingMode getCheckpointingMode() {
         return checkpointCfg.getCheckpointingMode();
+    }
+
+    /**
+     * Returns the checkpointing consistency mode (exactly-once vs. at-least-once).
+     *
+     * <p>Shorthand for {@code getCheckpointConfig().getConsistencyMode()}.
+     *
+     * @return The checkpoint mode
+     */
+    public CheckpointingMode getCheckpointingConsistencyMode() {
+        return checkpointCfg.getConsistencyMode();
     }
 
     /**
