@@ -51,7 +51,7 @@ public class KafkaEventProducer
 
         consumer.subscribe(Collections.singletonList("test_topic")); // Replace with your topic name
 
-        ArrayList<String>[] perPartitionData = new ArrayList[PARTITION_COUNT]; // Create an array of ArrayLists with size 5
+        ArrayList<Integer>[] perPartitionData = new ArrayList[PARTITION_COUNT]; // Create an array of ArrayLists with size 5
 
         for (int i = 0; i < perPartitionData.length; i++) {
             perPartitionData[i] = new ArrayList<>();
@@ -62,11 +62,10 @@ public class KafkaEventProducer
             int totalMessages = 10;
             // Generate events and send them to Kafka
             for (int i = 0; i < totalMessages; i++) {
-                String key = "key-" + i;
-                String value = "value-" + i;
+                String key = "key-" + i; // This will be the path ID
+                String value = i + ""; // This is the sequence ID
                 ProducerRecord<String, String> record = new ProducerRecord<>("test_topic", key, value);
                 producer.send(record);
-//                System.out.println("Sent event: key=" + key + ", value=" + value);
             }
             Thread.sleep(1000); // delay before consuming
 
@@ -74,17 +73,16 @@ public class KafkaEventProducer
             while (recieveCount < totalMessages) {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
                 for (ConsumerRecord<String, String> record : records) {
-                    perPartitionData[record.partition()].add(record.value());
+                    perPartitionData[record.partition()].add(Integer.parseInt(record.value()));
                     recieveCount++;
                 }
                 consumer.commitSync();
             }
 
         for (int i = 0; i < perPartitionData.length; i++){
-            ArrayList<String> currList = perPartitionData[i];
+            ArrayList<Integer> currList = perPartitionData[i];
             System.out.println("Partition: " + i + " " + currList.toString());
         }
-
 
         } catch (Exception e) {
             e.printStackTrace();
