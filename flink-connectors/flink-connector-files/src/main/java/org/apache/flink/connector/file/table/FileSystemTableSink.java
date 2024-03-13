@@ -184,7 +184,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                 .setMetaStoreFactory(new EmptyMetaStoreFactory(path))
                 .setOverwrite(overwrite)
                 .setStaticPartitions(staticPartitions)
-                .setTempPath(toStagingPath())
+                .setPath(path)
                 .setOutputFileConfig(
                         OutputFileConfig.builder()
                                 .withPartPrefix("part-" + UUID.randomUUID())
@@ -371,19 +371,6 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                         "Compaction reader not support DataStructure converter.");
             }
         };
-    }
-
-    private Path toStagingPath() {
-        Path stagingDir = new Path(path, ".staging_" + System.currentTimeMillis());
-        try {
-            FileSystem fs = stagingDir.getFileSystem();
-            Preconditions.checkState(
-                    fs.exists(stagingDir) || fs.mkdirs(stagingDir),
-                    "Failed to create staging dir " + stagingDir);
-            return stagingDir;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     @SuppressWarnings("unchecked")
