@@ -259,7 +259,7 @@ Flink's Time classes are deprecated now and will be subject to deletion with the
 Please start to use Java's own `Duration` class, instead. Methods supporting the `Duration` class
 that replace the deprecated Time-based methods were introduced.
 
-#### Add new interfaces for SinkV2 to synchronize the API with the SourceV2 API
+#### Add new interfaces for SinkV2 to synchronize the API with the Source API
 
 ##### [FLINK-33973](https://issues.apache.org/jira/browse/FLINK-33973)
 
