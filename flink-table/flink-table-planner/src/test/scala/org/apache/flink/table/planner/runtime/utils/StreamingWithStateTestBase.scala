@@ -22,8 +22,8 @@ import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.configuration.{CheckpointingOptions, Configuration}
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
+import org.apache.flink.core.execution.CheckpointingMode
 import org.apache.flink.runtime.state.memory.MemoryStateBackend
-import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
