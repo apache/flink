@@ -8,12 +8,17 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.protocol.types.Field;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.HashMap;
 
 /**
  * Hello world!
@@ -21,6 +26,8 @@ import java.util.Properties;
  */
 public class KafkaEventProducer
 {
+    public static final int PARTITION_COUNT = 3;
+
     public static void main( String[] args )
     {
         Properties producerProps = new Properties();
@@ -44,6 +51,12 @@ public class KafkaEventProducer
 
         consumer.subscribe(Collections.singletonList("test_topic")); // Replace with your topic name
 
+        ArrayList<String>[] perPartitionData = new ArrayList[PARTITION_COUNT]; // Create an array of ArrayLists with size 5
+
+        for (int i = 0; i < perPartitionData.length; i++) {
+            perPartitionData[i] = new ArrayList<>();
+        }
+
 
         try {
             int totalMessages = 10;
@@ -53,7 +66,7 @@ public class KafkaEventProducer
                 String value = "value-" + i;
                 ProducerRecord<String, String> record = new ProducerRecord<>("test_topic", key, value);
                 producer.send(record);
-                System.out.println("Sent event: key=" + key + ", value=" + value);
+//                System.out.println("Sent event: key=" + key + ", value=" + value);
             }
             Thread.sleep(1000); // delay before consuming
 
@@ -61,11 +74,17 @@ public class KafkaEventProducer
             while (recieveCount < totalMessages) {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
                 for (ConsumerRecord<String, String> record : records) {
-                    System.out.println("Received message: key=" + record.key() + ", value=" + record.value());
+                    perPartitionData[record.partition()].add(record.value());
                     recieveCount++;
                 }
                 consumer.commitSync();
             }
+
+        for (int i = 0; i < perPartitionData.length; i++){
+            ArrayList<String> currList = perPartitionData[i];
+            System.out.println("Partition: " + i + " " + currList.toString());
+        }
+
 
         } catch (Exception e) {
             e.printStackTrace();
