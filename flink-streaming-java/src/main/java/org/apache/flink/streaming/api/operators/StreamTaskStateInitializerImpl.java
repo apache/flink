@@ -18,15 +18,19 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
+import org.apache.flink.runtime.checkpoint.filemerging.SubtaskFileMergingManagerRestoreOperation;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
@@ -68,6 +72,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -152,6 +157,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
             throws Exception {
 
         TaskInfo taskInfo = environment.getTaskInfo();
+        registerRestoredStateToFileMergingManager(environment.getJobID(), taskInfo, operatorID);
+
         OperatorSubtaskDescriptionText operatorSubtaskDescription =
                 new OperatorSubtaskDescriptionText(
                         operatorID,
@@ -160,7 +167,6 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                         taskInfo.getNumberOfParallelSubtasks());
 
         final String operatorIdentifierText = operatorSubtaskDescription.toString();
-
         final PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates =
                 taskStateManager.prioritizedOperatorState(operatorID);
 
@@ -293,6 +299,29 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
             }
 
             throw new Exception("Exception while creating StreamOperatorStateContext.", ex);
+        }
+    }
+
+    private void registerRestoredStateToFileMergingManager(
+            JobID jobID, TaskInfo taskInfo, OperatorID operatorID) {
+        FileMergingSnapshotManager fileMergingSnapshotManager =
+                taskStateManager.getFileMergingSnapshotManager();
+        Optional<Long> restoredCheckpointId = taskStateManager.getRestoreCheckpointId();
+        if (fileMergingSnapshotManager == null || !restoredCheckpointId.isPresent()) {
+            return;
+        }
+        Optional<OperatorSubtaskState> subtaskState =
+                taskStateManager.getSubtaskJobManagerRestoredState(operatorID);
+        if (subtaskState.isPresent()) {
+            SubtaskFileMergingManagerRestoreOperation restoreOperation =
+                    new SubtaskFileMergingManagerRestoreOperation(
+                            restoredCheckpointId.get(),
+                            fileMergingSnapshotManager,
+                            jobID,
+                            taskInfo,
+                            operatorID,
+                            subtaskState.get());
+            restoreOperation.restore();
         }
     }
 

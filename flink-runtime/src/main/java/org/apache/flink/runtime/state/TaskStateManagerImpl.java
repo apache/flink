@@ -253,6 +253,17 @@ public class TaskStateManagerImpl implements TaskStateManager {
         return builder.build();
     }
 
+    public Optional<OperatorSubtaskState> getSubtaskJobManagerRestoredState(OperatorID operatorID) {
+        if (jobManagerTaskRestore == null) {
+            return Optional.empty();
+        }
+        OperatorSubtaskState state =
+                jobManagerTaskRestore
+                        .getTaskStateSnapshot()
+                        .getSubtaskStateByOperatorID(operatorID);
+        return (state == null) ? Optional.empty() : Optional.of(state);
+    }
+
     @Nonnull
     @Override
     public LocalRecoveryConfig createLocalRecoveryConfig() {

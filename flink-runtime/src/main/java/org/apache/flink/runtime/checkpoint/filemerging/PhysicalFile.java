@@ -143,6 +143,10 @@ public class PhysicalFile {
                 }
                 if (deleter != null) {
                     deleter.perform(filePath);
+                } else {
+                    LOG.debug(
+                            "Skip deleting this file {} because it is not owned by FileMergingManager.",
+                            filePath);
                 }
                 this.deleted = true;
             }

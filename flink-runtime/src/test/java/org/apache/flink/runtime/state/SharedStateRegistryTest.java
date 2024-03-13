@@ -280,7 +280,7 @@ class SharedStateRegistryTest {
                         checkpointBaseDir,
                         AbstractFsCheckpointStorageAccess.CHECKPOINT_TASK_OWNED_STATE_DIR);
         final FileMergingSnapshotManager.SubtaskKey subtaskKey =
-                new FileMergingSnapshotManager.SubtaskKey("opId", 1, 2);
+                new FileMergingSnapshotManager.SubtaskKey("jobId", "opId", 1, 2);
         FileMergingSnapshotManager snapshotManager =
                 createFileMergingSnapshotManager(
                         checkpointBaseDir, sharedStateDir, taskOwnedStateDir);

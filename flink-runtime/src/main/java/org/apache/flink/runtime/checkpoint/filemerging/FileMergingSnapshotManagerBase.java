@@ -44,6 +44,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -52,6 +53,7 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.checkpoint.filemerging.PhysicalFile.PhysicalFileDeleter;
 
@@ -575,8 +577,79 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     @Override
     public void close() throws IOException {}
 
+    // ------------------------------------------------------------------------
+    //  restore
+    // ------------------------------------------------------------------------
+
+    @Override
+    public void restoreStateHandles(
+            long checkpointId, SubtaskKey subtaskKey, Stream<SegmentFileStateHandle> stateHandles) {
+
+        synchronized (lock) {
+            Set<LogicalFile> restoredLogicalFiles =
+                    uploadedStates.computeIfAbsent(checkpointId, id -> new HashSet<>());
+
+            Map<Path, PhysicalFile> knownPhysicalFiles = new HashMap<>();
+            knownLogicalFiles.values().stream()
+                    .map(LogicalFile::getPhysicalFile)
+                    .forEach(file -> knownPhysicalFiles.putIfAbsent(file.getFilePath(), file));
+
+            stateHandles.forEach(
+                    fileHandle -> {
+                        PhysicalFile physicalFile =
+                                knownPhysicalFiles.computeIfAbsent(
+                                        fileHandle.getFilePath(),
+                                        path -> {
+                                            PhysicalFileDeleter fileDeleter =
+                                                    (isManagedByFileMergingManager(
+                                                                    path,
+                                                                    subtaskKey,
+                                                                    fileHandle.getScope()))
+                                                            ? physicalFileDeleter
+                                                            : null;
+                                            return new PhysicalFile(
+                                                    null, path, fileDeleter, fileHandle.getScope());
+                                        });
+
+                        LogicalFileId logicalFileId = fileHandle.getLogicalFileId();
+                        LogicalFile logicalFile =
+                                new LogicalFile(
+                                        logicalFileId,
+                                        physicalFile,
+                                        fileHandle.getStartPos(),
+                                        fileHandle.getStateSize(),
+                                        subtaskKey);
+                        knownLogicalFiles.put(logicalFileId, logicalFile);
+                        logicalFile.advanceLastCheckpointId(checkpointId);
+                        restoredLogicalFiles.add(logicalFile);
+                    });
+        }
+    }
+
+    /**
+     * Distinguish whether the given filePath is managed by the FileMergingSnapshotManager. If the
+     * filePath is located under managedDir (managedSharedStateDir or managedExclusiveStateDir) as a
+     * subFile, it should be managed by the FileMergingSnapshotManager.
+     */
+    private boolean isManagedByFileMergingManager(
+            Path filePath, SubtaskKey subtaskKey, CheckpointedStateScope scope) {
+        if (scope == CheckpointedStateScope.SHARED) {
+            Path managedDir = managedSharedStateDir.get(subtaskKey);
+            return filePath.toString().startsWith(managedDir.toString());
+        }
+        if (scope == CheckpointedStateScope.EXCLUSIVE) {
+            return filePath.toString().startsWith(managedExclusiveStateDir.toString());
+        }
+        throw new UnsupportedOperationException("Unsupported CheckpointStateScope " + scope);
+    }
+
     @VisibleForTesting
     public LogicalFile getLogicalFile(LogicalFileId fileId) {
         return knownLogicalFiles.get(fileId);
+    }
+
+    @VisibleForTesting
+    TreeMap<Long, Set<LogicalFile>> getUploadedStates() {
+        return uploadedStates;
     }
 }

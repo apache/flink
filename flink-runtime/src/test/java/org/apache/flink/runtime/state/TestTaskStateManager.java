@@ -218,6 +218,21 @@ public class TestTaskStateManager implements TaskStateManager {
         }
     }
 
+    @Override
+    public Optional<OperatorSubtaskState> getSubtaskJobManagerRestoredState(OperatorID operatorID) {
+        TaskStateSnapshot taskStateSnapshot =
+                jobManagerTaskStateSnapshotsByCheckpointId.get(reportedCheckpointId);
+        if (taskStateSnapshot == null) {
+            return Optional.empty();
+        }
+        OperatorSubtaskState subtaskState =
+                taskStateSnapshot.getSubtaskStateByOperatorID(operatorID);
+        if (subtaskState == null) {
+            return Optional.empty();
+        }
+        return Optional.of(subtaskState);
+    }
+
     @Nonnull
     @Override
     public LocalRecoveryConfig createLocalRecoveryConfig() {

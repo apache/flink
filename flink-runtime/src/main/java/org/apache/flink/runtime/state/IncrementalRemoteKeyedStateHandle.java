@@ -246,7 +246,7 @@ public class IncrementalRemoteKeyedStateHandle extends AbstractIncrementalStateH
         streamSubHandles().forEach(handle -> handle.collectSizeStats(collector));
     }
 
-    private Stream<StreamStateHandle> streamSubHandles() {
+    public Stream<StreamStateHandle> streamSubHandles() {
         return Stream.of(
                         Stream.of(metaStateHandle),
                         sharedState.stream().map(HandleAndLocalPath::getHandle),
