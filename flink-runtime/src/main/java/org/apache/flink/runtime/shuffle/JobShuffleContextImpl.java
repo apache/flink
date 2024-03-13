@@ -49,4 +49,9 @@ public class JobShuffleContextImpl implements JobShuffleContext {
             Collection<ResultPartitionID> partitionIds) {
         return jobMasterGateway.stopTrackingAndReleasePartitions(partitionIds);
     }
+
+    @Override
+    public JobMasterGateway getJobMasterGateway() {
+        return jobMasterGateway;
+    }
 }

@@ -43,6 +43,7 @@ import org.apache.flink.runtime.rest.messages.ProfilingInfo;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.SerializedValue;
@@ -315,6 +316,18 @@ public interface TaskExecutorGateway
      */
     CompletableFuture<Acknowledge> updateDelegationTokens(
             ResourceManagerId resourceManagerId, byte[] tokens);
+
+    /**
+     * Get all partitions and their metrics located on this task executor, the metrics mainly
+     * includes the meta information of partition(partition bytes, etc).
+     *
+     * @param jobId ID of the target job
+     * @return All partitions belong to the target job and their metrics
+     */
+    default CompletableFuture<Collection<PartitionWithMetrics>> getPartitionWithMetrics(
+            JobID jobId) {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Requests the profiling from this TaskManager.

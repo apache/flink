@@ -90,6 +90,7 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.shuffle.JobShuffleContext;
 import org.apache.flink.runtime.shuffle.JobShuffleContextImpl;
+import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -114,9 +115,11 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -949,6 +952,26 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             future.completeExceptionally(throwable);
         }
         return future;
+    }
+
+    @Override
+    public CompletableFuture<Collection<PartitionWithMetrics>> getAllPartitionWithMetrics() {
+        final List<CompletableFuture<Collection<PartitionWithMetrics>>> allFutures =
+                new ArrayList<>();
+        registeredTaskManagers
+                .values()
+                .forEach(
+                        taskManager ->
+                                allFutures.add(
+                                        taskManager
+                                                .getTaskExecutorGateway()
+                                                .getPartitionWithMetrics(jobGraph.getJobID())));
+        return FutureUtils.combineAll(allFutures)
+                .thenApply(
+                        partitions ->
+                                partitions.stream()
+                                        .flatMap(Collection::stream)
+                                        .collect(Collectors.toList()));
     }
 
     @Override
