@@ -64,7 +64,7 @@ function aws_cli_stop() {
 if [[ $AWSCLI_CONTAINER_ID ]]; then
   aws_cli_stop
 fi
-aws_cli_start
+aws_cli_start || aws_cli_start
 if [ $? -ne 0 ]; then
     echo "running the aws cli container failed"
     exit 1
