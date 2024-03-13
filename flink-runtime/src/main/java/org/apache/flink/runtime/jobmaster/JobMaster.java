@@ -1194,13 +1194,14 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         final CompletableFuture<Void> terminationFuture = stopScheduling();
 
-        return FutureUtils.runAfterwards(
+        return FutureUtils.runAfterwardsAsync(
                 terminationFuture,
                 () -> {
                     shuffleMaster.unregisterJob(executionPlan.getJobID());
                     disconnectTaskManagerResourceManagerConnections(cause);
                     stopJobMasterServices();
-                });
+                },
+                getMainThreadExecutor());
     }
 
     private void disconnectTaskManagerResourceManagerConnections(Exception cause) {
