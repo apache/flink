@@ -44,7 +44,6 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
@@ -252,14 +251,5 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
      */
     public boolean isCheckpointingEnabled() {
         return streamConfig.isCheckpointingEnabled();
-    }
-
-    /**
-     * Returns the checkpointing mode.
-     *
-     * @return checkpointing mode
-     */
-    public CheckpointingMode getCheckpointMode() {
-        return streamConfig.getCheckpointMode();
     }
 }

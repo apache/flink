@@ -38,11 +38,11 @@ import org.apache.flink.connector.testframe.junit.extensions.ConnectorTestingExt
 import org.apache.flink.connector.testframe.junit.extensions.TestCaseInvocationContextProvider;
 import org.apache.flink.connector.testframe.utils.CollectIteratorAssertions;
 import org.apache.flink.connector.testframe.utils.MetricQuerier;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
@@ -309,7 +309,7 @@ public abstract class SourceTestSuiteBase<T> {
 
         // Step 3: Build and execute Flink job
         final StreamExecutionEnvironment execEnv = testEnv.createExecutionEnvironment(envOptions);
-        execEnv.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+        execEnv.getCheckpointConfig().setConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
         execEnv.enableCheckpointing(50);
         execEnv.setRestartStrategy(RestartStrategies.noRestart());
         DataStreamSource<T> source =
@@ -358,7 +358,7 @@ public abstract class SourceTestSuiteBase<T> {
         final StreamExecutionEnvironment restartEnv =
                 testEnv.createExecutionEnvironment(restartEnvOptions);
         restartEnv.enableCheckpointing(500);
-        restartEnv.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+        restartEnv.getCheckpointConfig().setConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
 
         DataStreamSource<T> restartSource =
                 restartEnv

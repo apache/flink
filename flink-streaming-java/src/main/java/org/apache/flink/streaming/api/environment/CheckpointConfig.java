@@ -29,12 +29,12 @@ import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.description.InlineElement;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -72,9 +72,9 @@ public class CheckpointConfig implements java.io.Serializable {
      * The default checkpoint mode: exactly once.
      *
      * @deprecated This field is no longer used. Please use {@link
-     *     ExecutionCheckpointingOptions.CHECKPOINTING_MODE} instead.
+     *     ExecutionCheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE} instead.
      */
-    public static final CheckpointingMode DEFAULT_MODE =
+    public static final org.apache.flink.streaming.api.CheckpointingMode DEFAULT_MODE =
             ExecutionCheckpointingOptions.CHECKPOINTING_MODE.defaultValue();
 
     /**
@@ -177,10 +177,10 @@ public class CheckpointConfig implements java.io.Serializable {
      * Gets the checkpointing mode (exactly-once vs. at-least-once).
      *
      * @return The checkpointing mode.
-     * @deprecated Use {@link #getCheckpointMode} instead.
+     * @deprecated Use {@link #getConsistencyMode} instead.
      */
     @Deprecated
-    public CheckpointingMode getCheckpointingMode() {
+    public org.apache.flink.streaming.api.CheckpointingMode getCheckpointingMode() {
         return configuration.get(ExecutionCheckpointingOptions.CHECKPOINTING_MODE);
     }
 
@@ -188,30 +188,31 @@ public class CheckpointConfig implements java.io.Serializable {
      * Sets the checkpointing mode (exactly-once vs. at-least-once).
      *
      * @param checkpointingMode The checkpointing mode.
-     * @deprecated Use {@link #setCheckpointMode} instead.
+     * @deprecated Use {@link #setConsistencyMode} instead.
      */
     @Deprecated
-    public void setCheckpointingMode(CheckpointingMode checkpointingMode) {
+    public void setCheckpointingMode(
+            org.apache.flink.streaming.api.CheckpointingMode checkpointingMode) {
         configuration.set(ExecutionCheckpointingOptions.CHECKPOINTING_MODE, checkpointingMode);
     }
 
     /**
-     * Gets the checkpointing mode (exactly-once vs. at-least-once).
+     * Gets the checkpointing consistency mode (exactly-once vs. at-least-once).
      *
      * @return The checkpointing mode.
      */
-    public org.apache.flink.core.execution.CheckpointingMode getCheckpointMode() {
-        return configuration.get(ExecutionCheckpointingOptions.CHECKPOINTING_MODE_V2);
+    public CheckpointingMode getConsistencyMode() {
+        return configuration.get(ExecutionCheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE);
     }
 
     /**
-     * Sets the checkpointing mode (exactly-once vs. at-least-once).
+     * Sets the checkpointing consistency mode (exactly-once vs. at-least-once).
      *
      * @param checkpointingMode The checkpointing mode.
      */
-    public void setCheckpointMode(
-            org.apache.flink.core.execution.CheckpointingMode checkpointingMode) {
-        configuration.set(ExecutionCheckpointingOptions.CHECKPOINTING_MODE_V2, checkpointingMode);
+    public void setConsistencyMode(CheckpointingMode checkpointingMode) {
+        configuration.set(
+                ExecutionCheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE, checkpointingMode);
     }
 
     /**
@@ -598,7 +599,8 @@ public class CheckpointConfig implements java.io.Serializable {
      * embedded into the stream of data anymore.
      *
      * <p>Unaligned checkpoints can only be enabled if {@link
-     * ExecutionCheckpointingOptions#CHECKPOINTING_MODE} is {@link CheckpointingMode#EXACTLY_ONCE}.
+     * ExecutionCheckpointingOptions#CHECKPOINTING_CONSISTENCY_MODE} is {@link
+     * CheckpointingMode#EXACTLY_ONCE}.
      *
      * @param enabled Flag to indicate whether unaligned are enabled.
      */
@@ -616,7 +618,8 @@ public class CheckpointConfig implements java.io.Serializable {
      * embedded into the stream of data anymore.
      *
      * <p>Unaligned checkpoints can only be enabled if {@link
-     * ExecutionCheckpointingOptions#CHECKPOINTING_MODE} is {@link CheckpointingMode#EXACTLY_ONCE}.
+     * ExecutionCheckpointingOptions#CHECKPOINTING_CONSISTENCY_MODE} is {@link
+     * CheckpointingMode#EXACTLY_ONCE}.
      */
     @PublicEvolving
     public void enableUnalignedCheckpoints() {
@@ -986,7 +989,7 @@ public class CheckpointConfig implements java.io.Serializable {
 
     /**
      * Sets all relevant options contained in the {@link ReadableConfig} such as e.g. {@link
-     * ExecutionCheckpointingOptions#CHECKPOINTING_MODE}.
+     * ExecutionCheckpointingOptions#CHECKPOINTING_CONSISTENCY_MODE}.
      *
      * <p>It will change the value of a setting only if a corresponding option was set in the {@code
      * configuration}. If a key is not present, the current value of a field will remain untouched.
@@ -995,8 +998,8 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     public void configure(ReadableConfig configuration) {
         configuration
-                .getOptional(ExecutionCheckpointingOptions.CHECKPOINTING_MODE)
-                .ifPresent(this::setCheckpointingMode);
+                .getOptional(ExecutionCheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE)
+                .ifPresent(this::setConsistencyMode);
         configuration
                 .getOptional(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL)
                 .ifPresent(i -> this.setCheckpointInterval(i.toMillis()));

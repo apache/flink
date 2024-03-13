@@ -21,9 +21,9 @@ package org.apache.flink.streaming.api.operators.collect;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.RpcOptions;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.util.CloseableIterator;
 
@@ -133,7 +133,7 @@ public class CollectResultIterator<T> implements CloseableIterator<T> {
     private AbstractCollectResultBuffer<T> createBuffer(
             TypeSerializer<T> serializer, CheckpointConfig checkpointConfig) {
         if (checkpointConfig.isCheckpointingEnabled()) {
-            if (checkpointConfig.getCheckpointingMode() == CheckpointingMode.EXACTLY_ONCE) {
+            if (checkpointConfig.getConsistencyMode() == CheckpointingMode.EXACTLY_ONCE) {
                 return new CheckpointedCollectResultBuffer<>(serializer);
             } else {
                 return new UncheckpointedCollectResultBuffer<>(serializer, true);
