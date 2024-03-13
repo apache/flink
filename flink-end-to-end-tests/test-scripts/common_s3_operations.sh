@@ -29,12 +29,18 @@
 #   AWSCLI_CONTAINER_ID
 ###################################
 function aws_cli_start() {
-  export AWSCLI_CONTAINER_ID=$(docker run -d \
+  local CONTAINER_ID
+  CONTAINER_ID=$(docker run -d \
     --network host \
     --mount type=bind,source="$TEST_INFRA_DIR",target=/hostdir \
     -e AWS_REGION -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
     --entrypoint python \
     -it banst/awscli)
+  if [ $? -ne 0 ]; then
+    echo "running aws cli container failed"
+    return 1
+  fi
+  export AWSCLI_CONTAINER_ID="$CONTAINER_ID"
 
   while [[ "$(docker inspect -f {{.State.Running}} "$AWSCLI_CONTAINER_ID")" -ne "true" ]]; do
     sleep 0.1
@@ -59,6 +65,10 @@ if [[ $AWSCLI_CONTAINER_ID ]]; then
   aws_cli_stop
 fi
 aws_cli_start
+if [ $? -ne 0 ]; then
+    echo "running the aws cli container failed"
+    exit 1
+fi
 
 ###################################
 # Runs an aws command on the previously started container.
