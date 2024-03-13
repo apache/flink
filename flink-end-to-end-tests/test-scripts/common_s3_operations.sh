@@ -145,7 +145,7 @@ function s3_get_number_of_lines_by_prefix() {
 
   # find all files that have the given prefix
   parts=$(aws_cli s3api list-objects --bucket "$IT_CASE_S3_BUCKET" --prefix "$1" |
-    docker run -i stedolan/jq -r '[.Contents[].Key] | join(" ")')
+    docker run -i --rm stedolan/jq -r '[.Contents[].Key] | join(" ")')
 
   # in parallel (N tasks), query the number of lines, store result in a file named lines
   N=10
