@@ -27,11 +27,13 @@ import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.filemerging.DirectoryStreamStateHandle;
+import org.apache.flink.runtime.state.filemerging.SegmentFileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileMergingCheckpointStateOutputStream;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 
 import java.io.Closeable;
 import java.util.Collection;
+import java.util.stream.Stream;
 
 /**
  * FileMergingSnapshotManager provides an interface to manage files and meta information for
@@ -168,6 +170,16 @@ public interface FileMergingSnapshotManager extends Closeable {
      */
     void reusePreviousStateHandle(
             long checkpointId, Collection<? extends StreamStateHandle> stateHandles);
+
+    /**
+     * Restore and re-register the SegmentFileStateHandles into FileMergingSnapshotManager.
+     *
+     * @param checkpointId the restored checkpoint id.
+     * @param subtaskKey the subtask key identifying the subtask.
+     * @param stateHandles the restored segment file handles.
+     */
+    void restoreStateHandles(
+            long checkpointId, SubtaskKey subtaskKey, Stream<SegmentFileStateHandle> stateHandles);
 
     /**
      * A key identifies a subtask. A subtask can be identified by the operator id, subtask index and

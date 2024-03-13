@@ -52,6 +52,7 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.checkpoint.filemerging.PhysicalFile.PhysicalFileDeleter;
 
@@ -575,8 +576,46 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     @Override
     public void close() throws IOException {}
 
+    // ------------------------------------------------------------------------
+    //  restore
+    // ------------------------------------------------------------------------
+
+    @Override
+    public void restoreStateHandles(
+            long checkpointId, SubtaskKey subtaskKey, Stream<SegmentFileStateHandle> stateHandles) {
+
+        Set<LogicalFile> uploadedLogicalFiles;
+        synchronized (lock) {
+            uploadedLogicalFiles =
+                    uploadedStates.computeIfAbsent(checkpointId, id -> new HashSet<>());
+        }
+
+        stateHandles.forEach(
+                fileHandle -> {
+                    // The file cleanup ownership of recovered physicalFile belongs to
+                    // jobManager, so we should set file deleter to "null" for them.
+                    PhysicalFile physicalFile =
+                            new PhysicalFile(
+                                    null, fileHandle.getFilePath(), null, fileHandle.getScope());
+                    LogicalFile logicalFile =
+                            createLogicalFile(
+                                    physicalFile,
+                                    fileHandle.getStartPos(),
+                                    fileHandle.getStateSize(),
+                                    subtaskKey);
+                    logicalFile.advanceLastCheckpointId(checkpointId);
+                    synchronized (lock) {
+                        uploadedLogicalFiles.add(logicalFile);
+                    }
+                });
+    }
+
     @VisibleForTesting
     public LogicalFile getLogicalFile(LogicalFileId fileId) {
         return knownLogicalFiles.get(fileId);
+    }
+
+    TreeMap<Long, Set<LogicalFile>> getUploadedStates() {
+        return uploadedStates;
     }
 }

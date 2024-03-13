@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.management.jmx.JMXService;
@@ -34,6 +35,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
+import org.apache.flink.runtime.checkpoint.filemerging.TaskFileMergingManagerRestoreOperation;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -830,6 +832,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             channelStateExecutorFactoryManager.getOrCreateExecutorFactory(jobId));
 
             taskMetricGroup.gauge(MetricNames.IS_BACK_PRESSURED, task::isBackPressured);
+            registerTaskRestoreInfoToFileMergingManager(
+                    fileMergingSnapshotManager, task.getTaskInfo(), taskRestore);
 
             log.info(
                     "Received task {} ({}), deploy into slot with allocation id {}.",
@@ -860,6 +864,21 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             }
         } catch (TaskSubmissionException e) {
             return FutureUtils.completedExceptionally(e);
+        }
+    }
+
+    private void registerTaskRestoreInfoToFileMergingManager(
+            FileMergingSnapshotManager fileMergingSnapshotManager,
+            TaskInfo taskInfo,
+            JobManagerTaskRestore taskRestore) {
+        if (fileMergingSnapshotManager != null && taskRestore != null) {
+            TaskFileMergingManagerRestoreOperation restoreOperation =
+                    new TaskFileMergingManagerRestoreOperation(
+                            taskRestore.getRestoreCheckpointId(),
+                            fileMergingSnapshotManager,
+                            taskInfo,
+                            taskRestore.getTaskStateSnapshot());
+            restoreOperation.restore();
         }
     }
 

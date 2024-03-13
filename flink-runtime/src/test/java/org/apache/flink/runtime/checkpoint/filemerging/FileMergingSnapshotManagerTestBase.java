@@ -17,15 +17,22 @@
 
 package org.apache.flink.runtime.checkpoint.filemerging;
 
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager.SubtaskKey;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
+import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.filemerging.FileMergingOperatorStreamStateHandle;
 import org.apache.flink.runtime.state.filemerging.SegmentFileStateHandle;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.filesystem.FileMergingCheckpointStateOutputStream;
@@ -33,16 +40,22 @@ import org.apache.flink.runtime.state.filesystem.FileMergingCheckpointStateOutpu
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 /** Tests for {@link FileMergingSnapshotManager}. */
 public abstract class FileMergingSnapshotManagerTestBase {
@@ -379,6 +392,84 @@ public abstract class FileMergingSnapshotManagerTestBase {
                 }
             }
         }
+    }
+
+    @Test
+    public void testRestore() throws Exception {
+        TaskStateSnapshot taskStateSnapshot;
+        long checkpointId = 222;
+        int operatorNum = 2;
+
+        // Step1: build TaskStateSnapshot using FileMergingSnapshotManagerBase;
+        try (FileMergingSnapshotManagerBase fmsm =
+                        (FileMergingSnapshotManagerBase)
+                                createFileMergingSnapshotManager(checkpointBaseDir);
+                CloseableRegistry closeableRegistry = new CloseableRegistry()) {
+            Map<OperatorID, OperatorSubtaskState> subtaskStatesByOperatorID = new HashMap<>();
+            for (int i = 0; i < operatorNum; i++) {
+                subtaskStatesByOperatorID.put(
+                        new OperatorID(),
+                        buildOperatorSubtaskState(checkpointId, fmsm, closeableRegistry));
+            }
+            taskStateSnapshot = new TaskStateSnapshot(subtaskStatesByOperatorID);
+        }
+        assertThat(taskStateSnapshot).isNotNull();
+
+        // Step 2: restore FileMergingSnapshotManagerBase from the TaskStateSnapshot.
+        try (FileMergingSnapshotManagerBase fmsm =
+                (FileMergingSnapshotManagerBase)
+                        createFileMergingSnapshotManager(checkpointBaseDir)) {
+            TaskInfo taskInfo = new TaskInfoImpl("test restore", 128, 2, 64, 0);
+            TaskFileMergingManagerRestoreOperation restoreOperation =
+                    new TaskFileMergingManagerRestoreOperation(
+                            checkpointId, fmsm, taskInfo, taskStateSnapshot);
+            restoreOperation.restore();
+            TreeMap<Long, Set<LogicalFile>> stateFiles = fmsm.getUploadedStates();
+            assertThat(stateFiles.size()).isEqualTo(1);
+            Set<LogicalFile> restoreFileSet = stateFiles.get(checkpointId);
+            assertThat(restoreFileSet).isNotNull();
+            assertThat(restoreFileSet.size()).isEqualTo(4 * operatorNum);
+        }
+    }
+
+    private OperatorSubtaskState buildOperatorSubtaskState(
+            long checkpointId, FileMergingSnapshotManager fmsm, CloseableRegistry closeableRegistry)
+            throws Exception {
+        IncrementalRemoteKeyedStateHandle keyedStateHandle1 =
+                Mockito.mock(IncrementalRemoteKeyedStateHandle.class);
+        when(keyedStateHandle1.streamSubHandles())
+                .thenReturn(
+                        Stream.of(
+                                buildOneSegmentFileHandle(checkpointId, fmsm, closeableRegistry)));
+
+        KeyGroupsStateHandle keyedStateHandle2 = Mockito.mock(KeyGroupsStateHandle.class);
+        when(keyedStateHandle2.getDelegateStateHandle())
+                .thenReturn(buildOneSegmentFileHandle(checkpointId, fmsm, closeableRegistry));
+
+        OperatorStateHandle operatorStateHandle1 =
+                Mockito.mock(FileMergingOperatorStreamStateHandle.class);
+        when(operatorStateHandle1.getDelegateStateHandle())
+                .thenReturn(buildOneSegmentFileHandle(checkpointId, fmsm, closeableRegistry));
+
+        OperatorStateHandle operatorStateHandle2 =
+                Mockito.mock(FileMergingOperatorStreamStateHandle.class);
+        when(operatorStateHandle2.getDelegateStateHandle())
+                .thenReturn(buildOneSegmentFileHandle(checkpointId, fmsm, closeableRegistry));
+
+        return OperatorSubtaskState.builder()
+                .setManagedKeyedState(keyedStateHandle1)
+                .setRawKeyedState(keyedStateHandle2)
+                .setManagedOperatorState(operatorStateHandle1)
+                .setRawOperatorState(operatorStateHandle2)
+                .build();
+    }
+
+    private SegmentFileStateHandle buildOneSegmentFileHandle(
+            long checkpointId, FileMergingSnapshotManager fmsm, CloseableRegistry closeableRegistry)
+            throws Exception {
+        FileMergingCheckpointStateOutputStream outputStream =
+                writeCheckpointAndGetStream(checkpointId, fmsm, closeableRegistry);
+        return outputStream.closeAndGetHandle();
     }
 
     FileMergingSnapshotManager createFileMergingSnapshotManager(Path checkpointBaseDir)
