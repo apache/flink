@@ -515,12 +515,22 @@ public final class FileUtils {
         }
     }
 
+    /**
+     * Un-archives files inside the target directory. Illegal fs access outside target directory is
+     * not permitted.
+     *
+     * @param file path to zipped/archived file
+     * @param targetDirectory directory path where file needs to be unarchived
+     * @return path to folder with unarchived contents
+     * @throws IOException if file open fails or in case of unsafe access outside target directory
+     */
     public static Path expandDirectory(Path file, Path targetDirectory) throws IOException {
         FileSystem sourceFs = file.getFileSystem();
         FileSystem targetFs = targetDirectory.getFileSystem();
         Path rootDir = null;
         try (ZipInputStream zis = new ZipInputStream(sourceFs.open(file))) {
             ZipEntry entry;
+            String targetDirStr = targetDirectory.toString();
             while ((entry = zis.getNextEntry()) != null) {
                 Path relativePath = new Path(entry.getName());
                 if (rootDir == null) {
@@ -529,6 +539,10 @@ public final class FileUtils {
                 }
 
                 Path newFile = new Path(targetDirectory, relativePath);
+                if (!newFile.toString().startsWith(targetDirStr)) {
+                    throw new IOException("Illegal escape from target directory");
+                }
+
                 if (entry.isDirectory()) {
                     targetFs.mkdirs(newFile);
                 } else {
