@@ -90,7 +90,7 @@ checkpoint is triggered if the job is configured to take incremental ones period
 
 In Flink 1.19, the old method of resolving schema compatibility has been deprecated and the new one
 is introduced. See [FLIP-263](https://cwiki.apache.org/confluence/display/FLINK/FLIP-263%3A+Improve+resolving+schema+compatibility?src=contextnavpagetreemode) for more details.
-Please migrate to the new method following [link](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/datastream/fault-tolerance/serialization/custom_serialization/#migrating-from-deprecated-typeserializersnapshotresolveschemacompatibilityt).
+Please migrate to the new method following [link](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/dev/datastream/fault-tolerance/serialization/custom_serialization/#migrating-from-deprecated-typeserializersnapshotresolveschemacompatibilitytypeserializer-newserializer-before-flink-119).
 
 #### Deprecate old serialization config methods and options
 
@@ -131,7 +131,7 @@ If users want to use the legacy configuration file `flink-conf.yaml`, they need 
 into the `conf/` directory. Once the legacy configuration file `flink-conf.yaml` is detected, Flink
 will prioritize using it as the configuration file. In the upcoming Flink 2.0, the `flink-conf.yaml`
 configuration file will no longer work.
-More details could be found at [flink-configuration-file](https://nightlies.apache.org/flink/flink-docs-master/docs/deployment/config/#flink-configuration-file).
+More details could be found at [flink-configuration-file](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/deployment/config/#flink-configuration-file).
 
 #### Add config options for administrator JVM options
 
@@ -290,7 +290,7 @@ More details can be found at [FLIP-381](https://cwiki.apache.org/confluence/page
 
 Scan table sources can now be set a custom parallelism for performance tuning via the `scan.parallelism`
 option. Currently, only the DataGen connector has been adapted to support that, Kafka connector is
-on the way. Please check [scan-table-source](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sourcessinks/#scan-table-source) on how to adapt your custom connectors to it.
+on the way. Please check [scan-table-source](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/dev/table/sourcessinks/#scan-table-source) on how to adapt your custom connectors to it.
 
 #### Adding a separate configuration for specifying Java Options of the SQL Gateway
 
@@ -305,7 +305,7 @@ which allows you to fine-tune the memory settings, garbage collection behavior, 
 
 This is a new feature in Apache Flink 1.19 that enhances the flexibility and user experience when
 managing SQL state time-to-live (TTL) settings. Users can now specify custom TTL values for regular
-joins and group aggregations directly within their queries by [utilizing the STATE_TTL hint](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sql/queries/hints/#state-ttl-hints).
+joins and group aggregations directly within their queries by [utilizing the STATE_TTL hint](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/dev/table/sql/queries/hints/#state-ttl-hints).
 This improvement means that you no longer need to alter your compiled plan to set specific TTLs for
 these operators. With the introduction of `STATE_TTL` hints, you can streamline your workflow and
 dynamically adjust the TTL based on your operational requirements.
@@ -336,7 +336,7 @@ nodes such as a CDC connector.
 
 ##### [FLINK-24024](https://issues.apache.org/jira/browse/FLINK-24024)
 
-Users can use SESSION Window TVF in streaming mode. More details can be found at [session window-tvf](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sql/queries/window-tvf/#session).
+Users can use SESSION Window TVF in streaming mode. More details can be found at [session window-tvf](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/dev/table/sql/queries/window-tvf/#session).
 
 ### Connectors
 
