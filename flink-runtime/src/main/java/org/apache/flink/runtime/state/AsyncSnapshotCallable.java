@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -64,6 +65,8 @@ public abstract class AsyncSnapshotCallable<T> implements Callable<T> {
      */
     @Nonnull protected final CloseableRegistry snapshotCloseableRegistry;
 
+    private volatile boolean canceled = false;
+
     protected AsyncSnapshotCallable() {
         this.snapshotCloseableRegistry = new CloseableRegistry();
         this.resourceCleanupOwnershipTaken = new AtomicBoolean(false);
@@ -74,8 +77,9 @@ public abstract class AsyncSnapshotCallable<T> implements Callable<T> {
         final long startTime = System.currentTimeMillis();
 
         if (resourceCleanupOwnershipTaken.compareAndSet(false, true)) {
+            T result = null;
             try {
-                T result = callInternal();
+                result = callInternal();
                 logAsyncSnapshotComplete(startTime);
                 return result;
             } catch (Exception ex) {
@@ -84,7 +88,7 @@ public abstract class AsyncSnapshotCallable<T> implements Callable<T> {
                 }
             } finally {
                 closeSnapshotIO();
-                cleanup();
+                cleanup(result);
             }
         }
 
@@ -93,9 +97,10 @@ public abstract class AsyncSnapshotCallable<T> implements Callable<T> {
 
     @VisibleForTesting
     protected void cancel() {
+        this.canceled = true;
         closeSnapshotIO();
         if (resourceCleanupOwnershipTaken.compareAndSet(false, true)) {
-            cleanup();
+            cleanup(null);
         }
     }
 
@@ -153,14 +158,20 @@ public abstract class AsyncSnapshotCallable<T> implements Callable<T> {
      */
     protected abstract void cleanupProvidedResources();
 
+    protected abstract void cleanupCompletedResource(T completedResource);
+
     /**
      * This method is invoked after completion of the snapshot and can be overridden to output a
      * logging about the duration of the async part.
      */
     protected void logAsyncSnapshotComplete(long startTime) {}
 
-    private void cleanup() {
+    private void cleanup(@Nullable T completedResource) {
         cleanupProvidedResources();
+
+        if (canceled && completedResource != null) {
+            cleanupCompletedResource(completedResource);
+        }
     }
 
     private void closeSnapshotIO() {

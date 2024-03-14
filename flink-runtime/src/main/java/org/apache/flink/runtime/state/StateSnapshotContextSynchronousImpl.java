@@ -236,5 +236,14 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
                 throw new IllegalStateException("Unable to cleanup a stream.", e);
             }
         }
+
+        @Override
+        protected void cleanupCompletedResource(SnapshotResult<T> completedResource) {
+            try {
+                completedResource.discardState();
+            } catch (Exception e) {
+                throw new IllegalStateException("Unable to cleanup the completed resource.", e);
+            }
+        }
     }
 }
