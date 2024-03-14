@@ -26,6 +26,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.failure.FailureEnricherUtils;
+import org.apache.flink.runtime.scheduler.adaptive.JobFailureMetricReporter;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
@@ -70,8 +71,8 @@ public class ExecutionFailureHandler {
     private final Collection<FailureEnricher> failureEnrichers;
     private final ComponentMainThreadExecutor mainThreadExecutor;
     private final MetricGroup metricGroup;
-
     private final boolean reportEventsAsSpans;
+    private final JobFailureMetricReporter jobFailureMetricReporter;
 
     /**
      * Creates the handler to deal with task failures.
@@ -105,6 +106,7 @@ public class ExecutionFailureHandler {
         this.globalFailureCtx = globalFailureCtx;
         this.metricGroup = metricGroup;
         this.reportEventsAsSpans = jobMasterConfig.get(TraceOptions.REPORT_EVENTS_AS_SPANS);
+        this.jobFailureMetricReporter = new JobFailureMetricReporter(metricGroup);
     }
 
     /**
@@ -171,7 +173,9 @@ public class ExecutionFailureHandler {
             failureHandlingResult
                     .getFailureLabels()
                     .thenAcceptAsync(
-                            labels -> reportFailureHandling(failureHandlingResult, labels),
+                            labels ->
+                                    jobFailureMetricReporter.reportJobFailure(
+                                            failureHandlingResult, labels),
                             mainThreadExecutor);
         }
 

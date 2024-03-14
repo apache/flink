@@ -41,7 +41,9 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -381,7 +383,9 @@ class StopWithSavepointTest {
 
             ctx.setHowToHandleFailure(failure -> FailureResult.canRestart(failure, Duration.ZERO));
 
-            sws.onFailure(new Exception("task failure"));
+            sws.onFailure(
+                    new Exception("task failure"),
+                    CompletableFuture.completedFuture(Collections.emptyMap()));
             // this is a sanity check that we haven't scheduled a state transition
             ctx.triggerExecutors();
 
@@ -404,7 +408,9 @@ class StopWithSavepointTest {
 
             ctx.setHowToHandleFailure(failure -> FailureResult.canRestart(failure, Duration.ZERO));
 
-            sws.onFailure(new Exception("task failure"));
+            sws.onFailure(
+                    new Exception("task failure"),
+                    CompletableFuture.completedFuture(Collections.emptyMap()));
             // this is a sanity check that we haven't scheduled a state transition
             ctx.triggerExecutors();
 
@@ -538,7 +544,8 @@ class StopWithSavepointTest {
         }
 
         @Override
-        public FailureResult howToHandleFailure(Throwable failure) {
+        public FailureResult howToHandleFailure(
+                Throwable failure, CompletableFuture<Map<String, String>> failureLabels) {
             return howToHandleFailure.apply(failure);
         }
 
