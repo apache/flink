@@ -29,7 +29,6 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SetupableStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
-import org.apache.flink.streaming.runtime.operators.StreamOperatorChainingTest;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 
@@ -48,7 +47,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * This class test the {@link OperatorChain}.
  *
  * <p>It takes a different (simpler) approach at testing the operator chain than {@link
- * StreamOperatorChainingTest}.
+ * org.apache.flink.streaming.runtime.operators.StreamOperatorChainingTest}.
  */
 class OperatorChainTest {
 

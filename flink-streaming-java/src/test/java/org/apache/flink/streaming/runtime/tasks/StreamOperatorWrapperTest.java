@@ -142,9 +142,9 @@ class StreamOperatorWrapperTest {
                     prefix + ": Mail to put in mailbox when finishing operator");
         }
 
-        assertThat(output.toArray())
+        assertThat(output)
                 .as("Output was not correct.")
-                .isEqualTo(expected.subList(2, expected.size()).toArray());
+                .containsExactlyElementsOf(expected.subList(2, expected.size()));
     }
 
     @Test

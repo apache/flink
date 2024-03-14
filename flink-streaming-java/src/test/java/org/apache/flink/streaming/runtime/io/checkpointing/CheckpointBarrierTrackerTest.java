@@ -563,9 +563,7 @@ class CheckpointBarrierTrackerTest {
         long startDelay = System.currentTimeMillis() - checkpointBarrierCreation;
 
         assertThat(inputGate.getCheckpointStartDelayNanos() / 1_000_000)
-                .isGreaterThanOrEqualTo(sleepTime);
-        assertThat(inputGate.getCheckpointStartDelayNanos() / 1_000_000)
-                .isLessThanOrEqualTo(startDelay);
+                .isBetween(sleepTime, startDelay);
 
         assertThat(handler.getLastAlignmentDurationNanos()).isCompletedWithValue(0L);
         assertThat(handler.getLastBytesProcessedDuringAlignment()).isCompletedWithValue(0L);
@@ -595,9 +593,9 @@ class CheckpointBarrierTrackerTest {
         }
 
         // Only checkpoints 4 is triggered and the previous checkpoints are ignored.
-        assertThat(validator.triggeredCheckpoints).contains(4L);
+        assertThat(validator.triggeredCheckpoints).containsExactly(4L);
         assertThat(validator.getAbortedCheckpointCounter()).isZero();
-        assertThat(checkpointBarrierTracker.getPendingCheckpointIds()).contains(5L);
+        assertThat(checkpointBarrierTracker.getPendingCheckpointIds()).containsExactly(5L);
         assertThat(checkpointBarrierTracker.getNumOpenChannels()).isEqualTo(2);
     }
 
@@ -623,7 +621,7 @@ class CheckpointBarrierTrackerTest {
 
         // The last barrier aligned the pending checkpoint 2.
         assertThat(inputGate.pollNext()).hasValue(sequence[3]);
-        assertThat(validator.triggeredCheckpoints).contains(2L);
+        assertThat(validator.triggeredCheckpoints).containsExactly(2L);
     }
 
     @Test
@@ -644,7 +642,7 @@ class CheckpointBarrierTrackerTest {
             assertThat(inputGate.pollNext()).hasValue(boe);
         }
 
-        assertThat(validator.triggeredCheckpoints).contains(6L, 7L);
+        assertThat(validator.triggeredCheckpoints).containsExactly(6L, 7L);
         assertThat(validator.getAbortedCheckpointCounter()).isZero();
     }
 
@@ -688,7 +686,7 @@ class CheckpointBarrierTrackerTest {
         assertThat(validator.getAbortedCheckpointCounter()).isOne();
         assertThat(validator.getLastCanceledCheckpointId()).isEqualTo(4L);
         assertThat(validator.getTriggeredCheckpointCounter()).isZero();
-        assertThat(checkpointBarrierTracker.getPendingCheckpointIds()).contains(5L);
+        assertThat(checkpointBarrierTracker.getPendingCheckpointIds()).containsExactly(5L);
         assertThat(checkpointBarrierTracker.getNumOpenChannels()).isEqualTo(2L);
     }
 
@@ -710,7 +708,7 @@ class CheckpointBarrierTrackerTest {
             assertThat(inputGate.pollNext()).hasValue(boe);
         }
 
-        assertThat(validator.abortedCheckpoints).contains(5L, 6L, 7L);
+        assertThat(validator.abortedCheckpoints).containsExactly(5L, 6L, 7L);
         assertThat(validator.getTriggeredCheckpointCounter()).isZero();
     }
 

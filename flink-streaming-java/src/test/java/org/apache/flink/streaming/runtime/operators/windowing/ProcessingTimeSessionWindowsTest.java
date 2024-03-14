@@ -60,15 +60,15 @@ class ProcessingTimeSessionWindowsTest {
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(0L);
         assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
-                .contains(new TimeWindow(0, 5000));
+                .containsExactly(new TimeWindow(0, 5000));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(4999L);
         assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
-                .contains(new TimeWindow(4999, 9999));
+                .containsExactly(new TimeWindow(4999, 9999));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(5000L);
         assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
-                .contains(new TimeWindow(5000, 10000));
+                .containsExactly(new TimeWindow(5000, 10000));
     }
 
     @Test
@@ -182,15 +182,15 @@ class ProcessingTimeSessionWindowsTest {
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(0L);
         assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
-                .contains(new TimeWindow(0, 5000));
+                .containsExactly(new TimeWindow(0, 5000));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(4999L);
         assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
-                .contains(new TimeWindow(4999, 9999));
+                .containsExactly(new TimeWindow(4999, 9999));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(5000L);
         assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
-                .contains(new TimeWindow(5000, 10000));
+                .containsExactly(new TimeWindow(5000, 10000));
     }
 
     @Test

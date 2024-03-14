@@ -827,7 +827,7 @@ class StreamTaskFinalCheckpointsTest {
             harness.finishProcessing();
 
             assertThat(harness.getOutput())
-                    .contains(
+                    .containsExactly(
                             new CheckpointBarrier(
                                     checkpointMetaData.getCheckpointId(),
                                     checkpointMetaData.getTimestamp(),

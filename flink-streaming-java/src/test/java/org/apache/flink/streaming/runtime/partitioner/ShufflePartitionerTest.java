@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ShufflePartitionerTest extends StreamPartitionerTest {
 
     @Override
-    protected StreamPartitioner<Tuple> createPartitioner() {
+    StreamPartitioner<Tuple> createPartitioner() {
         StreamPartitioner<Tuple> partitioner = new ShufflePartitioner<>();
         assertThat(partitioner.isBroadcast()).isFalse();
         return partitioner;

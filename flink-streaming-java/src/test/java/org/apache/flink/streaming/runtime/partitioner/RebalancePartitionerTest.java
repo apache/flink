@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RebalancePartitionerTest extends StreamPartitionerTest {
 
     @Override
-    protected StreamPartitioner<Tuple> createPartitioner() {
+    StreamPartitioner<Tuple> createPartitioner() {
         StreamPartitioner<Tuple> partitioner = new RebalancePartitioner<>();
         assertThat(partitioner.isBroadcast()).isFalse();
         return partitioner;

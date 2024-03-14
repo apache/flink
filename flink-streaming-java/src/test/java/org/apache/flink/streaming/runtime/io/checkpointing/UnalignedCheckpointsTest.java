@@ -335,9 +335,7 @@ class UnalignedCheckpointsTest {
 
         assertThat(handler.getLastAlignmentDurationNanos()).isDone();
         assertThat(handler.getLastAlignmentDurationNanos().get() / 1_000_000)
-                .isGreaterThanOrEqualTo(sleepTime);
-        assertThat(handler.getLastAlignmentDurationNanos().get())
-                .isLessThanOrEqualTo(alignmentDuration);
+                .isBetween(sleepTime, alignmentDuration);
 
         assertThat(handler.getLastBytesProcessedDuringAlignment())
                 .isCompletedWithValue(6L * bufferSize);
@@ -840,7 +838,7 @@ class UnalignedCheckpointsTest {
                         /* 6 */ createEndOfPartition(1));
 
         assertOutput(sequence);
-        assertThat(validator.triggeredCheckpoints).contains(1L);
+        assertThat(validator.triggeredCheckpoints).containsExactly(1L);
         assertThat(validator.getAbortedCheckpointCounter()).isZero();
         assertInflightData(sequence[1]);
     }
@@ -861,7 +859,7 @@ class UnalignedCheckpointsTest {
                         /* 5 */ createBarrier(3, 2));
         assertOutput(sequence1);
         assertInflightData(sequence1[3]);
-        assertThat(validator.triggeredCheckpoints).contains(3L);
+        assertThat(validator.triggeredCheckpoints).containsExactly(3L);
         assertThat(validator.getAbortedCheckpointCounter()).isZero();
 
         BufferOrEvent[] sequence2 =
@@ -872,7 +870,7 @@ class UnalignedCheckpointsTest {
                         /* 2 */ createEndOfPartition(2));
         assertOutput(sequence2);
         assertInflightData();
-        assertThat(validator.triggeredCheckpoints).contains(3L, 4L);
+        assertThat(validator.triggeredCheckpoints).containsExactly(3L, 4L);
         assertThat(validator.getAbortedCheckpointCounter()).isZero();
     }
 

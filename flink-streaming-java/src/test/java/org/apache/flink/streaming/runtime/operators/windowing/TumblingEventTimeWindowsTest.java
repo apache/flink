@@ -44,11 +44,11 @@ class TumblingEventTimeWindowsTest {
         TumblingEventTimeWindows assigner = TumblingEventTimeWindows.of(Time.milliseconds(5000));
 
         assertThat(assigner.assignWindows("String", 0L, mockContext))
-                .contains(new TimeWindow(0, 5000));
+                .containsExactly(new TimeWindow(0, 5000));
         assertThat(assigner.assignWindows("String", 4999L, mockContext))
-                .contains(new TimeWindow(0, 5000));
+                .containsExactly(new TimeWindow(0, 5000));
         assertThat(assigner.assignWindows("String", 5000L, mockContext))
-                .contains(new TimeWindow(5000, 10000));
+                .containsExactly(new TimeWindow(5000, 10000));
     }
 
     @Test
@@ -62,11 +62,11 @@ class TumblingEventTimeWindowsTest {
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(150L);
         assertThat(assigner.assignWindows("String", 150L, mockContext))
-                .contains(new TimeWindow(150, 5150));
+                .containsExactly(new TimeWindow(150, 5150));
         assertThat(assigner.assignWindows("String", 5099L, mockContext))
-                .contains(new TimeWindow(150, 5150));
+                .containsExactly(new TimeWindow(150, 5150));
         assertThat(assigner.assignWindows("String", 5300L, mockContext))
-                .contains(new TimeWindow(5150, 10150));
+                .containsExactly(new TimeWindow(5150, 10150));
     }
 
     @Test
@@ -78,11 +78,11 @@ class TumblingEventTimeWindowsTest {
                 TumblingEventTimeWindows.of(Time.milliseconds(5000), Time.milliseconds(100));
 
         assertThat(assigner.assignWindows("String", 100L, mockContext))
-                .contains(new TimeWindow(100, 5100));
+                .containsExactly(new TimeWindow(100, 5100));
         assertThat(assigner.assignWindows("String", 5099L, mockContext))
-                .contains(new TimeWindow(100, 5100));
+                .containsExactly(new TimeWindow(100, 5100));
         assertThat(assigner.assignWindows("String", 5100L, mockContext))
-                .contains(new TimeWindow(5100, 10100));
+                .containsExactly(new TimeWindow(5100, 10100));
     }
 
     @Test
@@ -94,11 +94,11 @@ class TumblingEventTimeWindowsTest {
                 TumblingEventTimeWindows.of(Time.milliseconds(5000), Time.milliseconds(-100));
 
         assertThat(assigner.assignWindows("String", 0L, mockContext))
-                .contains(new TimeWindow(-100, 4900));
+                .containsExactly(new TimeWindow(-100, 4900));
         assertThat(assigner.assignWindows("String", 4899L, mockContext))
-                .contains(new TimeWindow(-100, 4900));
+                .containsExactly(new TimeWindow(-100, 4900));
         assertThat(assigner.assignWindows("String", 4900L, mockContext))
-                .contains(new TimeWindow(4900, 9900));
+                .containsExactly(new TimeWindow(4900, 9900));
     }
 
     @Test
@@ -112,11 +112,11 @@ class TumblingEventTimeWindowsTest {
                 TumblingEventTimeWindows.of(Time.seconds(5), Time.seconds(1));
 
         assertThat(assigner.assignWindows("String", 1000L, mockContext))
-                .contains(new TimeWindow(1000, 6000));
+                .containsExactly(new TimeWindow(1000, 6000));
         assertThat(assigner.assignWindows("String", 5999L, mockContext))
-                .contains(new TimeWindow(1000, 6000));
+                .containsExactly(new TimeWindow(1000, 6000));
         assertThat(assigner.assignWindows("String", 6000L, mockContext))
-                .contains(new TimeWindow(6000, 11000));
+                .containsExactly(new TimeWindow(6000, 11000));
     }
 
     @Test

@@ -38,11 +38,12 @@ class GlobalWindowsTest {
 
         GlobalWindows assigner = GlobalWindows.create();
 
-        assertThat(assigner.assignWindows("String", 0L, mockContext)).contains(GlobalWindow.get());
+        assertThat(assigner.assignWindows("String", 0L, mockContext))
+                .containsExactly(GlobalWindow.get());
         assertThat(assigner.assignWindows("String", 4999L, mockContext))
-                .contains(GlobalWindow.get());
+                .containsExactly(GlobalWindow.get());
         assertThat(assigner.assignWindows("String", 5000L, mockContext))
-                .contains(GlobalWindow.get());
+                .containsExactly(GlobalWindow.get());
     }
 
     @Test

@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class BroadcastPartitionerTest extends StreamPartitionerTest {
 
     @Override
-    protected StreamPartitioner<Tuple> createPartitioner() {
+    StreamPartitioner<Tuple> createPartitioner() {
         StreamPartitioner<Tuple> partitioner = new BroadcastPartitioner<>();
         assertThat(partitioner.isBroadcast()).isTrue();
         return partitioner;

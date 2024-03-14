@@ -175,7 +175,7 @@ class MultipleInputStreamTaskTest {
             testHarness.endInput();
             testHarness.waitForTaskCompletion();
 
-            assertThat(testHarness.getOutput()).containsExactlyInAnyOrder(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyInAnyOrderElementsOf(expectedOutput);
         }
     }
 
@@ -245,7 +245,7 @@ class MultipleInputStreamTaskTest {
             expectedOutput.add(new StreamRecord<>("11", initialTime));
             expectedOutput.add(new StreamRecord<>("1.0", initialTime));
 
-            assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
 
             testHarness.processEvent(
                     new CheckpointBarrier(
@@ -278,7 +278,7 @@ class MultipleInputStreamTaskTest {
                     new CheckpointBarrier(
                             0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()));
 
-            assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
         }
     }
 
@@ -320,7 +320,7 @@ class MultipleInputStreamTaskTest {
 
             // we should not yet see the barrier, only the two elements from non-blocked input
 
-            assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
 
             // Now give a later barrier to all inputs, this should unblock the first channel
             testHarness.processEvent(
@@ -359,7 +359,7 @@ class MultipleInputStreamTaskTest {
                     new CheckpointBarrier(
                             1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()));
 
-            assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
 
             // Then give the earlier barrier, these should be ignored
             testHarness.processEvent(
@@ -389,7 +389,7 @@ class MultipleInputStreamTaskTest {
                     1);
 
             testHarness.waitForTaskCompletion();
-            assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
         }
     }
 
@@ -588,7 +588,7 @@ class MultipleInputStreamTaskTest {
             expectedOutput.add(new StreamRecord<>("2"));
             expectedOutput.add(new StreamRecord<>("3"));
 
-            assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
         }
     }
 
@@ -609,13 +609,13 @@ class MultipleInputStreamTaskTest {
 
             testHarness.processElement(new Watermark(initialTime), 1, 0);
 
-            assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
 
             testHarness.processElement(new Watermark(initialTime), 1, 1);
 
             // now the watermark should have propagated, Map simply forward Watermarks
             expectedOutput.add(new Watermark(initialTime));
-            assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
 
             // contrary to checkpoint barriers these elements are not blocked by watermarks
             testHarness.processElement(new StreamRecord<>("Hello", initialTime), 0, 0);
@@ -623,7 +623,7 @@ class MultipleInputStreamTaskTest {
             expectedOutput.add(new StreamRecord<>("Hello", initialTime));
             expectedOutput.add(new StreamRecord<>("42.0", initialTime));
 
-            assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
 
             testHarness.processElement(new Watermark(initialTime + 4), 0, 0);
             testHarness.processElement(new Watermark(initialTime + 3), 0, 1);
@@ -638,13 +638,13 @@ class MultipleInputStreamTaskTest {
             // check whether we get the minimum of all the watermarks, this must also only occur in
             // the output after the two StreamRecords
             expectedOutput.add(new Watermark(initialTime + 2));
-            assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
 
             // advance watermark from one of the inputs, now we should get a new one since the
             // minimum increases
             testHarness.processElement(new Watermark(initialTime + 4), 1, 1);
             expectedOutput.add(new Watermark(initialTime + 3));
-            assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
 
             // advance the other inputs, now we should get a new one since the minimum increases
             // again
@@ -656,7 +656,7 @@ class MultipleInputStreamTaskTest {
 
             testHarness.processElement(new Watermark(initialTime + 4), 1, 0);
             expectedOutput.add(new Watermark(initialTime + 4));
-            assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
 
             List<String> resultElements =
                     TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
@@ -684,17 +684,17 @@ class MultipleInputStreamTaskTest {
             testHarness.processElement(new Watermark(initialTime + 5), 1, 1);
             testHarness.processElement(WatermarkStatus.IDLE, 1, 0); // once this is acknowledged,
             expectedOutput.add(new Watermark(initialTime + 5));
-            assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
 
             // We make the second input idle, which should forward W=6 from the first input
             testHarness.processElement(WatermarkStatus.IDLE, 1, 1);
             expectedOutput.add(new Watermark(initialTime + 6));
-            assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
 
             // Make the first input idle
             testHarness.processElement(WatermarkStatus.IDLE, 0, 0);
             expectedOutput.add(WatermarkStatus.IDLE);
-            assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
 
             // make source active once again, emit a watermark and go idle again.
             addSourceRecords(testHarness, 1, initialTime + 10);
@@ -705,12 +705,12 @@ class MultipleInputStreamTaskTest {
             expectedOutput.add(new Watermark(initialTime + 10)); // forward W from source
             expectedOutput.add(WatermarkStatus.IDLE); // go idle after reading all records
             testHarness.processAll();
-            assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
 
             // make some network input channel active again
             testHarness.processElement(WatermarkStatus.ACTIVE, 0, 1);
             expectedOutput.add(WatermarkStatus.ACTIVE);
-            assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
         }
     }
 
@@ -728,7 +728,7 @@ class MultipleInputStreamTaskTest {
             assertThat(testHarness.getOutput()).doesNotContain(Watermark.MAX_WATERMARK);
 
             testHarness.processElement(Watermark.MAX_WATERMARK, 1, 1);
-            assertThat(testHarness.getOutput()).contains(Watermark.MAX_WATERMARK);
+            assertThat(testHarness.getOutput()).containsExactly(Watermark.MAX_WATERMARK);
         }
     }
 
@@ -958,7 +958,7 @@ class MultipleInputStreamTaskTest {
             testHarness.processElement(latencyMarker);
             expectedOutput.add(latencyMarker);
 
-            assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
 
             testHarness.endInput();
             testHarness.waitForTaskCompletion();
@@ -1104,7 +1104,7 @@ class MultipleInputStreamTaskTest {
             testHarness.processElement(Watermark.MAX_WATERMARK, 2);
             testHarness.waitForTaskCompletion();
             assertThat(testHarness.getOutput())
-                    .contains(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN));
+                    .containsExactly(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN));
         }
     }
 

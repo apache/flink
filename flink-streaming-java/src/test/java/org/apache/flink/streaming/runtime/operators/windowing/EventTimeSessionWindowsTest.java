@@ -60,11 +60,11 @@ class EventTimeSessionWindowsTest {
                 EventTimeSessionWindows.withGap(Time.milliseconds(sessionGap));
 
         assertThat(assigner.assignWindows("String", 0L, mockContext))
-                .contains(new TimeWindow(0, 0 + sessionGap));
+                .containsExactly(new TimeWindow(0, 0 + sessionGap));
         assertThat(assigner.assignWindows("String", 4999L, mockContext))
-                .contains(new TimeWindow(4999, 4999 + sessionGap));
+                .containsExactly(new TimeWindow(4999, 4999 + sessionGap));
         assertThat(assigner.assignWindows("String", 5000L, mockContext))
-                .contains(new TimeWindow(5000, 5000 + sessionGap));
+                .containsExactly(new TimeWindow(5000, 5000 + sessionGap));
     }
 
     @Test
@@ -175,11 +175,11 @@ class EventTimeSessionWindowsTest {
                 EventTimeSessionWindows.withGap(Time.seconds(sessionGap / 1000));
 
         assertThat(assigner.assignWindows("String", 0L, mockContext))
-                .contains(new TimeWindow(0, 0 + sessionGap));
+                .containsExactly(new TimeWindow(0, 0 + sessionGap));
         assertThat(assigner.assignWindows("String", 4999L, mockContext))
-                .contains(new TimeWindow(4999, 4999 + sessionGap));
+                .containsExactly(new TimeWindow(4999, 4999 + sessionGap));
         assertThat(assigner.assignWindows("String", 5000L, mockContext))
-                .contains(new TimeWindow(5000, 5000 + sessionGap));
+                .containsExactly(new TimeWindow(5000, 5000 + sessionGap));
     }
 
     @Test

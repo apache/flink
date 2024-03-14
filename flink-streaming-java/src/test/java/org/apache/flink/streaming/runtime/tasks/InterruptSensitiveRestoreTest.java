@@ -167,7 +167,7 @@ class InterruptSensitiveRestoreTest {
 
         assertThat(task.getExecutionState())
                 .as("Task is stuck and not canceling")
-                .isEqualTo(ExecutionState.CANCELED);
+                .isNotEqualTo(ExecutionState.CANCELING);
 
         assertThat(task.getExecutionState()).isEqualTo(ExecutionState.CANCELED);
         assertThat(task.getFailureCause()).isNull();

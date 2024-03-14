@@ -55,7 +55,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for stream operator chaining behaviour. */
 @SuppressWarnings("serial")
-public class StreamOperatorChainingTest {
+class StreamOperatorChainingTest {
 
     // We have to use static fields because the sink functions will go through serialization
     private static List<String> sink1Results;
@@ -141,8 +141,8 @@ public class StreamOperatorChainingTest {
             headOperator.processElement(new StreamRecord<>(2));
             headOperator.processElement(new StreamRecord<>(3));
 
-            assertThat(sink1Results).contains("First: 1", "First: 2", "First: 3");
-            assertThat(sink2Results).contains("Second: 1", "Second: 2", "Second: 3");
+            assertThat(sink1Results).containsExactly("First: 1", "First: 2", "First: 3");
+            assertThat(sink2Results).containsExactly("Second: 1", "Second: 2", "Second: 3");
         }
     }
 
@@ -267,9 +267,9 @@ public class StreamOperatorChainingTest {
             headOperator.processElement(new StreamRecord<>(2));
             headOperator.processElement(new StreamRecord<>(3));
 
-            assertThat(sink1Results).contains("First 1: 1");
-            assertThat(sink2Results).contains("First 2: 1");
-            assertThat(sink3Results).contains("Second: 2", "Second: 3");
+            assertThat(sink1Results).containsExactly("First 1: 1");
+            assertThat(sink2Results).containsExactly("First 2: 1");
+            assertThat(sink3Results).containsExactly("Second: 2", "Second: 3");
         }
     }
 

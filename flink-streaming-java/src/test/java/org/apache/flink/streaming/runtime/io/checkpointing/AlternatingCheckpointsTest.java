@@ -233,7 +233,7 @@ class AlternatingCheckpointsTest {
 
             assertThat(target.getTriggeredCheckpointCounter()).isEqualTo(2);
             assertThat(target.getTriggeredCheckpointOptions())
-                    .contains(
+                    .containsExactly(
                             unaligned(CheckpointType.CHECKPOINT, getDefault()),
                             alignedWithTimeout(
                                     CheckpointType.CHECKPOINT,
@@ -320,7 +320,7 @@ class AlternatingCheckpointsTest {
         assertBarrier(gate);
         assertThat(target.getTriggeredCheckpointCounter()).isOne();
         assertThat(target.getTriggeredCheckpointOptions())
-                .contains(unaligned(CheckpointType.CHECKPOINT, getDefault()));
+                .containsExactly(unaligned(CheckpointType.CHECKPOINT, getDefault()));
         // Followed by overtaken buffers
         assertData(gate);
         assertData(gate);
@@ -476,7 +476,7 @@ class AlternatingCheckpointsTest {
             assertBarrier(gate);
             assertThat(target.getTriggeredCheckpointCounter()).isOne();
             assertThat(target.getTriggeredCheckpointOptions())
-                    .contains(unaligned(CheckpointType.CHECKPOINT, getDefault()));
+                    .containsExactly(unaligned(CheckpointType.CHECKPOINT, getDefault()));
             // Followed by overtaken buffers
             assertData(gate);
             assertData(gate);
@@ -586,7 +586,7 @@ class AlternatingCheckpointsTest {
 
         clock.advanceTime(alignedCheckpointTimeout + 1, TimeUnit.MILLISECONDS);
         assertThat(target.getTriggeredCheckpointOptions())
-                .contains(unaligned(CheckpointType.CHECKPOINT, getDefault()));
+                .containsExactly(unaligned(CheckpointType.CHECKPOINT, getDefault()));
     }
 
     @Test
@@ -623,7 +623,7 @@ class AlternatingCheckpointsTest {
 
         assertThat(target.getTriggeredCheckpointOptions()).hasSize(1);
         assertThat(target.getTriggeredCheckpointOptions())
-                .contains(unaligned(CheckpointType.CHECKPOINT, getDefault()));
+                .containsExactly(unaligned(CheckpointType.CHECKPOINT, getDefault()));
         assertThat(((TestInputChannel) gate.getChannel(0)).isBlocked()).isFalse();
         assertThat(((TestInputChannel) gate.getChannel(1)).isBlocked()).isFalse();
     }
@@ -733,7 +733,7 @@ class AlternatingCheckpointsTest {
             assertBarrier(gate);
             assertThat(target.getTriggeredCheckpointCounter()).isOne();
             assertThat(target.getTriggeredCheckpointOptions())
-                    .contains(unaligned(CheckpointType.CHECKPOINT, getDefault()));
+                    .containsExactly(unaligned(CheckpointType.CHECKPOINT, getDefault()));
             // Followed by overtaken buffers
             assertData(gate);
             assertData(gate);
@@ -773,7 +773,7 @@ class AlternatingCheckpointsTest {
             assertBarrier(gate);
             assertThat(target.getTriggeredCheckpointCounter()).isOne();
             assertThat(target.getTriggeredCheckpointOptions())
-                    .contains(unaligned(CheckpointType.CHECKPOINT, getDefault()));
+                    .containsExactly(unaligned(CheckpointType.CHECKPOINT, getDefault()));
             // Followed by overtaken buffers
             assertData(gate);
             assertData(gate);
@@ -817,7 +817,7 @@ class AlternatingCheckpointsTest {
             assertBarrier(gate);
             assertThat(target.getTriggeredCheckpointCounter()).isOne();
             assertThat(target.getTriggeredCheckpointOptions())
-                    .contains(unaligned(CheckpointType.CHECKPOINT, getDefault()));
+                    .containsExactly(unaligned(CheckpointType.CHECKPOINT, getDefault()));
             // Followed by overtaken buffers
             assertData(gate);
             assertData(gate);
@@ -860,7 +860,7 @@ class AlternatingCheckpointsTest {
 
             assertThat(target.getTriggeredCheckpointCounter()).isOne();
             assertThat(target.getTriggeredCheckpointOptions())
-                    .contains(unaligned(CheckpointType.CHECKPOINT, getDefault()));
+                    .containsExactly(unaligned(CheckpointType.CHECKPOINT, getDefault()));
             // Followed by overtaken buffers
             assertData(gate);
         }
@@ -954,7 +954,7 @@ class AlternatingCheckpointsTest {
 
             assertThat(target.getTriggeredCheckpointCounter()).isOne();
             assertThat(target.getTriggeredCheckpointOptions())
-                    .contains(unaligned(CheckpointType.CHECKPOINT, getDefault()));
+                    .containsExactly(unaligned(CheckpointType.CHECKPOINT, getDefault()));
         }
     }
 
@@ -1017,7 +1017,7 @@ class AlternatingCheckpointsTest {
             assertAnnouncement(gate);
             assertBarrier(gate);
 
-            assertThat(target.triggeredCheckpoints).contains(1L);
+            assertThat(target.triggeredCheckpoints).containsExactly(1L);
         }
     }
 

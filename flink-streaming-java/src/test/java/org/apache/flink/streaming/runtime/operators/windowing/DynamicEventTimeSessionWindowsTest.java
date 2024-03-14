@@ -63,11 +63,11 @@ class DynamicEventTimeSessionWindowsTest {
                 DynamicEventTimeSessionWindows.withDynamicGap(extractor);
 
         assertThat(assigner.assignWindows("gap5000", 0L, mockContext))
-                .contains(new TimeWindow(0, 5000));
+                .containsExactly(new TimeWindow(0, 5000));
         assertThat(assigner.assignWindows("gap4000", 4999L, mockContext))
-                .contains(new TimeWindow(4999, 8999));
+                .containsExactly(new TimeWindow(4999, 8999));
         assertThat(assigner.assignWindows("gap9000", 5000L, mockContext))
-                .contains(new TimeWindow(5000, 14000));
+                .containsExactly(new TimeWindow(5000, 14000));
     }
 
     @Test

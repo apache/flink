@@ -127,7 +127,7 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
 
             assertThat(actualOutput.subList(0, expectedOutput.size()))
-                    .containsExactlyInAnyOrder(expectedOutput.toArray());
+                    .containsExactlyInAnyOrderElementsOf(expectedOutput);
             assertThat(actualOutput.get(expectedOutput.size())).isEqualTo(barrier);
         }
     }
@@ -151,7 +151,7 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                             .triggerCheckpointAsync(metaData, barrier.getCheckpointOptions());
             processSingleStepUntil(testHarness, checkpointFuture::isDone);
 
-            assertThat(testHarness.getOutput()).contains(barrier);
+            assertThat(testHarness.getOutput()).containsExactly(barrier);
 
             testHarness.processAll();
 
@@ -162,7 +162,7 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
 
             ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
             assertThat(actualOutput.subList(1, expectedOutput.size() + 1))
-                    .containsExactlyInAnyOrder(expectedOutput.toArray());
+                    .containsExactlyInAnyOrderElementsOf(expectedOutput);
         }
     }
 
@@ -198,7 +198,7 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
 
             assertThat(actualOutput.subList(0, expectedOutput.size()))
-                    .containsExactlyInAnyOrder(expectedOutput.toArray());
+                    .containsExactlyInAnyOrderElementsOf(expectedOutput);
             assertThat(actualOutput.get(expectedOutput.size())).isEqualTo(barrier);
         }
     }
@@ -231,7 +231,7 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
             expectedOutput.add(barrier);
 
-            assertThat(testHarness.getOutput()).containsExactlyInAnyOrder(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyInAnyOrderElementsOf(expectedOutput);
         }
     }
 
@@ -300,9 +300,10 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
 
             ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
             assertThat(actualOutput.subList(0, expectedOutput.size()))
-                    .containsExactlyInAnyOrder(expectedOutput.toArray());
+                    .containsExactlyInAnyOrderElementsOf(expectedOutput);
             assertThat(actualOutput.subList(actualOutput.size() - 3, actualOutput.size()))
-                    .contains(new StreamRecord<>("FINISH"), new EndOfData(StopMode.DRAIN), barrier);
+                    .containsExactly(
+                            new StreamRecord<>("FINISH"), new EndOfData(StopMode.DRAIN), barrier);
         }
     }
 
@@ -337,7 +338,7 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
 
             ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
             assertThat(actualOutput.subList(0, expectedOutput.size()))
-                    .containsExactlyInAnyOrder(expectedOutput.toArray());
+                    .containsExactlyInAnyOrderElementsOf(expectedOutput);
             assertThat(actualOutput.get(expectedOutput.size())).isEqualTo(barrier);
         }
     }
@@ -512,7 +513,8 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             testHarness.processElement(Watermark.MAX_WATERMARK);
             assertThat(output).isEmpty();
             testHarness.waitForTaskCompletion();
-            assertThat(output).contains(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN));
+            assertThat(output)
+                    .containsExactly(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN));
 
             for (StreamOperatorWrapper<?, ?> wrapper :
                     testHarness.getStreamTask().operatorChain.getAllOperators()) {

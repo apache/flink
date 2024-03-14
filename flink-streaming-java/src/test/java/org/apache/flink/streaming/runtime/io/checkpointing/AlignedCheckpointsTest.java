@@ -496,9 +496,7 @@ class AlignedCheckpointsTest {
         assertThat(inputGate.getCheckpointBarrierHandler().getLatestCheckpointId())
                 .isEqualTo(checkpointId);
         assertThat(inputGate.getCheckpointStartDelayNanos() / 1_000_000)
-                .isGreaterThanOrEqualTo(sleepTime);
-        assertThat(inputGate.getCheckpointStartDelayNanos() / 1_000_000)
-                .isLessThanOrEqualTo(startDelay);
+                .isBetween(sleepTime, startDelay);
 
         assertThat(handler.lastAlignmentDurationNanos).isDone();
         assertThat(handler.lastAlignmentDurationNanos.get() / 1_000_000)
@@ -1039,7 +1037,7 @@ class AlignedCheckpointsTest {
             check(bufferOrEvent, inputGate.pollNext().get(), PAGE_SIZE);
         }
 
-        assertThat(validator.triggeredCheckpoints).contains(1L);
+        assertThat(validator.triggeredCheckpoints).containsExactly(1L);
         assertThat(validator.getAbortedCheckpointCounter()).isZero();
         assertThat(inputGate.getCheckpointBarrierHandler().isCheckpointPending()).isFalse();
     }
@@ -1066,7 +1064,7 @@ class AlignedCheckpointsTest {
 
         // The last barrier aligned the pending checkpoint 2.
         assertThat(inputGate.pollNext()).hasValue(sequence[3]);
-        assertThat(validator.triggeredCheckpoints).contains(2L);
+        assertThat(validator.triggeredCheckpoints).containsExactly(2L);
         assertThat(inputGate.getCheckpointBarrierHandler().isCheckpointPending()).isFalse();
     }
 
@@ -1087,7 +1085,7 @@ class AlignedCheckpointsTest {
             check(bufferOrEvent, inputGate.pollNext().get(), PAGE_SIZE);
         }
 
-        assertThat(validator.triggeredCheckpoints).contains(6L, 7L);
+        assertThat(validator.triggeredCheckpoints).containsExactly(6L, 7L);
         assertThat(validator.getAbortedCheckpointCounter()).isZero();
         assertThat(inputGate.getCheckpointBarrierHandler().isCheckpointPending()).isFalse();
     }
@@ -1140,9 +1138,9 @@ class AlignedCheckpointsTest {
             assertThat(present.getBuffer().getSize()).isEqualTo(expected.getBuffer().getSize());
             MemorySegment expectedMem = expected.getBuffer().getMemorySegment();
             MemorySegment presentMem = present.getBuffer().getMemorySegment();
-            assertThat(expectedMem.compare(presentMem, 0, 0, pageSize) == 0)
+            assertThat(expectedMem.compare(presentMem, 0, 0, pageSize))
                     .as("memory contents differs")
-                    .isTrue();
+                    .isZero();
         } else {
             assertThat(present.getEvent()).isEqualTo(expected.getEvent());
         }

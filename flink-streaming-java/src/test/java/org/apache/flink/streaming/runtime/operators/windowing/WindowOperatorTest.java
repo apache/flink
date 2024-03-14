@@ -2016,7 +2016,7 @@ class WindowOperatorTest {
         testHarness.processWatermark(new Watermark(Long.MAX_VALUE - 1500));
 
         // this watermark is before the end timestamp of our only window
-        assertThat(window.maxTimestamp()).isBetween(Long.MAX_VALUE - 1500, Long.MAX_VALUE);
+        assertThat(window.maxTimestamp()).isStrictlyBetween(Long.MAX_VALUE - 1500, Long.MAX_VALUE);
 
         // push in a watermark that will trigger computation of our window
         testHarness.processWatermark(new Watermark(window.maxTimestamp()));

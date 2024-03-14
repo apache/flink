@@ -61,7 +61,7 @@ class RescalePartitionerTest extends StreamPartitionerTest {
             TestingUtils.defaultExecutorExtension();
 
     @Override
-    protected StreamPartitioner<Tuple> createPartitioner() {
+    StreamPartitioner<Tuple> createPartitioner() {
         StreamPartitioner<Tuple> partitioner = new RescalePartitioner<>();
         assertThat(partitioner.isBroadcast()).isFalse();
         return partitioner;

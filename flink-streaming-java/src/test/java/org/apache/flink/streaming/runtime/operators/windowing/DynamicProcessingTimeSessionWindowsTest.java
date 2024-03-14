@@ -64,15 +64,15 @@ class DynamicProcessingTimeSessionWindowsTest {
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(0L);
         assertThat(assigner.assignWindows("gap5000", Long.MIN_VALUE, mockContext))
-                .contains(new TimeWindow(0, 5000));
+                .containsExactly(new TimeWindow(0, 5000));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(4999L);
         assertThat(assigner.assignWindows("gap4000", Long.MIN_VALUE, mockContext))
-                .contains(new TimeWindow(4999, 8999));
+                .containsExactly(new TimeWindow(4999, 8999));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(5000L);
         assertThat(assigner.assignWindows("gap9000", Long.MIN_VALUE, mockContext))
-                .contains(new TimeWindow(5000, 14000));
+                .containsExactly(new TimeWindow(5000, 14000));
     }
 
     @Test

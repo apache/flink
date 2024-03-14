@@ -170,10 +170,10 @@ class StreamTaskMultipleInputSelectiveReadingTest {
             testHarness.waitForTaskCompletion();
 
             if (orderedCheck) {
-                assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+                assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
             } else {
                 assertThat(testHarness.getOutput())
-                        .containsExactlyInAnyOrder(expectedOutput.toArray());
+                        .containsExactlyInAnyOrderElementsOf(expectedOutput);
             }
         }
     }
@@ -215,7 +215,7 @@ class StreamTaskMultipleInputSelectiveReadingTest {
             expectedOutput.add(new StreamRecord<>("[2]: 1"));
             testHarness.processSingleStep();
             expectedOutput.add(new StreamRecord<>("[2]: 2"));
-            assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
 
             // InputGate 2 was not available in previous steps, so let's check if we are not
             // starving it
@@ -228,7 +228,7 @@ class StreamTaskMultipleInputSelectiveReadingTest {
             expectedOutput.add(new StreamRecord<>("[3]: 1"));
             expectedOutput.add(new StreamRecord<>("[2]: 3"));
 
-            assertThat(testHarness.getOutput()).containsExactlyInAnyOrder(expectedOutput.toArray());
+            assertThat(testHarness.getOutput()).containsExactlyInAnyOrderElementsOf(expectedOutput);
         }
     }
 

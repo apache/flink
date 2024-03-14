@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class GlobalPartitionerTest extends StreamPartitionerTest {
 
     @Override
-    protected StreamPartitioner<Tuple> createPartitioner() {
+    StreamPartitioner<Tuple> createPartitioner() {
         StreamPartitioner<Tuple> partitioner = new GlobalPartitioner<>();
         assertThat(partitioner.isBroadcast()).isFalse();
         return partitioner;

@@ -119,7 +119,7 @@ class MergingWindowSetTest {
         assertThat(mergeFunction.hasMerged()).isTrue();
         assertThat(mergeFunction.mergeTarget()).isEqualTo(new TimeWindow(0, 5));
         assertThat(mergeFunction.stateWindow()).isEqualTo(new TimeWindow(0, 4));
-        assertThat(mergeFunction.mergeSources()).contains(new TimeWindow(0, 4));
+        assertThat(mergeFunction.mergeSources()).containsExactly(new TimeWindow(0, 4));
         assertThat(mergeFunction.mergedStateWindows()).isEmpty();
 
         mergeFunction.reset();
@@ -128,7 +128,7 @@ class MergingWindowSetTest {
         assertThat(mergeFunction.hasMerged()).isTrue();
         assertThat(mergeFunction.mergeTarget()).isEqualTo(new TimeWindow(0, 6));
         assertThat(mergeFunction.stateWindow()).isEqualTo(new TimeWindow(0, 4));
-        assertThat(mergeFunction.mergeSources()).contains(new TimeWindow(0, 5));
+        assertThat(mergeFunction.mergeSources()).containsExactly(new TimeWindow(0, 5));
         assertThat(mergeFunction.mergedStateWindows()).isEmpty();
 
         assertThat(windowSet.getStateWindow(new TimeWindow(0, 6))).isEqualTo(new TimeWindow(0, 4));
@@ -175,7 +175,7 @@ class MergingWindowSetTest {
         assertThat(mergeFunction.hasMerged()).isTrue();
         assertThat(mergeFunction.mergeTarget()).isEqualTo(new TimeWindow(10, 14));
         assertThat(mergeFunction.stateWindow()).isEqualTo(new TimeWindow(11, 14));
-        assertThat(mergeFunction.mergeSources()).contains(new TimeWindow(11, 14));
+        assertThat(mergeFunction.mergeSources()).containsExactly(new TimeWindow(11, 14));
         assertThat(mergeFunction.mergedStateWindows()).isEmpty();
 
         mergeFunction.reset();
@@ -184,7 +184,7 @@ class MergingWindowSetTest {
         assertThat(mergeFunction.hasMerged()).isTrue();
         assertThat(mergeFunction.mergeTarget()).isEqualTo(new TimeWindow(10, 15));
         assertThat(mergeFunction.stateWindow()).isEqualTo(new TimeWindow(11, 14));
-        assertThat(mergeFunction.mergeSources()).contains(new TimeWindow(10, 14));
+        assertThat(mergeFunction.mergeSources()).containsExactly(new TimeWindow(10, 14));
         assertThat(mergeFunction.mergedStateWindows()).isEmpty();
 
         mergeFunction.reset();
@@ -282,7 +282,7 @@ class MergingWindowSetTest {
 
         // add a window that merges all of them together
         mergeFunction.reset();
-        assertThat(windowSet.addWindow(new TimeWindow(0, 13), mergeFunction))
+        assertThat(windowSet.addWindow(new TimeWindow(3, 5), mergeFunction))
                 .isEqualTo(new TimeWindow(0, 13));
         assertThat(mergeFunction.hasMerged()).isTrue();
         assertThat(mergeFunction.mergeTarget()).isEqualTo(new TimeWindow(0, 13));

@@ -1208,8 +1208,7 @@ class OneInputStreamTaskTest {
                     result.add(v);
                 }
 
-                assertThat(result).hasSize(2);
-                assertThat(result).contains(42, 4711);
+                assertThat(result).containsExactlyInAnyOrder(42, 4711);
             }
         }
 

@@ -99,10 +99,6 @@ class SourceOperatorLatencyMetricsTest {
         testLatencyMarkEmission(false, taskConfiguration, executionConfig);
     }
 
-    private interface OperatorSetupOperation {
-        void setupSourceOperator(SourceOperator<Integer, ?> operator) throws Exception;
-    }
-
     private void testLatencyMarkEmission(
             boolean shouldExpectLatencyMarkers,
             Configuration taskManagerConfig,
@@ -139,7 +135,7 @@ class SourceOperatorLatencyMetricsTest {
                             new LatencyMarker(
                                     markedTime, testHarness.getOperator().getOperatorID(), 0));
                 }
-                assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
+                assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
             }
         }
     }

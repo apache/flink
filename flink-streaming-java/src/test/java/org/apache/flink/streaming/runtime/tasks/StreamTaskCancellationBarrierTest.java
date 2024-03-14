@@ -184,7 +184,7 @@ class StreamTaskCancellationBarrierTest {
 
         private final CheckpointFailureReason failureReason;
 
-        public CheckpointExceptionMatcher(CheckpointFailureReason failureReason) {
+        private CheckpointExceptionMatcher(CheckpointFailureReason failureReason) {
             this.failureReason = failureReason;
         }
 

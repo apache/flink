@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ForwardPartitionerTest extends StreamPartitionerTest {
 
     @Override
-    public StreamPartitioner<Tuple> createPartitioner() {
+    StreamPartitioner<Tuple> createPartitioner() {
         StreamPartitioner<Tuple> partitioner = new ForwardPartitioner<>();
         assertThat(partitioner.isBroadcast()).isFalse();
         return partitioner;

@@ -32,24 +32,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for different {@link StreamPartitioner} implementations. */
 abstract class StreamPartitionerTest {
 
-    protected final StreamPartitioner<Tuple> streamPartitioner = createPartitioner();
-    protected final StreamRecord<Tuple> streamRecord = new StreamRecord<>(null);
-    protected final SerializationDelegate<StreamRecord<Tuple>> serializationDelegate =
+    final StreamPartitioner<Tuple> streamPartitioner = createPartitioner();
+    final StreamRecord<Tuple> streamRecord = new StreamRecord<>(null);
+    final SerializationDelegate<StreamRecord<Tuple>> serializationDelegate =
             new SerializationDelegate<>(null);
 
-    protected abstract StreamPartitioner<Tuple> createPartitioner();
+    abstract StreamPartitioner<Tuple> createPartitioner();
 
     @BeforeEach
     void setup() {
         serializationDelegate.setInstance(streamRecord);
     }
 
-    protected void assertSelectedChannel(int expectedChannel) {
+    void assertSelectedChannel(int expectedChannel) {
         int actualResult = streamPartitioner.selectChannel(serializationDelegate);
         assertThat(actualResult).isEqualTo(expectedChannel);
     }
 
-    protected void assertSelectedChannelWithSetup(int expectedChannel, int numberOfChannels) {
+    void assertSelectedChannelWithSetup(int expectedChannel, int numberOfChannels) {
         streamPartitioner.setup(numberOfChannels);
         assertSelectedChannel(expectedChannel);
     }

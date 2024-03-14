@@ -282,10 +282,10 @@ class KeyMapTest {
 
         assertThat(map1.getCurrentTableCapacity()).isLessThan(map2.getCurrentTableCapacity());
 
-        assertThat(KeyMap.CapacityDescendingComparator.INSTANCE.compare(map1, map1) == 0).isTrue();
-        assertThat(KeyMap.CapacityDescendingComparator.INSTANCE.compare(map2, map2) == 0).isTrue();
-        assertThat(KeyMap.CapacityDescendingComparator.INSTANCE.compare(map1, map2) > 0).isTrue();
-        assertThat(KeyMap.CapacityDescendingComparator.INSTANCE.compare(map2, map1) < 0).isTrue();
+        assertThat(KeyMap.CapacityDescendingComparator.INSTANCE.compare(map1, map1)).isZero();
+        assertThat(KeyMap.CapacityDescendingComparator.INSTANCE.compare(map2, map2)).isZero();
+        assertThat(KeyMap.CapacityDescendingComparator.INSTANCE.compare(map1, map2)).isPositive();
+        assertThat(KeyMap.CapacityDescendingComparator.INSTANCE.compare(map2, map1)).isNegative();
     }
 
     // ------------------------------------------------------------------------
