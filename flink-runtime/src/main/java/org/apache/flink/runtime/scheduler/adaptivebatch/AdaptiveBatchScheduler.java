@@ -630,7 +630,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
         }
         // update the JSON Plan, it's needed to enable REST APIs to return the latest parallelism of
         // job vertices
-        jobVertex.getJobVertex().setParallelism(parallelism);
+        jobVertex.getJobVertex().setDynamicParallelism(parallelism);
         try {
             getExecutionGraph().setJsonPlan(JsonPlanGenerator.generatePlan(getJobGraph()));
         } catch (Throwable t) {
@@ -711,6 +711,10 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
     @VisibleForTesting
     public static VertexParallelismStore computeVertexParallelismStoreForDynamicGraph(
             Iterable<JobVertex> vertices, int defaultMaxParallelism) {
+        // Resets the JobVertices to their original parallelism after JM failover, maintaining
+        // consistency between the job graph loaded from the file and the one in memory.
+        resetDynamicParallelism(vertices);
+
         // for dynamic graph, there is no need to normalize vertex parallelism. if the max
         // parallelism is not configured and the parallelism is a positive value, max
         // parallelism can be computed against the parallelism, otherwise it needs to use the
@@ -725,6 +729,14 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
                     }
                 },
                 Function.identity());
+    }
+
+    private static void resetDynamicParallelism(Iterable<JobVertex> vertices) {
+        for (JobVertex vertex : vertices) {
+            if (vertex.isDynamicParallelism()) {
+                vertex.setParallelism(ExecutionConfig.PARALLELISM_DEFAULT);
+            }
+        }
     }
 
     private static BlockingResultInfo createFromIntermediateResult(IntermediateResult result) {

@@ -159,6 +159,9 @@ public class JobVertex implements java.io.Serializable {
 
     private boolean parallelismConfigured = false;
 
+    /** Indicates whether the parallelism of this job vertex is decided dynamically. */
+    private boolean dynamicParallelism = false;
+
     // --------------------------------------------------------------------------------------------
 
     /**
@@ -273,6 +276,15 @@ public class JobVertex implements java.io.Serializable {
 
     public boolean isParallelismConfigured() {
         return parallelismConfigured;
+    }
+
+    public void setDynamicParallelism(int parallelism) {
+        setParallelism(parallelism);
+        this.dynamicParallelism = true;
+    }
+
+    public boolean isDynamicParallelism() {
+        return parallelism == ExecutionConfig.PARALLELISM_DEFAULT || dynamicParallelism;
     }
 
     /**
