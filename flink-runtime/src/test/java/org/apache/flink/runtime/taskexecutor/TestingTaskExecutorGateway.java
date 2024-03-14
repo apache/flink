@@ -220,7 +220,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
     }
 
     @Override
-    public CompletableFuture<Collection<PartitionWithMetrics>> getPartitionWithMetrics(
+    public CompletableFuture<Collection<PartitionWithMetrics>> getAndRetainPartitionWithMetrics(
             JobID jobId) {
         return requestPartitionWithMetricsFunction.apply(jobId);
     }
